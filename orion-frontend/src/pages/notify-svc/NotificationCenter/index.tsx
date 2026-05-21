@@ -673,8 +673,8 @@ const NotificationCenter: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BellOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BellOutlined style={{ marginRight: 12, color: '#3370E6' }} />
             通知中心
           </Title>
           <Text type="secondary">共 {notifications.length} 条通知</Text>

@@ -18,7 +18,7 @@ import {
   message,
 } from 'antd';
 import { spacing } from '@/tokens';
-import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined, DatabaseOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import {
@@ -463,7 +463,8 @@ const BuildCachePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Build Cache
           </Title>
           <Text type="secondary">Manage cache configurations and cached build artifacts</Text>

@@ -27,6 +27,7 @@ import {
   StopOutlined,
   SearchOutlined,
   FilterOutlined,
+  DesktopOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
@@ -315,8 +316,9 @@ const SessionManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            Session Management
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            会话管理
           </Title>
           <Text type="secondary">用户会话管理</Text>
         </div>

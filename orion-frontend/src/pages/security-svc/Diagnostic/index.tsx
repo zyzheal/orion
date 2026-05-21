@@ -11,6 +11,7 @@ import {
   FileTextOutlined,
   BookOutlined,
   RocketOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '@/stores/appStore';
 
@@ -61,7 +62,8 @@ const DiagnosticLayout: React.FC = () => {
       >
         {!collapsed && (
           <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
-            <Title level={LAYOUT_CONFIG.titleLevel} style={{ margin: 0, color: colors.primary[500] }}>
+            <Title level={2} style={{ marginBottom: 8, color: colors.primary[500] }}>
+              <ToolOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               Diagnostic
             </Title>
           </div>

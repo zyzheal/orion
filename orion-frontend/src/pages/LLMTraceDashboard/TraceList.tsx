@@ -15,7 +15,7 @@ import {
   Spin,
   Tooltip,
 } from 'antd';
-import { ReloadOutlined, SearchOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SearchOutlined, InfoCircleOutlined, LineChartOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTraces, type LLMTrace } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
@@ -147,7 +147,8 @@ const TraceList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <LineChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             LLM 调用记录
           </Title>
           <Text type="secondary">

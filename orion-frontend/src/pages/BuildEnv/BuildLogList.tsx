@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, message } from 'antd';
 import { spacing } from '@/tokens';
-import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined, FileTextOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -195,7 +195,8 @@ const BuildLogList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Build Logs
           </Title>
           <Text type="secondary">{filteredLogs.length} build logs</Text>

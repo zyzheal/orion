@@ -47,6 +47,13 @@ interface StageConfig {
   position?: { x: number; y: number };
 }
 
+// Extra config fields parsed from stage.config
+interface StageConfigExtra {
+  approval?: { enabled?: boolean };
+  timeout?: { enabled?: boolean; duration?: number };
+  qualityGate?: { enabled?: boolean };
+}
+
 // ==================== Node Types ====================
 const nodeTypes: NodeTypes = {
   stageNode: StageNodeComponent,
@@ -120,6 +127,8 @@ const PipelineCanvasInner: React.FC<PipelineCanvasProps> = ({
       const levelWidth = nodesInLevel.length * nodeWidth;
       const startX = -levelWidth / 2 + nodeWidth / 2;
 
+      const extra = stage.config as StageConfigExtra;
+
       return {
         id: stage.id || `stage-${index}`,
         type: 'stageNode',
@@ -133,9 +142,9 @@ const PipelineCanvasInner: React.FC<PipelineCanvasProps> = ({
           status: stage.config?.status as string | undefined,
           config: stage.config,
           index,
-          hasApproval: !!(stage.config as any)?.approval?.enabled,
-          timeout: (stage.config as any)?.timeout?.enabled ? (stage.config as any)?.timeout?.duration : undefined,
-          hasQualityGate: !!(stage.config as any)?.qualityGate?.enabled,
+          hasApproval: !!extra?.approval?.enabled,
+          timeout: extra?.timeout?.enabled ? extra.timeout.duration : undefined,
+          hasQualityGate: !!extra?.qualityGate?.enabled,
         },
         draggable: !readOnly,
         selectable: true,

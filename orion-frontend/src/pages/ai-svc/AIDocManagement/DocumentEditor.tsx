@@ -15,7 +15,8 @@ import {
   Row,
   Col,
 } from 'antd';
-import { SaveOutlined, HistoryOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { SaveOutlined, HistoryOutlined, ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import StatusBadge from '@/components/StatusBadge';
 import { getDocs, updateDoc, type Document } from '@/api/ai-docs';
@@ -173,7 +174,8 @@ const DocumentEditor: React.FC = () => {
   if (!selectedDoc) {
     return (
       <div style={{ padding: 0 }}>
-        <Title level={3} style={{ marginBottom: 24 }}>
+        <Title level={2} style={{ marginBottom: 16 }}>
+          <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           文档编辑器
         </Title>
         <Card title="选择要编辑的文档" loading={loading}>

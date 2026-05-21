@@ -430,7 +430,8 @@ const InternalLibraryManagement: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+            <BlockOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 二方库管理
               </Title>
               <Text type="secondary">管理内部二方库的生命周期、版本发布和依赖追踪</Text>

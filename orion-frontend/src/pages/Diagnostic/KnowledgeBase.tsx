@@ -249,7 +249,8 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ReadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <BookOutlined style={{ marginRight: 8 }} />
             知识库
           </Title>

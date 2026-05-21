@@ -25,7 +25,7 @@ import {
   ReloadOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-} from '@ant-design/icons';
+  RocketOutlined,} from '@ant-design/icons';
 import {
   getCanaryRuns,
   getCanaryConfigs,
@@ -171,7 +171,8 @@ const CanaryTrafficPage: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <ExperimentOutlined /> Canary Traffic
           </Title>
           <Text type="secondary">Gradual traffic shifting and canary analysis</Text>

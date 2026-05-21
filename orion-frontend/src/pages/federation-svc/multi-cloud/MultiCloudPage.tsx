@@ -37,6 +37,7 @@ import {
   type CloudAccount,
   type CloudResource,
 } from '@/api/multi-cloud';
+import { colors } from '@/tokens/colors';
 
 const { Title, Text } = Typography;
 
@@ -218,8 +219,8 @@ const MultiCloudPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <CloudOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <CloudOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             多云管理
           </Title>
           <Text type="secondary">管理多云账号、资源跟踪和跨云编排</Text>

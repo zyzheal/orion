@@ -137,7 +137,8 @@ const PipelineBudget: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <DollarOutlined style={{ marginRight: 8 }} />
             流水线预算
           </Title>

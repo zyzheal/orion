@@ -262,9 +262,9 @@ const ExecutiveDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TrophyOutlined style={{ marginRight: 8, color: COLORS.warning }} />
+        <div style={{ marginBottom: 16 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TrophyOutlined style={{ marginRight: 12, color: COLORS.warning }} />
             总览看板
           </Title>
           <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>

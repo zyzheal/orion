@@ -115,7 +115,8 @@ const ConfirmationDetail: React.FC = () => {
         >
           返回
         </Button>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           确认详情
         </Title>
       </div>

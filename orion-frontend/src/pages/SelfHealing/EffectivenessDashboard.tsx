@@ -11,7 +11,7 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   LineChartOutlined,
-} from '@ant-design/icons';
+  DashboardOutlined,} from '@ant-design/icons';
 import { getEffectiveness, getHealingHistory } from '@/api/self-healing';
 import type { SelfHealingEffectiveness, SelfHealingIncident } from '@/api/self-healing';
 import dayjs from 'dayjs';
@@ -95,7 +95,8 @@ const EffectivenessDashboard: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             效能仪表盘
           </Title>
           <Text type="secondary">自愈合系统效能分析与趋势</Text>

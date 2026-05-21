@@ -11,7 +11,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, ApiOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getPipelines, type Pipeline } from '@/api/pipelines';
@@ -210,7 +210,8 @@ const PipelineList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Pipeline 列表
           </Title>
           <Text type="secondary">共 {filteredPipelines.length} 个 Pipeline</Text>

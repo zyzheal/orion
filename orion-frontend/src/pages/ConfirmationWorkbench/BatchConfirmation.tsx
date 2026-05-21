@@ -159,7 +159,8 @@ const BatchConfirmation: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BulkOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             批量确认
           </Title>
           <Text type="secondary">按优先级分组，批量处理确认请求</Text>

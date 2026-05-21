@@ -528,8 +528,8 @@ const ExplanationPage: React.FC = () => {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <InfoCircleOutlined style={{ marginRight: 8 }} />
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <InfoCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           AI 决策解释
         </Title>
         <Text type="secondary">

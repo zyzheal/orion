@@ -14,7 +14,7 @@ import {
   ClockCircleOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, radius } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -39,6 +39,17 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = 
   skipped: { icon: <PlayCircleOutlined style={{ transform: 'rotate(180deg)' }} />, color: colors.neutral[400] },
 };
 
+// Typed node data for ReactFlow NodeProps
+interface StageNodeData {
+  label?: string;
+  stageType?: string;
+  status?: string;
+  config?: Record<string, unknown>;
+  index?: number;
+  hasApproval?: boolean;
+  timeout?: number;
+  hasQualityGate?: boolean;
+}
 interface StageNodeExtraProps {
   hasApproval?: boolean;
   timeout?: number;
@@ -47,8 +58,7 @@ interface StageNodeExtraProps {
 }
 
 // Stage Node Component
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
+const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
   const label = data?.label || '';
   const stageType = data?.stageType || 'custom';
   const status = data?.status || 'pending';
@@ -194,10 +204,10 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
 
         {/* Indicator Badges (Approval, Timeout, Quality Gate) */}
         {(hasApproval || timeout || hasQualityGate) && (
-          <div style={{ display: 'flex', gap: 4, marginTop: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {hasApproval && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, background: '#7C5CFC14', color: '#7C5CFC' }}>审批</span>}
-            {timeout && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, background: '#faad1414', color: '#faad14' }}>{timeout}s</span>}
-            {hasQualityGate && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, background: '#52c41a14', color: '#52c41a' }}>门禁</span>}
+          <div style={{ display: 'flex', gap: 4, marginTop: spacing.sm, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {hasApproval && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.purple[500]}14`, color: colors.purple[500] }}>审批</span>}
+            {timeout && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.warning[500]}14`, color: colors.warning[500] }}>{timeout}s</span>}
+            {hasQualityGate && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.success[500]}14`, color: colors.success[500] }}>门禁</span>}
           </div>
         )}
 

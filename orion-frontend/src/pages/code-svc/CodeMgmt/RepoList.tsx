@@ -10,7 +10,7 @@ import {
   DeleteOutlined,
   BranchesOutlined,
   MergeOutlined,
-} from '@ant-design/icons';
+  RepoOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import {
   getCodeRepoAdapters,
@@ -144,7 +144,8 @@ const RepoList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <RepoOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             代码仓库
           </Title>
           <Text type="secondary">管理所有代码仓库、分支和 Pull Request</Text>

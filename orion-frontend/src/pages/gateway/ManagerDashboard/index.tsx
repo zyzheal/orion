@@ -270,9 +270,9 @@ const ManagerDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
+        <div style={{ marginBottom: 16 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TeamOutlined style={{ marginRight: 12, color: COLORS.info }} />
             经理看板
           </Title>
           <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>

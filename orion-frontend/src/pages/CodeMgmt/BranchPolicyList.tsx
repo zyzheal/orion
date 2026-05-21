@@ -16,7 +16,7 @@ import {
   Checkbox,
   message,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, BranchesOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
@@ -267,7 +267,8 @@ const BranchPolicyList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BranchesOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             分支策略
           </Title>
           <Text type="secondary">管理分支保护策略和合并规则</Text>

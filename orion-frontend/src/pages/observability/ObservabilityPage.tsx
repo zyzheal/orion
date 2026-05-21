@@ -763,7 +763,7 @@ const ObservabilityPage: React.FC = () => {
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
           <EyeOutlined style={{ marginRight: 8 }} />
           全栈可观测性
         </Title>

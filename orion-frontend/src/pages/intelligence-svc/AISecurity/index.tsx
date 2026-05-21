@@ -538,8 +538,8 @@ const AISecurityPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <SafetyOutlined style={{ marginRight: spacing[3], color: colors.success[500] }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SecurityScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             AI Security
           </Title>
           <Text type="secondary">AI 安全策略</Text>

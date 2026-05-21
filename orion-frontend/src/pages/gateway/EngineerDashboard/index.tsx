@@ -232,9 +232,9 @@ const EngineerDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <UserOutlined style={{ marginRight: 8, color: COLORS.purple }} />
+        <div style={{ marginBottom: 16 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <UserOutlined style={{ marginRight: 12, color: COLORS.purple }} />
             个人看板
           </Title>
           <Text type="secondary">

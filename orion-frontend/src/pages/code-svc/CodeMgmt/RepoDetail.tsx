@@ -24,7 +24,7 @@ import {
   DeleteOutlined,
   LockOutlined,
   UnlockOutlined,
-} from '@ant-design/icons';
+  FolderOpenOutlined,} from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -400,7 +400,8 @@ const RepoDetail: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FolderOpenOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {repoName || id}
           </Title>
           <Text type="secondary">仓库详情</Text>

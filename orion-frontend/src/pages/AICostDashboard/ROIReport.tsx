@@ -161,7 +161,8 @@ const ROIFeatureReport: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <LineChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             ROI 报告
           </Title>
           <Text type="secondary">AI 功能投资回报分析与优化建议</Text>

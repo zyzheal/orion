@@ -144,7 +144,8 @@ const CostDetail: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             成本明细
           </Title>
           <Text type="secondary">按维度下钻查看 AI 调用成本</Text>

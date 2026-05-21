@@ -42,7 +42,7 @@ import 'dayjs/locale/zh-cn';
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
 
-const { Text, Paragraph } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 // ---- Type definitions ----
 
@@ -435,8 +435,14 @@ const DashboardNew: React.FC = () => {
         />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>工作台</Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            工作台
+          </Title>
+          <Text type="secondary">个人工作与效能度量</Text>
+        </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
         </Button>

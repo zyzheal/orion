@@ -780,8 +780,8 @@ const CostOperationsPage: React.FC = () => {
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <DollarOutlined style={{ marginRight: 8 }} />
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           成本运营
         </Title>
         <Text type="secondary">预算门禁、成本趋势分析、异常检测与优化建议</Text>

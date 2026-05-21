@@ -21,7 +21,7 @@ import {
   ReloadOutlined,
   DownloadOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+  ShopOutlined,} from '@ant-design/icons';
 import {
   getAvailablePlugins,
   getInstalledPlugins,
@@ -152,7 +152,8 @@ const PluginMarketplacePage: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ShopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <AppstoreOutlined /> Plugin Marketplace
           </Title>
           <Text type="secondary">Browse and install plugins to extend platform capabilities</Text>

@@ -972,7 +972,8 @@ const GraphPage: React.FC = () => {
         <>
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <Title level={3} style={{ margin: 0 }}>
+            <Title level={2} style={{ marginBottom: 8 }}>
+            <ShareAltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               <ShareAltOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
               图数据库服务
             </Title>

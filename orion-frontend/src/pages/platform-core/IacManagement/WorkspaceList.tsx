@@ -17,6 +17,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
+  LayoutOutlined,
   ReloadOutlined,
   PlayCircleOutlined,
   LockOutlined,
@@ -294,7 +295,8 @@ const WorkspaceList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <LayoutOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             工作空间
           </Title>
           <Text type="secondary">管理 IaC 工作空间</Text>

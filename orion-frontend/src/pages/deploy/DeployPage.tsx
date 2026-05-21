@@ -43,7 +43,7 @@ import {
   SyncOutlined,
   RiseOutlined,
   RollbackOutlined,
-} from '@ant-design/icons';
+  CloudUploadOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '@/api/client';
 import type { Deployment, HealthCheckResult } from '@/api/deployments';
@@ -809,7 +809,8 @@ const DeployPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <CloudUploadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             部署发布
           </Title>
           <Text type="secondary">管理部署任务、部署窗口、渐进式部署和紧急部署</Text>

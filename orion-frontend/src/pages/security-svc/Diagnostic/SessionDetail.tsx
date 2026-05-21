@@ -142,7 +142,8 @@ const DiagnosticSessionDetail: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             会话详情
           </Title>
           <Text type="secondary" code>

@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Popconfirm, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, StopOutlined } from '@ant-design/icons';
+import { ReloadOutlined, StopOutlined, CloudServerOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -247,7 +247,8 @@ const BuildPodList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Build Pods
           </Title>
           <Text type="secondary">{filteredPods.length} build pods</Text>

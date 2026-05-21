@@ -199,7 +199,8 @@ const CostOverview: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             成本总览
           </Title>
           <Text type="secondary">AI 模型调用成本与资源使用统计</Text>

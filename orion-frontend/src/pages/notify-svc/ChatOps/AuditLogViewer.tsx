@@ -224,7 +224,8 @@ const AuditLogViewer: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <AuditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             审计日志
           </Title>
           <Text type="secondary">ChatOps 命令执行审计与统计</Text>

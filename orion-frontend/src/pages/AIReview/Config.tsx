@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Form, Input, Button, Select, message, Divider, Space } from 'antd';
 import { spacing } from '@/tokens';
-import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
+import { SaveOutlined, ReloadOutlined, SettingOutlined,} from '@ant-design/icons';
 import { getReviewConfig, updateReviewConfig } from '@/api/ai-review';
 import type { AIReviewConfig } from '@/api/ai-review';
 
@@ -64,7 +64,8 @@ const AIReviewConfig: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             评审配置
           </Title>
           <Text type="secondary">配置 AI Review 的模型、提示模板和评审范围</Text>

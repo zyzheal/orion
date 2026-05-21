@@ -285,8 +285,8 @@ const ChaosEngineering: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             混沌工程
           </Title>
           <Text type="secondary">故障注入实验与系统弹性测试</Text>

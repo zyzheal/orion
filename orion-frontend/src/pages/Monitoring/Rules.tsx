@@ -247,7 +247,8 @@ const MonitoringRules: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <OrderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <AlertOutlined style={{ marginRight: 8 }} />
             告警规则
           </Title>

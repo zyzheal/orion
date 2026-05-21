@@ -172,7 +172,8 @@ const ExecutionDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             执行监控
           </Title>
           <Text type="secondary">最近命令执行记录与状态跟踪</Text>

@@ -233,7 +233,8 @@ const ModuleRegistry: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BlockOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             模块注册
           </Title>
           <Text type="secondary">IaC 模块浏览与版本管理</Text>

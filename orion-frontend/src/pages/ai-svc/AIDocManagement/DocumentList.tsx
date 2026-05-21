@@ -22,6 +22,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -292,7 +293,8 @@ const DocumentListPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             文档管理
           </Title>
           <Text type="secondary">知识库文档浏览与管理</Text>

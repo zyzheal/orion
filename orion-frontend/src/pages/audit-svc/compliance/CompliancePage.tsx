@@ -33,7 +33,7 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-} from '@ant-design/icons';
+  SafetyCertificateOutlined,} from '@ant-design/icons';
 import {
   getAuditLogs,
   verifyChain,
@@ -473,7 +473,8 @@ const CompliancePage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <SecurityScanOutlined style={{ marginRight: 8 }} />
             安全与合规
           </Title>

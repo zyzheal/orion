@@ -37,7 +37,7 @@ import {
   DeleteOutlined,
   ThunderboltOutlined,
   WarningOutlined,
-} from '@ant-design/icons';
+  LockOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
@@ -343,7 +343,8 @@ const RateLimitingPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <LockOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.warning[500] }} />
             限流管理
           </Title>

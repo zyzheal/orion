@@ -324,7 +324,7 @@ const PipelineRunList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
             <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Pipeline 运行历史
           </Title>

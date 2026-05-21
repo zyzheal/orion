@@ -108,6 +108,11 @@ const WorkflowDependenciesPage: React.FC = () => {
     try {
       const data = await checkDefinition(selectedDefinitionId);
       setCheckResult(data);
+      if (data.isSafe) {
+        message.success('检测结果：安全，无循环依赖');
+      } else {
+        message.warning(`检测到 ${data.cycles.length} 个循环依赖`);
+      }
     } catch (error: unknown) {
       setCheckResult(null);
       message.error(`检查失败: ${(error as Error).message}`);
@@ -637,8 +642,8 @@ const WorkflowDependenciesPage: React.FC = () => {
         <>
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <Title level={3} style={{ margin: 0 }}>
-              <NodeIndexOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: 8 }}>
+              <NodeIndexOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               工作流依赖分析
             </Title>
             <Text type="secondary">

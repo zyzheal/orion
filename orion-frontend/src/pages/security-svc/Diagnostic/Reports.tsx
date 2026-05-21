@@ -159,7 +159,8 @@ const DiagnosticReports: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <FileTextOutlined style={{ marginRight: 8 }} />
             诊断报告
           </Title>

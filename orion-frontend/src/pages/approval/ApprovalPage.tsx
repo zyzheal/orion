@@ -525,7 +525,8 @@ const ApprovalPage: React.FC = () => {
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
             <div>
-              <Title level={3} style={{ margin: 0 }}>审批工作流</Title>
+              <Title level={2} style={{ marginBottom: 8 }}>
+            <CheckCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />审批工作流</Title>
               <Text type="secondary">多级审批流程管理，包含待审批列表和紧急审批通道</Text>
             </div>
             <Space>

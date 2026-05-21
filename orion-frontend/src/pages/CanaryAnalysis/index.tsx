@@ -21,7 +21,7 @@ import {
   Alert,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SettingOutlined, PlayCircleOutlined, ExperimentOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -327,7 +327,8 @@ const CanaryAnalysis: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ExperimentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             ML 金丝雀分析
           </Title>
           <Text type="secondary">全指标比对与智能决策</Text>

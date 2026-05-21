@@ -15,7 +15,7 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const menuItems = [
   { key: '/self-healing', icon: <MedicineBoxOutlined />, label: 'Incidents' },
@@ -44,9 +44,11 @@ const SelfHealingLayout: React.FC = () => {
         style={{ borderRight: `1px solid ${colors.light.border.light}` }}
       >
         <div style={{ padding: '16px 12px' }}>
-          <Title level={4} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <MedicineBoxOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {collapsed ? 'SH' : 'Self-Healing'}
           </Title>
+          {!collapsed && <Text type="secondary">自动化故障恢复与自愈系统</Text>}
         </div>
         <Menu
           mode="inline"

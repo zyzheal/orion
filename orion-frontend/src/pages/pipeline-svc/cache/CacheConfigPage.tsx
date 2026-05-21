@@ -558,7 +558,7 @@ const CacheConfigPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <FolderOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             缓存配置
           </Title>

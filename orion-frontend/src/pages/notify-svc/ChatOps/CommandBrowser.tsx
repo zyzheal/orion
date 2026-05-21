@@ -154,7 +154,8 @@ const CommandBrowser: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TerminalOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             命令浏览
           </Title>
           <Text type="secondary">ChatOps 命令目录与使用文档</Text>

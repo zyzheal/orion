@@ -41,7 +41,7 @@ import {
   WarningOutlined,
   EyeOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+  FlagOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
@@ -428,7 +428,8 @@ const FeatureFlagsPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FlagOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />
             特性开关管理
           </Title>

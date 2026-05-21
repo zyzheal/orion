@@ -10,7 +10,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -271,7 +271,8 @@ const DeploymentList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             部署管理
           </Title>
           <Text type="secondary">共 {filteredDeployments.length} 条部署记录</Text>

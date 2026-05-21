@@ -27,7 +27,7 @@ import {
   CloseCircleOutlined,
   WarningOutlined,
   SwapOutlined,
-} from '@ant-design/icons';
+  BarChartOutlined,} from '@ant-design/icons';
 import { getReviewHistory, triggerReview, reviewDiff } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
@@ -191,7 +191,8 @@ const AIReviewDashboard: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             AI Review Dashboard
           </Title>
           <Text type="secondary">AI 代码评审概览与快速操作</Text>

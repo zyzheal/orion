@@ -205,7 +205,7 @@ const ExecutorManagementPage: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <ThunderboltOutlined /> Executor Management
           </Title>
           <Text type="secondary">Executor registration, heartbeat monitoring, and health dashboard</Text>

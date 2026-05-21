@@ -30,6 +30,7 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined,
+  FileTextOutlined,
   UserOutlined,
   SwapOutlined,
   ArrowUpOutlined,
@@ -390,7 +391,8 @@ const TicketDetail: React.FC = () => {
           返回工单列表
         </Button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {ticket.id}
           </Title>
           <Badge status={sConfig.color as any} text={sConfig.label} />

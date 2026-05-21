@@ -416,7 +416,8 @@ const PipelineVersionPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TagsOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             流水线版本管理
           </Title>
           <Text type="secondary">管理流水线定义的版本、对比差异、回退操作和标签管理</Text>

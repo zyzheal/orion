@@ -355,7 +355,7 @@ const EfficiencyDashboard: React.FC = () => {
       {/* 页面标题 */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <ThunderboltOutlined style={{ marginRight: 8 }} />
             效能看板
           </Title>
@@ -610,7 +610,7 @@ const EfficiencyDashboard: React.FC = () => {
                 borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid #f0f0f0' : 'none',
               }}
             >
-              <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+              <Title level={5} style={{ marginBottom: 8 }}>
                 {index + 1}. {step.title}
               </Title>
               <Text style={{ whiteSpace: 'pre-wrap' }}>{step.content}</Text>

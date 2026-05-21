@@ -15,8 +15,8 @@ import {
   message,
   Popconfirm,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, FolderOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -230,7 +230,8 @@ const SpaceList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FolderOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             知识库
           </Title>
           <Text type="secondary">管理知识库空间</Text>

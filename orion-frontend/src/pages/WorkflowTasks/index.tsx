@@ -520,7 +520,11 @@ const WorkflowTasksPage: React.FC = () => {
 
             {/* Task Table */}
             {filteredTasks.length === 0 && !loading ? (
-              <Empty description="暂无任务" />
+              <Empty description="暂无任务">
+                <Button type="primary" icon={<ReloadOutlined />} onClick={loadData}>
+                  刷新数据
+                </Button>
+              </Empty>
             ) : (
               <Table
                 columns={columns}

@@ -43,7 +43,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   WarningOutlined,
-} from '@ant-design/icons';
+  DollarOutlined,} from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';
 import {
   getBudgetGuards,
@@ -546,7 +546,8 @@ const BudgetGuardPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <SafetyOutlined style={{ marginRight: spacing[2] }} />
             Budget Guard
           </Title>

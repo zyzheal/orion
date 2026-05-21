@@ -18,6 +18,7 @@ import {
   CloudUploadOutlined,
   BellOutlined,
   FileTextOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -262,8 +263,9 @@ const DashboardCore: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+      <div style={{ marginBottom: 16 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           工作台
         </Title>
         <Text type="secondary">平台运行概览 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>

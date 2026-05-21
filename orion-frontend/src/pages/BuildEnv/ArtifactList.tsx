@@ -10,7 +10,7 @@ import {
   DownloadOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+  ContainerOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -269,7 +269,8 @@ const ArtifactList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ContainerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Artifacts
           </Title>
           <Text type="secondary">{filteredArtifacts.length} artifacts</Text>

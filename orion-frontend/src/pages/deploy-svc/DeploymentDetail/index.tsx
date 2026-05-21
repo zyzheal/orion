@@ -32,6 +32,7 @@ import {
   CloseCircleOutlined,
   InfoCircleOutlined,
   QuestionCircleOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -183,7 +184,8 @@ const DeploymentDetail: React.FC = () => {
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             部署详情: {deployment.appName}
           </Title>
           <Text type="secondary">

@@ -23,6 +23,7 @@ import {
 } from 'antd';
 import {
   ReloadOutlined,
+  DollarOutlined,
   SettingOutlined,
   LineChartOutlined,
   CalculatorOutlined,
@@ -297,7 +298,8 @@ const PipelineBudgetPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             流水线预算
           </Title>
           <Text type="secondary">配置和执行流水线的预算限制，监控资源使用</Text>

@@ -15,7 +15,7 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const menuItems = [
   { key: '/ai-review', icon: <ScanOutlined />, label: 'Dashboard' },
@@ -44,9 +44,11 @@ const AIReviewLayout: React.FC = () => {
         style={{ borderRight: `1px solid ${colors.light.border.light}` }}
       >
         <div style={{ padding: '16px 12px' }}>
-          <Title level={4} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {collapsed ? 'AI' : 'AI Review'}
           </Title>
+          {!collapsed && <Text type="secondary">AI 驱动的智能代码评审</Text>}
         </div>
         <Menu
           mode="inline"

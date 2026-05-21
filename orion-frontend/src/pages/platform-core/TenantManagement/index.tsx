@@ -26,6 +26,7 @@ import {
   DatabaseOutlined,
   PlusOutlined,
   SettingOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import {
@@ -55,7 +56,7 @@ const TenantManagementPage: React.FC = () => {
       const [quotaRes, poolRes, namespacesRes] = await Promise.all([
         getTenantQuota(),
         getNamespacePoolStatus(),
-        getTenantNamespaces(1),
+        getTenantNamespaces('1'),
       ]);
       setQuota(quotaRes.data.data);
       setPoolStatus(poolRes.data.data);
@@ -92,7 +93,7 @@ const TenantManagementPage: React.FC = () => {
 
   const handleAllocateNamespace = async () => {
     try {
-      await allocateNamespace(1);
+      await allocateNamespace('1');
       message.success('Namespace 分配成功');
       loadData();
     } catch (error: unknown) {
@@ -167,7 +168,10 @@ const TenantManagementPage: React.FC = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
-            <Title level={2}>租户管理</Title>
+            <Title level={2} style={{ marginBottom: 8 }}>
+              <BankOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+              租户管理
+            </Title>
             <Text type="secondary">多租户隔离、配额管理、Namespace 池</Text>
           </div>
           <Space>

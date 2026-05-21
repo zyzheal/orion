@@ -39,6 +39,7 @@ import {
   type Badge,
   type Mentorship,
 } from '@/api/community';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -308,8 +309,8 @@ const CommunityPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TeamOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             社区生态
           </Title>
           <Text type="secondary">社区贡献、共享插件和导师计划</Text>

@@ -519,7 +519,7 @@ const RootCausePage: React.FC = () => {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
           <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           根因分析中心
         </Title>

@@ -210,7 +210,7 @@ const PipelineDetail: React.FC = () => {
           返回列表
         </Button>
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
             <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {pipeline.name} #{pipeline.runNumber}
           </Title>

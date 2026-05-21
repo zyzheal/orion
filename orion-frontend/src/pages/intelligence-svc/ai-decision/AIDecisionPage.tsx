@@ -586,8 +586,8 @@ const AIDecisionPage: React.FC = () => {
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           AI 决策引擎
         </Title>
         <Text type="secondary">决策解释、模型版本管理和 A/B 测试</Text>

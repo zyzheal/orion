@@ -196,7 +196,8 @@ const StateBrowser: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <StorageOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             状态浏览
           </Title>
           <Text type="secondary">IaC 状态版本历史与资源查看</Text>

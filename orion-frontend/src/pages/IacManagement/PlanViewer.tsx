@@ -18,6 +18,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
+  FileSearchOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
@@ -263,7 +264,8 @@ const PlanViewer: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileSearchOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             计划查看
           </Title>
           <Text type="secondary">IaC 变更计划与审查</Text>

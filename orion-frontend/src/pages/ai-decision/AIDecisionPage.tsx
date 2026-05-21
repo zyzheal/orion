@@ -30,7 +30,7 @@ import {
   TrophyOutlined,
   LineChartOutlined,
   InfoCircleOutlined,
-} from '@ant-design/icons';
+  RobotOutlined,} from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -586,7 +586,8 @@ const AIDecisionPage: React.FC = () => {
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+            <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           <ThunderboltOutlined style={{ marginRight: 8 }} />
           AI 决策引擎
         </Title>

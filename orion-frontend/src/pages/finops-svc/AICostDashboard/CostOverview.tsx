@@ -14,7 +14,7 @@ import {
   Table as AntTable,
   message,
 } from 'antd';
-import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined, DollarOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -199,7 +199,8 @@ const CostOverview: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             成本总览
           </Title>
           <Text type="secondary">AI 模型调用成本与资源使用统计</Text>

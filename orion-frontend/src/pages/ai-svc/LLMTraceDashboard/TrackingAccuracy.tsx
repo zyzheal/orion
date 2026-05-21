@@ -14,7 +14,7 @@ import {
   message,
   Spin,
 } from 'antd';
-import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, LineChartOutlined } from '@ant-design/icons';
 import { getTrackingAccuracy, type TrackingAccuracy } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
 
@@ -63,7 +63,8 @@ const TrackingAccuracyView: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <LineChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             追踪精度监控
           </Title>
           <Text type="secondary">

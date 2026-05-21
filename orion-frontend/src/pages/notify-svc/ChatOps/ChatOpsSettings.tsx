@@ -197,7 +197,8 @@ const ChatOpsSettings: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+            <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           设置
         </Title>
         <Text type="secondary">ChatOps 平台配置与 Webhook 管理</Text>

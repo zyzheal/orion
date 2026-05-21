@@ -323,8 +323,8 @@ const TriggerPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             多模态触发器
           </Title>
           <Text type="secondary">Webhook 管理、事件触发器和自动化规则</Text>

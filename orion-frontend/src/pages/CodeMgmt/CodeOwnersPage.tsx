@@ -10,7 +10,7 @@ import {
   ReloadOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+  TeamOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { Modal, Tag } from 'antd';
@@ -270,7 +270,8 @@ const CodeOwnersPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TeamOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             CODEOWNERS
           </Title>
           <Text type="secondary">配置代码仓库的 CODEOWNERS 文件，定义文件/目录的负责人</Text>

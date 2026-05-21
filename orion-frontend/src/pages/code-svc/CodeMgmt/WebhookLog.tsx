@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Drawer, Input, message } from 'antd';
-import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined, WebhookOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -203,7 +203,8 @@ const WebhookLog: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <WebhookOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Webhook 日志
           </Title>
           <Text type="secondary">共 {displayEvents.length} 条 Webhook 事件记录</Text>

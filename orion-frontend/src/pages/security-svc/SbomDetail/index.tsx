@@ -339,7 +339,8 @@ const SbomDetail: React.FC = () => {
           >
             返回
           </Button>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             SBOM 详情
           </Title>
         </div>

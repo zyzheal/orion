@@ -26,6 +26,7 @@ import {
   SwapOutlined,
   InfoCircleOutlined,
   EyeOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
@@ -279,7 +280,8 @@ const EventBusMonitoring: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <AuditOutlined style={{ marginRight: 12, color: '#3370E6' }} />
             EventBus
           </Title>
           <Text type="secondary">事件总线监控</Text>

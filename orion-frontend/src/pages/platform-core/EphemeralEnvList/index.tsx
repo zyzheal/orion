@@ -586,7 +586,8 @@ const EphemeralEnvList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             临时开发环境
           </Title>
           <Text type="secondary">共 {filteredEnvs.length} 个环境</Text>

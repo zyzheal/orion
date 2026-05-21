@@ -40,6 +40,7 @@ import {
   type CrossClusterJob,
   type ResourcePool,
 } from '@/api/federation';
+import { colors } from '@/tokens/colors';
 
 const { Title, Text } = Typography;
 
@@ -309,8 +310,8 @@ const FederationPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <GlobalOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <GlobalOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             联邦调度
           </Title>
           <Text type="secondary">跨集群调度和资源管理</Text>

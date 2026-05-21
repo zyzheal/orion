@@ -291,7 +291,7 @@ const RiskDashboardPage: React.FC = () => {
     <div style={{ padding: 0 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
           <WarningOutlined style={{ marginRight: 8, color: colors.warning[500] }} />
           风险管理
         </Title>

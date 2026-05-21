@@ -319,7 +319,7 @@ const ApkCredentialsManagement: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
             <KeyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             APK 上传凭证管理
           </Title>

@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Descriptions, Spin, message, Space } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, CloudServerOutlined,} from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
@@ -107,7 +107,8 @@ const BuildPodDetail: React.FC = () => {
             >
               Back
             </Button>
-            <Title level={3} style={{ margin: 0 }}>
+            <Title level={2} style={{ marginBottom: 8 }}>
+            <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
             {pod && <StatusBadge status={pod.status as any} size="small" />}

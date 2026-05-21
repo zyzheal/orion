@@ -606,7 +606,7 @@ const AutonomousPipelinePage: React.FC = () => {
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+        <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
           <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           自治流水线
         </Title>

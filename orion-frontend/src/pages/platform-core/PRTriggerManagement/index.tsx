@@ -334,7 +334,7 @@ const PRTriggerManagement: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <ThunderboltOutlined style={{ marginRight: 8 }} />
             PR/MR 触发管理
           </Title>

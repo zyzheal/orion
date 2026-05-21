@@ -15,7 +15,7 @@ import {
   Timeline,
   message,
 } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined,} from '@ant-design/icons';
 import { getIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -112,7 +112,8 @@ const IncidentDetail: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/self-healing')}>
           返回
         </Button>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           事件详情
         </Title>
         <Button icon={<ReloadOutlined />} onClick={loadDetail}>

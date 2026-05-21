@@ -249,7 +249,8 @@ const WorkbenchPage: React.FC = () => {
     return (
       <div style={{ padding: 0 }}>
         <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             个人工作台
           </Title>
         </div>
@@ -285,7 +286,8 @@ const WorkbenchPage: React.FC = () => {
     return (
       <div style={{ padding: 0 }}>
         <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             个人工作台
           </Title>
           <Text type="secondary" style={{ marginLeft: spacing[2] }}>
@@ -465,9 +467,10 @@ const WorkbenchPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Page header */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             个人工作台
           </Title>
           <Text type="secondary">

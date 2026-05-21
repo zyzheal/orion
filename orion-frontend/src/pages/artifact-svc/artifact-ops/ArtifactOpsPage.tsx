@@ -160,7 +160,8 @@ const ArtifactOpsPage: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ToolOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <BoxPlotOutlined /> Artifact Operations
           </Title>
           <Text type="secondary">Artifact lifecycle management, promotion, and security</Text>

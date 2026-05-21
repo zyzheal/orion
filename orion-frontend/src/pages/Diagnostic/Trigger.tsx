@@ -78,7 +78,8 @@ const DiagnosticTrigger: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <RocketOutlined style={{ marginRight: 8 }} />
             触发诊断
           </Title>

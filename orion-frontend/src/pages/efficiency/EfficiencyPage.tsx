@@ -461,8 +461,8 @@ const EfficiencyPage: React.FC = () => {
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           效能运营
         </Title>
         <Text type="secondary">DORA 指标面板、开发者画像和效能瓶颈分析</Text>

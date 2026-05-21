@@ -16,7 +16,7 @@ import {
   message,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, PictureOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -299,7 +299,8 @@ const BuilderImageList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <PictureOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Builder Images
           </Title>
           <Text type="secondary">{filteredImages.length} builder images</Text>

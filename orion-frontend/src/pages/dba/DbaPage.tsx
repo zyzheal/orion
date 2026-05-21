@@ -858,7 +858,8 @@ const DbaPage: React.FC = () => {
         <>
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <Title level={3} style={{ margin: 0 }}>
+            <Title level={2} style={{ marginBottom: 8 }}>
+            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               <DatabaseOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
               数据库管理
             </Title>

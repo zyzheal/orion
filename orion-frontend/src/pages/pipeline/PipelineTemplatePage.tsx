@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { pipelineTemplatesApi } from '@/api/pipeline-templates';
+import { colors } from '@/tokens/colors';
 import type { PipelineTemplate } from '@/api/pipeline-templates';
 import dayjs from 'dayjs';
 
@@ -332,7 +333,8 @@ const PipelineTemplatePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             流水线模板
           </Title>
           <Text type="secondary">管理流水线模板库，快速实例化流水线</Text>

@@ -37,7 +37,7 @@ import {
   DesktopOutlined,
   HddOutlined,
   GlobalOutlined,
-} from '@ant-design/icons';
+  MonitorOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -819,7 +819,8 @@ const VisorPage: React.FC = () => {
         <>
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <Title level={3} style={{ margin: 0 }}>
+            <Title level={2} style={{ marginBottom: 8 }}>
+            <MonitorOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               <CloudServerOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
               运维可视化
             </Title>

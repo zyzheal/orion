@@ -21,6 +21,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
+  AccountBookOutlined,
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -310,7 +311,8 @@ const BudgetManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <AccountBookOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             预算管理
           </Title>
           <Text type="secondary">创建和管理 AI 调用预算</Text>

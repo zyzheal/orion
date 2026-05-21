@@ -624,7 +624,8 @@ const UserManagement: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+            <UserOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 用户管理
               </Title>
               <Text type="secondary">管理系统用户、角色分配和账户状态</Text>

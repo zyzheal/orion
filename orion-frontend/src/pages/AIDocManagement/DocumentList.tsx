@@ -18,6 +18,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
+  FileTextOutlined,
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -292,7 +293,8 @@ const DocumentListPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             文档管理
           </Title>
           <Text type="secondary">知识库文档浏览与管理</Text>

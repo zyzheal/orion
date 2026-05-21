@@ -21,6 +21,7 @@ import {
 import { spacing } from '@/tokens';
 import {
   PlusOutlined,
+  EditOutlined,
   SaveOutlined,
   UndoOutlined,
   DragOutlined,
@@ -490,7 +491,8 @@ const PipelineEditor: React.FC = () => {
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <EditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {id ? '编辑 Pipeline' : '创建 Pipeline'}
           </Title>
           <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>

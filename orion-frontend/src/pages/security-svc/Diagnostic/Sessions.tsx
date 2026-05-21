@@ -7,6 +7,7 @@ import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Dr
 import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
+  DesktopOutlined,
   ReloadOutlined,
   SearchOutlined,
   CheckCircleOutlined,
@@ -280,7 +281,8 @@ const DiagnosticSessions: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <SearchOutlined style={{ marginRight: 8 }} />
             诊断会话
           </Title>

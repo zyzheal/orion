@@ -258,7 +258,7 @@ const MonitoringChannels: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <MailOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             通知渠道
           </Title>

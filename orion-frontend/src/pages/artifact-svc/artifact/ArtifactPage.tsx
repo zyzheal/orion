@@ -386,7 +386,8 @@ const ArtifactPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ContainerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             构建制品
           </Title>
           <Text type="secondary">管理构建制品仓库、多架构信息和存储统计</Text>

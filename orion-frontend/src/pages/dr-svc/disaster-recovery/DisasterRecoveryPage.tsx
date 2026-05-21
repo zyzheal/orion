@@ -27,7 +27,7 @@ import {
   SafetyCertificateOutlined,
   PlayCircleOutlined,
   FileTextOutlined,
-} from '@ant-design/icons';
+  SyncOutlined,} from '@ant-design/icons';
 import { Tabs } from 'antd';
 import {
   getBackups,
@@ -215,7 +215,8 @@ const DisasterRecoveryPage: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SyncOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <SafetyCertificateOutlined /> Disaster Recovery
           </Title>
           <Text type="secondary">Backup management, restore operations, and recovery drills</Text>

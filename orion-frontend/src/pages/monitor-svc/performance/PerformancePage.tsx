@@ -35,7 +35,7 @@ import {
   BulbOutlined,
   LineChartOutlined,
   WarningOutlined,
-} from '@ant-design/icons';
+  RiseOutlined,} from '@ant-design/icons';
 import {
   performanceApi,
   type PerformanceBaseline,
@@ -342,7 +342,8 @@ const PerformancePage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <RiseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <ThunderboltOutlined style={{ marginRight: 8 }} />
             性能工程
           </Title>

@@ -100,7 +100,8 @@ const RAGQueryPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+            <SearchOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           RAG 查询
         </Title>
         <Text type="secondary">基于知识库的问答检索</Text>

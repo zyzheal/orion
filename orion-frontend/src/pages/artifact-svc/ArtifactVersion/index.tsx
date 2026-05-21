@@ -9,8 +9,8 @@ import {
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeftOutlined, ReloadOutlined, BranchesOutlined,
-  EyeOutlined, RocketOutlined,
+  ArrowLeftOutlined, ReloadOutlined,
+  EyeOutlined, RocketOutlined, TagOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
@@ -165,8 +165,9 @@ const ArtifactVersionPage: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <BranchesOutlined /> Artifact 版本管理
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <TagOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            Artifact 版本管理
           </Title>
           <Text type="secondary">共 {total} 个版本</Text>
         </div>

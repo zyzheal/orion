@@ -24,6 +24,7 @@ import {
   CloseCircleOutlined,
   ReloadOutlined,
   SettingOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getAllHealth, getRules, getGatewayStatus, getEngineStatus } from '@/api/ai-gateway';
@@ -186,7 +187,10 @@ const AIGatewayPage: React.FC = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
-            <Title level={2}>AI 网关管理</Title>
+            <Title level={2} style={{ marginBottom: 8 }}>
+              <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              AI 网关管理
+            </Title>
             <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
           </div>
           <Space>

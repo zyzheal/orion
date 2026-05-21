@@ -4,8 +4,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Table, Tag, Space, Button, Input, Select, message } from 'antd';
-import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { SearchOutlined, ReloadOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons';
 import { getReviewHistory } from '@/api/ai-review';
+import { colors } from '@/tokens';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -140,7 +141,8 @@ const AIReviewHistory: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 16 }}>
+      <Title level={2} style={{ marginBottom: 8 }}>
+        <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
         评审历史
       </Title>
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>

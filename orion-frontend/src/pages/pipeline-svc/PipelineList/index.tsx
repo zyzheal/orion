@@ -198,7 +198,7 @@ const PipelineList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
             <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Pipeline 列表
           </Title>

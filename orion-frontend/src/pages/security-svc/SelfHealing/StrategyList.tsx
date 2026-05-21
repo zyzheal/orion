@@ -17,7 +17,7 @@ import {
   message,
   Switch,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, ThunderboltOutlined,} from '@ant-design/icons';
 import { getStrategies, createStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
 
@@ -192,7 +192,8 @@ const StrategyList: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             策略列表
           </Title>
           <Text type="secondary">管理自愈合策略</Text>

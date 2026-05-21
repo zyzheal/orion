@@ -242,7 +242,7 @@ const MonitoringMetrics: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <LineChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             指标管理
           </Title>

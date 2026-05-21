@@ -31,6 +31,8 @@ import {
   CloseCircleOutlined,
   LinkOutlined,
   TagsOutlined,
+  EventOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
 import { colors } from '@/tokens/colors';
@@ -180,6 +182,15 @@ const EventRegistryPage: React.FC = () => {
         eventPayload: parsedPayload,
       });
       setTestResults(data.results || []);
+      const matchedCount = data.results.filter((r) => r.matched).length;
+      const totalCount = data.results.length;
+      if (totalCount === 0) {
+        message.info('当前事件类型没有已注册的触发器');
+      } else if (matchedCount > 0) {
+        message.success(`匹配完成: ${matchedCount}/${totalCount} 个触发器匹配`);
+      } else {
+        message.warning(`匹配完成: ${totalCount} 个触发器均不匹配`);
+      }
     } catch (error: unknown) {
       message.error(`测试匹配失败: ${(error as Error).message}`);
     } finally {
@@ -207,7 +218,8 @@ const EventRegistryPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <EventOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Event Registry
           </Title>
           <Text type="secondary">事件触发器注册表 - 管理事件类型、订阅和触发规则</Text>
@@ -409,7 +421,15 @@ const EventRegistryPage: React.FC = () => {
                     loading={loadingSubscriptions}
                     rowKey="triggerId"
                     size="middle"
-                    locale={{ emptyText: <Empty description="暂无订阅" /> }}
+                    locale={{
+                      emptyText: (
+                        <Empty description="暂无订阅">
+                          <Button type="primary" icon={<PlusOutlined />} onClick={() => setTestMatchModalVisible(true)}>
+                            测试事件匹配
+                          </Button>
+                        </Empty>
+                      ),
+                    }}
                   />
                 </Card>
               </div>
@@ -531,7 +551,15 @@ const EventRegistryPage: React.FC = () => {
                     rowKey="triggerId"
                     size="middle"
                     pagination={{ pageSize: 10 }}
-                    locale={{ emptyText: <Empty description="暂无触发器" /> }}
+                    locale={{
+                      emptyText: (
+                        <Empty description="暂无触发器">
+                          <Button type="primary" icon={<PlusOutlined />} onClick={() => setTestMatchModalVisible(true)}>
+                            测试事件匹配
+                          </Button>
+                        </Empty>
+                      ),
+                    }}
                   />
                 </Card>
               </div>

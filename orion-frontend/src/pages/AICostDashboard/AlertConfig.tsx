@@ -246,7 +246,8 @@ const AlertConfig: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           告警设置
         </Title>
         <Text type="secondary">配置成本告警规则与通知</Text>

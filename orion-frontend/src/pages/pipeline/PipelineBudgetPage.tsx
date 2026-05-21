@@ -27,10 +27,12 @@ import {
   LineChartOutlined,
   CalculatorOutlined,
   WarningOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import pipelineBudgetApi from '@/api/pipeline-budget';
 import type { BudgetConfig, BudgetUsage, BudgetAlert, BudgetEstimate } from '@/api/pipeline-budget';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -297,7 +299,8 @@ const PipelineBudgetPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             流水线预算
           </Title>
           <Text type="secondary">配置和执行流水线的预算限制，监控资源使用</Text>

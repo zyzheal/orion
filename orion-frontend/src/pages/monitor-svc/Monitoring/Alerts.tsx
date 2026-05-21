@@ -250,7 +250,7 @@ const MonitoringAlerts: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             告警列表
           </Title>

@@ -17,7 +17,7 @@ import {
   message,
   Radio,
 } from 'antd';
-import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, ReloadOutlined, CheckCircleOutlined,} from '@ant-design/icons';
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
 import dayjs from 'dayjs';
@@ -180,7 +180,8 @@ const ApprovalQueue: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <CheckCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             审批队列
           </Title>
           <Text type="secondary">

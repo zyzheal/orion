@@ -24,6 +24,7 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import { getReviewDetail } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
@@ -151,7 +152,8 @@ const AIReviewDetail: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ai-review/history')}>
           返回
         </Button>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           评审详情
         </Title>
         <Button icon={<ReloadOutlined />} onClick={loadDetail}>

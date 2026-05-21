@@ -30,7 +30,7 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   EditOutlined,
-} from '@ant-design/icons';
+  CheckSquareOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   getPolicies,
@@ -378,7 +378,8 @@ const QualityGatePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <CheckSquareOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             质量门禁
           </Title>
           <Text type="secondary">管理质量门禁策略、违规处理和豁免申请</Text>

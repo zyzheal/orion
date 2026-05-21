@@ -353,10 +353,10 @@ const EfficiencyDashboard: React.FC = () => {
   return (
     <div>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             效能看板
           </Title>
           <Text type="secondary">DORA 指标追踪与团队效能分析</Text>
@@ -372,8 +372,8 @@ const EfficiencyDashboard: React.FC = () => {
       </div>
 
       {/* DORA 指标卡片 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={5}>核心指标</Title>
+      <div style={{ marginBottom: 16 }}>
+        <Title level={3} style={{ marginBottom: 8 }}>核心指标</Title>
         <DashboardLayout columns={4} gap={16}>
           <MetricCard
             title="发布频率"
@@ -610,7 +610,7 @@ const EfficiencyDashboard: React.FC = () => {
                 borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid #f0f0f0' : 'none',
               }}
             >
-              <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+              <Title level={5} style={{ marginBottom: 8 }}>
                 {index + 1}. {step.title}
               </Title>
               <Text style={{ whiteSpace: 'pre-wrap' }}>{step.content}</Text>

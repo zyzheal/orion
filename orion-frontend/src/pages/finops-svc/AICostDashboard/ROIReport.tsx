@@ -15,7 +15,7 @@ import {
   Table as AntTable,
   message,
 } from 'antd';
-import { ReloadOutlined, RiseOutlined, FundOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RiseOutlined, FundOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getROIReport } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
@@ -161,7 +161,8 @@ const ROIFeatureReport: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             ROI 报告
           </Title>
           <Text type="secondary">AI 功能投资回报分析与优化建议</Text>

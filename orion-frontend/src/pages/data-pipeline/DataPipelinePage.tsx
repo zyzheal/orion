@@ -36,7 +36,7 @@ import {
   PauseCircleOutlined,
   ApiOutlined,
   ShareAltOutlined,
-} from '@ant-design/icons';
+  ApartmentOutlined,} from '@ant-design/icons';
 import {
   dataPipelineApi,
   type DataPipeline,
@@ -317,7 +317,8 @@ const DataPipelinePage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ApartmentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <DatabaseOutlined style={{ marginRight: 8 }} />
             数据管道
           </Title>
