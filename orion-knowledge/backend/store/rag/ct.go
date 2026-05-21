@@ -66,10 +66,17 @@ func (s *CTRAG) QueryRecords(ctx context.Context, req *QueryRecordsRequest) (str
 		}
 	}
 	s.logger.Debug("retrieving by history msgs", log.Any("history_msgs", req.HistoryMsgs), log.Any("chat_msgs", chatMsgs))
+
+	// 使用请求中的 TopK 值，如果未设置则使用默认值 10
+	topK := req.TopK
+	if topK <= 0 {
+		topK = 10
+	}
+
 	data := &raglite.RetrieveRequest{
 		DatasetID: req.DatasetID,
 		Query:     req.Query,
-		TopK:      10,
+		TopK:      topK,
 		Metadata: map[string]interface{}{
 			"group_ids": req.GroupIDs,
 		},
@@ -89,8 +96,6 @@ func (s *CTRAG) QueryRecords(ctx context.Context, req *QueryRecordsRequest) (str
 			ID:      chunk.ChunkID,
 			Content: chunk.Content,
 			DocID:   chunk.DocumentID,
-			Title:   chunk.Title,
-			Score:   chunk.Score,
 		}
 	}
 	return res.Query, nodeChunks, nil
@@ -128,13 +133,10 @@ func (s *CTRAG) UpsertRecords(ctx context.Context, req *UpsertRecordsRequest) (s
 }
 
 func (s *CTRAG) DeleteRecords(ctx context.Context, datasetID string, docIDs []string) error {
-	if err := s.client.Documents.BatchDelete(ctx, &raglite.BatchDeleteDocumentsRequest{
+	return s.client.Documents.BatchDelete(ctx, &raglite.BatchDeleteDocumentsRequest{
 		DatasetID:   datasetID,
 		DocumentIDs: docIDs,
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (s *CTRAG) DeleteKnowledgeBase(ctx context.Context, datasetID string) error {

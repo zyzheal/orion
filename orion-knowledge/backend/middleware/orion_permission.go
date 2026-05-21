@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -102,6 +103,9 @@ func (m *OrionPermissionMiddleware) RequirePermission(resource string, action st
 		return func(c echo.Context) error {
 			// 1. 获取用户信息
 			userID := m.getUserID(c)
+			if userID == "" {
+				return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+			}
 			tenantID := WithTenant(c)
 
 			// 2. 构建权限请求
@@ -137,11 +141,13 @@ func (m *OrionPermissionMiddleware) RequirePermission(resource string, action st
 
 			// 4. 检查结果
 			if !allowed {
-				m.logger.Warnf("[Permission] Denied - user: %s, resource: %s, action: %s", userID, resource, action)
+				m.logger.Warn("[Permission] Denied",
+					"user", userID, "resource", resource, "action", action)
 				return echo.NewHTTPError(http.StatusForbidden, "Permission denied")
 			}
 
-			m.logger.Debugf("[Permission] Allowed - user: %s, resource: %s, action: %s", userID, resource, action)
+			m.logger.Debug("[Permission] Allowed",
+				"user", userID, "resource", resource, "action", action)
 			return next(c)
 		}
 	}
@@ -169,10 +175,18 @@ func (m *OrionPermissionMiddleware) checkPermission(ctx context.Context, req Aut
 	}
 	defer resp.Body.Close()
 
+	// 检查响应状态码
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		m.logger.Error("[Permission] Non-OK response from authz engine",
+			"status", resp.StatusCode, "body", string(body))
+		return false, fmt.Errorf("permission service returned status %d", resp.StatusCode)
+	}
+
 	// 解析响应
 	var authzResp AuthZResponse
 	if err := json.NewDecoder(resp.Body).Decode(&authzResp); err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to decode permission response: %w", err)
 	}
 
 	return authzResp.Allowed, nil
@@ -180,7 +194,7 @@ func (m *OrionPermissionMiddleware) checkPermission(ctx context.Context, req Aut
 
 // getUserID 从Context获取用户ID
 func (m *OrionPermissionMiddleware) getUserID(c echo.Context) string {
-	// 尝试从 JWT claims 获取
+	// 仅从 JWT claims 获取用户ID（可信来源）
 	if claims := c.Get("jwt_claims"); claims != nil {
 		switch v := claims.(type) {
 		case map[string]interface{}:
@@ -191,10 +205,6 @@ func (m *OrionPermissionMiddleware) getUserID(c echo.Context) string {
 				return userID
 			}
 		}
-	}
-	// 尝试从 header 获取
-	if userID := c.Request().Header.Get("x-user-id"); userID != "" {
-		return userID
 	}
 	return ""
 }

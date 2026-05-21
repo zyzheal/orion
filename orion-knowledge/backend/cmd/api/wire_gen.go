@@ -211,6 +211,9 @@ func createApp() (*App, error) {
 		apiHandlers.NodeHandler,
 		logger,
 		authMiddleware,
+		ragService,
+		llmUsecase,
+		modelUsecase,
 	)
 	compatHandler.RegisterRoutes(echo)
 	return app, nil

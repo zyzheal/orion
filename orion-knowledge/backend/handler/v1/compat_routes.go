@@ -1,13 +1,16 @@
 package v1
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/cloudwego/eino/schema"
 	"github.com/labstack/echo/v4"
-	"github.com/orion-platform/orion-knowledge/domain"
+	"github.com/orion-platform/orion-knowledge/log"
 	"github.com/orion-platform/orion-knowledge/middleware"
 	"github.com/orion-platform/orion-knowledge/store/rag"
+	"github.com/orion-platform/orion-knowledge/usecase"
 )
 
 /**
@@ -22,30 +25,33 @@ import (
 type CompatRoutesHandler struct {
 	knowledgeBaseHandler *KnowledgeBaseHandler
 	nodeHandler          *NodeHandler
-	logger               echo.Logger
+	logger               *log.Logger
 	auth                 middleware.AuthMiddleware
 	tenantMiddleware     *middleware.TenantMiddleware
 	ragService           rag.RAGService
-	llmUsecase           *LLMUsecase
+	llmUsecase           *usecase.LLMUsecase
+	modelUsecase         *usecase.ModelUsecase
 }
 
 // NewCompatRoutesHandler 创建兼容路由处理器
 func NewCompatRoutesHandler(
 	kbHandler *KnowledgeBaseHandler,
 	nodeHandler *NodeHandler,
-	logger echo.Logger,
+	logger *log.Logger,
 	auth middleware.AuthMiddleware,
 	ragService rag.RAGService,
-	llmUsecase *LLMUsecase,
+	llmUsecase *usecase.LLMUsecase,
+	modelUsecase *usecase.ModelUsecase,
 ) *CompatRoutesHandler {
 	return &CompatRoutesHandler{
 		knowledgeBaseHandler: kbHandler,
 		nodeHandler:          nodeHandler,
 		logger:               logger,
 		auth:                 auth,
-		tenantMiddleware:     middleware.NewTenantMiddleware("default"),
+		tenantMiddleware:     middleware.NewTenantMiddleware(""),
 		ragService:           ragService,
 		llmUsecase:           llmUsecase,
+		modelUsecase:         modelUsecase,
 	}
 }
 
@@ -71,8 +77,8 @@ func (h *CompatRoutesHandler) RegisterRoutes(e *echo.Echo) {
 	group.GET("/docs", h.listDocsWithTenant)
 	group.POST("/docs", h.nodeHandler.CreateNode)
 	group.GET("/docs/:id", h.nodeHandler.GetNodeDetail)
-	group.PUT("/docs/:id", h.nodeHandler.UpdateNode)
-	group.DELETE("/docs/:id", h.nodeHandler.DeleteNode)
+	group.PUT("/docs/:id", h.nodeHandler.UpdateNodeDetail)
+	group.DELETE("/docs/:id", h.nodeHandler.NodeAction)
 
 	// ========== RAG 相关 (/rag) ==========
 	group.POST("/rag/retrieve", h.RAGRetrieve)
@@ -84,10 +90,12 @@ func (h *CompatRoutesHandler) RegisterRoutes(e *echo.Echo) {
 // listSpacesWithTenant 带租户过滤的空间列表
 func (h *CompatRoutesHandler) listSpacesWithTenant(c echo.Context) error {
 	tenantID := middleware.WithTenant(c)
-	h.logger.Debugf("[CompatRoutes] listSpacesWithTenant tenant: %s", tenantID)
+	h.logger.Debug("[CompatRoutes] listSpacesWithTenant", "tenant", tenantID)
 
-	// TODO: 将 tenantID 传递给 handler 的查询条件
-	// 临时直接调用原有handler，后续修改KBRepository添加tenant过滤
+	// 将 tenantID 传入 context，供下游 Repository 层过滤
+	ctx := context.WithValue(c.Request().Context(), "tenant_id", tenantID)
+	c.SetRequest(c.Request().WithContext(ctx))
+
 	return h.knowledgeBaseHandler.GetKnowledgeBaseList(c)
 }
 
@@ -95,7 +103,7 @@ func (h *CompatRoutesHandler) listSpacesWithTenant(c echo.Context) error {
 func (h *CompatRoutesHandler) getSpaceWithTenant(c echo.Context) error {
 	tenantID := middleware.WithTenant(c)
 	kbID := c.Param("id")
-	h.logger.Debugf("[CompatRoutes] getSpaceWithTenant tenant: %s, kbID: %s", tenantID, kbID)
+	h.logger.Debug("[CompatRoutes] getSpaceWithTenant", "tenant", tenantID, "kbID", kbID)
 
 	// TODO: 验证该space属于当前租户
 	return h.knowledgeBaseHandler.GetKnowledgeBaseDetail(c)
@@ -104,9 +112,12 @@ func (h *CompatRoutesHandler) getSpaceWithTenant(c echo.Context) error {
 // listDocsWithTenant 带租户过滤的文档列表
 func (h *CompatRoutesHandler) listDocsWithTenant(c echo.Context) error {
 	tenantID := middleware.WithTenant(c)
-	h.logger.Debugf("[CompatRoutes] listDocsWithTenant tenant: %s", tenantID)
+	h.logger.Debug("[CompatRoutes] listDocsWithTenant", "tenant", tenantID)
 
-	// TODO: 将 tenantID 传递给handler的查询条件
+	// 将 tenantID 传入 context，供下游 Repository 层过滤
+	ctx := context.WithValue(c.Request().Context(), "tenant_id", tenantID)
+	c.SetRequest(c.Request().WithContext(ctx))
+
 	return h.nodeHandler.GetNodeList(c)
 }
 
@@ -152,17 +163,18 @@ func (h *CompatRoutesHandler) RAGRetrieve(c echo.Context) error {
 	// 获取租户ID用于隔离
 	tenantID := middleware.WithTenant(c)
 
-	// 调用RAG服务检索
+	// 调用RAG服务检索（添加租户隔离）
 	rewriteQuery, chunks, err := h.ragService.QueryRecords(c.Request().Context(), &rag.QueryRecordsRequest{
 		DatasetID:           req.DatasetID,
 		Query:               req.Query,
 		GroupIDs:            req.GroupIDs,
+		Tags:                []string{"tenant:" + tenantID}, // 租户隔离标签
 		MaxChunksPerDoc:     req.TopK,
 		SimilarityThreshold: 0.7,
 	})
 	if err != nil {
 		h.logger.Error("[RAGRetrieve] QueryRecords failed", "error", err, "tenant", tenantID)
-		return c.JSON(500, map[string]string{"error": "retrieval failed: " + err.Error()})
+		return c.JSON(500, map[string]string{"error": "retrieval failed"})
 	}
 
 	// 转换结果
@@ -170,9 +182,9 @@ func (h *CompatRoutesHandler) RAGRetrieve(c echo.Context) error {
 	for _, chunk := range chunks {
 		results = append(results, RAGRetrieveResult{
 			DocID:   chunk.DocID,
-			Title:   chunk.Title,
+			Title:   chunk.Name,    // 使用 Name 字段作为标题
 			Snippet: chunk.Content,
-			Score:   chunk.Score,
+			Score:   chunk.Score,   // 如果 raglite 不返回 Score，这里为 0
 		})
 	}
 
@@ -226,16 +238,17 @@ func (h *CompatRoutesHandler) RAGQuery(c echo.Context) error {
 		return c.JSON(400, map[string]string{"error": "datasetId is required"})
 	}
 
-	// 调用RAG检索
+	// 调用RAG检索（添加租户隔离）
 	rewriteQuery, chunks, err := h.ragService.QueryRecords(c.Request().Context(), &rag.QueryRecordsRequest{
 		DatasetID:           datasetID,
 		Query:               req.Query,
+		Tags:                []string{"tenant:" + tenantID}, // 租户隔离标签
 		MaxChunksPerDoc:     5,
 		SimilarityThreshold: 0.7,
 	})
 	if err != nil {
 		h.logger.Error("[RAGQuery] QueryRecords failed", "error", err, "tenant", tenantID)
-		return c.JSON(500, map[string]string{"error": "retrieval failed: " + err.Error()})
+		return c.JSON(500, map[string]string{"error": "retrieval failed"})
 	}
 
 	if len(chunks) == 0 {
@@ -255,11 +268,11 @@ func (h *CompatRoutesHandler) RAGQuery(c echo.Context) error {
 			seenDocs[chunk.DocID] = true
 			sources = append(sources, RAGQuerySource{
 				DocID: chunk.DocID,
-				Title: chunk.Title,
+				Title: chunk.Name,
 				Score: chunk.Score,
 			})
 		}
-		contextBuilder.WriteString(fmt.Sprintf("【文档 %s】\n%s\n\n", chunk.Title, chunk.Content))
+		contextBuilder.WriteString(fmt.Sprintf("【文档 %s】\n%s\n\n", chunk.Name, chunk.Content))
 	}
 
 	context := contextBuilder.String()
@@ -291,19 +304,53 @@ func (h *CompatRoutesHandler) RAGQuery(c echo.Context) error {
 }
 
 // generateAnswerWithLLM 使用LLM生成答案
-func (h *CompatRoutesHandler) generateAnswerWithLLM(ctx context.Context, question, context string) (string, error) {
-	// 使用LLM Usecase生成答案
-	// 这里需要调用modelkit，简化处理返回基于上下文的答案
-	prompt := fmt.Sprintf(`你是一个知识库问答助手。请根据以下上下文回答用户的问题。
+func (h *CompatRoutesHandler) generateAnswerWithLLM(ctx context.Context, question, contextStr string) (string, error) {
+	// 1. 获取配置的聊天模型
+	model, err := h.modelUsecase.GetChatModel(ctx)
+	if err != nil {
+		h.logger.Error("[generateAnswerWithLLM] GetChatModel failed", "error", err)
+		return "", fmt.Errorf("model not configured")
+	}
 
-上下文：
+	// 2. 转换为 modelkit 模型
+	modelkitModel, err := model.ToModelkitModel()
+	if err != nil {
+		h.logger.Error("[generateAnswerWithLLM] ToModelkitModel failed", "error", err)
+		return "", fmt.Errorf("model conversion failed")
+	}
+
+	// 3. 获取聊天模型实例
+	chatModel, err := h.llmUsecase.ModelKit().GetChatModel(ctx, modelkitModel)
+	if err != nil {
+		h.logger.Error("[generateAnswerWithLLM] GetChatModel instance failed", "error", err)
+		return "", fmt.Errorf("failed to initialize chat model")
+	}
+
+	// 4. 构建结构化消息（防止 Prompt 注入）
+	systemPrompt := "你是一个专业的知识库问答助手。请仅基于提供的上下文资料回答问题。如果上下文资料不足以回答问题，请说明你无法基于提供的资料回答。不要编造资料中没有的信息。"
+
+	userContent := fmt.Sprintf(`请基于以下参考资料回答问题：
+
+<参考资料>
 %s
+</参考资料>
 
-问题：%s
+<问题>
+%s
+</问题>
 
-请根据上下文提供准确、简洁的回答。如果上下文中没有相关信息，请明确告知用户。`, context, question)
+请根据参考资料有条理地组织回答，引用资料中的关键信息。如果资料不足以回答问题，请坦诚说明。`, contextStr, question)
 
-	// TODO: 实现完整的LLM调用
-	// 暂时返回基于上下文的简单答案
-	return fmt.Sprintf("根据检索到的知识库资料：\n\n%s", context), nil
+	messages := []*schema.Message{
+		schema.SystemMessage(systemPrompt),
+		schema.UserMessage(userContent),
+	}
+
+	// 5. 调用 LLM 生成答案（非流式）
+	answer, err := h.llmUsecase.Generate(ctx, chatModel, messages)
+	if err != nil {
+		return "", fmt.Errorf("LLM generate failed: %w", err)
+	}
+
+	return strings.TrimSpace(answer), nil
 }

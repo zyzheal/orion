@@ -6,7 +6,6 @@ import (
 
 	"github.com/orion-platform/orion-knowledge/log"
 	"github.com/orion-platform/orion-knowledge/repo/pg"
-	"github.com/orion-platform/orion-knowledge/store/rag"
 )
 
 /**
@@ -122,5 +121,4 @@ func (m *MigrationAddTenantIsolation) dropColumnIfExists(table, column string) e
 	return nil
 }
 
-// 确保实现 MigrationFunc 接口
-var _ rag.MigrationFunc = (*MigrationAddTenantIsolation)(nil)
+// 迁移函数实现
