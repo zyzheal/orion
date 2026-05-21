@@ -37,6 +37,7 @@ import {
   TeamOutlined,
   SubnodeOutlined,
   SettingOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import {
   listTenants,
@@ -53,6 +54,67 @@ const { Title, Text } = Typography;
 interface TenantListPageProps {
   onTenantSelect?: (tenantId: string) => void;
 }
+
+// P2-5 修复: 预设模板配置
+interface QuotaTemplate {
+  name: string;
+  label: string;
+  quota: {
+    maxPipelines: number;
+    maxPipelineRunsPerDay: number;
+    maxConcurrentRuns: number;
+    maxRunners: number;
+    maxCpuCores: number;
+    maxMemoryGb: number;
+    maxStorageGb: number;
+    maxNamespaces: number;
+  };
+}
+
+const QUOTA_TEMPLATES: QuotaTemplate[] = [
+  {
+    name: 'startup',
+    label: '初创团队',
+    quota: {
+      maxPipelines: 50,
+      maxPipelineRunsPerDay: 500,
+      maxConcurrentRuns: 5,
+      maxRunners: 2,
+      maxCpuCores: 8,
+      maxMemoryGb: 16,
+      maxStorageGb: 50,
+      maxNamespaces: 5,
+    },
+  },
+  {
+    name: 'enterprise',
+    label: '企业标准',
+    quota: {
+      maxPipelines: 100,
+      maxPipelineRunsPerDay: 1000,
+      maxConcurrentRuns: 10,
+      maxRunners: 5,
+      maxCpuCores: 16,
+      maxMemoryGb: 32,
+      maxStorageGb: 100,
+      maxNamespaces: 10,
+    },
+  },
+  {
+    name: 'saas',
+    label: 'SaaS 客户',
+    quota: {
+      maxPipelines: 500,
+      maxPipelineRunsPerDay: 5000,
+      maxConcurrentRuns: 50,
+      maxRunners: 20,
+      maxCpuCores: 64,
+      maxMemoryGb: 128,
+      maxStorageGb: 500,
+      maxNamespaces: 50,
+    },
+  },
+];
 
 // P2 修复: 搜索筛选和批量操作状态
 const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
@@ -79,6 +141,8 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
   const [userModalTenant, setUserModalTenant] = useState<TenantEntity | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  // P2-5 修复: 模板选择状态
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('enterprise');
 
   const loadTenants = async () => {
     setLoading(true);
@@ -210,6 +274,48 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     onTenantSelect?.(tenantId);
     // Reload page to apply tenant context
     window.location.reload();
+  };
+
+  // P2-3 修复: 导出 CSV 功能
+  const handleExportCSV = () => {
+    // 使用过滤后的数据，如果没有过滤则使用全部数据
+    const exportData = searchText || statusFilter ? filteredTenants : tenants;
+
+    if (exportData.length === 0) {
+      message.warning('没有可导出的数据');
+      return;
+    }
+
+    // CSV 表头
+    const headers = ['租户名称', '显示名称', '状态', '创建时间'];
+    // CSV 数据行
+    const rows = exportData.map((t) => [
+      t.name,
+      t.display_name || '',
+      t.status,
+      t.created_at ? new Date(t.created_at).toLocaleString() : '',
+    ]);
+
+    // 构建 CSV 内容
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+
+    // 创建 Blob 并下载
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `租户列表_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    message.success(`已导出 ${exportData.length} 条租户数据`);
   };
 
   // P2 修复: 过滤后的数据 (本地搜索和状态筛选)
@@ -416,6 +522,10 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
           <Button icon={<ReloadOutlined />} onClick={loadTenants} loading={loading}>
             刷新
           </Button>
+          {/* P2-3 修复: 导出 CSV 按钮 */}
+          <Button icon={<DownloadOutlined />} onClick={handleExportCSV}>
+            导出 CSV
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建租户
           </Button>
@@ -510,6 +620,8 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
         onCancel={() => {
           setCreateModalOpen(false);
           createForm.resetFields();
+          // P2-5 修复: 重置模板选择
+          setSelectedTemplate('enterprise');
         }}
         onOk={() => createForm.submit()}
         confirmLoading={submitting}
@@ -580,6 +692,27 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
               </Tooltip>
             </Space>
           </Divider>
+          {/* P2-5 修复: 模板选择 */}
+          <Form.Item label="选择模板" style={{ marginBottom: 16 }}>
+            <Space>
+              {QUOTA_TEMPLATES.map((template) => (
+                <Button
+                  key={template.name}
+                  type={selectedTemplate === template.name ? 'primary' : 'default'}
+                  onClick={() => {
+                    setSelectedTemplate(template.name);
+                    createForm.setFieldsValue({
+                      customQuota: true,
+                      ...template.quota,
+                    });
+                    message.success(`已应用 "${template.label}" 模板`);
+                  }}
+                >
+                  {template.label}
+                </Button>
+              ))}
+            </Space>
+          </Form.Item>
           <Form.Item name="customQuota" valuePropName="checked" initialValue={false}>
             <Switch checkedChildren="自定义配额" unCheckedChildren="使用默认配额" />
           </Form.Item>
