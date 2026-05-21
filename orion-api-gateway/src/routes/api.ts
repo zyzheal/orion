@@ -17,7 +17,6 @@ export interface RouteConfig {
 }
 
 const services = () => getConfig().services;
-const services = () => getConfig().services;
 
 // 预定义路由配置 - 全部 34 个服务
 const routeConfigs: RouteConfig[] = [

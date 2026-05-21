@@ -52,9 +52,13 @@ interface PlatformSubAppsResponse {
 /**
  * api_domain 到 API 路径前缀的默认映射表
  * 当子应用配置中未定义 api_paths 时作为 fallback 使用
+ *
+ * 注意：仅包含在 api.ts 中没有静态路由的子应用
+ * visor、dba 等已有静态路由的不在这里注册，避免冲突
  */
 const DEFAULT_API_PATH_MAP: Record<string, string[]> = {
   // PandaWiki / Knowledge 子应用
+  // 无静态路由，需动态注册
   knowledge: [
     '/api/v1/knowledge_base',
     '/api/v1/knowledge',
@@ -65,7 +69,6 @@ const DEFAULT_API_PATH_MAP: Record<string, string[]> = {
     '/api/v1/stat',
     '/api/v1/app',
     '/api/v1/file',
-    '/api/v1/chat',
     '/api/v1/conversation',
     '/api/v1/comment',
     '/api/v1/crawler',
@@ -76,12 +79,6 @@ const DEFAULT_API_PATH_MAP: Record<string, string[]> = {
     '/share',
     '/static-file',
   ],
-
-  // DBA 子应用
-  dba: ['/api/v1/dba', '/api/v1/database', '/api/v1/databases'],
-
-  // Visor 子应用
-  visor: ['/api/v1/visor', '/api/v1/visualization'],
 };
 
 /**

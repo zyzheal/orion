@@ -205,12 +205,13 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // ==================== 动态路由同步 ====================
 
   // 从平台服务获取子应用配置，自动注册网关路由
-  // 不需要在 api.ts 中硬编码子应用的 API 路径
-  gatewayRouteSync(app).then((count) => {
+  // 必须在 app.listen() 之前完成，所以 await 等待
+  try {
+    const count = await gatewayRouteSync(app);
     app.log.info(`Gateway route sync complete: ${count} routes registered from sub-app configs`);
-  }).catch((err) => {
+  } catch (err) {
     app.log.warn({ err: err instanceof Error ? err.message : String(err) }, 'Gateway route sync failed, using static routes only');
-  });
+  }
 
   // ==================== 注册服务到注册表 ====================
 
