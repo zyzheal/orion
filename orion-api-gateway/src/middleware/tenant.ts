@@ -112,6 +112,25 @@ const PUBLIC_PATHS = [
   '/favicon.ico',
   '/api/v1/tenants/register', // 租户注册接口不需要租户上下文
   '/api/v1/tenants',          // 租户管理 API（需要认证，不需要租户上下文）
+  // Knowledge 子应用路径（子应用自身处理租户逻辑）
+  '/api/v1/knowledge_base',
+  '/api/v1/knowledge',
+  '/api/v1/nav',
+  '/api/v1/node',
+  '/api/v1/user',
+  '/api/v1/model',
+  '/api/v1/stat',
+  '/api/v1/app',
+  '/api/v1/file',
+  '/api/v1/conversation',
+  '/api/v1/comment',
+  '/api/v1/crawler',
+  '/api/v1/setting',
+  '/api/v1/license',
+  '/api/v1/share',
+  '/api/v1/health',
+  '/share',
+  '/static-file',
 ];
 
 /**
