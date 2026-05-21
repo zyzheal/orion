@@ -49,31 +49,12 @@ const SubAppRouteMF: React.FC = () => {
       return {
         key: config.key,
         name: config.name,
-        remoteEntry: config.url, // 使用 url 作为 remoteEntry
+        remoteEntry: config.url,
       };
     }
 
-    // Fallback: 手动配置（从 apps.ts 迁移）
-    const isDev = import.meta.env.DEV;
-    const manualConfigs: Record<string, OrionMFConfig> = {
-      dba: {
-        key: 'dba',
-        name: '数据库管理',
-        remoteEntry: isDev ? 'http://localhost:3001/orion-dba' : '/orion-dba',
-      },
-      knowledge: {
-        key: 'knowledge',
-        name: '知识库',
-        remoteEntry: isDev ? 'http://localhost:3001/orion-knowledge' : '/orion-knowledge',
-      },
-      visor: {
-        key: 'visor',
-        name: '运维可视化',
-        remoteEntry: isDev ? 'http://localhost:3001/orion-visor' : '/orion-visor',
-      },
-    };
-
-    return manualConfigs[appKey] || null;
+    // 配置未找到时返回 null，由调用方处理错误提示
+    return null;
   }, [appKey]);
 
   const mfConfig = getMFConfig();
@@ -98,8 +79,13 @@ const SubAppRouteMF: React.FC = () => {
 
   // 加载子应用
   useEffect(() => {
-    if (!appKey || !mfConfig) {
-      console.warn(`[SubAppRouteMF] No config for path: ${location.pathname}`);
+    if (!appKey) {
+      setError('未识别的路径：请检查子应用配置');
+      return;
+    }
+
+    if (!mfConfig) {
+      setError(`子应用 "${appKey}" 未配置。请在管理页面（/console/subapps）添加配置。`);
       return;
     }
 
