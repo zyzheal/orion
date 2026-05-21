@@ -149,7 +149,7 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
-    path: '/pipelines/edit/:id',
+    path: '/pipelines/:id/edit',
     element: React.lazy(() => import('@/pages/PipelineEditor')),
     protected: true,
   },
@@ -201,12 +201,19 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
-  // Tenant Management
+  // Tenant Management (租户详情和配额)
   {
     path: '/tenant-management',
     element: React.lazy(() => import('@/pages/TenantManagement')),
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Tenant List (管理员租户列表)
+  {
+    path: '/tenant-list',
+    element: React.lazy(() => import('@/pages/TenantList')),
+    protected: true,
+    requiredPermission: { resource: 'tenant', action: 'manage' },
   },
   // Config Management
   {

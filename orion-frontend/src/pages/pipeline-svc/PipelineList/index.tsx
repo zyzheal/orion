@@ -9,13 +9,13 @@
  * - Pagination support
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message, Empty } from 'antd';
+import { Typography, Button, Space, Tag, message, Empty, Modal, Input } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, ApiOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, ApiOutlined, PlayCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getPipelines, type Pipeline } from '@/api/pipelines';
+import { getPipelines, triggerPipeline, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -32,6 +32,10 @@ const PipelineList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [runModalVisible, setRunModalVisible] = useState(false);
+  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
+  const [runBranch, setRunBranch] = useState('main');
+  const [running, setRunning] = useState(false);
 
   // Load pipelines from API
   const loadPipelines = async () => {
@@ -90,6 +94,39 @@ const PipelineList: React.FC = () => {
       ],
     },
   ];
+
+  // Handle run pipeline
+  const handleRun = (record: Pipeline) => {
+    setSelectedPipeline(record);
+    setRunBranch('main');
+    setRunModalVisible(true);
+  };
+
+  const confirmRun = async () => {
+    if (!selectedPipeline) return;
+    setRunning(true);
+    try {
+      const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch });
+      const runId = response.data.data?.id;
+      message.success(`Pipeline "${selectedPipeline.name}" 已触发运行`);
+      setRunModalVisible(false);
+      if (runId) {
+        navigate(`/pipelines/${selectedPipeline.id}/runs/${runId}`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`触发运行失败：${error.message}`);
+      } else {
+        message.error('触发运行失败，请稍后重试');
+      }
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadPipelines();
+  };
 
   // Table column definitions
   const columns: TableColumn<Pipeline>[] = [
@@ -160,7 +197,7 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 280,
+      width: 320,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
@@ -172,19 +209,23 @@ const PipelineList: React.FC = () => {
           <Button
             type="link"
             size="small"
-            danger
-            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+            icon={<PlayCircleOutlined />}
+            onClick={() => handleRun(record)}
           >
             运行
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<UnorderedListOutlined />}
+            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+          >
+            运行记录
           </Button>
         </Space>
       ),
     },
   ];
-
-  const handleRefresh = () => {
-    loadPipelines();
-  };
 
   return (
     <div style={{ padding: 0 }}>
@@ -254,6 +295,26 @@ const PipelineList: React.FC = () => {
           }}
         />
       )}
+
+      {/* Run Pipeline Modal */}
+      <Modal
+        title={`运行 Pipeline: ${selectedPipeline?.name || ''}`}
+        open={runModalVisible}
+        onOk={confirmRun}
+        onCancel={() => setRunModalVisible(false)}
+        confirmLoading={running}
+        okText="触发运行"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 8 }}>分支</label>
+          <Input
+            value={runBranch}
+            onChange={(e) => setRunBranch(e.target.value)}
+            placeholder="输入分支名称，默认为 main"
+          />
+        </div>
+      </Modal>
     </div>
   );
 };
