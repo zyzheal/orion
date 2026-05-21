@@ -282,18 +282,18 @@ const PipelineDetail: React.FC = () => {
           if (runsData.length > 0) {
             latestRun = runsData[0];
             // Fetch full run detail including stages and tasks
+            // Backend returns: { run: {...}, stages: [...], tasks: [...] }
             try {
               const runDetailRes = await getPipelineRunDetail(latestRun.id);
-              console.log('[PipelineDetail] Raw run detail response:', runDetailRes);
 
-              // Backend returns: { run: {...}, stages: [...], tasks: [...] }
-              // Axios wraps it in res.data, so we need to extract properly
-              const rawResponse = (runDetailRes as any)?.data ?? runDetailRes;
-              console.log('[PipelineDetail] Extracted response:', rawResponse);
+              // Axios response: res.data = backend response
+              const axiosData = (runDetailRes as any)?.data;
+              console.log('[PipelineDetail] Axios response data:', axiosData);
 
-              // Stages are directly in the response, not nested under .data
-              const rawStages = rawResponse?.stages ?? [];
-              const rawTasks = rawResponse?.tasks ?? [];
+              // Backend sends { run, stages, tasks } directly
+              const rawStages = axiosData?.stages ?? [];
+              const rawTasks = axiosData?.tasks ?? [];
+              const runInfo = axiosData?.run ?? {};
 
               console.log('[PipelineDetail] Raw stages count:', rawStages.length);
               console.log('[PipelineDetail] Raw stages:', rawStages);
@@ -301,7 +301,7 @@ const PipelineDetail: React.FC = () => {
 
               // Merge tasks into stages as steps
               runStages = rawStages.map((stage: any) => {
-                const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
+                const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id);
                 const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
                 return {
                   ...stage,
@@ -317,7 +317,7 @@ const PipelineDetail: React.FC = () => {
               console.log('[PipelineDetail] Processed stages:', runStages.length, runStages);
 
               // Merge run detail into latestRun
-              latestRun = { ...latestRun, ...rawResponse, stages: runStages };
+              latestRun = { ...latestRun, ...runInfo, stages: runStages };
             } catch (err) {
               console.error('[PipelineDetail] Failed to get run detail:', err);
             }
@@ -338,7 +338,7 @@ const PipelineDetail: React.FC = () => {
           ...pipelineData,
           // Merge latest run data for display
           status: latestRun?.status || 'pending',
-          runNumber: runsCount || 1, // 运行号从 1 开始，用运行总数作为当前运行号
+          runNumber: runsCount || 1,
           branch: latestRun?.branch || 'main',
           commit: latestRun?.commit,
           author: latestRun?.author || '-',
