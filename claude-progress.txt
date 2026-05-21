@@ -1,5 +1,30 @@
 # Orion Design - Progress Log
 
+## 2026-05-21: PipelineMonitor 运行监控面板 — COMPLETED
+
+### 实现内容
+
+1. **API 封装** (`orion-frontend/src/pages/pipeline-svc/PipelineMonitor/api.ts`)
+   - RunStats 接口定义
+   - getRunStats 函数：获取运行统计数据
+   - getPipelineMetrics 函数：获取 Pipeline 指标数据
+
+2. **监控页面** (`orion-frontend/src/pages/pipeline-svc/PipelineMonitor/index.tsx`)
+   - 统计卡片：总运行次数、成功率、失败次数、平均耗时
+   - 失败模式分布分析（进度条可视化）
+   - Top 5 失败 Pipeline 排名
+   - 最近运行表格
+   - 7/30/90 天时间范围选择
+   - 刷新按钮
+   - 空状态处理
+
+3. **路由配置** (`orion-frontend/src/router/routes.tsx`)
+   - 添加 /pipelines/monitor 路由
+
+**提交**: c169e4b2
+
+---
+
 ## 2026-05-20: OrionMF MFSandboxBridge 模块实现 — COMPLETED
 
 ### Changes
