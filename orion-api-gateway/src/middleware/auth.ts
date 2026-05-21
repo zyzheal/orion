@@ -40,6 +40,25 @@ export class AuthMiddleware {
     '/api/v1/auth/register',
     '/swagger',
     '/favicon.ico',
+    // Knowledge 子应用公开路径（子应用自身有认证逻辑）
+    '/api/v1/knowledge_base',
+    '/api/v1/knowledge',
+    '/api/v1/nav',
+    '/api/v1/node',
+    '/api/v1/user',
+    '/api/v1/model',
+    '/api/v1/stat',
+    '/api/v1/app',
+    '/api/v1/file',
+    '/api/v1/conversation',
+    '/api/v1/comment',
+    '/api/v1/crawler',
+    '/api/v1/setting',
+    '/api/v1/license',
+    '/api/v1/share',
+    '/api/v1/health',
+    '/share',
+    '/static-file',
   ];
 
   constructor(private app: FastifyInstance) {}

@@ -182,10 +182,20 @@ export class ProxyMiddleware {
     // 设置超时
     request.raw.setTimeout(timeout);
 
-    // 构建代理请求头
+    // 构建代理请求头，传播认证和追踪信息
     const proxyHeaders: Record<string, string> = {
       'X-Request-ID': request.requestId,
     };
+
+    // 传播认证信息（Authorization 或 X-API-Key）
+    const authHeader = request.headers.authorization;
+    if (authHeader) {
+      proxyHeaders['Authorization'] = authHeader;
+    }
+    const apiKey = request.headers['x-api-key'];
+    if (apiKey) {
+      proxyHeaders['X-API-Key'] = apiKey as string;
+    }
 
     // 传播租户 ID
     if (request.tenantId) {
