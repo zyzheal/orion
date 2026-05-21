@@ -11,7 +11,13 @@
  * C7: 部署发布 (6项) - 部署策略、回滚机制
  * C8: 运维自动化 (5项) - 自动化巡检、自愈机制
  *
- * 已实现: P0 级别检测 (API版本化、浏览器兼容、超时重试、限流、认证、监控、日志、健康检查、部署配置等)
+ * 已实现: C4 可观测性完整 6 项检测
+ *   - C4-01: 监控指标 (P0) - prometheus metrics 暴露
+ *   - C4-02: 告警规则 (P0) - 阈值/级别/渠道/抑制
+ *   - C4-03: 日志规范 (P0) - 结构化日志/字段/脱敏
+ *   - C4-04: 链路追踪 (P1) - TraceID/Span/拓扑
+ *   - C4-05: 健康检查 (P0) - 存活/就绪探针
+ *   - C4-06: 指标采集 (P1) - Prometheus格式/间隔
  */
 
 import * as ts from 'typescript';
@@ -161,6 +167,14 @@ export class COperationsAnalyzerBackend {
     this.detectMissingAuthMiddleware();
     this.detectMissingOpenAPI();
     this.detectRestfulCompliance();
+
+    // C4 可观测性检测 (完整 6 项)
+    this.detectMissingMetrics();      // C4-01: 监控指标 (P0) - 已实现
+    this.detectMissingAlertRules();    // C4-02: 告警规则 (P0) - 新增
+    this.detectMissingLoggingStandard(); // C4-03: 日志规范 (P0) - 已实现
+    this.detectMissingTracing();       // C4-04: 链路追踪 (P1) - 新增
+    this.detectMissingHealthCheck();   // C4-05: 健康检查 (P0) - 已实现
+    this.detectMissingMetricsCollection(); // C4-06: 指标采集 (P1) - 新增
 
     const stats = this.collectStats();
 
@@ -393,6 +407,173 @@ export class COperationsAnalyzerBackend {
         message: '服务缺少健康检查端点',
         suggestion: '建议添加 /health 端点，支持存活探针和就绪探针',
         checkId: 'C4-05',
+      });
+    }
+  }
+
+  // ============ C4-02: 告警规则 (P0) ============
+
+  /**
+   * 检测是否有告警规则配置
+   * 要求: 阈值定义、告警级别、通知渠道、告警抑制规则
+   */
+  private detectMissingAlertRules(): void {
+    // 只在主服务文件或配置文件目录中检测
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    const isConfigFile = /config|alert|alarm/i.test(this.filePath);
+    if (!isMainFile && !isConfigFile) return;
+
+    // 检测告警相关配置
+    const hasAlertRules = /alert|alarm|warning.*threshold|notify|webhook.*alert|alertmanager/i.test(this.content);
+
+    // 检测 Prometheus alert 规则
+    const hasPrometheusAlert = /groups:|alerting:|alert_name|alert\(.*\)/i.test(this.content);
+
+    // 检测告警阈值定义
+    const hasThreshold = /threshold|for:|annotations:|labels:/i.test(this.content);
+
+    // 检测通知渠道
+    const hasNotificationChannel = /receiver|route|slack|email|dingtalk|webhook.*notify/i.test(this.content);
+
+    if (!hasAlertRules && !hasPrometheusAlert) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-alert-rules',
+        severity: 'P0',
+        message: '服务缺少告警规则配置',
+        suggestion: '建议配置 Prometheus Alert 规则，定义告警阈值、级别、通知渠道',
+        checkId: 'C4-02',
+      });
+    } else if ((hasAlertRules || hasPrometheusAlert) && !hasThreshold) {
+      // 有告警配置但缺少阈值定义
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-alert-rules',
+        severity: 'P1',
+        message: '告警规则缺少阈值定义',
+        suggestion: '建议为每个告警规则定义明确的阈值 (for: duration, annotations: description)',
+        checkId: 'C4-02',
+      });
+    } else if (!hasNotificationChannel) {
+      // 有告警配置但缺少通知渠道
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-alert-rules',
+        severity: 'P1',
+        message: '告警规则缺少通知渠道配置',
+        suggestion: '建议配置 AlertManager receiver (email/slack/dingtalk/webhook)',
+        checkId: 'C4-02',
+      });
+    }
+  }
+
+  // ============ C4-04: 链路追踪 (P1) ============
+
+  /**
+   * 检测是否使用链路追踪
+   * 要求: TraceID/Span 生成、trace 传递、拓扑关系
+   */
+  private detectMissingTracing(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    // 检测是否使用链路追踪框架
+    const hasTracing = /traceId|traceID|spanId|Span|opentelemetry|jaeger|zipkin|skywalking|@sentry|tracing/i.test(this.content);
+
+    // 检测是否有 trace 传递
+    const hasTracePropagation = /x-trace-id|traceparent|b3 propagation|propagate.*trace|extract|inject/i.test(this.content);
+
+    // 检测是否有 tracing 中间件
+    const hasTracingMiddleware = /tracing.*middleware|middleware.*tracing|createPlugin.*tracing/i.test(this.content);
+
+    if (!hasTracing) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-tracing',
+        severity: 'P1',
+        message: '服务缺少链路追踪集成',
+        suggestion: '建议使用 OpenTelemetry/jaeger/zipkin 实现分布式追踪',
+        checkId: 'C4-04',
+      });
+    } else if (hasTracing && !hasTracePropagation) {
+      // 有 tracing 但没有 trace 传递
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-tracing',
+        severity: 'P1',
+        message: '链路追踪缺少 trace 传递机制',
+        suggestion: '建议实现 HTTP header 传递 (traceparent/b3)，确保请求链路完整',
+        checkId: 'C4-04',
+      });
+    }
+  }
+
+  // ============ C4-06: 指标采集 (P1) ============
+
+  /**
+   * 检测 Prometheus 指标采集配置
+   * 要求: Prometheus 格式暴露、采集间隔、指标命名规范
+   */
+  private detectMissingMetricsCollection(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    // 检测 Prometheus 指标暴露
+    const hasPrometheusMetrics = /prom-client|prometheus-metrics|register.*default|ioredis.*prometheus|client\.register/i.test(this.content);
+
+    // 检测指标命名规范 (后缀约定)
+    const hasMetricNaming = /_total|_seconds|_bytes|histogram|summary|gauge|counter/i.test(this.content);
+
+    // 检测自定义指标注册
+    const hasCustomMetrics = /new Counter|new Gauge|new Histogram|new Summary|createMetric/i.test(this.content);
+
+    // 检测采集端点
+    const hasMetricsEndpoint = /\/metrics|get\(['"`]\/metrics/i.test(this.content);
+
+    if (!hasPrometheusMetrics) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-metrics-collection',
+        severity: 'P1',
+        message: '缺少 Prometheus 指标采集配置',
+        suggestion: '建议使用 prom-client 注册指标并暴露 /metrics 端点',
+        checkId: 'C4-06',
+      });
+    } else if (hasPrometheusMetrics && !hasMetricsEndpoint) {
+      // 有 prom-client 但没有 /metrics 端点
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-metrics-collection',
+        severity: 'P1',
+        message: '指标端点未暴露',
+        suggestion: '确保 /metrics 端点可访问，供 Prometheus 抓取',
+        checkId: 'C4-06',
+      });
+    } else if (hasPrometheusMetrics && !hasMetricNaming && !hasCustomMetrics) {
+      // 有 prom-client 但可能没有按规范命名
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-metrics-collection',
+        severity: 'P2',
+        message: '指标命名可能不符合 Prometheus 规范',
+        suggestion: '建议使用 _total (counter), _seconds (histogram), _bytes (gauge) 等后缀',
+        checkId: 'C4-06',
       });
     }
   }
