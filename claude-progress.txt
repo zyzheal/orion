@@ -3444,3 +3444,43 @@ After thorough review, all notification channel sending logic was already implem
 ### 覆盖率统计
 - **C1 兼容性: 4/12 → 12/12 项 (100%)**
 - **C 运维层总体覆盖率: 53% → 63% (38/60 项)**
+
+---
+
+## 2026-05-21: A1 数据结构检测器深度优化 — COMPLETED
+
+### 实现内容
+
+1. **A1 数据结构检测器深度优化** (`docs/design-constraints/framework/core/a1-data-structure-analyzer.ts`)
+
+2. **新增功能**
+
+   **覆盖率统计系统**:
+   - `A1_CHECK_ITEMS` 常量定义 14 项检测项
+   - `calculateCoverage()` 返回覆盖率统计
+   - `CoverageStats` 接口提供详细覆盖率信息
+
+   **扫描统计增强**:
+   - `DataStructureScanner.scanWithStats()` 返回扫描统计
+   - `ScanStatistics` 接口提供问题分布、Top 问题
+   - `generateCoverageReport()` 生成覆盖率报告
+
+3. **检测器增强 (6项)**
+
+   **后端检测增强**:
+   - A1-01: 增强 API 类型定义检测，支持 DTO/泛型/Zod/类型导入
+   - A1-02: 增强 OpenAPI 检测，支持外部文档文件检测
+   - A1-04: 增强后端校验规则，支持 class-validator/zod/Joi
+   - A1-09: 增强数据库默认值，支持 TypeORM/Prisma/Sequelize/Drizzle
+   - A1-11: 增强 API 脱敏检测，支持更多返回模式
+
+   **前端检测增强**:
+   - A1-06: 增强 any 类型检测，检测函数参数和返回值
+   - A1-10: 增强前端脱敏，支持更多敏感字段类型
+
+### 覆盖率统计
+- **A1 数据结构总体覆盖率: 100% (14/14 项已实现)**
+
+### 验证结果
+- TypeScript 语法验证通过
+- 检测器正常工作
