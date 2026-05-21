@@ -1,0 +1,160 @@
+{
+  "version": "3.0",
+  "name": "a2_interaction",
+  "extends": "base",
+  "priority": 1,
+  "layer": "design",
+  "description": "前端交互逻辑设计检查项",
+  "checks": [
+    {
+      "id": "A2-01",
+      "category": "entry",
+      "level": "P0",
+      "rule": "每个操作有明确入口",
+      "description": "每个功能操作必须有明确的用户入口（按钮/菜单）",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-02",
+      "category": "feedback",
+      "level": "P0",
+      "rule": "操作后有明确反馈",
+      "description": "每个异步操作必须有 success/error 提示",
+      "frontend": true,
+      "backend": false,
+      "detection": "eslint"
+    },
+    {
+      "id": "A2-03",
+      "category": "state",
+      "level": "P1",
+      "rule": "状态机定义完整",
+      "description": "复杂状态流转必须有状态机定义",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-04",
+      "category": "animation",
+      "level": "P1",
+      "rule": "状态变化有动画过渡",
+      "description": "状态变化应有 CSS 动画过渡",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-05",
+      "category": "error",
+      "level": "P0",
+      "rule": "网络错误处理",
+      "description": "必须有网络错误处理（断网、超时）",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-06",
+      "category": "error",
+      "level": "P0",
+      "rule": "业务错误提示",
+      "description": "业务逻辑错误必须有用户友好的提示",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-07",
+      "category": "permission",
+      "level": "P0",
+      "rule": "权限不足提示",
+      "description": "用户无权限操作时必须有明确提示",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-08",
+      "category": "timeout",
+      "level": "P1",
+      "rule": "超时处理",
+      "description": "长时间操作必须有超时处理和重试机制",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-09",
+      "category": "concurrency",
+      "level": "P0",
+      "rule": "乐观锁/冲突检测",
+      "description": "并发编辑必须有乐观锁或冲突检测",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-10",
+      "category": "concurrency",
+      "level": "P1",
+      "rule": "并发操作提示",
+      "description": "多人同时操作时必须有提示机制",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-11",
+      "category": "undo",
+      "level": "P1",
+      "rule": "关键操作可撤销",
+      "description": "删除、修改等关键操作应支持撤销",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-12",
+      "category": "loading",
+      "level": "P0",
+      "rule": "异步操作有 loading 状态",
+      "description": "所有异步操作必须有 loading 状态（按钮 disabled/spinner）",
+      "frontend": true,
+      "backend": false,
+      "detection": "eslint"
+    },
+    {
+      "id": "A2-13",
+      "category": "skeleton",
+      "level": "P1",
+      "rule": "骨架屏/占位符",
+      "description": "数据加载时应有骨架屏或占位符",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-14",
+      "category": "empty",
+      "level": "P0",
+      "rule": "空数据有引导",
+      "description": "列表为空时必须有 Empty 组件 + 引导按钮",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    },
+    {
+      "id": "A2-15",
+      "category": "empty",
+      "level": "P1",
+      "rule": "空搜索结果提示",
+      "description": "搜索无结果时必须有友好提示",
+      "frontend": true,
+      "backend": false,
+      "detection": "code-review"
+    }
+  ]
+}
