@@ -18,6 +18,7 @@ import {
   message,
   Tooltip,
   Popconfirm,
+  Tabs,
   Divider,
   Empty,
   Row,
@@ -33,6 +34,8 @@ import {
   InfoCircleOutlined,
   BankOutlined,
   TeamOutlined,
+  SubnodeOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import {
   listTenants,
@@ -144,14 +147,29 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     }
   };
 
+  // P1-1 修复：更新租户时同时更新配额信息
   const handleEdit = async (values: any) => {
     if (!editingTenant) return;
     try {
-      await updateTenant(editingTenant.id, {
+      const input: Partial<CreateTenantRequest> = {
         name: values.name,
         display_name: values.display_name,
         settings: values.settings,
-      });
+      };
+      // P1-1 修复：包含自定义配额
+      if (values.maxPipelines !== undefined) {
+        input.customQuota = {
+          maxPipelines: values.maxPipelines,
+          maxPipelineRunsPerDay: values.maxPipelineRunsPerDay,
+          maxConcurrentRuns: values.maxConcurrentRuns,
+          maxRunners: values.maxRunners,
+          maxCpuCores: values.maxCpuCores,
+          maxMemoryGb: values.maxMemoryGb,
+          maxStorageGb: values.maxStorageGb,
+          maxNamespaces: values.maxNamespaces,
+        };
+      }
+      await updateTenant(editingTenant.id, input);
       message.success('租户更新成功');
       setEditModalOpen(false);
       loadTenants();
@@ -276,6 +294,28 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
               onClick={() => handleOpenUserModal(record)}
             >
               用户
+            </Button>
+          </Tooltip>
+          {/* P1-4 修复：添加子租户管理入口 */}
+          <Tooltip title="子租户管理">
+            <Button
+              type="link"
+              size="small"
+              icon={<SubnodeOutlined />}
+              onClick={() => message.info("子租户管理功能开发中")}
+            >
+              子租户
+            </Button>
+          </Tooltip>
+          {/* P1-5 修复：添加租户设置入口 */}
+          <Tooltip title="租户设置">
+            <Button
+              type="link"
+              size="small"
+              icon={<SettingOutlined />}
+              onClick={() => message.info("租户设置功能开发中")}
+            >
+              设置
             </Button>
           </Tooltip>
           <Popconfirm
@@ -497,7 +537,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
         </Form>
       </Modal>
 
-      {/* Edit Tenant Modal */}
+      {/* P1-1 修复：编辑 Modal 增加配额设置 Tab */}
       <Modal
         title={
           <Space>
@@ -513,19 +553,108 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
         onOk={() => editForm.submit()}
         okText="保存"
         cancelText="取消"
+        width={700}
       >
-        <Form form={editForm} layout="vertical" onFinish={handleEdit}>
-          <Form.Item label="租户标识" name="name">
-            <Input disabled />
-          </Form.Item>
-          <Form.Item label="显示名称" name="display_name">
-            <Input placeholder="例如：ACME 公司" />
-          </Form.Item>
-          {/* P0-4 修复：移除后端不支持的 settings.notes 字段
-          <Form.Item label="备注" name={['settings', 'notes']}>
-            <Input.TextArea rows={3} placeholder="租户备注信息" />
-          </Form.Item>
-          */}
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleEdit}
+          initialValues={{
+            maxPipelines: 100,
+            maxPipelineRunsPerDay: 1000,
+            maxConcurrentRuns: 10,
+            maxRunners: 5,
+            maxCpuCores: 16,
+            maxMemoryGb: 32,
+            maxStorageGb: 100,
+            maxNamespaces: 10,
+          }}
+        >
+          <Tabs
+            defaultActiveKey="basic"
+            items={[
+              {
+                key: 'basic',
+                label: (
+                  <span>
+                    <SettingOutlined />
+                    基本信息
+                  </span>
+                ),
+                children: (
+                  <>
+                    <Form.Item label="租户标识" name="name">
+                      <Input disabled />
+                    </Form.Item>
+                    <Form.Item label="显示名称" name="display_name">
+                      <Input placeholder="例如：ACME 公司" />
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: 'quota',
+                label: (
+                  <span>
+                    <DatabaseOutlined />
+                    资源配额
+                  </span>
+                ),
+                children: (
+                  <>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="最大 Pipeline 数" name="maxPipelines">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="每日最大运行次数" name="maxPipelineRunsPerDay">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="最大并发运行数" name="maxConcurrentRuns">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="最大 Runner 数" name="maxRunners">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="最大 CPU 核心数" name="maxCpuCores">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="最大内存 (GB)" name="maxMemoryGb">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="最大存储 (GB)" name="maxStorageGb">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="最大 Namespace 数" name="maxNamespaces">
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </>
+                ),
+              },
+            ]}
+          />
         </Form>
       </Modal>
 

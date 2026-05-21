@@ -39,6 +39,13 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = 
   skipped: { icon: <PlayCircleOutlined style={{ transform: 'rotate(180deg)' }} />, color: colors.neutral[400] },
 };
 
+interface StageNodeExtraProps {
+  hasApproval?: boolean;
+  timeout?: number;
+  hasQualityGate?: boolean;
+  status?: 'success' | 'failed' | 'running' | 'pending';
+}
+
 // Stage Node Component
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
@@ -47,6 +54,9 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
   const status = data?.status || 'pending';
   const config = data?.config;
   const index = data?.index;
+  const hasApproval = data?.hasApproval;
+  const timeout = data?.timeout;
+  const hasQualityGate = data?.hasQualityGate;
 
   const typeConfig = useMemo(
     () => STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom,
@@ -179,6 +189,15 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
             <Text type="secondary" style={{ fontSize: 10 }}>
               {String(config.imageName || config.containerImage || '')}
             </Text>
+          </div>
+        )}
+
+        {/* Indicator Badges (Approval, Timeout, Quality Gate) */}
+        {(hasApproval || timeout || hasQualityGate) && (
+          <div style={{ display: 'flex', gap: 4, marginTop: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {hasApproval && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, background: '#7C5CFC14', color: '#7C5CFC' }}>审批</span>}
+            {timeout && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, background: '#faad1414', color: '#faad14' }}>{timeout}s</span>}
+            {hasQualityGate && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, background: '#52c41a14', color: '#52c41a' }}>门禁</span>}
           </div>
         )}
 
