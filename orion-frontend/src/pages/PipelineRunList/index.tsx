@@ -62,7 +62,7 @@ function formatDuration(ms?: number): string {
 
 const PipelineRunList: React.FC = () => {
   const navigate = useNavigate();
-  const { pipelineId } = useParams<{ pipelineId: string }>();
+  const { id: pipelineId } = useParams<{ id: string }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
@@ -211,7 +211,7 @@ const PipelineRunList: React.FC = () => {
           <Text
             strong
             style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/pipelines/${record.id}`)}
+            onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
           >
             {(record as any).pipelineName || record.pipelineId}
           </Text>
@@ -283,7 +283,7 @@ const PipelineRunList: React.FC = () => {
           <Button
             type="link"
             size="small"
-            onClick={() => navigate(`/pipelines/${record.id}`)}
+            onClick={() => navigate(`/pipelines/${record.pipelineId}/runs/${record.id}`)}
           >
             查看
           </Button>
@@ -337,28 +337,25 @@ const PipelineRunList: React.FC = () => {
           marginBottom: 24,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            {pipelineName ? `${pipelineName} - 运行历史` : 'Pipeline 运行历史'}
+          </Title>
+          <Text type="secondary">
+            {pipelineId ? `Pipeline ID: ${pipelineId}` : '全部 Pipeline'}
+            {' · '}共 {sortedRuns.length} 条运行记录
+          </Text>
+        </div>
+        <Space>
           {pipelineId && (
             <Button
-              type="text"
               icon={<ArrowLeftOutlined />}
               onClick={() => navigate('/pipelines')}
             >
-              返回
+              返回列表
             </Button>
           )}
-          <div>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-              {pipelineName ? `${pipelineName} - 运行历史` : 'Pipeline 运行历史'}
-            </Title>
-            <Text type="secondary">
-              {pipelineId ? `Pipeline ID: ${pipelineId}` : '全部 Pipeline'}
-              {' · '}共 {sortedRuns.length} 条运行记录
-            </Text>
-          </div>
-        </div>
-        <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
             刷新
           </Button>

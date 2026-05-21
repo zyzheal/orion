@@ -25,7 +25,6 @@ import {
   ApiOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
-import CardPanel from '@/components/CardPanel';
 import { DAGGraph } from '@/components/DAGGraph';
 import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
 import {
@@ -514,7 +513,7 @@ const PipelineDetail: React.FC = () => {
   if (loading) {
     return (
       <div style={{ padding: 0 }}>
-        <CardPanel>Loading...</CardPanel>
+      <Card style={{ padding: '12px 16px' }}>Loading...</Card>
       </div>
     );
   }
@@ -538,8 +537,8 @@ const PipelineDetail: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 0, background: colors.light.bg.secondary, minHeight: '100vh' }}>
-      {/* 页面头部 - 与列表页风格一致 */}
+    <div style={{ padding: 0 }}>
+      {/* 页面头部 - 与列表页 space-between 布局一致 */}
       <div
         style={{
           display: 'flex',
@@ -549,27 +548,15 @@ const PipelineDetail: React.FC = () => {
         }}
       >
         <div>
-          <div style={{ marginBottom: spacing.sm }}>
-            <Space align="center">
-              <Button
-                type="text"
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/pipelines')}
-                size="small"
-              >
-                返回列表
-              </Button>
-              <Title level={2} style={{ marginBottom: 0 }}>
-                <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-                {pipeline.name}
-              </Title>
-              <Tag color="default" style={{ fontSize: 12 }}>
-                #{pipeline.runNumber}
-              </Tag>
-              {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-            </Space>
-          </div>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            {pipeline.name}
+          </Title>
           <Space size="middle" wrap>
+            <Tag color="default" style={{ fontSize: 12 }}>
+              #{pipeline.runNumber}
+            </Tag>
+            {pipeline && <StatusBadge status={pipeline.status} size="small" />}
             <Text type="secondary" style={{ fontSize: 13 }}>
               分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
             </Text>
@@ -588,6 +575,12 @@ const PipelineDetail: React.FC = () => {
         </div>
         <Space>
           <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+          >
+            返回列表
+          </Button>
+          <Button
             type="primary"
             icon={<ReloadOutlined />}
             loading={isRerunning}
@@ -600,37 +593,35 @@ const PipelineDetail: React.FC = () => {
       </div>
 
       {/* Pipeline info card */}
-      <div style={{ marginBottom: spacing.md }}>
-        <CardPanel>
-          <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
-            <Descriptions.Item label="状态">
-              <StatusBadge status={pipeline.status} size="small" />
-            </Descriptions.Item>
-            <Descriptions.Item label="开始时间">
-              <Space>
-                <ClockCircleOutlined />
-                <Text type="secondary">
-                  {dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}
-                </Text>
-              </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="结束时间">
-              {pipeline.endTime ? (
-                <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
-              ) : (
-                <Text type="secondary">-</Text>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="耗时">{formatDuration(pipeline.duration)}</Descriptions.Item>
-            <Descriptions.Item label="进度">
-              <Space>
-                <Badge status="processing" text={`${completedStages}/${totalStages} 阶段完成`} />
-                <Text type="secondary">({progressPercent}%)</Text>
-              </Space>
-            </Descriptions.Item>
-          </Descriptions>
-        </CardPanel>
-      </div>
+      <Card style={{ marginBottom: 24 }}>
+        <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
+          <Descriptions.Item label="状态">
+            <StatusBadge status={pipeline.status} size="small" />
+          </Descriptions.Item>
+          <Descriptions.Item label="开始时间">
+            <Space>
+              <ClockCircleOutlined />
+              <Text type="secondary">
+                {dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}
+              </Text>
+            </Space>
+          </Descriptions.Item>
+          <Descriptions.Item label="结束时间">
+            {pipeline.endTime ? (
+              <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+            ) : (
+              <Text type="secondary">-</Text>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="耗时">{formatDuration(pipeline.duration)}</Descriptions.Item>
+          <Descriptions.Item label="进度">
+            <Space>
+              <Badge status="processing" text={`${completedStages}/${totalStages} 阶段完成`} />
+              <Text type="secondary">({progressPercent}%)</Text>
+            </Space>
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
 
       {/* Structured error detail for failed pipelines */}
       {pipeline && pipeline.status === 'failed' && id && (
@@ -638,7 +629,7 @@ const PipelineDetail: React.FC = () => {
       )}
 
       {/* Tabbed content: Stages / Logs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab}>
         <TabPane
           tab={
             <Space>
@@ -649,7 +640,7 @@ const PipelineDetail: React.FC = () => {
           key="stages"
         >
           {/* Stage timeline visualization */}
-          <CardPanel title="执行阶段">
+          <Card style={{ marginBottom: 24 }} title="执行阶段">
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               {/* Stage progress bar */}
               <div
@@ -809,7 +800,7 @@ const PipelineDetail: React.FC = () => {
                 </div>
               )}
             </Space>
-          </CardPanel>
+          </Card>
         </TabPane>
 
         <TabPane
@@ -822,7 +813,7 @@ const PipelineDetail: React.FC = () => {
           key="logs"
         >
           {/* Log viewer */}
-          <CardPanel title="日志输出">
+          <Card style={{ marginBottom: 24 }} title="日志输出">
             <div
               style={{
                 background: colors.neutral[900],
@@ -886,7 +877,7 @@ const PipelineDetail: React.FC = () => {
                 />
               )}
             </div>
-          </CardPanel>
+          </Card>
         </TabPane>
 
         <TabPane
@@ -899,7 +890,7 @@ const PipelineDetail: React.FC = () => {
           key="dag"
         >
           {/* DAG visualization */}
-          <CardPanel title="依赖关系图">
+          <Card style={{ marginBottom: 24 }} title="依赖关系图">
             {pipeline.stages && pipeline.stages.length > 0 ? (
               <DAGGraph
                 stages={pipeline.stages.map((stage: any, idx: number) => ({
@@ -924,7 +915,7 @@ const PipelineDetail: React.FC = () => {
                 <Text type="secondary">暂无阶段数据</Text>
               </div>
             )}
-          </CardPanel>
+          </Card>
         </TabPane>
 
         {/* 运行历史 Tab */}
@@ -938,7 +929,7 @@ const PipelineDetail: React.FC = () => {
           }
           key="runs"
         >
-          <CardPanel title={`运行历史 (${runs.length} 条)`}>
+          <Card style={{ marginBottom: 24 }} title={`运行历史 (${runs.length} 条)`}>
             <Table
               dataSource={runs}
               loading={runsLoading}
@@ -1018,7 +1009,7 @@ const PipelineDetail: React.FC = () => {
                 },
               ]}
             />
-          </CardPanel>
+          </Card>
         </TabPane>
 
         <TabPane
@@ -1031,12 +1022,12 @@ const PipelineDetail: React.FC = () => {
           key="outputs"
         >
           {/* Task outputs / variable propagation table */}
-          <CardPanel title="任务输出与变量传播">
+          <Card style={{ marginBottom: 24 }} title="任务输出与变量传播">
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
               以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
             </Text>
             <TaskOutputsTable />
-          </CardPanel>
+          </Card>
         </TabPane>
       </Tabs>
     </div>

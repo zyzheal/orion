@@ -137,8 +137,23 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
-    path: '/pipelines/edit/:id',
+    path: '/pipelines/:id/edit',
     element: React.lazy(() => import('@/pages/PipelineEditor')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/:id/versions',
+    element: React.lazy(() => import('@/pages/PipelineVersionHistory')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/:id/runs',
+    element: React.lazy(() => import('@/pages/PipelineRunList')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/:id/runs/:runId',
+    element: React.lazy(() => import('@/pages/PipelineRunLive')),
     protected: true,
   },
   {
@@ -147,23 +162,8 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
-    path: '/pipelines/:pipelineId/versions',
-    element: React.lazy(() => import('@/pages/PipelineVersionHistory')),
-    protected: true,
-  },
-  {
     path: '/pipeline-runs',
     element: React.lazy(() => import('@/pages/PipelineRunList')),
-    protected: true,
-  },
-  {
-    path: '/pipelines/:pipelineId/runs',
-    element: React.lazy(() => import('@/pages/PipelineRunList')),
-    protected: true,
-  },
-  {
-    path: '/pipelines/:id/runs/:runId',
-    element: React.lazy(() => import('@/pages/PipelineRunLive')),
     protected: true,
   },
   {

@@ -10,7 +10,7 @@
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider } from 'antd';
+import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Result } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -22,6 +22,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  CloudUploadOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import StatusBadge from '@/components/StatusBadge';
@@ -440,7 +441,7 @@ const PipelineRunLive: React.FC = () => {
       setLoading(true);
       setApiError(null);
       try {
-        const response = await getPipelineRun(id!);
+        const response = await getPipelineRun(runId!);
         // Backend returns { run, stages, tasks } directly, not wrapped in data
         const apiData = response.data as any;
         if (apiData) {
@@ -539,27 +540,19 @@ const PipelineRunLive: React.FC = () => {
   if (apiError && !pipeline) {
     return (
       <div style={{ padding: 0 }}>
-        <Card
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Button
-                type="text"
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/pipelines')}
-              >
-                返回列表
+        <Result
+          status="error"
+          title="加载失败"
+          subTitle={apiError}
+          extra={
+            <Space>
+              <Button onClick={() => navigate('/pipelines')}>返回列表</Button>
+              <Button type="primary" onClick={() => window.location.reload()}>
+                重新加载
               </Button>
-              <Title level={4} style={{ margin: 0 }}>
-                实时执行面板
-              </Title>
-            </div>
+            </Space>
           }
-        >
-          <div style={{ textAlign: 'center', padding: 40, color: colors.error[500] }}>
-            <CloseCircleOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-            <div>{apiError}</div>
-          </div>
-        </Card>
+        />
       </div>
     );
   }
@@ -571,28 +564,21 @@ const PipelineRunLive: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page header */}
+      {/* Page header - 与列表页 space-between 布局一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
           marginBottom: 24,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-        >
-          返回列表
-        </Button>
-        <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
             <CloudUploadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {pipeline?.name || 'Pipeline'} 实时执行
           </Title>
-          <Space size="middle">
+          <Space size="middle" wrap>
             <Text type="secondary">
               运行 #{pipeline?.runNumber || runId || id}
             </Text>
@@ -605,13 +591,17 @@ const PipelineRunLive: React.FC = () => {
                 连接错误: {error.message}
               </Text>
             )}
+            {pipeline && <StatusBadge status={pipeline.status} size="small" />}
           </Space>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <Space>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-          </Space>
-        </div>
+        <Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+          >
+            返回列表
+          </Button>
+        </Space>
       </div>
 
       {/* Run metadata */}
