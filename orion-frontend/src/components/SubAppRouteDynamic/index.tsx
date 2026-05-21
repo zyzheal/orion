@@ -12,39 +12,40 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSubAppStore } from '@/stores/subappStore';
 import { loadSubApp, getSubApp, destroySubApp } from '@orion-mf/core';
 import { injectAuthState } from '@/microfront/config';
-import { Loading } from '@/components/Loading';
-import { Result, Button } from 'antd';
+import { Result, Button, Progress, Skeleton, Space, Tag } from 'antd';
+import { CheckCircleOutlined, LoadingOutlined, CloudServerOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens/colors';
 
 const SubAppRouteDynamic: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { subAppKey } = useParams<{ subAppKey: string }>();
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadStage, setLoadStage] = useState('');
+  const [isFromCache, setIsFromCache] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const loadedRef = useRef(false);
   const instanceRef = useRef<SubAppInstance | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // 用 ref 记录当前正在加载的 subAppKey，避免 effect 因 setState 重复执行
+  const loadingKeyRef = useRef<string | null>(null);
 
-  // 从 SubAppStore 获取已配置的子应用列表
   const { apps, fetchEnabledApps } = useSubAppStore();
 
-  // 获取当前环境的入口 URL（Orion-MF 格式）
   const appConfig = useMemo(() => {
     if (!subAppKey) return null;
-
-    // 先尝试从 Store 获取
     const storeApp = apps.find((app) => app.key === subAppKey);
     if (storeApp && storeApp.status === 'enabled') {
       const isDev = import.meta.env.DEV;
       return {
         key: storeApp.key,
         name: storeApp.name,
-        // Orion-MF 使用 remoteEntry
         remoteEntry: isDev ? storeApp.entry_dev : storeApp.entry_prod,
         keepAlive: storeApp.keep_alive,
         enabled: storeApp.status === 'enabled',
+        api_domain: storeApp.api_domain,
       };
     }
-
     return null;
   }, [subAppKey, apps]);
 
@@ -55,26 +56,26 @@ const SubAppRouteDynamic: React.FC = () => {
     }
   }, [apps.length, fetchEnabledApps]);
 
-  // 清理函数
-  const cleanup = useRef(async () => {
-    if (instanceRef.current && subAppKey) {
+  // 辅助函数：销毁子应用实例 + 清理容器 DOM
+  const destroyInstanceAndContainer = useCallback(async () => {
+    const key = instanceRef.current ? subAppKey : null;
+    if (key) {
       try {
-        await destroySubApp(subAppKey);
-        console.log(`[SubAppRouteDynamic] ${subAppKey} destroyed`);
+        await destroySubApp(key);
+        console.log(`[SubAppRouteDynamic] ${key} destroyed`);
       } catch (err) {
-        console.warn(`[SubAppRouteDynamic] Failed to destroy ${subAppKey}:`, err);
+        console.warn(`[SubAppRouteDynamic] Failed to destroy ${key}:`, err);
       }
       instanceRef.current = null;
     }
-
-    // 清理容器 DOM
     if (containerRef.current) {
       containerRef.current.innerHTML = '';
     }
-  });
+  }, [subAppKey]);
 
+  // 主加载 effect — 只在 subAppKey 变化时执行一次
   useEffect(() => {
-    // 白名单验证：子应用必须已配置且启用
+    // 白名单验证
     if (!subAppKey) {
       setError('Missing sub-app key');
       setLoading(false);
@@ -88,15 +89,40 @@ const SubAppRouteDynamic: React.FC = () => {
       return;
     }
 
-    // React.StrictMode 下 effect 会执行两次，使用 loadedRef 防止重复加载
-    if (loadedRef.current) return;
-    loadedRef.current = true;
+    // 防止同一 subAppKey 重复加载
+    if (loadingKeyRef.current === subAppKey) return;
+    loadingKeyRef.current = subAppKey;
 
     let cancelled = false;
     setLoading(true);
+    setLoadProgress(0);
+    setLoadStage('正在初始化...');
     setError(null);
+    setIsFromCache(false);
 
     console.log(`[SubAppRouteDynamic] Loading ${subAppKey} from: ${appConfig.remoteEntry}`);
+
+    // 提前设置子应用的 basename 和 poweredBy 标志
+    const basePath = `/${subAppKey}`;
+    (window as any).__BASENAME__ = basePath;
+    (window as any).__POWERED_BY_ORION__ = true;
+
+    // 提前注入主应用 token
+    const mainToken = localStorage.getItem('access_token');
+    const mainUserStr = localStorage.getItem('user');
+    let mainUser = { id: '', username: '' };
+    if (mainUserStr) { try { mainUser = JSON.parse(mainUserStr); } catch { /* ignore */ } }
+    (window as any).$orion = {
+      token: mainToken || '',
+      tenantId: localStorage.getItem('tenant_id') || '',
+      user: mainUser,
+    };
+    (window as any).__orionToken = mainToken || '';
+
+    // 注入子应用 API 路由域，子应用前端使用此值作为 API base URL
+    const apiDomain = appConfig?.api_domain || subAppKey;
+    (window as any).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
+    console.log(`[SubAppRouteDynamic] Set __SUBAPP_API_BASE__ = /api/v1/${apiDomain}`);
 
     // 确保容器 ID 正确
     const containerId = `mf-${subAppKey}`;
@@ -106,13 +132,18 @@ const SubAppRouteDynamic: React.FC = () => {
 
     const loadApp = async () => {
       try {
+        setLoadProgress(10);
+        setLoadStage('检查缓存...');
+
         // 检查是否已加载（支持 keepAlive 场景）
         const existingInstance = getSubApp(subAppKey);
         if (existingInstance && containerRef.current) {
           console.log(`[SubAppRouteDynamic] Reusing existing instance for ${subAppKey}`);
           instanceRef.current = existingInstance;
+          setIsFromCache(true);
+          setLoadProgress(100);
+          setLoadStage('从缓存恢复');
 
-          // 如果存在且有 root 元素，直接挂载
           if (existingInstance.root && containerRef.current) {
             containerRef.current.appendChild(existingInstance.root);
           }
@@ -122,34 +153,49 @@ const SubAppRouteDynamic: React.FC = () => {
         }
 
         // 加载新实例
+        setLoadProgress(30);
+        setLoadStage('正在加载子应用...');
         const instance = await loadSubApp({
           key: subAppKey,
           name: appConfig.name,
           remoteEntry: appConfig.remoteEntry,
-          cssIsolation: 'shadow', // 使用 Shadow DOM 隔离
-          errorBoundary: true, // 启用错误边界
+          cssIsolation: 'shadow',
+          errorBoundary: true,
         });
 
         if (cancelled) return;
 
+        setLoadProgress(70);
+        setLoadStage('初始化沙箱...');
+
         console.log(`[SubAppRouteDynamic] ${subAppKey} loaded successfully`);
 
-        // 将子应用根元素添加到容器
+        setLoadProgress(90);
+        setLoadStage('挂载组件...');
+
         if (containerRef.current && instance.root) {
           containerRef.current.appendChild(instance.root);
           instanceRef.current = instance;
-
-          // 注入认证状态到子应用
           injectAuthState();
         }
+
+        setLoadProgress(100);
+        setLoadStage('加载完成');
       } catch (err: any) {
         if (cancelled) return;
-
         console.error(`[SubAppRouteDynamic] ${subAppKey} load error:`, err);
         setError(`加载子应用 "${appConfig.name}" 失败: ${err.message || '未知错误'}`);
       } finally {
         if (!cancelled) {
-          setTimeout(() => setLoading(false), 300);
+          const t1 = setTimeout(() => {
+            setLoading(false);
+            const t2 = setTimeout(() => {
+              setLoadProgress(0);
+              setLoadStage('');
+            }, 300);
+            timerRef.current.push(t2);
+          }, 500);
+          timerRef.current.push(t1);
         }
       }
     };
@@ -158,9 +204,23 @@ const SubAppRouteDynamic: React.FC = () => {
 
     return () => {
       cancelled = true;
-      // 注意：keepAlive 场景下不销毁实例
+      timerRef.current.forEach(clearTimeout);
+      timerRef.current = [];
     };
   }, [subAppKey, appConfig]);
+
+  // 组件卸载/路由离开时清理
+  useEffect(() => {
+    return () => {
+      timerRef.current.forEach(clearTimeout);
+      timerRef.current = [];
+      loadingKeyRef.current = null;
+
+      if (!appConfig?.keepAlive) {
+        destroyInstanceAndContainer();
+      }
+    };
+  }, [subAppKey, appConfig?.keepAlive, destroyInstanceAndContainer]);
 
   // 无效子应用处理
   if (!appConfig && subAppKey) {
@@ -214,19 +274,96 @@ const SubAppRouteDynamic: React.FC = () => {
         className="sub-app-container"
         style={{ height: '100vh', width: '100%', margin: 0, padding: 0 }}
       />
-      {loading && (
+      {/* 错误状态显示 */}
+      {error && (
         <div
+          role="alert"
+          aria-live="assertive"
           style={{
             position: 'absolute',
             inset: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'white',
-            zIndex: 10,
+            background: colors.light.bg.primary,
+            zIndex: 20,
           }}
         >
-          <Loading tip={`正在加载 ${appConfig?.name || subAppKey}...`} />
+          <Result
+            status="error"
+            title="加载失败"
+            subTitle={error}
+            extra={
+              <Space>
+                <Button onClick={() => { setError(null); loadingKeyRef.current = null; setLoading(true); }}>
+                  重试
+                </Button>
+                <Button type="primary" onClick={() => navigate('/dashboard')}>
+                  返回首页
+                </Button>
+              </Space>
+            }
+          />
+        </div>
+      )}
+      {loading && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: colors.light.bg.primary,
+            zIndex: 10,
+            padding: 40,
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+              <Skeleton.Avatar active size={48} shape="square" />
+              <div style={{ flex: 1 }}>
+                <Skeleton.Input active style={{ width: '60%', marginBottom: 8 }} />
+                <Skeleton.Input active style={{ width: '40%' }} />
+              </div>
+            </div>
+            <Skeleton active paragraph={{ rows: 6 }} />
+            <div
+              style={{
+                marginTop: 24,
+                padding: 16,
+                background: colors.light.bg.secondary,
+                borderRadius: 8,
+              }}
+            >
+              <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                {isFromCache && (
+                  <Tag icon={<CheckCircleOutlined />} color="success">
+                    从缓存加载 (已保持会话)
+                  </Tag>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Progress
+                    percent={loadProgress}
+                    status={loadProgress === 100 ? 'success' : 'active'}
+                    strokeColor={colors.primary[500]}
+                    size="small"
+                    style={{ flex: 1, margin: 0 }}
+                  />
+                  <span style={{ color: colors.neutral[500], fontSize: 12, minWidth: 80 }}>
+                    {loadStage}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.neutral[500] }}>
+                  <CloudServerOutlined />
+                  <span style={{ fontSize: 12 }}>
+                    {appConfig?.name || subAppKey}
+                  </span>
+                </div>
+              </Space>
+            </div>
+          </div>
         </div>
       )}
     </div>

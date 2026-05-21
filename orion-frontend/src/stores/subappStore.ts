@@ -22,6 +22,7 @@ export interface SubAppConfig {
   preload: boolean;
   description: string | null;
   icon: string | null;
+  api_domain: string | null;
   status: 'enabled' | 'disabled';
   sort_order: number;
   created_by: string | null;
@@ -76,7 +77,7 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    const error = await response.json().catch(() => ({ message: response.statusText || `HTTP ${response.status}` }));
     throw new Error(error.message || `HTTP ${response.status}`);
   }
 
@@ -211,6 +212,7 @@ export const useSubAppStore = create<SubAppStore>()(
         try {
           const response = await fetchApi<{ success: boolean; data: SubAppConfig }>(`/subapps/${key}/status`, {
             method: 'PUT',
+            body: JSON.stringify({}),
           });
 
           if (response.success) {
@@ -249,11 +251,17 @@ export const useSubAppStore = create<SubAppStore>()(
     }),
     {
       name: 'subapp-storage',
+      version: 3, // 强制刷新缓存
       partialize: (state) => ({
         // Only persist apps and lastFetchTime
         apps: state.apps,
         lastFetchTime: state.lastFetchTime,
       }),
+      migrate: (_persistedState: any, _version: number) => {
+        // 强制清除缓存，触发重新获取
+        console.log('[SubAppStore] Migrating - clearing cache');
+        return {};
+      },
     }
   )
 );

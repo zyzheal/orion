@@ -1,13 +1,12 @@
 /**
  * Sub-App Route - 子应用路由组件
  *
- * 使用 wujie 微前端加载子应用
+ * 使用 Orion-MF 微前端加载子应用
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppStore } from '@/stores/appStore';
-import { getSubAppConfig, injectGlobalState } from '@/microfront/config';
-import { startApp } from 'wujie';
+import { getSubAppConfig, injectGlobalState, startSubApp } from '@/microfront/config';
 import { Loading } from '@/components/Loading';
 
 const SubAppRoute: React.FC = () => {
@@ -57,24 +56,27 @@ const SubAppRoute: React.FC = () => {
 
     // 注入全局状态并传递给子应用
     const token = localStorage.getItem('access_token');
+    const apiDomain = appConfig?.api_domain || appKey;
+    const apiBase = `/api/v1/${apiDomain}`;
+    (window as any).__SUBAPP_API_BASE__ = apiBase;
+    console.log(`[SubAppRoute] Set __SUBAPP_API_BASE__ = ${apiBase}`);
+
     injectGlobalState({
       token,
       user,
-      getApiBase: () => '/api/v1',
+      getApiBase: () => apiBase,
     });
 
-    // 使用 wujie 启动子应用
-    console.log(`[SubAppRoute] Calling startApp for ${appKey}`);
-    startApp({
-      name: appKey,
+    // 使用 Orion-MF 启动子应用
+    console.log(`[SubAppRoute] Calling startSubApp for ${appKey}`);
+    startSubApp(appKey, {
       url: appConfig.url,
-      el: appConfig.container,
-      alive: appConfig.keepAlive,
+      container: appConfig.container,
       props: {
         $orion: {
           token,
           user,
-          getApiBase: () => '/api/v1',
+          getApiBase: () => apiBase,
         },
       },
     })

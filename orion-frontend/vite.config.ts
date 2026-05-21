@@ -38,6 +38,7 @@ export default defineConfig({
       // PandaWiki Go 后端 API 代理（必须在 '/api' 通配之前，优先匹配）
       // 子应用模式下，这些 PandaWiki 专属 API 需转发到 Go 后端
       '/api/v1/knowledge_base': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/knowledge': { target: PANDAWIKI_API, changeOrigin: true },
       '/api/v1/nav': { target: PANDAWIKI_API, changeOrigin: true },
       '/api/v1/node': { target: PANDAWIKI_API, changeOrigin: true },
       '/api/v1/user': { target: PANDAWIKI_API, changeOrigin: true },
@@ -55,6 +56,11 @@ export default defineConfig({
       '/api/v1/health': { target: PANDAWIKI_API, changeOrigin: true },
       '/share': { target: PANDAWIKI_API, changeOrigin: true },
       '/static-file': { target: PANDAWIKI_API, changeOrigin: true },
+
+      // SubApp API proxies — 按域分发
+      '/api/v1/dba': { target: 'http://localhost:3030', changeOrigin: true },
+      '/api/v1/visor': { target: 'http://localhost:3003', changeOrigin: true },
+
       // 其他 API 请求到 platform-service (3001)
       '/api': {
         target: 'http://localhost:3001',

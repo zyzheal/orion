@@ -29,6 +29,7 @@ interface CreateBody {
   preload?: boolean;
   description?: string;
   icon?: string;
+  api_domain?: string;
 }
 
 interface UpdateBody {
@@ -42,6 +43,7 @@ interface UpdateBody {
   preload?: boolean;
   description?: string;
   icon?: string;
+  api_domain?: string;
   status?: 'enabled' | 'disabled';
   sort_order?: number;
 }
@@ -71,7 +73,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps - Get all sub-app configurations
    */
-  app.get('/subapps', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const service = getService();
       const apps = await service.getAll();
@@ -94,7 +96,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps/enabled - Get enabled sub-apps only
    */
-  app.get('/subapps/enabled', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/enabled', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const service = getService();
       const apps = await service.getEnabled();
@@ -116,7 +118,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps/:key - Get single sub-app config
    */
-  app.get('/subapps/:key', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.get('/:key', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
     try {
       const { key } = request.params;
       const service = getService();
@@ -147,7 +149,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * POST /api/v1/subapps - Create new sub-app
    */
-  app.post('/subapps', async (request: FastifyRequest<{ Body: CreateBody }>, reply: FastifyReply) => {
+  app.post('/', async (request: FastifyRequest<{ Body: CreateBody }>, reply: FastifyReply) => {
     try {
       const body = request.body || {};
       const userId = getUserId(request);
@@ -174,6 +176,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         preload: body.preload,
         description: body.description,
         icon: body.icon,
+        api_domain: body.api_domain,
       }, userId);
 
       return reply.status(201).send({
@@ -203,7 +206,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * PUT /api/v1/subapps/:key - Update sub-app config
    */
-  app.put('/subapps/:key', async (request: FastifyRequest<{ Params: SubAppParams; Body: UpdateBody }>, reply: FastifyReply) => {
+  app.put('/:key', async (request: FastifyRequest<{ Params: SubAppParams; Body: UpdateBody }>, reply: FastifyReply) => {
     try {
       const { key } = request.params;
       const body = request.body || {};
@@ -221,6 +224,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         preload: body.preload,
         description: body.description,
         icon: body.icon,
+        api_domain: body.api_domain,
         status: body.status,
         sort_order: body.sort_order,
       }, userId);
@@ -260,7 +264,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * PUT /api/v1/subapps/:key/status - Toggle sub-app status
    */
-  app.put('/subapps/:key/status', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.put('/:key/status', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
     try {
       const { key } = request.params;
       const userId = getUserId(request);
@@ -295,7 +299,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * DELETE /api/v1/subapps/:key - Delete sub-app config
    */
-  app.delete('/subapps/:key', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.delete('/:key', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
     try {
       const { key } = request.params;
       const userId = getUserId(request);
@@ -329,7 +333,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps/:key/history - Get config history
    */
-  app.get('/subapps/:key/history', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.get('/:key/history', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
     try {
       const { key } = request.params;
       const service = getService();

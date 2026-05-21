@@ -23,6 +23,7 @@ export interface SubAppConfig {
   preload: boolean;
   description: string | null;
   icon: string | null;
+  api_domain: string | null;
   status: 'enabled' | 'disabled';
   sort_order: number;
   created_by: string | null;
@@ -42,6 +43,7 @@ export interface CreateSubAppInput {
   preload?: boolean;
   description?: string;
   icon?: string;
+  api_domain?: string;
   status?: 'enabled' | 'disabled';
   sort_order?: number;
   created_by?: string;
@@ -58,6 +60,7 @@ export interface UpdateSubAppInput {
   preload?: boolean;
   description?: string;
   icon?: string;
+  api_domain?: string;
   status?: 'enabled' | 'disabled';
   sort_order?: number;
 }
@@ -119,8 +122,8 @@ export class SubAppRepository extends BaseRepository<SubAppConfig> {
     const result = await this.db.query(
       `INSERT INTO subapp_configs (
         name, key, version, entry_dev, entry_prod, routes, permissions,
-        keep_alive, preload, description, icon, status, sort_order, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        keep_alive, preload, description, icon, api_domain, status, sort_order, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         input.name,
@@ -134,6 +137,7 @@ export class SubAppRepository extends BaseRepository<SubAppConfig> {
         input.preload || false,
         input.description || null,
         input.icon || null,
+        input.api_domain || null,
         input.status || 'enabled',
         input.sort_order || 0,
         input.created_by || null,
@@ -189,6 +193,10 @@ export class SubAppRepository extends BaseRepository<SubAppConfig> {
     if (input.icon !== undefined) {
       updates.push(`icon = $${paramIndex++}`);
       values.push(input.icon);
+    }
+    if (input.api_domain !== undefined) {
+      updates.push(`api_domain = $${paramIndex++}`);
+      values.push(input.api_domain || null);
     }
     if (input.status !== undefined) {
       updates.push(`status = $${paramIndex++}`);
@@ -289,6 +297,7 @@ export class SubAppRepository extends BaseRepository<SubAppConfig> {
       preload: row.preload || false,
       description: row.description || null,
       icon: row.icon || null,
+      api_domain: row.api_domain || null,
       status: row.status || 'enabled',
       sort_order: row.sort_order || 0,
       created_by: row.created_by || null,

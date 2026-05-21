@@ -189,8 +189,9 @@ const SubAppManagement: React.FC = () => {
   // Copy access link
   const handleCopyLink = (path: string) => {
     const url = `${window.location.origin}${path}`;
-    navigator.clipboard.writeText(url);
-    message.success(`链接已复制: ${url}`);
+    navigator.clipboard.writeText(url)
+      .then(() => message.success(`链接已复制: ${url}`))
+      .catch(() => message.error('复制失败，请手动复制'));
   };
 
   // Table columns
@@ -199,13 +200,23 @@ const SubAppManagement: React.FC = () => {
       title: '状态',
       dataIndex: 'key',
       key: 'status',
-      width: 70,
-      render: (_: any, record: SubAppConfig) => (
-        <Badge
-          status={record.status === 'enabled' ? 'success' : 'default'}
-          text={record.status === 'enabled' ? '启用' : '禁用'}
-        />
-      ),
+      width: 90,
+      render: (_: any, record: SubAppConfig) => {
+        const isEnabled = record.status === 'enabled';
+        return (
+          <Tag
+            color={isEnabled ? colors.success[50] : colors.neutral[100]}
+            style={{
+              color: isEnabled ? colors.success[600] : colors.neutral[600],
+              border: `1px solid ${isEnabled ? colors.success[200] : colors.neutral[200]}`,
+              borderRadius: 6,
+              fontWeight: 500,
+            }}
+          >
+            {isEnabled ? '● 启用' : '○ 禁用'}
+          </Tag>
+        );
+      },
     },
     {
       title: '名称',
@@ -222,7 +233,19 @@ const SubAppManagement: React.FC = () => {
       title: '标识',
       dataIndex: 'key',
       key: 'key',
-      render: (key: string) => <Tag color="blue">{key}</Tag>,
+      render: (key: string) => (
+        <Tag
+          color={colors.primary[50]}
+          style={{
+            color: colors.primary[600],
+            border: `1px solid ${colors.primary[200]}`,
+            borderRadius: 6,
+            fontWeight: 500,
+          }}
+        >
+          {key}
+        </Tag>
+      ),
     },
     {
       title: '路由',
@@ -258,6 +281,17 @@ const SubAppManagement: React.FC = () => {
         <Text type="secondary" style={{ fontSize: 12 }}>
           {desc || '-'}
         </Text>
+      ),
+    },
+    {
+      title: 'API 域',
+      dataIndex: 'api_domain',
+      key: 'api_domain',
+      width: 100,
+      render: (domain: string | null, record: SubAppConfig) => (
+        <Tag color={domain ? 'blue' : 'default'}>
+          {domain || record.key}
+        </Tag>
       ),
     },
     {
@@ -420,6 +454,17 @@ const SubAppManagement: React.FC = () => {
 
           <Form.Item name="description" label="描述">
             <TextArea rows={2} placeholder="简要描述此子应用的功能" />
+          </Form.Item>
+
+          <Form.Item
+            name="api_domain"
+            label="API 路由域"
+            extra="子应用后端 API 的路由前缀，例如 'dba' 对应 /api/v1/dba/*"
+            rules={[
+              { pattern: /^[a-z][a-z0-9-]*$/, message: '必须以小写字母开头，只包含小写字母、数字、中划线' },
+            ]}
+          >
+            <Input placeholder="例如：dba（留空则使用 key）" />
           </Form.Item>
         </Form>
       </Modal>
