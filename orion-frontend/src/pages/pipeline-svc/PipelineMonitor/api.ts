@@ -53,7 +53,10 @@ export interface FailedStageStat {
 export function buildDailyStats(
   runs: Array<{ status: string; durationMs?: number | string; createdAt: string }>
 ): DailyRunStats[] {
-  const dayMap = new Map<string, { success: number; failed: number; running: number; cancelled: number; durations: number[] }>();
+  const dayMap = new Map<
+    string,
+    { success: number; failed: number; running: number; cancelled: number; durations: number[] }
+  >();
 
   runs.forEach((run) => {
     const day = run.createdAt?.slice(0, 10);
@@ -75,9 +78,10 @@ export function buildDailyStats(
 
   return sortedDays.map((date) => {
     const entry = dayMap.get(date)!;
-    const avgDuration = entry.durations.length > 0
-      ? entry.durations.reduce((s, d) => s + d, 0) / entry.durations.length
-      : 0;
+    const avgDuration =
+      entry.durations.length > 0
+        ? entry.durations.reduce((s, d) => s + d, 0) / entry.durations.length
+        : 0;
     return {
       date,
       success: entry.success,
@@ -123,7 +127,9 @@ export async function getFailedStageStats(
         try {
           const res = await getPipelineRunStages(runId);
           const rawData = (res.data as any)?.data ?? res.data ?? [];
-          const stages: Array<{ name: string; status: string }> = Array.isArray(rawData) ? rawData : [];
+          const stages: Array<{ name: string; status: string }> = Array.isArray(rawData)
+            ? rawData
+            : [];
           cache.set(runId, stages);
         } catch {
           cache.set(runId, []);
@@ -136,7 +142,9 @@ export async function getFailedStageStats(
   failedRunIds.forEach((runId) => {
     const stages = cache.get(runId) || [];
     // 找到状态为 failed 的阶段
-    const failedStages = stages.filter((s: { name: string; status: string }) => s.status === 'failed');
+    const failedStages = stages.filter(
+      (s: { name: string; status: string }) => s.status === 'failed'
+    );
     failedStages.forEach((stage: { name: string; status: string }) => {
       const name = stage.name || 'Unknown Stage';
       stageCountMap.set(name, (stageCountMap.get(name) || 0) + 1);

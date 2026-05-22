@@ -3,7 +3,19 @@
  * 展示 Pipeline 运行统计、失败分析、趋势图表、性能指标
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Space, Select, Button, Empty, message, Statistic, Row, Col, Table, Tag, Tooltip } from 'antd';
+import {
+  Space,
+  Select,
+  Button,
+  Empty,
+  message,
+  Statistic,
+  Row,
+  Col,
+  Table,
+  Tag,
+  Tooltip,
+} from 'antd';
 import {
   ReloadOutlined,
   RadarChartOutlined,
@@ -81,8 +93,12 @@ const PipelineMonitor: React.FC = () => {
 
       // 计算统计数据
       const totalRuns = filteredRuns.length;
-      const successRuns = filteredRuns.filter((r: PipelineRunSummary) => r.status === 'success').length;
-      const failedCount = filteredRuns.filter((r: PipelineRunSummary) => r.status === 'failed').length;
+      const successRuns = filteredRuns.filter(
+        (r: PipelineRunSummary) => r.status === 'success'
+      ).length;
+      const failedCount = filteredRuns.filter(
+        (r: PipelineRunSummary) => r.status === 'failed'
+      ).length;
       const successRate = totalRuns > 0 ? (successRuns / totalRuns) * 100 : 0;
 
       // 计算平均耗时
@@ -90,13 +106,10 @@ const PipelineMonitor: React.FC = () => {
         const dur = typeof r.durationMs === 'string' ? parseFloat(r.durationMs) : r.durationMs;
         return dur && dur > 0;
       });
-      const totalDuration = completedRuns.reduce(
-        (sum: number, r: PipelineRunSummary) => {
-          const dur = typeof r.durationMs === 'string' ? parseFloat(r.durationMs) : r.durationMs;
-          return sum + (dur || 0);
-        },
-        0
-      );
+      const totalDuration = completedRuns.reduce((sum: number, r: PipelineRunSummary) => {
+        const dur = typeof r.durationMs === 'string' ? parseFloat(r.durationMs) : r.durationMs;
+        return sum + (dur || 0);
+      }, 0);
       const avgDuration = completedRuns.length > 0 ? totalDuration / completedRuns.length : 0;
 
       // 计算 P50/P95
@@ -207,8 +220,12 @@ const PipelineMonitor: React.FC = () => {
 
       // 计算统计数据
       const totalRuns = filteredRuns.length;
-      const successRuns = filteredRuns.filter((r: PipelineRunSummary) => r.status === 'success').length;
-      const failedCount = filteredRuns.filter((r: PipelineRunSummary) => r.status === 'failed').length;
+      const successRuns = filteredRuns.filter(
+        (r: PipelineRunSummary) => r.status === 'success'
+      ).length;
+      const failedCount = filteredRuns.filter(
+        (r: PipelineRunSummary) => r.status === 'failed'
+      ).length;
       const successRate = totalRuns > 0 ? (successRuns / totalRuns) * 100 : 0;
 
       // 计算平均耗时
@@ -216,13 +233,10 @@ const PipelineMonitor: React.FC = () => {
         const dur = typeof r.durationMs === 'string' ? parseFloat(r.durationMs) : r.durationMs;
         return dur && dur > 0;
       });
-      const totalDuration = completedRuns.reduce(
-        (sum: number, r: PipelineRunSummary) => {
-          const dur = typeof r.durationMs === 'string' ? parseFloat(r.durationMs) : r.durationMs;
-          return sum + (dur || 0);
-        },
-        0
-      );
+      const totalDuration = completedRuns.reduce((sum: number, r: PipelineRunSummary) => {
+        const dur = typeof r.durationMs === 'string' ? parseFloat(r.durationMs) : r.durationMs;
+        return sum + (dur || 0);
+      }, 0);
       const avgDuration = completedRuns.length > 0 ? totalDuration / completedRuns.length : 0;
 
       // 计算 P50/P95
@@ -346,7 +360,10 @@ const PipelineMonitor: React.FC = () => {
           pending: <ClockCircleOutlined />,
         };
         return (
-          <Tag color={colorMap[status] || colors.neutral[500]} style={{ borderRadius: 4, minWidth: 60, textAlign: 'center' }}>
+          <Tag
+            color={colorMap[status] || colors.neutral[500]}
+            style={{ borderRadius: 4, minWidth: 60, textAlign: 'center' }}
+          >
             {iconMap[status]} {status}
           </Tag>
         );
@@ -382,7 +399,9 @@ const PipelineMonitor: React.FC = () => {
       dataIndex: 'startedAt',
       key: 'startedAt',
       width: 180,
-      render: (time: string) => <span>{time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>,
+      render: (time: string) => (
+        <span>{time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
+      ),
     },
   ];
 
@@ -417,7 +436,14 @@ const PipelineMonitor: React.FC = () => {
           ))}
 
           {/* 柱状图 */}
-          <div style={{ display: 'flex', position: 'relative', height: CHART_HEIGHT + 30, alignItems: 'flex-end' }}>
+          <div
+            style={{
+              display: 'flex',
+              position: 'relative',
+              height: CHART_HEIGHT + 30,
+              alignItems: 'flex-end',
+            }}
+          >
             {dailyStats.map((day) => {
               const successH = (day.success / maxCount) * CHART_HEIGHT;
               const failedH = (day.failed / maxCount) * CHART_HEIGHT;
@@ -433,9 +459,15 @@ const PipelineMonitor: React.FC = () => {
                       <div>总计: {day.total}</div>
                       <div style={{ color: colors.success[500] }}>成功: {day.success}</div>
                       <div style={{ color: colors.error[500] }}>失败: {day.failed}</div>
-                      {day.running > 0 && <div style={{ color: colors.primary[500] }}>运行中: {day.running}</div>}
-                      {day.cancelled > 0 && <div style={{ color: colors.neutral[500] }}>取消: {day.cancelled}</div>}
-                      {day.avgDuration > 0 && <div>平均耗时: {formatDuration(day.avgDuration)}</div>}
+                      {day.running > 0 && (
+                        <div style={{ color: colors.primary[500] }}>运行中: {day.running}</div>
+                      )}
+                      {day.cancelled > 0 && (
+                        <div style={{ color: colors.neutral[500] }}>取消: {day.cancelled}</div>
+                      )}
+                      {day.avgDuration > 0 && (
+                        <div>平均耗时: {formatDuration(day.avgDuration)}</div>
+                      )}
                     </div>
                   }
                 >
@@ -521,7 +553,14 @@ const PipelineMonitor: React.FC = () => {
         </div>
 
         {/* 图例 */}
-        <div style={{ display: 'flex', gap: spacing.lg, marginTop: spacing.sm, justifyContent: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: spacing.lg,
+            marginTop: spacing.sm,
+            justifyContent: 'center',
+          }}
+        >
           <span style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
             <span
               style={{
@@ -616,7 +655,14 @@ const PipelineMonitor: React.FC = () => {
   return (
     <div style={{ padding: spacing.lg }}>
       {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.md,
+        }}
+      >
         <div>
           <h2
             style={{
@@ -633,7 +679,15 @@ const PipelineMonitor: React.FC = () => {
           </h2>
           {/* 实时监控指示器 */}
           {isPolling && (
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 4, fontSize: 12, color: colors.success[500] }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginTop: 4,
+                fontSize: 12,
+                color: colors.success[500],
+              }}
+            >
               <span
                 style={{
                   display: 'inline-block',
@@ -646,7 +700,9 @@ const PipelineMonitor: React.FC = () => {
                 }}
               />
               实时监控中
-              <span style={{ marginLeft: 4, color: colors.neutral[500] }}>(每 {POLLING_INTERVAL_MS / 1000}s 刷新)</span>
+              <span style={{ marginLeft: 4, color: colors.neutral[500] }}>
+                (每 {POLLING_INTERVAL_MS / 1000}s 刷新)
+              </span>
             </div>
           )}
         </div>
@@ -749,12 +805,12 @@ const PipelineMonitor: React.FC = () => {
           }
           bodyStyle={{ padding: spacing.lg }}
         >
-        {dailyStats.length > 0 ? (
-          renderTrendChart()
-        ) : (
-          <Empty description="暂无趋势数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        )}
-      </CardPanel>
+          {dailyStats.length > 0 ? (
+            renderTrendChart()
+          ) : (
+            <Empty description="暂无趋势数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </CardPanel>
       </div>
 
       {/* Failure Analysis & Top Failed Stages */}
@@ -768,7 +824,11 @@ const PipelineMonitor: React.FC = () => {
                     {failedRuns.length}
                   </span>
                   <span style={{ marginLeft: spacing.sm, color: colors.neutral[500] }}>
-                    次失败 ({stats?.totalRuns ? ((failedRuns.length / stats.totalRuns) * 100).toFixed(1) : 0}%)
+                    次失败 (
+                    {stats?.totalRuns
+                      ? ((failedRuns.length / stats.totalRuns) * 100).toFixed(1)
+                      : 0}
+                    %)
                   </span>
                 </div>
                 {/* 简化版进度条展示 */}
@@ -795,7 +855,14 @@ const PipelineMonitor: React.FC = () => {
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: spacing.xs, fontSize: 12 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginTop: spacing.xs,
+                    fontSize: 12,
+                  }}
+                >
                   <span style={{ color: colors.success[500] }}>成功</span>
                   <span style={{ color: colors.error[500] }}>失败</span>
                 </div>
@@ -817,7 +884,10 @@ const PipelineMonitor: React.FC = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: `${spacing.xs} 0`,
-                      borderBottom: index < failedStageStats.length - 1 ? `1px solid ${colors.neutral[200]}` : 'none',
+                      borderBottom:
+                        index < failedStageStats.length - 1
+                          ? `1px solid ${colors.neutral[200]}`
+                          : 'none',
                     }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -837,11 +907,20 @@ const PipelineMonitor: React.FC = () => {
                       >
                         {index + 1}
                       </span>
-                      <span style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span
+                        style={{
+                          maxWidth: 200,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {item.stageName}
                       </span>
                     </span>
-                    <span style={{ fontWeight: 500, color: colors.error[500] }}>{item.count} 次</span>
+                    <span style={{ fontWeight: 500, color: colors.error[500] }}>
+                      {item.count} 次
+                    </span>
                   </div>
                 ))}
               </div>
@@ -861,7 +940,9 @@ const PipelineMonitor: React.FC = () => {
             rowKey="id"
             pagination={false}
             size="small"
-            rowClassName={(record: PipelineRunSummary) => (record.status === 'running' ? 'pipeline-running-row' : '')}
+            rowClassName={(record: PipelineRunSummary) =>
+              record.status === 'running' ? 'pipeline-running-row' : ''
+            }
           />
         ) : (
           <Empty description="暂无运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />

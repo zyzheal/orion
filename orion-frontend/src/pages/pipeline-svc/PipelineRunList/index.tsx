@@ -14,7 +14,13 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Typography, Button, Space, Tag, DatePicker, message, Dropdown, Modal } from 'antd';
 import { colors, spacing, componentRadius } from '@/tokens';
-import { ReloadOutlined, PlayCircleOutlined, RocketOutlined, StopOutlined, DownOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  PlayCircleOutlined,
+  RocketOutlined,
+  StopOutlined,
+  DownOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -70,7 +76,10 @@ const PipelineRunList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
-  const [stageRetryModal, setStageRetryModal] = useState<{ visible: boolean; runId: string | null }>({
+  const [stageRetryModal, setStageRetryModal] = useState<{
+    visible: boolean;
+    runId: string | null;
+  }>({
     visible: false,
     runId: null,
   });
@@ -126,11 +135,7 @@ const PipelineRunList: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          run.pipelineId,
-          (run as any).pipelineName || '',
-          run.triggerBy || '',
-        ]
+        const searchable = [run.pipelineId, (run as any).pipelineName || '', run.triggerBy || '']
           .join(' ')
           .toLowerCase();
         if (!searchable.includes(query)) return false;
@@ -273,11 +278,7 @@ const PipelineRunList: React.FC = () => {
       width: 220,
       render: (_: unknown, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/pipelines/${record.id}`)}
-          >
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
           {/* Cancel button for running status */}
@@ -343,7 +344,10 @@ const PipelineRunList: React.FC = () => {
   ];
 
   // Handle re-run for a failed/cancelled run
-  const handleRetry = async (runId: string, options?: { fromStage?: string; onlyFailed?: boolean }) => {
+  const handleRetry = async (
+    runId: string,
+    options?: { fromStage?: string; onlyFailed?: boolean }
+  ) => {
     try {
       const response = await retryPipelineRun(runId, options);
       message.success('Pipeline 重新运行已触发');
@@ -358,7 +362,11 @@ const PipelineRunList: React.FC = () => {
       if (error instanceof Error) {
         const errMsg = error.message;
         // Handle edge case: run no longer exists
-        if (errMsg.includes('not found') || errMsg.includes('不存在') || errMsg.includes('已删除')) {
+        if (
+          errMsg.includes('not found') ||
+          errMsg.includes('不存在') ||
+          errMsg.includes('已删除')
+        ) {
           message.error('该 Pipeline 运行已不存在，可能已被删除');
         } else {
           message.error(`重新运行失败：${errMsg}`);
@@ -394,7 +402,11 @@ const PipelineRunList: React.FC = () => {
       if (error instanceof Error) {
         const errMsg = error.message;
         // Handle edge case: run no longer running
-        if (errMsg.includes('not running') || errMsg.includes('已结束') || errMsg.includes('已取消')) {
+        if (
+          errMsg.includes('not running') ||
+          errMsg.includes('已结束') ||
+          errMsg.includes('已取消')
+        ) {
           message.warning('该 Pipeline 运行已结束，无需取消');
         } else {
           message.error(`取消失败：${errMsg}`);
@@ -437,7 +449,11 @@ const PipelineRunList: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof Error) {
         const errMsg = error.message;
-        if (errMsg.includes('not found') || errMsg.includes('不存在') || errMsg.includes('已删除')) {
+        if (
+          errMsg.includes('not found') ||
+          errMsg.includes('不存在') ||
+          errMsg.includes('已删除')
+        ) {
           message.error('该 Pipeline 运行已不存在，可能已被删除');
         } else {
           message.error(`重新运行失败：${errMsg}`);
@@ -489,7 +505,9 @@ const PipelineRunList: React.FC = () => {
           extra={
             <RangePicker
               value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+              onChange={(dates) =>
+                setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)
+              }
               placeholder={['开始日期', '结束日期']}
               style={{ minWidth: 240 }}
             />
