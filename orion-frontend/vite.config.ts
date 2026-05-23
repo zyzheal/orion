@@ -5,8 +5,8 @@ import path from 'path';
 // Force UTC timezone for consistent test results
 process.env.TZ = 'UTC';
 
-// PandaWiki Go 后端地址（Docker 默认 8090，开发模式可设为 3020）
-const PANDAWIKI_API = process.env.PANDAWIKI_API_TARGET || 'http://localhost:8090';
+// PandaWiki Go 后端地址 — 通过 API Gateway 转发（端口 9000），由 Gateway 处理 token 交换
+const PANDAWIKI_API = process.env.PANDAWIKI_API_TARGET || 'http://127.0.0.1:9000';
 
 // https://vitejs.dev/config/
 export default defineConfig({

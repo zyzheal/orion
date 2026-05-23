@@ -1,4 +1,3 @@
-// @ts-nocheck - @orion-mf/core 类型声明待完善
 /**
  * SubAppRouteMF - 子应用路由组件 (Orion-MF 版本)
  *
@@ -8,6 +7,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { loadSubApp, getSubApp, destroySubApp } from '@orion-mf/core';
+import type { SubAppInstance } from '@orion-mf/core';
 import { useAppStore } from '@/stores/appStore';
 import { getSubAppConfig } from '@/microfront/apps';
 import { Loading } from '@/components/Loading';
@@ -17,6 +17,7 @@ interface OrionMFConfig {
   key: string;
   name: string;
   remoteEntry: string;
+  cssIsolation: 'shadow-dom' | 'scoped-css' | 'none';
 }
 
 const SubAppRouteMF: React.FC = () => {
@@ -50,6 +51,7 @@ const SubAppRouteMF: React.FC = () => {
         key: config.key,
         name: config.name,
         remoteEntry: config.url,
+        cssIsolation: config.cssIsolation,
       };
     }
 
@@ -122,7 +124,7 @@ const SubAppRouteMF: React.FC = () => {
           key: appKey,
           name: mfConfig.name,
           remoteEntry: mfConfig.remoteEntry,
-          cssIsolation: 'shadow', // 使用 Shadow DOM 隔离
+          cssIsolation: mfConfig.cssIsolation,
           errorBoundary: true, // 启用错误边界
         });
 

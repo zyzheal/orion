@@ -4,10 +4,30 @@
  * 启动 API 网关服务
  */
 
-import { createApp } from './app';
-import { getConfig } from './config';
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
+
+// 手动加载 .env 文件（避免引入 dotenv 依赖）
+// 注意：必须使用动态 import() 加载项目模块，否则 tsx 的 ESM hoisting
+// 会导致 config 模块在 .env 加载前就被求值（PORT 读不到 9000）
+const envPath = resolve(__dirname, '..', '.env');
+if (existsSync(envPath)) {
+  const envContent = readFileSync(envPath, 'utf-8');
+  envContent.split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [key, ...valueParts] = trimmed.split('=');
+      const value = valueParts.join('=').trim();
+      if (key && value && !process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  });
+}
 
 async function main() {
+  const { createApp } = await import('./app');
+  const { getConfig } = await import('./config');
   const config = getConfig();
 
   console.log(`

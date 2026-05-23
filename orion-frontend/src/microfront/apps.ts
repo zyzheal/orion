@@ -22,6 +22,7 @@ export interface SubAppConfig {
   path: string;
   url: string;
   container: string;
+  cssIsolation: 'shadow-dom' | 'scoped-css' | 'none';
   enabled: boolean;
   keepAlive: boolean;
   preload: boolean;
@@ -42,6 +43,7 @@ function convertToConfig(storeConfig: StoreSubAppConfig): SubAppConfig {
     url,
     // 容器 ID - Orion-MF 使用固定前缀
     container: `#app-${storeConfig.key}`,
+    cssIsolation: storeConfig.css_isolation || 'shadow-dom',
     enabled: storeConfig.status === 'enabled',
     keepAlive: storeConfig.keep_alive,
     preload: storeConfig.preload,
