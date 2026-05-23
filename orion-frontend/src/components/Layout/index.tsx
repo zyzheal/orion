@@ -31,9 +31,11 @@ import { ChatTrigger, ChatPanel } from '@/components/ChatOps';
 import { TenantSelector } from '@/components/TenantSelector';
 import { initializeChatOpsStore } from '@/stores/chatOpsStore';
 import { useMenuConfigStore, type MenuModuleConfig } from '@/stores/menuConfigStore';
+import { useSubAppStore } from '@/stores/subappStore';
 import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
 import { getIcon } from './iconMap';
+import { prefetchSubApp } from '@/utils/subappPreload';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -59,27 +61,47 @@ interface NavItemDef {
 }
 
 // 从 store 构建导航菜单项
-function buildNavMenuItems(modules: Record<string, MenuModuleConfig>): NavItemDef[] {
+function buildNavMenuItems(
+  modules: Record<string, MenuModuleConfig>,
+  subApps?: { key: string; name: string; description: string; status: string }[]
+): NavItemDef[] {
   return Object.values(modules)
     .filter((m) => m.enabled)
-    .map((m) => ({
-      key: m.key,
-      icon: getIcon(m.key),
-      label: m.label,
-      description: m.description,
-      hasPanel: !!(m.children && m.children.length > 0 && m.systemTitle),
-      systemTitle: m.systemTitle,
-      systemDescription: m.systemDescription,
-      children: (m.children || [])
-        .filter((c) => c.enabled)
-        .map((c) => ({
-          key: c.key,
-          icon: getIcon(c.key),
-          label: c.label,
-          description: c.description,
-          category: c.category,
-        })),
-    }));
+    .map((m) => {
+      // 处理动态子应用：从后端 API 获取
+      let children = m.children || [];
+      if (m.isDynamicSubApps && subApps) {
+        const subAppChildren = subApps
+          .filter((app) => app.status === 'enabled')
+          .map((app) => ({
+            key: `/${app.key}`,
+            icon: getIcon(app.key),
+            label: app.name,
+            description: app.description || '',
+            category: '子系统' as const,
+          }));
+        children = [...children, ...subAppChildren];
+      }
+
+      return {
+        key: m.key,
+        icon: getIcon(m.key),
+        label: m.label,
+        description: m.description,
+        hasPanel: !!(children.length > 0 && m.systemTitle),
+        systemTitle: m.systemTitle,
+        systemDescription: m.systemDescription,
+        children: children
+          .filter((c) => c.enabled)
+          .map((c) => ({
+            key: c.key,
+            icon: getIcon(c.key),
+            label: c.label,
+            description: c.description,
+            category: c.category,
+          })),
+      };
+    });
 }
 
 // 飞书风格：hover 弹出全宽 mega menu 面板
@@ -219,8 +241,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     loadConfig();
   }, []);
 
-  // 从 store 构建导航菜单项（响应式）
-  const navMenuItems = React.useMemo(() => buildNavMenuItems(modules), [modules]);
+  // 从 store 获取子应用状态（用于动态控制菜单显示）
+  const { apps: subApps, fetchApps } = useSubAppStore();
+
+  // 初始化时获取所有子应用（包含状态）
+  React.useEffect(() => {
+    fetchApps();
+  }, [fetchApps]);
+
+  // 直接传递 subApps 到 buildNavMenuItems，由函数内部处理动态子应用
+  const navMenuItems = React.useMemo(
+    () => buildNavMenuItems(modules, subApps),
+    [modules, subApps]
+  );
 
   // 根据当前路由动态计算激活的菜单 key
   const activeKey = React.useMemo(() => {
@@ -383,13 +416,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             flexShrink: 0,
           }}
           onClick={() => navigate('/dashboard')}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background =
-              theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
         >
           <SubAppLauncher />
           <img src="/logo.svg" alt="Orion" style={{ width: 28, height: 28, flexShrink: 0 }} />
@@ -536,6 +562,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         if (!activeItem || !activeItem.children || activeItem.children.length === 0) return null;
         const isDark = theme === 'dark';
 
+        // 子应用 hover 预加载处理
+        const handleSubAppHover = (childKey: string) => {
+          const appKey = childKey.replace('/', '');
+          if (!appKey || appKey.includes('/')) return;
+          const remoteEntry = `/orion-${appKey}/remoteEntry.js`;
+          prefetchSubApp(appKey, remoteEntry, { mode: 'idle' });
+        };
+
         return (
           <>
             {/* 透明点击层 - 面板外区域点击关闭 */}
@@ -610,6 +644,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                 }}
                                 onMouseEnter={(e) => {
                                   (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100];
+                                  // 子应用 hover 预加载
+                                  handleSubAppHover(child.key);
                                 }}
                                 onMouseLeave={(e) => {
                                   (e.currentTarget as HTMLElement).style.background = 'transparent';
