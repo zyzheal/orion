@@ -28,6 +28,7 @@ export {
   SandboxConfig,
   ScopedFunction,
   IStyleIsolator,
+  CSSIsolationMode,
 } from "./interface";
 
 export { StyleIsolator } from "./StyleIsolator";
@@ -288,3 +289,20 @@ export type {
   MFLoader,
   LifecycleModules,
 } from './MFSandboxBridge';
+
+// OrionBus exports - 主应用与子应用标准化通信层
+export {
+  orionBus,
+  emitAuthState,
+  emitLogout,
+  emitNavigate,
+  emitError,
+  emitReady,
+  emitNeedAuth,
+} from './OrionBus';
+export type {
+  OrionBusInstance,
+  OrionBusEventType,
+  OrionBusPayload,
+  OrionBusHandler,
+} from './OrionBus';

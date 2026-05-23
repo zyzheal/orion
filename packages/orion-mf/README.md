@@ -4,9 +4,9 @@
 
 OrionMF 是一个自研的微前端框架，专注于**隔离性**和**稳定性**，确保子应用崩溃不影响主应用，子应用卸载后无资源泄漏。
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/orion-design/orionmf)
-[![Tests](https://img.shields.io/badge/tests-758%20passed-green)](https://github.com/orion-design/orionmf)
-[![Coverage](https://img.shields.io/badge/coverage-95%25%2B-green)](https://github.com/orion-design/orionmf)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/zyzheal/orion-mf)
+[![Tests](https://img.shields.io/badge/tests-758%20passed-green)](https://github.com/zyzheal/orion-mf)
+[![Coverage](https://img.shields.io/badge/coverage-95%25%2B-green)](https://github.com/zyzheal/orion-mf)
 
 ---
 

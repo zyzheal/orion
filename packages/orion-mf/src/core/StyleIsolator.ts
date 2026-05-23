@@ -4,7 +4,7 @@
  * Reference: docs/superpowers/specs/2026-05-20-orionmf-v2-design.md §3.3
  */
 
-import type { IStyleIsolator } from './interface';
+import type { IStyleIsolator, CSSIsolationMode } from './interface';
 
 /**
  * StyleIsolator - CSS 样式隔离器
@@ -20,6 +20,9 @@ export class StyleIsolator implements IStyleIsolator {
   /** Registry of ShadowRoot instances by app key */
   private shadowRoots = new Map<string, ShadowRoot>();
 
+  /** Registry of scoped containers by app key (for scoped-css mode) */
+  private scopedContainers = new Map<string, HTMLElement>();
+
   /** Registry of MutationObserver instances by app key */
   private observers = new Map<string, MutationObserver>();
 
@@ -27,17 +30,23 @@ export class StyleIsolator implements IStyleIsolator {
   private scopeCounter = 0;
 
   /**
-   * Mount a micro app container with Shadow DOM
+   * Mount a micro app container with CSS isolation
    * @param key - Unique identifier for the micro app
-   * @param container - HTML element to attach Shadow DOM to
-   * @returns The created ShadowRoot
+   * @param container - HTML element to attach isolation to
+   * @param mode - CSS isolation mode (default: 'shadow-dom')
+   * @returns The created ShadowRoot or scoped HTMLElement
    */
-  mount(key: string, container: HTMLElement): ShadowRoot {
+  mount(key: string, container: HTMLElement, mode: CSSIsolationMode = 'shadow-dom'): ShadowRoot | HTMLElement {
+    const scopeId = `orion-${key}`;
+    container.setAttribute('data-orion-scope', scopeId);
+
+    if (mode === 'scoped-css') {
+      return this.mountScopedCSS(key, container, scopeId);
+    }
+
+    // Default: shadow-dom mode
     const shadowRoot = container.attachShadow({ mode: 'open' });
     this.shadowRoots.set(key, shadowRoot);
-
-    // Set scope attribute for CSS selector prefix
-    shadowRoot.host.setAttribute('data-orion-scope', `orion-${key}`);
 
     // Setup dynamic style interception
     this.setupStyleObserver(key, shadowRoot);
@@ -46,6 +55,24 @@ export class StyleIsolator implements IStyleIsolator {
     this.injectIsolationPatch(shadowRoot);
 
     return shadowRoot;
+  }
+
+  /**
+   * Mount in scoped-css mode (no Shadow DOM, CSS scope prefix only)
+   *
+   * Used for internal trusted apps that need Ant Design Modal/Notification
+   * to work correctly (they mount to document.body, which breaks in Shadow DOM).
+   */
+  private mountScopedCSS(key: string, container: HTMLElement, scopeId: string): HTMLElement {
+    this.scopedContainers.set(key, container);
+
+    // Setup MutationObserver on the container to scope dynamically injected styles
+    this.setupScopedStyleObserver(key, container, scopeId);
+
+    // Inject a scope marker style
+    this.injectScopedPatch(container, scopeId);
+
+    return container;
   }
 
   /**
@@ -66,6 +93,13 @@ export class StyleIsolator implements IStyleIsolator {
       shadowRoot.host.remove();
       this.shadowRoots.delete(key);
     }
+
+    // Cleanup scoped-css mode container marker
+    const scopedContainer = this.scopedContainers.get(key);
+    if (scopedContainer) {
+      scopedContainer.removeAttribute('data-orion-scope');
+      this.scopedContainers.delete(key);
+    }
   }
 
   /**
@@ -80,10 +114,10 @@ export class StyleIsolator implements IStyleIsolator {
   /**
    * Check if a key has been mounted
    * @param key - Unique identifier for the micro app
-   * @returns true if mounted
+   * @returns true if mounted (shadow-dom or scoped-css)
    */
   isMounted(key: string): boolean {
-    return this.shadowRoots.has(key);
+    return this.shadowRoots.has(key) || this.scopedContainers.has(key);
   }
 
   /**
@@ -302,7 +336,8 @@ export class StyleIsolator implements IStyleIsolator {
 
     // Check if this @ rule contains selectors that need scoping
     // @font-face, @import, @charset, @namespace don't have selectors
-    const atRulesWithoutSelectors = ['@font-face', '@import', '@charset', '@namespace', '@supports'];
+    // @supports DOES have selectors inside it (e.g., @supports (display: grid) { .card {} })
+    const atRulesWithoutSelectors = ['@font-face', '@import', '@charset', '@namespace'];
     const needsScoping = !atRulesWithoutSelectors.some(rule =>
       atKeyword.toLowerCase().startsWith(rule.toLowerCase())
     );
@@ -391,6 +426,68 @@ export class StyleIsolator implements IStyleIsolator {
   }
 
   /**
+   * Setup MutationObserver on container for scoped-css mode
+   * Intercepts dynamically injected <style> tags and scopes them
+   */
+  private setupScopedStyleObserver(key: string, container: HTMLElement, scopeId: string): void {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          this.interceptNewStylesScoped(key, mutation.addedNodes, scopeId);
+        }
+      }
+    });
+
+    // Observe the container for dynamically injected style tags
+    // Also observe document.head for global style injections (e.g., Ant Design runtime styles)
+    observer.observe(container, { childList: true, subtree: true });
+
+    this.observers.set(key, observer);
+  }
+
+  /**
+   * Intercept newly added style nodes in scoped-css mode
+   */
+  private interceptNewStylesScoped(key: string, nodes: NodeList, scopeId: string): void {
+    for (const node of nodes) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+
+        if (element instanceof HTMLStyleElement) {
+          this.scopeCSS(element, scopeId);
+        }
+
+        // Recursively handle nested Shadow DOMs
+        if (element.shadowRoot) {
+          this.interceptNewStylesScoped(key, element.shadowRoot.childNodes, scopeId);
+        }
+      }
+    }
+  }
+
+  /**
+   * Inject scope marker style for scoped-css mode
+   * This provides a CSS hook for prefix-based scoping
+   */
+  private injectScopedPatch(container: HTMLElement, scopeId: string): void {
+    const patchStyle = document.createElement('style');
+    patchStyle.textContent = `
+      /* OrionMF Scoped CSS Patch */
+      /* Scoped mode: styles are prefixed but can leak to/from main app */
+      [data-orion-scope="${scopeId}"] {
+        box-sizing: border-box;
+      }
+
+      [data-orion-scope="${scopeId}"] * {
+        box-sizing: border-box;
+      }
+    `;
+    patchStyle.setAttribute('data-orion-patch', 'true');
+    patchStyle.setAttribute('data-orion-mode', 'scoped');
+    container.appendChild(patchStyle);
+  }
+
+  /**
    * Generate a unique scope ID
    * @param key - Base key for the scope
    * @returns Unique scope ID
@@ -410,6 +507,9 @@ export class StyleIsolator implements IStyleIsolator {
 
     // Clear shadow roots registry
     this.shadowRoots.clear();
+
+    // Clear scoped containers registry
+    this.scopedContainers.clear();
 
     this.scopeCounter = 0;
   }

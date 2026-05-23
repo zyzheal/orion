@@ -57,10 +57,13 @@ export interface ScopedFunction<T extends (...args: unknown[]) => unknown> {
 // StyleIsolator Types
 // ============================================================================
 
+/** CSS isolation mode */
+export type CSSIsolationMode = 'shadow-dom' | 'scoped-css' | 'none';
+
 /** StyleIsolator interface */
 export interface IStyleIsolator {
-  /** Mount a micro app container with Shadow DOM */
-  mount(key: string, container: HTMLElement): ShadowRoot;
+  /** Mount a micro app container with CSS isolation */
+  mount(key: string, container: HTMLElement, mode?: CSSIsolationMode): ShadowRoot | HTMLElement;
   /** Unmount a micro app and cleanup resources */
   unmount(key: string): void;
 }
