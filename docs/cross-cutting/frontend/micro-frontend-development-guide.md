@@ -25,12 +25,21 @@
 - [五、构建配置](#五构建配置)
   - [5.1 UMD 格式输出](#51-umd-格式输出)
   - [5.2 外部依赖配置](#52-外部依赖配置)
-  - [5.3 代理配置](#53-代理配置)
+  - [5.3 Module Federation Shared 配置（依赖共享）](#53-module-federation-shared-配置依赖共享)
+  - [5.4 代理配置](#54-代理配置)
 - [六、本地开发调试](#六本地开发调试)
   - [6.1 独立模式运行](#61-独立模式运行)
   - [6.2 微前端模式调试](#62-微前端模式调试)
-- [七、错误处理与日志](#七错误处理与日志)
-- [八、性能优化建议](#八性能优化建议)
+- [七、错误边界与降级策略](#七错误边界与降级策略)
+  - [7.1 四级降级策略](#71-四级降级策略)
+  - [7.2 实现代码](#72-实现代码)
+  - [7.3 熔断机制](#73-熔断机制)
+  - [7.4 安全规范](#74-安全规范)
+  - [7.5 性能基线](#75-性能基线)
+  - [7.6 多环境配置差异](#76-多环境配置差异)
+  - [7.7 子应用间依赖管理](#77-子应用间依赖管理)
+- [八、错误处理与日志](#八错误处理与日志)
+- [九、性能优化建议](#九性能优化建议)
 
 ---
 
@@ -54,12 +63,12 @@ Orion 平台采用**微前端架构**集成多个子应用，实现技术栈无�
 
 | 特性 | 方案 | 说明 |
 |------|------|------|
-| 集成方式 | 自定义微前端容器 | 基于 `window.__POWERED_BY_ORION__` 标识 |
+| 集成方式 | Orion-MF 微前端框架 | 基于 `window.__POWERED_BY_ORION__` 标识 |
 | 通信机制 | Props + Custom Events + Global State | 父子应用双向通信 |
-| 样式隔离 | CSS Modules + Scoped CSS + Less 变量前缀 | 多重隔离策略 |
+| 样式隔离 | Shadow DOM + Scoped CSS | 多重隔离策略 |
 | 状态共享 | `$orion` 全局对象 | 用户信息、权限、Token 统一注入 |
 | 路由管理 | 主应用统一路由 + 子应用内部路由 | 两级路由体系 |
-| 构建输出 | UMD 格式 | 兼容浏览器全局变量加载 |
+| 构建输出 | Module Federation (remoteEntry.js) | 兼容浏览器全局变量加载 |
 
 ### 1.2 技术栈
 
@@ -575,6 +584,8 @@ export const permission = {
 
 ### 3.4 Token 使用
 
+> **重要**：Orion 统一使用 `Authorization: Bearer` 标准方式传递 Token，不使用自定义 Header。这是 OAuth2 标准做法，兼容所有后端框架和安全策略。
+
 ```typescript
 // API 请求自动携带 Token
 // src/api/client.ts
@@ -755,23 +766,23 @@ function handleServerError(error: any) {
 }
 ```
 
-### 4.2 X-Orion-Token Header
+### 4.2 Authorization Bearer Token
 
-所有 API 请求必须携带 `X-Orion-Token` 请求头：
+所有 API 请求必须携带 `Authorization: Bearer <token>` 请求头（OAuth2 标准方式）：
 
 ```typescript
 // 请求头示例
 {
   "Content-Type": "application/json",
-  "X-Orion-Token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
 **注意事项**：
 
-1. **不要使用 Authorization Bearer**：Orion 统一使用 `X-Orion-Token`
+1. **使用标准 Bearer 认证**：遵循 OAuth2 / RFC 6750 规范
 2. **Token 过期处理**：401 响应应触发 Token 刷新流程，而非直接跳转登录
-3. **Token 安全**：不要将 Token 打印到日志或存储在明文 localStorage
+3. **Token 安全**：优先使用 HttpOnly Cookie 存储，不要将 Token 打印到日志
 
 ### 4.3 错误处理
 
@@ -930,7 +941,124 @@ build: {
 <script src="https://unpkg.com/ant-design-vue@4/dist/antd.min.js"></script>
 ```
 
-### 5.3 代理配置
+### 5.3 Module Federation Shared 配置（依赖共享）
+
+#### 默认行为：无 shared（推荐）
+
+Orion-MF **默认不启用 shared**，每个子应用打包自己的依赖副本。这是默认推荐行为：
+
+```typescript
+// 子应用 vite.config.ts — 默认配置（无需 shared）
+federation({
+  name: 'orion_dba',
+  filename: 'remoteEntry.js',
+  exposes: { './index': './src/main.ts' },
+  // 无 shared：子应用打包自己的 vue/react 等依赖
+})
+```
+
+**默认行为的优势**：
+
+| 优势 | 说明 |
+|------|------|
+| 任意技术栈 | Vue/React/jQuery 子应用均可正常运行 |
+| 零配置 | 无需主应用和子应用版本对齐 |
+| 独立部署 | 子应用升级依赖不影响其他子应用 |
+| 无版本冲突 | 每个子应用使用自己的依赖版本 |
+
+**默认行为的缺点**：
+
+| 缺点 | 影响 |
+|------|------|
+| 包体积增大 | 每个子应用都打包了 React/Vue 等依赖 |
+| 首次加载慢 | 多个子应用切换时重复下载相同依赖 |
+| 内存占用高 | 多个框架实例同时存在于内存 |
+
+#### 何时启用 shared
+
+当满足以下条件时，可考虑启用 shared 优化性能：
+
+1. 子应用与主应用**使用相同框架**（如都是 React 18）
+2. 子应用与主应用**框架版本一致**（或兼容范围内）
+3. 子应用数量**较多**（3+ 个同技术栈子应用）
+4. 对**首屏加载性能**有明确要求
+
+#### 如何启用 shared
+
+**步骤 1：主应用配置 shared（host 端）**
+
+```typescript
+// orion-frontend/vite.config.ts
+import federation from '@originjs/vite-plugin-federation';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    federation({
+      name: 'orion_host',
+      remotes: {
+        orion_knowledge: 'http://localhost:5173/assets/remoteEntry.js',
+      },
+      shared: {
+        react: { singleton: true, eager: true },
+        'react-dom': { singleton: true, eager: true },
+        'react-router-dom': { singleton: true },
+      },
+    }),
+  ],
+});
+```
+
+**步骤 2：子应用配置 shared（remote 端）**
+
+```typescript
+// orion-knowledge/web/admin/vite.config.ts
+federation({
+  name: 'orion_knowledge',
+  filename: 'remoteEntry.js',
+  exposes: { './index': './src/main.tsx' },
+  shared: ['react', 'react-dom', 'react-router-dom'],
+})
+```
+
+**步骤 3：在 SubAppStore 中设置 `use_shared: true`**
+
+```json
+{
+  "key": "orion-knowledge",
+  "name": "知识库",
+  "use_shared": true,
+  "css_isolation": "scoped-css"
+}
+```
+
+**步骤 4：重新构建子应用**
+
+```bash
+cd orion-knowledge/web/admin
+npm run build -- --mode micro-frontend
+```
+
+#### shared 配置注意事项
+
+| 规则 | 说明 |
+|------|------|
+| `singleton: true` | 确保整个应用只有一个实例（React 必须有） |
+| `eager: true` | 主应用启动时立即加载共享依赖（推荐用于 React） |
+| 版本必须兼容 | 主应用 react@18.2.0，子应用也必须兼容此版本 |
+| 不同技术栈不能共享 | Vue 子应用不能共享 React，反之亦然 |
+| 启用后必须重新构建 | 修改 shared 配置后，子应用和主应用都需要重新构建 |
+
+#### 启用 shared 的性能收益
+
+| 指标 | 无 shared（默认） | 启用 shared | 收益 |
+|------|------------------|-------------|------|
+| React bundle | 每个子应用 ~42KB | 主应用加载一次 | 节省 N×42KB |
+| React-DOM bundle | 每个子应用 ~130KB | 主应用加载一次 | 节省 N×130KB |
+| 首次加载（3个React子应用） | ~516KB | ~172KB | **节省 67%** |
+| 内存占用 | 3个 React 实例 | 1个 React 实例 | **节省 60%+** |
+
+### 5.4 代理配置
 
 开发环境下配置代理，解决跨域问题：
 
@@ -1050,29 +1178,77 @@ export default defineConfig({
 
 ## 六、本地开发调试
 
-### 6.1 独立模式运行
+### 6.1 独立 SPA 模式运行（推荐）
 
-子应用支持独立运行，无需启动主应用：
+每个子应用**本身就是一个完整的 SPA**，可以直接通过 URL 独立访问，无需启动主应用。
 
-```bash
-# 进入子应用目录
-cd orion-dba/frontend
+#### 构建产物
 
-# 安装依赖
-npm install
+子应用的 `npm run build` 命令会同时输出两种产物：
 
-# 启动开发服务器（独立模式）
-npm run dev
+```
+dist/                   ← SPA 模式（独立访问）
+├── index.html
+├── assets/
+│   ├── main-xxx.js
+│   ├── vendor-xxx.js
+│   └── style-xxx.css
+└── ...
 
-# 访问 http://localhost:3010
+dist-mf/                ← MF 模式（嵌入主应用）
+├── remoteEntry.js      ← 主应用加载此文件
+└── assets/
+    └── ...
 ```
 
-**独立模式特点**：
+#### 如何启用独立访问
 
-- `window.__POWERED_BY_ORION__` 为 `undefined`
-- 应用挂载到 `#app` 容器
-- 使用本地 mock 数据或直接连接后端 API
-- 适合功能开发和单元测试
+```bash
+# 1. 构建子应用（同时输出 SPA + MF）
+cd orion-knowledge/web/admin
+npm run build
+
+# 2. 部署 dist/ 目录到 Web 服务器
+# 例如部署到 dba.example.com
+
+# 3. 用户直接访问
+# http://dba.example.com/        ← 独立 SPA 模式
+# http://dba.example.com/login   ← 独立 SPA 模式（子页面）
+```
+
+#### 主应用嵌入访问
+
+```
+主应用部署后:
+http://portal.example.com/dba/*  ← 加载 dist-mf/remoteEntry.js
+```
+
+#### 两种访问模式的区别
+
+| 维度 | 独立 SPA 模式 | 嵌入主应用模式 |
+|------|--------------|---------------|
+| URL | `http://dba.example.com/` | `http://portal.example.com/dba/*` |
+| 加载入口 | `index.html` | `remoteEntry.js` |
+| Layout | 子应用自己的 Layout | 主应用提供 Layout |
+| 认证 | 子应用自己的登录页 | 主应用 SSO 透传 Token |
+| basename | `/` 或动态计算 | `/${subAppKey}` |
+| 运行标识 | `window.__POWERED_BY_ORION__` 为 `undefined` | `window.__POWERED_BY_ORION__` 为 `true` |
+
+#### 子应用入口文件的双模式处理
+
+子应用的 `main.ts` / `main.tsx` 已内置双模式检测：
+
+```typescript
+// 独立 SPA 模式：自动渲染完整应用
+if (!window.__POWERED_BY_ORION__) {
+  createApp(App).mount('#app');
+}
+
+// 嵌入主应用模式：导出生命周期供主应用调用
+export async function bootstrap() { /* ... */ }
+export async function mount(props) { /* ... */ }
+export async function unmount() { /* ... */ }
+```
 
 ### 6.2 微前端模式调试
 
@@ -1224,6 +1400,134 @@ const logger = new Logger('orion-dba');
 logger.info('Application mounted');
 logger.error('API request failed', error);
 ```
+
+---
+
+## 七、错误边界与降级策略
+
+> **P0 修复**：子应用加载失败时，必须有用户友好的降级策略，不能让用户看到白屏。
+
+### 7.1 四级降级策略
+
+```
+加载失败 → 重试 (最多 3 次) → 错误提示 → Iframe 备用 → Fallback 页面
+```
+
+| 降级级别 | 触发条件 | 用户看到 | 恢复方式 |
+|---------|---------|---------|---------|
+| **Level 1: 重试** | 网络超时/连接失败 | Loading + "加载中，请稍后..." | 自动重试，间隔递增延迟 |
+| **Level 2: 错误提示** | 重试 3 次仍失败 | 错误提示 + "重新加载"按钮 | 用户手动点击重试 |
+| **Level 3: Iframe 备用** | JS 模块加载失败 | Iframe 加载子应用独立入口 | 功能完整但性能略降 |
+| **Level 4: Fallback** | 所有方式均失败 | "服务暂时不可用，请稍后重试" | 需运维介入 |
+
+### 7.2 实现代码
+
+```typescript
+// orion-frontend/src/components/SubAppRouteDynamic/index.tsx
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // ms
+
+function loadWithRetry(config: SubAppConfig, attempt: number = 0): Promise<void> {
+  return loadSubApp(config).catch((err) => {
+    if (attempt < MAX_RETRIES) {
+      // Level 1: 自动重试（指数退避）
+      const delay = RETRY_DELAY * Math.pow(2, attempt);
+      return new Promise((resolve) => setTimeout(resolve, delay))
+        .then(() => loadWithRetry(config, attempt + 1));
+    }
+    // Level 2: 错误提示
+    if (config.fallback_url) {
+      // Level 3: Iframe 备用
+      return loadIframeFallback(config.fallback_url);
+    }
+    // Level 4: Fallback
+    renderFallbackPage(err);
+  });
+}
+```
+
+### 7.3 熔断机制
+
+```typescript
+// 使用已有 CrashRecovery.ts（256 行）实现熔断
+
+const CRASH_THRESHOLD = 3;          // 3 次失败触发熔断
+const RECOVERY_TIMEOUT = 60000;     // 60 秒后自动恢复试探
+
+// 在 SubAppRouteDynamic 中集成
+<CrashRecovery
+  onError={(err) => {
+    CrashRecovery.increment(config.key);
+    if (CrashRecovery.isCircuitOpen(config.key)) {
+      // 熔断：直接降级
+      renderFallbackPage(new Error('服务暂时不可用'));
+      return;
+    }
+    loadWithRetry(config);
+  }}
+>
+  <div id={`app-${config.key}`} />
+</CrashRecovery>
+```
+
+### 7.4 安全规范
+
+#### Token 存储安全
+
+| 场景 | 做法 | 禁止行为 |
+|------|------|---------|
+| 主应用存储 | HttpOnly Cookie（推荐）或内存 | 明文 localStorage |
+| 子应用访问 | 通过 `mount(props)` 注入 | 子应用直接从 localStorage 读取 |
+| API 传输 | Authorization: Bearer (HTTPS) | URL 参数中传递 Token |
+| 日志打印 | 脱敏后显示 `eyJ***...42` | 完整 Token 打印到日志 |
+
+#### CSP 策略
+
+```typescript
+// orion-api-gateway/src/middleware/csp.ts
+reply.header('Content-Security-Policy', [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.example.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "connect-src 'self' https://api.example.com",
+  "frame-src 'self' https://*.example.com",
+].join('; '));
+```
+
+### 7.5 性能基线
+
+| 指标 | 目标值 | 测量方式 |
+|------|--------|---------|
+| 子应用首次加载时间 | ≤ 2 秒 | Performance API |
+| 子应用切换时间 | ≤ 500ms | 路由切换到渲染完成 |
+| 主应用首屏渲染 | ≤ 1 秒 | LCP (Largest Contentful Paint) |
+| 子应用内存占用 | ≤ 50MB | Chrome DevTools Memory API |
+| Gateway 中间件延迟 | ≤ 10ms | 请求进入 Gateway 到转发 |
+
+### 7.6 多环境配置差异
+
+| 配置项 | 开发 (dev) | 测试 (staging) | 生产 (prod) |
+|--------|-----------|---------------|------------|
+| 子应用入口 | `http://localhost:3010/remoteEntry.js` | `https://staging-cdn/...` | `https://cdn.example.com/...` |
+| API 地址 | `/api` (Vite proxy) | `https://staging-api.example.com` | `https://api.example.com` |
+| 限流开关 | 关闭 | 测试模式 | 生产模式 |
+
+### 7.7 子应用间依赖管理
+
+如果子应用 A 依赖子应用 B（如 DBA 需要 Visor 的监控数据）：
+
+```json
+// subapp_configs 扩展字段
+{
+  "key": "dba",
+  "dependencies": {
+    "visor": ">=2.0.0"
+  }
+}
+```
+
+加载顺序：按依赖图拓扑排序，被依赖的先加载。如果被依赖应用加载失败，降级为独立模式运行。
 
 ---
 
