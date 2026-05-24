@@ -727,6 +727,82 @@ describe('ExperimentList', () => {
 
 ## 三、Agent 可执行改造方案（Step 4 核心输出）
 
+> **微前端开发规范参考**: `docs/cross-cutting/frontend/micro-frontend-development-guide.md` (v1.1)
+>
+> 本计划中所有微前端相关改造均按该规范文档第 7 章"错误边界与降级策略"的设计执行。
+
+### Phase 0：微前端规范改造（P0，预计 1-2 小时）
+
+> **目标**：按微前端开发规范第七章的设计，实现子应用加载失败降级策略、熔断机制、CSP 安全策略。
+>
+> **规范文档**: `docs/cross-cutting/frontend/micro-frontend-development-guide.md` §7 (v1.1)
+
+#### Task 0.1：SubAppRouteDynamic 实现 loadWithRetry + 4 级降级
+
+**规范来源**: §7.1 四级降级策略 + §7.2 实现代码
+
+**影响文件**: `orion-frontend/src/components/SubAppRouteDynamic/index.tsx`
+
+**执行步骤**：
+1. 在组件中实现 `loadWithRetry` 函数（最多 3 次重试，指数退避）
+2. Level 1: 自动重试 — `setTimeout` 递增延迟 (1s → 2s → 4s)
+3. Level 2: 重试失败后显示 ErrorBanner（含"重新加载"按钮）
+4. Level 3: 如果配置了 `fallback_url`，Iframe 加载备用入口
+5. Level 4: 所有方式失败，显示 Fallback 页面
+
+**验收标准**：
+| 场景 | 预期行为 | 测试方法 |
+|------|---------|---------|
+| CDN 超时（模拟网络中断） | 自动重试 3 次后显示 ErrorBanner | Playwright E2E |
+| CDN 返回 404 | 直接跳过重试，显示 ErrorBanner | Playwright E2E |
+| 配置 fallback_url | Level 2 失败后 Iframe 加载备用地址 | Playwright E2E |
+| 所有方式均失败 | 显示"服务暂时不可用" | 单元测试 |
+
+#### Task 0.2：SubAppRouteDynamic 接入 CrashRecovery 熔断
+
+**规范来源**: §7.3 熔断机制
+
+**影响文件**: `orion-frontend/src/components/SubAppRouteDynamic/index.tsx`
+
+**执行步骤**：
+1. 导入 `@orion-mf/core` 中的 `CrashRecovery`
+2. 在 `loadWithRetry` 的 catch 中调用 `CrashRecovery.increment(config.key)`
+3. 熔断判断：`CrashRecovery.isCircuitOpen(config.key)` → 直接降级到 Level 4
+4. 恢复机制：60 秒后自动半开试探
+
+**验收标准**：
+| 场景 | 预期行为 | 测试方法 |
+|------|---------|---------|
+| 连续 3 次加载失败 | 触发熔断，后续请求直接降级 | 单元测试 |
+| 熔断 60 秒后 | 半开状态，允许一次试探请求 | 单元测试 |
+| 试探成功 | 重置熔断状态 | 单元测试 |
+| 试探失败 | 重新触发熔断 | 单元测试 |
+
+#### Task 0.3：Gateway 新增 CSP 中间件
+
+**规范来源**: §7.4 安全规范 → CSP 策略
+
+**影响文件**: `orion-api-gateway/src/middleware/csp.ts`（新建）
+
+**执行步骤**：
+1. 创建 `csp.ts` 中间件文件
+2. 使用 Fastify `onRequest` hook 注入 `Content-Security-Policy` header
+3. 策略内容：
+   - `default-src 'self'`
+   - `script-src 'self' 'unsafe-inline' 'unsafe-eval'` + CDN
+   - `style-src 'self' 'unsafe-inline'`
+   - `connect-src 'self'` + API 地址
+   - `frame-src 'self'` + 子应用域名
+
+**验收标准**：
+| 场景 | 预期行为 | 测试方法 |
+|------|---------|---------|
+| GET 任意页面 | 响应头包含 `Content-Security-Policy` | `curl -I` 验证 |
+| 子应用脚本从 CDN 加载 | 不被 CSP 拦截 | Playwright E2E |
+| 内联脚本执行 | 正常执行（'unsafe-inline'） | Playwright E2E |
+
+---
+
 ### Phase 1：P0 前端交互修复（预计 2-3 小时）
 
 > 目标：修复最影响用户体验的问题——静默失败、断链按钮、权限缺失

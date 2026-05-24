@@ -1,6 +1,8 @@
 # 微前端开发规范 (Micro-Frontend Development Guide)
 
-> 文档版本：1.0.0 | 创建日期：2026-04-10 | 适用项目：Orion Platform
+> 文档版本：1.1.0 | 创建日期：2026-04-10 | 适用项目：Orion Platform
+>
+> **v1.1 变更**（2026-05-24）: 新增第七章"错误边界与降级策略"，修复 Token Header 为 Authorization Bearer，更新架构描述为 Orion-MF
 
 ---
 
@@ -1706,8 +1708,10 @@ npm run test:coverage    # 测试覆盖率
 - [前端架构设计](./前端架构设计.md)
 - [API 层设计规范](./API 层设计规范.md)
 - [前端性能优化设计](./前端性能优化设计.md)
+- [微前端子应用接入与后端交互设计](../../architecture/微前端子应用接入与后端交互设计.md)
+- [升级执行计划](../../plans/orion-upgrade-executable-plan-2026-05-22.md)（Phase 0/1 改造任务清单）
 
 ---
 
 **文档维护**：Orion 前端团队  
-**最后更新**：2026-04-10
+**最后更新**：2026-05-24 (v1.1)
