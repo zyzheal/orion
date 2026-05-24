@@ -1,14 +1,18 @@
 /**
  * S 安全层检测器
- * 检测安全相关的 25 项设计约束
+ * 检测安全相关的 25 项设计约束 (100% 覆盖率)
  * - S1: 身份认证与访问控制 (5项)
  * - S2: 数据安全 (5项)
  * - S3: 基础设施安全 (5项)
  * - S4: 安全审计 (5项)
  * - S5: 第三方集成 (5项)
  *
- * 已实现基础检测: SQL注入、XSS、命令注入、API密钥管理、硬编码密码
- * 本文件新增: CSRF防护、文件上传安全、脱敏规则、权限校验、审计日志等
+ * 已实现 25/25 项检测:
+ * S1: 登录认证、权限模型、权限校验、会话管理、密码策略
+ * S2: HTTPS传输、存储加密、脱敏规则、数据隔离、隐私合规
+ * S3: SQL注入、XSS、CSRF、文件上传、命令注入
+ * S4: 审计日志、日志保留、异常检测、漏洞扫描、安全响应
+ * S5: API密钥、OAuth2、Webhook签名、回调校验、依赖扫描
  */
 
 import * as ts from 'typescript';
@@ -94,6 +98,9 @@ export class SSecurityAnalyzerFrontend {
     // S2-03: 脱敏规则
     issues.push(...this.detectMissingDataMasking());
 
+    // S2-05: 隐私合规 (P0)
+    issues.push(...this.detectMissingPrivacyCompliance());
+
     // S3-03: CSRF防护
     issues.push(...this.detectMissingCSRFProtection());
 
@@ -105,6 +112,9 @@ export class SSecurityAnalyzerFrontend {
 
     // S5-01: API密钥管理 (已在 code-quality-analyzer 中实现，这里补充前端检测)
     issues.push(...this.detectHardcodedAPIKeys());
+
+    // S5-05: 依赖安全扫描 (P1) - package.json
+    issues.push(...this.detectMissingDependencyScan());
 
     return issues;
   }
@@ -361,6 +371,75 @@ export class SSecurityAnalyzerFrontend {
 
     return issues;
   }
+
+  // ============ S2-05: 隐私合规 (前端) (P0) ============
+
+  /**
+   * 检测前端是否缺少隐私合规处理
+   */
+  private detectMissingPrivacyCompliance(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 检测敏感个人信息处理
+    const hasPersonalData =
+      /phone|mobile|email|idCard|identityCard|bankCard|creditCard/i.test(this.content) ||
+      /realName|real_name|name.*身份证/i.test(this.content);
+
+    if (!hasPersonalData) return issues;
+
+    // 检测隐私合规机制
+    const hasPrivacyCompliance =
+      /consent|agreement|policy|privacy|GDPR|cookie.*consent|accept.*term/i.test(this.content) ||
+      /localStorage.*notice|sessionStorage.*notice/i.test(this.content) ||
+      /onCollect|onTrack|opt-out|optIn|optOut/i.test(this.content);
+
+    if (hasPersonalData && !hasPrivacyCompliance) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-privacy-compliance',
+        severity: 'P0',
+        message: '处理个人敏感信息缺少隐私合规机制',
+        suggestion: '添加用户同意弹窗、Cookie 声明和_opt-out_机制',
+        checkId: 'S2-05',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S5-05: 依赖安全扫描 (前端) (P1) ============
+
+  /**
+   * 检测前端是否配置了依赖安全扫描
+   */
+  private detectMissingDependencyScan(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 只检查 package.json 文件
+    if (!this.filePath.includes('package.json')) return issues;
+
+    // 检测是否配置了安全扫描
+    const hasSecurityScan =
+      /npm.*audit|audit.*security|dependabot|snyk|renovate/i.test(this.content) ||
+      /"security"/.test(this.content);
+
+    if (!hasSecurityScan) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-dependency-scan',
+        severity: 'P1',
+        message: 'package.json 缺少依赖安全扫描配置',
+        suggestion: '配置 npm audit、dependabot 或 snyk 进行依赖漏洞扫描',
+        checkId: 'S5-05',
+      });
+    }
+
+    return issues;
+  }
 }
 
 // ============ 后端安全检测器 ============
@@ -397,11 +476,20 @@ export class SSecurityAnalyzerBackend {
     // S1-04: 会话管理
     issues.push(...this.detectMissingSessionTimeout());
 
+    // S1-05: 密码策略 (P0)
+    issues.push(...this.detectMissingPasswordPolicy());
+
     // S2-01: HTTPS/TLS
     issues.push(...this.detectMissingHTTPS());
 
+    // S2-02: 存储加密 (P1)
+    issues.push(...this.detectMissingStorageEncryption());
+
     // S2-04: 数据隔离（多租户）
     issues.push(...this.detectMissingTenantIsolation());
+
+    // S2-05: 隐私合规 (P0)
+    issues.push(...this.detectMissingPrivacyCompliance());
 
     // S3-01: SQL注入 (已在 code-quality-analyzer 中实现)
     issues.push(...this.detectSQLInjection());
@@ -421,6 +509,15 @@ export class SSecurityAnalyzerBackend {
     // S4-02: 日志保留
     issues.push(...this.detectMissingLogRetention());
 
+    // S4-03: 异常行为检测 (P1)
+    issues.push(...this.detectMissingAnomalyDetection());
+
+    // S4-04: 漏洞扫描 (P1)
+    issues.push(...this.detectMissingVulnerabilityScan());
+
+    // S4-05: 安全事件响应 (P1)
+    issues.push(...this.detectMissingIncidentResponse());
+
     // S5-02: OAuth2
     issues.push(...this.detectMissingOAuth2());
 
@@ -429,6 +526,9 @@ export class SSecurityAnalyzerBackend {
 
     // S5-04: 回调数据校验
     issues.push(...this.detectMissingCallbackValidation());
+
+    // S5-05: 依赖安全扫描 (P1)
+    issues.push(...this.detectMissingDependencyScan());
 
     return issues;
   }
@@ -977,6 +1077,265 @@ export class SSecurityAnalyzerBackend {
         message: '回调接口缺少数据校验',
         suggestion: '使用 schema 验证回调数据并验证签名',
         checkId: 'S5-04',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S1-05: 密码策略 (P0) ============
+
+  /**
+   * 检测密码策略实现（复杂度、哈希等）
+   */
+  private detectMissingPasswordPolicy(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 检测密码处理代码
+    const hasPasswordHandling =
+      /password|passwd|pwd|登录|register|signUp|createUser/i.test(this.content);
+
+    if (!hasPasswordHandling) return issues;
+
+    // 检测密码策略
+    const hasPasswordPolicy =
+      // 密码哈希
+      /bcrypt|argon2|scrypt|pbkdf2|hash.*password/i.test(this.content) ||
+      // 复杂度验证
+      /password.*policy|password.*rule|password.*validation|complexity|minLength.*password/i.test(this.content) ||
+      // 密码强度检测
+      /zxcvbn|password.*strength|check.*password.*strength/i.test(this.content) ||
+      // 密码不匹配检测
+      /password.*confirm|confirm.*password/i.test(this.content);
+
+    if (hasPasswordHandling && !hasPasswordPolicy) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-password-policy',
+        severity: 'P0',
+        message: '密码处理缺少安全策略',
+        suggestion: '实现密码哈希（bcrypt/argon2）和复杂度验证',
+        checkId: 'S1-05',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S2-02: 存储加密 (P1) ============
+
+  /**
+   * 检测是否有敏感数据存储加密
+   */
+  private detectMissingStorageEncryption(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 检测敏感数据存储
+    const hasSensitiveDataStorage =
+      /password|secret|token|key|credential|apiKey|privateKey/i.test(this.content) &&
+      /save|store|insert|update|create.*user|create.*account/i.test(this.content);
+
+    if (!hasSensitiveDataStorage) return issues;
+
+    // 检测加密机制
+    const hasEncryption =
+      /encrypt|aes|crypto|cipher|mask.*sensitive|hash.*password/i.test(this.content) ||
+      /crypto.*encrypt|encrypt.*password|encrypt.*secret/i.test(this.content) ||
+      /dotenv.*encrypt|secure.*storage|keyVault|keyvault/i.test(this.content);
+
+    if (hasSensitiveDataStorage && !hasEncryption) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-storage-encryption',
+        severity: 'P1',
+        message: '敏感数据存储可能缺少加密',
+        suggestion: '使用 AES-256 加密敏感字段或使用密钥管理服务',
+        checkId: 'S2-02',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S2-05: 隐私合规 (后端) (P0) ============
+
+  /**
+   * 检测后端隐私合规机制
+   */
+  private detectMissingPrivacyCompliance(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 检测个人数据处理
+    const hasPersonalDataProcessing =
+      /user.*personal|personal.*data|pii|person.*info/i.test(this.content) ||
+      /phone|mobile|email|idCard|identityCard|bankCard/i.test(this.content) ||
+      /gdpr|privacy.*law|personal.*data.*protect|consent/i.test(this.content);
+
+    if (!hasPersonalDataProcessing) return issues;
+
+    // 检测合规机制
+    const hasCompliance =
+      /gdpr|consent|right.*erasure|right.*access|data.*deletion|anonymize|pseudonymize/i.test(this.content) ||
+      /data.*retention|privacy.*policy|personal.*data.*protect.*law/i.test(this.content) ||
+      /user.*consent|opt-out|optIn|optOut/i.test(this.content) ||
+      /data.*export|data.*portability/i.test(this.content);
+
+    if (hasPersonalDataProcessing && !hasCompliance) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-privacy-compliance',
+        severity: 'P0',
+        message: '处理个人数据缺少隐私合规机制',
+        suggestion: '实现 GDPR/个保法要求的同意、删除、导出等机制',
+        checkId: 'S2-05',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S4-03: 异常行为检测 (P1) ============
+
+  /**
+   * 检测是否有异常行为检测
+   */
+  private detectMissingAnomalyDetection(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 检测登录相关代码
+    const hasAuthRelated =
+      /login|signIn|authenticate|password|attempt|fail/i.test(this.content);
+
+    if (!hasAuthRelated) return issues;
+
+    // 检测异常行为检测机制
+    const hasAnomalyDetection =
+      /rate.*limit|rateLimit|throttle|lockout|failed.*attempt/i.test(this.content) ||
+      /brute.*force|unusual.*activity|anomaly|abuse.*detection/i.test(this.content) ||
+      /max.*attempt|retry.*limit|login.*fail/i.test(this.content) ||
+      /suspicious.*activity|security.*event|threat.*detect/i.test(this.content);
+
+    if (hasAuthRelated && !hasAnomalyDetection) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-anomaly-detection',
+        severity: 'P1',
+        message: '认证相关操作缺少异常行为检测',
+        suggestion: '实现登录失败次数限制、暴力破解检测、异常行为监控',
+        checkId: 'S4-03',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S4-04: 漏洞扫描 (P1) ============
+
+  /**
+   * 检测是否有漏洞扫描配置
+   */
+  private detectMissingVulnerabilityScan(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 只检查配置文件
+    const isConfigFile =
+      /package\.json|Dockerfile|\.github|ci\.yml|docker-compose|\.gitlab-ci/i.test(this.filePath);
+
+    if (!isConfigFile) return issues;
+
+    // 检测漏洞扫描
+    const hasVulnScan =
+      /npm.*audit|security.*scan|snyk|dependabot|whitesource|sonatype/i.test(this.content) ||
+      /trivy|anchore|clair|bandit|safety/i.test(this.content) ||
+      /code.*scan|security.*check|vulnerability.*scan/i.test(this.content);
+
+    if (!hasVulnScan) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-vulnerability-scan',
+        severity: 'P1',
+        message: '配置中缺少漏洞扫描',
+        suggestion: '配置 npm audit、dependabot、trivy 等进行依赖和容器漏洞扫描',
+        checkId: 'S4-04',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S4-05: 安全事件响应 (P1) ============
+
+  /**
+   * 检测是否有安全事件响应机制
+   */
+  private detectMissingIncidentResponse(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 检测安全相关代码
+    const hasSecurityCode =
+      /security|incident|breach|alert|alarm|threat|attack/i.test(this.content);
+
+    if (!hasSecurityCode) return issues;
+
+    // 检测事件响应机制
+    const hasIncidentResponse =
+      /incident.*response|security.*playbook|escalation|notify.*security/i.test(this.content) ||
+      /alert.*rule|alert.*policy|security.*team|security.*notify/i.test(this.content) ||
+      /SIEM|SOAR|security.*incident|breach.*response/i.test(this.content) ||
+      /emergency.*contact|security.*contact|critical.*alert/i.test(this.content);
+
+    if (hasSecurityCode && !hasIncidentResponse) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-incident-response',
+        severity: 'P1',
+        message: '安全模块缺少事件响应机制',
+        suggestion: '定义安全事件响应流程、告警升级策略和应急联系人',
+        checkId: 'S4-05',
+      });
+    }
+
+    return issues;
+  }
+
+  // ============ S5-05: 依赖安全扫描 (后端) (P1) ============
+
+  /**
+   * 检测依赖安全扫描配置
+   */
+  private detectMissingDependencyScan(): SecurityIssue[] {
+    const issues: SecurityIssue[] = [];
+
+    // 只检查 package.json 文件
+    if (!this.filePath.includes('package.json')) return issues;
+
+    // 检测安全扫描配置
+    const hasSecurityScan =
+      /npm.*audit|audit.*security|dependabot|snyk|renovate/i.test(this.content) ||
+      /"security"/.test(this.content);
+
+    if (!hasSecurityScan) {
+      issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-dependency-scan',
+        severity: 'P1',
+        message: 'package.json 缺少依赖安全扫描配置',
+        suggestion: '配置 npm audit、dependabot 或 snyk 进行依赖漏洞扫描',
+        checkId: 'S5-05',
       });
     }
 

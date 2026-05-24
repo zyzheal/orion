@@ -63,13 +63,20 @@ function generateNextSteps(p0Issues: CheckResult[], p1Issues: CheckResult[]): st
     steps.push(`[P1] ${issue.item.rule}: ${issue.details || issue.item.description}`);
   }
 
+  if (p0Issues.length + p1Issues.length > 0) {
+    steps.push('');
+    steps.push('💡 使用 /fix 触发 AI 修复引擎，自动生成完整修复方案');
+    steps.push('   /skill design-constraint:fix --level P0  # 仅修复 P0');
+    steps.push('   /skill design-constraint:fix --dimension A2  # 仅修复指定维度');
+  }
+
   return steps;
 }
 
-export function formatReport(report: Report): string {
+export function formatReport(report: Report, options: { includeFixGuidance?: boolean } = {}): string {
   const lines = [
     '┌────────────────────────────────────────────────────────────┐',
-    '│  Design Constraint Check Report                            │',
+    '│  Design Constraint Check Report (AI Enhanced)              │',
     '├────────────────────────────────────────────────────────────┤',
     `│  Module:         ${report.detection.module.padEnd(44)}│`,
     `│  Code Type:      ${report.detection.codeType.padEnd(44)}│`,
@@ -85,6 +92,10 @@ export function formatReport(report: Report): string {
   for (const issue of report.p0Issues) {
     const line = `│    ✗ ${issue.item.id}: ${issue.item.rule}`;
     lines.push(line.padEnd(60) + '│');
+    if (issue.suggestion) {
+      const fixLine = `│      → AI修复: ${issue.suggestion.substring(0, 45)}`;
+      lines.push(fixLine.padEnd(60) + '│');
+    }
   }
 
   if (report.p0Issues.length === 0) {
@@ -103,7 +114,18 @@ export function formatReport(report: Report): string {
     lines.push(`│    ... 还有 ${report.p1Issues.length - 5} 项                                    │`);
   }
 
-  lines.push('└────────────────────────────────────────────────────────────┘');
+  // AI 修复引导
+  if (options.includeFixGuidance && report.p0Issues.length + report.p1Issues.length > 0) {
+    lines.push('├────────────────────────────────────────────────────────────┤');
+    lines.push('│  [Next Steps]                                              │');
+    lines.push('│  💡 /skill design-constraint:fix 触发 AI 修复引擎          │');
+    lines.push('│     → 三技能并行生成交互规格 + Token 映射 + 子任务表       │');
+    lines.push('│                                                            │');
+    lines.push('│  复查: /skill design-constraint:check --scan-mode changed  │');
+    lines.push('└────────────────────────────────────────────────────────────┘');
+  } else {
+    lines.push('└────────────────────────────────────────────────────────────┘');
+  }
 
   return lines.join('\n');
 }

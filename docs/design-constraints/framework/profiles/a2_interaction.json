@@ -14,7 +14,7 @@
       "description": "每个功能操作必须有明确的用户入口（按钮/菜单）",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-02",
@@ -34,7 +34,7 @@
       "description": "复杂状态流转必须有状态机定义",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-04",
@@ -44,7 +44,7 @@
       "description": "状态变化应有 CSS 动画过渡",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-05",
@@ -54,7 +54,7 @@
       "description": "必须有网络错误处理（断网、超时）",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-06",
@@ -64,7 +64,7 @@
       "description": "业务逻辑错误必须有用户友好的提示",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-07",
@@ -74,7 +74,7 @@
       "description": "用户无权限操作时必须有明确提示",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-08",
@@ -84,7 +84,7 @@
       "description": "长时间操作必须有超时处理和重试机制",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-09",
@@ -94,7 +94,7 @@
       "description": "并发编辑必须有乐观锁或冲突检测",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-10",
@@ -104,7 +104,7 @@
       "description": "多人同时操作时必须有提示机制",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-11",
@@ -114,7 +114,7 @@
       "description": "删除、修改等关键操作应支持撤销",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-12",
@@ -134,7 +134,7 @@
       "description": "数据加载时应有骨架屏或占位符",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-14",
@@ -144,7 +144,7 @@
       "description": "列表为空时必须有 Empty 组件 + 引导按钮",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     },
     {
       "id": "A2-15",
@@ -154,7 +154,7 @@
       "description": "搜索无结果时必须有友好提示",
       "frontend": true,
       "backend": false,
-      "detection": "code-review"
+      "detection": "ai"
     }
   ]
 }

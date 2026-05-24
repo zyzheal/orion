@@ -394,6 +394,14 @@ export class QuickScanner {
       return [targetPath];
     }
 
+    // 排除目录清单 - 与 ast-analyzer.ts 和 checker.ts 保持一致
+    const EXCLUDED_DIRS = [
+      '.git', '.next', 'node_modules', '__tests__', '__mocks__',
+      'coverage', 'dist', 'build',
+    ];
+    // 排除 *-svc 副本目录（与主页面重复，避免计数翻倍）
+    const SVC_DIR_PATTERN = /-svc$/;
+
     const traverse = (dir: string) => {
       if (files.length >= maxFiles) return;
 
@@ -402,10 +410,15 @@ export class QuickScanner {
         for (const entry of entries) {
           if (files.length >= maxFiles) return;
 
+          // 排除已知目录
+          if (entry.isDirectory() && EXCLUDED_DIRS.includes(entry.name)) continue;
+          // 排除 *-svc 副本目录
+          if (entry.isDirectory() && SVC_DIR_PATTERN.test(entry.name)) continue;
+
           const fullPath = path.join(dir, entry.name);
           if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
             traverse(fullPath);
-          } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+          } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.test.tsx') && !entry.name.endsWith('.spec.ts') && !entry.name.endsWith('.spec.tsx')) {
             files.push(fullPath);
           }
         }

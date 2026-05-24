@@ -45,10 +45,16 @@ import { MissingLazyLoadDetector, MissingRequestCancelDetector, MissingRequestMe
 // Search detector
 import { MissingEmptySearchDetector } from './detectors/search';
 
-// NEW detectors
+// NEW detectors — existing（3项）
 import { TokenViolationDetector } from './detectors/token-violation';
 import { MissingErrorBoundaryDetector } from './detectors/error-boundary';
 import { MissingPropsTypeDetector } from './detectors/props-type';
+
+// NEW detectors — responsive/a11y/state/style（4项）
+import { MissingResponsiveDetector } from './detectors/responsive';
+import { MissingA11yDetector } from './detectors/a11y';
+import { MissingStateTransitionDetector } from './detectors/state-transition';
+import { StyleImprovementDetector } from './detectors/style-improvement';
 
 // ── Orchestrator class (wraps all detectors, preserves original API) ──
 
@@ -144,6 +150,11 @@ export class FrontendInteractionAnalyzer {
       new TokenViolationDetector(this.filePath),
       new MissingErrorBoundaryDetector(this.filePath),
       new MissingPropsTypeDetector(this.filePath),
+      // NEW detectors — responsive/a11y/state/style（4项）
+      new MissingResponsiveDetector(this.filePath),
+      new MissingA11yDetector(this.filePath),
+      new MissingStateTransitionDetector(this.filePath),
+      new StyleImprovementDetector(this.filePath),
       // Security detectors（5项）
       new MissingAuthGuardDetector(this.filePath),
       new MissingSensitiveLogMaskDetector(this.filePath),

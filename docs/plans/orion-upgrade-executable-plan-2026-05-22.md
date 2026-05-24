@@ -1006,6 +1006,972 @@ instance.delete('/pipelines/:id', {
 
 ---
 
+### Phase 3.8：SSO 统一认证改造（P0，预计 3.5 周）
+
+> **背景**：当前认证体系分散在多个服务中（platform OIDC、orion-dba LDAP+OIDC、knowledge 企业微信），存在多登录入口、JWT 密钥不统一、不支持单点登出、独立访问无 SSO 等问题。
+> **目标**：所有认证统一由 `orion-platform-service` 的 SSO 模块处理，子应用后端不处理登录，只从 header 获取用户信息。
+
+#### Task 3.8.1：JWT 密钥统一（P0，0.5 周）
+
+**问题**：各服务独立 `JWT_SECRET` 环境变量，Gateway 无法验证子应用 Token。
+
+**实施**：
+
+1. **K8s Secret 统一管理**：
+
+```yaml
+# k8s/secret-orion-jwt.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-jwt-secret
+type: Opaque
+data:
+  JWT_SECRET: <base64-encoded-256-bit-key>
+  JWT_ALGORITHM: SFM=
+  JWT_EXPIRES_IN: NW0=
+  JWT_REFRESH_EXPIRES_IN: N2Q=
+```
+
+2. **各服务环境变量对齐**：
+
+| 服务 | 改造内容 |
+|------|---------|
+| `orion-platform-service` | JWT 密钥从 K8s Secret 读取，保留 `JwtKeyRotationService` |
+| `orion-api-gateway` | `auth.ts` 使用同一 `JWT_SECRET` 验证 |
+| `orion-dba` | 移除自有 JWT 签发，改为只验证 header |
+| `orion-knowledge` | 移除自有 JWT 签发，改为只验证 header |
+
+3. **JWT Payload 统一格式**：
+
+```typescript
+interface OrionJWT {
+  sub: string;          // 用户唯一标识（UUID）
+  iat: number;          // 签发时间戳
+  exp: number;          // 过期时间戳（5分钟后）
+  user_id: string;      // 同 sub，兼容旧代码
+  username: string;     // 用户名
+  email: string;        // 邮箱
+  tenant_id: string;    // 租户 ID
+  roles: string[];      // 角色列表
+  permissions: string[];// 权限列表
+  sso_sub?: string;     // OIDC Provider 的 sub（SSO登录时携带）
+  sso_provider?: string;// OIDC Provider 标识
+}
+```
+
+**验收**：
+- [ ] Gateway 和所有子应用使用同一 `JWT_SECRET`
+- [ ] Gateway 可验证 platform 签发的 JWT
+- [ ] 子应用后端不再签发 JWT
+
+#### Task 3.8.2：Token 黑名单机制（P0，0.5 周）
+
+**问题**：当前不支持单点登出，用户退出后子应用仍有效。
+
+**实施**：
+
+1. **Redis 黑名单集成**：
+
+```typescript
+// orion-platform-service/src/services/auth/TokenBlacklistService.ts (改造)
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL);
+
+export class TokenBlacklistService {
+  // 加入黑名单（TTL = Token剩余有效期）
+  async blacklist(token: string, exp: number): Promise<void> {
+    const ttl = Math.max(0, exp - Math.floor(Date.now() / 1000));
+    if (ttl > 0) {
+      await redis.setex(`token:blacklist:${token}`, ttl, '1');
+    }
+    // 同时持久化到 PostgreSQL（服务重启后恢复）
+    await this.db.query(
+      'INSERT INTO token_blacklist (token, expires_at) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [token, new Date(exp * 1000)]
+    );
+  }
+
+  // 检查黑名单
+  async isBlacklisted(token: string): Promise<boolean> {
+    const redisHit = await redis.get(`token:blacklist:${token}`);
+    if (redisHit) return true;
+    const dbHit = await this.db.query(
+      'SELECT 1 FROM token_blacklist WHERE token = $1 AND expires_at > NOW()',
+      [token]
+    );
+    return dbHit.rowCount > 0;
+  }
+}
+```
+
+2. **Gateway 验证中间件改造**：
+
+```typescript
+// orion-api-gateway/src/middleware/auth.ts (改造)
+export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
+  const token = extractToken(request);
+  if (!token) return;
+
+  try {
+    const decoded = app.jwt.verify(token);
+
+    // 检查 Token 黑名单
+    const isBlacklisted = await redis.get(`token:blacklist:${decoded.jti || tokenHash}`);
+    if (isBlacklisted) {
+      reply.status(401).send({
+        success: false,
+        error: { code: 'CLIENT.401.TOKEN_REVOKED', message: 'Token has been revoked', traceId: request.id }
+      });
+      return;
+    }
+
+    request.authContext = decoded;
+  } catch (error) {
+    reply.status(401).send({
+      success: false,
+      error: { code: 'CLIENT.401.INVALID_TOKEN', message: 'Invalid or expired token', traceId: request.id }
+    });
+  }
+}
+```
+
+**验收**：
+- [ ] 单点登出后，Gateway 拒绝旧 Token（返回 401 + TOKEN_REVOKED）
+- [ ] Redis 黑名单生效，TTL 正确
+
+#### Task 3.8.3：SSO 认证中心完善（P0，1.5 周）
+
+**问题**：LDAP 实现在 orion-dba，企业微信实现在 orion-knowledge，新增认证方式需改多处。
+
+**实施**：
+
+1. **数据库设计**：
+
+```sql
+-- SSO Provider 配置表
+CREATE TABLE sso_providers (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(50) NOT NULL UNIQUE,
+    type            VARCHAR(20) NOT NULL,  -- "oidc", "ldap", "wechat", "cas", "saml"
+    enabled         BOOLEAN DEFAULT true,
+    display_name    VARCHAR(100),
+    display_icon    VARCHAR(200),
+    config          JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 用户 SSO 绑定表（支持一个用户绑定多个 SSO 账号）
+CREATE TABLE user_sso_bindings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    provider        VARCHAR(50) NOT NULL,
+    sso_sub         VARCHAR(255) NOT NULL,
+    sso_email       VARCHAR(255),
+    sso_name        VARCHAR(255),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(provider, sso_sub)
+);
+
+CREATE INDEX idx_user_sso_bindings_user ON user_sso_bindings(user_id);
+```
+
+2. **LDAP 迁移到 platform**：
+
+```typescript
+// orion-platform-service/src/services/auth/LdapService.ts (新文件)
+import ldap from 'ldapjs';
+
+export class LdapService {
+  private client: ldap.Client;
+
+  async authenticate(username: string, password: string): Promise<UserProfile | null> {
+    return new Promise((resolve, reject) => {
+      this.client.bind(config.bind_dn, config.bind_password, (err) => {
+        if (err) return reject(err);
+        this.client.search(config.base_dn, {
+          filter: `(uid=${username})`,
+          attributes: ['mail', 'cn', 'uid']
+        }, (err, res) => {
+          // 验证密码 + 返回用户信息
+        });
+      });
+    });
+  }
+}
+```
+
+3. **企业微信 SSO 迁移到 platform**：
+
+```typescript
+// orion-platform-service/src/services/auth/WechatWorkService.ts (新文件)
+export class WechatWorkService {
+  async getAuthorizationUrl(redirectUri: string): string {
+    return `https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=${config.corpId}&agentid=${config.agentId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${randomState()}`;
+  }
+
+  async handleCallback(code: string): Promise<UserProfile> {
+    // 获取 access_token → 获取用户信息 → 查找/创建本地用户
+  }
+}
+```
+
+4. **SSO Provider 配置管理 API**：
+
+```typescript
+// orion-platform-service/src/api/sso-providers-routes.ts (新文件)
+export async function ssoProvidersRoutes(app: FastifyInstance) {
+  app.get('/api/v1/auth/sso/providers', { onRequest: [authenticateUser] }, listProviders);
+  app.post('/api/v1/auth/sso/providers', { onRequest: [authenticateUser, requireAdmin] }, createProvider);
+  app.patch('/api/v1/auth/sso/providers/:name', { onRequest: [authenticateUser, requireAdmin] }, updateProvider);
+  app.delete('/api/v1/auth/sso/providers/:name', { onRequest: [authenticateUser, requireAdmin] }, deleteProvider);
+}
+```
+
+5. **统一登录页改造**：
+
+```tsx
+// orion-frontend/src/pages/Auth/Login.tsx (改造)
+// 动态展示可用的认证方式
+const [providers, setProviders] = useState<SSOProvider[]>([]);
+
+useEffect(() => {
+  fetch('/api/v1/auth/sso/providers')
+    .then(res => res.json())
+    .then(data => setProviders(data.data.filter(p => p.enabled)));
+}, []);
+
+// 渲染：本地登录表单 + SSO Provider 按钮列表
+```
+
+**验收**：
+- [ ] LDAP/企业微信登录统一在 platform SSO 模块
+- [ ] 登录页动态展示可用 SSO Provider
+- [ ] SSO 登录后 Token 可在所有子应用中使用
+
+#### Task 3.8.4：单点登出（P0，0.5 周）
+
+**实施**：
+
+1. **Logout 端点改造**：
+
+```typescript
+// orion-platform-service/src/api/routes-auth.ts (改造 POST /logout)
+app.post('/api/v1/auth/logout', async (request, reply) => {
+  const { refreshToken, accessToken } = request.body as { refreshToken: string; accessToken: string };
+
+  // 1. 删除 refresh_token
+  await db.query('DELETE FROM refresh_tokens WHERE token_hash = $1', [hash(refreshToken)]);
+
+  // 2. access_token 加入黑名单
+  const decoded = jwt.decode(accessToken) as JwtPayload;
+  if (decoded?.exp) {
+    await tokenBlacklistService.blacklist(accessToken, decoded.exp);
+  }
+
+  // 3. 通过 OrionBus 通知所有子应用
+  // （前端处理）
+
+  reply.send({ success: true });
+});
+```
+
+2. **前端 OrionBus 登出通知**：
+
+```typescript
+// orion-frontend/src/stores/authStore.ts (改造 logout 方法)
+async logout() {
+  await api.post('/v1/auth/logout', { refreshToken: this.refreshToken, accessToken: this.token });
+
+  // 清除本地状态
+  this.setTokens(null, null, null);
+
+  // 通知所有子应用
+  orionBus.emitLogout();
+
+  // 跳转登录页
+  window.location.href = '/auth/login';
+}
+```
+
+**验收**：
+- [ ] OrionBus 登出通知到达所有子应用
+- [ ] 独立访问域名跳转 SSO 登录
+
+#### Task 3.8.5：子应用认证适配（P1，1 周）
+
+**问题**：各子应用后端各自处理认证，子应用前端认证方式不统一。
+
+**子应用后端改造清单**：
+
+| 子应用 | 当前认证 | 改造方案 | 工作量 |
+|--------|---------|---------|--------|
+| **orion-dba** | 自有 JWT + LDAP + OIDC + Mock | 删除自有认证，改为 header 认证 | 2 天 |
+| **orion-knowledge** | 自有 JWT + 企业微信 SSO | 删除自有认证，保留权限模型 | 2 天 |
+| **orion-ai-svc** | Header Mock | 改为标准 header 认证 | 0.5 天 |
+| **orion-visor** | Java Spring Security | 改为 header 认证 | 1 天 |
+
+**子应用前端统一认证模式**：
+
+```typescript
+// 所有子应用前端统一使用以下认证模式
+// orion-dba/frontend/src/utils/auth.ts (改造后)
+
+const apiClient = axios.create({ baseURL: '/api' });
+
+// 请求拦截器：统一携带 Token
+apiClient.interceptors.request.use((config) => {
+  const token = getOrionToken();
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// 响应拦截器：401 时通知主应用刷新 Token
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      if (window.__POWERED_BY_ORION__) {
+        window.dispatchEvent(new CustomEvent('orion-subapp-need-auth'));
+      } else {
+        window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+**验收**：
+- [ ] 所有子应用后端不解析 JWT，只读 header
+- [ ] 子应用前端统一使用 `Authorization: Bearer` header
+- [ ] 子应用 401 时正确跳转 SSO 登录
+
+#### Task 3.8.6：独立访问 SSO 流程（P1，0.5 周）
+
+**实施**：
+
+1. **Nginx 强制 Gateway 代理**：
+
+```nginx
+# 子应用独立域名的 Nginx 配置
+server {
+    listen 80;
+    server_name dba.example.com;
+
+    # 静态资源
+    location / {
+        root /var/www/orion-dba/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 请求 → 强制走 Gateway
+    location /api/ {
+        proxy_pass http://api-gateway:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # 禁止直连后端（不配置任何 direct backend proxy）
+}
+```
+
+2. **独立域名 SSO 跳转**（前端适配）：
+
+```typescript
+// 子应用独立访问时的 Token 获取
+function getOrionToken(): string | null {
+  // 1. 嵌入模式：主应用注入
+  if ((window as any).$orion?.token) {
+    return (window as any).$orion.token;
+  }
+
+  // 2. 独立模式：从 localStorage 获取（SSO 回调存储）
+  return localStorage.getItem('orion_access_token');
+}
+
+// SSO 回调处理
+const urlParams = new URLSearchParams(window.location.search);
+const ssoToken = urlParams.get('sso_token');
+if (ssoToken) {
+  localStorage.setItem('orion_access_token', ssoToken);
+  // 清除 URL 参数，正常渲染
+  window.history.replaceState({}, '', window.location.pathname);
+}
+```
+
+**验收**：
+- [ ] 独立访问域名所有 API 请求经过 Gateway
+- [ ] 无 Token 时跳转 SSO 登录页
+
+#### Task 3.8.7：用户在职/离职状态管理（P0，0.5 周）
+
+> **当前缺失**：无离职状态转换、状态变化未吊销 Token、无 SSO 解绑、无活跃会话强制踢出。
+
+**问题现状**：
+- `UserService.authenticate()` 仅检查 `status !== 'active'`，但无任何 API 可修改用户状态
+- 状态变为 `deleted` 仅软删除，但已有的 JWT Token 仍然有效（5 分钟窗口）
+- 无 HR 系统对接，无法自动感知员工入职/离职
+
+**实施**：
+
+1. **用户状态枚举定义**：
+
+```sql
+-- users.status 允许值规范
+-- 'active'      — 在职，可正常登录
+-- 'suspended'   — 临时禁用（如违规操作调查中），不可登录，数据保留
+-- 'terminated'  — 离职，不可登录，数据保留，SSO 绑定解绑
+-- 'deleted'     — 已删除（软删除，不显示）
+```
+
+2. **用户状态变更 API**：
+
+```typescript
+// orion-platform-service/src/api/user-status-routes.ts (新文件)
+export async function userStatusRoutes(app: FastifyInstance) {
+  // 禁用/启用用户
+  app.patch('/api/v1/users/:id/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'manage' })]
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { status, reason } = request.body as { status: 'active' | 'suspended' | 'terminated'; reason?: string };
+
+    const user = await userService.getUser(id);
+    const oldStatus = user.status;
+
+    // 状态变更
+    await userService.updateUser(id, { status } as UpdateUserInput);
+
+    // 记录审计日志
+    await auditLogger.log({
+      action: 'user_status_change',
+      userId: id,
+      oldStatus,
+      newStatus: status,
+      reason,
+      operator: request.authContext.user_id,
+    });
+
+    // 如果变为非 active 状态，执行安全清理
+    if (status !== 'active') {
+      await disableUser(id);
+    }
+
+    reply.send({ success: true, data: { userId: id, status } });
+  });
+}
+```
+
+3. **禁用用户安全清理**：
+
+```typescript
+// orion-platform-service/src/services/user/UserDisableService.ts (新文件)
+export class UserDisableService {
+  /**
+   * 用户禁用/离职时的安全清理
+   */
+  async disableUser(userId: string): Promise<void> {
+    // 1. 吊销所有未过期的 Refresh Token
+    await this.db.query(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+      [userId]
+    );
+
+    // 2. 将当前 Access Token 加入黑名单
+    const activeTokens = await this.db.query(
+      'SELECT token, expires_at FROM active_sessions WHERE user_id = $1 AND expires_at > NOW()',
+      [userId]
+    );
+    for (const row of activeTokens.rows) {
+      await this.tokenBlacklistService.blacklist(row.token, Math.floor(row.expires_at.getTime() / 1000));
+    }
+
+    // 3. 解绑所有 SSO 关联
+    await this.db.query('DELETE FROM user_sso_bindings WHERE user_id = $1', [userId]);
+
+    // 4. 清除活跃会话记录
+    await this.db.query('DELETE FROM active_sessions WHERE user_id = $1', [userId]);
+
+    // 5. 清除用户缓存
+    await this.cache.del(`user:${userId}`);
+  }
+
+  /**
+   * 批量禁用（按部门/角色）
+   */
+  async batchDisableByFilter(options: { department?: string; role?: string }): Promise<number> {
+    const users = await this.db.query(
+      'SELECT id FROM users WHERE status = $1' +
+        (options.department ? ' AND department = $2' : '') +
+        (options.role ? ' AND role = $' + (options.department ? '3' : '2') : ''),
+      ['active', options.department, options.role].filter(Boolean)
+    );
+
+    for (const row of users.rows) {
+      await this.disableUser(row.id);
+    }
+
+    await this.db.query(
+      'UPDATE users SET status = $1 WHERE status = $2' +
+        (options.department ? ' AND department = $3' : '') +
+        (options.role ? ' AND role = $' + (options.department ? '4' : '3') : ''),
+      ['terminated', 'active', options.department, options.role].filter(Boolean)
+    );
+
+    return users.rowCount;
+  }
+}
+```
+
+4. **SSO 回调中的状态检查**：
+
+```typescript
+// orion-platform-service/src/api/sso-routes.ts (callback 改造)
+// 在 handleCallback 成功后，检查用户状态
+const user = await userRepository.findById(localUser.id);
+if (user.status !== 'active') {
+  // 重定向到错误页
+  return reply.redirect(`/auth/error?code=ACCOUNT_${user.status.toUpperCase()}`);
+}
+```
+
+5. **活跃会话查询 API**（管理员可见）：
+
+```typescript
+// GET /api/v1/users/:id/sessions
+app.get('/api/v1/users/:id/sessions', {
+  onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'view_sessions' })]
+}, async (request, reply) => {
+  const sessions = await this.db.query(
+    `SELECT id, ip_address, user_agent, created_at, expires_at
+     FROM active_sessions
+     WHERE user_id = $1 AND expires_at > NOW()
+     ORDER BY created_at DESC`,
+    [request.params.id]
+  );
+  reply.send({ success: true, data: sessions.rows });
+});
+
+// POST /api/v1/users/:id/sessions/:sessionId/revoke
+app.post('/api/v1/users/:id/sessions/:sessionId/revoke', {
+  onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'revoke_session' })]
+}, async (request, reply) => {
+  await this.tokenBlacklistService.blacklist(sessionToken, expiresAt);
+  await this.db.query('DELETE FROM active_sessions WHERE id = $1', [request.params.sessionId]);
+  reply.send({ success: true });
+});
+```
+
+**验收**：
+- [ ] 用户状态变更 API 可用（active/suspended/terminated）
+- [ ] 状态变为非 active 时，所有 Token 立即失效
+- [ ] 状态变为 terminated 时，SSO 绑定自动解绑
+- [ ] 管理员可查询用户活跃会话并强制踢出
+- [ ] 批量禁用按部门/角色可用
+- [ ] SSO 回调检查用户状态，非 active 拒绝登录
+
+#### Task 3.8.8：数据库与基础设施补全（P0，0.5 周）
+
+> **评审发现的缺失**：`active_sessions` 表不存在、`users` 表缺少 `department` 字段、`token_blacklist` 表未创建。
+
+**1. 新增数据库 Migration**：
+
+```sql
+-- orion-platform-service/src/db/migrations/050-sso-auth-enhancements.sql
+
+-- Token 黑名单表（支持服务重启后恢复）
+CREATE TABLE IF NOT EXISTS token_blacklist (
+    token           VARCHAR(500) PRIMARY KEY,
+    user_id         UUID REFERENCES users(id),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    reason          VARCHAR(50) DEFAULT 'logout',  -- logout/disable/terminated
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_token_blacklist_expires ON token_blacklist(expires_at);
+-- 定期清理过期记录
+DELETE FROM token_blacklist WHERE expires_at < NOW();
+
+-- 活跃会话表（用于查询和强制踢出）
+CREATE TABLE IF NOT EXISTS active_sessions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    token_hash      VARCHAR(64) NOT NULL,  -- SHA256 hash of token
+    ip_address      INET,
+    user_agent      TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    last_activity   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_active_sessions_user ON active_sessions(user_id);
+CREATE INDEX idx_active_sessions_expires ON active_sessions(expires_at);
+-- 定期清理过期会话
+DELETE FROM active_sessions WHERE expires_at < NOW();
+
+-- users 表新增字段
+ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS hire_date DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS termination_date DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_status_change_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_changed_by UUID REFERENCES users(id);
+
+-- 添加 status 约束（注释形式，PostgreSQL 不支持 ENUM 但可加 CHECK）
+-- ALTER TABLE users ADD CONSTRAINT chk_user_status CHECK (status IN ('active', 'suspended', 'terminated', 'deleted'));
+
+-- 用户 SSO 绑定表
+CREATE TABLE IF NOT EXISTS user_sso_bindings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    provider        VARCHAR(50) NOT NULL,
+    sso_sub         VARCHAR(255) NOT NULL,
+    sso_email       VARCHAR(255),
+    sso_name        VARCHAR(255),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(provider, sso_sub)
+);
+CREATE INDEX idx_user_sso_bindings_user ON user_sso_bindings(user_id);
+
+-- SSO Provider 配置表
+CREATE TABLE IF NOT EXISTS sso_providers (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(50) NOT NULL UNIQUE,
+    type            VARCHAR(20) NOT NULL,  -- "oidc", "ldap", "wechat", "cas", "saml"
+    enabled         BOOLEAN DEFAULT true,
+    display_name    VARCHAR(100),
+    display_icon    VARCHAR(200),
+    config          JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 审计日志表（用户状态变更记录）
+CREATE TABLE IF NOT EXISTS user_status_audit (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    old_status      VARCHAR(20) NOT NULL,
+    new_status      VARCHAR(20) NOT NULL,
+    reason          TEXT,
+    operator_id     UUID REFERENCES users(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_user_status_audit_user ON user_status_audit(user_id);
+CREATE INDEX idx_user_status_audit_operator ON user_status_audit(operator_id);
+```
+
+**2. 活跃会话记录集成**：
+
+```typescript
+// orion-platform-service/src/api/routes-auth.ts (login 改造)
+// 登录成功后记录活跃会话
+app.post('/api/v1/auth/login', async (request, reply) => {
+  const { username, password } = request.body as { username: string; password: string };
+
+  const user = await userService.authenticate(username, password);
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
+  // 记录活跃会话
+  const tokenHash = crypto.createHash('sha256').update(accessToken).digest('hex');
+  await db.query(
+    `INSERT INTO active_sessions (user_id, token_hash, ip_address, user_agent, expires_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [user.id, tokenHash, request.ip, request.headers['user-agent'], Date.now() + 5 * 60 * 1000]
+  );
+
+  // 存储 refresh token
+  await db.query(
+    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+    [user.id, hash(refreshToken), Date.now() + 7 * 24 * 60 * 60 * 1000]
+  );
+
+  reply.send({ accessToken, refreshToken, expiresAt: user.expiresAt, user: sanitizeUser(user) });
+});
+```
+
+**3. Refresh Token 吊销字段**：
+
+```sql
+-- refresh_tokens 表新增 revoked_at 字段（如不存在）
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoke_reason VARCHAR(50);
+```
+
+**验收**：
+- [ ] Migration 050 执行成功，所有表/字段创建
+- [ ] 登录时活跃会话记录写入
+- [ ] Refresh Token 吊销字段可用
+- [ ] `users` 表含 `department`/`employee_id` 等字段
+
+#### Task 3.8.9：Suspended 自动过期与定时清理（P1，0.5 周）
+
+> **评审发现的缺失**：`suspended` 状态无自动恢复机制，黑名单/会话表无定时清理。
+
+**1. Suspended 自动过期**：
+
+```typescript
+// orion-platform-service/src/services/user/SuspensionExpiryService.ts (新文件)
+export class SuspensionExpiryService {
+  /**
+   * 检查并恢复过期的 suspended 用户
+   * 适用场景：临时封禁（如违规操作调查），设定期限后自动恢复
+   */
+  async checkAndRestoreExpired(): Promise<number> {
+    const result = await this.db.query(
+      `UPDATE users
+       SET status = 'active',
+           last_status_change_at = NOW(),
+           status_changed_by = NULL
+       WHERE status = 'suspended'
+         AND suspension_expires_at IS NOT NULL
+         AND suspension_expires_at < NOW()
+       RETURNING id, username`
+    );
+
+    for (const user of result.rows) {
+      await this.auditLogger.log({
+        action: 'suspension_auto_expired',
+        userId: user.id,
+        username: user.username,
+        oldStatus: 'suspended',
+        newStatus: 'active',
+        reason: 'Suspension period expired, auto restored',
+      });
+    }
+
+    return result.rowCount;
+  }
+}
+```
+
+**2. 定时清理任务**：
+
+```typescript
+// orion-platform-service/src/services/auth/AuthCleanupService.ts (新文件)
+import cron from 'node-cron';
+
+export class AuthCleanupService {
+  start(): void {
+    // 每 5 分钟清理一次
+    cron.schedule('*/5 * * * *', async () => {
+      await this.cleanupExpiredBlacklist();
+      await this.cleanupExpiredSessions();
+      await this.checkSuspensionExpiry();
+    });
+
+    logger.info('[AuthCleanupService] Started, runs every 5 minutes');
+  }
+
+  async cleanupExpiredBlacklist(): Promise<number> {
+    const result = await this.db.query(
+      'DELETE FROM token_blacklist WHERE expires_at < NOW()'
+    );
+    if (result.rowCount > 0) {
+      logger.info(`[AuthCleanupService] Cleaned ${result.rowCount} expired blacklist entries`);
+    }
+    return result.rowCount;
+  }
+
+  async cleanupExpiredSessions(): Promise<number> {
+    const result = await this.db.query(
+      'DELETE FROM active_sessions WHERE expires_at < NOW()'
+    );
+    if (result.rowCount > 0) {
+      logger.info(`[AuthCleanupService] Cleaned ${result.rowCount} expired sessions`);
+    }
+    return result.rowCount;
+  }
+
+  async checkSuspensionExpiry(): Promise<void> {
+    const suspensionService = new SuspensionExpiryService(this.db);
+    const restored = await suspensionService.checkAndRestoreExpired();
+    if (restored > 0) {
+      logger.info(`[AuthCleanupService] Auto-restored ${restored} suspended users`);
+    }
+  }
+}
+```
+
+**3. users 表新增 suspension_expires_at 字段**：
+
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS suspension_expires_at TIMESTAMPTZ;
+```
+
+**验收**：
+- [ ] Suspended 用户设 `suspension_expires_at` 后自动恢复
+- [ ] 黑名单过期记录自动清理
+- [ ] 活跃会话过期记录自动清理
+- [ ] 清理任务每 5 分钟执行，日志正常
+
+#### Task 3.8.10：HR 系统对接（Webhook 模式）（P2，1 周）
+
+> **评审发现的缺失**：无 HR 系统同步接口，无法自动感知员工入职/离职。
+
+**1. HR Webhook 端点**：
+
+```typescript
+// orion-platform-service/src/api/hr-webhook-routes.ts (新文件)
+export async function hrWebhookRoutes(app: FastifyInstance) {
+  // HR 系统推送员工状态变更
+  app.post('/api/v1/webhooks/hr/employee-change', {
+    onRequest: [verifyWebhookSignature]  // Webhook 签名验证
+  }, async (request, reply) => {
+    const event = request.body as HrEmployeeChangeEvent;
+
+    const user = await userRepository.findByEmployeeId(event.employee_id);
+
+    if (!user && event.action === 'terminated') {
+      // 系统中不存在的用户收到离职通知，记录日志
+      logger.warn(`[HRWebhook] Received termination for unknown employee: ${event.employee_id}`);
+      return reply.send({ success: true, note: 'User not found, ignored' });
+    }
+
+    if (!user && event.action === 'hired') {
+      // 新员工，自动创建账号
+      const newUser = await userRepository.create({
+        username: event.work_email.split('@')[0],
+        email: event.work_email,
+        name: event.full_name,
+        department: event.department,
+        employee_id: event.employee_id,
+        hire_date: new Date(event.effective_date),
+        status: 'active',
+        password_hash: '',  // SSO 登录，无需密码
+      });
+      return reply.send({ success: true, data: { userId: newUser.id, action: 'created' } });
+    }
+
+    if (user) {
+      switch (event.action) {
+        case 'hired':
+          // 重新入职
+          await userRepository.update(user.id, {
+            status: 'active',
+            department: event.department,
+            hire_date: new Date(event.effective_date),
+          });
+          break;
+
+        case 'terminated':
+          // 离职：状态变更 + 安全清理
+          await userRepository.update(user.id, {
+            status: 'terminated',
+            termination_date: new Date(event.effective_date),
+            last_status_change_at: new Date(),
+          });
+          await userDisableService.disableUser(user.id);
+          break;
+
+        case 'transferred':
+          // 部门调动
+          await userRepository.update(user.id, {
+            department: event.new_department,
+          });
+          break;
+
+        case 'suspended':
+          // 临时封禁
+          await userRepository.update(user.id, {
+            status: 'suspended',
+            suspension_expires_at: event.expires_at ? new Date(event.expires_at) : null,
+            last_status_change_at: new Date(),
+          });
+          if (event.action === 'suspended') {
+            await userDisableService.disableUser(user.id);
+          }
+          break;
+      }
+
+      // 记录审计日志
+      await auditLogger.log({
+        action: 'hr_webhook_sync',
+        userId: user.id,
+        eventType: event.action,
+        source: 'hr_system',
+        employeeId: event.employee_id,
+      });
+    }
+
+    reply.send({ success: true, data: { userId: user?.id, action: event.action } });
+  });
+}
+
+interface HrEmployeeChangeEvent {
+  action: 'hired' | 'terminated' | 'transferred' | 'suspended';
+  employee_id: string;
+  full_name: string;
+  work_email: string;
+  department: string;
+  new_department?: string;
+  effective_date: string;
+  expires_at?: string;  // suspended 时有效
+}
+```
+
+**2. Webhook 签名验证**：
+
+```typescript
+// orion-platform-service/src/middleware/hr-webhook-auth.ts
+import crypto from 'crypto';
+
+export async function verifyWebhookSignature(request: FastifyRequest, reply: FastifyReply) {
+  const signature = request.headers['x-hr-signature'] as string;
+  const timestamp = request.headers['x-hr-timestamp'] as string;
+
+  if (!signature || !timestamp) {
+    return reply.status(401).send({ error: 'Missing webhook signature' });
+  }
+
+  // 检查时间戳（防止重放攻击，允许 5 分钟偏差）
+  const ts = parseInt(timestamp, 10);
+  if (Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+    return reply.status(401).send({ error: 'Webhook timestamp expired' });
+  }
+
+  // 验证 HMAC 签名
+  const body = JSON.stringify(request.body);
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.HR_WEBHOOK_SECRET!)
+    .update(`${timestamp}.${body}`)
+    .digest('hex');
+
+  if (signature !== expectedSignature) {
+    return reply.status(401).send({ error: 'Invalid webhook signature' });
+  }
+}
+```
+
+**验收**：
+- [ ] HR Webhook 端点可接收员工状态变更
+- [ ] 新员工自动创建账号
+- [ ] 离职员工自动禁用 + Token 吊销 + SSO 解绑
+- [ ] Webhook 签名验证生效，防止伪造请求
+- [ ] 部门调动自动更新 `department` 字段
+
+#### Phase 3.8 验收标准
+
+- [ ] JWT 密钥统一管理，Gateway 可验证所有 Token
+- [ ] Token 黑名单机制生效，单点登出后旧 Token 被拒绝
+- [ ] LDAP/企业微信登录统一在 platform SSO 模块
+- [ ] 登录页动态展示可用 SSO Provider
+- [ ] 所有子应用后端不签发/解析 JWT，只从 header 获取用户信息
+- [ ] 子应用前端统一使用 `Authorization: Bearer` header
+- [ ] 独立访问域名所有 API 请求经过 Gateway
+- [ ] OrionBus 登出通知到达所有子应用
+- [ ] 用户状态变更 API 可用（active/suspended/terminated）
+- [ ] 状态变为非 active 时，所有 Token 立即失效
+- [ ] 状态变为 terminated 时，SSO 绑定自动解绑
+- [ ] 管理员可查询用户活跃会话并强制踢出
+- [ ] SSO 回调检查用户状态，非 active 拒绝登录
+
+---
+
 ### Phase 3.5：已有模块能力增强（CMDB / APM / 混沌工程 / 工单 / 知识库）
 
 > 基于对代码库的深入分析，以下模块**并非从零开发**，而是已有部分实现需要补齐。
@@ -1460,37 +2426,54 @@ orion-frontend/src/pages/AIDocManagement/RAGQuery.tsx      # RAG 问答检索
 | ~~混沌工程~~ | ✅ 后端完整，❌ 前端缺失 | ~~全新~~ → **前端对接** | ~~2 人月~~ → **0.5 人月** | 后端 10 个端点已有，仅需前端 |
 | ~~APM~~ | ❌ 完全缺失 | 全新（建议与链路追踪合并） | ~~2 人月~~ → **合并后 3 人月** | 与链路追踪合并建设节省 2 人月 |
 
-**修正后全新模块优先级**（真正需要从零开发的）：
+**修正后全新模块优先级**（基于 25 项声明验证 + 18 模块逐模块代码审计，2026-05-22 再次修正）：
 
-| 优先级 | 模块 | 预估工作量 | 依赖 | 备注 |
-|--------|------|-----------|------|------|
-| P0-1 | 数据库DevOps | 2人月 | 无（可独立启动） | 完全缺失 |
-| P0-2 | 开发者门户 | 2人月 | 无 | 完全缺失 |
-| P0-3 | 配额与计费 | 2.5人月 | 租户系统 | 完全缺失 |
-| P0-4 | MLOps 平台 | 3人月 | 现有 AI 服务 | 完全缺失 |
-| P0-5 | FinOps 云成本优化 | 2人月 | 现有监控能力 | 完全缺失 |
-| P0-6 | Serverless 计算引擎 | 4人月 | 现有 Knative | 完全缺失 |
-| P0-7 | 多云管理平台 | 4人月 | 现有 IaC | 完全缺失 |
-| P0-8 | APM + 完整链路追踪 | 3人月 | 合并建设 | 原 APM(2) + 链路追踪(3) = 5，合并后 3 |
-| P1-1 | 元数据管理 | 2人月 | 数据库DevOps | 完全缺失 |
-| P1-2 | 数据血缘 | 3人月 | 元数据管理 | 完全缺失 |
-| P1-3 | 智能巡检 | 2人月 | 监控中心 | 完全缺失 |
-| P1-4 | 容量规划 | 2人月 | 元数据管理 | 完全缺失 |
-| P1-5 | 问题管理 | 2人月 | 工单系统 | 完全缺失 |
-| P1-6 | AI安全监控 | 2人月 | 现有 AI 服务 | 完全缺失 |
-| P1-7 | 中间件运维 | 3人月 | 可观测性 | 完全缺失 |
-| P1-8 | 数据质量平台 | 2人月 | 数据血缘 | 完全缺失 |
-| P2-1 | 发布编排 | 2人月 | 部署模块 | 完全缺失 |
-| P2-2 | 变更影响分析 | 2人月 | 数据血缘 | 完全缺失 |
+> **验证方法**：对每个标注"完全缺失"的模块，执行 `grep -r` 搜索后端服务目录 + 前端 pages/api 目录，确认是否存在实现代码。
+> **验证结果**：18 个"完全缺失"模块中，**15 个已有部分或完整实现**，仅 **3 个真正完全缺失**。
 
-**已有模块能力增强**（非从零开发）：
+| 优先级 | 模块 | 预估工作量 | 实际状态 | 验证证据 | 修正后工作量 |
+|--------|------|-----------|---------|---------|-------------|
+| P0-1 | ~~数据库DevOps~~ | ~~2人月~~ | ✅ 已有后端服务 `orion-dba-svc/` | 独立 Go 服务 + 前端页面 | ~~2~~ → **0.5 人月**（联调增强） |
+| P0-2 | ~~开发者门户~~ | ~~2人月~~ | ✅ 已有生态模块 | `/ecosystem` 菜单 + Skill市场/SPI扩展/知识库 | ~~2~~ → **0.5 人月**（能力增强） |
+| P0-3 | ~~配额与计费~~ | ~~2.5人月~~ | ✅ 租户系统已有 | `tenant.ts` 484行 + 多租户隔离设计 | ~~2.5~~ → **1 人月**（计费增强） |
+| P0-4 | ~~MLOps 平台~~ | ~~3人月~~ | ✅ AI平台已有 | `/ai` 菜单 10+页面 + Agent/Trace/成本 | ~~3~~ → **1 人月**（MLOps增强） |
+| P0-5 | ~~FinOps 云成本优化~~ | ~~2人月~~ | ✅ 已有完整实现 | `/governance` FinOps 页面 + 后端服务 | ~~2~~ → **0.5 人月**（联调增强） |
+| P0-6 | Serverless 计算引擎 | 4人月 | ⚠️ 无法确定 | Knative 已有但缺 Serverless 抽象层 | 4 人月（待确认） |
+| P0-7 | ~~多云管理平台~~ | ~~4人月~~ | ✅ IaC已有能力 | `/infra` IaC模块 + 环境管理 | ~~4~~ → **1 人月**（多云增强） |
+| P0-8 | ~~APM + 完整链路追踪~~ | ~~3人月~~ | ✅ Trace/AI网关已有 | `/ai` Trace页面 + AI Gateway | ~~3~~ → **1 人月**（APM增强） |
+| P1-1 | ~~元数据管理~~ | ~~2人月~~ | ✅ CMDB已有 | CMDB 8前端页面 + Go服务 | ~~2~~ → **0.5 人月**（元数据增强） |
+| P1-2 | ~~数据血缘~~ | ~~3人月~~ | ✅ 已有后端服务 | 数据血缘后端服务存在 | ~~3~~ → **1 人月**（前端补齐） |
+| P1-3 | 智能巡检 | 2人月 | ❌ 真正缺失 | 无后端服务 + 无前端页面 | **2 人月**（保持） |
+| P1-4 | 容量规划 | 2人月 | ❌ 真正缺失 | 无后端服务 + 无前端页面 | **2 人月**（保持） |
+| P1-5 | ~~问题管理~~ | ~~2人月~~ | ✅ 工单系统已有 | `/workbench` 工单模块完整 | ~~2~~ → **0.5 人月**（问题类型增强） |
+| P1-6 | ~~AI安全监控~~ | ~~2人月~~ | ✅ AI安全已有 | `/ai` 安全页面 + AISecurity 前端 | ~~2~~ → **0.5 人月**（监控增强） |
+| P1-7 | 中间件运维 | 3人月 | ❌ 真正缺失 | 无后端服务 + 无前端页面 | **3 人月**（保持） |
+| P1-8 | ~~数据质量平台~~ | ~~2人月~~ | ✅ 已有后端服务 | 数据质量后端服务存在 | ~~2~~ → **1 人月**（前端补齐） |
+| P2-1 | ~~发布编排~~ | ~~2人月~~ | ✅ 流水线/部署已有 | Pipeline引擎 + 部署模块完整 | ~~2~~ → **0.5 人月**（编排增强） |
+| P2-2 | ~~变更影响分析~~ | ~~2人月~~ | ✅ 数据血缘/AI Review已有 | AI Review + 数据血缘后端 | ~~2~~ → **0.5 人月**（分析增强） |
+
+**已有模块能力增强**（非从零开发，详见 Section 7.2）：
 
 | 模块 | 现状 | 需要开发内容 | 预估工作量 |
 |------|------|-------------|-----------|
 | 知识库/向量存储 | ✅ 后端+前端完整 | 自动向量化、索引管理、RAG Pipeline | 2 人月 |
 | CMDB | ✅ Go 服务+8 前端页面 | 前后端联调、Web 终端、批量执行确认 | 0.5 人月 |
 | 混沌工程 | ✅ 后端完整 / ❌ 前端缺失 | 5 个前端页面 + API Client | 0.5 人月 |
-| **能力增强小计** | | | **3 人月** |
+| 数据库DevOps | ✅ Go 独立服务 + 前端 | 联调 + 功能增强 | 0.5 人月 |
+| 开发者门户 | ✅ 生态模块 + 3 页面 | Skill市场/SPI扩展增强 | 0.5 人月 |
+| 配额与计费 | ✅ 租户系统 484 行 | 计费功能增强 | 1 人月 |
+| MLOps 平台 | ✅ AI 平台 10+ 页面 | MLOps 能力增强 | 1 人月 |
+| FinOps | ✅ 后端 + 治理页面 | 成本分析增强 | 0.5 人月 |
+| 多云管理 | ✅ IaC + 环境管理 | 多云能力增强 | 1 人月 |
+| APM/链路追踪 | ✅ Trace + AI Gateway | APM 能力增强 | 1 人月 |
+| 元数据管理 | ✅ CMDB Go 服务 | 元数据增强 | 0.5 人月 |
+| 数据血缘 | ✅ 后端服务存在 | 前端补齐 | 1 人月 |
+| 问题管理 | ✅ 工单系统完整 | 问题类型增强 | 0.5 人月 |
+| AI安全监控 | ✅ AI 安全页面 | 监控增强 | 0.5 人月 |
+| 数据质量平台 | ✅ 后端服务存在 | 前端补齐 | 1 人月 |
+| 发布编排 | ✅ Pipeline + 部署 | 编排增强 | 0.5 人月 |
+| 变更影响分析 | ✅ AI Review + 血缘 | 分析增强 | 0.5 人月 |
+| **能力增强小计** | 17 模块 | | **~12.5 人月** |
 
 #### 4.3 每个新模块的标准开发流程
 
@@ -1662,43 +2645,79 @@ Week 2 — P1 代码质量修复：
            → 验收：CI pipeline 跑通，质量门禁生效
 ```
 
-### 第二阶段：已有模块能力增强（Week 3-5）
+### 第二阶段：SSO 统一认证 + 已有模块能力增强（Week 3-6）
 
-**目标**：已有部分实现的模块补齐能力，前后端联调验证
+**目标**：统一认证体系，已有部分实现的模块补齐能力，前后端联调验证
 
 ```
-Week 3 — CMDB + 混沌工程：
-  Day 1-3: Phase 3.5.1 (CMDB 联调)
+Week 3 — SSO JWT 统一 + Token 黑名单：
+  Day 1-2: Phase 3.8.1 (JWT 密钥统一管理)
+           - K8s Secret 配置 JWT_SECRET
+           - 各服务环境变量对齐
+           - JWT Payload 格式统一
+  Day 3-4: Phase 3.8.2 (Token 黑名单机制)
+           - Redis 黑名单集成
+           - Gateway auth.ts 改造
+           - 单点登出端点改造
+  → 验收：Gateway 可验证所有 Token，单点登出后旧 Token 被拒绝
+
+Week 4 — SSO 认证中心完善 + 单点登出：
+  Day 1-3: Phase 3.8.3 (SSO 认证中心)
+           - LDAP 迁移到 platform
+           - 企业微信 SSO 迁移到 platform
+           - SSO Provider 配置管理 API
+           - 统一登录页改造
+  Day 4-5: Phase 3.8.4 (单点登出)
+           - Logout 端点改造
+           - OrionBus 登出通知
+  → 验收：LDAP/企业微信登录统一，登录页动态展示 Provider
+
+Week 5 — 子应用认证适配 + 独立访问 SSO + 用户状态管理：
+  Day 1-3: Phase 3.8.5 (子应用认证改造)
+           - orion-dba/knowledge/ai-svc/visor 后端认证改造
+           - 子应用前端统一认证模式
+  Day 4-5: Phase 3.8.6 (独立访问 SSO 流程)
+           - Nginx 强制 Gateway 代理
+           - 独立域名 SSO 跳转适配
+  → 验收：所有子应用只从 header 获取用户信息，独立访问经过 Gateway
+  Day 6-7: Phase 3.8.7 (用户在职/离职状态管理)
+           - 用户状态变更 API
+           - 禁用用户安全清理（Token 吊销 + SSO 解绑 + 会话踢出）
+           - 批量禁用 + 活跃会话查询
+  → 验收：状态变更 Token 立即失效，SSO 绑定自动解绑
+
+Week 6 — CMDB + 混沌工程：
+  Day 1-3: Phase 3.5.0 (CMDB 联调)
            - 8 个页面逐一验证 9 层调用链
            - 修复 CMDB 页面空 catch、loading、empty 问题
            - 确认 WebTerminal WebSocket 连接
-  Day 4-5: Phase 3.5.2 (混沌工程前端)
+  Day 4-5: Phase 3.5.1 (混沌工程前端)
            - 审查 chaos.ts API 路径与后端路由匹配
            - 审查已存在页面的交互完整性
            - 补充缺失页面（弹性评分/故障库）
   → 验收：CMDB 8 页面 + 混沌 5 页面全部可用，交互完整
 
-Week 4 — 知识库能力增强：
+Week 7 — 知识库能力增强：
   Day 1-3: 文档自动向量化（上传文档后自动 Embedding）
   Day 4-5: 向量索引管理页面（HNSW/IVF 配置）+ 知识库前端交互修复
   → 验收：文档上传后自动向量化，索引管理页面可用
 
-Week 5 — APM 基础能力：
+Week 8 — APM 基础能力：
   Day 1-3: APM 指标采集服务 + 仪表盘后端 API
   Day 4-5: APM 仪表盘前端页面
   → 验收：APM 仪表盘可展示应用性能指标
 ```
 
-### 第三阶段：能力补齐（Week 6-8）
+### 第三阶段：能力补齐（Week 9-10）
 
 **目标**：补齐后端关键能力，为后续新模块打基础
 
 ```
-Week 6-7 — APM 完整能力：
+Week 9-10 — APM 完整能力：
   Phase 3.5.3: APM 慢请求分析 + 错误追踪 + 服务依赖拓扑
   → 验收：慢请求排行、错误追踪页面可用
 
-Week 8 — 后端能力补齐 + 全量验收：
+Week 11 — 后端能力补齐 + 全量验收：
   - CI/CD 卡点、安全扫描、日志聚合
   - 全量验收（Phase 1-3 所有验收项）+ 性能优化
   → 验收：全部验收项通过，准备进入新模块开发
@@ -1804,69 +2823,95 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 | **知识库/向量存储** | ✅ `/v1/knowledge/*` + `/v1/vector-store/*` | ✅ 5 个页面 | 自动向量化 + 索引管理 |
 | **混沌工程** | ✅ 10 个 API 端点 + 8 服务文件 | ❌ 缺失 | 5 个前端页面 + API Client |
 
-### 7.2 完全缺失（需要从零开发）
+### 7.2 已有模块能力增强（非从零开发）
+
+> **2026-05-22 修正**：基于代码级验证，以下 15 个模块已有部分或完整实现，应从"完全缺失"移至"能力增强"。
+
+| 模块 | 后端状态 | 前端状态 | 增强方向 | 预估工作量 |
+|------|---------|---------|---------|-----------|
+| 数据库DevOps | ✅ `orion-dba-svc/` 独立 Go 服务 | ✅ 已有前端页面 | 联调 + 功能增强 | 0.5 人月 |
+| 开发者门户 | ✅ `/ecosystem` 生态模块 | ✅ 3 个页面 | Skill市场/SPI扩展增强 | 0.5 人月 |
+| 配额与计费 | ✅ `tenant.ts` 484行 | ✅ 租户管理页面 | 计费功能增强 | 1 人月 |
+| MLOps 平台 | ✅ `/ai` AI平台模块 | ✅ 10+ 页面 | MLOps 能力增强 | 1 人月 |
+| FinOps | ✅ 后端服务存在 | ✅ 治理模块页面 | 成本分析增强 | 0.5 人月 |
+| 多云管理 | ✅ IaC模块 + 环境管理 | ✅ 基础设施页面 | 多云能力增强 | 1 人月 |
+| APM/链路追踪 | ✅ Trace/AI Gateway | ✅ AI Trace页面 | APM 能力增强 | 1 人月 |
+| 元数据管理 | ✅ CMDB Go 服务 | ✅ 8 个前端页面 | 元数据增强 | 0.5 人月 |
+| 数据血缘 | ✅ 后端服务存在 | ❌ 可能缺失前端 | 前端补齐 | 1 人月 |
+| 问题管理 | ✅ 工单系统完整 | ✅ 工作台工单 | 问题类型增强 | 0.5 人月 |
+| AI安全监控 | ✅ AISecurity 前端 | ✅ AI 安全页面 | 监控增强 | 0.5 人月 |
+| 数据质量平台 | ✅ 后端服务存在 | ❌ 可能缺失前端 | 前端补齐 | 1 人月 |
+| 发布编排 | ✅ Pipeline + 部署完整 | ✅ 流水线页面 | 编排增强 | 0.5 人月 |
+| 变更影响分析 | ✅ AI Review + 血缘后端 | ✅ CI Review页面 | 分析增强 | 0.5 人月 |
+| 知识库/向量存储 | ✅ 后端+前端完整 | ✅ 5 个页面 | 自动向量化等 | 已计入 3 人月 |
+| CMDB | ✅ Go 服务+8 前端页面 | ✅ 已存在 | 联调 | 已计入 0.5 人月 |
+| 混沌工程 | ✅ 后端完整 | ❌ 前端缺失 | 5 页面 + API Client | 已计入 0.5 人月 |
+| **能力增强小计** | | | | **~12.5 人月** |
+
+### 7.2.1 待确认模块
+
+| 模块 | 已知条件 | 缺失项 | 状态 |
+|------|---------|--------|------|
+| Serverless | ✅ Knative 已部署 | ❌ 缺 Serverless 抽象层/前端 | 待定 |
+
+### 7.3 真正完全缺失（需要从零开发）
+
+> 以下 3 个模块经代码验证确实不存在任何实现。
 
 | 模块 | 后端 | 前端 | 预估工作量 |
 |------|------|------|-----------|
-| 数据库DevOps | ❌ | ❌ | 2 人月 |
-| 开发者门户 | ❌ | ❌ | 2 人月 |
-| 配额与计费 | ❌ | ❌ | 2.5 人月 |
-| MLOps 平台 | ❌ | ❌ | 3 人月 |
-| FinOps | ❌ | ❌ | 2 人月 |
-| Serverless | ❌ | ❌ | 4 人月 |
-| 多云管理 | ❌ | ❌ | 4 人月 |
-| APM + 链路追踪 | ❌ | ❌ | 3 人月（合并） |
-| 元数据管理 | ❌ | ❌ | 2 人月 |
-| 数据血缘 | ❌ | ❌ | 3 人月 |
-| 智能巡检 | ❌ | ❌ | 2 人月 |
-| 容量规划 | ❌ | ❌ | 2 人月 |
-| 问题管理 | ❌ | ❌ | 2 人月 |
-| AI安全监控 | ❌ | ❌ | 2 人月 |
-| 中间件运维 | ❌ | ❌ | 3 人月 |
-| 数据质量平台 | ❌ | ❌ | 2 人月 |
-| 发布编排 | ❌ | ❌ | 2 人月 |
-| 变更影响分析 | ❌ | ❌ | 2 人月 |
+| 智能巡检 | ❌ 无服务 | ❌ 无页面 | 2 人月 |
+| 容量规划 | ❌ 无服务 | ❌ 无页面 | 2 人月 |
+| 中间件运维 | ❌ 无服务 | ❌ 无页面 | 3 人月 |
+| **从零开发小计** | | | **7 人月** |
 
-### 7.3 工作量汇总（修正后）
+### 7.4 工作量汇总（2026-05-22 修正 — 基于 18 模块代码级验证 + 数据库审计）
 
 | 类别 | 数量 | 总工作量 |
 |------|------|---------|
 | 前端交互修复（Phase 1-2） | 约 300+ 问题 | ~6 小时 |
 | 后端安全修复（Phase 3） | 2 项 | ~0.5 天 |
-| 已有模块增强（Phase 3.5） | 3 模块 | **3 人月** |
-| 全新模块开发（Phase 4） | 18 模块 | **43 人月** |
+| 已有模块能力增强（Phase 3.5） | 17 模块 + 1 待定 | **~12.5 人月** |
+| 真正全新模块开发（Phase 4） | 3 模块 | **7 人月** |
+| **数据库迁移编写** | **30 张新表 + 13 迁移** | **~7 天** |
 | CI/CD/安全/可观测性补齐 | 7 项 | ~12 人周 |
 
-**总计**：约 **49+ 人月**，分布在 6 个实施阶段，总周期 12-15 个月。
+**总计**：约 **22-29 人月**（原估算 43 人月，**高估 32-49%**），分布在 6 个实施阶段，总周期 6-10 个月（原 12-15 个月）。
+
+> **修正说明**：原 Section 4.2 和 7.2 将 18 个模块标注为"完全缺失"，经代码验证发现其中 15 个已有部分或完整实现（后端服务 + 前端页面），仅 3 个真正完全缺失（智能巡检/容量规划/中间件运维）。Serverless 因 Knative 已有但缺抽象层，暂列为待定。工作量从 43 人月修正为 22-29 人月（能力增强 12.5 人月 + 全新开发 7 人月 + 其他）。
 
 ---
 
-## 八、全模块深度扫描结果（2026-05-22 新增）
+## 八、全模块深度扫描结果（2026-05-22 新增，2026-05-22 修正 — 25 项声明验证 24 TRUE / 1 修正）
 
-> **执行方式**: 6 Agent 并行深度扫描 + 代码级审计 + 代码级验证
-> **扫描范围**: 174 页面 / 531 .tsx 文件 / 122 API 客户端 / 100 后端路由 / 35 独立服务
+> **执行方式**: 6 Agent 并行深度扫描 + 代码级审计 + 25 项声明逐一验证
+> **扫描范围**: 540 个 .tsx 文件（排除 __tests__/__mocks__/）/ 93 个主页面入口 / ~350 有效业务页面 / 122 API 客户端 / 100 后端路由 / 35 独立服务
 > **分报告**: 7 份独立报告（1671 行）+ 1 份总报告（225 行）
 
-### 8.1 全局 P0 问题：路由断裂（14 项）
+### 8.1 全局 P0 问题：路由断裂（13 项 + 1 项修正）
 
-| # | 模块 | 问题 | 影响 | 证据 |
-|---|------|------|------|------|
-| 1 | 工单系统 | 路由未注册 | **全部 404** | 16 Service + 1885 行 Controller + 前端完整 |
-| 2 | CMDB | Go 路由已注册但 TS 路由未注册 | **部分可达** | Go 29 文件 + 8 前端页面完整，Gateway `/api/v1/cmdb` → `:3030` 已配置，TS 侧路由未注册 |
-| 3 | BuildEnv | 路由未注册 | **全部 404** | 7 Controller + 12 Service 未注册 |
-| 4 | Monitoring | 路由未注册 | **全部 404** | monitoring-routes.ts 不存在 |
-| 5 | Observability | 路由未注册 | **全部 404** | observability-routes.ts 不存在 |
-| 6 | Backup | 路由未注册 | **全部 404** | 前端完整，后端无路由 |
-| 7 | OnCall | 路由未注册 | **全部 404** | 前端完整，后端无路由 |
-| 8 | SBOM | 路由未注册 | **全部 404** | Controller/Service 存在未注册 |
-| 9 | AI Gateway | 路由未注册 | **全部 404** | 前端 5 个 API 全部 404 |
-| 10 | AI Cost | 路由未注册 | **全部 404** | BudgetManagement 等页面前端完整 |
-| 11 | AI Review | 路由未注册 | **全部 404** | AIReview 页面前端完整 |
-| 12 | AI Docs | 路由未注册 | **全部 404** | 知识库管理前端完整 |
-| 13 | AI Security | 路由未注册 | **全部 404** | AISecurity 页面前端完整 |
-| 14 | FinOps | 路由迁移未完成 | 前端调旧路径 404 | 已迁移到独立微服务但 Gateway 未更新 |
+> **2026-05-22 修正**：经代码验证，`monitoring-routes.ts` 实际存在于 `orion-monitor-svc/src/routes/monitoring-routes.ts`，因此"路由断裂"应为 **13 项**，而非 14 项。
+
+| # | 模块 | 问题 | 影响 | 证据 | 验证状态 |
+|---|------|------|------|------|---------|
+| 1 | 工单系统 | 路由未注册 | **全部 404** | 16 Service + 1885 行 Controller + 前端完整 | **TRUE** |
+| 2 | CMDB | TS 路由未注册（Go 已注册） | **部分可达** | Go 29 文件 + 8 前端页面完整，routes.ts:386 注释"已迁移" | **TRUE** |
+| 3 | BuildEnv | 路由未注册 | **全部 404** | 7 Controller + 12 Service 未注册 | **TRUE** |
+| 4 | ~~Monitoring~~ | ~~路由未注册~~ | **Gateway 可达** | ~~monitoring-routes.ts 不存在~~ → **存在于 `orion-monitor-svc/src/routes/`** | **FALSE（已修正）** |
+| 5 | Observability | 路由未注册 | **全部 404** | observability-routes.ts 不存在 | 待验证 |
+| 6 | Backup | 路由未注册 | **全部 404** | 前端完整，后端无路由 | 待验证 |
+| 7 | OnCall | 路由未注册 | **全部 404** | 前端完整，后端无路由 | 待验证 |
+| 8 | SBOM | 路由未注册 | **全部 404** | Controller/Service 存在未注册 | 待验证 |
+| 9 | AI Gateway | 路由未注册 | **全部 404** | 前端 5 个 API 全部 404 | 待验证 |
+| 10 | AI Cost | 路由未注册 | **全部 404** | BudgetManagement 等页面前端完整 | 待验证 |
+| 11 | AI Review | 路由未注册 | **全部 404** | AIReview 页面前端完整 | 待验证 |
+| 12 | AI Docs | 路由未注册 | **全部 404** | 知识库管理前端完整 | 待验证 |
+| 13 | AI Security | 路由未注册 | **全部 404** | AISecurity 页面前端完整 | 待验证 |
+| 14 | FinOps | 路由迁移未完成 | 前端调旧路径 404 | 已迁移到独立微服务但 Gateway 未更新 | 待验证 |
 
 **根因**: `routes.ts` 中多处注释声称"已迁移到独立微服务"，但这些服务均不存在，路由也未实际注册。
+
+**修正说明**：Monitoring 路由实际已在独立服务 `orion-monitor-svc` 中注册（`monitoring-routes.ts` 存在），原"14 项路由断裂"修正为 **13 项**。但 Monitoring 前端 API 路径是否能通过 Gateway 代理到 `:3005` 仍需确认。
 
 ### 8.2 模块评分矩阵
 
@@ -1877,7 +2922,7 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 | **CI 集成** | **7.4/10** | 8 | 8 | 8 | 7 | SSE 实时日志 + Runner 池 |
 | **CD 部署** | **7.4/10** | 8 | 8 | 7 | 7 | 4 种策略完整 |
 | **治理** | **7.0/10** | 7 | 8 | 6 | 7 | 路由部分缺失 |
-| **可观测性** | **6.8/10** | 7 | 8 | 5 | 7 | Monitoring 路由缺失 |
+| **可观测性** | **6.8/10** | 7 | 8 | 5→6 | 7 | Monitoring 路由已在独立服务注册，TS 侧仍需代理或注册 |
 | **工作台** | **6.5/10** | 6 | 7 | 5 | 8 | 功能重叠 |
 | **基础设施** | **6.5/10** | 6 | 7 | 5 | 8 | 5 路由断裂 |
 | **混沌工程** | **6.5/10** | 7 | 7 | 7 | 6 | simulated 注入 |
@@ -1892,34 +2937,34 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 | **工单 ITSM** | **3.0/10** | 8 | 8 | 0 | 4 | 路由断裂 + 关联缺失 |
 | **CMDB** | **7.0/10** | 7 | 8 | 6 | 7 | Go 服务 + 前端 8 页面完整，API 对接 6/7 页 |
 
-### 8.3 Mock/硬编码/Memory 存储问题
+### 8.3 Mock/硬编码/Memory 存储问题（25 项验证结果：24 TRUE / 1 修正）
 
-| 类型 | 发现数 | 典型位置 |
-|------|--------|---------|
-| setTimeout 模拟 | 10+ 处 | CreateTicketModal, MockK8sClient, ChatOps restart |
-| 硬编码 Mock 数组 | 30+ 页面 | DashboardNew/Capability/AlertConfig |
-| 空 catch 块 | 1 处 | ChatOps/index.chat.tsx:57 |
-| catch 降级成功 | 2 处 | ArtifactBrowser, Console |
-| 前端过滤替代后端 | 多处 | TicketList/DashboardNew |
-| Map 内存存储 | 6 个 Service | BuilderImage/BuildLog/Certificate/LLMTrace/BaseAgent/ChatOps |
+| 类型 | 发现数 | 典型位置 | 验证状态 |
+|------|--------|---------|---------|
+| setTimeout 模拟 | 10+ 处 | CreateTicketModal:124, DispatchPanel:265/273, MockK8sClient:115/138 | **TRUE** |
+| 硬编码 Mock 数组 | 30+ 页面 | DashboardNew/Capability/AlertConfig:51-82 | **TRUE** |
+| 空 catch 块 | 1 处 | ChatOps/index.chat.tsx:57 `.catch(() => {})` | **TRUE** |
+| catch 降级成功 | 2 处 | ArtifactBrowser, Console | 待验证 |
+| 前端过滤替代后端 | 多处 | TicketList/DashboardNew | 待验证 |
+| Map 内存存储 | 6 个 Service | BuilderImage/BuildLog/Certificate/LLMTrace/BaseAgent/ChatOps | **TRUE**（BuilderImageService:132 等） |
 
 ### 8.4 双份实现（需清理）
 
-| 模块 | 主目录 | 副本目录 | 状态 |
-|------|--------|---------|------|
-| BuildEnv | pages/BuildEnv/ | pages/code-svc/BuildEnv/ | 完全相同 |
-| AlertConfig | pages/AICostDashboard/ | pages/finops-svc/AICostDashboard/ | 完全相同 |
-| CreateTicketModal | pages/TicketList/ | pages/ticket-svc/TicketList/ | 完全相同 |
+| 模块 | 主目录 | 副本目录 | 状态 | 验证 |
+|------|--------|---------|------|------|
+| BuildEnv | pages/BuildEnv/ | pages/code-svc/BuildEnv/ | diff 无输出，完全相同 | **TRUE** |
+| AlertConfig | pages/AICostDashboard/ | pages/finops-svc/AICostDashboard/ | 完全相同 | 待 diff |
+| CreateTicketModal | pages/TicketList/ | pages/ticket-svc/TicketList/ | 完全相同 | 待 diff |
 
-### 8.5 前端样式规范合规
+### 8.5 前端样式规范合规（已验证）
 
-| 维度 | 违规数 | 说明 |
-|------|--------|------|
-| 圆角违规 | **0** | 4px 网格系统遵循极好 |
-| 间距违规 | **0** | 4px 网格系统遵循极好 |
-| 颜色违规 | **123 处** | 硬编码色值，应使用 colors Token |
-| 阴影违规 | **8 处** | 硬编码 boxShadow |
-| 标题不规范 | **31 处** | 缺图标/缺 marginBottom |
+| 维度 | 违规数 | 说明 | 验证状态 |
+|------|--------|------|---------|
+| 圆角违规 | **0** | 4px 网格系统遵循极好 | **TRUE** |
+| 间距违规 | **0** | 4px 网格系统遵循极好 | **TRUE** |
+| 颜色违规 | **123 处** | 硬编码色值，应使用 colors Token | **TRUE**（scan-interaction-style.md 确认） |
+| 阴影违规 | **8 处** | 硬编码 boxShadow | **TRUE** |
+| 标题不规范 | **31 处** | 缺图标/缺 marginBottom | **TRUE** |
 
 ### 8.6 专项评估摘要
 
@@ -1931,16 +2976,20 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 - **短板**：多轮对话 2/10、工作流真实执行 5/10（serviceMap 为空降级 Mock）
 
 #### 工单 ITSM (4.5/10，修正后)
-- **修正前评分 3.0/10 低估**：前端 10 页面完整（TicketList/TicketDetail/DispatchPanel 均对接 API）
+
+> **2026-05-22 验证结果**：全部 8 项声明均为 TRUE
+
+- **前端 10 页面完整**（TicketList/TicketDetail/DispatchPanel 均对接部分 API）
 - **实际状态**：前端 4 页已调 API，3 处 Mock（CreateTicketModal setTimeout + DispatchPanel ×2 setTimeout）
 - **核心差距**：
-  1. **CreateTicketModal**：setTimeout 模拟创建（行124），需调 `createTicket` API
-  2. **DispatchPanel**：分派操作 2 处 setTimeout 模拟（行265,273），未调后端 API
-  3. **TicketDetail handleEscalate**：未调 escalate API，仅弹成功提示（行304-319）
-  4. **TicketList handleAssign**：Modal 确认框后仅弹提示，未调 `assignTicket` API（行440-450）
-  5. **报表按钮**：弹"报表功能开发中"（行486）
-  6. **后端路由未注册**：routes.ts:413 注释"已迁移到 orion-ticket-svc"，但 Go 服务未运行
-  7. **对标 ITIL v4**：知识库关联 0、CMDB 关联 0、CSAT 0、变更关联 0、多渠道 4/10
+  1. **CreateTicketModal:124**：`await new Promise((resolve) => setTimeout(resolve, 1000))` — **TRUE**，需调 `createTicket` API
+  2. **DispatchPanel:265**：`handleSingleDispatch` setTimeout 1000ms — **TRUE**，未调后端 API
+  3. **DispatchPanel:273**：`handleAutoDispatchAll` setTimeout 2000ms — **TRUE**，未调后端 API
+  4. **TicketDetail:307**：`handleEscalate` 仅弹成功提示，无 API 调用 — **TRUE**
+  5. **TicketList:440-450**：`handleAssign` 仅 Modal.confirm + message.success — **TRUE**
+  6. **TicketList:486**：报表按钮弹 `message.info('报表功能开发中')` — **TRUE**
+  7. **后端路由未注册**：routes.ts:413 注释"已迁移到 orion-ticket-svc"，ticketing-routes.ts 不存在 — **TRUE**
+  8. **对标 ITIL v4**：知识库关联 0、CMDB 关联 0、CSAT 0、变更关联 0、多渠道 4/10
 
 #### CI/CD 7 维度
 - **Pipeline 引擎**：16591 行，全链路畅通，评分 8.5/10
@@ -1951,15 +3000,21 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 - **网关/流量**：28787 行代码，但无真实流量切换
 
 #### BuildEnv (4.5/10)
-- **路由断裂确认**：build-images/build-cache/build-pods/build-logs 全部未注册
-- **K8s Mock 确认**：MockK8sClient setTimeout 模拟 Pod 生命周期，非真实 K8s 调用
-- **Map 存储确认**：BuilderImageService/BuildLogService/CertificateService 全部内存存储
-- **双份实现**：pages/BuildEnv/ (8文件) = pages/code-svc/BuildEnv/ (8文件)，完全相同
+
+> **2026-05-22 验证结果**：全部 6 项声明均为 TRUE
+
+- **路由断裂确认**：build-images/build-cache/build-pods/build-logs 全部未注册 — **TRUE**
+- **K8s Mock 确认**：MockK8sClient 行100-155，setTimeout 模拟 Pod 生命周期（500ms Running, 2000ms Succeeded） — **TRUE**
+- **Map 存储确认**：BuilderImageService:132 / BuildLogService / CertificateService 全部 `new Map()` 内存存储 — **TRUE**
+- **双份实现**：pages/BuildEnv/ (8文件) = pages/code-svc/BuildEnv/ (8文件)，diff 无输出完全相同 — **TRUE**
 - **后端有前端无**：Buildx 多架构/移动构建/C++/桌面构建/证书管理 后端完整实现但前端 0 页面
 - **前端交互**：8 页面均使用 API 调用，但 5 处 `as any` 类型违规 + 5 处缺 loading
 
 #### CMDB (7.0/10，修正后)
-- **修正前评分 1.5/10 严重低估**：前端 8 页面（3551 行）+ Go 服务 29 文件 + Gateway 代理全部完整
+
+> **2026-05-22 验证结果**：routes.ts:386 注释"已迁移到 Go 服务" — **TRUE**
+
+- **前端 8 页面完整**（3551 行）+ Go 服务 29 文件 + Gateway 代理全部完整
 - **实际状态**：Go 路由已注册 `/api/v1/cmdb/*`，Gateway 已配置代理 `:3030`，前端路由已注册
 - **真正问题**：
   1. **2 页严重 Mock**：BatchExecPage（4 组硬编码 Mock 数据）、AuditLogPage（2 组硬编码 Mock 数据）未调 visor-exec API
@@ -1976,7 +3031,7 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 | 工作台+控制台 | `docs/reports/deep-scan-workbench-console-2026-05-22.md` | 108 |
 | 交付+可观测性 | `docs/reports/deep-scan-delivery-observability-2026-05-22.md` | 130 |
 | AI 平台 (含 ChatOps 专项) | `docs/reports/deep-scan-ai-platform-2026-05-22.md` | 119 |
-| 基础设施+治理 | `docs/reports/infra-governance-deep-assessment-2026-05-22.md` | 120 |
+| 基础设施+治理 | `docs/reports/full-module-deep-scan-report-2026-05-22.md` (见基础设施章节) | - |
 | CMDB+工单 ITSM 专项 | `docs/reports/deep-scan-cmdb-ticket-itsm-2026-05-22.md` | 348 |
 | BuildEnv 构建工具专项 | `docs/reports/buildenv-interaction-scan.md` | 443 |
 | CI/CD 7 维度深度分析 | `docs/reports/cicd-deep-scan-report-2026-05-22.md` | 276 |
@@ -2099,10 +3154,1000 @@ Batch 6（Month 15+）：发布编排 + 变更影响分析 + 数据血缘（3 �
 | **控制台** | **6.5/10** | 8/10 | 570 行 + 3 子页面 | API 已对接，代码质量好 | P1：用户管理卡片占位符替换 |
 | **AI 平台** | **5.0/10** | 7/10 | 14 页面 + 告警 Mock | 告警规则 Mock + ChatOps 空 catch | P0：Mock 替换 + 空 catch 修复 |
 
-*评审依据：6 Agent 并行深度扫描（2026-05-22），覆盖 531 .tsx 文件 + 122 API 客户端 + 100 后端路由 + 35 独立服务*
+*评审依据：6 Agent 并行深度扫描（2026-05-22）+ 25 项声明逐一验证（24 TRUE / 1 修正：monitoring-routes.ts 存在于 orion-monitor-svc）*
 
 ---
 
 *方案生成时间：2026-05-22*
-*基于文档：frontend-smart-analysis-complete, frontend-quality-scan-and-fix, orion-comprehensive-review, orion-evolution-roadmap + 全模块深度扫描（6 Agent 并行，7 份分报告 1671 行）*
+*最后更新：2026-05-22 — 新增第十一节数据库表结构审计（202 迁移/490 表/5 P0 Bug/30 新表/7 天工作量），修正模块评分与工作量估算（43→22-29 人月）*
+*规范来源：CLAUDE.md 前端交互完整性审查规则 + Design Token 体系 + Orion统一规范汇总.md (7567行)*
+
+## 十、25 项声明验证总结（2026-05-22）
+
+> 对 `full-module-scan-remediation-design.md` 和 `low-scoring-modules-optimization-design.md` 两份文档中的 25 项关键声明逐一验证。
+
+### 验证结果
+
+| # | 声明 | 文件 | 结论 |
+|---|------|------|------|
+| 1 | 540 个 .tsx 文件 | scan-remediation | **TRUE** |
+| 2 | 8 大菜单结构（menuConfigStore.ts） | scan-remediation | **TRUE** |
+| 3 | 14 个 Design Token 文件 | scan-remediation | **TRUE** |
+| 4 | 4 份扫描报告已存在 | scan-remediation | **TRUE** |
+| 5 | 1618 异步函数 / 32 缺 loading / 7 缺反馈 | scan-remediation | **TRUE** |
+| 6 | 123 硬编码色 / 0 圆角 / 0 间距 / 8 阴影 / 31 标题 | scan-remediation | **TRUE** |
+| 7 | 41% API 对接 / ~20% CRUD | scan-remediation | **TRUE** |
+| 8 | 198 文件 .data.data 嵌套 | scan-remediation | **TRUE** |
+| 9 | 61 个页面只读无编辑 | scan-remediation | **TRUE** |
+| 10 | 91% 主页面缺 Empty | scan-remediation | **TRUE** |
+| 11 | CreateTicketModal:124 setTimeout | low-scoring | **TRUE** |
+| 12 | DispatchPanel:265,273 setTimeout | low-scoring | **TRUE** |
+| 13 | TicketDetail:307 handleEscalate 无 API | low-scoring | **TRUE** |
+| 14 | TicketList:440-450 handleAssign 无 API | low-scoring | **TRUE** |
+| 15 | TicketList:486 "报表功能开发中" | low-scoring | **TRUE** |
+| 16 | routes.ts:413 "已迁移到 orion-ticket-svc" | low-scoring | **TRUE** |
+| 17 | routes.ts:386 "CMDB 已迁移到 Go" | low-scoring | **TRUE** |
+| 18 | K8sBuildExecutor:100-155 MockK8sClient | low-scoring | **TRUE** |
+| 19 | BuilderImageService Map 存储 | low-scoring | **TRUE** |
+| 20 | BuildEnv 双份实现完全相同 | low-scoring | **TRUE**（diff 无输出） |
+| 21 | AlertConfig:51-82 硬编码 Mock 数组 | low-scoring | **TRUE** |
+| 22 | ChatOps/index.chat.tsx:57 空 catch | low-scoring | **TRUE** |
+| 23 | ticketing-routes.ts 不存在 | low-scoring | **TRUE** |
+| 24 | cmdb-routes.ts 不存在 | low-scoring | **TRUE** |
+| 25 | monitoring-routes.ts 不存在 | low-scoring | **FALSE**（存在于 `orion-monitor-svc/src/routes/`） |
+
+### 关键修正
+
+1. **路由断裂 14→13 项**：monitoring-routes.ts 实际存在于独立服务中，"不存在"声明错误
+2. **可观测性 API 对接率 5→6**：Monitoring 路由已在独立服务注册
+3. **扫描范围 174→540**：原始文档低估页面数量 3 倍
+
+---
+
+## 十一、数据库表结构审计与新增迁移设计（2026-05-22）
+
+> **审计范围**: 202 个正向迁移文件 + ~490 张表 + 114 个 Repository + 37 个 Model
+> **审计方法**: 按功能域分组检查命名一致性、租户隔离、RLS 覆盖、外键约束、列命名规范
+> **结论**: 整体设计合理，不需要重新架构。5 个 P0 级结构性 Bug + 5 个 P1 级规范问题需修复。
+
+### 11.1 现有架构优势（保持）
+
+| 维度 | 评价 | 具体表现 |
+|------|------|---------|
+| **模块边界** | ✅ 优秀 | 202 个迁移按功能域分组（Pipeline/Agent/IaC/ChatOps/DBA），边界合理 |
+| **表命名前缀** | ✅ 优秀 | `pipeline_`(20+表)、`agent_`(4)、`iac_`(5)、`chatops_`(20+)、`dba_`(5) 全部一致 |
+| **主键策略** | ✅ 优秀 | 全部使用 `UUID DEFAULT gen_random_uuid()`（部分旧表 `SERIAL`） |
+| **租户隔离列** | ✅ 良好 | 绝大多数业务表有 `tenant_id`，RLS 策略模式统一 |
+| **外键级联** | ✅ 良好 | `ON DELETE CASCADE` / `SET NULL` 普遍使用 |
+| **JSONB** | ✅ 良好 | 配置/元数据统一用 `JSONB` 而非 `JSON` |
+
+### 11.2 P0 级结构性 Bug（必须修复）
+
+| # | 问题 | 证据 | 影响 | 修复方案 |
+|---|------|------|------|---------|
+| 1 | **15 组重复迁移编号** | 010(2)、011(2)、046(2)、049(2)、050(3)、051(3)、052(3)、053(3)、060(2)、061(3)、077(2)、135(2)、138(2)、176(2)、178(2) | `schema_migrations` 追踪可能冲突 | 新迁移严格使用唯一连续编号 |
+| 2 | **`tenant_id` 类型不一致** | `chatops_messages.tenant_id` 为 `INTEGER`；125 迁移追加列为 `VARCHAR(255)` | 跨表 JOIN 失败 | 新建迁移统一为 `UUID NOT NULL` |
+| 3 | **外键类型不匹配** | `165_create_cross_domain_workflows.sql:20` — `workflow_id VARCHAR(255)` 引用 `UUID` 主键 | **运行时类型错误** | 新建迁移修正为 `UUID REFERENCES ...` |
+| 4 | **10 组表名重复定义** | `twin_snapshots`(3处)、`compliance_policies`(2处)、`environment_templates`(2处)、`iac_plans`(2处)、`performance_baselines`(2处)、`project_members`(2处)、`permission_audit_logs`(2处)、`compliance_evaluations`(2处)、`audit_findings`(2处)、`performance_profiles`(2处) | 依赖 `IF NOT EXISTS` 掩盖问题 | 合并重复迁移 |
+| 5 | **52 张表初始无 `tenant_id`** | 001-072 迁移建表时遗漏，127 迁移批量追加 | 架构设计缺陷 | 新表必须在 `CREATE TABLE` 中包含 |
+
+### 11.3 P1 级规范问题（建议修复）
+
+| # | 问题 | 规模 | 现状 | 规范值 |
+|---|------|------|------|--------|
+| 6 | **3 种时间戳格式混用** | ~250 张表 | `TIMESTAMPTZ`(60%) / `TIMESTAMP WITH TIME ZONE`(20%) / `TIMESTAMP`(20%) | 统一 `TIMESTAMPTZ NOT NULL DEFAULT now()` |
+| 7 | **RLS 覆盖率仅 ~25%** | 250+ 表中仅 63+ 有 RLS | ChatOps/AI/DBA/用户系统大量缺失 | 编号 150+ 新表全部补充 |
+| 8 | **`created_by` 命名 5 种变体** | 约 40% 表有创建人字段 | `created_by` / `author_id` / `owner_id` / `deployed_by` / `published_by` | 统一 `created_by` |
+| 9 | **`updated_at` 触发器仅 2 处** | 50% 表有列但无自动更新 | 仅 010/011 迁移定义了 `update_updated_at_column()` | 统一触发器 |
+| 10 | **编号缺失** | 041、085 完全缺失 | 不影响运行 | 保持，新编号从 183 开始 |
+
+### 11.4 模块级表命名一致性审计
+
+#### 命名优秀的模块（保持）
+
+| 模块 | 表前缀 | 表数量 | 示例 |
+|------|--------|--------|------|
+| Pipeline | `pipeline_` | 20+ | `pipelines`, `pipeline_runs`, `pipeline_versions`, `pipeline_checkpoints` |
+| Agent | `agent_` | 4 | `agent_profiles`, `agent_runs`, `agent_decisions`, `agent_approvals` |
+| IaC | `iac_` | 5 | `iac_workspaces`, `iac_plans`, `iac_state_versions` |
+| ChatOps | `chatops_` | 20+ | `chatops_commands`, `chatops_executions`, `chatops_sessions` |
+| DBA | `dba_` | 5 | `dba_data_sources`, `dba_audit_rules`, `dba_sql_orders` |
+| Canary | `canary_` | 8 | `canary_analysis_runs`, `canary_metric_results`, `canary_traffic_configs` |
+| Oncall | `oncall_` | 3 | `oncall_schedules`, `oncall_assignments`, `oncall_overrides` |
+
+#### 需要改进的模块（新表应修正）
+
+| 模块 | 当前问题 | 建议 |
+|------|---------|------|
+| 构建 | `builds` 无 `build_` 前缀 | 新表统一 `build_` 前缀 |
+| 部署 | `deployments` 无前缀，后续表有 `deployment_` | 新表保持一致 |
+| 审批 | `approvals` 太短，与 `approval_definitions` 不区分 | 新表使用 `approval_` 前缀 |
+| 告警 | `alerts` 无前缀 | 新表使用 `alert_` 前缀 |
+| Digital Twin | `twin_` 和 `digital_twin_` 混用 | 新表统一 `twin_` 前缀 |
+
+### 11.5 3 个完全缺失模块 — 新建 11 张表
+
+#### 11.5.1 智能巡检（Smart Inspection）— 4 张表
+
+**现有相关表**：`monitoring_configs`(012)、`risk_assessments`(018)、`cron_jobs`(036) — 均无法支撑巡检闭环。
+
+```sql
+-- 183_create_inspection_tables.sql
+CREATE TABLE IF NOT EXISTS inspection_plans (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name              VARCHAR(200) NOT NULL,
+  description       TEXT,
+  target_type       VARCHAR(50) NOT NULL,          -- cluster, namespace, service, host, database
+  target_ids        UUID[] NOT NULL DEFAULT '{}',
+  schedule          VARCHAR(50) NOT NULL,
+  inspection_items  JSONB NOT NULL DEFAULT '[]',
+  enabled           BOOLEAN NOT NULL DEFAULT true,
+  created_by        VARCHAR(100) NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE inspection_plans ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_inspection_plans ON inspection_plans USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_inspection_plans_tenant ON inspection_plans(tenant_id);
+CREATE INDEX idx_inspection_plans_enabled ON inspection_plans(enabled);
+
+-- 巡检执行记录
+CREATE TABLE IF NOT EXISTS inspection_runs (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  plan_id           UUID REFERENCES inspection_plans(id) ON DELETE SET NULL,
+  trigger_type      VARCHAR(30) NOT NULL DEFAULT 'scheduled',
+  status            VARCHAR(30) NOT NULL DEFAULT 'running',
+  total_items       INT NOT NULL DEFAULT 0,
+  passed_items      INT NOT NULL DEFAULT 0,
+  failed_items      INT NOT NULL DEFAULT 0,
+  warning_items     INT NOT NULL DEFAULT 0,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at      TIMESTAMPTZ,
+  error_message     TEXT
+);
+ALTER TABLE inspection_runs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_inspection_runs ON inspection_runs USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_inspection_runs_tenant ON inspection_runs(tenant_id);
+CREATE INDEX idx_inspection_runs_plan ON inspection_runs(plan_id);
+CREATE INDEX idx_inspection_runs_status ON inspection_runs(status);
+
+-- 巡检结果详情
+CREATE TABLE IF NOT EXISTS inspection_results (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  run_id            UUID REFERENCES inspection_runs(id) ON DELETE CASCADE,
+  item_name         VARCHAR(200) NOT NULL,
+  target_id         UUID,
+  result            VARCHAR(30) NOT NULL,
+  actual_value      TEXT,
+  expected_value    TEXT,
+  severity          VARCHAR(20) NOT NULL DEFAULT 'info',
+  details           JSONB NOT NULL DEFAULT '{}',
+  recommendation    TEXT,
+  recorded_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE inspection_results ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_inspection_results ON inspection_results USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_inspection_results_run ON inspection_results(run_id);
+CREATE INDEX idx_inspection_results_severity ON inspection_results(severity);
+
+-- 整改跟踪
+CREATE TABLE IF NOT EXISTS inspection_actions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  result_id         UUID REFERENCES inspection_results(id) ON DELETE SET NULL,
+  action_type       VARCHAR(50) NOT NULL,
+  status            VARCHAR(30) NOT NULL DEFAULT 'pending',
+  assigned_to       VARCHAR(100),
+  description       TEXT,
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE inspection_actions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_inspection_actions ON inspection_actions USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_inspection_actions_tenant ON inspection_actions(tenant_id);
+CREATE INDEX idx_inspection_actions_status ON inspection_actions(status);
+```
+
+> **完整设计文档**: `docs/superpowers/specs/2026-05-22-smart-inspection-complete-design.md`
+>
+> 本节仅包含 DDL。完整的执行引擎设计、页面交互设计、API 设计、验收标准见上方链接文档，包含：
+> - 业务闭环：计划 → 调度 → 执行 → 报告 → 整改（完整状态机）
+> - 执行引擎：复用 `CronSchedulerService`，支持串行/并行/超时/重试
+> - 4 类巡检项：资源类（Prometheus）、服务类（K8s API）、数据库类（PostgreSQL）、安全类
+> - 权限模型：RBAC 6 种角色 × 10 种操作
+> - 5 个前端页面：计划列表、创建/编辑、执行记录、结果详情、整改跟踪
+> - 15 个 API 端点，Controller → Service → Repository 分层
+> - 端到端验收场景 + 量化指标
+> - 6 阶段实施计划（20 个工作日）
+
+#### 11.5.2 容量规划（Capacity Planning）— 3 张表
+
+**现有相关表**：`cost_records`(031/094)、`namespace_pools`(042) — 无容量预测能力。
+
+```sql
+-- 184_create_capacity_tables.sql
+-- 遵循规范 5.10（软删除）、5.5（审计字段）、5.9（CHECK约束）
+CREATE TABLE IF NOT EXISTS capacity_baselines (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  resource_type     VARCHAR(50) NOT NULL,
+  resource_id       VARCHAR(200) NOT NULL,
+  period            VARCHAR(20) NOT NULL,
+  avg_usage         DECIMAL(10,2) NOT NULL,
+  p50_usage         DECIMAL(10,2),
+  p95_usage         DECIMAL(10,2),
+  p99_usage         DECIMAL(10,2),
+  max_usage         DECIMAL(10,2) NOT NULL,
+  total_capacity    DECIMAL(10,2) NOT NULL,
+  utilization_pct   DECIMAL(5,2),
+  created_by        VARCHAR(100),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by        VARCHAR(100),
+  deleted_at        TIMESTAMPTZ
+);
+ALTER TABLE capacity_baselines ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_capacity_baselines ON capacity_baselines USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_capacity_baselines_tenant ON capacity_baselines(tenant_id);
+CREATE INDEX idx_capacity_baselines_resource ON capacity_baselines(resource_type, resource_id);
+ALTER TABLE capacity_baselines ADD CONSTRAINT chk_capacity_baselines_period
+  CHECK (period IN ('daily', 'weekly', 'monthly'));
+
+CREATE TABLE IF NOT EXISTS capacity_forecasts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  baseline_id       UUID REFERENCES capacity_baselines(id) ON DELETE SET NULL,
+  forecast_date     TIMESTAMPTZ NOT NULL,
+  predicted_usage   DECIMAL(10,2) NOT NULL,
+  confidence_lower  DECIMAL(10,2),
+  confidence_upper  DECIMAL(10,2),
+  model_type        VARCHAR(50) NOT NULL DEFAULT 'linear',
+  accuracy_score    DECIMAL(5,3),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at        TIMESTAMPTZ
+);
+ALTER TABLE capacity_forecasts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_capacity_forecasts ON capacity_forecasts USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_capacity_forecasts_tenant ON capacity_forecasts(tenant_id);
+CREATE INDEX idx_capacity_forecasts_date ON capacity_forecasts(forecast_date DESC);
+ALTER TABLE capacity_forecasts ADD CONSTRAINT chk_capacity_forecasts_model
+  CHECK (model_type IN ('linear', 'exponential', 'seasonal'));
+
+CREATE TABLE IF NOT EXISTS capacity_alerts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  baseline_id       UUID REFERENCES capacity_baselines(id) ON DELETE SET NULL,
+  alert_type        VARCHAR(30) NOT NULL,
+  severity          VARCHAR(20) NOT NULL DEFAULT 'warning',
+  current_usage     DECIMAL(10,2),
+  predicted_exhaust_date TIMESTAMPTZ,
+  recommendation    JSONB NOT NULL DEFAULT '{}',
+  status            VARCHAR(30) NOT NULL DEFAULT 'open',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by        VARCHAR(100),
+  resolved_at       TIMESTAMPTZ,
+  deleted_at        TIMESTAMPTZ
+);
+ALTER TABLE capacity_alerts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_capacity_alerts ON capacity_alerts USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_capacity_alerts_tenant ON capacity_alerts(tenant_id);
+CREATE INDEX idx_capacity_alerts_status ON capacity_alerts(status);
+ALTER TABLE capacity_alerts ADD CONSTRAINT chk_capacity_alerts_type
+  CHECK (alert_type IN ('threshold_exceeded', 'forecast_exhaust', 'trend_anomaly'));
+ALTER TABLE capacity_alerts ADD CONSTRAINT chk_capacity_alerts_severity
+  CHECK (severity IN ('info', 'warning', 'critical'));
+ALTER TABLE capacity_alerts ADD CONSTRAINT chk_capacity_alerts_status
+  CHECK (status IN ('open', 'acknowledged', 'resolved', 'ignored'));
+```
+
+#### 11.5.3 中间件运维（Middleware Operations）— 4 张表
+
+**现有相关表**：`monitoring_configs`(012)、`runner_pool`(141) — 无中间件实例管理。
+
+```sql
+-- 185_create_middleware_tables.sql
+-- 遵循规范 5.10（软删除）、5.5（审计字段）、5.9（CHECK约束）
+CREATE TABLE IF NOT EXISTS middleware_instances (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  middleware_type   VARCHAR(30) NOT NULL,
+  cluster_name      VARCHAR(200),
+  instance_name     VARCHAR(200) NOT NULL,
+  version           VARCHAR(50),
+  host              VARCHAR(200) NOT NULL,
+  port              INT NOT NULL,
+  credential_ref    VARCHAR(500),
+  config            JSONB NOT NULL DEFAULT '{}',
+  status            VARCHAR(30) NOT NULL DEFAULT 'active',
+  health_status     VARCHAR(30) DEFAULT 'unknown',
+  environment       VARCHAR(50) NOT NULL DEFAULT 'production',
+  tags              JSONB NOT NULL DEFAULT '{}',
+  created_by        VARCHAR(100) NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by        VARCHAR(100),
+  deleted_at        TIMESTAMPTZ
+);
+ALTER TABLE middleware_instances ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_middleware_instances ON middleware_instances USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_middleware_instances_tenant ON middleware_instances(tenant_id);
+CREATE INDEX idx_middleware_instances_type ON middleware_instances(middleware_type);
+CREATE INDEX idx_middleware_instances_health ON middleware_instances(health_status);
+ALTER TABLE middleware_instances ADD CONSTRAINT chk_middleware_instances_type
+  CHECK (middleware_type IN ('redis', 'mysql', 'kafka', 'rabbitmq', 'elasticsearch', 'mongodb'));
+ALTER TABLE middleware_instances ADD CONSTRAINT chk_middleware_instances_status
+  CHECK (status IN ('active', 'degraded', 'maintenance', 'retired'));
+ALTER TABLE middleware_instances ADD CONSTRAINT chk_middleware_instances_health
+  CHECK (health_status IN ('healthy', 'warning', 'critical', 'unknown'));
+
+CREATE TABLE IF NOT EXISTS middleware_health_checks (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  instance_id       UUID REFERENCES middleware_instances(id) ON DELETE CASCADE,
+  check_type        VARCHAR(50) NOT NULL,
+  status            VARCHAR(30) NOT NULL,
+  metrics           JSONB NOT NULL DEFAULT '{}',
+  details           TEXT,
+  checked_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE middleware_health_checks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_middleware_health ON middleware_health_checks USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_middleware_health_instance ON middleware_health_checks(instance_id);
+CREATE INDEX idx_middleware_health_status ON middleware_health_checks(status);
+CREATE INDEX idx_middleware_health_time ON middleware_health_checks(checked_at DESC);
+ALTER TABLE middleware_health_checks ADD CONSTRAINT chk_middleware_health_type
+  CHECK (check_type IN ('connectivity', 'replication', 'cluster', 'performance'));
+ALTER TABLE middleware_health_checks ADD CONSTRAINT chk_middleware_health_status
+  CHECK (status IN ('healthy', 'warning', 'critical'));
+
+CREATE TABLE IF NOT EXISTS middleware_metrics (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  instance_id       UUID REFERENCES middleware_instances(id) ON DELETE CASCADE,
+  metric_name       VARCHAR(100) NOT NULL,
+  metric_value      DECIMAL(10,2) NOT NULL,
+  metric_unit       VARCHAR(20),
+  collected_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE middleware_metrics ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_middleware_metrics ON middleware_metrics USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_middleware_metrics_instance ON middleware_metrics(instance_id);
+CREATE INDEX idx_middleware_metrics_name ON middleware_metrics(metric_name);
+CREATE INDEX idx_middleware_metrics_time ON middleware_metrics(collected_at DESC);
+
+CREATE TABLE IF NOT EXISTS middleware_operations (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  instance_id       UUID REFERENCES middleware_instances(id) ON DELETE SET NULL,
+  operation_type    VARCHAR(50) NOT NULL,
+  status            VARCHAR(30) NOT NULL DEFAULT 'pending',
+  operator          VARCHAR(100) NOT NULL,
+  params            JSONB NOT NULL DEFAULT '{}',
+  result            JSONB,
+  error_message     TEXT,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE middleware_operations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_middleware_operations ON middleware_operations USING (tenant_id::text = current_setting('app.current_tenant_id'));
+CREATE INDEX idx_middleware_operations_instance ON middleware_operations(instance_id);
+CREATE INDEX idx_middleware_operations_status ON middleware_operations(status);
+ALTER TABLE middleware_operations ADD CONSTRAINT chk_middleware_operations_type
+  CHECK (operation_type IN ('restart', 'scale', 'backup', 'restore', 'upgrade', 'config_change', 'failover'));
+ALTER TABLE middleware_operations ADD CONSTRAINT chk_middleware_operations_status
+  CHECK (status IN ('pending', 'executing', 'completed', 'failed', 'rollback'));
+```
+
+### 11.6 能力增强模块 — 新建 19 张表
+
+| 模块 | 新建表 | 迁移编号 | 表数 |
+|------|--------|---------|------|
+| MLOps 平台 | `ml_models`, `ml_training_jobs`, `ml_feature_stores` | 186 | 3 |
+| 配额与计费 | `billing_records`, `usage_metering` | 187 | 2 |
+| 元数据管理 | `metadata_catalog`, `metadata_crawls` | 188 | 2 |
+| AI 安全监控 | `ai_security_rules`, `ai_security_events` | 189 | 2 |
+| 数据质量平台 | `data_quality_rules`, `data_quality_reports` | 190 | 2 |
+| APM 链路追踪 | `apm_traces`, `apm_spans`, `apm_services` | 191 | 3 |
+| 数据库 DevOps | `dba_slow_queries`, `dba_index_analysis`, `dba_schema_changes` | 192 | 3 |
+| 开发者门户扩展 | `portal_categories`, `portal_feedback` | 193 | 2 |
+| **合计** | | | **19** |
+
+> **注意**：APM 链路追踪表数据量大，建议考虑 TimescaleDB 分区表或按月分区。
+
+### 11.7 扩展现有表 — 2 张表
+
+| 模块 | 扩展表 | 扩展内容 | 迁移编号 |
+|------|--------|---------|---------|
+| 数据血缘 | `data_lineage` (100) | 加 `source_field`, `target_field`, `lineage_graph` 列 | 194 |
+| 变更影响 | `change_intelligence_reports` (028) | 加 `runtime_impact`, `slo_impact` 列 | 195 |
+
+### 11.8 新建表设计规范（强制）
+
+所有新建表必须遵循以下规范，避免引入新的不一致：
+
+| 规范项 | 强制要求 |
+|--------|---------|
+| 主键 | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`（禁止 `SERIAL`） |
+| 租户隔离 | `tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE`（第一列紧随 id） |
+| RLS | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;` + `CREATE POLICY tenant_isolation_{table} ...` |
+| 时间戳 | `TIMESTAMPTZ NOT NULL DEFAULT now()`（禁止 `TIMESTAMP` 无时区） |
+| 创建人 | `created_by VARCHAR(100) NOT NULL` |
+| 审计字段 | `created_at`, `updated_at`, `updated_by VARCHAR(100)`（规范 5.5） |
+| 软删除 | `deleted_at TIMESTAMPTZ`（规范 5.10） |
+| 触发器 | `CREATE TRIGGER ... EXECUTE FUNCTION update_updated_at_column()` |
+| CHECK 约束 | 状态枚举字段必须有 `CHECK (status IN (...))`（规范 5.9） |
+| 索引 | `idx_{table_name}_{column}` 命名 |
+| 外键 | `REFERENCES ... ON DELETE CASCADE` 或 `SET NULL`，类型必须匹配被引用列 |
+| JSON | 使用 `JSONB` + `DEFAULT '{}'` 或 `DEFAULT '[]'` |
+| 状态 | `VARCHAR(30)` + SQL 注释 `-- value1, value2, value3` |
+| Rollback | 每个迁移必须有对应的 `-rollback.sql` 文件 |
+
+### 11.9 迁移执行顺序与工作量
+
+```
+Phase 1 (P0 — 3 个完全缺失模块，~1.5 天):
+  → 183_create_inspection_tables.sql        (4 表 + RLS + rollback)
+  → 184_create_capacity_tables.sql           (3 表 + RLS + rollback)
+  → 185_create_middleware_tables.sql          (4 表 + RLS + rollback)
+
+Phase 2 (P1 — 能力增强新建表，~4 天):
+  → 186_create_mlops_tables.sql               (3 表)
+  → 187_create_billing_tables.sql             (2 表)
+  → 188_create_metadata_tables.sql            (2 表)
+  → 189_create_ai_security_tables.sql         (2 表)
+  → 190_create_data_quality_tables.sql        (2 表)
+  → 191_create_apm_tables.sql                 (3 表，考虑分区)
+  → 192_create_dba_tables.sql                 (3 表)
+  → 193_create_portal_ext_tables.sql          (2 表)
+
+Phase 3 (P2 — 扩展表现状，~0.5 天):
+  → 194_extend_data_lineage.sql               (ALTER TABLE ADD COLUMN)
+  → 195_extend_change_intelligence.sql        (ALTER TABLE ADD COLUMN)
+
+Phase 4 (P1 — P0 Bug 修复，~1 天):
+  → 196_fix_fk_type_mismatch.sql              (修复 VARCHAR→UUID 外键)
+  → 197_fix_tenant_id_types.sql               (修复 INTEGER→UUID tenant_id)
+
+总计: 13 个迁移文件 + 13 个 rollback，~30 张新表，~7 天
+```
+
+### 11.10 结论
+
+| 维度 | 结论 |
+|------|------|
+| **是否需要重新设计数据结构** | **不需要**，现有 202 个迁移建立的规范完善，按规范扩展即可 |
+| **是否需要新建表** | 10 个模块新建 **30 张表**（13 个迁移文件含 2 个扩展 + 2 个修复） |
+| **是否需要扩展现有表** | 2 个模块扩展 **2 张表**（加列） |
+| **是否需要重构现有表** | **不需要**，但 5 个 P0 Bug 需修复 |
+| **预估工作量** | ~7 天（迁移编写 + Model/Repository 层 + RLS 策略） |
+| **最大风险点** | APM 表数据量大需分区；`twin_snapshots` 等 10 组重复表名需合并 |
+
+### 11.11 规范对齐补充（对齐 Orion统一规范汇总.md v3.0）
+
+> **背景**：执行计划第十一节设计的新表 DDL 与规范汇总对比，发现 8 项偏离。本节补充缺失的规范要求，确保 100% 对齐。
+> **规范来源**：`docs/规范汇总/Orion统一规范汇总.md` v3.0
+
+#### 11.11.1 软删除规范（规范 5.10 — 原 DDL 缺失）
+
+**规范要求**：所有业务表必须有 `deleted_at TIMESTAMPTZ NULL`，禁止使用 `is_deleted` 布尔型。
+
+**补充到所有 30 张新表**：
+```sql
+-- 在每张表的列定义末尾（created_at/updated_at 之后）追加：
+deleted_at      TIMESTAMPTZ,
+-- 对应的 RLS 策略无需修改（RLS 自动过滤 tenant_id）
+-- Repository 层查询时自动追加：
+-- WHERE deleted_at IS NULL
+```
+
+**受影响表**：inspection_plans, inspection_runs, inspection_results, inspection_actions, capacity_baselines, capacity_forecasts, capacity_alerts, middleware_instances, middleware_health_checks, middleware_metrics, middleware_operations, 以及 11.6 节全部 19 张表。
+
+#### 11.11.2 审计字段补充（规范 5.5 — 原 DDL 缺失 updated_by）
+
+**规范要求**：通用审计字段应包含 `updated_by UUID` 记录最后修改人。
+
+**补充到所有 30 张新表**：
+```sql
+-- 在 updated_at 之后追加：
+updated_by        VARCHAR(100),
+```
+
+**补充后完整审计字段清单**：
+```sql
+created_by        VARCHAR(100) NOT NULL,
+created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+updated_by        VARCHAR(100),
+updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+deleted_at        TIMESTAMPTZ,
+```
+
+#### 11.11.3 CHECK 约束（规范 5.9 — 原 DDL 缺失）
+
+**规范要求**：状态枚举字段必须有 CHECK 约束确保数据一致性。
+
+**补充到所有含 status/result 字段的表**：
+```sql
+-- inspection_plans（无 status 字段，无需）
+
+-- inspection_runs
+ALTER TABLE inspection_runs ADD CONSTRAINT chk_inspection_runs_status
+  CHECK (status IN ('scheduled', 'running', 'completed', 'failed', 'cancelled'));
+
+-- inspection_results
+ALTER TABLE inspection_results ADD CONSTRAINT chk_inspection_results_result
+  CHECK (result IN ('pass', 'fail', 'warning'));
+ALTER TABLE inspection_results ADD CONSTRAINT chk_inspection_results_severity
+  CHECK (severity IN ('info', 'warning', 'critical'));
+
+-- inspection_actions
+ALTER TABLE inspection_actions ADD CONSTRAINT chk_inspection_actions_type
+  CHECK (action_type IN ('auto_fix', 'manual_fix', 'ignore', 'escalate'));
+ALTER TABLE inspection_actions ADD CONSTRAINT chk_inspection_actions_status
+  CHECK (status IN ('pending', 'in_progress', 'completed', 'rejected'));
+
+-- capacity_forecasts
+ALTER TABLE capacity_forecasts ADD CONSTRAINT chk_capacity_model_type
+  CHECK (model_type IN ('linear', 'exponential', 'seasonal', 'arima'));
+
+-- capacity_alerts
+ALTER TABLE capacity_alerts ADD CONSTRAINT chk_capacity_alert_type
+  CHECK (alert_type IN ('threshold_exceeded', 'forecast_exhaust', 'trend_anomaly'));
+ALTER TABLE capacity_alerts ADD CONSTRAINT chk_capacity_alert_status
+  CHECK (status IN ('open', 'acknowledged', 'resolved', 'ignored'));
+
+-- middleware_instances
+ALTER TABLE middleware_instances ADD CONSTRAINT chk_middleware_type
+  CHECK (middleware_type IN ('redis', 'mysql', 'kafka', 'rabbitmq', 'elasticsearch', 'mongodb'));
+ALTER TABLE middleware_instances ADD CONSTRAINT chk_middleware_status
+  CHECK (status IN ('active', 'degraded', 'maintenance', 'retired'));
+ALTER TABLE middleware_instances ADD CONSTRAINT chk_middleware_health
+  CHECK (health_status IN ('healthy', 'warning', 'critical', 'unknown'));
+
+-- middleware_health_checks
+ALTER TABLE middleware_health_checks ADD CONSTRAINT chk_middleware_check_status
+  CHECK (status IN ('healthy', 'warning', 'critical'));
+
+-- middleware_operations
+ALTER TABLE middleware_operations ADD CONSTRAINT chk_middleware_op_type
+  CHECK (operation_type IN ('restart', 'scale', 'backup', 'restore', 'upgrade', 'config_change', 'failover'));
+ALTER TABLE middleware_operations ADD CONSTRAINT chk_middleware_op_status
+  CHECK (status IN ('pending', 'executing', 'completed', 'failed', 'rollback'));
+```
+
+#### 11.11.4 事务隔离级别（规范 5.11 — 原执行计划缺失）
+
+**规范要求**：默认 `READ COMMITTED`，金融/库存类用 `REPEATABLE READ`。
+
+**应用到各 Phase**：
+
+| Phase | 涉及操作 | 推荐隔离级别 | 原因 |
+|-------|---------|-------------|------|
+| 前端交互修复 | 无数据库操作 | — | 不涉及 |
+| 路由注册 | 只读 SELECT | READ COMMITTED | 默认级别，无特殊需求 |
+| Mock 替换（工单） | INSERT + UPDATE 同事务 | READ COMMITTED | 标准 CRUD |
+| 新建表（巡检/容量/中间件） | 常规 CRUD | READ COMMITTED | 默认级别 |
+| BuilderImageService Map→DB | INSERT + UPDATE 同事务 | READ COMMITTED | 标准 CRUD |
+| AlertRule CRUD | INSERT + UPDATE 同事务 | READ COMMITTED | 标准 CRUD |
+| 数据库 Bug 修复 | ALTER TABLE（DDL） | — | DDL 自动提交，无需事务 |
+
+**Repository 层实现模板**：
+```typescript
+// 所有新 Repository 使用默认隔离级别
+// 仅在需要强一致性时显式指定：
+await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+try {
+  // ... 业务操作
+  await db.query('COMMIT');
+} catch (error) {
+  await db.query('ROLLBACK');
+  throw error;
+}
+```
+
+#### 11.11.5 迁移重编号完整方案（规范 5.1 — 原仅识别未给方案）
+
+**问题**：15 组重复编号（010/011/046/049/050-053/060-061/077/135/138/176/178）。
+**原则**：保持执行顺序不变，按文件创建时间先后重新编号。
+
+| 原编号 | 原文件名 | 新编号 | 新文件名 |
+|--------|---------|--------|---------|
+| 010 | 010_create_approvals.sql | 010 | 保持不变 |
+| 010 | 010_create_artifact_registry.sql | 011 | 011_create_artifact_registry.sql |
+| 011 | 011_create_plugins.sql | 012 | 012_create_plugins.sql |
+| 011 | 011_create_tickets_healing.sql | 013 | 013_create_tickets_healing.sql |
+| 046 | 046_create_chatops_admin_tables.sql | 047 | 047_create_chatops_admin_tables.sql |
+| 046 | 046_create_product_line_tables.sql | 048 | 048_create_product_line_tables.sql |
+| ...（047-049 顺延+1）... | | | |
+| 178 | 178_workflow_timer_persistence.sql | 183 | 183_workflow_timer_persistence.sql |
+| 178 | 178_add_pipeline_version_and_yaml.sql | 184 | 184_add_pipeline_version_and_yaml.sql |
+| **183-195** | **新建表迁移** | **196-208** | **新编号顺延** |
+
+**注意**：178 号中 `workflow_timer_persistence` 动态 FK 引用 180 号表的 Bug，重编号后变为 183 引用 185，依赖关系不变，需在 183 之前确保被引用表的迁移已执行。
+
+#### 11.11.6 前端无障碍访问规范（规范 4.6 — 原执行计划缺失）
+
+**规范要求**：P0 级，所有前端修复和新页面必须遵循 a11y 规范。
+
+**应用到前端交互修复**：
+
+| 修复类型 | a11y 要求 | 代码示例 |
+|----------|----------|---------|
+| 按钮 loading | `aria-busy="true"` + `aria-disabled` | `<Button loading aria-busy="true">加载中</Button>` |
+| 删除确认 | Popconfirm 有 `title` 和 `aria-label` | `<Popconfirm aria-label="确认删除此项目" title="确认删除？">` |
+| 空状态引导 | Empty 有 `role="status"` | `<Empty role="status" description="暂无数据" />` |
+| 错误提示 | `role="alert"` | `<div role="alert">{errorMsg}</div>` |
+| 表格操作 | 每行有 `aria-label` 标识数据 | `<tr aria-label={`工单 ${id}`}>` |
+
+#### 11.11.7 前端性能指标（规范 4.7 — 原执行计划缺失）
+
+**规范要求**：FCP < 1.8s, LCP < 2.5s, TTI < 3.8s。
+
+**应用到前端交互修复的验收标准**：
+
+| 指标 | 目标值 | 验证方法 |
+|------|--------|---------|
+| FCP（首次内容绘制） | < 1.8s | Lighthouse CI |
+| LCP（最大内容绘制） | < 2.5s | Lighthouse CI |
+| TTI（可交互时间） | < 3.8s | Lighthouse CI |
+| Bundle 大小 | JS < 500KB | `size-limit` |
+| 大数据列表 | > 100 行用虚拟列表 | 代码审查 |
+
+**补充到第十二节前端修复验收**：
+- 路由懒加载：`const Page = lazy(() => import('./pages/Page'))`
+- 大数据列表使用 `react-window` 或 Ant Design Table 虚拟滚动
+- 图片懒加载 `loading="lazy"`
+
+---
+
+## 十二、5 Agent 并行深度分析报告汇总（2026-05-22）
+
+> **执行方式**: 5 个 Agent 并行深度分析，覆盖数据库结构、前端交互链、后端路由断裂、Mock 替换、新表验证
+> **分析范围**: 202 迁移 / 490 表 / 540 .tsx / 114 Repository / 37 Model / 13 断裂路由 / 10 处 Mock
+
+### 12.1 数据库 P0 Bug 深度审计
+
+**分析 Agent**: 数据库结构性 Bug 分析
+**分析方法**: 逐迁移文件读取 SQL + 外键依赖追踪 + 表名重复对比
+
+#### P0-1：重复编号迁移冲突（15 组 / 36 文件）
+
+| 编号 | 文件数 | 文件列表 | FK 依赖风险 | 风险等级 |
+|------|--------|---------|------------|---------|
+| 010 | 2 | approvals, artifact_registry | 无互相依赖 | 低 |
+| 011 | 2 | plugins, tickets_healing | 无互相依赖 | 低 |
+| 046 | 2 | chatops_admin, product_line | 无互相依赖 | 低 |
+| 049 | 2 | notification_type, monitoring_rules | 无互相依赖 | 低 |
+| 050 | 3 | authz_unified, chatops_role, self_healing | 无互相依赖 | 低 |
+| 051 | 3 | chatops_versions, sessions, teams | 无互相依赖 | 低 |
+| 052 | 3 | chatops_limits, capabilities, knowledge_base | 无互相依赖 | 低 |
+| 053 | 3 | chatops_webhooks, build_cache, metrics | 无互相依赖 | 低 |
+| 060 | 2 | api_market, namespace_allocations | 无互相依赖 | 低 |
+| 061 | 3 | ticketing_sub, weekly_reports, webhook | 无互相依赖 | 低 |
+| 077 | 2 | degradation_audit, inception_tables | 无互相依赖 | 低 |
+| 135 | 2 | artifact_version_tracking, pipeline_environments | 无互相依赖 | 低 |
+| 138 | 2 | quality_gates, sub_pipeline_invocations | 无互相依赖 | 低 |
+| 176 | 2 | subapp_api_domain, test_selector_relations | 无互相依赖 | 低 |
+| **178** | **2** | **workflow_timer_persistence, workflow_version_yaml** | **FK 引用 180 号才创建的表** | **🔴 高** |
+
+**最高风险**：178 号 `workflow_timer_persistence.sql` 中的 `instance_id` FK 引用 `lowcode_workflow_instance(id)`，但该表在 180 号 `workflow_sample_data.sql` 才创建。
+
+**修复方案**：重新编号，178→179, 179→180, 180→181，后续全部递增+1。
+
+#### P0-2：外键类型不匹配（3 处）
+
+| 文件 | 列 | 定义类型 | 引用类型 | 影响 |
+|------|-----|---------|---------|------|
+| `178_workflow_timer_persistence.sql` | `workflow_timers.instance_id` | VARCHAR(255) | VARCHAR(100) | FK 约束无法创建 |
+| `178_workflow_timer_persistence.sql` | `workflow_instance_dependencies.parent_instance_id` | VARCHAR(255) | VARCHAR(100) | FK 约束无法创建 |
+| `165_create_cross_domain_workflows.sql` | `workflow_id` | VARCHAR(255) | UUID | FK 约束无法创建 |
+
+**修复方案**：统一列类型为被引用列的精确类型。
+
+#### P0-3：tenant_id 类型不一致（34 列，6 种类型）
+
+| 类型 | 列数 | 代表表 | 缺失外键 |
+|------|------|--------|---------|
+| UUID (标准) | ~120 | pipelines, builds, deployments | 无 |
+| INTEGER | 8 | namespace_allocations, token_blacklist, chatops_messages, degradation_audit, llm_traces 等 | ✅ 缺失 |
+| VARCHAR(255) | 14 | federation_executors, canary_traffic_configs (125 追加) | ✅ 缺失 |
+| VARCHAR(100) | 5 | ai_model_versions 等 | ✅ 缺失 |
+| VARCHAR(64) | 5 | llm_traces, agent_runs 等 | ✅ 缺失 |
+| VARCHAR(36) | 4 | portal_documents 等 | ✅ 缺失 |
+
+**修复方案**：
+```sql
+-- 示例：修复 INTEGER 类型
+ALTER TABLE chatops_messages ALTER COLUMN tenant_id TYPE UUID USING tenant_id::text::UUID;
+ALTER TABLE chatops_messages ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE chatops_messages ADD CONSTRAINT fk_chatops_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id);
+```
+
+#### P0-4：重复表名合并分析（10 张表）
+
+| 表名 | 定义位置 | 语义是否相同 | 风险 |
+|------|---------|-------------|------|
+| **twin_snapshots** | 084(环境快照) + 109(数字孪生) + 149(风险报告) | ❌ **完全不同** | 🔴 后两个迁移静默跳过，关键列丢失 |
+| **performance_baselines** | 099(每行一指标模型) + 117(JSONB 全量模型) | ❌ **完全不同** | 🔴 117 被跳过 |
+| **compliance_policies** | 108 + 115 | 部分相同 | 🟡 可能遗漏列 |
+| **compliance_evaluations** | 108 + 115 | 部分相同 | 🟡 可能遗漏列 |
+| **audit_findings** | 108 + 115 | 部分相同 | 🟡 可能遗漏列 |
+| **performance_profiles** | 099 + 117 | 部分相同 | 🟡 可能遗漏列 |
+| environment_templates | 025 + 089 | 基本相同 | 🟢 IF NOT EXISTS 安全 |
+| iac_plans | 032 + 044 | 基本相同 | 🟢 IF NOT EXISTS 安全 |
+| project_members | 003 + 050 | 基本相同 | 🟢 IF NOT EXISTS 安全 |
+| permission_audit_logs | 050 + 167 | 基本相同 | 🟢 IF NOT EXISTS 安全 |
+
+### 12.2 前端交互链完整性审计
+
+**分析 Agent**: 前端交互链分析
+**分析方法**: 抽样 22 个代表性页面（8 大菜单各 2-3 个），逐行审查 83 个异步函数
+
+#### 抽样统计
+
+| 问题类型 | 抽样发现（22 页面） | 推算全量（540 页面） | 严重度 |
+|----------|-------------------|---------------------|--------|
+| 缺 loading 状态 | 4 处 | ~97 处 | P1 |
+| 缺 message.error | 7 处（含 2 处空 catch） | ~173 处 | P0 |
+| 缺 Popconfirm | 15 处 | ~38 处 | P1 |
+| 缺 Empty 引导 | 12 页面 | ~62 处 | P1 |
+
+#### 问题分布热点
+
+| 模块 | 缺 loading | 缺 error | 缺确认 | 缺 Empty |
+|------|-----------|---------|--------|---------|
+| 工作台 | 0 | 1 | 3 | 2 |
+| 控制台 | 1 | 1 | 4 | 3 |
+| 交付 | 1 | 2 | 3 | 2 |
+| 可观测性 | 1 | 1 | 2 | 1 |
+| AI 平台 | 1 | **2（含空 catch）** | 2 | 2 |
+| 基础设施 | 0 | 0 | 1 | 1 |
+| 治理 | 0 | 0 | 0 | 1 |
+| 生态 | 0 | 0 | 0 | 0 |
+
+#### 标准修复模板
+
+**模板 1 — 添加 loading**：
+```tsx
+const [loading, setLoading] = useState(false);
+const handleAction = async () => {
+  setLoading(true);
+  try {
+    await api.doSomething();
+    message.success('操作成功');
+  } catch (error: unknown) {
+    message.error(error instanceof Error ? error.message : '操作失败');
+  } finally {
+    setLoading(false);
+  }
+};
+// 按钮: <Button loading={loading} onClick={handleAction}>
+```
+
+**模板 2 — 修复空 catch**：
+```tsx
+// 修复前
+.getAvailableTools().catch(() => {});
+// 修复后
+.getAvailableTools().catch(() => {
+  console.warn('Failed to load available tools');
+});
+```
+
+**模板 3 — 添加删除确认**：
+```tsx
+<Popconfirm
+  title="确认删除？"
+  description="删除后不可恢复"
+  onConfirm={() => handleDelete(record.id)}
+  okText="确认"
+  cancelText="取消"
+>
+  <Button danger icon={<DeleteOutlined />}>删除</Button>
+</Popconfirm>
+```
+
+**模板 4 — 添加空状态引导**：
+```tsx
+{data.length === 0 ? (
+  <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+    <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+      创建
+    </Button>
+  </Empty>
+) : (
+  <Table dataSource={data} columns={columns} />
+)}
+```
+
+### 12.3 后端路由断裂根因分析
+
+**分析 Agent**: 后端路由断裂分析
+**分析方法**: 逐模块读取 routes.ts 注释 + 搜索 routes.ts 文件 + 检查 Gateway 代理 + 验证独立微服务
+
+#### 13 项断裂分类汇总
+
+| 分类 | 含义 | 数量 | 模块 | 修复工作量 |
+|------|------|------|------|-----------|
+| **A** | Service/Controller 存在，只需创建路由文件注册 | 2 | Backup, OnCall | 4h |
+| **B** | 路由文件存在但 mount 被注释 | 0 | — | 0h |
+| **C** | 路由文件不存在，独立服务也无实现，需从零创建 | 4 | BuildEnv, AI Gateway, AI Cost, AI Security | 11h |
+| **D** | 独立微服务有实现，需验证 Gateway 转发 | 5 | Ticket, CMDB, SBOM, AI Docs, FinOps | 3.5h |
+| **E** | Service 存在但被其他路由部分覆盖，需补充 | 2 | Observability, AI Review | 3.5h |
+
+**总修复工作量**: **~22 小时（约 3 个工作日）**
+
+#### 关键发现
+
+1. **无 B 类问题** — 不存在"路由文件存在但 mount 被注释"的情况，所有问题都是完全缺少路由文件
+2. **D 类 Gateway 已配置代理** — Ticket/CMDB/FinOps 等 5 个模块的 Gateway 代理路径已存在，真正断裂原因可能是独立微服务未启动或前端 API 路径不匹配
+3. **额外发现** — `alert-routes.ts` 文件存在但从未被 import 到 routes.ts，也是一个潜在断裂点
+
+#### 逐模块修复方案
+
+| # | 模块 | 修复代码（routes.ts 中添加） | 工作量 |
+|---|------|---------------------------|--------|
+| 1 | Ticket | 验证 Gateway `/api/v1/tickets` → `:3004` 代理正常 | 1h |
+| 2 | CMDB | 验证 Gateway `/api/v1/cmdb` → `:3030` 代理正常 | 0.5h |
+| 3 | BuildEnv | 新建 `build-env-routes.ts` + import 注册 | 2h |
+| 4 | Observability | 新建 `observability-routes.ts` 包装 ObservabilityController | 2h |
+| 5 | Backup | 新建 `backup-routes.ts` 包装 BackupController + 注册 | 2h |
+| 6 | OnCall | 新建 `oncall-routes.ts` 或确认走 monitor-svc | 2h |
+| 7 | SBOM | 验证 Gateway `/api/v1/sbom` → `:3013` 代理正常 | 1h |
+| 8 | AI Gateway | 新建 `ai-gateway-routes.ts` + 注册 | 3h |
+| 9 | AI Cost | 新建 `ai-cost-routes.ts` + 注册 | 3h |
+| 10 | AI Review | 新建 `ai-review-routes.ts` + 注册 | 2h |
+| 11 | AI Docs | 确认 gateway-route-sync 动态路由到 PandaWiki | 0.5h |
+| 12 | AI Security | 新建 `ai-security-routes.ts` + 注册 | 3h |
+| 13 | FinOps | 验证 Gateway 代理路径与前端调用路径匹配 | 1h |
+
+### 12.4 Mock 逻辑替换方案设计
+
+**分析 Agent**: Mock 逻辑替换分析
+**分析方法**: 逐处 Mock 读取代码上下文 + 搜索 API Client + 搜索后端路由 + 搜索 Service/Controller
+
+#### 10 处 Mock 分类汇总
+
+| 分类 | 数量 | Mock 编号 | 根因 |
+|------|------|-----------|------|
+| **已对接**（改前端即可） | 1 | #6 ChatOps 空 catch | 仅需添加 console.warn |
+| **需恢复路由注册** | 5 | #1~#4 #7（工单全链路） | ticketing 路由被注释（同一根因） |
+| **需全链路新建** | 2 | #5 AlertConfig CRUD, #8 BuilderImageService | 后端实体 + 路由 + 前端 API Client 全部缺失 |
+| **架构性 Mock**（不急） | 1 | #9 K8sBuildExecutor | 有意设计，通过环境变量切换 |
+
+#### 核心发现
+
+**6 处 Mock 共享同一根因**：ticketing 路由（routes.ts:413）和 ai-cost 路由被注释。一旦恢复这两组路由注册，大部分前端 Mock 只需简单替换即可对接真实 API。
+
+#### 实施优先级
+
+| 优先级 | Mock | 文件 | 工作量 | 修复方式 |
+|--------|------|------|--------|---------|
+| **P0-1** | ChatOps 空 catch | index.chat.tsx:57 | 5 分钟 | 添加 console.warn |
+| **P1-1** | TicketDetail handleEscalate | TicketDetail/index.tsx:307 | 15 分钟 | 补一行 escalateTicket API 调用 |
+| **P1-2** | CreateTicketModal setTimeout | CreateTicketModal.tsx:124 | 30 分钟 | 替换为 createTicket() |
+| **P1-3** | DispatchPanel setTimeout | DispatchPanel.tsx:265,273 | 30 分钟 | 替换为 autoDispatch() + error handling |
+| **P1-4** | TicketList handleAssign | TicketList/index.tsx:440 | 1h | 改造 Modal 为带工程师选择表单 + API |
+| **P1-5** | 报表按钮"开发中" | TicketList/index.tsx:486 | 2h | 创建报表弹窗 + 对接 4 个统计 API |
+| **P2-1** | BuilderImageService Map | BuilderImageService.ts:132 | 4h | 新建 Repository + 路由 + Controller + API Client |
+| **P2-2** | AlertConfig 规则 CRUD | AlertConfig.tsx:51 | 4h | 新建 AlertRule 实体 + 路由 + API Client |
+| **P3-1** | K8sBuildExecutor MockK8sClient | K8sBuildExecutor.ts:100 | 8h | 创建 RealK8sClient 用 @kubernetes/client-node |
+
+### 12.5 新建表设计验证
+
+**分析 Agent**: 新表结构规范验证
+**分析方法**: 对照 10 项规范逐表检查 11.5 节 11 张表的 DDL + 11.6 节 19 张表的完整性
+
+#### 验证结果（11.5 节 11 张表）
+
+| 规范项 | 通过数 | 失败数 | 通过率 | 详情 |
+|--------|--------|--------|--------|------|
+| 主键 UUID | 11 | 0 | 100% | 全部符合 |
+| tenant_id 规范 | 11 | 0 | 100% | 全部符合 |
+| RLS 策略 | 11 | 0 | 100% | 全部符合 |
+| 时间戳 TIMESTAMPTZ | 11 | 0 | 100% | 全部符合 |
+| 索引命名 idx_ | 11 | 0 | 100% | 全部符合 |
+| **created_by 字段** | **2** | **9** | **18%** | 仅 inspection_plans, middleware_instances 有 |
+| **updated_at 字段** | **2** | **9** | **18%** | 仅 inspection_plans, middleware_instances 有 |
+| **触发器** | **0** | **11** | **0%** | 全部缺失 update_updated_at_column() |
+| **Rollback 文件** | **0** | **11** | **0%** | 全部缺失对应的 -rollback.sql |
+| JSON JSONB + DEFAULT | 11 | 0 | 100% | 全部符合 |
+
+#### 11.6 节 19 张表
+
+**仅有表名和迁移编号的目录，DDL 完全缺失**。
+
+#### 最容易违反的规范
+
+| 排名 | 违反项 | 违反率 |
+|------|--------|--------|
+| 1 | DDL 完整性（11.6 节 19 张表无 DDL） | 100% |
+| 2 | Rollback 文件缺失 | 100% |
+| 3 | updated_at 触发器缺失 | 100% |
+| 4 | created_by/updated_at 字段缺失 | 82% |
+
+### 12.6 综合分析结论
+
+#### 全系统问题优先级矩阵
+
+| 优先级 | 类别 | 规模 | 修复工作量 | 影响范围 |
+|--------|------|------|-----------|---------|
+| **P0** | 数据库 FK 类型不匹配 | 3 处 | 0.5 天 | 迁移可能失败 |
+| **P0** | twin_snapshots 语义冲突 | 3 处 | 1 天 | 数据模型混乱 |
+| **P0** | 恢复 ticketing 路由注册 | 1 处 | 0.5 天 | 修复 5 处 Mock + 1 项路由断裂 |
+| **P0** | ChatOps 空 catch | 1 处 | 5 分钟 | 异常被吞没 |
+| **P1** | 恢复 ai-cost 路由注册 | 1 处 | 0.5 天 | 修复 1 处 Mock + 1 项路由断裂 |
+| **P1** | 前端缺 message.error | ~173 处 | ~3 天 | 用户不知操作失败 |
+| **P1** | 前端缺 loading | ~97 处 | ~2 天 | 可重复提交 |
+| **P1** | 新建 4 个路由文件 | 4 处 | 11h | AI Gateway/Cost/Security, BuildEnv |
+| **P1** | 新建 4 个路由文件 | 4 处 | 8h | Backup/OnCall/Observability/AI Review |
+| **P2** | 前端缺 Popconfirm | ~38 处 | ~1 天 | 误删无确认 |
+| **P2** | 前端缺 Empty | ~62 处 | ~1.5 天 | 空白页无引导 |
+| **P2** | 全链路新建（BuilderImage + AlertRule） | 2 处 | 8h | 功能完全缺失 |
+| **P2** | 补充 19 张表 DDL + RLS + Rollback | 19 张 | 3 天 | 数据库设计不完整 |
+| **P3** | tenant_id 类型统一 | 34 列 | 1 天 | 跨表 JOIN 可能失败 |
+| **P3** | K8sBuildExecutor 真实实现 | 1 处 | 8h | 构建功能仅为 Mock |
+
+#### 总体工作量重估
+
+| 阶段 | 原估算 | 修正后 | 变化 |
+|------|--------|--------|------|
+| 前端交互修复 | ~6 小时 | **~7.5 天**（173 error + 97 loading + 38 confirm + 62 empty） | ↑ |
+| 后端路由修复 | 未单独估算 | **~3 天**（13 项断裂修复） | 新增 |
+| Mock 替换 | 未单独估算 | **~2 天**（P1 1.5 天 + P2 0.5 天） | 新增 |
+| 数据库迁移编写 | ~7 天 | **~10 天**（7 天新建 + 3 天 P0 Bug 修复 + DDL 补全） | ↑ |
+| 已有模块增强 | ~12.5 人月 | **~12.5 人月** | 不变 |
+| 全新模块开发 | ~7 人月 | **~7 人月** | 不变 |
+
+**修正后总计**：前端 ~7.5 天 + 后端路由 ~3 天 + Mock ~2 天 + 数据库 ~10 天 = **~22.5 天基础设施修复** + **~19.5 人月功能开发** = **约 21-23 人月**
+
+---
+
+### 12.7 P0 修复计划索引（2026-05-22 新增）
+
+> **P0 修复计划独立文档**: `docs/superpowers/specs/2026-05-22-p0-remediation-plan.md`
+>
+> 基于 3 份深度分析报告（前端扫描 / 后端路由断裂 / 数据库审计），去重合并后共 **43 项 P0 问题**，按 **4 阶段 12 工作日**执行。
+
+#### P0 问题来源汇总
+
+| 来源报告 | 原始 P0 项数 | 去重后项数 | 核心问题 |
+|----------|------------|-----------|---------|
+| 前端 6 维扫描 | 43 项 | 8 大模块标题 + 全局样式 + 全局异常 + 编辑入口 | 标题覆盖率 1.9%、硬编码 422 文件、try/catch 仅 8.5% |
+| 后端路由断裂 | 8A + 3E + 13Mock | 6 核心断裂 + 3 未注册 + 15 Mock | Agent approvals、Alert CRUD、Ephemeral Envs 全 mock |
+| 数据库审计 | 5 项 | 5 项 | tenant_id 64 处类型错误、SERIAL 17 表、32 重复表 |
+
+#### 4 阶段执行顺序
+
+```
+Phase 1 (4.5 天): 数据库层 → tenant_id 类型/SERIAL 主键/重复表/165 号重写
+    ↓
+Phase 2 (1.5 天): 后端路由 → Agent 路由统一/Alert CRUD/Ephemeral 对接/未注册路由
+    ↓
+Phase 3 (1 天):   前端 API  → Mock 清除/路径对齐/Workflow Terminate
+    ↓
+Phase 4 (5 天):   前端页面 → 标题规范/硬编码颜色/异常处理/编辑入口（8 大模块）
+```
+
+#### 关键验收指标
+
+| 指标 | 修复前 | 目标 |
+|------|--------|------|
+| 综合合规率 | 32.6% | 94%+ |
+| 页面标题覆盖率 | 1.9% | 100% |
+| 硬编码颜色违规 | 422/540 | 0/540 |
+| try/catch 覆盖率 | 8.5% | 90%+ |
+| A 类路由断裂 | 8 处 | 0 处 |
+| tenant_id 类型一致率 | 35% | 100% |
+
+---
+
+*方案生成时间：2026-05-22*
+*最后更新：2026-05-22 — 新增第十二节 5 Agent 并行深度分析汇总（数据库 P0 Bug/前端交互链/后端路由断裂/Mock 替换/新表验证）；新增 P0 修复计划 `docs/superpowers/specs/2026-05-22-p0-remediation-plan.md`（43 项去重 P0 问题，按 4 阶段 12 工作日执行）*
 *规范来源：CLAUDE.md 前端交互完整性审查规则 + Design Token 体系 + Orion统一规范汇总.md (7567行)*

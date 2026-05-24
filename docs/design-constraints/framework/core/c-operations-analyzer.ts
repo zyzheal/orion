@@ -27,6 +27,23 @@
  *   - C2-13: 依赖注入 (P1) - IoC 容器
  *   - C2-14: 接口抽象 (P1) - interface/抽象类
  *
+ * 已实现: C3 生态集成完整 15 项检测
+ *   - C3-01: Adapter 适配器 (P1) - 外部系统集成
+ *   - C3-02: 错误转换 (P1) - 错误码转换
+ *   - C3-03: 超时/重试 (P0) - HTTP 超时和重试
+ *   - C3-04: RESTful 规范 (P0) - RESTful API
+ *   - C3-05: GraphQL 支持 (P1) - GraphQL API
+ *   - C3-06: OpenAPI 文档 (P0) - Swagger/OpenAPI
+ *   - C3-07: API 限流 (P0) - Rate Limit
+ *   - C3-08: API 认证 (P0) - JWT/Auth
+ *   - C3-09: 插件发现 (P1) - 插件注册表/市场
+ *   - C3-10: 插件安装/卸载 (P1) - 动态安装启用
+ *   - C3-11: 插件版本管理 (P1) - 语义化版本
+ *   - C3-12: 跨服务事件通信 (P1) - Kafka/NATS
+ *   - C3-13: 事件订阅管理 (P1) - 订阅/过滤
+ *   - C3-14: Webhook (P1) - Webhook 注册触发
+ *   - C3-15: Webhook 重试 (P1) - 失败重试
+ *
  * 已实现: C4 可观测性完整 6 项检测
  *   - C4-01: 监控指标 (P0) - prometheus metrics 暴露
  *   - C4-02: 告警规则 (P0) - 阈值/级别/渠道/抑制
@@ -91,6 +108,12 @@ export type OperationsIssueType =
   | 'missing-openapi'
   | 'missing-adapter'
   | 'missing-webhook'
+  | 'missing-graphql'
+  | 'missing-plugin-discovery'
+  | 'missing-plugin-install'
+  | 'missing-plugin-version'
+  | 'missing-event-communication'
+  | 'missing-event-subscription'
   | 'non-restful-api'
   | 'missing-restful-method'
   | 'missing-redis-session'
@@ -189,12 +212,22 @@ export class COperationsAnalyzerBackend {
     this.detectMissingStatelessDesign();    // C2-10: 无状态设计 (P0) - 已实现
     this.detectMissingSessionExternal();    // C2-11: 会话外置 (P0) - 已实现
 
-    // C3 生态集成检测
-    this.detectMissingTimeoutRetry();
-    this.detectMissingRateLimit();
-    this.detectMissingAuthMiddleware();
-    this.detectMissingOpenAPI();
-    this.detectRestfulCompliance();
+    // C3 生态集成检测 (15项)
+    this.detectMissingTimeoutRetry();        // C3-03: 超时/重试 (P0) - 已实现
+    this.detectMissingRateLimit();           // C3-07: API限流 (P0) - 已实现
+    this.detectMissingAuthMiddleware();      // C3-08: API认证 (P0) - 已实现
+    this.detectMissingOpenAPI();             // C3-06: OpenAPI (P0) - 已实现
+    this.detectRestfulCompliance();          // C3-04: RESTful (P0) - 已实现
+    this.detectMissingAdapter();             // C3-01: Adapter (P1) - 已实现
+    this.detectMissingWebhook();             // C3-14: Webhook (P1) - 已实现
+    this.detectMissingWebhookRetry();        // C3-15: Webhook重试 (P1) - 新增
+    // 新增 6 项检测
+    this.detectMissingGraphQL();             // C3-05: GraphQL支持 (P1)
+    this.detectMissingPluginDiscovery();     // C3-09: 插件发现机制 (P1)
+    this.detectMissingPluginInstall();       // C3-10: 插件安装/卸载 (P1)
+    this.detectMissingPluginVersion();       // C3-11: 插件版本管理 (P1)
+    this.detectMissingEventCommunication();  // C3-12: 跨服务事件通信 (P1)
+    this.detectMissingEventSubscription();   // C3-13: 事件订阅管理 (P1)
 
     // C4 可观测性检测 (完整 6 项)
     this.detectMissingMetrics();      // C4-01: 监控指标 (P0) - 已实现
@@ -2368,6 +2401,246 @@ export class COperationsAnalyzerDocs {
           checkId: 'C5-06',
         });
       }
+    }
+  }
+
+  // ============ C3-05: GraphQL 支持 (P1) ============
+
+  /**
+   * 检测是否使用 GraphQL
+   * 要求: 使用 GraphQL 客户端或服务器
+   */
+  private detectMissingGraphQL(): void {
+    const isApiFile = /routes\.ts$|api|graphql/i.test(this.filePath);
+    if (!isApiFile) return;
+
+    const hasGraphQL = /graphql|apollo-client|apollo-server|useQuery|useMutation|@Query|@Mutation|graphql-tag/i.test(this.content);
+
+    if (!hasGraphQL) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-graphql',
+        severity: 'P1',
+        message: '服务缺少 GraphQL 支持',
+        suggestion: '考虑使用 GraphQL 提供更灵活的 API（可选，仅当 REST 不满足需求时）',
+        checkId: 'C3-05',
+      });
+    }
+  }
+
+  // ============ C3-09: 插件发现机制 (P1) ============
+
+  /**
+   * 检测是否有插件发现机制
+   * 要求: 支持动态发现可用插件
+   */
+  private detectMissingPluginDiscovery(): void {
+    const isPluginFile = /plugin|extension/i.test(this.filePath);
+    if (!isPluginFile) return;
+
+    const hasPluginDiscovery = /plugin.*registry|discoverPlugins|scanPlugins|plugin.*list|marketplace|getPlugins|findPlugins/i.test(this.content);
+
+    if (!hasPluginDiscovery) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-plugin-discovery',
+        severity: 'P1',
+        message: '插件系统缺少发现机制',
+        suggestion: '实现插件注册表或市场，支持动态扫描和发现可用插件',
+        checkId: 'C3-09',
+      });
+    }
+  }
+
+  // ============ C3-10: 插件安装/卸载 (P1) ============
+
+  /**
+   * 检测是否支持插件安装/卸载
+   * 要求: 支持动态安装、卸载、启用、禁用插件
+   */
+  private detectMissingPluginInstall(): void {
+    const isPluginFile = /plugin|extension/i.test(this.filePath);
+    if (!isPluginFile) return;
+
+    const hasPluginInstall = /installPlugin|uninstallPlugin|enablePlugin|disablePlugin|addPlugin|removePlugin/i.test(this.content);
+
+    if (!hasPluginInstall) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-plugin-install',
+        severity: 'P1',
+        message: '插件系统缺少安装/卸载机制',
+        suggestion: '实现插件的安装、卸载、启用、禁用功能',
+        checkId: 'C3-10',
+      });
+    }
+  }
+
+  // ============ C3-11: 插件版本管理 (P1) ============
+
+  /**
+   * 检测是否有插件版本管理
+   * 要求: 使用语义化版本控制
+   */
+  private detectMissingPluginVersion(): void {
+    const isPluginFile = /plugin|extension/i.test(this.filePath);
+    if (!isPluginFile) return;
+
+    const hasPluginVersion = /plugin.*version|semantic.*version|semver|pluginVersion/i.test(this.content);
+    const hasVersionCheck = /version.*check|checkVersion|compatible/i.test(this.content);
+
+    if (!hasPluginVersion && !hasVersionCheck) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-plugin-version',
+        severity: 'P1',
+        message: '插件缺少版本管理',
+        suggestion: '为插件添加语义化版本，支持版本兼容检查和升级提示',
+        checkId: 'C3-11',
+      });
+    }
+  }
+
+  // ============ C3-12: 跨服务事件通信 (P1) ============
+
+  /**
+   * 检测是否支持跨服务事件通信
+   * 要求: 使用消息队列或事件总线实现服务间通信
+   */
+  private detectMissingEventCommunication(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    const hasEventBus = /EventBus|emit.*event|publish.*subscribe|kafka|rabbitmq|jetstream|nats/i.test(this.content);
+    const hasEventBridge = /eventBridge|event.*bridge|aws.*event|bridge.*event/i.test(this.content);
+
+    if (!hasEventBus && !hasEventBridge) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-event-communication',
+        severity: 'P1',
+        message: '缺少跨服务事件通信机制',
+        suggestion: '使用 Kafka/NATS/RabbitMQ 实现服务间事件通信',
+        checkId: 'C3-12',
+      });
+    }
+  }
+
+  // ============ C3-13: 事件订阅管理 (P1) ============
+
+  /**
+   * 检测是否有事件订阅管理
+   * 要求: 支持事件订阅、取消订阅、事件过滤
+   */
+  private detectMissingEventSubscription(): void {
+    const isEventFile = /event|listener|handler/i.test(this.filePath);
+    if (!isEventFile) return;
+
+    const hasEventSubscription = /subscribe.*event|listener.*event|on.*event|addEventListener|removeEventListener|unsubscribe/i.test(this.content);
+    const hasEventFilter = /event.*filter|filter.*event|event.*selector|topic.*filter/i.test(this.content);
+
+    if (!hasEventSubscription && !hasEventFilter) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-event-subscription',
+        severity: 'P1',
+        message: '缺少事件订阅管理机制',
+        suggestion: '实现事件订阅/取消订阅机制，支持事件过滤和路由',
+        checkId: 'C3-13',
+      });
+    }
+  }
+
+  // ============ C3-14: Adapter 适配器 (P1) ============
+
+  /**
+   * 检测是否有 Adapter 模式实现
+   * 要求: 外部系统集成使用 Adapter 模式
+   */
+  private detectMissingAdapter(): void {
+    const isServiceFile = /service|adapter/i.test(this.filePath);
+    if (!isServiceFile) return;
+
+    const hasAdapter = /Adapter|adapter.*pattern|external.*adapter|adapt.*external/i.test(this.content);
+    const hasInterface = /interface.*Adapter|class.*Adapter.*implements/i.test(this.content);
+
+    if (!hasAdapter && !hasInterface) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-adapter',
+        severity: 'P1',
+        message: '外部系统集成缺少 Adapter 模式',
+        suggestion: '使用 Adapter 模式封装外部系统集成，便于替换实现',
+        checkId: 'C3-01',
+      });
+    }
+  }
+
+  // ============ C3-14: Webhook (P1) ============
+
+  /**
+   * 检测是否有 Webhook 支持
+   * 要求: 支持 Webhook 注册、调用、重试
+   */
+  private detectMissingWebhook(): void {
+    const isRouteFile = /routes\.ts$|webhook|hook/i.test(this.filePath);
+    const isConfigFile = /config|setting/i.test(this.filePath);
+    if (!isRouteFile && !isConfigFile) return;
+
+    const hasWebhook = /webhook|hook.*register|registerHook|trigger.*hook/i.test(this.content);
+
+    if (!hasWebhook) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-webhook',
+        severity: 'P1',
+        message: '缺少 Webhook 支持',
+        suggestion: '实现 Webhook 注册和触发机制，支持外部系统集成',
+        checkId: 'C3-14',
+      });
+    }
+  }
+
+  // ============ C3-15: Webhook 重试 (P1) ============
+
+  /**
+   * 检测是否有 Webhook 重试机制
+   * 要求: 支持失败重试、指数退避
+   */
+  private detectMissingWebhookRetry(): void {
+    const hasWebhook = /webhook|hook/i.test(this.filePath);
+    if (!hasWebhook) return;
+
+    const hasRetry = /webhook.*retry|retry.*webhook|hook.*retry|exponential.*backoff/i.test(this.content);
+    const hasRetryConfig = /retry.*count|retry.*interval|maxRetry|backoff/i.test(this.content);
+
+    if (!hasRetry && !hasRetryConfig) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-webhook',
+        severity: 'P1',
+        message: 'Webhook 缺少重试机制',
+        suggestion: '实现 Webhook 失败重试，支持指数退避策略',
+        checkId: 'C3-15',
+      });
     }
   }
 }

@@ -49,9 +49,15 @@ export type OptimizeIssueType =
   | 'missing-react-memo'
   | 'missing-usememo'
   | 'missing-usecallback'
+  // B2-10: Code splitting
+  | 'missing-code-splitting'
+  // B2-11: Tree shaking
+  | 'missing-tree-shaking'
   // B2-14: 请求合并
   | 'missing-request-batch'
-  | 'missing-request-deduplication';
+  | 'missing-request-deduplication'
+  // B2-15: 请求取消
+  | 'missing-request-cancel';
 
 export interface OptimizeScanResult {
   file: string;
@@ -66,6 +72,10 @@ export interface OptimizeScanResult {
     hasLazyComponent: boolean;
     hasImageLazyLoad: boolean;
     hasOptimizedImport: boolean;
+    // B2-10: Code splitting
+    hasCodeSplitting: boolean;
+    // B2-11: Tree shaking
+    hasTreeShaking: boolean;
     // B2-13: 减少不必要重绘
     hasReactMemo: boolean;
     hasUseMemo: boolean;
@@ -73,6 +83,8 @@ export interface OptimizeScanResult {
     // B2-14: 请求合并
     hasRequestBatch: boolean;
     hasRequestDedupe: boolean;
+    // B2-15: 请求取消
+    hasRequestCancel: boolean;
   };
 }
 
@@ -120,6 +132,12 @@ export class B2OptimizeAnalyzer {
       // 第三方依赖按需引入
       this.detectOptimizedImports();
 
+      // B2-10: Code splitting
+      this.detectCodeSplitting();
+
+      // B2-11: Tree shaking
+      this.detectTreeShaking();
+
       // B2-13: 减少不必要重绘
       this.detectReactMemo();
       this.detectUseMemo();
@@ -128,6 +146,9 @@ export class B2OptimizeAnalyzer {
       // B2-14: 请求合并
       this.detectRequestBatch();
       this.detectRequestDeduplication();
+
+      // B2-15: 请求取消
+      this.detectRequestCancel();
     }
 
     const stats = this.collectStats();
@@ -153,6 +174,12 @@ export class B2OptimizeAnalyzer {
     const hasImageLazyLoad = /loading\s*=\s*["']lazy["']|lazyLoad|lazy.*load/i.test(this.content);
     const hasOptimizedImport = !this.detectFullImports();
 
+    // B2-10: Code splitting
+    const hasCodeSplitting = /React\.lazy|lazy\(|loadable\(|dynamic\(|import\s*\(/i.test(this.content);
+
+    // B2-11: Tree shaking - 检测是否使用支持 tree shaking 的模块格式
+    const hasTreeShaking = /lodash-es|esm|module.*:"[^"]+"|sideEffects.*false/i.test(this.content);
+
     // B2-13: 减少不必要重绘
     const hasReactMemo = /React\.memo|memo\(|memo\s*=/i.test(this.content);
     const hasUseMemo = /useMemo\s*\(/i.test(this.content);
@@ -161,6 +188,9 @@ export class B2OptimizeAnalyzer {
     // B2-14: 请求合并
     const hasRequestBatch = /batch|parallel.*request|Promise\.all|requestQueue/i.test(this.content);
     const hasRequestDedupe = /dedupe|debounce|throttle|request.*cache/i.test(this.content);
+
+    // B2-15: 请求取消 - 检测组件卸载时是否取消请求
+    const hasRequestCancel = /AbortController|cancel.*request|useEffect.*return|cleanup|cancelToken|abort/i.test(this.content);
 
     return {
       hasCache,
@@ -172,11 +202,14 @@ export class B2OptimizeAnalyzer {
       hasLazyComponent,
       hasImageLazyLoad,
       hasOptimizedImport,
+      hasCodeSplitting,
+      hasTreeShaking,
       hasReactMemo,
       hasUseMemo,
       hasUseCallback,
       hasRequestBatch,
       hasRequestDedupe,
+      hasRequestCancel,
     };
   }
 
@@ -503,6 +536,69 @@ export class B2OptimizeAnalyzer {
     });
   }
 
+  // ============ B2-10: Code splitting (P1) ============
+
+  /**
+   * 检测是否实现了 Code splitting
+   * 动态 import、React.lazy、loadable 等
+   */
+  private detectCodeSplitting(): void {
+    // 检测是否有明显的代码分割
+    const hasLazyImport = /React\.lazy|lazy\s*\(\s*\(\s*\)\s*=>\s*import\(/i.test(this.content);
+    const hasLoadable = /loadable\(|loadable\(/i.test(this.content);
+    const hasDynamicImport = /import\s*\(\s*\)/i.test(this.content);
+
+    // 检测是否是入口文件或路由文件
+    const isEntryOrRoute = /routes?|router|index\.|app\.|main\./i.test(this.filePath);
+
+    if (isEntryOrRoute && !hasLazyImport && !hasLoadable && !hasDynamicImport) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-code-splitting',
+        severity: 'P1',
+        message: '入口/路由文件未使用 Code splitting',
+        suggestion: '使用 React.lazy() 或 loadable 实现路由/组件级代码分割',
+        checkId: 'B2-10',
+      });
+    }
+  }
+
+  // ============ B2-11: Tree shaking (P1) ============
+
+  /**
+   * 检测是否配置了 Tree shaking
+   * 检测 package.json 或构建配置中是否启用 tree shaking
+   */
+  private detectTreeShaking(): void {
+    // 检测是否是 package.json 或构建配置文件
+    const isPackageJson = this.filePath.endsWith('package.json');
+    const isBuildConfig = /webpack|vite|rollup|esbuild/i.test(this.filePath);
+
+    if (!isPackageJson && !isBuildConfig) return;
+
+    if (isPackageJson) {
+      // 检测是否有 sideEffects 配置
+      const hasSideEffects = /"sideEffects"\s*:/i.test(this.content);
+      // 检测是否使用 lodash-es
+      const hasLodashEs = /lodash-es/i.test(this.content);
+
+      if (!hasSideEffects && !hasLodashEs) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-tree-shaking',
+          severity: 'P1',
+          message: '未配置 Tree shaking',
+          suggestion: '在 package.json 中配置 sideEffects: false，或使用 lodash-es 替代 lodash',
+          checkId: 'B2-11',
+        });
+      }
+    }
+  }
+
   // ============ B2-13: 减少不必要重绘 (P1) ============
 
   /**
@@ -642,6 +738,40 @@ export class B2OptimizeAnalyzer {
       }
     }
   }
+
+  // ============ B2-15: 请求取消 (P1) ============
+
+  /**
+   * 检测组件卸载时是否取消未完成的请求
+   * 避免内存泄漏和警告
+   */
+  private detectRequestCancel(): void {
+    // 检测是否有 API 请求
+    const hasAPICalls = /useRequest|fetch\(|axios\.|request\(|\.get\(|\.post\(/i.test(this.content);
+    if (!hasAPICalls) return;
+
+    // 检测是否有 useEffect（组件生命周期）
+    const hasEffect = /useEffect\s*\(/i.test(this.content);
+    if (!hasEffect) return;
+
+    // 检测是否有请求取消机制
+    const hasAbortController = /AbortController|abort\s*\(|cancelToken/i.test(this.content);
+    const hasCleanup = /return\s*\(\s*\)\s*=>|cleanup|unsubscribe/i.test(this.content);
+    const hasAbanon = /ignore|ignoreRef|abandoned/i.test(this.content);
+
+    if (!hasAbortController && !hasCleanup && !hasAbanon) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-request-cancel',
+        severity: 'P1',
+        message: '组件未取消未完成的请求',
+        suggestion: '在 useEffect cleanup 函数中使用 AbortController 或 cancelToken 取消请求',
+        checkId: 'B2-15',
+      });
+    }
+  }
 }
 
 // ============ 批量扫描器 ============
@@ -761,9 +891,12 @@ export class B2OptimizeScanner {
       'B2-07': '路由懒加载',
       'B2-08': '组件懒加载',
       'B2-09': '图片懒加载',
+      'B2-10': 'Code splitting',
+      'B2-11': 'Tree shaking',
       'B2-12': '第三方依赖按需引入',
       'B2-13': '减少不必要重绘',
       'B2-14': '请求合并',
+      'B2-15': '请求取消',
     };
 
     for (const [checkId, checkIssues] of Object.entries(byCheckId)) {
@@ -784,7 +917,7 @@ export class B2OptimizeScanner {
    */
   generateCoverageReport(issues: OptimizeIssue[]): string {
     // 支持自动检测的 B2 优化项（当前已实现的检测器）
-    const allChecks = ['B2-04', 'B2-05', 'B2-06', 'B2-07', 'B2-08', 'B2-09', 'B2-12', 'B2-13', 'B2-14'];
+    const allChecks = ['B2-04', 'B2-05', 'B2-06', 'B2-07', 'B2-08', 'B2-09', 'B2-10', 'B2-11', 'B2-12', 'B2-13', 'B2-14', 'B2-15'];
     const implementedChecks = allChecks.filter(check => {
       return issues.some(i => i.checkId === check);
     });
@@ -794,7 +927,7 @@ export class B2OptimizeScanner {
     let report = '# B2 优化规范覆盖率\n\n';
     report += `## 覆盖率统计\n\n`;
     report += `- 已实现检测: ${implementedChecks.length}/${allChecks.length} (${coverage}%)\n`;
-    report += `- 可自动检测: 9 项 (共 15 项 B2 规范)\n\n`;
+    report += `- 可自动检测: 12 项 (共 15 项 B2 规范)\n\n`;
     report += `## 检测项清单\n\n`;
     report += `| 检查项 | 状态 | 说明 |\n`;
     report += `|--------|------|------|\n`;
@@ -806,9 +939,12 @@ export class B2OptimizeScanner {
       'B2-07': '路由懒加载',
       'B2-08': '组件懒加载',
       'B2-09': '图片懒加载',
+      'B2-10': 'Code splitting',
+      'B2-11': 'Tree shaking',
       'B2-12': '第三方依赖按需引入',
       'B2-13': '减少不必要重绘',
       'B2-14': '请求合并',
+      'B2-15': '请求取消',
     };
 
     for (const check of allChecks) {
