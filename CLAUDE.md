@@ -406,4 +406,47 @@ import { colors } from '@/tokens/colors';
 |----------|------------|
 | ≥1200px | `level={2}` (20px) |
 | 768-1199px | `level={3}` (18px) |
-| <768px | `level={3}` (16px)
+| <768px | `level={3}` (16px) |
+
+## 四技能自动触发规则
+
+当检测到以下场景时，**必须自动调用对应技能**，不得跳过或延迟执行：
+
+### 自动触发规则表
+
+| 触发场景 | 触发动作 | 技能 | 执行内容 |
+|---------|---------|------|---------|
+| 编写/修改 `.tsx` 或 `.ts` 前端代码 | 编码完成后自动执行交互链审查 | design-constraint | `cli-check.ts --verify <文件路径>` |
+| 创建/修改 `docs/**/*.md` 设计文档 | 文档保存后自动评审 | design-doc-reviewer | 7 维度评审 + 代码验证 |
+| 代码提交前（commit 前） | 自动执行回归检测 | design-constraint | `cli-check.ts --regression` |
+| 用户说"完成了"/"做完了"/"开发完成" | 自动触发三轮评审 | task-decomposer | 拆分验证 → AST 验证 → 门控报告 |
+| 用户说"评审 xxx.md" | 自动评审文档 | design-doc-reviewer | 7 维度 + 代码验证 |
+| 用户说"分析代码"/"对比实现" | 自动代码分析 | code-design-analyzer | 架构评审 + 文档对比 |
+| 用户说"拆分任务"/"生成计划" | 自动拆分任务 | task-decomposer | 子任务表 + 验收标准 + 验证用例 |
+| 修改涉及微前端相关代码 | 自动验证 Orion-MF 规范 | design-constraint | CLI --scan microfront/ SubAppRoute/ |
+
+### 技能协同自动执行
+
+当单个技能执行完毕后，**自动触发下游技能**：
+
+```
+评审文档 (design-doc-reviewer)
+  ↓ 发现缺失项
+  自动 → task-decomposer 拆分修复任务
+    ↓ 任务拆分完成
+    自动 → design-constraint 验证代码
+
+分析代码 (code-design-analyzer)
+  ↓ 发现架构违规
+  自动 → task-decomposer 拆分修复任务
+
+开发完成 (task-decomposer)
+  ↓ 子任务标记完成
+  自动 → design-constraint 回归检测
+```
+
+### 违反规则的后果
+
+- 编码后不执行 design-constraint 验证 → 代码评审不通过
+- 文档修改不执行 design-doc-reviewer 评审 → 文档质量不达标
+- 开发完成不执行三轮评审 → 任务不能标记完成
