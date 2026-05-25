@@ -91,6 +91,7 @@ import apiMarketRoutes from './api-market-routes';
 import ticketingRoutes from './ticketing-routes';
 import cmdbRoutes from './cmdb-routes';
 import monitoringRoutes from './monitoring-routes';
+import dbaRoutes from './dba-routes';
 
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
@@ -425,6 +426,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, ticketingRoutes, '/ticketing', { database: options.database });
   // 注册 CMDB API 路由
   await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
+  // 注册 DBA API 路由 (Phase 4 - Database DevOps)
+  await registerWithRoleGuard(app, dbaRoutes, '/dba');
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
   await registerWithRoleGuard(app, selfHealingRoutes, '/self-healing', { database: options.database });
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed

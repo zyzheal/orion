@@ -52,7 +52,6 @@ import {
   deleteDataSource,
   testConnection,
   listAuditRules,
-  createAuditRule,
   updateAuditRule,
   type SqlOrder,
   type DataSource,
@@ -139,7 +138,7 @@ const DbaPage: React.FC = () => {
     setOrderLoading(true);
     try {
       const res = await listOrders({ tenantId: 'default', page: 1, limit: 100 });
-      const list = res.data?.data?.orders;
+      const list = (res.data as any)?.data?.data;
       setOrders(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setOrders([]);
@@ -153,7 +152,7 @@ const DbaPage: React.FC = () => {
     setDsLoading(true);
     try {
       const res = await listDataSources('default');
-      const list = res.data?.data?.datasources;
+      const list = (res.data as any)?.data;
       setDataSources(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setDataSources([]);
@@ -167,7 +166,7 @@ const DbaPage: React.FC = () => {
     setRuleLoading(true);
     try {
       const res = await listAuditRules('default');
-      const list = res.data?.data?.rules;
+      const list = (res.data as any)?.data;
       setAuditRules(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setAuditRules([]);

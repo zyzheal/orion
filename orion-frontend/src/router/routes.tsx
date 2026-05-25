@@ -1350,6 +1350,14 @@ export const routes: AppRoute[] = [
     protected: true,
   },
 
+  // DBA - Database Administration (Phase 4 - Database DevOps)
+  {
+    path: '/dba',
+    element: React.lazy(() => import('@/pages/dba')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
