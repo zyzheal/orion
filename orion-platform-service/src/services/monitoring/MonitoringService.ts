@@ -22,6 +22,7 @@ import {
   CreateEscalationPolicyInput,
 } from './MonitoringRepository';
 import { MetricCollector } from './MetricCollector';
+import { PostgresMetricStorageRepository } from './MetricStorageRepository';
 import { AlertRuleEngine } from './AlertRuleEngine';
 import { AlertNotificationService } from './AlertNotificationService';
 import { MonitoringDashboard } from './MonitoringDashboard';
@@ -64,11 +65,16 @@ export class MonitoringService {
   private collectionTimer?: NodeJS.Timeout;
   private evaluationTimer?: NodeJS.Timeout;
 
-  constructor(repository?: MonitoringRepository) {
+  constructor(repository?: MonitoringRepository, dbPool?: any) {
     this.repository = repository;
 
+    // Create metric storage repository if database is available
+    const metricRepo = dbPool ? new PostgresMetricStorageRepository(dbPool) : undefined;
+
     // Initialize sub-services
-    this.metricCollector = new MetricCollector();
+    this.metricCollector = new MetricCollector({
+      repository: metricRepo,
+    });
     this.alertRuleEngine = new AlertRuleEngine(this.metricCollector);
     this.notificationService = new AlertNotificationService();
     this.dashboard = new MonitoringDashboard(this.metricCollector);
