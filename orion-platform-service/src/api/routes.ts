@@ -135,6 +135,7 @@ import testGenerationRoutes from './test-generation-routes';
 import testSelectorRoutes from './test-selector-routes';
 import deployRoutes from './deploy-routes';
 import changeIntelligenceRoutes from './change-intelligence-routes';
+import apmRoutes from './apm-routes';
 
 // Services needed for route registration
 import { DependencyCoordinationService } from '../services/pipeline/DependencyCoordinationService';
@@ -753,6 +754,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Chaos Engineering - experiment management, fault injection, resilience scoring
   await registerWithRoleGuard(app, chaosEnhancedRoutes, '/chaos', {
+    database: options.database,
+  });
+
+  // APM - Distributed tracing, database profiling, performance monitoring
+  await registerWithRoleGuard(app, apmRoutes, '/apm', {
     database: options.database,
   });
 
