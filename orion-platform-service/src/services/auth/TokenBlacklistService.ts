@@ -10,6 +10,14 @@ import {
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
+// Redis client type definition (ioredis)
+interface RedisClient {
+  get(key: string): Promise<string | null>;
+  setex(key: string, ttl: number, value: string): Promise<string>;
+  del(key: string): Promise<number>;
+  quit?(): Promise<void>;
+}
+
 export interface TokenBlacklistConfig {
   redisUrl?: string;
   ttlSeconds: number;
@@ -42,26 +50,68 @@ const DEFAULT_CONFIG: TokenBlacklistConfig = {
  * TokenBlacklistService - Manages revoked JWT tokens
  *
  * Primary storage: PostgreSQL (token_blacklist table via BlacklistedTokenRepository)
- * Cache layer: In-memory Map for fast lookups (read-through cache)
- * - On service restart, cache is warmed from database
- * - Expired tokens are cleaned up periodically
+ * Cache layer: Redis for distributed single-point logout support
+ * - Redis stores token hashes with TTL (auto-expire)
+ * - PostgreSQL provides persistence across service restarts
+ * - In-memory cache provides fast local lookups
  */
 export class TokenBlacklistService extends EventEmitter {
   private config: TokenBlacklistConfig;
   private repository: BlacklistedTokenRepository | null;
-  private redisClient: any; // Would be actual Redis client in production
+  private redisClient: RedisClient | null = null;
 
-  // Read-through cache: hash -> entity
+  // Read-through cache: hash -> entity (local cache for fast lookups)
   private cache: Map<string, BlacklistedTokenEntity> = new Map();
   // Cache initialization flag
   private cacheInitialized = false;
   // Periodic cleanup timer
   private cleanupTimer: NodeJS.Timeout | null = null;
+  // Redis connection state
+  private redisConnected = false;
 
   constructor(dbPool: DatabasePool | null, config: Partial<TokenBlacklistConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.repository = dbPool ? new BlacklistedTokenRepository(dbPool) : null;
+    this.connectRedis();
+  }
+
+  /**
+   * Connect to Redis (optional, for distributed token revocation)
+   */
+  private connectRedis(): void {
+    const redisUrl = process.env.REDIS_URL || this.config.redisUrl;
+    if (!redisUrl) {
+      logger.info('[TokenBlacklist] Redis not configured, using DB + memory cache only');
+      this.redisConnected = false;
+      return;
+    }
+
+    try {
+      // Try to import ioredis dynamically
+      // This allows the service to work without Redis in development
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Redis = require('ioredis');
+      this.redisClient = new Redis(redisUrl);
+
+      this.redisClient.on('connect', () => {
+        logger.info('[TokenBlacklist] Connected to Redis');
+        this.redisConnected = true;
+      });
+
+      this.redisClient.on('error', (err: Error) => {
+        logger.warn(`[TokenBlacklist] Redis connection error: ${err.message}`);
+        this.redisConnected = false;
+      });
+
+      this.redisClient.on('disconnect', () => {
+        logger.info('[TokenBlacklist] Redis disconnected');
+        this.redisConnected = false;
+      });
+    } catch (error: any) {
+      logger.warn(`[TokenBlacklist] Failed to connect to Redis: ${error.message}`);
+      this.redisConnected = false;
+    }
   }
 
   async connect(): Promise<void> {
@@ -124,6 +174,7 @@ export class TokenBlacklistService extends EventEmitter {
 
   /**
    * Revoke a token and add to blacklist
+   * Writes to both Redis (for fast distributed checks) and PostgreSQL (for persistence)
    */
   async revokeToken(
     token: string,
@@ -146,7 +197,21 @@ export class TokenBlacklistService extends EventEmitter {
       revokedBy,
     };
 
-    // Persist to database first (source of truth)
+    // 1. Write to Redis first (fast, distributed, TTL-based auto-expiry)
+    if (this.redisConnected && this.redisClient) {
+      try {
+        const ttl = Math.max(0, Math.floor(expiresAt.getTime() / 1000) - Math.floor(Date.now() / 1000));
+        if (ttl > 0) {
+          await this.redisClient.setex(`${this.config.keyPrefix}${tokenHash}`, ttl, '1');
+          logger.debug(`[TokenBlacklist] Token blacklisted in Redis: ${tokenHash.slice(0, 16)}... TTL=${ttl}s`);
+        }
+      } catch (error: any) {
+        logger.error('[TokenBlacklist] Failed to blacklist token in Redis:', error);
+        // Continue - PostgreSQL will still persist
+      }
+    }
+
+    // 2. Persist to database (source of truth, survives service restart)
     try {
       if (this.repository) {
         await this.repository.create({
@@ -157,14 +222,13 @@ export class TokenBlacklistService extends EventEmitter {
           revokedBy,
           expiresAt,
         });
-        logger.debug(`[TokenBlacklist] Token persisted: ${tokenHash.slice(0, 16)}...`);
+        logger.debug(`[TokenBlacklist] Token persisted to DB: ${tokenHash.slice(0, 16)}...`);
       }
     } catch (error) {
-      logger.error('[TokenBlacklist] Failed to persist token:', error);
-      // Continue - in-memory cache is still valid
+      logger.error('[TokenBlacklist] Failed to persist token to DB:', error);
     }
 
-    // Update in-memory cache (write-through)
+    // 3. Update in-memory cache (write-through for fast local lookups)
     this.cache.set(tokenHash, {
       id: 0, // Assigned by DB
       tokenHash,
@@ -184,15 +248,29 @@ export class TokenBlacklistService extends EventEmitter {
   }
 
   /**
-   * Check if a token is revoked (read-through cache pattern)
+   * Check if a token is revoked (three-tier lookup: Redis -> DB -> memory cache)
+   * Priority: Redis (fastest, distributed) -> PostgreSQL (persistent) -> in-memory cache
    */
   async isRevoked(token: string): Promise<boolean> {
     const tokenHash = this.hashToken(token);
 
-    // Check in-memory cache first
+    // 1. Check Redis first (fastest for distributed systems)
+    if (this.redisConnected && this.redisClient) {
+      try {
+        const redisHit = await this.redisClient.get(`${this.config.keyPrefix}${tokenHash}`);
+        if (redisHit) {
+          return true;
+        }
+        // Cache miss in Redis - check other layers
+      } catch (error: any) {
+        logger.error('[TokenBlacklist] Failed to check Redis:', error);
+        // Fall through to other layers
+      }
+    }
+
+    // 2. Check in-memory cache
     const cached = this.cache.get(tokenHash);
     if (cached) {
-      // Check if expired (cleanup automatically)
       if (cached.expiresAt < new Date()) {
         this.cache.delete(tokenHash);
         return false;
@@ -200,12 +278,12 @@ export class TokenBlacklistService extends EventEmitter {
       return true;
     }
 
-    // Cache miss - check database (read-through)
+    // 3. Cache miss - check database (read-through)
     if (this.repository) {
       try {
         const entity = await this.repository.findByHash(tokenHash);
         if (entity) {
-          // Populate cache for future lookups
+          // Update cache for future lookups
           this.cache.set(tokenHash, entity);
           return true;
         }
@@ -213,6 +291,10 @@ export class TokenBlacklistService extends EventEmitter {
         logger.error('[TokenBlacklist] Failed to check database:', error);
       }
     }
+
+    // 4. Not found anywhere - token is valid
+    return false;
+  }
 
     return false;
   }
@@ -424,7 +506,7 @@ export class TokenBlacklistService extends EventEmitter {
   /**
    * Disconnect and cleanup
    */
-  disconnect(): void {
+  async disconnect(): Promise<void> {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
@@ -432,6 +514,18 @@ export class TokenBlacklistService extends EventEmitter {
 
     this.cache.clear();
     this.removeAllListeners();
+
+    // Close Redis connection if connected
+    if (this.redisConnected && this.redisClient) {
+      try {
+        await this.redisClient.quit();
+        logger.info('[TokenBlacklist] Redis connection closed');
+      } catch (error: any) {
+        logger.error('[TokenBlacklist] Failed to close Redis connection:', error);
+      }
+    }
+
+    this.redisConnected = false;
     logger.info('[TokenBlacklist] Service disconnected');
   }
 }
