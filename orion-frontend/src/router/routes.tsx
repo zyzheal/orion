@@ -1358,6 +1358,14 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'dba', action: 'read' },
   },
 
+  // Billing - Quota & Billing (Phase 4)
+  {
+    path: '/billing',
+    element: React.lazy(() => import('@/pages/billing/BillingPage')),
+    protected: true,
+    requiredPermission: { resource: 'billing', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
