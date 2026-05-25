@@ -39,6 +39,7 @@ import userRoutes from './user-routes';
 import userProfileRoutes from './user-profile-routes';
 import userActivityRoutes from './user-activity-routes';
 import userTokenRoutes from './user-token-routes';
+import userStatusRoutes from './user-status-routes';
 import environmentRoutes from './environment-routes';
 import projectRoutes from './project-routes';
 import apiKeyRoutes from './api-key-routes';
@@ -564,6 +565,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 User Token API 路由 - API Token 管理（所有权验证）
   await registerWithRoleGuard(app, userTokenRoutes, '/users', { database: options.database });
+
+  // 注册 User Status Management API 路由 - 用户在职/离职状态管理
+  await registerWithRoleGuard(app, userStatusRoutes, '/api/v1', {
+    database: options.database,
+    tokenBlacklist: tokenBlacklistService,
+  });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
   // 注册 API Key Management API 路由 - PostgreSQL backed
