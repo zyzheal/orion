@@ -1402,6 +1402,14 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'apm', action: 'read' },
   },
 
+  // IaC - Infrastructure as Code / Multi-Cloud (Phase 4 - Multi-Cloud)
+  {
+    path: '/iac',
+    element: React.lazy(() => import('@/pages/iac/IacPage')),
+    protected: true,
+    requiredPermission: { resource: 'iac', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
