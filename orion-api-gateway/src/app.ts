@@ -12,8 +12,10 @@ import fastifyRateLimit from '@fastify/rate-limit';
 
 import { getConfig } from './config';
 import { AuthMiddleware } from './middleware/auth';
+import { createSubAppAuthHook } from './middleware/subAppAuthAdapter';
 import { LoggingMiddleware } from './middleware/logging';
 import { TenantMiddleware } from './middleware/tenant';
+import { createCSPMiddleware } from './middleware/csp';
 import { errorMiddleware } from './middleware/error';
 import { registerRoutes } from './routes';
 import { serviceRegistry } from './services/service-registry';
@@ -80,9 +82,18 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   // 2. Helmet 安全头部
   await app.register(fastifyHelmet, {
-    contentSecurityPolicy: false, // 根据需求配置
+    contentSecurityPolicy: false, // 使用自定义 CSP 中间件
     crossOriginEmbedderPolicy: false,
   });
+
+  // 2.1 自定义 CSP 中间件（用于微前端子应用加载）
+  const cspMiddleware = createCSPMiddleware({
+    enabled: true,
+    reportOnly: process.env.NODE_ENV === 'development',
+    reportUri: '/api/v1/csp-report',
+    allowEval: true, // 微前端场景需要
+  });
+  app.addHook('onRequest', cspMiddleware);
 
   // 3. JWT 认证
   await app.register(fastifyJwt, {
@@ -138,6 +149,11 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // 认证中间件
   const authMiddleware = new AuthMiddleware(app);
   app.addHook('onRequest', authMiddleware.handler.bind(authMiddleware));
+
+  // 子应用认证适配：JWT 验证通过后注入用户信息到 header
+  // 子应用后端无需再解析 JWT，直接读取 X-User-* header 即可
+  const subAppAuthHook = createSubAppAuthHook(app);
+  app.addHook('onRequest', subAppAuthHook);
 
   // 租户解析中间件（在认证之后）
   const tenantMiddleware = new TenantMiddleware(app);
