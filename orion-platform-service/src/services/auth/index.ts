@@ -10,8 +10,12 @@ export { JwtKeyRotationService } from './JwtKeyRotationService';
 export { TokenBlacklistService } from './TokenBlacklistService';
 export { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 export { SsoService } from './SsoService';
+export { LdapService, ldapService } from './LdapService';
+export { WechatWorkService, wechatWorkService } from './WechatWorkService';
 
 export type { JwtKeyRotationConfig, JwtKey } from './JwtKeyRotationService';
 export type { TokenBlacklistConfig, RevokedTokenInfo, TokenBlacklistStats } from './TokenBlacklistService';
 export type { K8sSecretConfig } from './K8sSecretKeyStorage';
 export type { SsoConfig, SsoUserProfile } from './SsoService';
+export type { LdapConfig, LdapUserProfile } from './LdapService';
+export type { WechatWorkConfig, WechatWorkUserProfile, LocalUserMapping } from './WechatWorkService';

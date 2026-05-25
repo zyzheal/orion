@@ -296,9 +296,6 @@ export class TokenBlacklistService extends EventEmitter {
     return false;
   }
 
-    return false;
-  }
-
   /**
    * Get revoked token info
    */

@@ -86,9 +86,16 @@ import capabilityRoutes from './capability-routes';
 import { registerAIAgentRoutes } from './ai-agent-routes';
 import apiMarketRoutes from './api-market-routes';
 
+// Previously orphan routes now being registered — Phase 3.5: register ticketing, CMDB, monitoring
+import ticketingRoutes from './ticketing-routes';
+import cmdbRoutes from './cmdb-routes';
+import monitoringRoutes from './monitoring-routes';
+
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
 import authRoutes from './routes-auth';
+import ssoProvidersRoutes from './sso-providers-routes';
+import ssoUnifiedRoutes from './sso-unified-routes';
 import autonomousPipelineRoutes from './autonomous-pipeline-routes';
 import canaryAnalysisRoutes from './canary-analysis-routes';
 import canaryTrafficRoutes from './canary-traffic-routes';
@@ -383,7 +390,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   moduleManager.loadFromConfig();
   (options as any).moduleManager = moduleManager;
 
-  // CMDB 路由已迁移到独立 Go 服务 (orion-cmdb-service)
+  // CMDB 路由已在下方统一注册（Phase 3.5）
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)
@@ -409,8 +416,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 AI 测试生成 API 路由 (AI Test Generation)
   // Deploy routes migrated to orion-deploy-svc (port 3003)
 
-  // 注册监控告警 API 路由 (TASK-703) - migrated to orion-monitor-svc (port 3005)
-  // 注册智能工单 API 路由 (TASK-801) - migrated to orion-ticket-svc (port 3004)
+  // 注册监控告警 API 路由 (TASK-703)
+  await registerWithRoleGuard(app, monitoringRoutes, '/monitoring', { database: options.database });
+  // 注册智能工单 API 路由 (TASK-801)
+  await registerWithRoleGuard(app, ticketingRoutes, '/ticketing', { database: options.database });
+  // 注册 CMDB API 路由
+  await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
   await registerWithRoleGuard(app, selfHealingRoutes, '/self-healing', { database: options.database });
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
@@ -707,6 +718,18 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     database: options.database,
   });
 
+  // SSO Providers Management - CRUD for authentication providers
+  await registerWithRoleGuard(app, ssoProvidersRoutes, '/auth/sso', {
+    database: options.database,
+  });
+
+  // SSO Unified Routes - login, callback, LDAP, WeChat Work, OIDC
+  await app.register(ssoUnifiedRoutes, {
+    prefix: '/api/v1/auth/sso',
+    database: options.database,
+    redis: options.redis,
+  });
+
   // Autonomous Pipeline - Error classification, adaptive timeout, auto-retry
   await registerWithRoleGuard(app, autonomousPipelineRoutes, '/autonomous', {
     database: options.database,
@@ -810,7 +833,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
       });
 
       // DELETE /api/v1/pipelines/:id - Delete Pipeline
-      instance.delete('/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      instance.delete('/pipelines/:id', {
+        onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'delete' })]
+      }, async (request: FastifyRequest, reply: FastifyReply) => {
         return pipelineController.delete(request, reply);
       });
     });

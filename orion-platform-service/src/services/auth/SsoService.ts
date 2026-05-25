@@ -237,3 +237,6 @@ export class SsoService {
     return safeConfig;
   }
 }
+
+// Export singleton instance for convenience
+export const ssoService = new SsoService();
