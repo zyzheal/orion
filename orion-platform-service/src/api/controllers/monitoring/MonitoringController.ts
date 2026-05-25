@@ -179,7 +179,7 @@ export class MonitoringController {
     const params = request.params as any;
     const query = request.query as any;
 
-    const series = this.monitoringService.metricCollector.getMetricSeries({
+    const series = await this.monitoringService.metricCollector.getMetricSeriesAsync({
       name: params.name,
       tags: query.tags ? JSON.parse(query.tags) : undefined,
       startTime: query.startTime ? new Date(query.startTime) : undefined,
@@ -201,7 +201,7 @@ export class MonitoringController {
     const params = request.params as any;
     const query = request.query as any;
 
-    const summary = this.monitoringService.metricCollector.getMetricSummary(
+    const summary = await this.monitoringService.metricCollector.getMetricSummaryAsync(
       params.name,
       query.tags ? JSON.parse(query.tags) : undefined,
       query.windowMs ? parseInt(query.windowMs) : undefined
