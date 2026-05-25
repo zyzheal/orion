@@ -137,6 +137,7 @@ import testSelectorRoutes from './test-selector-routes';
 import deployRoutes from './deploy-routes';
 import changeIntelligenceRoutes from './change-intelligence-routes';
 import apmRoutes from './apm-routes';
+import hrWebhookRoutes from './hrWebhookRoutes';
 
 // Services needed for route registration
 import { DependencyCoordinationService } from '../services/pipeline/DependencyCoordinationService';
@@ -767,6 +768,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // APM - Distributed tracing, database profiling, performance monitoring
   await registerWithRoleGuard(app, apmRoutes, '/apm', {
     database: options.database,
+  });
+
+  // HR Webhook - Employee lifecycle events from HR system (signature-verified, no auth required)
+  await app.register(hrWebhookRoutes, {
+    prefix: '/api/v1/webhooks/hr',
+    database: options.database,
+    tokenBlacklist: tokenBlacklistService,
   });
 
   // Cron Scheduler
