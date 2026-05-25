@@ -11,7 +11,6 @@ import { requirePermission } from '../middleware/requirePermission';
 import { CmdbService } from '../services/cmdb/CmdbService';
 import { TopologyService } from '../services/cmdb/TopologyService';
 import { DatabasePool } from '../services/database';
-import { CmdbEventPublisher } from '../services/cmdb/CmdbEventPublisher';
 import { CmdbIntegrationService } from '../services/cmdb-integration-service';
 import { CmdbIntegrationController } from './controllers/CmdbIntegrationController';
 
