@@ -1382,6 +1382,26 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'metadata', action: 'read' },
   },
 
+  // APM - Application Performance Monitoring (Phase 3.5.3)
+  {
+    path: '/apm/dashboard',
+    element: React.lazy(() => import('@/pages/apm/Dashboard')),
+    protected: true,
+    requiredPermission: { resource: 'apm', action: 'read' },
+  },
+  {
+    path: '/apm/slow-requests',
+    element: React.lazy(() => import('@/pages/apm/SlowRequests')),
+    protected: true,
+    requiredPermission: { resource: 'apm', action: 'read' },
+  },
+  {
+    path: '/apm/error-tracking',
+    element: React.lazy(() => import('@/pages/apm/ErrorTracking')),
+    protected: true,
+    requiredPermission: { resource: 'apm', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
