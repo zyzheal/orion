@@ -1418,6 +1418,14 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'inspection', action: 'read' },
   },
 
+  // Capacity Planning (Phase 4 - Capacity Planning)
+  {
+    path: '/capacity',
+    element: React.lazy(() => import('@/pages/capacity-planning/CapacityPlanningPage')),
+    protected: true,
+    requiredPermission: { resource: 'capacity', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
