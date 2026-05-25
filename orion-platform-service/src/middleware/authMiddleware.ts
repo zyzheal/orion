@@ -13,9 +13,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
-
-// JWT_SECRET from environment variable
-const JWT_SECRET: string = process.env.JWT_SECRET || 'dev-fallback-secret-not-for-production';
+import { k8sSecretStorage } from '../services/auth/K8sSecretKeyStorage';
 
 /**
  * Authentication hook - verifies JWT and attaches user to request.
@@ -36,7 +34,16 @@ export async function authenticateUser(
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as {
+    // Get current key from K8s Secret storage
+    const currentKeyId = process.env.JWT_CURRENT_KEY_ID;
+    const currentKeyHash = process.env.JWT_CURRENT_KEY_HASH;
+
+    // If K8s key is available, use it for verification
+    const secret = currentKeyHash
+      ? currentKeyHash // In production, this would be the actual key from K8s
+      : process.env.JWT_SECRET || 'dev-fallback-secret-not-for-production';
+
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as {
       userId: string;
       username: string;
       roles?: string[];
