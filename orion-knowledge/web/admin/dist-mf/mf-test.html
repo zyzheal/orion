@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head><title>MF Debug - Direct Test</title></head>
+<body>
+<h1>Federation Direct Load Test</h1>
+<div id="result"></div>
+<script type="module">
+const result = document.getElementById('result');
+function log(...args) {
+  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2).slice(0, 500) : String(a)).join(' ');
+  result.innerHTML += '<pre>' + msg + '</pre>';
+  console.log('[MF-TEST]', ...args);
+}
+
+async function test() {
+  try {
+    log('Step 1: Import remoteEntry.js from 5173...');
+    const remote = await import('http://localhost:5173/orion-knowledge-admin-assets/remoteEntry.js');
+    log('remote keys:', Object.keys(remote));
+    log('has get:', typeof remote.get === 'function');
+    log('has init:', typeof remote.init === 'function');
+
+    log('\nStep 2: Call init() first...');
+    remote.init({
+      react: {
+        '18.2.0': {
+          get: () => Promise.resolve(() => ({ default: React })),
+        }
+      }
+    });
+
+    log('\nStep 3: get("./index")...');
+    const factory = remote.get('./index');
+    log('factory type:', typeof factory);
+
+    log('\nStep 4: factory()...');
+    const result1 = await factory();
+    log('result1 type:', typeof result1);
+
+    let chunk;
+    if (typeof result1 === 'function') {
+      log('Step 4b: result is function, calling result()...');
+      chunk = result1();
+      log('chunk type:', typeof chunk);
+    } else {
+      chunk = result1;
+    }
+
+    log('\nStep 5: Final chunk analysis');
+    log('chunk type:', typeof chunk);
+    if (typeof chunk === 'object') {
+      const keys = Object.keys(chunk).filter(k => !k.startsWith('_') && !k.includes('$'));
+      log('chunk keys (filtered, first 20):', keys.slice(0, 20));
+      log('__esModule:', chunk.__esModule);
+      log('mount:', typeof chunk.mount);
+      log('bootstrap:', typeof chunk.bootstrap);
+      log('unmount:', typeof chunk.unmount);
+      log('default type:', typeof chunk.default);
+
+      if (typeof chunk.mount === 'function') {
+        log('\n✅ SUCCESS: mount found!');
+      } else {
+        log('\n❌ mount NOT found on chunk');
+      }
+    } else {
+      log('\n❌ chunk is not an object');
+    }
+  } catch (e) {
+    log('💥 ERROR:', e.message);
+    log('Stack:', e.stack);
+  }
+}
+
+test();
+</script>
+</body>
+</html>

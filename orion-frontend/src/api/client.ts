@@ -51,6 +51,14 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 // 响应拦截器 — 带自动 Token 刷新
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
+    // 处理不一致的 API 响应格式
+    // 部分接口返回 { data: [...], total }，部分返回 { success: true, data: [...] }
+    // 统一规范：response.data 应该是实际数据
+    const rawData = response.data;
+    if (rawData && rawData.data !== undefined && rawData.success === undefined) {
+      // 后端直接返回 { data: [...], total }，无需解包
+      // 保持原样，让调用方处理
+    }
     return response;
   },
   async (error: AxiosError<ApiResponse>) => {

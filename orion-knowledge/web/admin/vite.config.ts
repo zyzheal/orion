@@ -51,21 +51,23 @@ export default defineConfig(({ command, mode }) => {
   const isMicroFrontend = mode === 'micro-frontend';
 
   return {
-    base: isMicroFrontend ? '/orion-knowledge/' : '/',
+    // Use '/' base so chunk imports work when served directly from localhost:5173
+    // In production, the nginx reverse proxy handles the /orion-knowledge/ prefix
+    base: '/',
 
     build: {
       assetsDir: 'orion-knowledge-admin-assets',
       target: 'esnext',
 
-      // Module Federation 模式不需要 lib 模式配置
+      // MF 模式：输出到 dist-mf 目录，避免覆盖 SPA 构建产物
       ...(isMicroFrontend && {
+        outDir: 'dist-mf',
         cssCodeSplit: false,
         sourcemap: true,
       }),
 
+      // 通用配置：代码分割
       rollupOptions: {
-        // Module Federation 模式：外部依赖由插件自动处理
-        // 通用配置：代码分割
         output: {
           manualChunks: {
             'vendor-react': [
@@ -135,7 +137,8 @@ export default defineConfig(({ command, mode }) => {
               exposes: {
                 './index': './src/main.tsx',
               },
-              shared: ['react', 'react-dom', 'react-router-dom', 'react-redux', '@reduxjs/toolkit'],
+              // 默认无 shared：子应用打包自己的依赖，支持独立运行
+              // 如需共享主应用依赖（性能优化），在 SubAppStore 中设置 use_shared: true
             }),
           ]
         : []),

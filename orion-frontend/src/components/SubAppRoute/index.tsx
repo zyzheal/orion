@@ -67,11 +67,12 @@ const SubAppRoute: React.FC = () => {
       getApiBase: () => apiBase,
     });
 
-    // 使用 Orion-MF 启动子应用
+    // 使用 Orion-MF 启动子应用，传入 basename 确保子应用路由前缀正确
     console.log(`[SubAppRoute] Calling startSubApp for ${appKey}`);
     startSubApp(appKey, {
       url: appConfig.url,
       container: appConfig.container,
+      basename: `/${appKey}`,
       props: {
         $orion: {
           token,

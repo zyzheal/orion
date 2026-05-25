@@ -8,6 +8,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getConfig } from '../config';
 import { proxyMiddleware } from '../middleware/proxy';
+import { tokenExchangeMiddleware } from '../middleware/token-exchange';
+import { getSubAppRoutePrefixes } from '../services/gateway-route-sync';
 
 export interface RouteConfig {
   prefix: string;
@@ -460,17 +462,6 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
 
-  // ========== Knowledge Service (PandaWiki Go 后端 8090) ==========
-  // 网关层按路径前缀分发，子应用零改动，保持原 API 路径
-  // 路由由 gatewayRouteSync() 从平台服务动态获取并注册
-  // 保留 /api/v1/wiki 作为 fallback 路由
-  {
-    prefix: '/api/v1/wiki',
-    target: services().knowledge?.url || 'http://localhost:8090',
-    timeout: 30000,
-    stripPrefix: false,
-  },
-
   // ========== Graph Service (3021) ==========
   {
     prefix: '/api/v1/graph',
@@ -762,22 +753,41 @@ export function registerRoutes(app: FastifyInstance): void {
  */
 function registerProxyRoute(app: FastifyInstance, config: RouteConfig): void {
   app.all(`${config.prefix}/*`, async (request: FastifyRequest, reply: FastifyReply) => {
-    const target = config.target;
-    let url = request.raw.url || '';
+    const url = request.raw.url || '';
 
-    // 如果需要去除前缀
+    // /api/v1 fallback 路由：检查是否为 knowledge 路径，若是则转发到 PandaWiki
+    if (config.prefix === '/api/v1') {
+      const subAppPrefixes = getSubAppRoutePrefixes();
+      for (const prefix of subAppPrefixes) {
+        if (url.startsWith(prefix)) {
+          // knowledge 路径：转发到 PandaWiki 并执行 token exchange
+          const knowledgeConfig = getConfig().services.knowledge;
+          const target = knowledgeConfig?.url || 'http://localhost:8090';
+          await tokenExchangeMiddleware(request, reply);
+          proxyMiddleware.forward(request, reply, target, {
+            timeout: config.timeout,
+            changeOrigin: true,
+          });
+          reply.hijack();
+          return;
+        }
+      }
+    }
+
+    // 注意：当前所有路由 stripPrefix=false，此分支未激活
     if (config.stripPrefix && config.prefix !== '/') {
       const strippedPath = url.replace(config.prefix, '') || '/';
-      url = strippedPath;
-      // 修改原始请求 URL，确保 http-proxy 使用重写后的路径
       request.raw.url = strippedPath;
     }
 
     // 代理请求
-    proxyMiddleware.forward(request, reply, target, {
+    proxyMiddleware.forward(request, reply, config.target, {
       timeout: config.timeout,
       changeOrigin: true,
     });
+
+    // 标记连接已接管，Fastify 不再发送响应
+    reply.hijack();
   });
 }
 

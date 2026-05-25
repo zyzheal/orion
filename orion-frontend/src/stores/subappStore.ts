@@ -23,6 +23,12 @@ export interface SubAppConfig {
   description: string | null;
   icon: string | null;
   api_domain: string | null;
+  /** CSS isolation strategy: 'shadow-dom' for full isolation, 'scoped-css' for Ant Design compatibility */
+  css_isolation: 'shadow-dom' | 'scoped-css' | 'none';
+  /** Whether to share dependencies with the host app (default: false).
+   * When true, the sub-app excludes shared deps (e.g., react) and loads from host at runtime.
+   * Requires the sub-app to use the same framework version as the host. */
+  use_shared: boolean;
   status: 'enabled' | 'disabled';
   sort_order: number;
   created_by: string | null;

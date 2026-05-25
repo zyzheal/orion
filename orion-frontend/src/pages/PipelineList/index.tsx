@@ -179,7 +179,7 @@ const PipelineList: React.FC = () => {
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/edit/${record.id}`)}>
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
             编辑
           </Button>
           <Button

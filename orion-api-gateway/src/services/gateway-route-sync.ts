@@ -16,6 +16,7 @@ import { FastifyInstance } from 'fastify';
 import { RouteConfig } from '../routes/api';
 import { getConfig } from '../config';
 import { proxyMiddleware } from '../middleware/proxy';
+import { tokenExchangeMiddleware, registerTokenExchange } from '../middleware/token-exchange';
 
 // ==================== 类型定义 ====================
 
@@ -183,16 +184,26 @@ function registerProxyRoute(app: FastifyInstance, config: RouteConfig): boolean 
     const target = config.target;
     let url = request.raw.url || '';
 
+    // 注意：当前所有路由 stripPrefix=false，此分支未激活
+    // 如需启用，应仔细验证直接修改 request.raw.url 不会破坏下游代码
     if (config.stripPrefix && config.prefix !== '/') {
       const strippedPath = url.replace(config.prefix, '') || '/';
       url = strippedPath;
       request.raw.url = strippedPath;
     }
 
+    // Token Exchange: 对于配置了 token 的服务，替换 Authorization header
+    // 注意：tokenExchangeMiddleware 会覆盖 request.headers.authorization，
+    // 这是预期行为——我们需要 PandaWiki token 而非 Orion JWT
+    await tokenExchangeMiddleware(request, reply);
+
     proxyMiddleware.forward(request, reply, target, {
       timeout: config.timeout,
       changeOrigin: true,
     });
+
+    // 标记连接已接管，Fastify 不再发送响应
+    reply.hijack();
   });
 
   // 同时添加到导出集合，供中间件白名单使用
@@ -255,8 +266,60 @@ function registerSubAppRoutes(
 export async function gatewayRouteSync(app?: FastifyInstance): Promise<number> {
   console.log('[GatewayRouteSync] Starting route synchronization...');
 
+  // 为所有 knowledge API 前缀注册 token exchange 规则
+  // 所有前缀共享同一套 PandaWiki 登录凭据和 token 缓存
+  const knowledgeConfig = getConfig().services.knowledge;
+  const knowledgeTarget = knowledgeConfig?.url || 'http://localhost:8090';
+
+  const pandawikiPassword = process.env.PANDAWIKI_PASSWORD;
+  if (!pandawikiPassword) {
+    throw new Error('PANDAWIKI_PASSWORD env var is required for knowledge service token exchange');
+  }
+
+  const knowledgeTokenConfig = {
+    targetUrl: knowledgeTarget,
+    serviceType: 'pandawiki' as const,
+    pandawikiAccount: 'admin',
+    pandawikiPassword,
+  };
+
+  const knowledgePrefixes = DEFAULT_API_PATH_MAP['knowledge'] || [];
+  for (const prefix of knowledgePrefixes) {
+    registerTokenExchange(prefix, knowledgeTokenConfig);
+  }
+  console.log(`[GatewayRouteSync] Registered token exchange rules for ${knowledgePrefixes.length} knowledge prefixes (${knowledgeTarget})`);
+
   const platformUrl = getConfig().services.platform?.url || 'http://localhost:3001';
   const subApps = await fetchEnabledSubApps(platformUrl);
+
+  // 当 Platform 不可达时，静态注册 Knowledge 路由作为 fallback
+  if (subApps.length === 0 && app) {
+    console.log('[GatewayRouteSync] Platform unreachable, registering static knowledge routes');
+    const staticKnowledgeSubApp: SubAppConfig = {
+      id: 'knowledge',
+      name: 'Knowledge',
+      key: 'knowledge',
+      version: '1.0.0',
+      entry_dev: '',
+      entry_prod: '',
+      routes: [],
+      permissions: [],
+      keep_alive: false,
+      preload: false,
+      description: null,
+      icon: null,
+      api_domain: 'knowledge',
+      api_paths: knowledgePrefixes,
+      status: 'enabled',
+      sort_order: 0,
+      created_by: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    const staticRoutes = registerSubAppRoutes(app, staticKnowledgeSubApp);
+    console.log(`[GatewayRouteSync] Registered ${staticRoutes} static knowledge routes`);
+    return staticRoutes;
+  }
 
   if (subApps.length === 0) {
     console.log('[GatewayRouteSync] No enabled sub-apps found');

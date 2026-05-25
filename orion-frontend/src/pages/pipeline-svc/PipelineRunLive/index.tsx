@@ -440,8 +440,8 @@ const PipelineRunLive: React.FC = () => {
       autoConnect: !isPaused && !!(id && runId),
       maxLogs: 2000,
       onStatusChange: (statusEvent) => {
-        // Update pipeline status from SSE
-        if (sseStatus) {
+        // Update pipeline status from SSE event
+        if (statusEvent) {
           setPipeline((prev: any) =>
             prev
               ? { ...prev, status: statusEvent.status, progress: statusEvent.progress }
@@ -473,23 +473,33 @@ const PipelineRunLive: React.FC = () => {
       setApiError(null);
       try {
         const response = await getPipelineRun(id!);
-        const apiData = response.data.data as any;
-        if (apiData) {
-          setPipeline(apiData);
+        // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
+        const wrapperData = response.data as any;
+        const apiData = wrapperData?.data ?? wrapperData;
+        if (apiData && (apiData.run || apiData.stages)) {
+          const run = apiData.run || apiData;
+          const flattened = {
+            ...run,
+            branch: run.context?.branch || run.branch || 'main',
+            commit: run.context?.commitSha || run.commit || '-',
+            version: run.context?.version || run.pipelineVersion,
+            stages: apiData.stages || [],
+          };
+          setPipeline(flattened);
           // Initialize stages from API data
-          if (apiData.stages) {
-            const initialized: StageState[] = apiData.stages.map((s: any, idx: number) => ({
+          if (flattened.stages.length > 0) {
+            const initialized: StageState[] = flattened.stages.map((s: any, idx: number) => ({
               id: s.id || `stage-${idx}`,
               name: s.name,
               status: s.status || 'pending',
-              startTime: s.startTime,
-              endTime: s.endTime,
+              startTime: s.startedAt,
+              endTime: s.completedAt,
               steps: (s.steps || []).map((st: any, stIdx: number) => ({
                 id: st.id || `step-${idx}-${stIdx}`,
                 name: st.name,
                 status: st.status || 'pending',
-                startTime: st.startTime,
-                endTime: st.endTime,
+                startTime: st.startedAt,
+                endTime: st.completedAt,
               })),
             }));
             setStages(initialized);

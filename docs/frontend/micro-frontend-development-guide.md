@@ -25,7 +25,8 @@
 - [五、构建配置](#五构建配置)
   - [5.1 UMD 格式输出](#51-umd-格式输出)
   - [5.2 外部依赖配置](#52-外部依赖配置)
-  - [5.3 代理配置](#53-代理配置)
+  - [5.3 Module Federation Shared 配置（依赖共享）](#53-module-federation-shared-配置依赖共享)
+  - [5.4 代理配置](#54-代理配置)
 - [六、本地开发调试](#六本地开发调试)
   - [6.1 独立模式运行](#61-独立模式运行)
   - [6.2 微前端模式调试](#62-微前端模式调试)
@@ -930,7 +931,124 @@ build: {
 <script src="https://unpkg.com/ant-design-vue@4/dist/antd.min.js"></script>
 ```
 
-### 5.3 代理配置
+### 5.3 Module Federation Shared 配置（依赖共享）
+
+#### 默认行为：无 shared（推荐）
+
+Orion-MF **默认不启用 shared**，每个子应用打包自己的依赖副本。这是默认推荐行为：
+
+```typescript
+// 子应用 vite.config.ts — 默认配置（无需 shared）
+federation({
+  name: 'orion_dba',
+  filename: 'remoteEntry.js',
+  exposes: { './index': './src/main.ts' },
+  // 无 shared：子应用打包自己的 vue/react 等依赖
+})
+```
+
+**默认行为的优势**：
+
+| 优势 | 说明 |
+|------|------|
+| 任意技术栈 | Vue/React/jQuery 子应用均可正常运行 |
+| 零配置 | 无需主应用和子应用版本对齐 |
+| 独立部署 | 子应用升级依赖不影响其他子应用 |
+| 无版本冲突 | 每个子应用使用自己的依赖版本 |
+
+**默认行为的缺点**：
+
+| 缺点 | 影响 |
+|------|------|
+| 包体积增大 | 每个子应用都打包了 React/Vue 等依赖 |
+| 首次加载慢 | 多个子应用切换时重复下载相同依赖 |
+| 内存占用高 | 多个框架实例同时存在于内存 |
+
+#### 何时启用 shared
+
+当满足以下条件时，可考虑启用 shared 优化性能：
+
+1. 子应用与主应用**使用相同框架**（如都是 React 18）
+2. 子应用与主应用**框架版本一致**（或兼容范围内）
+3. 子应用数量**较多**（3+ 个同技术栈子应用）
+4. 对**首屏加载性能**有明确要求
+
+#### 如何启用 shared
+
+**步骤 1：主应用配置 shared（host 端）**
+
+```typescript
+// orion-frontend/vite.config.ts
+import federation from '@originjs/vite-plugin-federation';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    federation({
+      name: 'orion_host',
+      remotes: {
+        orion_knowledge: 'http://localhost:5173/assets/remoteEntry.js',
+      },
+      shared: {
+        react: { singleton: true, eager: true },
+        'react-dom': { singleton: true, eager: true },
+        'react-router-dom': { singleton: true },
+      },
+    }),
+  ],
+});
+```
+
+**步骤 2：子应用配置 shared（remote 端）**
+
+```typescript
+// orion-knowledge/web/admin/vite.config.ts
+federation({
+  name: 'orion_knowledge',
+  filename: 'remoteEntry.js',
+  exposes: { './index': './src/main.tsx' },
+  shared: ['react', 'react-dom', 'react-router-dom'],
+})
+```
+
+**步骤 3：在 SubAppStore 中设置 `use_shared: true`**
+
+```json
+{
+  "key": "orion-knowledge",
+  "name": "知识库",
+  "use_shared": true,
+  "css_isolation": "scoped-css"
+}
+```
+
+**步骤 4：重新构建子应用**
+
+```bash
+cd orion-knowledge/web/admin
+npm run build -- --mode micro-frontend
+```
+
+#### shared 配置注意事项
+
+| 规则 | 说明 |
+|------|------|
+| `singleton: true` | 确保整个应用只有一个实例（React 必须有） |
+| `eager: true` | 主应用启动时立即加载共享依赖（推荐用于 React） |
+| 版本必须兼容 | 主应用 react@18.2.0，子应用也必须兼容此版本 |
+| 不同技术栈不能共享 | Vue 子应用不能共享 React，反之亦然 |
+| 启用后必须重新构建 | 修改 shared 配置后，子应用和主应用都需要重新构建 |
+
+#### 启用 shared 的性能收益
+
+| 指标 | 无 shared（默认） | 启用 shared | 收益 |
+|------|------------------|-------------|------|
+| React bundle | 每个子应用 ~42KB | 主应用加载一次 | 节省 N×42KB |
+| React-DOM bundle | 每个子应用 ~130KB | 主应用加载一次 | 节省 N×130KB |
+| 首次加载（3个React子应用） | ~516KB | ~172KB | **节省 67%** |
+| 内存占用 | 3个 React 实例 | 1个 React 实例 | **节省 60%+** |
+
+### 5.4 代理配置
 
 开发环境下配置代理，解决跨域问题：
 

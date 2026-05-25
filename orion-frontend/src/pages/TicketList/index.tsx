@@ -13,7 +13,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Badge, Modal, message } from 'antd';
 import {
   PlusOutlined,
-  ClipboardOutlined,
+  OrderedListOutlined,
   ReloadOutlined,
   BarChartOutlined,
   ThunderboltOutlined,
@@ -471,7 +471,7 @@ const TicketList: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <ClipboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <OrderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             工单管理
           </Title>
           <Text type="secondary">共 {filteredTickets.length} 个工单</Text>

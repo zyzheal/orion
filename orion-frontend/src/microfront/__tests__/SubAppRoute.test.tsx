@@ -3,13 +3,21 @@
  */
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock wujie
-vi.mock('wujie', () => ({
-  startApp: vi.fn().mockResolvedValue(undefined),
-  preloadApp: vi.fn(),
-  setupApp: vi.fn(),
+// Mock orion-mf
+vi.mock('@orion-mf/core', () => ({
+  loadSubApp: vi.fn().mockResolvedValue(undefined),
+  destroySubApp: vi.fn().mockResolvedValue(undefined),
+  getSubApp: vi.fn(),
+  getBridge: vi.fn().mockReturnValue({ loadSubApp: vi.fn(), destroy: vi.fn() }),
+  setBridge: vi.fn(),
+  SubAppRegistry: { getInstance: () => ({ register: vi.fn() }) },
+  getSubAppRegistry: vi.fn().mockReturnValue({ register: vi.fn() }),
+  EventBus: { getInstance: () => ({ on: vi.fn(), off: vi.fn(), emit: vi.fn() }) },
+  eventBus: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
+  MFSandboxBridge: vi.fn(),
+  PreloadStrategy: { getInstance: () => ({ prefetch: vi.fn() }) },
 }));
 
 // Mock react-router-dom
@@ -28,8 +36,8 @@ vi.mock('react-router-dom', () => ({
   Route: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock microfront
-vi.mock('@/microfront', () => ({
+// Mock microfront/config (SubAppRoute imports from config, not index)
+vi.mock('@/microfront/config', () => ({
   getSubAppConfig: (key: string) => {
     if (key === 'dba') {
       return {
@@ -37,7 +45,7 @@ vi.mock('@/microfront', () => ({
         name: '数据库管理',
         path: '/dba/*',
         url: 'http://localhost:3001/orion-dba',
-        container: '#wujie-dba',
+        container: '#app-dba',
         enabled: true,
         keepAlive: true,
         preload: false,
@@ -53,6 +61,7 @@ vi.mock('@/microfront', () => ({
   initMicroFrontend: vi.fn(),
   unloadSubApp: vi.fn(),
   injectGlobalState: vi.fn(),
+  startSubApp: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock app store
@@ -79,7 +88,7 @@ describe('SubAppRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Clean up any created containers
-    document.querySelectorAll('[id^="wujie-"]').forEach((el) => el.remove());
+    document.querySelectorAll('[id^="app-"]').forEach((el) => el.remove());
   });
 
   afterEach(() => {
@@ -101,7 +110,7 @@ describe('SubAppRoute', () => {
     const { container } = render(React.createElement(SubAppRoute));
 
     await waitFor(() => {
-      const containerDiv = container.querySelector('#wujie-dba');
+      const containerDiv = container.querySelector('#app-dba');
       expect(containerDiv).toBeTruthy();
     });
   });

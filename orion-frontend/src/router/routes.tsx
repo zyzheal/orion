@@ -105,21 +105,6 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Projects')),
     protected: true,
   },
-  // 微前端子应用路由 - Phase 3: 统一为动态通配符路由
-  // 注意：保留 /knowledge 精确路由用于重定向到知识空间
-  {
-    path: '/knowledge',
-    element: <RedirectTo to="/knowledge/spaces" />,
-    protected: true,
-  },
-  // 动态子应用路由：通过 :subAppKey 通配符加载任意已配置的子应用
-  // 白名单验证在组件内部完成（SubAppRouteDynamic）
-  {
-    path: ':subAppKey(/*)',
-    element: React.lazy(() => import('@/components/SubAppRouteDynamic')),
-    protected: true,
-    hideLayout: true,
-  },
   // Core Pages (TASK-905)
   {
     path: '/dashboard-core',
@@ -1037,7 +1022,7 @@ export const routes: AppRoute[] = [
   // Document Center - 统一指向PandaWiki知识空间
   {
     path: '/documents',
-    element: <RedirectTo to="/knowledge/spaces" />,
+    element: <RedirectTo to="/knowledge" />,
     protected: true,
   },
   // Queue Management
@@ -1404,13 +1389,13 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/ai/docs',
-    element: <RedirectTo to="/knowledge/spaces" />,
+    element: <RedirectTo to="/knowledge" />,
     protected: true,
     requiredPermission: { resource: 'knowledge', action: 'read' },
   },
   {
     path: '/ai/knowledge',
-    element: <RedirectTo to="/knowledge/spaces" />,
+    element: <RedirectTo to="/knowledge" />,
     protected: true,
     requiredPermission: { resource: 'knowledge', action: 'read' },
   },
@@ -1526,6 +1511,16 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/CapabilityAdmin')),
     protected: true,
     roles: ['super_admin', 'platform_admin'],
+  },
+
+  // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
+  // 通过 :subAppKey 通配符加载任意已配置的子应用
+  // 白名单验证在组件内部完成（SubAppRouteDynamic）
+  {
+    path: ':subAppKey/*',
+    element: React.lazy(() => import('@/components/SubAppRouteDynamic')),
+    protected: true,
+    hideLayout: true,
   },
 
   // 404 页面

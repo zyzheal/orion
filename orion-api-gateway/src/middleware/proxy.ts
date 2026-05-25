@@ -13,6 +13,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import httpProxy, { ServerOptions } from 'http-proxy';
+import { Readable } from 'stream';
 import {
   ServiceClient,
   ServiceClientError,
@@ -62,6 +63,9 @@ export class ProxyMiddleware {
    */
   private setupCorsInjection(): void {
     this.proxyServer.on('proxyRes', (proxyRes, req, res) => {
+      // 如果响应已结束，跳过 CORS 注入
+      if (res.headersSent || res.writableEnded) return;
+
       const requestOrigin = (req as any).headers?.origin;
 
       // 不覆盖后端已设置的 CORS 头
@@ -183,8 +187,14 @@ export class ProxyMiddleware {
 
     // 构建代理请求头，传播认证和追踪信息
     const proxyHeaders: Record<string, string> = {
-      'X-Request-ID': request.requestId,
+      'X-Request-ID': request.requestId || `gw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     };
+
+    // 传播 Content-Type（POST 请求必需）
+    const contentType = request.headers['content-type'];
+    if (contentType) {
+      proxyHeaders['Content-Type'] = contentType as string;
+    }
 
     // 传播认证信息（Authorization 或 X-API-Key）
     const authHeader = request.headers.authorization;
@@ -207,6 +217,21 @@ export class ProxyMiddleware {
       timeout,
       headers: proxyHeaders,
     };
+
+    // 如果 Fastify 已解析 body（如 POST/PUT），http-proxy 无法读取原始流，
+    // 需要手动将已解析的 body 序列化为 buffer 注入
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD' && request.body !== undefined;
+    if (hasBody) {
+      const bodyStr = typeof request.body === 'string'
+        ? request.body
+        : JSON.stringify(request.body);
+      const bodyBuffer = Buffer.from(bodyStr);
+      const bufferStream = Readable.from(bodyBuffer);
+      proxyOptions.buffer = bufferStream;
+
+      // 更新 Content-Length 以匹配重新序列化的 body
+      proxyHeaders['Content-Length'] = String(bodyBuffer.length);
+    }
 
     // 使用 once 注册 error 处理，避免监听器累积
     this.proxyServer.once('error', (err, req, res) => {

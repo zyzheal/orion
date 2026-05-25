@@ -42,11 +42,19 @@ export const OrionContext = createContext<OrionGlobalState>({});
 function render(props: any = {}) {
   const { container, basename } = props;
 
+  console.log(`[orion-knowledge] render called, container type:`, container?.constructor?.name || 'null');
+  console.log(`[orion-knowledge] render basename:`, basename);
+
   const containerEl = container
     ? container.querySelector('#root')
     : document.querySelector('#root');
 
-  if (!containerEl) return null;
+  if (!containerEl) {
+    console.error('[orion-knowledge] No #root element found!');
+    return null;
+  }
+
+  console.log(`[orion-knowledge] Found #root element:`, containerEl);
 
   // 复用已存在的 React root
   let existingRoot: Root | null = null;
@@ -56,8 +64,16 @@ function render(props: any = {}) {
 
   let root: Root;
   if (existingRoot) {
+    console.log('[orion-knowledge] Reusing existing React root');
     root = existingRoot;
+    // 微前端模式下复用 root 时，检查是否已挂载过，避免重复渲染
+    if ((window as any).__POWERED_BY_ORION__ && (containerEl as any).__orionRendered) {
+      console.log('[orion-knowledge] Already rendered in this container, skipping re-render');
+      return root;
+    }
+    (containerEl as any).__orionRendered = true;
   } else {
+    console.log('[orion-knowledge] Creating new React root');
     root = createRoot(containerEl);
     (containerEl as any).__reactRoot = root;
   }
@@ -74,16 +90,22 @@ function render(props: any = {}) {
     </React.StrictMode>
   );
 
+  console.log('[orion-knowledge] BrowserRouter basename:', basename || window.__BASENAME__ || '/');
+
+  console.log('[orion-knowledge] React render completed');
+
   return root;
 }
 
 // ============================================
-// 独立运行模式（微任务延迟，让 wujie 先设置标志位）
+// 独立运行模式（延迟检查，给微前端 mount 调用留出时间）
 // ============================================
 let knowledgeRoot: Root | null = null;
+let autoRenderTimer: ReturnType<typeof setTimeout> | null = null;
 
-Promise.resolve().then(() => {
-  if (!(window as any).__POWERED_BY_WUJIE__) {
+function tryAutoRender() {
+  // 同时检查 wujie 和 Orion-MF 的标志位，避免在微前端模式下自动渲染
+  if (!(window as any).__POWERED_BY_WUJIE__ && !(window as any).__POWERED_BY_ORION__) {
     // 动态加载 CSS 文件
     const loadCSS = (href: string) => {
       const link = document.createElement('link');
@@ -92,7 +114,7 @@ Promise.resolve().then(() => {
       document.head.appendChild(link);
     };
 
-    loadCSS(`${window.__BASENAME__}/orion-knowledge.css`);
+    loadCSS(`${window.__BASENAME__ || ''}/orion-knowledge.css`);
 
     wrapWindowOpen(window.__BASENAME__ || '');
     dayjs.extend(duration);
@@ -102,7 +124,10 @@ Promise.resolve().then(() => {
     knowledgeRoot = render();
     console.log('[orion-knowledge] Running in standalone mode');
   }
-});
+}
+
+// 使用 setTimeout 延迟检查，给 MF mount 调用留出时间
+autoRenderTimer = setTimeout(tryAutoRender, 100);
 
 // ============================================
 // wujie 生命周期
@@ -120,22 +145,67 @@ function getWujieProps(): any {
   return (window as any).$wujie?.props || {};
 }
 
-async function doMount(_props: any) {
-  const props = getWujieProps();
-  console.log('[orion-knowledge] mount, wujie props:', props);
+async function doMount(container: any, props?: Record<string, unknown>) {
+  // 取消自动渲染定时器，避免双重渲染
+  if (autoRenderTimer) {
+    clearTimeout(autoRenderTimer);
+    autoRenderTimer = null;
+  }
+
+  // 兼容 wujie 和 MF 两种调用方式：
+  // - wujie: doMount(wujieProps) - 只有一个参数
+  // - MF: doMount(containerElement, { basename, ... }) - 两个参数
+  const isWujieStyle = !container?.nodeType && !container?.host;
+  const effectiveProps = isWujieStyle ? container : props;
+  const effectiveContainer = isWujieStyle ? document : container;
+
+  // 从 props 中获取 basename（MF 模式）
+  const propsBasename = (effectiveProps as any)?.basename;
+  console.log(`[orion-knowledge] doMount called, propsBasename:`, propsBasename);
+  console.log(`[orion-knowledge] effectiveProps keys:`, effectiveProps ? Object.keys(effectiveProps) : 'null');
+  console.log(`[orion-knowledge] effectiveContainer type:`, effectiveContainer?.constructor?.name || 'null');
+  if (propsBasename) {
+    window.__BASENAME__ = propsBasename;
+    console.log(`[orion-knowledge] Using basename from mount props: ${propsBasename}`);
+  }
+
+  // 包装 window.open，确保子应用内部的 window.open 调用自动添加 basename
+  wrapWindowOpen(propsBasename || '');
+
+  console.log('[orion-knowledge] mount, props:', effectiveProps);
 
   window.__POWERED_BY_WUJIE__ = true;
+  window.__POWERED_BY_ORION__ = true;
 
-  // wujie iframe 中可能没有 #root 元素，需要动态创建
-  let rootEl = document.getElementById('root');
+  // 在有效容器内创建 #root 元素
+  // 注意：当使用 Shadow DOM 时，#root 必须在 ShadowRoot 内部，
+  // 否则 render 函数中的 container.querySelector('#root') 会返回 null
+  let rootEl = effectiveContainer.querySelector('#root');
   if (!rootEl) {
     rootEl = document.createElement('div');
     rootEl.id = 'root';
-    document.body.appendChild(rootEl);
-    console.log('[orion-knowledge] Created #root element dynamically');
+    effectiveContainer.appendChild(rootEl);
+    console.log('[orion-knowledge] Created #root element inside container:', effectiveContainer.constructor?.name);
   }
 
-  knowledgeRoot = render({ ...props, container: document });
+  knowledgeRoot = render({ ...effectiveProps, container: effectiveContainer, basename: propsBasename });
+
+  // 验证渲染结果
+  setTimeout(() => {
+    const shadowRoot = effectiveContainer;
+    if (shadowRoot?.host) {
+      // ShadowRoot 场景
+      const hostEl = shadowRoot.host;
+      const rootInShadow = shadowRoot.querySelector('#root');
+      console.log(`[orion-knowledge] Post-render check:`, {
+        hostInDom: !!document.body.contains(hostEl),
+        hostId: hostEl.id,
+        shadowRootContent: shadowRoot.innerHTML?.substring(0, 100),
+        hasRootInShadow: !!rootInShadow,
+        rootContent: rootInShadow?.innerHTML?.substring(0, 100),
+      });
+    }
+  }, 500);
 }
 
 async function doUnmount() {

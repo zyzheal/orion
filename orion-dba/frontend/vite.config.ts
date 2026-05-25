@@ -13,26 +13,12 @@ export default defineConfig(({ mode }) => {
     base: isMicroFrontend ? '/orion-dba/' : isDev ? '/' : '/front/',
 
     build: {
-      // 微前端模式：输出为 UMD 格式
+      // 微前端：关闭 CSS 代码分割
       ...(isMicroFrontend && {
-        lib: {
-          entry: path.resolve(__dirname, 'src/main.ts'),
-          name: 'OrionDbaApp',
-          fileName: () => 'orion-dba-app.js',
-          formats: ['umd'],
-        },
-        // 微前端：关闭 CSS 代码分割
         cssCodeSplit: false,
         // 微前端：生成 sourcemap 便于调试
         sourcemap: true,
-      }),
-
-      // 通用配置
-      minify: 'esbuild',
-
-      rollupOptions: {
-        // 微前端模式：配置外部依赖
-        ...(isMicroFrontend && {
+        rollupOptions: {
           external: ['vue', 'ant-design-vue'],
           output: {
             globals: {
@@ -40,8 +26,8 @@ export default defineConfig(({ mode }) => {
               'ant-design-vue': 'antd',
             },
           },
-        }),
-      },
+        },
+      }),
 
       // 输出目录
       outDir: isMfBuild ? 'dist-mf' : isMicroFrontend ? 'dist-mf' : 'dist',
@@ -88,7 +74,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       vue(),
       // Module Federation 配置（用于 Orion-MF 远程加载）
-      ...(isMfBuild
+      // 在 micro-frontend 模式下启用 federation 插件
+      ...(isMicroFrontend
         ? [
             federation({
               name: 'orion_dba',
@@ -96,19 +83,8 @@ export default defineConfig(({ mode }) => {
               exposes: {
                 './index': './src/main.ts',
               },
-              shared: [
-                'vue',
-                'vue-router',
-                'vuex',
-                'ant-design-vue',
-                'dayjs',
-                'axios',
-                'lodash-es',
-                '@ant-design/icons-vue',
-                '@vueuse/core',
-                'vuedraggable',
-                'vue-i18n',
-              ],
+              // 默认无 shared：子应用打包自己的依赖，支持独立运行
+              // 如需共享主应用依赖（性能优化），在 SubAppStore 中设置 use_shared: true
             }),
           ]
         : []),

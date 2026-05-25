@@ -20,6 +20,7 @@ import {
   Box,
   Button,
   IconButton,
+  InputAdornment,
   Stack,
   TextField,
   useTheme,
@@ -27,6 +28,7 @@ import {
 import {
   IconDrag,
   IconGengduo,
+  IconIcon_tool_close,
   IconJiahao,
   IconXiajiantou,
 } from '@orion-knowledge/icons';
@@ -251,6 +253,7 @@ const DocPageNavs = ({
   const [expend, setExpend] = useState(
     localStorage.getItem(`doc_nav_expend_${kb_id}`) !== '0',
   );
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!kb_id) return;
@@ -266,6 +269,12 @@ const DocPageNavs = ({
     if (!kb_id) return;
     localStorage.setItem(`doc_nav_expend_${kb_id}`, expend ? '1' : '0');
   }, [kb_id, expend]);
+
+  // Sync search state from URL params
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    setSearch(urlSearch);
+  }, [searchParams]);
 
   const navs = navListProp || [];
   const sortedNavs = [...navs].sort(
@@ -369,6 +378,10 @@ const DocPageNavs = ({
     setDeleteConfirmInput('');
   }, []);
 
+  const handleSearch = useCallback(() => {
+    setSearchParams({ search: search || '' });
+  }, [search, setSearchParams]);
+
   const handleDeleteConfirm = useCallback(() => {
     if (!deletingNav) return;
     const nav = deletingNav;
@@ -427,6 +440,38 @@ const DocPageNavs = ({
           <EmptyState text='无搜索结果' sx={{ p: 4 }} />
         ) : (
           <>
+            <Stack sx={{ px: 2, pt: 2, pb: 1 }}>
+              <TextField
+                label='搜索内容'
+                size='small'
+                fullWidth
+                value={search}
+                onKeyUp={event => {
+                  if (event.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+                onBlur={event => setSearchParams({ search: event.target.value })}
+                onChange={event => setSearch(event.target.value)}
+                InputProps={{
+                  endAdornment: search ? (
+                    <InputAdornment position='end'>
+                      <IconButton
+                        onClick={() => {
+                          setSearch('');
+                          setSearchParams({ search: '' });
+                        }}
+                        size='small'
+                      >
+                        <IconIcon_tool_close
+                          sx={{ fontSize: 14, color: 'text.tertiary' }}
+                        />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }}
+              />
+            </Stack>
             <SortableContext
               items={sortedNavs.map(n => n.id || '')}
               strategy={verticalListSortingStrategy}

@@ -69,10 +69,19 @@ const PipelineDetail: React.FC = () => {
       setApiError(null);
       try {
         const response = await getPipelineRun(id!);
-        // Backend returns { run, stages, tasks } directly
-        const apiData = response.data;
-        if (apiData) {
-          setPipeline(apiData);
+        // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
+        const wrapperData = response.data as any;
+        const apiData = wrapperData?.data ?? wrapperData;
+        if (apiData && (apiData.run || apiData.stages)) {
+          const run = apiData.run || apiData;
+          const flattened = {
+            ...run,
+            branch: run.context?.branch || run.branch || 'main',
+            commit: run.context?.commitSha || run.commit || '-',
+            version: run.context?.version || run.pipelineVersion,
+            stages: apiData.stages || [],
+          };
+          setPipeline(flattened);
         } else {
           setApiError('未找到该 Pipeline 运行记录');
         }
@@ -111,7 +120,19 @@ const PipelineDetail: React.FC = () => {
       message.success('Pipeline 重新运行成功');
       // Reload pipeline detail after re-run
       const response = await getPipelineRun(id!);
-        setPipeline(response.data);
+      const wrapperData = response.data as any;
+      const apiData = wrapperData?.data ?? wrapperData;
+      if (apiData && (apiData.run || apiData.stages)) {
+        const run = apiData.run || apiData;
+        const flattened = {
+          ...run,
+          branch: run.context?.branch || run.branch || 'main',
+          commit: run.context?.commitSha || run.commit || '-',
+          version: run.context?.version || run.pipelineVersion,
+          stages: apiData.stages || [],
+        };
+        setPipeline(flattened);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
@@ -134,16 +155,23 @@ const PipelineDetail: React.FC = () => {
         try {
           setRetryingStageId(stageId);
           const response = await retryFromStage(id!, stageId);
-          // Backend retry response: { id, pipelineId, status, ... } — not wrapped in data
-          const newRun = response.data as any;
+          const newRun = response.data?.data as any;
           message.success(`已从阶段「${stageName}」重新运行`);
           // Redirect to the new run's detail page
-          if (newRun?.id) {
-            navigate(`/pipelines/runs/${newRun.id}`);
+          if (newRun?.id || newRun?.run?.id) {
+            const runId = newRun.id || newRun.run?.id;
+            navigate(`/pipelines/runs/${runId}`);
           } else {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
-            setPipeline(reloadResp.data);
+            const reloaded = reloadResp.data.data as any;
+            const run = reloaded?.run || reloaded;
+            setPipeline({
+              ...run,
+              branch: run.context?.branch || run.branch || 'main',
+              commit: run.context?.commitSha || run.commit || '-',
+              stages: reloaded?.stages || [],
+            });
           }
         } catch (error: unknown) {
           if (error instanceof Error) {

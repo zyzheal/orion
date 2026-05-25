@@ -10,7 +10,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSubAppStore } from '@/stores/subappStore';
-import { loadSubApp, getSubApp, destroySubApp } from '@orion-mf/core';
+import { loadSubApp, getSubApp, destroySubApp, emitReady, emitError, orionBus, emitAuthState } from '@orion-mf/core';
 import { injectAuthState } from '@/microfront/config';
 import { Result, Button, Progress, Skeleton, Space, Tag } from 'antd';
 import { CheckCircleOutlined, LoadingOutlined, CloudServerOutlined } from '@ant-design/icons';
@@ -44,6 +44,8 @@ const SubAppRouteDynamic: React.FC = () => {
         keepAlive: storeApp.keep_alive,
         enabled: storeApp.status === 'enabled',
         api_domain: storeApp.api_domain,
+        cssIsolation: storeApp.css_isolation || 'shadow-dom',
+        useShared: storeApp.use_shared || false,
       };
     }
     return null;
@@ -130,6 +132,8 @@ const SubAppRouteDynamic: React.FC = () => {
       containerRef.current.id = containerId;
     }
 
+    const loadStartTime = Date.now();
+
     const loadApp = async () => {
       try {
         setLoadProgress(10);
@@ -148,6 +152,9 @@ const SubAppRouteDynamic: React.FC = () => {
             containerRef.current.appendChild(existingInstance.root);
           }
 
+          // 缓存恢复也上报就绪
+          emitReady(subAppKey, Date.now() - loadStartTime);
+
           setLoading(false);
           return;
         }
@@ -155,12 +162,18 @@ const SubAppRouteDynamic: React.FC = () => {
         // 加载新实例
         setLoadProgress(30);
         setLoadStage('正在加载子应用...');
+        const basePath = `/${subAppKey}`;
+        console.log(`[SubAppRouteDynamic] Calling loadSubApp with basename: ${basePath}`);
         const instance = await loadSubApp({
           key: subAppKey,
           name: appConfig.name,
           remoteEntry: appConfig.remoteEntry,
-          cssIsolation: 'shadow',
+          cssIsolation: appConfig.cssIsolation,
+          useShared: appConfig.useShared,
           errorBoundary: true,
+          props: {
+            basename: basePath,
+          },
         });
 
         if (cancelled) return;
@@ -177,6 +190,10 @@ const SubAppRouteDynamic: React.FC = () => {
           containerRef.current.appendChild(instance.root);
           instanceRef.current = instance;
           injectAuthState();
+
+          // 上报子应用就绪
+          const loadDuration = Date.now() - loadStartTime;
+          emitReady(subAppKey, loadDuration);
         }
 
         setLoadProgress(100);
@@ -184,6 +201,8 @@ const SubAppRouteDynamic: React.FC = () => {
       } catch (err: any) {
         if (cancelled) return;
         console.error(`[SubAppRouteDynamic] ${subAppKey} load error:`, err);
+        // 上报错误到 OrionBus
+        emitError(subAppKey, err.message || '加载失败');
         setError(`加载子应用 "${appConfig.name}" 失败: ${err.message || '未知错误'}`);
       } finally {
         if (!cancelled) {
@@ -221,6 +240,37 @@ const SubAppRouteDynamic: React.FC = () => {
       }
     };
   }, [subAppKey, appConfig?.keepAlive, destroyInstanceAndContainer]);
+
+  // OrionBus 认证状态监听：当主应用登录态变化时同步到子应用
+  useEffect(() => {
+    const unsubscribe = orionBus.on('orionAuth', (payload) => {
+      const auth = payload.data;
+      if (auth?.token && subAppKey) {
+        console.log(`[SubAppRouteDynamic] Received auth update for ${subAppKey}`);
+        window.$orion = {
+          token: auth.token,
+          tenantId: auth.tenantId || localStorage.getItem('tenant_id') || '',
+          user: auth.user || { id: '', username: '' },
+        };
+        // 通过 window 事件通知子应用（子应用可通过 $orion 获取最新状态）
+        window.dispatchEvent(new CustomEvent('orion-auth-change', { detail: auth }));
+      }
+    }, `subapp-${subAppKey}`);
+
+    // 监听主应用退出登录
+    const unsubscribeLogout = orionBus.on('orionLogout', () => {
+      if (subAppKey) {
+        console.log(`[SubAppRouteDynamic] Received logout for ${subAppKey}`);
+        window.$orion = undefined as any;
+        window.dispatchEvent(new CustomEvent('orion-logout'));
+      }
+    }, `subapp-${subAppKey}`);
+
+    return () => {
+      unsubscribe();
+      unsubscribeLogout();
+    };
+  }, [subAppKey]);
 
   // 无效子应用处理
   if (!appConfig && subAppKey) {

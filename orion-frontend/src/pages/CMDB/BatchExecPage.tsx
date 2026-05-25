@@ -251,7 +251,11 @@ const CommandExecTab: React.FC = () => {
   useEffect(() => {
     getHosts({ pageSize: 100 })
       .then((res) => setHosts((res.data as any).data || []))
-      .catch(() => setHosts([]));
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载主机列表失败：${msg}`);
+        setHosts([]);
+      });
   }, []);
 
   const handleExecute = async () => {
@@ -613,7 +617,11 @@ const CronJobTab: React.FC = () => {
   useEffect(() => {
     getHosts({ pageSize: 100 })
       .then((res) => setHosts((res.data as any).data || []))
-      .catch(() => setHosts([]));
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载主机列表失败：${msg}`);
+        setHosts([]);
+      });
   }, []);
 
   const handleCreate = async () => {
@@ -782,7 +790,11 @@ const FileUploadTab: React.FC = () => {
   useEffect(() => {
     getHosts({ pageSize: 100 })
       .then((res) => setHosts((res.data as any).data || []))
-      .catch(() => setHosts([]));
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载主机列表失败：${msg}`);
+        setHosts([]);
+      });
   }, []);
 
   const handleUpload = (file: File) => {

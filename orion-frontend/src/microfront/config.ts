@@ -1,7 +1,17 @@
 /**
- * wujie 微前端主应用配置
+ * 微前端主应用配置
+ *
+ * 使用 Orion-MF 替代 wujie (2026-05-21)
  */
-import { setupApp, preloadApp, bus, destroyApp } from 'wujie';
+import { getDefaultChannel, DEFAULT_CHANNEL, createSubAppChannel } from './eventBus';
+import type { EventBusPayload } from '@orion-mf/core';
+import {
+  loadSubApp,
+  destroySubApp,
+  getSubApp,
+  PreloadStrategy,
+  getPreloadStrategy as getPreloadStrategyFromCore,
+} from '@orion-mf/core';
 import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
 
 // Re-export for direct access
@@ -27,86 +37,51 @@ declare global {
 
 /**
  * 初始化微前端配置
+ *
+ * Phase 4: 子应用按需加载（通过 SubAppRouteDynamic），不再预先注册
  */
 export const initMicroFrontend = (): void => {
-  // 配置子应用
-  subAppConfigs.forEach((app) => {
-    if (!app.enabled) return;
+  // 子应用改为按需动态加载，不需要预先注册
+  // 此函数保留用于未来的全局初始化
+};
 
-    setupApp({
-      name: app.key,
-      url: app.url,
-      el: app.container,
-      props: {
-        // 注入全局状态
-        $orion: window.$orion,
-      },
-      // 子应用生命周期回调
-      beforeMount: () => {
-        console.log(`[wujie] ${app.key} before mount`);
-      },
-      afterMount: () => {
-        console.log(`[wujie] ${app.key} after mount`);
-      },
-      beforeUnmount: () => {
-        console.log(`[wujie] ${app.key} before unmount`);
-      },
-      afterUnmount: () => {
-        console.log(`[wujie] ${app.key} after unmount`);
-      },
-      // Keep-Alive 生命周期
-      activated: () => {
-        console.log(`[wujie] ${app.key} activated`);
-        // 子应用激活时重新注入最新的认证状态
-        // 使用 requestAnimationFrame 延迟注入，确保子应用沙箱已就绪
-        requestAnimationFrame(() => {
-          injectAuthState();
-        });
-      },
-      deactivated: () => {
-        console.log(`[wujie] ${app.key} deactivated`);
-      },
-    });
-  });
+/**
+ * 获取预加载策略实例
+ */
+function getPreloadStrategy(): PreloadStrategy {
+  return getPreloadStrategyFromCore();
+}
 
-  // 预加载常用子应用（开发环境禁用，避免 iframe 加载阻塞导致页面卡死）
-  if (import.meta.env.PROD) {
-    const enabledApps = getSubAppConfig('dba');
-    if (enabledApps) {
-      preloadApp({ name: 'dba' });
+/**
+ * 清理子应用资源（HMR 时调用，释放 Orion-MF 内部状态）
+ */
+export const cleanupMicroFrontend = async (): Promise<void> => {
+  for (const app of getEnabledApps()) {
+    try {
+      await destroySubApp(app.key);
+    } catch {
+      // 子应用未启动时安全忽略
+    }
+    const container = document.querySelector(app.container);
+    if (container) {
+      (container as HTMLElement).innerHTML = '';
     }
   }
 };
 
 /**
- * 清理子应用资源（HMR 时调用，释放 wujie 内部状态）
+ * 卸载子应用（异步等待销毁完成后再清理 DOM）
  */
-export const cleanupMicroFrontend = (): void => {
-  subAppConfigs.forEach((app) => {
-    try {
-      destroyApp(app.key);
-    } catch {
-      // 子应用未启动时 destroyApp 可能抛异常，安全忽略
-    }
-    // 兜底：清理容器 DOM
-    const container = document.querySelector(app.container);
-    if (container) {
-      (container as HTMLElement).innerHTML = '';
-    }
-  });
-};
-
-/**
- * 卸载子应用
- */
-export const unloadSubApp = (appKey: string): void => {
+export const unloadSubApp = async (appKey: string): Promise<void> => {
   const app = getSubAppConfig(appKey);
   if (!app) return;
 
-  // 清除容器内容
+  await destroySubApp(appKey).catch(() => {});
+
+  // 销毁完成后再清除容器内容
   const container = document.querySelector(app.container);
   if (container) {
-    container.innerHTML = '';
+    (container as HTMLElement).innerHTML = '';
   }
 };
 
@@ -125,7 +100,7 @@ export const injectAuthState = (): void => {
     try {
       user = JSON.parse(userStr);
     } catch (e) {
-      console.warn('[Wujie] Failed to parse user data:', e);
+      console.warn('[OrionMF] Failed to parse user data:', e);
     }
   }
 
@@ -149,10 +124,10 @@ export const injectAuthState = (): void => {
   // 设置全局状态
   window.$orion = authState;
 
-  // 通过 Wujie bus 事件通知子应用
-  bus.$emit('orionAuth', authState);
+  // 通过 Orion-MF EventBus Channel 通知子应用
+  getDefaultChannel().emit('orionAuth', authState);
 
-  console.log('[Wujie] Auth state injected:', {
+  console.log('[OrionMF] Auth state injected:', {
     hasToken: !!token,
     tenantId,
     userId: authState.user.id,
@@ -168,10 +143,18 @@ export const getAuthState = (): OrionAuthState | null => {
 
 /**
  * 监听认证状态变化
+ * handler 通过 payload.data 获取 OrionAuthState
  */
-export const subscribeAuthState = (callback: (state: OrionAuthState) => void): (() => void) => {
-  bus.$on('orionAuth', callback);
-  return () => bus.$off('orionAuth', callback);
+export const subscribeAuthState = (
+  callback: (state: OrionAuthState) => void,
+  owner?: string,
+): (() => void) => {
+  const channel = getDefaultChannel();
+  const handler = (payload: EventBusPayload) => {
+    callback(payload.data as OrionAuthState);
+  };
+  channel.on('orionAuth', handler, owner);
+  return () => channel.off('orionAuth', handler);
 };
 
 /**
@@ -179,6 +162,55 @@ export const subscribeAuthState = (callback: (state: OrionAuthState) => void): (
  */
 export const injectGlobalState = (state: Record<string, unknown>): void => {
   window.$orion = state as OrionAuthState;
+};
+
+// ============================================================================
+// SubApp loading convenience function (替代 wujie.startApp)
+// ============================================================================
+
+/**
+ * 启动子应用 (替代 wujie.startApp)
+ */
+export const startSubApp = async (
+  appKey: string,
+  options?: {
+    url?: string;
+    container?: string;
+    keepAlive?: boolean;
+    props?: Record<string, unknown>;
+    basename?: string;
+  }
+) => {
+  const config = getSubAppConfig(appKey);
+  if (!config) {
+    throw new Error(`Sub-app "${appKey}" not found in registry`);
+  }
+
+  const entryUrl = options?.url || config.url;
+
+  // 注入 props 到 window.$orion
+  if (options?.props) {
+    const orion = (options.props as any).$orion;
+    window.$orion = {
+      token: orion?.token || '',
+      tenantId: orion?.tenantId || localStorage.getItem('tenant_id') || '',
+      user: orion?.user || { id: '', username: '' },
+    };
+  }
+
+  // 计算 basename：优先使用传入的，否则根据 appKey 推断
+  const basename = options?.basename || `/${appKey}`;
+
+  return loadSubApp({
+    key: appKey,
+    name: config.name,
+    remoteEntry: entryUrl,
+    props: {
+      ...(options?.props || {}),
+      basename,
+      container: options?.container ? document.querySelector(options.container) : undefined,
+    },
+  });
 };
 
 export default {
@@ -189,4 +221,5 @@ export default {
   injectAuthState,
   getAuthState,
   subscribeAuthState,
+  startSubApp,
 };

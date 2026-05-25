@@ -7,7 +7,8 @@
     "dev:mf": "vite --mode micro-frontend",
     "build": "vue-tsc --noEmit && vite build --mode release",
     "build:mf": "vue-tsc --noEmit && vite build --mode micro-frontend",
-    "build:standalone": "vue-tsc --noEmit && vite build --mode standalone",
+    "build:spa": "vue-tsc --noEmit && vite build --mode release",
+    "build:all": "vue-tsc --noEmit && vite build --mode release && VITE_MF_BUILD=true vite build --mode micro-frontend",
     "build:orion-mf": "vue-tsc --noEmit && VITE_MF_BUILD=true vite build --mode release",
     "serve": "vite preview"
   },

@@ -7,8 +7,9 @@
     "dev": "vite",
     "dev:mf": "vite --mode micro-frontend",
     "build:dev": "vite build --m development",
-    "build": "tsc -b && vite build",
+    "build:spa": "tsc -b && vite build",
     "build:mf": "tsc -b && vite build --mode micro-frontend",
+    "build": "npm run build:spa && npm run build:mf",
     "generate-routes": "node scripts/generate-routes.js",
     "build:analyze": "tsc -b && vite build -- --analyze",
     "api": "cx-swagger-api"

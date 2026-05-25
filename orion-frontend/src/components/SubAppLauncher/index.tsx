@@ -2,7 +2,7 @@
  * 子系统启动器 - 侧边栏抽屉式菜单
  * 参考 ChatOps ChatPanel 的 Drawer 模式
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Drawer, Typography } from 'antd';
 import {
   DatabaseOutlined,
@@ -13,9 +13,11 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { colors } from '@/tokens/colors';
+import { useSubAppStore } from '@/stores/subappStore';
 
 const { Text } = Typography;
 
+/** UI-facing sub-app card data (derived from SubAppConfig store) */
 interface SubApp {
   key: string;
   name: string;
@@ -23,38 +25,22 @@ interface SubApp {
   icon: React.ReactNode;
   color: string;
   path: string;
-  status: 'running' | 'stopped' | 'loading';
+  status: 'running' | 'stopped' | 'error';
 }
 
-const subApps: SubApp[] = [
-  {
-    key: 'dba',
-    name: '数据库管理',
-    description: 'SQL 执行·数据建模',
-    icon: <DatabaseOutlined />,
-    color: '#1890ff',
-    path: '/dba',
-    status: 'running',
-  },
-  {
-    key: 'knowledge',
-    name: '知识库',
-    description: '文档管理·经验分享',
-    icon: <BookOutlined />,
-    color: '#52c41a',
-    path: '/knowledge',
-    status: 'running',
-  },
-  {
-    key: 'visor',
-    name: '监控中心',
-    description: '系统监控·告警管理',
-    icon: <DashboardOutlined />,
-    color: '#722ed1',
-    path: '/visor',
-    status: 'running',
-  },
-];
+// 子应用图标映射
+const iconMap: Record<string, React.ReactNode> = {
+  dba: <DatabaseOutlined />,
+  knowledge: <BookOutlined />,
+  visor: <DashboardOutlined />,
+};
+
+// 子应用颜色映射
+const colorMap: Record<string, string> = {
+  dba: '#1890ff',
+  knowledge: '#52c41a',
+  visor: '#722ed1',
+};
 
 // 触发器按钮组件
 interface SubAppTriggerProps {
@@ -153,6 +139,27 @@ const SubAppCard: React.FC<SubAppCardProps> = ({ app, onClick }) => (
 export const SubAppLauncher: React.FC & { Trigger: React.FC<SubAppTriggerProps> } = () => {
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
+  const { apps: subAppsList, fetchApps } = useSubAppStore();
+
+  // 打开时获取子应用列表
+  useEffect(() => {
+    if (open) {
+      fetchApps();
+    }
+  }, [open, fetchApps]);
+
+  // 将后端数据转换为组件需要的格式
+  const subApps: SubApp[] = subAppsList
+    .filter((app) => app.status === 'enabled')
+    .map((app) => ({
+      key: app.key,
+      name: app.name,
+      description: app.description || '',
+      icon: iconMap[app.key] || <AppstoreOutlined />,
+      color: colorMap[app.key] || colors.primary[500],
+      path: `/${app.key}`,
+      status: 'running' as const,
+    }));
 
   const handleAppClick = (app: SubApp) => {
     setOpen(false);

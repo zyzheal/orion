@@ -182,9 +182,9 @@ func (h *CompatRoutesHandler) RAGRetrieve(c echo.Context) error {
 	for _, chunk := range chunks {
 		results = append(results, RAGRetrieveResult{
 			DocID:   chunk.DocID,
-			Title:   chunk.Name,    // 使用 Name 字段作为标题
+			Title:   chunk.Name, // 使用 Name 字段作为标题
 			Snippet: chunk.Content,
-			Score:   chunk.Score,   // 如果 raglite 不返回 Score，这里为 0
+			Score:   chunk.Score, // 如果 raglite 不返回 Score，这里为 0
 		})
 	}
 
@@ -206,15 +206,15 @@ type RAGQueryRequest struct {
 
 // RAGQueryResponse RAG问答响应
 type RAGQueryResponse struct {
-	Answer   string              `json:"answer"`
-	Sources  []RAGQuerySource    `json:"sources"`
-	Metadata map[string]string  `json:"metadata,omitempty"`
+	Answer   string            `json:"answer"`
+	Sources  []RAGQuerySource  `json:"sources"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // RAGQuerySource 来源文档
 type RAGQuerySource struct {
-	DocID string `json:"docId"`
-	Title string `json:"title"`
+	DocID string  `json:"docId"`
+	Title string  `json:"title"`
 	Score float64 `json:"score,omitempty"`
 }
 

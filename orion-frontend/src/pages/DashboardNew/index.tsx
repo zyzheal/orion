@@ -35,6 +35,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getPipelines, getPipelineRuns, type PipelineRun } from '@/api/pipelines';
 import { getMonitoringHealth } from '@/api/monitoring';
+import { message, Empty } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
@@ -259,7 +260,7 @@ const DashboardNew: React.FC = () => {
           ]);
         }
       } catch {
-        // Fallback to basic health info
+        message.error('获取系统健康状态失败，请检查网络连接');
         setSystemHealth([
           { name: 'API Gateway', status: 'healthy', latency: '-', uptime: '-' },
           { name: 'Platform Service', status: 'healthy', latency: '-', uptime: '-' },
@@ -269,6 +270,7 @@ const DashboardNew: React.FC = () => {
       }
     } catch (err) {
       // Backend endpoints may not all be available; use demo data
+      message.error('加载数据失败，使用演示数据展示');
       setError('加载数据失败，使用演示数据展示');
     } finally {
       setLoading(false);

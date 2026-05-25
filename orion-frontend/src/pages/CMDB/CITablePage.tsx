@@ -35,7 +35,8 @@ import {
   LinkOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
+import { componentRadius } from '@/tokens/radius';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   getCIs,
@@ -270,10 +271,10 @@ const CITablePage: React.FC = () => {
   };
 
   const statusColorMap: Record<string, string> = {
-    active: 'green',
-    inactive: 'default',
-    maintenance: 'orange',
-    deprecated: 'red',
+    active: colors.success[500],
+    inactive: colors.neutral[400],
+    maintenance: colors.warning[500],
+    deprecated: colors.error[500],
   };
 
   const columns: TableColumnsType<CIItem> = [
@@ -292,7 +293,7 @@ const CITablePage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: unknown) => <Tag color="blue">{String(type)}</Tag>,
+      render: (type: unknown) => <Tag color={colors.info[500]}>{String(type)}</Tag>,
     },
     {
       title: '环境',
@@ -300,7 +301,7 @@ const CITablePage: React.FC = () => {
       key: 'environment',
       render: (env: unknown) =>
         env ? (
-          <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag>
+          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[700]}>{String(env)}</Tag>
         ) : (
           '-'
         ),
@@ -411,7 +412,7 @@ const CITablePage: React.FC = () => {
 
     return (
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
           <Text type="secondary">管理此配置项的关联关系</Text>
           <Button
             type="primary"
@@ -426,7 +427,7 @@ const CITablePage: React.FC = () => {
           </Button>
         </div>
 
-        <Text style={{ marginBottom: 8, display: 'block' }}>
+        <Text style={{ marginBottom: spacing.xs, display: 'block' }}>
           <strong>下游关联</strong>（此配置项 → 其他）
         </Text>
         <Table
@@ -440,7 +441,7 @@ const CITablePage: React.FC = () => {
           locale={{ emptyText: '暂无下游关联' }}
         />
 
-        <Text style={{ marginBottom: 8, display: 'block' }}>
+        <Text style={{ marginBottom: spacing.xs, display: 'block' }}>
           <strong>上游关联</strong>（其他 → 此配置项）
         </Text>
         <Table
@@ -462,7 +463,7 @@ const CITablePage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
             <div>
               <Title level={4}>配置项管理</Title>
               <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
@@ -481,7 +482,7 @@ const CITablePage: React.FC = () => {
             </Space>
           </div>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={spacing.md} style={{ marginBottom: spacing.md }}>
             <Col span={6}>
               <Card>
                 <Statistic title="配置项总数" value={cis.length} />

@@ -21,6 +21,8 @@ export interface MenuModuleConfig {
   systemDescription?: string;
   enabled: boolean;
   children: MenuChildConfig[];
+  /** 是否从后端动态获取子应用列表 */
+  isDynamicSubApps?: boolean;
 }
 
 interface MenuConfigState {
@@ -200,11 +202,9 @@ const defaultModules: Record<string, MenuModuleConfig> = {
     systemTitle: '生态中心',
     systemDescription: '垂直领域专业工具与扩展能力市场',
     enabled: true,
+    // isDynamicSubApps: true 表示子应用从后端 /api/v1/subapps 动态读取
+    isDynamicSubApps: true,
     children: [
-      // 子系统
-      { key: '/dba', label: '数据库管理', description: 'DBA 运维平台', category: '子系统', enabled: true },
-      { key: '/knowledge', label: '知识库', description: '企业知识沉淀平台', category: '子系统', enabled: true },
-      { key: '/visor', label: '运维监控', description: '基础设施可视化监控', category: '子系统', enabled: true },
       // 文档与知识
       { key: '/documents', label: '文档中心', description: '项目设计文档与运维手册', category: '文档与知识', enabled: true },
       // 扩展能力

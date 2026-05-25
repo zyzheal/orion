@@ -42,8 +42,11 @@ const PipelineList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getPipelines();
-      const apiData = response.data.data;
-      setPipelines(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      // wrapper: {success, data: {data: [...], total}, meta}
+      const wrapperData = response.data as any;
+      const payload = wrapperData?.data ?? wrapperData;
+      const items = payload?.data ?? (Array.isArray(payload) ? payload : []);
+      setPipelines(items);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
@@ -107,7 +110,9 @@ const PipelineList: React.FC = () => {
     setRunning(true);
     try {
       const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch });
-      const runId = response.data?.id;
+      const wrapperData = response.data as any;
+      const apiData = wrapperData?.data ?? wrapperData;
+      const runId = apiData?.id;
       message.success(`Pipeline "${selectedPipeline.name}" 已触发运行`);
       setRunModalVisible(false);
       if (runId) {
@@ -203,7 +208,7 @@ const PipelineList: React.FC = () => {
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/edit/${record.id}`)}>
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
             编辑
           </Button>
           <Button
