@@ -1410,6 +1410,14 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'iac', action: 'read' },
   },
 
+  // Inspection - Intelligent System Inspection (Phase 4 - Intelligent Inspection)
+  {
+    path: '/inspection',
+    element: React.lazy(() => import('@/pages/inspection/InspectionPage')),
+    protected: true,
+    requiredPermission: { resource: 'inspection', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
