@@ -497,6 +497,7 @@ import mlopsRoutes from './mlops-routes';
 import metadataRoutes from './metadata-routes';
 import inspectionRoutes from './inspection-routes';
 import capacityRoutes from './capacity-routes';
+import middlewareOpsRoutes from './middleware-ops-routes';
   await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations');
   // 注册 MLOps API 路由 (Phase 4 Batch 2)
   await registerWithRoleGuard(app, mlopsRoutes, '/mlops');
@@ -506,6 +507,8 @@ import capacityRoutes from './capacity-routes';
   await registerWithRoleGuard(app, inspectionRoutes, '/inspection');
   // 注册 Capacity Planning API 路由 (Phase 4 - Capacity Planning)
   await registerWithRoleGuard(app, capacityRoutes, '/capacity');
+  // 注册 Middleware Operations API 路由 (Phase 4 - Middleware Operations)
+  await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware');
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)

@@ -1426,6 +1426,14 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'capacity', action: 'read' },
   },
 
+  // Middleware Operations (Phase 4 - Middleware Operations)
+  {
+    path: '/middleware',
+    element: React.lazy(() => import('@/pages/middleware-ops/MiddlewareOpsPage')),
+    protected: true,
+    requiredPermission: { resource: 'middleware', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
