@@ -491,6 +491,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, uebaRoutes, '/ueba', { database: options.database });
 
 // Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
+// Phase 4 Batch 2: FinOps/MLOps/Metadata 路由
+import finOpsRoutes from './finops-routes';
+import mlopsRoutes from './mlops-routes';
+import metadataRoutes from './metadata-routes';
+  await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations');
+  // 注册 MLOps API 路由 (Phase 4 Batch 2)
+  await registerWithRoleGuard(app, mlopsRoutes, '/mlops');
+  // 注册 Metadata API 路由 (Phase 4 Batch 2)
+  await registerWithRoleGuard(app, metadataRoutes, '/metadata');
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)

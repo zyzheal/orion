@@ -1366,6 +1366,22 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'billing', action: 'read' },
   },
 
+  // MLOps - ML Experiment & Model Registry (Phase 4 Batch 2)
+  {
+    path: '/mlops',
+    element: React.lazy(() => import('@/pages/mlops/MLOpsPage')),
+    protected: true,
+    requiredPermission: { resource: 'mlops', action: 'read' },
+  },
+
+  // Metadata - Data Asset Catalog & Lineage (Phase 4 Batch 2)
+  {
+    path: '/metadata',
+    element: React.lazy(() => import('@/pages/metadata/MetadataPage')),
+    protected: true,
+    requiredPermission: { resource: 'metadata', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',
