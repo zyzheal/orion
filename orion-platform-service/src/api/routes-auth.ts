@@ -9,6 +9,10 @@ import crypto from 'crypto';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import { DatabasePool } from '../services/database';
+import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 const scryptAsync = promisify(scrypt);
 
@@ -21,6 +25,7 @@ function getJwtSecret(): string | null {
 
 export interface AuthRouteOptions {
   database?: DatabasePool;
+  tokenBlacklist?: TokenBlacklistService;
 }
 
 const ACCESS_TOKEN_EXPIRES_IN = '5m';
@@ -42,6 +47,7 @@ async function verifyPassword(storedPassword: string, suppliedPassword: string):
 
 export default async function authRoutes(app: FastifyInstance, options: AuthRouteOptions = {}): Promise<void> {
   const database = options.database;
+  const tokenBlacklist = options.tokenBlacklist;
 
   /**
    * Helper to execute DB queries safely
@@ -180,15 +186,40 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
   });
 
   /**
-   * POST /api/v1/auth/logout - 用户登出
+   * POST /api/v1/auth/logout - 用户登出（单点登出）
+   *
+   * 1. 删除 refresh_token
+   * 2. access_token 加入黑名单（TokenBlacklistService）
+   * 3. 返回成功，前端负责通知子应用 + 跳转登录页
    */
   app.post('/logout', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
-    const { refreshToken } = body;
+    const { refreshToken, accessToken } = body;
 
+    // 1. Delete refresh token
     if (refreshToken) {
       const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
       await dbQuery('DELETE FROM refresh_tokens WHERE token_hash = $1', [tokenHash]);
+    }
+
+    // 2. Blacklist access token (single sign-out)
+    if (accessToken && tokenBlacklist) {
+      try {
+        const decoded = jwt.decode(accessToken) as { userId?: string; exp?: number } | null;
+        if (decoded?.userId && decoded?.exp) {
+          const ttl = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+          await tokenBlacklist.revokeToken(
+            accessToken,
+            decoded.userId,
+            0, // tenantId not available in this context
+            'logout',
+          );
+          logger.debug(`[AuthRoutes] Access token blacklisted: TTL=${ttl}s`);
+        }
+      } catch (error: unknown) {
+        logger.warn('[AuthRoutes] Failed to blacklist access token:', error);
+        // Continue - logout still succeeds even if blacklist fails
+      }
     }
 
     return reply.send({

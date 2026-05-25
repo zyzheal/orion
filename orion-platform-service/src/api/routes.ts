@@ -711,7 +711,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Auth Enhanced - JWT Key Rotation & Token Blacklist
   // Basic Auth Routes - login, logout, register, refresh, me
-  await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database });
+  const tokenBlacklistService = options.database
+    ? new (await import('../services/auth/TokenBlacklistService')).TokenBlacklistService(options.database)
+    : null;
+  await tokenBlacklistService?.connect();
+
+  await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database, tokenBlacklist: tokenBlacklistService });
 
   // Enhanced Auth Routes - JWT key rotation & token blacklist
   await registerWithRoleGuard(app, authEnhancedRoutes, '/auth', {
