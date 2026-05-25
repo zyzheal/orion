@@ -33,6 +33,18 @@ export { AlertRuleEngine } from './AlertRuleEngine';
 export { AlertNotificationService } from './AlertNotificationService';
 export { MonitoringDashboard } from './MonitoringDashboard';
 
+// Metric Storage Repository
+export {
+  PostgresMetricStorageRepository,
+} from './MetricStorageRepository';
+export type {
+  MetricStorageRepository,
+  MetricRegistryRecord,
+  MetricDataPointRecord,
+  CreateMetricRegistryInput,
+  InsertDataPointInput,
+} from './MetricStorageRepository';
+
 // Auxiliary types
 export type { MetricRegistration, MetricQuery } from './MetricCollector';
 export type { WidgetConfig, TimeWindow } from './MonitoringDashboard';
