@@ -364,7 +364,7 @@ const CITablePage: React.FC = () => {
         title: '关系类型',
         dataIndex: 'relation_type',
         key: 'relation_type',
-        render: (t: string) => <Tag color="blue">{t}</Tag>,
+        render: (t: string) => <Tag color={colors.primary[500]}>{t}</Tag>,
       },
       {
         title: '目标配置项',
@@ -395,7 +395,7 @@ const CITablePage: React.FC = () => {
         title: '关系类型',
         dataIndex: 'relation_type',
         key: 'relation_type',
-        render: (t: string) => <Tag color="green">{t}</Tag>,
+        render: (t: string) => <Tag color={colors.success[500]}>{t}</Tag>,
       },
       {
         title: '源配置项',

@@ -210,7 +210,7 @@ const TopologyPage: React.FC = () => {
               <div style={{ width: '100%', height: 600 }}>
                 <div style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.neutral[200]}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Space>
-                    <Tag color="blue" icon={<CloudServerOutlined />}>节点: {topology.nodes?.length || 0}</Tag>
+                    <Tag color={colors.primary[500]} icon={<CloudServerOutlined />}>节点: {topology.nodes?.length || 0}</Tag>
                     <Tag icon={<LinkOutlined />}>连接: {topology.edges?.length || 0}</Tag>
                   </Space>
                   <Text type="secondary" style={{ fontSize: 12 }}>点击节点查看配置项详情 | 支持缩放、拖拽</Text>

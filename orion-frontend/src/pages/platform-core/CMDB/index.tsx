@@ -211,10 +211,10 @@ const CITablePage: React.FC = () => {
   };
 
   const statusColorMap: Record<string, string> = {
-    active: 'green',
-    inactive: 'default',
-    maintenance: 'orange',
-    deprecated: 'red',
+    active: colors.success[500],
+    inactive: colors.neutral[400],
+    maintenance: colors.warning[500],
+    deprecated: colors.error[500],
   };
 
   const columns: TableColumnsType<CIItem> = [
@@ -233,7 +233,7 @@ const CITablePage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: unknown) => <Tag color="blue">{String(type)}</Tag>,
+      render: (type: unknown) => <Tag color={colors.primary[500]}>{String(type)}</Tag>,
     },
     {
       title: '环境',
@@ -241,7 +241,7 @@ const CITablePage: React.FC = () => {
       key: 'environment',
       render: (env: unknown) =>
         env ? (
-          <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag>
+          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[500]}>{String(env)}</Tag>
         ) : (
           '-'
         ),
@@ -783,7 +783,7 @@ const TopologyPage: React.FC = () => {
                   }}
                 >
                   <Space>
-                    <Tag color="blue" icon={<CloudServerOutlined />}>
+                    <Tag color={colors.primary[500]} icon={<CloudServerOutlined />}>
                       节点: {topology.nodes?.length || 0}
                     </Tag>
                     <Tag icon={<LinkOutlined />}>连接: {topology.edges?.length || 0}</Tag>
@@ -948,12 +948,12 @@ const IntegrationPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={s === 'running' ? 'green' : 'default'}>{s}</Tag>,
+      render: (s: string) => <Tag color={s === 'running' ? colors.success[500] : colors.neutral[400]}>{s}</Tag>,
     },
   ];
 
   const k8sColumns = [
-    { title: '类型', dataIndex: 'kind', key: 'kind', render: (k: string) => <Tag>{k}</Tag> },
+    { title: '类型', dataIndex: 'kind', key: 'kind', render: (k: string) => <Tag color={colors.neutral[500]}>{k}</Tag> },
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: 'Namespace', dataIndex: 'namespace', key: 'namespace' },
     {
@@ -966,7 +966,7 @@ const IntegrationPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={s === 'Running' ? 'green' : 'default'}>{s}</Tag>,
+      render: (s: string) => <Tag color={s === 'Running' ? colors.success[500] : colors.neutral[400]}>{s}</Tag>,
     },
   ];
 

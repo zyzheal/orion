@@ -29,6 +29,7 @@ import {
   StopOutlined,
   ExperimentOutlined,} from '@ant-design/icons';
 import { chaosApi, resilienceApi, type ChaosExperiment } from '@/api/chaos';
+import { colors } from '@/tokens/colors';
 
 const { Title, Text } = Typography;
 
@@ -52,8 +53,9 @@ const ChaosExperimentPage: React.FC = () => {
       ]);
       setExperiments(expRes.data || []);
       setScore(scoreData);
-    } catch {
-      message.error('Failed to load chaos experiment data');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '加载失败';
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -69,8 +71,9 @@ const ChaosExperimentPage: React.FC = () => {
       message.success('Experiment created');
       setCreateModalOpen(false);
       loadData();
-    } catch {
-      message.error('Failed to create experiment');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '创建失败';
+      message.error(msg);
     }
   };
 
@@ -79,16 +82,17 @@ const ChaosExperimentPage: React.FC = () => {
       await chaosApi.runExperiment(id);
       message.success('Experiment started');
       loadData();
-    } catch {
-      message.error('Failed to start experiment');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '启动失败';
+      message.error(msg);
     }
   };
 
   const statusColor: Record<string, string> = {
-    draft: 'default',
-    active: 'green',
-    completed: 'blue',
-    archived: 'gold',
+    draft: colors.neutral[400],
+    active: colors.success[500],
+    completed: colors.primary[500],
+    archived: colors.warning[500],
   };
 
   const columns = [
@@ -103,7 +107,7 @@ const ChaosExperimentPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={statusColor[status] || 'default'}>{status}</Tag>
+        <Tag color={statusColor[status] || colors.neutral[400]}>{status}</Tag>
       ),
     },
     {
@@ -117,7 +121,7 @@ const ChaosExperimentPage: React.FC = () => {
       title: 'Auto Rollback',
       dataIndex: 'auto_rollback',
       key: 'auto_rollback',
-      render: (v: boolean) => (v ? <Tag color="green">Enabled</Tag> : <Tag>Disabled</Tag>),
+      render: (v: boolean) => (v ? <Tag color={colors.success[500]}>Enabled</Tag> : <Tag color={colors.neutral[400]}>Disabled</Tag>),
     },
     {
       title: 'Actions',

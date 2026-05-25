@@ -224,5 +224,45 @@ export interface ImpactData {
 }
 
 export const getImpactAnalysis = async (ciId: string) => {
-  return api.get(`/v1/cmdb/impact/${ciId}`);
+  return api.get(`/v1/cmdb/topology/${ciId}/impact`);
+};
+
+// ============================================================================
+// CI Versions
+// ============================================================================
+
+export const getCIVersions = async (ciId: string) => {
+  return api.get(`/v1/cmdb/cis/${ciId}/versions`);
+};
+
+export const getCICurrentVersion = async (ciId: string) => {
+  return api.get(`/v1/cmdb/cis/${ciId}/versions/current`);
+};
+
+export const restoreCIVersion = async (ciId: string, version: string, user?: string) => {
+  return api.post(`/v1/cmdb/cis/${ciId}/versions/restore`, { version, user });
+};
+
+// ============================================================================
+// CI by Business Key
+// ============================================================================
+
+export const getCIByCiId = async (ciId: string, tenantId?: string) => {
+  return api.get(`/v1/cmdb/cis/by-id/${ciId}`, { params: { tenantId } });
+};
+
+// ============================================================================
+// Dependencies
+// ============================================================================
+
+export const getCIDependencies = async (ciId: string) => {
+  return api.get(`/v1/cmdb/topology/${ciId}/dependencies`);
+};
+
+// ============================================================================
+// Health
+// ============================================================================
+
+export const getCMDBHealth = async () => {
+  return api.get('/v1/cmdb/health');
 };
