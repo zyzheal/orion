@@ -43,9 +43,9 @@ const BuildPodDetail: React.FC = () => {
     if (!id) return;
     try {
       const response = await getBuildPodLogs(id);
-      const logsData = response.data.data as any[];
+      const logsData = response.data.data as Array<{ id: string }>;
       const logs = Array.isArray(logsData) ? logsData : [];
-      setLogIds(logs.map((log: any) => log.id));
+      setLogIds(logs.map((log) => log.id));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pod 日志失败：${error.message}`);
@@ -112,7 +112,7 @@ const BuildPodDetail: React.FC = () => {
             <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
-            {pod && <StatusBadge status={pod.status as any} size="small" />}
+            {pod && <StatusBadge status={pod.status === 'running' ? 'running' : pod.status === 'success' ? 'success' : pod.status === 'failed' ? 'failed' : pod.status === 'pending' ? 'pending' : 'cancelled'} size="small" />}
           </div>
           <Space>
             <Button
@@ -140,7 +140,7 @@ const BuildPodDetail: React.FC = () => {
             <Descriptions.Item label="Run ID">{pod.runId}</Descriptions.Item>
             <Descriptions.Item label="Stage ID">{pod.stageId}</Descriptions.Item>
             <Descriptions.Item label="Status">
-              <StatusBadge status={pod.status as any} size="small" />
+              <StatusBadge status={pod.status === 'running' ? 'running' : pod.status === 'success' ? 'success' : pod.status === 'failed' ? 'failed' : pod.status === 'pending' ? 'pending' : 'cancelled'} size="small" />
             </Descriptions.Item>
             <Descriptions.Item label="Created">
               {dayjs(pod.createdAt).format('YYYY-MM-DD HH:mm:ss')}

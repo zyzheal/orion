@@ -59,9 +59,9 @@ const SupplyChainPage: React.FC = () => {
         getSbomVulnerabilityResults(),
         getSbomComplianceReport(),
       ]);
-      setDocuments((docRes.data as any) || []);
-      setVulnResults((vulnRes.data as any) || []);
-      setComplianceRate((complianceRes.data as any)?.complianceRate ?? 0);
+      setDocuments((docRes.data as { data?: unknown })?.data ?? [] || []);
+      setVulnResults((vulnRes.data as { data?: unknown })?.data ?? [] || []);
+      setComplianceRate((complianceRes.data as { data?: { complianceRate?: number } })?.data?.complianceRate ?? 0);
     } catch {
       message.error('Failed to load supply chain data');
     } finally {

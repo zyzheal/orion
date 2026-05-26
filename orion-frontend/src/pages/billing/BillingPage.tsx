@@ -44,6 +44,12 @@ import {
 } from '@/api/billing';
 import { colors } from '@/tokens/colors';
 
+// API 响应包装接口
+interface BillingSummaryResponse { data?: BillingSummary }
+interface BillingRecordsResponse { data?: BillingRecord[] }
+interface UsageResponse { data?: UsageRecord[] }
+interface UsageSummaryResponse { data?: { totalCost: number; byService: Record<string, number> } }
+
 const { Title, Text } = Typography;
 
 // ============================================================================
@@ -58,7 +64,7 @@ const BillingSummaryCard: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBillingSummary();
-      setSummary((res.data as any).data);
+      setSummary((res.data as BillingSummaryResponse).data);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载账单摘要失败';
       message.error(msg);
@@ -103,7 +109,7 @@ const BillingRecordsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBillingRecords();
-      setRecords((res.data as any).data || []);
+      setRecords((res.data as BillingRecordsResponse).data || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载账单记录失败';
       message.error(msg);
@@ -215,8 +221,8 @@ const UsageMeteringTab: React.FC = () => {
     setLoading(true);
     try {
       const [usageRes, summaryRes] = await Promise.all([getUsage(), getUsageSummary()]);
-      setUsage((usageRes.data as any).data || []);
-      setSummary((summaryRes.data as any).data);
+      setUsage((usageRes.data as UsageResponse).data || []);
+      setSummary((summaryRes.data as UsageSummaryResponse).data);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载用量数据失败';
       message.error(msg);

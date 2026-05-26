@@ -659,8 +659,8 @@ const EphemeralEnvList: React.FC = () => {
 
       {/* Environment table */}
       <Table
-        columns={columns as any}
-        dataSource={filteredEnvs as any}
+        columns={columns}
+        dataSource={filteredEnvs}
         loading={loading}
         rowKey="id"
         size="middle"

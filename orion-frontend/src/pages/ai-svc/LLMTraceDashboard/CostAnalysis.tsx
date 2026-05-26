@@ -118,7 +118,7 @@ const CostAnalysis: React.FC = () => {
           <Text type="secondary">按模型、时间范围分析成本构成</Text>
         </div>
         <Space>
-          <RangePicker onChange={handleDateChange as any} />
+          <RangePicker onChange={handleDateChange} />
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             刷新
           </Button>

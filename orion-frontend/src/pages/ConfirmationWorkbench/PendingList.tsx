@@ -196,7 +196,12 @@ const PendingList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'confirmed' ? 'success' : status === 'rejected' ? 'failed' : status === 'expired' ? 'cancelled' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'pushTime',
@@ -376,7 +381,7 @@ const PendingList: React.FC = () => {
               <Tag color={priorityColorMap[selectedConfirmation.priority]}>
                 {selectedConfirmation.priority}
               </Tag>
-              <StatusBadge status={selectedConfirmation.status as any} />
+              <StatusBadge status={selectedConfirmation.status === 'confirmed' ? 'success' : selectedConfirmation.status === 'rejected' ? 'failed' : selectedConfirmation.status === 'expired' ? 'cancelled' : 'pending'} />
             </Space>
             <p>
               <Text strong>AI 建议:</Text> {selectedConfirmation.aiSuggestion}

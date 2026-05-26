@@ -19,7 +19,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
   const [loading, setLoading] = useState(true);
   const [steps, setSteps] = useState<TimelineStep[]>([]);
   const [selectedStep, setSelectedStep] = useState<TimelineStep | null>(null);
-  const [diagnosis, setDiagnosis] = useState<any>(null);
+  const [diagnosis, setDiagnosis] = useState<{ rootCause: string; suggestedFix: string; confidence: number } | null>(null);
 
   useEffect(() => {
     loadTimeline();
@@ -54,8 +54,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
         suggestedFix: 'Check logs manually',
         confidence: 0.8,
       };
-      const data = (result as any);
-      setDiagnosis(data);
+      setDiagnosis(result);
     } catch {
       setDiagnosis({ rootCause: 'Unable to diagnose', suggestedFix: 'Check logs manually', confidence: 0 });
     }

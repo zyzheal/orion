@@ -39,6 +39,11 @@ interface CodeOwnerRecommendation {
   approvers: string[];
 }
 
+// API 响应包装接口
+interface ApiResponse<T> { data?: T; data?: T[] }
+interface NestedApiResponse<T> { data?: { data?: T } }
+interface ListResponse<T> { data?: T[]; items?: T[] }
+
 const CodeOwnersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -217,7 +222,7 @@ const CodeOwnersPage: React.FC = () => {
       // Recommend approvers for common paths
       const filePaths = ['src/', 'tests/', 'docs/'];
       const response = await recommendCodeOwnersApprovers(selectedRepoId, filePaths);
-      const data = response.data.data as any[];
+      const data = (response.data.data as ApiResponse<CodeOwnerRecommendation[]>)?.data ?? (response.data.data as ListResponse<CodeOwnerRecommendation>)?.items ?? [];
       if (Array.isArray(data)) {
         setRecommendations(data);
         message.success('推荐加载完成');

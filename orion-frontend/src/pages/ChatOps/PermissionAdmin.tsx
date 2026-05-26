@@ -37,17 +37,17 @@ const { Text } = Typography;
 
 // ============== Role Management Tab ==============
 const RoleManagementTab: React.FC = () => {
-  const [roles, setRoles] = useState<any[]>([]);
+  const [roles, setRoles] = useState<{ id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingRole, setEditingRole] = useState<any | null>(null);
+  const [editingRole, setEditingRole] = useState<{ id?: string; name?: string; description?: string } | null>(null);
   const [form] = Form.useForm();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await chatopsAdminApi.getRoles();
-      setRoles((res as any).data?.data ?? []);
+      setRoles((res as { data?: { data?: { id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[] } })?.data?.data ?? []);
     } catch {
       message.error('获取角色列表失败');
     } finally {
@@ -185,11 +185,11 @@ const RoleManagementTab: React.FC = () => {
 
 // ============== Command Permission Tab ==============
 const CommandPermissionTab: React.FC = () => {
-  const [permissions, setPermissions] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [permissions, setPermissions] = useState<{ id?: string; command?: string; risk_level?: number; assigned_roles?: string[] }[]>([]);
+  const [roles, setRoles] = useState<{ id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<any | null>(null);
+  const [editingPermission, setEditingPermission] = useState<{ id?: string; command?: string; risk_level?: number; assigned_roles?: string[] } | null>(null);
   const [form] = Form.useForm();
 
   const loadData = useCallback(async () => {
@@ -199,8 +199,8 @@ const CommandPermissionTab: React.FC = () => {
         chatopsAdminApi.getCommandPermissions(),
         chatopsAdminApi.getRoles(),
       ]);
-      setPermissions((permRes as any).data?.data ?? []);
-      setRoles((roleRes as any).data?.data ?? []);
+      setPermissions((permRes as { data?: { data?: { id?: string; command?: string; risk_level?: number; assigned_roles?: string[] }[] } })?.data?.data ?? []);
+      setRoles((roleRes as { data?: { data?: { id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[] } })?.data?.data ?? []);
     } catch {
       message.error('获取权限列表失败');
     } finally {
@@ -350,11 +350,11 @@ const CommandPermissionTab: React.FC = () => {
 
 // ============== Environment Permission Tab ==============
 const EnvironmentPermissionTab: React.FC = () => {
-  const [permissions, setPermissions] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [permissions, setPermissions] = useState<{ id?: string; environment?: string; assigned_roles?: string[] }[]>([]);
+  const [roles, setRoles] = useState<{ id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<any | null>(null);
+  const [editingPermission, setEditingPermission] = useState<{ id?: string; environment?: string; assigned_roles?: string[] } | null>(null);
   const [form] = Form.useForm();
 
   const loadData = useCallback(async () => {
@@ -364,8 +364,8 @@ const EnvironmentPermissionTab: React.FC = () => {
         chatopsAdminApi.getEnvironmentPermissions(),
         chatopsAdminApi.getRoles(),
       ]);
-      setPermissions((permRes as any).data?.data ?? []);
-      setRoles((roleRes as any).data?.data ?? []);
+      setPermissions((permRes as { data?: { data?: { id?: string; environment?: string; assigned_roles?: string[] }[] } })?.data?.data ?? []);
+      setRoles((roleRes as { data?: { data?: { id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[] } })?.data?.data ?? []);
     } catch {
       message.error('获取环境权限列表失败');
     } finally {

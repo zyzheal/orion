@@ -171,8 +171,10 @@ const CircuitBreakerPage: React.FC = () => {
       await loadBreakers();
       await loadStats();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`创建失败: ${(error as Error).message}`);
+      if (error instanceof Error) {
+        message.error(`创建失败: ${error.message}`);
+      } else {
+        message.error('创建失败: 未知错误');
       }
     } finally {
       setSubmitting(false);
@@ -199,8 +201,10 @@ const CircuitBreakerPage: React.FC = () => {
       editForm.resetFields();
       await loadBreakers();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`更新失败: ${(error as Error).message}`);
+      if (error instanceof Error) {
+        message.error(`更新失败: ${error.message}`);
+      } else {
+        message.error('更新失败: 未知错误');
       }
     } finally {
       setSubmitting(false);

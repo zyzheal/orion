@@ -119,8 +119,8 @@ const PipelineRunList: React.FC = () => {
       // 获取 Pipeline 名称
       if (pipelineId && items.length > 0) {
         const firstRun = items[0];
-        if (firstRun && (firstRun as any).pipelineName) {
-          setPipelineName((firstRun as any).pipelineName);
+        if (firstRun && (firstRun as { pipelineName?: string }).pipelineName) {
+          setPipelineName((firstRun as { pipelineName?: string }).pipelineName);
         }
       }
 
@@ -169,7 +169,7 @@ const PipelineRunList: React.FC = () => {
         const query = searchQuery.toLowerCase();
         const searchable = [
           run.pipelineId,
-          (run as any).pipelineName || '',
+          (run as { pipelineName?: string }).pipelineName || '',
           run.triggerBy || '',
         ]
           .join(' ')
@@ -247,7 +247,7 @@ const PipelineRunList: React.FC = () => {
             style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
           >
-            {(record as any).pipelineName || record.pipelineId}
+            {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
           </Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
             <Tag color={triggerTagColors[record.triggerType] || 'default'}>
@@ -262,7 +262,7 @@ const PipelineRunList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'} size="small" />,
     },
     {
       key: 'environment',
@@ -270,7 +270,7 @@ const PipelineRunList: React.FC = () => {
       width: 100,
       render: (_value: unknown, record) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(record as any).environment || '-'}
+          {(record as { environment?: string }).environment || '-'}
         </Text>
       ),
     },

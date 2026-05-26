@@ -243,7 +243,7 @@ const CommandBrowser: React.FC = () => {
                   }))}
                   rowKey="name"
                   size="small"
-                  pagination={false as any}
+                  pagination={false}
                 />
               </>
             )}

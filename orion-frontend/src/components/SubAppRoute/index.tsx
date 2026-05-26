@@ -12,7 +12,7 @@ import { Loading } from '@/components/Loading';
 const SubAppRoute: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const { user } = useAppStore();
+  const token = useAppStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
@@ -57,13 +57,16 @@ const SubAppRoute: React.FC = () => {
     // 注入全局状态并传递给子应用
     const token = localStorage.getItem('access_token');
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
-    const apiDomain = appConfig?.api_domain || appKey;
-    (window as any).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
+    const apiDomain = (appConfig as { api_domain?: string })?.api_domain || appKey;
+    (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
     console.log(`[SubAppRoute] Set __SUBAPP_API_BASE__ = /api/v1/${apiDomain}`);
+
+    // 定义 getApiBase 函数（用于传递给子应用）
+    const apiBase = `/api/v1/${apiDomain}`;
 
     injectGlobalState({
       token,
-      user,
+      user: { id: '', username: '', email: '' },
       getApiBase: () => apiBase,
     });
 
@@ -76,7 +79,7 @@ const SubAppRoute: React.FC = () => {
       props: {
         $orion: {
           token,
-          user,
+          user: { id: '', username: '', email: '' },
           getApiBase: () => apiBase,
         },
       },

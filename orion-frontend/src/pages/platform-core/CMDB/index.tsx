@@ -69,6 +69,11 @@ import {
   type UpdateCIInput,
 } from '@/api/cmdb';
 
+// API 响应包装接口
+interface CIResponse { data?: CIItem[] }
+interface HostResponse { data?: HostInfo[] }
+interface K8sResponse { data?: K8sResource[] }
+
 const { Title, Text } = Typography;
 
 // ============================================================================
@@ -90,7 +95,7 @@ const CITablePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCIs({ pageSize: 50 });
-      setCIs((res.data as any).data || []);
+      setCIs((res.data as CIResponse).data || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {
@@ -696,7 +701,7 @@ const TopologyPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getTopology();
-      const data = (res.data as any).data || null;
+      const data = (res.data as { data?: TopologyData }).data || null;
       setTopology(data);
       if (data) {
         const flowNodes = convertToFlowNodes(data.nodes || []);
@@ -890,8 +895,8 @@ const IntegrationPage: React.FC = () => {
     setLoading(true);
     try {
       const [hostsRes, k8sRes] = await Promise.all([getHosts({ pageSize: 20 }), getK8sResources()]);
-      setHosts((hostsRes.data as any).data || []);
-      setK8sResources((k8sRes.data as any).data || []);
+      setHosts((hostsRes.data as HostResponse).data || []);
+      setK8sResources((k8sRes.data as K8sResponse).data || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {

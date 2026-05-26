@@ -98,6 +98,13 @@ interface EnvTemplate {
   config: Record<string, unknown>;
 }
 
+interface EnvironmentConfig {
+  ttlHours?: number;
+  replicas?: number;
+  resources?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 const envTemplates: EnvTemplate[] = [
   {
     name: '开发环境标准',
@@ -378,7 +385,7 @@ const EnvironmentPage: React.FC = () => {
       title: '休眠',
       width: 80,
       render: (_: unknown, record: Environment) => {
-        const config = record.config as any;
+        const config = record.config as { autoSleep?: boolean; ttlHours?: number; replicas?: number; resources?: Record<string, unknown> };
         const autoSleep = config?.autoSleep;
         return (
           <Switch
@@ -395,7 +402,7 @@ const EnvironmentPage: React.FC = () => {
       title: 'TTL',
       width: 100,
       render: (_: unknown, record: Environment) => {
-        const config = record.config as any;
+        const config = record.config as { autoSleep?: boolean; ttlHours?: number; replicas?: number; resources?: Record<string, unknown> };
         const ttl = config?.ttlHours;
         return ttl ? (
           <Tooltip title={`${ttl} 小时后自动销毁`}>
@@ -724,23 +731,23 @@ const EnvironmentPage: React.FC = () => {
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="自动休眠">
                     <Switch
-                      checked={!!(selectedEnv.config as any)?.autoSleep}
+                      checked={!!(selectedEnv.config as { autoSleep?: boolean })?.autoSleep}
                       disabled
                       checkedChildren="开启"
                       unCheckedChildren="关闭"
                     />
                   </Descriptions.Item>
                   <Descriptions.Item label="TTL">
-                    {(selectedEnv.config as any)?.ttlHours
-                      ? `${(selectedEnv.config as any).ttlHours} 小时后自动销毁`
+                    {(selectedEnv.config as { ttlHours?: number })?.ttlHours
+                      ? `${(selectedEnv.config as EnvironmentConfig)?.ttlHours} 小时后自动销毁`
                       : '无限制'}
                   </Descriptions.Item>
                   <Descriptions.Item label="副本数">
-                    {(selectedEnv.config as any)?.replicas || '-'}
+                    {(selectedEnv.config as EnvironmentConfig)?.replicas || '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="资源限制">
-                    {(selectedEnv.config as any)?.resources
-                      ? JSON.stringify((selectedEnv.config as any).resources)
+                    {(selectedEnv.config as EnvironmentConfig)?.resources
+                      ? JSON.stringify((selectedEnv.config as EnvironmentConfig).resources)
                       : '-'}
                   </Descriptions.Item>
                 </Descriptions>

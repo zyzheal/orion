@@ -158,7 +158,7 @@ const TopologyPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getTopology();
-      const data = (res.data as any).data || null;
+      const data = (res.data as { data?: unknown })?.data ?? null;
       setTopology(data);
       if (data) {
         setNodes(convertToFlowNodes(data.nodes || []));

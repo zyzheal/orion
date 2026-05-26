@@ -29,14 +29,14 @@ const ArtifactList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [artifacts, setArtifacts] = useState<any[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
 
   const loadArtifacts = async () => {
     setLoading(true);
     try {
       const response = await getArtifacts();
       const apiData = response.data.data;
-      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建产物失败：${error.message}`);

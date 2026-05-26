@@ -134,7 +134,12 @@ const PlanViewer: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'applied' ? 'success' : status === 'discarded' ? 'cancelled' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'changes',
@@ -340,7 +345,7 @@ const PlanViewer: React.FC = () => {
           <Descriptions column={2} bordered>
             <Descriptions.Item label="计划 ID">{selectedPlan.id}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <StatusBadge status={selectedPlan.status as any} />
+              <StatusBadge status={selectedPlan.status === 'applied' ? 'success' : selectedPlan.status === 'discarded' ? 'cancelled' : 'pending'} />
             </Descriptions.Item>
             <Descriptions.Item label="工作空间">
               {getWorkspaceName(selectedPlan.workspaceId)}
@@ -412,7 +417,7 @@ const PlanViewer: React.FC = () => {
                 dataSource={selectedPlan.resourceChanges as unknown as Record<string, unknown>[]}
                 rowKey="address"
                 size="small"
-                pagination={false as any}
+                pagination={false}
               />
             </Card>
           )}

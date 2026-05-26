@@ -51,8 +51,8 @@ const PluginMarketplacePage: React.FC = () => {
         getAvailablePlugins(),
         getInstalledPlugins(),
       ]);
-      setAvailablePlugins((availRes.data as any) || []);
-      setInstalledPlugins((instRes.data as any) || []);
+      setAvailablePlugins((availRes.data as { data?: Plugin[] })?.data ?? []);
+      setInstalledPlugins((instRes.data as { data?: Plugin[] })?.data ?? []);
     } catch {
       message.error('Failed to load plugin data');
     } finally {

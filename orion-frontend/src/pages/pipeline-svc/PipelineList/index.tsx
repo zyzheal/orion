@@ -43,7 +43,7 @@ const PipelineList: React.FC = () => {
     try {
       const response = await getPipelines();
       // wrapper: {success, data: {data: [...], total}, meta}
-      const wrapperData = response.data as any;
+      const wrapperData = response.data as { data?: { data?: unknown[]; total?: number } };
       const payload = wrapperData?.data ?? wrapperData;
       const items = payload?.data ?? (Array.isArray(payload) ? payload : []);
       setPipelines(items);
@@ -110,7 +110,7 @@ const PipelineList: React.FC = () => {
     setRunning(true);
     try {
       const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch });
-      const wrapperData = response.data as any;
+      const wrapperData = response.data as { data?: { id?: string } };
       const apiData = wrapperData?.data ?? wrapperData;
       const runId = apiData?.id;
       message.success(`Pipeline "${selectedPipeline.name}" 已触发运行`);
@@ -163,7 +163,7 @@ const PipelineList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: '12%',
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={String(value) as 'active' | 'inactive' | 'deleted'} size="small" />,
     },
     {
       key: 'stages',

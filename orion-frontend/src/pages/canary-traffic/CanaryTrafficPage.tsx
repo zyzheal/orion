@@ -56,8 +56,8 @@ const CanaryTrafficPage: React.FC = () => {
         getCanaryRuns(),
         getCanaryConfigs(),
       ]);
-      setRuns((runRes.data as any)?.data || []);
-      setConfigs((configRes.data as any)?.data || []);
+      setRuns((runRes.data as { data?: { data?: unknown[] } })?.data?.data ?? []);
+      setConfigs((configRes.data as { data?: { data?: unknown[] } })?.data?.data ?? []);
     } catch {
       message.error('Failed to load canary data');
     } finally {

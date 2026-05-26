@@ -168,7 +168,7 @@ const RateLimitingPage: React.FC = () => {
       await loadRules();
       await loadStats();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
     } finally {
@@ -195,7 +195,7 @@ const RateLimitingPage: React.FC = () => {
       editForm.resetFields();
       await loadRules();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`更新失败: ${(error as Error).message}`);
       }
     } finally {

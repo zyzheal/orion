@@ -138,7 +138,7 @@ const DbaPage: React.FC = () => {
     setOrderLoading(true);
     try {
       const res = await listOrders({ tenantId: 'default', page: 1, limit: 100 });
-      const list = (res.data as any)?.data?.data;
+      const list = (res.data as { data?: { data?: SqlOrder[] } })?.data?.data ?? [];
       setOrders(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setOrders([]);
@@ -152,7 +152,7 @@ const DbaPage: React.FC = () => {
     setDsLoading(true);
     try {
       const res = await listDataSources('default');
-      const list = (res.data as any)?.data;
+      const list = (res.data as { data?: DataSource[] })?.data ?? [];
       setDataSources(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setDataSources([]);
@@ -166,7 +166,7 @@ const DbaPage: React.FC = () => {
     setRuleLoading(true);
     try {
       const res = await listAuditRules('default');
-      const list = (res.data as any)?.data;
+      const list = (res.data as { data?: DataSource[] })?.data ?? [];
       setAuditRules(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setAuditRules([]);
@@ -203,7 +203,7 @@ const DbaPage: React.FC = () => {
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
-        message.error(`创建失败: ${(error as Error).message}`);
+        message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
     } finally {
       setOrderSubmitting(false);
@@ -216,7 +216,7 @@ const DbaPage: React.FC = () => {
       message.success('工单已审批通过');
       loadOrders();
     } catch (error: unknown) {
-      message.error(`审批失败: ${(error as Error).message}`);
+      message.error(`审批失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -265,10 +265,7 @@ const DbaPage: React.FC = () => {
       dsForm.resetFields();
       loadDataSources();
     } catch (error: unknown) {
-      const err = error as { errorFields?: unknown };
-      if (!err.errorFields) {
-        message.error(`保存失败: ${(error as Error).message}`);
-      }
+      message.error(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setDsSubmitting(false);
     }

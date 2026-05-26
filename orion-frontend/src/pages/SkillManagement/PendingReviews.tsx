@@ -184,7 +184,12 @@ const PendingReviews: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'approved' ? 'success' : status === 'rejected' ? 'failed' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'author',

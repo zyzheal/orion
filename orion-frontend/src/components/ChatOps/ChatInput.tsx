@@ -9,7 +9,7 @@ export const ChatInput: React.FC = () => {
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { sendMessage, isTyping, commands } = useChatOpsStore();
-  const inputRef = useRef<any>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const suggestions = useCommandSuggestions(input, commands);
 
@@ -138,7 +138,7 @@ export const ChatInput: React.FC = () => {
             }}
           >
             <textarea
-              ref={inputRef as any}
+              ref={inputRef}
               placeholder="输入命令或自然语言..."
               value={input}
               onChange={(e) => setInput(e.target.value)}

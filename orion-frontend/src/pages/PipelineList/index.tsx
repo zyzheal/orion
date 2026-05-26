@@ -35,8 +35,8 @@ const PipelineList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getPipelines();
-      const rawBody = response.data as any;
       // Backend returns { data: [...], total: N } directly (no code/message wrapper)
+      const rawBody = response.data as { data?: Pipeline[]; items?: Pipeline[] };
       const items = Array.isArray(rawBody?.data)
         ? rawBody.data
         : Array.isArray(rawBody?.items)

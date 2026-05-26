@@ -32,6 +32,11 @@ interface AdapterOption {
   type: string;
 }
 
+// API 响应包装接口
+interface ApiResponse<T> { data?: T; data?: T[] }
+interface NestedApiResponse<T> { data?: { data?: T } }
+interface ListResponse<T> { data?: T[]; items?: T[] }
+
 const RepoList: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -87,7 +92,7 @@ const RepoList: React.FC = () => {
   const loadRepoDetails = useCallback(async (repo: CodeRepo) => {
     try {
       const branchesResp = await getCodeRepoBranches(repo.adapterId, repo.id);
-      const branches = branchesResp.data.data as any[];
+      const branches = (branchesResp.data.data as ApiResponse<string[]>)?.data ?? (branchesResp.data.data as ListResponse<string>)?.items ?? [];
       if (Array.isArray(branches)) {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
@@ -96,7 +101,7 @@ const RepoList: React.FC = () => {
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
-      const prs = prResp.data.data as any[];
+      const prs = (prResp.data.data as ApiResponse<unknown[]>)?.data ?? (prResp.data.data as ListResponse<unknown>)?.items ?? [];
       if (Array.isArray(prs)) {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }

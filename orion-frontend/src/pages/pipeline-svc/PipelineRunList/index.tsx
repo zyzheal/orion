@@ -135,7 +135,7 @@ const PipelineRunList: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [run.pipelineId, (run as any).pipelineName || '', run.triggerBy || '']
+        const searchable = [run.pipelineId, (run as { pipelineName?: string }).pipelineName || '', run.triggerBy || '']
           .join(' ')
           .toLowerCase();
         if (!searchable.includes(query)) return false;
@@ -211,7 +211,7 @@ const PipelineRunList: React.FC = () => {
             style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/pipelines/${record.id}`)}
           >
-            {(record as any).pipelineName || record.pipelineId}
+            {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
           </Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
             <Tag color={triggerTagColors[record.triggerType] || 'default'}>
@@ -226,7 +226,7 @@ const PipelineRunList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'} size="small" />,
     },
     {
       key: 'environment',
@@ -234,7 +234,7 @@ const PipelineRunList: React.FC = () => {
       width: 100,
       render: (_value: unknown, record) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(record as any).environment || '-'}
+          {(record as { environment?: string }).environment || '-'}
         </Text>
       ),
     },
@@ -354,7 +354,8 @@ const PipelineRunList: React.FC = () => {
       // Refresh list after retry
       await loadRuns();
       // If API returns a new run ID, navigate to the new run's detail page
-      const newRunId = (response as any)?.data?.id || (response as any)?.data?.newRunId;
+      const responseData = response as { data?: { id?: string; newRunId?: string } };
+      const newRunId = responseData.data?.id || responseData.data?.newRunId;
       if (newRunId) {
         navigate(`/pipelines/${newRunId}`);
       }
@@ -442,7 +443,8 @@ const PipelineRunList: React.FC = () => {
       message.success('Pipeline 重新运行已触发');
       await loadRuns();
       // If API returns a new run ID, navigate to the new run's detail page
-      const newRunId = (response as any)?.data?.id || (response as any)?.data?.newRunId;
+      const responseData = response as { data?: { id?: string; newRunId?: string } };
+      const newRunId = responseData.data?.id || responseData.data?.newRunId;
       if (newRunId) {
         navigate(`/pipelines/${newRunId}`);
       }

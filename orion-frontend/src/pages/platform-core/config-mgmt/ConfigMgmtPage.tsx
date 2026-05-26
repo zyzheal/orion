@@ -64,12 +64,12 @@ const ConfigMgmtPage: React.FC = () => {
         getConfigStats(),
         getGitOpsConfig(),
       ]);
-      const configData = configRes.data as any;
-      setConfigs(configData?.configs || []);
-      const statsData = statsRes.data as any;
-      setStats(statsData || null);
-      const gitOpsData = gitOpsRes.data as any;
-      setGitOpsConfig(gitOpsData || null);
+      const configData = configRes.data as { configs?: unknown[] };
+      setConfigs(configData?.configs ?? []);
+      const statsData = statsRes.data as { data?: unknown };
+      setStats(statsData?.data ?? null);
+      const gitOpsData = gitOpsRes.data as { data?: unknown };
+      setGitOpsConfig(gitOpsData?.data ?? null);
     } catch {
       message.error('Failed to load configuration data');
     } finally {

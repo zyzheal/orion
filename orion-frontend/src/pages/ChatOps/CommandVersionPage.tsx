@@ -41,10 +41,9 @@ const CommandVersionPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await chatopsAdminApi.getCommandVersions({ page, perPage });
-      const data = (res as any).data?.data ?? [];
-      const total = (res as any).data?.total ?? 0;
-      setVersions(data);
-      setTotal(total);
+      const data = (res as { data?: { data?: CommandVersion[]; total?: number } })?.data;
+      setVersions(data?.data ?? []);
+      setTotal(data?.total ?? 0);
     } catch {
       message.error('获取版本列表失败');
     } finally {

@@ -34,11 +34,14 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
-import { userApi, UserToken } from '@/api/user';
+import { userApi, UserToken, type UserProfile, type NotificationPreferences } from '@/api/user';
 import { colors } from '@/tokens/colors';
 import { radius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
 import type { ColumnsType } from 'antd/es/table';
+
+// API 响应包装接口
+interface ApiResponse<T> { data?: T }
 
 const { Title, Text } = Typography;
 
@@ -102,7 +105,7 @@ export const UserSettingsPage: React.FC = () => {
     try {
       const response = await userApi.getProfile(user.id);
       // api.get 返回 AxiosResponse<ApiResponse<T>>，需要 .data.data 获取实际数据
-      const profile = (response as any)?.data?.data ?? (response as any)?.data ?? response;
+      const profile = (response as ApiResponse<UserProfile>)?.data?.data ?? (response as ApiResponse<UserProfile>)?.data ?? response;
       form.setFieldsValue({
         displayName: profile?.username,
         phone: profile?.phone,
@@ -117,7 +120,7 @@ export const UserSettingsPage: React.FC = () => {
     if (!user?.id) return;
     try {
       const response = await userApi.getNotificationPreferences(user.id);
-      const prefs = (response as any)?.data?.data ?? (response as any)?.data ?? response;
+      const prefs = (response as ApiResponse<NotificationPreferences>)?.data?.data ?? (response as ApiResponse<NotificationPreferences>)?.data ?? response;
       notificationForm.setFieldsValue({
         emailEnabled: prefs?.emailEnabled,
         inAppEnabled: prefs?.inAppEnabled,
@@ -135,7 +138,7 @@ export const UserSettingsPage: React.FC = () => {
     if (!user?.id) return;
     try {
       const response = await userApi.getTokens(user.id);
-      const tokenList = (response as any)?.data?.data ?? (response as any)?.data ?? response;
+      const tokenList = (response as ApiResponse<UserToken[]>)?.data?.data ?? (response as ApiResponse<UserToken[]>)?.data ?? response;
       setTokens(tokenList || []);
     } catch (error) {
       console.error('Failed to load tokens:', error);

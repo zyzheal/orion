@@ -23,6 +23,11 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
+// API 响应包装接口
+interface ApiResponse<T> { data?: T; data?: T[] }
+interface NestedApiResponse<T> { data?: { data?: T } }
+interface ListResponse<T> { data?: T[]; items?: T[] }
+
 interface DeploymentRecord {
   id: string;
   appName: string;
@@ -49,7 +54,7 @@ const DeploymentList: React.FC = () => {
     try {
       const response = await getDeployments();
       const apiData = response.data.data;
-      setDeployments(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setDeployments(Array.isArray(apiData) ? apiData : (apiData as ListResponse<DeploymentRecord>)?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载部署列表失败：${error.message}`);
@@ -198,7 +203,7 @@ const DeploymentList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={String(value) as 'success' | 'running' | 'failed' | 'pending' | 'cancelled'} size="small" />,
     },
     {
       key: 'triggeredBy',

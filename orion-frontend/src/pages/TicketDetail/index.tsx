@@ -215,7 +215,7 @@ const TicketDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getTicket(id!);
-      setTicket((response as any).data?.data || null);
+      setTicket((response as { data?: { data?: Ticket } })?.data?.data ?? null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error(`加载工单详情失败：${err.message}`);
@@ -405,7 +405,7 @@ const TicketDetail: React.FC = () => {
             <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             {ticket.id}
           </Title>
-          <Badge status={sConfig.color as any} text={sConfig.label} />
+          <Badge status={sConfig.color as 'success' | 'warning' | 'error' | 'processing' | 'default'} text={sConfig.label} />
           <Tag color={pConfig.color} style={{ fontWeight: 500, padding: '2px 12px' }}>
             {pConfig.label}
           </Tag>

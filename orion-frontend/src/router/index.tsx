@@ -77,7 +77,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
             username: response.username,
             email: response.email,
             role: response.role,
-            roles: (response as any).roles,  // 多角色支持
+            roles: (response as { roles?: unknown })?.roles,  // 多角色支持
             avatar: response.avatar,
           });
           useAuthStore.getState().setAuthenticated(true);
@@ -154,7 +154,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             username: response.username,
             email: response.email,
             role: response.role,
-            roles: (response as any).roles,  // 多角色支持
+            roles: (response as { roles?: unknown })?.roles,  // 多角色支持
             avatar: response.avatar,
           });
           useAuthStore.getState().setAuthenticated(true);

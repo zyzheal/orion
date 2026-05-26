@@ -40,7 +40,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
         total: number;
       }>('/v1/tenant/my-tenants');
 
-      const body = (res.data as any) ?? res.data;
+      const body = (res.data as { tenants?: MyTenant[]; currentTenant?: MyTenant | null; total?: number }) ?? res.data;
       const tenantList = body?.tenants || [];
       const current = body?.currentTenant || tenantList.find((t: MyTenant) => t.isCurrent);
 

@@ -58,15 +58,15 @@ apiClient.interceptors.response.use(
     if (rawData && typeof rawData === 'object') {
       // 新格式: { success: true, data: T, meta? }
       if (rawData.success === true && rawData.data !== undefined) {
-        response.data = rawData.data as any;
+        response.data = rawData.data as unknown as typeof response.data;
       }
       // 旧格式: { code: 200, message: 'OK', data: T }
       else if (rawData.code === 200 && rawData.data !== undefined) {
-        response.data = rawData.data as any;
+        response.data = rawData.data as unknown as typeof response.data;
       }
       // 直接返回 data 字段的格式: { data: T }
       else if (rawData.data !== undefined && rawData.success === undefined && rawData.code === undefined) {
-        response.data = rawData.data as any;
+        response.data = rawData.data as unknown as typeof response.data;
       }
     }
     return response;

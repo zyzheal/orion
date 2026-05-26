@@ -378,7 +378,7 @@ const RunnerManagement: React.FC = () => {
     try {
       const response = await getRunners();
       const apiData = response.data.data;
-      const runnerList = Array.isArray(apiData) ? apiData : (apiData as any).items || [];
+      const runnerList = Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? [];
       setRunners(runnerList);
     } catch (error: unknown) {
       if (error instanceof Error) {

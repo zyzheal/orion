@@ -126,7 +126,7 @@ export async function getFailedStageStats(
       batch.map(async (runId) => {
         try {
           const res = await getPipelineRunStages(runId);
-          const rawData = (res.data as any)?.data ?? res.data ?? [];
+          const rawData = (res.data as { data?: unknown[] })?.data ?? res.data ?? [];
           const stages: Array<{ name: string; status: string }> = Array.isArray(rawData)
             ? rawData
             : [];

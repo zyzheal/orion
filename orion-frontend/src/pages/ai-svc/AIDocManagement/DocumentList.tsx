@@ -212,7 +212,12 @@ const DocumentListPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'archived' ? 'cancelled' : status === 'published' ? 'success' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'authorId',
@@ -411,7 +416,7 @@ const DocumentListPage: React.FC = () => {
           <div>
             <Space style={{ marginBottom: 16 }}>
               <Tag color="blue">{getSpaceName(viewingDoc.spaceId)}</Tag>
-              <StatusBadge status={viewingDoc.status as any} />
+              <StatusBadge status={viewingDoc.status === 'archived' ? 'cancelled' : viewingDoc.status === 'published' ? 'success' : 'pending'} />
               <Tag>v{viewingDoc.version}</Tag>
             </Space>
             <Space size={4} style={{ marginBottom: 16 }}>

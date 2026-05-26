@@ -87,7 +87,7 @@ const CITablePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCIs({ pageSize: 50 });
-      setCIs((res.data as any).data || []);
+      setCIs((res.data as { data?: unknown[] })?.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {
@@ -111,7 +111,7 @@ const CITablePage: React.FC = () => {
     setRelationLoading(true);
     try {
       const res = await getCIRelations(ciId);
-      setRelations((res.data as any).data || []);
+      setRelations((res.data as { data?: unknown[] })?.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载关联关系失败：${error.message}`);
@@ -126,7 +126,7 @@ const CITablePage: React.FC = () => {
   const loadAllCIsForRelation = async () => {
     try {
       const res = await getCIs({ pageSize: 200 });
-      setAllCIs((res.data as any).data || []);
+      setAllCIs((res.data as { data?: unknown[] })?.data ?? []);
     } catch {
       // Silently fail, user will see empty dropdown
     }

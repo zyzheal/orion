@@ -57,7 +57,7 @@ const AlertList: React.FC = () => {
     try {
       const response = await getAlerts();
       const apiData = response.data.data;
-      setAlerts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setAlerts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);

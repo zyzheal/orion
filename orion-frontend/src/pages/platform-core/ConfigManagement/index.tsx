@@ -644,7 +644,7 @@ const ConfigManagementPage: React.FC = () => {
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
                       差异详情 ({envDiffResult.differences.length} 项)
                     </Text>
-                    {envDiffResult.differences.map((change) => renderChangeItem(change as any))}
+                    {envDiffResult.differences.map((change) => renderChangeItem(change))}
                   </>
                 )}
 

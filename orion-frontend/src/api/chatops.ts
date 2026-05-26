@@ -144,6 +144,9 @@ export interface Recommendation {
   actions: Array<{ label: string; command: string; params: Record<string, unknown> }>;
   createdAt: string;
   source: string;
+  // 扩展字段：用于前端处理状态
+  status?: 'pending' | 'dismissed' | 'resolved' | 'archived';
+  assignee?: string;
 }
 
 export function fetchRecommendations(context?: { currentPage?: string; resourceId?: string }) {

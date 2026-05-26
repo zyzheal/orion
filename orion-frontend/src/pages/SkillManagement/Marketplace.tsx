@@ -142,7 +142,12 @@ const SkillMarketplace: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'error' ? 'failed' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'rating',
@@ -288,7 +293,7 @@ const SkillMarketplace: React.FC = () => {
           <div>
             <Space style={{ marginBottom: 16 }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
-              <StatusBadge status={selectedSkill.status as any} size="small" />
+              <StatusBadge status={selectedSkill.status === 'active' ? 'success' : selectedSkill.status === 'inactive' ? 'cancelled' : selectedSkill.status === 'error' ? 'failed' : 'pending'} size="small" />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>

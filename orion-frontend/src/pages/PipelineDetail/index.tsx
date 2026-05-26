@@ -47,6 +47,78 @@ dayjs.extend(duration);
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
+// API 响应包装接口
+interface PipelineResponse { data?: Pipeline }
+interface RunDetailResponse { data?: { run?: PipelineRun; stages?: Stage[]; tasks?: Task[] } }
+interface StageResponse { data?: Stage[] }
+interface TaskResponse { data?: Task }
+
+// Pipeline interfaces
+interface Pipeline {
+  id?: string;
+  name?: string;
+  description?: string;
+  status?: string;
+  runNumber?: number;
+  branch?: string;
+  commit?: string;
+  author?: string;
+  trigger?: string;
+  triggerType?: string;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  stages?: Stage[];
+  [key: string]: unknown;
+}
+
+interface PipelineRun {
+  id?: string;
+  pipelineId?: string;
+  status?: string;
+  runNumber?: number;
+  branch?: string;
+  commit?: string;
+  author?: string;
+  trigger?: string;
+  triggerType?: string;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  stages?: Stage[];
+  [key: string]: unknown;
+}
+
+interface Stage {
+  id?: string;
+  name?: string;
+  status?: string;
+  type?: string;
+  durationMs?: string;
+  startTime?: string;
+  endTime?: string;
+  dependsOn?: string[];
+  tasks?: Task[];
+  [key: string]: unknown;
+}
+
+interface Task {
+  id?: string;
+  name?: string;
+  stageId?: string;
+  stageName?: string;
+  status?: string;
+  type?: string;
+  durationMs?: string;
+  startTime?: string;
+  endTime?: string;
+  logs?: string[];
+  [key: string]: unknown;
+}
+
+// StatusBadge status 类型
+type BadgeStatus = 'success' | 'running' | 'failed' | 'pending' | 'warning' | 'cancelled' | 'error' | 'default';
+
 // Status color map for stages
 const stageStatusColors: Record<string, string> = {
   success: colors.success[500],
@@ -225,36 +297,35 @@ const TaskOutputsTable: React.FC = () => {
  *   - 详情接口: { id, name, ... } 或 { run, stages, tasks }
  *   - 创建/更新: { id, name, ... }
  */
-function extractData<T = any>(response: unknown): T | null {
-  const res = response as any;
+function extractData<T = unknown>(response: unknown): T | null {
+  const res = response as { data?: T } | T;
   if (!res) return null;
 
   // 第一层：AxiosResponse.data → 后端实际响应
-  const backendResponse = res.data ?? res;
+  const backendResponse = 'data' in res ? (res as { data?: T }).data : res;
 
   if (!backendResponse) return null;
 
   // 如果后端返回的是 { data: X } 格式（X 可能是对象或数组），返回 X
-  if (backendResponse.data !== undefined) {
-    return backendResponse.data;
+  if (backendResponse && typeof backendResponse === 'object' && 'data' in backendResponse) {
+    return (backendResponse as { data?: T }).data;
   }
 
   // 否则直接返回后端响应（详情接口直接返回对象，无 data 包装）
-  return backendResponse;
+  return backendResponse as T;
 }
 
 /**
  * 统一解析列表 API 响应
  */
-function extractList<T = any>(response: unknown): T[] {
-  const res = response as any;
+function extractList<T = unknown>(response: unknown): T[] {
+  const res = response as { data?: T[] } | T[] | { runs?: T[] } | { items?: T[] };
   if (!res) return [];
 
   // 第一层：AxiosResponse.data → 后端实际响应
-  const backendResponse = res.data ?? res;
+  const backendResponse = 'data' in res ? (res as { data?: T[] }).data : res;
 
   // 后端列表格式: { data: [...], total: N }
-  if (Array.isArray(backendResponse?.data)) return backendResponse.data;
   if (Array.isArray(backendResponse)) return backendResponse;
   if (Array.isArray(backendResponse?.runs)) return backendResponse.runs;
   if (Array.isArray(backendResponse?.items)) return backendResponse.items;
@@ -953,7 +1024,7 @@ const PipelineDetail: React.FC = () => {
                   dataIndex: 'status',
                   key: 'status',
                   width: 100,
-                  render: (status: string) => <StatusBadge status={status as any} />,
+                  render: (status: string) => <StatusBadge status={status as BadgeStatus} />,
                 },
                 {
                   title: '触发方式',

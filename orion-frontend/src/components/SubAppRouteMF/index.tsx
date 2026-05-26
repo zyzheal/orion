@@ -4,7 +4,7 @@
  * 使用 orion-mf 微前端框架加载子应用
  * 支持 Shadow DOM 隔离、降级策略、错误边界
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { loadSubApp, getSubApp, destroySubApp } from '@orion-mf/core';
 import type { SubAppInstance } from '@orion-mf/core';
@@ -23,7 +23,7 @@ interface OrionMFConfig {
 const SubAppRouteMF: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const { user } = useAppStore();
+  const token = useAppStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -142,7 +142,7 @@ const SubAppRouteMF: React.FC = () => {
           const tenantId = localStorage.getItem('tenant_id');
 
           // 子应用可以通过 window.$orion 访问主应用状态
-          (window as any).$orion = {
+          (window as unknown as { $orion?: { token: string; tenantId: string; user: { id: string; username: string; email?: string }; getApiBase: () => string } }).$orion = {
             token,
             tenantId,
             user,
@@ -299,7 +299,7 @@ const SubAppRouteMF: React.FC = () => {
             zIndex: 10,
           }}
         >
-          <Loading tip={`正在加载 ${mfConfig.name}...`} />
+          <Loading>{`正在加载 ${mfConfig.name}...`}</Loading>
         </div>
       )}
     </div>

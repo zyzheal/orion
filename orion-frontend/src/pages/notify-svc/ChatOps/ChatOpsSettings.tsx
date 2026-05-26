@@ -61,8 +61,8 @@ const ChatOpsSettings: React.FC = () => {
   const loadSettings = async () => {
     try {
       const res = await getNotificationPreferences();
-      const data = (res as any).data?.data;
-      if (data) form.setFieldsValue(data);
+      const data = (res as { data?: { data?: unknown } })?.data?.data;
+      if (data && typeof data === 'object') form.setFieldsValue(data as Record<string, unknown>);
     } catch {
       // Use defaults - optional settings load
     }
@@ -71,7 +71,7 @@ const ChatOpsSettings: React.FC = () => {
   const loadDNDSettings = async () => {
     try {
       const res = await getDNDSettings();
-      const data = (res as any).data?.data as DNDSettings | null;
+      const data = (res as { data?: { data?: DNDSettings } })?.data?.data ?? null;
       if (data) {
         setDndEnabled(data.enabled);
         dndForm.setFieldsValue({
@@ -89,7 +89,7 @@ const ChatOpsSettings: React.FC = () => {
   const loadPlatformConfigs = async () => {
     try {
       const res = await getPlatformConfigs();
-      const data = (res as any).data?.data as PlatformConfig[];
+      const data = (res as { data?: { data?: PlatformConfig[] } })?.data?.data ?? [];
       if (data && data.length > 0) {
         setPlatforms(data);
         // 填充表单

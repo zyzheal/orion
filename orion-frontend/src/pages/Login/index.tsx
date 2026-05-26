@@ -54,7 +54,7 @@ const Login: React.FC = () => {
     const result = await login(values);
     if (result.success) {
       message.success('登录成功');
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? />dashboard/;
       navigate(from, { replace: true });
     } else {
       if (result.error && typeof result.error === 'object' && 'message' in result.error) {

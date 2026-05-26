@@ -443,18 +443,18 @@ const PipelineRunLive: React.FC = () => {
       try {
         const response = await getPipelineRun(runId!);
         // Backend returns { run, stages, tasks } directly, not wrapped in data
-        const apiData = response.data as any;
+        const apiData = response.data as { run?: PipelineRun; stages?: Stage[]; tasks?: Task[] };
         if (apiData) {
           setPipeline(apiData);
           // Initialize stages from API data
           if (apiData.stages) {
-            const initialized: StageState[] = apiData.stages.map((s: any, idx: number) => ({
+            const initialized: StageState[] = apiData.stages.map((s: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string; steps?: Step[] }, idx: number) => ({
               id: s.id || `stage-${idx}`,
               name: s.name,
               status: s.status || 'pending',
               startTime: s.startTime,
               endTime: s.endTime,
-              steps: (s.steps || []).map((st: any, stIdx: number) => ({
+              steps: (s.steps || []).map((st: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string }, stIdx: number) => ({
                 id: st.id || `step-${idx}-${stIdx}`,
                 name: st.name,
                 status: st.status || 'pending',

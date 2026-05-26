@@ -255,7 +255,7 @@ const TimelineTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRcaTimeline(deploymentId);
-      const t = (res.data as any)?.timeline || res.data?.data;
+      const t = (res.data as { timeline?: { events?: unknown[]; totalEvents?: number; criticalEvents?: number } })?.timeline ?? res.data?.data;
       if (t) {
         setTimeline({
           events: t.events || [],

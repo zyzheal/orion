@@ -37,7 +37,7 @@ const RateLimitPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await chatopsAdminApi.getRateLimits();
-      setLimits((res as any).data?.data ?? []);
+      setLimits((res as { data?: { data?: RateLimit[] } })?.data?.data ?? []);
     } catch {
       message.error('获取限流配置失败');
     } finally {

@@ -270,7 +270,7 @@ const PlatformConfigTab: React.FC = () => {
   const loadPlatformConfigs = async () => {
     try {
       const res = await getPlatformConfigs();
-      const data = (res as any).data?.data as PlatformConfig[];
+      const data = (res as { data?: { data?: PlatformConfig[] } })?.data?.data as PlatformConfig[];
       if (data && data.length > 0) {
         setPlatforms(data);
         data.forEach((p, index) => {
@@ -389,7 +389,7 @@ const NotificationDNDTab: React.FC = () => {
   const loadSettings = async () => {
     try {
       const res = await getNotificationPreferences();
-      const data = (res as any).data?.data;
+      const data = (res as { data?: { data?: Record<string, unknown> } })?.data?.data;
       if (data) form.setFieldsValue(data);
     } catch {
       // Use defaults
@@ -399,7 +399,7 @@ const NotificationDNDTab: React.FC = () => {
   const loadDNDSettings = async () => {
     try {
       const res = await getDNDSettings();
-      const data = (res as any).data?.data as DNDSettings | null;
+      const data = (res as { data?: { data?: DNDSettings | null } })?.data?.data as DNDSettings | null;
       if (data) {
         setDndEnabled(data.enabled);
         dndForm.setFieldsValue({

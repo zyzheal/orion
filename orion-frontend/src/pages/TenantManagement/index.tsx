@@ -56,6 +56,12 @@ import {
   type ResourceUsage,
 } from '@/api/tenant';
 
+// API 响应包装接口
+interface QuotaResponse { quota?: TenantQuota }
+interface PoolStatusResponse { status?: PoolStatus }
+interface NamespaceResponse { namespaces?: NamespacePoolEntry[] }
+interface UsageResponse { usage?: TenantUsage }
+
 const { Title, Text } = Typography;
 
 interface UsageItem {
@@ -108,11 +114,11 @@ const TenantManagementPage: React.FC = () => {
         getNamespaceUsageDetail(tenantId),
       ]);
       // Fastify returns data directly; axios response.data is the body
-      const quotaBody = (quotaRes.data as any)?.quota ?? quotaRes.data;
-      const poolBody = (poolRes.data as any)?.status ?? poolRes.data;
-      const nsBody = (namespacesRes.data as any) ?? namespacesRes.data;
-      const usageBody = (usageRes.data as any)?.usage ?? usageRes.data;
-      const detailsBody = (detailsRes.data as any) ?? detailsRes.data;
+      const quotaBody = (quotaRes.data as QuotaResponse)?.quota ?? quotaRes.data;
+      const poolBody = (poolRes.data as PoolStatusResponse)?.status ?? poolRes.data;
+      const nsBody = (namespacesRes.data as NamespaceResponse) ?? namespacesRes.data;
+      const usageBody = (usageRes.data as UsageResponse)?.usage ?? usageRes.data;
+      const detailsBody = (detailsRes.data as NamespaceResponse) ?? detailsRes.data;
 
       setQuota(quotaBody?.quota || quotaBody);
       setPoolStatus(poolBody);

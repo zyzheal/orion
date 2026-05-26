@@ -197,8 +197,8 @@ const FeatureFlagsPage: React.FC = () => {
       await loadFlags();
       await loadStats();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`创建失败: ${(error as Error).message}`);
+      if (!(error instanceof Error)) {
+        message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
     } finally {
       setSubmitting(false);
@@ -229,9 +229,7 @@ const FeatureFlagsPage: React.FC = () => {
       editForm.resetFields();
       await loadFlags();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`更新失败: ${(error as Error).message}`);
-      }
+      message.error(`更新失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSubmitting(false);
     }
@@ -244,7 +242,7 @@ const FeatureFlagsPage: React.FC = () => {
       await loadFlags();
       await loadStats();
     } catch (error: unknown) {
-      message.error(`删除失败: ${(error as Error).message}`);
+      message.error(`删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -255,7 +253,7 @@ const FeatureFlagsPage: React.FC = () => {
       message.success(`"${flag.name}" 已${enabled ? '启用' : '禁用'}`);
       await loadStats();
     } catch (error: unknown) {
-      message.error(`操作失败: ${(error as Error).message}`);
+      message.error(`操作失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -274,9 +272,7 @@ const FeatureFlagsPage: React.FC = () => {
       setEvaluationResult(String(result.data?.data?.result ?? '未知'));
       message.success('评估完成');
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`评估失败: ${(error as Error).message}`);
-      }
+      message.error(`评估失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSubmitting(false);
     }

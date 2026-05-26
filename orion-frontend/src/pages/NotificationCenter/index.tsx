@@ -375,7 +375,9 @@ const NotificationCenter: React.FC = () => {
       broadcastForm.resetFields();
     } catch (error: unknown) {
       // Form validation errors are handled by Ant Design
-      if (!(error as any)?.errorFields) {
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        // Ant Design form validation error
+      } else {
         message.error('广播发送失败');
       }
     } finally {

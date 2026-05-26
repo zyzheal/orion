@@ -21,14 +21,14 @@ const BuildLogList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<BuildLog[]>([]);
 
   const loadLogs = async () => {
     setLoading(true);
     try {
       const response = await getBuildLogs();
       const apiData = response.data.data;
-      setLogs(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setLogs(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建日志失败：${error.message}`);

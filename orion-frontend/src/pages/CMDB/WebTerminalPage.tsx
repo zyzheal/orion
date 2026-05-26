@@ -65,7 +65,7 @@ const WebTerminalPage: React.FC = () => {
   useEffect(() => {
     getHosts({ pageSize: 100 })
       .then((res) => {
-        const list = (res.data as any).data || [];
+        const list = (res.data as { data?: unknown[] })?.data ?? [];
         setHosts(list);
       })
       .catch((err) => {

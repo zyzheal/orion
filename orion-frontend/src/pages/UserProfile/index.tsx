@@ -38,6 +38,10 @@ import { colors } from '@/tokens/colors';
 import { componentRadius, radius } from '@/tokens/radius';
 import { spacing, componentSpacing } from '@/tokens/spacing';
 
+// API 响应包装接口
+interface ApiResponse<T> { data?: T; data?: T[] }
+interface NestedApiResponse<T> { data?: { data?: T } }
+
 const { Title, Text } = Typography;
 
 /**
@@ -132,10 +136,10 @@ export const UserProfilePage: React.FC = () => {
           userApi.getPermissions(user.id).catch(() => []),
         ]);
 
-        if (profileRes) setProfile((profileRes as any)?.data?.data || (profileRes as any)?.data || profileRes);
-        if (activitiesRes) setActivities((activitiesRes as any)?.data?.data || (activitiesRes as any)?.data || []);
-        if (teamsRes) setTeams((teamsRes as any)?.data?.data || (teamsRes as any)?.data || []);
-        if (permissionsRes) setPermissions((permissionsRes as any)?.data?.data || (permissionsRes as any)?.data || []);
+        if (profileRes) setProfile((profileRes as NestedApiResponse<UserProfile>)?.data?.data || (profileRes as ApiResponse<UserProfile>)?.data || profileRes);
+        if (activitiesRes) setActivities((activitiesRes as NestedApiResponse<UserActivity[]>)?.data?.data || (activitiesRes as ApiResponse<UserActivity[]>)?.data || []);
+        if (teamsRes) setTeams((teamsRes as NestedApiResponse<UserTeam[]>)?.data?.data || (teamsRes as ApiResponse<UserTeam[]>)?.data || []);
+        if (permissionsRes) setPermissions((permissionsRes as NestedApiResponse<UserPermission[]>)?.data?.data || (permissionsRes as ApiResponse<UserPermission[]>)?.data || []);
       } catch (error) {
         console.error('Failed to fetch user profile data:', error);
       } finally {

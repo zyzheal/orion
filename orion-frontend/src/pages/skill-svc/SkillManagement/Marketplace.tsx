@@ -142,7 +142,7 @@ const SkillMarketplace: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as 'published' | 'draft' | 'archived'} size="small" />,
     },
     {
       key: 'rating',
@@ -288,7 +288,7 @@ const SkillMarketplace: React.FC = () => {
           <div>
             <Space style={{ marginBottom: 16 }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
-              <StatusBadge status={selectedSkill.status as any} size="small" />
+              <StatusBadge status={selectedSkill.status as 'published' | 'draft' | 'archived'} size="small" />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>

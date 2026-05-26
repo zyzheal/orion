@@ -36,7 +36,7 @@ const ArtifactList: React.FC = () => {
     try {
       const response = await getArtifacts();
       const apiData = response.data.data;
-      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建产物失败：${error.message}`);

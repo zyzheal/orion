@@ -122,7 +122,7 @@ const MySkills: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as 'published' | 'draft' | 'archived'} size="small" />,
     },
     {
       key: 'rating',

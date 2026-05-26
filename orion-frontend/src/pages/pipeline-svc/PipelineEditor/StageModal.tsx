@@ -511,7 +511,7 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ width: '100%' }}
             placeholder="默认 300 秒"
             formatter={(value) => `${value}s`}
-            parser={(value) => Number(value?.replace('s', '')) as any}
+            parser={(value) => Number(value?.replace('s', '')) ?? 0}
           />
         </Form.Item>
 

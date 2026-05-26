@@ -106,24 +106,24 @@ const SubAppRouteDynamic: React.FC = () => {
 
     // 提前设置子应用的 basename 和 poweredBy 标志
     const basePath = `/${subAppKey}`;
-    (window as any).__BASENAME__ = basePath;
-    (window as any).__POWERED_BY_ORION__ = true;
+    (window as unknown as { __BASENAME__?: string }).__BASENAME__ = basePath;
+    (window as unknown as { __POWERED_BY_ORION__?: boolean }).__POWERED_BY_ORION__ = true;
 
     // 提前注入主应用 token
     const mainToken = localStorage.getItem('access_token');
     const mainUserStr = localStorage.getItem('user');
     let mainUser = { id: '', username: '' };
     if (mainUserStr) { try { mainUser = JSON.parse(mainUserStr); } catch { /* ignore */ } }
-    (window as any).$orion = {
+    (window as unknown as { $orion?: { token: string; tenantId: string; user: { id: string; username: string; email?: string } } }).$orion = {
       token: mainToken || '',
       tenantId: localStorage.getItem('tenant_id') || '',
       user: mainUser,
     };
-    (window as any).__orionToken = mainToken || '';
+    (window as unknown as { __orionToken?: string }).__orionToken = mainToken || '';
 
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = appConfig?.api_domain || subAppKey;
-    (window as any).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
+    (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
     console.log(`[SubAppRouteDynamic] Set __SUBAPP_API_BASE__ = /api/v1/${apiDomain}`);
 
     // 确保容器 ID 正确
@@ -261,7 +261,7 @@ const SubAppRouteDynamic: React.FC = () => {
     const unsubscribeLogout = orionBus.on('orionLogout', () => {
       if (subAppKey) {
         console.log(`[SubAppRouteDynamic] Received logout for ${subAppKey}`);
-        window.$orion = undefined as any;
+        (window as unknown as { $orion?: undefined }).$orion = undefined;
         window.dispatchEvent(new CustomEvent('orion-logout'));
       }
     }, `subapp-${subAppKey}`);

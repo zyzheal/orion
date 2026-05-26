@@ -474,7 +474,7 @@ const PipelineRunLive: React.FC = () => {
       try {
         const response = await getPipelineRun(id!);
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
-        const wrapperData = response.data as any;
+        const wrapperData = response.data as { data?: unknown; success?: boolean };
         const apiData = wrapperData?.data ?? wrapperData;
         if (apiData && (apiData.run || apiData.stages)) {
           const run = apiData.run || apiData;

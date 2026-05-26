@@ -212,7 +212,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       setEditMode(false);
       setOriginalConfig({ ...config });
     } catch (error) {
-      if ((error as any)?.errorFields) {
+      if (error instanceof Error) {
         message.error('请检查表单填写');
       } else {
         message.error('保存失败');
@@ -346,7 +346,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       setEditMode(false);
       setOriginalConfig({ ...config });
     } catch (error) {
-      if ((error as any)?.errorFields) {
+      if (error instanceof Error) {
         message.error('请检查表单填写');
       } else {
         message.error('保存失败');
@@ -479,7 +479,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       setSelectedEdge(null);
       setEditingEdge(null);
     } catch (error) {
-      if ((error as any)?.errorFields) {
+      if (error instanceof Error) {
         message.error('请检查表单填写');
       } else {
         message.error('保存连线失败');
@@ -545,7 +545,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       setWorkflow({ ...workflow, edges: updatedEdges });
       setAddEdgeModalOpen(false);
     } catch (error) {
-      if ((error as any)?.errorFields) {
+      if (error instanceof Error) {
         message.error('请检查表单填写');
       } else {
         message.error('添加连线失败');

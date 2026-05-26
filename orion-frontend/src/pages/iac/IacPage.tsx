@@ -42,7 +42,7 @@ const WorkspaceTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getWorkspaces();
-      setWorkspaces((res.data as any).data || []);
+      setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载工作区失败');
     } finally { setLoading(false); }
@@ -191,7 +191,7 @@ const ResourcesTab: React.FC = () => {
   const loadWorkspaces = async () => {
     try {
       const res = await getWorkspaces();
-      setWorkspaces((res.data as any).data || []);
+      setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
     } catch { /* ignore */ }
   };
 
@@ -199,7 +199,7 @@ const ResourcesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getWorkspaceResources(workspaceId);
-      setResources((res.data as any).data || []);
+      setResources((res.data as { data?: IaCResourceChange[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载资源失败');
     } finally { setLoading(false); }
@@ -263,7 +263,7 @@ const ModulesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getModules();
-      setModules((res.data as any).data || []);
+      setModules((res.data as { data?: IaCModule[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载模块失败');
     } finally { setLoading(false); }
@@ -341,7 +341,7 @@ const PlansTab: React.FC = () => {
   const loadWorkspaces = async () => {
     try {
       const res = await getWorkspaces();
-      setWorkspaces((res.data as any).data || []);
+      setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
     } catch { /* ignore */ }
   };
 
@@ -349,7 +349,7 @@ const PlansTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getWorkspacePlans(workspaceId);
-      setPlans((res.data as any).data || []);
+      setPlans((res.data as { data?: IaCPlan[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载计划失败');
     } finally { setLoading(false); }

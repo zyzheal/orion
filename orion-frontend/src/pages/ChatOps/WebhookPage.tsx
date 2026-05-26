@@ -38,7 +38,7 @@ const WebhookPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await chatopsAdminApi.getWebhooks();
-      setWebhooks((res as any).data?.data ?? []);
+      setWebhooks((res as { data?: { data?: Webhook[] } })?.data?.data ?? []);
     } catch {
       message.error('获取 Webhook 列表失败');
     } finally {
@@ -85,7 +85,8 @@ const WebhookPage: React.FC = () => {
   const handleTest = async (id: string) => {
     try {
       const res = await chatopsAdminApi.testWebhook(id);
-      message.success((res as any).data?.success ? 'Webhook 测试成功' : 'Webhook 测试失败');
+      const resData = res as { data?: { success?: boolean } };
+      message.success(resData.data?.success ? 'Webhook 测试成功' : 'Webhook 测试失败');
       loadData();
     } catch {
       message.error('Webhook 测试失败');
@@ -95,7 +96,7 @@ const WebhookPage: React.FC = () => {
   const handleViewLogs = async (id: string) => {
     try {
       const res = await chatopsAdminApi.getWebhookLogs(id);
-      setLogs((res as any).data?.data ?? []);
+      setLogs((res as { data?: { data?: LogEntry[] } })?.data?.data ?? []);
       setLogsVisible(true);
     } catch {
       message.error('获取日志失败');

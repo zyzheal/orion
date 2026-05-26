@@ -150,7 +150,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     setLoading(true);
     try {
       const res = await listTenants(page, pageSize);
-      const body = (res.data as any)?.data ?? res.data;
+      const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
       setTenants(body?.data || body || []);
       setTotal(body?.total ?? body?.totalPages ? (body.page * body.limit) : 0);
     } catch (error: unknown) {
@@ -192,7 +192,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       };
 
       const res = await createTenant(input);
-      const body = (res.data as any) ?? res.data;
+      const body = (res.data as { message?: string; allocatedNamespaces?: { id: string }[] }) ?? res.data;
       message.success(body.message || '租户创建成功');
 
       if (body.allocatedNamespaces?.length > 0) {
@@ -370,7 +370,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     setUsersLoading(true);
     try {
       const res = await getUsersByTenant(tenant.id);
-      const body = (res.data as any)?.data ?? res.data;
+      const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
       setUsers(Array.isArray(body) ? body : body?.users || []);
     } catch (error: unknown) {
       if (error instanceof Error) {

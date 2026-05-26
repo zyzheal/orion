@@ -24,6 +24,10 @@ import {
 } from '@/api/middleware-ops';
 import { colors } from '@/tokens/colors';
 
+// API 响应包装接口
+interface ListResponse<T> { data?: T[] }
+interface HealthResponse { data?: { totalInstances: number; healthyCount: number; degradedCount: number; unhealthyCount: number; totalAlerts: number; criticalAlerts: number; healthScore: number } }
+
 const { Title, Text } = Typography;
 
 // ============================================================================
@@ -40,7 +44,7 @@ const InstancesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listMiddlewareInstances();
-      setInstances((res.data as any).data || []);
+      setInstances((res.data as ListResponse<MiddlewareInstance>).data || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载中间件实例失败');
     } finally { setLoading(false); }
@@ -168,7 +172,7 @@ const ConnectionPoolsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listConnectionPools();
-      setPools((res.data as any).data || []);
+      setPools((res.data as ListResponse<ConnectionPool>).data || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载连接池失败');
     } finally { setLoading(false); }
@@ -220,7 +224,7 @@ const MessageQueuesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listMqStats();
-      setMqStats((res.data as any).data || []);
+      setMqStats((res.data as ListResponse<MessageQueueStats>).data || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载消息队列数据失败');
     } finally { setLoading(false); }
@@ -267,7 +271,7 @@ const AlertsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listMiddlewareAlerts();
-      setAlerts((res.data as any).data || []);
+      setAlerts((res.data as ListResponse<MiddlewareAlert>).data || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载告警失败');
     } finally { setLoading(false); }
@@ -342,7 +346,7 @@ const MiddlewareOpsPage: React.FC = () => {
   const loadHealth = async () => {
     try {
       const res = await getMiddlewareHealthSummary();
-      setHealthSummary((res.data as any).data || null);
+      setHealthSummary((res.data as HealthResponse).data || null);
     } catch { /* ignore */ }
   };
 

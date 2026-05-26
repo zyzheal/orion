@@ -141,7 +141,7 @@ const ArtifactPage: React.FC = () => {
       const raw = res.data?.data;
       if (Array.isArray(raw)) {
         setArtifacts(raw);
-        const respTotal = (res.data as any)?.total ?? raw.length;
+        const respTotal = (res.data as { total?: number })?.total ?? raw.length;
         setTotal(respTotal);
       } else {
         setArtifacts([]);

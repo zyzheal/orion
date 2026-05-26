@@ -131,7 +131,7 @@ const QueueTasksPage: React.FC = () => {
       key: 'status',
       width: 100,
       render: (v: JobStatus) => (
-        <Badge status={statusColorMap[v] as any} text={v} />
+        <Badge status={statusColorMap[v]} text={v} />
       ),
     },
     {

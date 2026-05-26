@@ -124,8 +124,8 @@ const PipelineEditor: React.FC = () => {
     if (id) {
       getPipeline(id)
         .then((response) => {
-          const rawBody = response.data as any;
-          const pipeline: any = rawBody?.data ?? rawBody;
+          const rawBody = response.data as { data?: unknown };
+          const pipeline = rawBody?.data ?? rawBody;
           if (pipeline) {
             const info = {
               name: pipeline.name,

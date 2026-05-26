@@ -117,69 +117,81 @@ export async function getWorkbenchFallback(): Promise<WorkbenchData> {
   // Parse pipeline runs
   const pipelineItems =
     pipelines.status === 'fulfilled'
-      ? ((pipelines.value.data as any)?.items || (pipelines.value.data as any)?.data || (pipelines.value.data as any)?.data?.data || [])
+      ? ((pipelines.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.items ||
+          (pipelines.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.data ||
+          ((pipelines.value.data as { data?: { data?: Array<Record<string, unknown>> } })?.data?.data || [])
+        ) as Array<Record<string, unknown>>
       : [];
 
   // Parse alerts
   const alertItems =
     alerts.status === 'fulfilled'
-      ? ((alerts.value.data as any)?.items || (alerts.value.data as any)?.data || (alerts.value.data as any)?.data?.data || [])
+      ? ((alerts.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.items ||
+          (alerts.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.data ||
+          ((alerts.value.data as { data?: { data?: Array<Record<string, unknown>> } })?.data?.data || [])
+        ) as Array<Record<string, unknown>>
       : [];
 
   // Parse tickets
   const ticketItems =
     tickets.status === 'fulfilled'
-      ? ((tickets.value.data as any)?.items || (tickets.value.data as any)?.data || (tickets.value.data as any)?.data?.data || [])
+      ? ((tickets.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.items ||
+          (tickets.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.data ||
+          ((tickets.value.data as { data?: { data?: Array<Record<string, unknown>> } })?.data?.data || [])
+        ) as Array<Record<string, unknown>>
       : [];
 
   // Parse deployments
   const deploymentItems =
     deployments.status === 'fulfilled'
-      ? ((deployments.value.data as any)?.items || (deployments.value.data as any)?.data || (deployments.value.data as any)?.data?.data || [])
+      ? ((deployments.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.items ||
+          (deployments.value.data as { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> })?.data ||
+          ((deployments.value.data as { data?: { data?: Array<Record<string, unknown>> } })?.data?.data || [])
+        ) as Array<Record<string, unknown>>
       : [];
 
   return {
     myPipelines: {
-      recentRuns: pipelineItems.map((run: any) => ({
-        id: run.id || '',
-        name: run.pipelineName || run.name || 'Unknown Pipeline',
-        status: run.status || 'unknown',
-        createdAt: run.createdAt || run.startedAt || '',
-        duration: run.duration || run.durationMs || 0,
+      recentRuns: pipelineItems.map((run: Record<string, unknown>) => ({
+        id: run.id as string || '',
+        name: (run.pipelineName as string) || (run.name as string) || 'Unknown Pipeline',
+        status: run.status as string || 'unknown',
+        createdAt: (run.createdAt as string) || (run.startedAt as string) || '',
+        duration: (run.duration as number) || (run.durationMs as number) || 0,
       })),
       successRate: 0,
       totalRuns24h: 0,
-      failedRuns: pipelineItems.filter((r: any) => r.status === 'failed').length,
+      failedRuns: pipelineItems.filter((r: Record<string, unknown>) => r.status === 'failed').length,
     },
     myAlerts: {
       unread: alertItems.length,
-      critical: alertItems.filter((a: any) => a.severity === 'critical').length,
-      recent: alertItems.map((alert: any) => ({
-        id: alert.id || '',
-        severity: alert.severity || 'info',
-        message: alert.message || alert.description || '',
-        createdAt: alert.createdAt || '',
+      critical: alertItems.filter((a: Record<string, unknown>) => a.severity === 'critical').length,
+      recent: alertItems.map((alert: Record<string, unknown>) => ({
+        id: alert.id as string || '',
+        severity: alert.severity as string || 'info',
+        message: (alert.message as string) || (alert.description as string) || '',
+        createdAt: alert.createdAt as string || '',
         acknowledged: alert.status === 'acknowledged' || alert.acknowledged || false,
       })),
     },
     myTickets: {
       active: ticketItems.length,
-      overdue: ticketItems.filter((t: any) => t.isOverdue || t.slaRemainingHours < 0).length,
-      recent: ticketItems.map((ticket: any) => ({
-        id: ticket.id || ticket.ticketId || '',
-        title: ticket.title || '',
-        priority: ticket.priority || 'medium',
-        status: ticket.status || 'pending',
-        slaRemaining: ticket.slaRemainingHours ?? ticket.slaRemaining ?? 0,
+      overdue: ticketItems.filter((t: Record<string, unknown>) => t.isOverdue || (t.slaRemainingHours as number) < 0).length,
+      recent: ticketItems.map((ticket: Record<string, unknown>) => ({
+        id: (ticket.id as string) || (ticket.ticketId as string) || '',
+        title: ticket.title as string || '',
+        priority: ticket.priority as string || 'medium',
+        status: ticket.status as string || 'pending',
+        slaRemaining: (ticket.slaRemainingHours as number) ?? (ticket.slaRemaining as number) ?? 0,
       })),
     },
     myDeployments: {
-      recent: deploymentItems.map((dep: any) => ({
-        id: dep.id || '',
-        environment: dep.environment || 'unknown',
-        status: dep.status || 'unknown',
-        version: dep.version || dep.appVersion || '',
-        deployedAt: dep.deployedAt || dep.createdAt || '',
+      recent: deploymentItems.map((dep: Record<string, unknown>) => ({
+        id: dep.id as string || '',
+        environment: dep.environment as string || 'unknown',
+        status: dep.status as string || 'unknown',
+        version: (dep.version as string) || (dep.appVersion as string) || '',
+        deployedAt: (dep.deployedAt as string) || (dep.createdAt as string) || '',
       })),
       successRate: 0,
     },

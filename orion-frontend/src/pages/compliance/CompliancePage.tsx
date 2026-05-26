@@ -55,6 +55,12 @@ import {
   type AuditPlan,
 } from '@/api/compliance';
 
+// API 响应包装接口
+interface AuditLogResponse { data?: { entries?: AuditLogEntry[] } }
+interface ChainInfoResponse { data?: { totalEntries?: number } }
+interface IntegrityReportResponse { data?: { reports?: IntegrityReport[] } }
+interface ComplianceReportResponse { data?: SbomComplianceReport }
+
 const { Title, Text } = Typography;
 
 const statusColorMap: Record<string, string> = {
@@ -111,26 +117,26 @@ const CompliancePage: React.FC = () => {
 
       // Audit logs
       if (logRes.status === 'fulfilled') {
-        const logData = logRes.value.data as any;
-        setAuditLogs(logData?.entries || []);
+        const logData = logRes.value.data as AuditLogResponse;
+        setAuditLogs(logData?.data?.entries || []);
       }
 
       // Chain info
       if (chainInfoRes.status === 'fulfilled') {
-        const chainData = chainInfoRes.value.data as any;
-        setChainInfo({ totalEntries: chainData?.totalEntries || 0, isValid: true });
+        const chainData = chainInfoRes.value.data as ChainInfoResponse;
+        setChainInfo({ totalEntries: chainData?.data?.totalEntries || 0, isValid: true });
       }
 
       // Integrity reports
       if (reportRes.status === 'fulfilled') {
-        const reportData = reportRes.value.data as any;
-        setIntegrityReports(reportData?.reports || []);
+        const reportData = reportRes.value.data as IntegrityReportResponse;
+        setIntegrityReports(reportData?.data?.reports || []);
       }
 
       // SBOM compliance
       if (complianceRes.status === 'fulfilled') {
-        const complianceData = complianceRes.value.data as any;
-        setComplianceReports(complianceData || null);
+        const complianceData = complianceRes.value.data as ComplianceReportResponse;
+        setComplianceReports(complianceData?.data || null);
       }
 
       // Policies
@@ -193,7 +199,7 @@ const CompliancePage: React.FC = () => {
         description: values.description || '',
         rules: (values.rules || '').split('\n').filter(Boolean).map((line: string) => {
           const [name, condition, severity] = line.split('|').map((s: string) => s.trim());
-          return { id: `rule-${Date.now()}`, name: name || '', condition: condition || '', severity: (severity as any) || 'medium' };
+          return { id: `rule-${Date.now()}`, name: name || '', condition: condition || '', severity: (severity as 'critical' | 'high' | 'medium' | 'low') || 'medium' };
         }),
       });
       message.success('合规策略创建成功');

@@ -71,7 +71,7 @@ const SkillInstances: React.FC = () => {
         getSkill(skillId),
       ]);
       setInstances(Array.isArray(instRes.data.data) ? instRes.data.data : []);
-      const skillData = (skillRes as any).data?.data;
+      const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
       setSkill(skillData || null);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -218,7 +218,12 @@ const SkillInstances: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'error' ? 'failed' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'version',

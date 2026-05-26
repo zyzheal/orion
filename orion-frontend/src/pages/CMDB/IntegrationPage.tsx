@@ -49,9 +49,9 @@ const IntegrationPage: React.FC = () => {
         getK8sResources(),
         getCICDResources(),
       ]);
-      setHosts((hostsRes.data as any).data || []);
-      setK8sResources((k8sRes.data as any).data || []);
-      setCICDResources((cicdRes.data as any).data || []);
+      setHosts((hostsRes.data as { data?: unknown[] })?.data ?? []);
+      setK8sResources((k8sRes.data as { data?: unknown[] })?.data ?? []);
+      setCICDResources((cicdRes.data as { data?: unknown[] })?.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载集成数据失败：${error.message}`);

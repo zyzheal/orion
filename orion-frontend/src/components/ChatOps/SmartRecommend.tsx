@@ -28,9 +28,9 @@ export const SmartRecommend: React.FC = () => {
   const visibleRecs = React.useMemo(() => {
     return recommendations.filter((r) => {
       // 已处理的不展示
-      if ((r as any).status === 'dismissed' || (r as any).status === 'resolved') return false;
+      if (r.status === 'dismissed' || r.status === 'resolved') return false;
       // 有 assignee 但不是当前用户的不展示
-      const assignee = (r as any).assignee;
+      const assignee = r.assignee;
       if (assignee && assignee !== userId) return false;
       return true;
     });

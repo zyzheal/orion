@@ -97,7 +97,7 @@ const TriggerPage: React.FC = () => {
       ]);
 
       if (webhooksRes.status === 'fulfilled') {
-        setWebhooks((webhooksRes.value.data as any)?.webhooks || []);
+        setWebhooks((webhooksRes.value.data as { webhooks?: unknown[] })?.webhooks ?? []);
       }
       if (triggersRes.status === 'fulfilled') {
         setTriggers(Array.isArray(triggersRes.value) ? triggersRes.value : []);

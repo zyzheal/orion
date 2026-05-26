@@ -221,7 +221,7 @@ export async function getSkillExecutions(skillId: string, params?: { page?: numb
   const body = res.data as { data?: { executions?: Array<{ id: string; skill_id: string; instance_id?: string; tenant_id?: string; triggered_by?: string; capability?: string; input?: Record<string, unknown>; output?: Record<string, unknown>; status?: string; duration_ms?: number; error_message?: string; started_at?: string; created_at?: string; completed_at?: string; }>; total?: number; page?: number } };
   const rawExecutions = body?.data?.executions || [];
   // Map snake_case backend fields to camelCase frontend types
-  const executions: SkillExecution[] = (rawExecutions as any[]).map((e) => ({
+  const executions: SkillExecution[] = (rawExecutions as Array<{ id: string; skill_id: string; instance_id?: string; tenant_id?: string; triggered_by?: string; capability?: string; input?: Record<string, unknown>; output?: Record<string, unknown>; status?: string; duration_ms?: number; error_message?: string; started_at?: string; created_at?: string; completed_at?: string; }>).map((e) => ({
     id: e.id,
     skillId: e.skill_id,
     instanceId: e.instance_id,

@@ -79,7 +79,7 @@ const SkillExecutions: React.FC = () => {
       const items = execData.executions || [];
       setExecutions(Array.isArray(items) ? items : []);
       setTotal(execData.total || 0);
-      const skillData = (skillRes as any).data?.data;
+      const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
       setSkill(skillData || null);
     } catch (error: unknown) {
       if (error instanceof Error) {

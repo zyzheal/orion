@@ -38,7 +38,7 @@ const ExperimentsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listExperiments();
-      setExperiments((res.data as any).data || []);
+      setExperiments((res.data as { data?: MLExperiment[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载实验失败');
     } finally { setLoading(false); }
@@ -145,7 +145,7 @@ const ModelRegistryTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listModels();
-      setModels((res.data as any).data || []);
+      setModels((res.data as { data?: MLModel[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载模型失败');
     } finally { setLoading(false); }
@@ -244,7 +244,7 @@ const TrainingJobsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listTrainingJobs();
-      setJobs((res.data as any).data || []);
+      setJobs((res.data as { data?: TrainingJob[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载训练任务失败');
     } finally { setLoading(false); }

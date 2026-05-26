@@ -6,7 +6,7 @@ const { TextArea } = Input;
 export type ScriptLevel = 'safe' | 'standard' | 'advanced';
 
 export interface InlineScriptEditorProps {
-  onAdd: (config: any) => void;
+  onAdd: (config: { level: ScriptLevel; language: string; code: string }) => void;
   onCancel: () => void;
 }
 
@@ -14,7 +14,7 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
   const [level, setLevel] = useState<ScriptLevel>('safe');
   const [language, setLanguage] = useState('javascript');
   const [code, setCode] = useState('');
-  const [scanResult, setScanResult] = useState<any>(null);
+  const [scanResult, setScanResult] = useState<{ valid: boolean; violations: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState<string>('');
 
@@ -24,10 +24,9 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
       // TODO: 对接 pluginApi.scanCode
       const result = {
         valid: true,
-        violations: [],
+        violations: [] as string[],
       };
-      const data = (result as any);
-      setScanResult(data);
+      setScanResult(result);
       if (data?.valid) {
         message.success('Security scan passed');
       } else {
@@ -56,9 +55,8 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
   const handleRequestApproval = async () => {
     try {
       // TODO: 对接 pluginApi.requestApproval
-      const result = { status: 'pending' };
-      const data = (result as any);
-      setApprovalStatus(data?.status || 'pending');
+      const result = { status: 'pending' as string };
+      setApprovalStatus(result.status);
       message.info('Approval request submitted');
     } catch {
       message.error('Failed to request approval');

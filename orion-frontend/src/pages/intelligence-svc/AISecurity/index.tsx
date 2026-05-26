@@ -271,7 +271,7 @@ const AISecurityPage: React.FC = () => {
         rule: rules[0] || '',
         action: 'block',
         matchCount: 0,
-      } as any);
+      });
       message.success('安全策略创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();

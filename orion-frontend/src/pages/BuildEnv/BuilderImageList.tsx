@@ -49,7 +49,7 @@ const BuilderImageList: React.FC = () => {
     try {
       const response = await getBuilderImages();
       const apiData = response.data.data;
-      setImages(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setImages(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建镜像失败：${error.message}`);

@@ -140,7 +140,7 @@ const BuildPodDetail: React.FC = () => {
             <Descriptions.Item label="Run ID">{pod.runId}</Descriptions.Item>
             <Descriptions.Item label="Stage ID">{pod.stageId}</Descriptions.Item>
             <Descriptions.Item label="Status">
-              <StatusBadge status={pod.status as any} size="small" />
+              <StatusBadge status={pod.status as 'running' | 'success' | 'failed' | 'pending'} size="small" />
             </Descriptions.Item>
             <Descriptions.Item label="Created">
               {dayjs(pod.createdAt).format('YYYY-MM-DD HH:mm:ss')}

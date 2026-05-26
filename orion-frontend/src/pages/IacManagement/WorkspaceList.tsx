@@ -195,7 +195,7 @@ const WorkspaceList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as 'idle' | 'planning' | 'applying' | 'error' | 'locked'} size="small" />,
     },
     {
       key: 'lockedBy',

@@ -45,7 +45,7 @@ const AIAgentsManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await aiAgentApi.getList();
-      const apiData = response.data as any;
+      const apiData = response.data as { success?: boolean; data?: AgentInfo[] };
       if (apiData.success && apiData.data) {
         setAgents(apiData.data);
       } else {
@@ -78,7 +78,7 @@ const AIAgentsManagement: React.FC = () => {
     setActiveTab('audit');
     try {
       const response = await aiAgentApi.getAuditLogs(agent.id);
-      const apiData = response.data as any;
+      const apiData = response.data as { success?: boolean; data?: AuditLogEntry[] };
       if (apiData.success && apiData.data) {
         setAuditLogs(apiData.data);
       } else {
@@ -122,7 +122,7 @@ const AIAgentsManagement: React.FC = () => {
       }
 
       const response = await aiAgentApi.execute(selectedAgent.id, input);
-      const apiData = response.data as any;
+      const apiData = response.data as { success?: boolean; data?: AgentExecutionResult; error?: string };
       if (apiData.success) {
         setExecutionResult(apiData.data as AgentExecutionResult);
         message.success('Agent 执行成功');

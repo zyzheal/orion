@@ -387,10 +387,10 @@ const EnvironmentPage: React.FC = () => {
           envId={record.id}
           envName={record.name}
           initialLockInfo={{
-            locked: !!(record as any).locked,
-            lockedBy: (record as any).locked_by,
-            lockedAt: (record as any).locked_at,
-            reason: (record as any).locked_reason,
+            locked: !!(record as { locked?: boolean }).locked,
+            lockedBy: (record as { locked_by?: string }).locked_by,
+            lockedAt: (record as { locked_at?: string }).locked_at,
+            reason: (record as { locked_reason?: string }).locked_reason,
           }}
           showActions
           onLockChange={() => loadData()}
@@ -422,7 +422,7 @@ const EnvironmentPage: React.FC = () => {
       title: '休眠',
       width: 80,
       render: (_: unknown, record: Environment) => {
-        const config = record.config as any;
+        const config = record.config as { autoSleep?: boolean; ttlHours?: number; replicas?: number; resources?: Record<string, unknown> };
         const autoSleep = config?.autoSleep;
         return (
           <Switch
@@ -439,7 +439,7 @@ const EnvironmentPage: React.FC = () => {
       title: 'TTL',
       width: 100,
       render: (_: unknown, record: Environment) => {
-        const config = record.config as any;
+        const config = record.config as { ttlHours?: number; replicas?: number; resources?: Record<string, unknown> };
         const ttl = config?.ttlHours;
         return ttl ? (
           <Tooltip title={`${ttl} 小时后自动销毁`}>
@@ -466,7 +466,7 @@ const EnvironmentPage: React.FC = () => {
       title: '操作',
       width: 300,
       render: (_: unknown, record: Environment) => {
-        const isLocked = (record as any).locked;
+        const isLocked = (record as { locked?: boolean }).locked;
         return (
         <Space size="small" wrap>
           <Tooltip title="详情">
@@ -796,23 +796,23 @@ const EnvironmentPage: React.FC = () => {
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="自动休眠">
                     <Switch
-                      checked={!!(selectedEnv.config as any)?.autoSleep}
+                      checked={!!(selectedEnv.config as { autoSleep?: boolean })?.autoSleep}
                       disabled
                       checkedChildren="开启"
                       unCheckedChildren="关闭"
                     />
                   </Descriptions.Item>
                   <Descriptions.Item label="TTL">
-                    {(selectedEnv.config as any)?.ttlHours
-                      ? `${(selectedEnv.config as any).ttlHours} 小时后自动销毁`
+                    {(selectedEnv.config as { ttlHours?: number })?.ttlHours
+                      ? `${(selectedEnv.config as { ttlHours?: number }).ttlHours} 小时后自动销毁`
                       : '无限制'}
                   </Descriptions.Item>
                   <Descriptions.Item label="副本数">
-                    {(selectedEnv.config as any)?.replicas || '-'}
+                    {(selectedEnv.config as { replicas?: number })?.replicas || '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="资源限制">
-                    {(selectedEnv.config as any)?.resources
-                      ? JSON.stringify((selectedEnv.config as any).resources)
+                    {(selectedEnv.config as { resources?: Record<string, unknown> })?.resources
+                      ? JSON.stringify((selectedEnv.config as { resources?: Record<string, unknown> }).resources)
                       : '-'}
                   </Descriptions.Item>
                 </Descriptions>

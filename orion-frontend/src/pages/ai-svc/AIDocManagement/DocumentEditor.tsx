@@ -190,7 +190,7 @@ const DocumentEditor: React.FC = () => {
               <Space>
                 <Text strong>{doc.title}</Text>
                 <Tag>v{doc.version}</Tag>
-                <StatusBadge status={doc.status as any} />
+                <StatusBadge status={doc.status === 'archived' ? 'cancelled' : doc.status === 'published' ? 'success' : 'pending'} />
               </Space>
             </Card>
           ))}

@@ -70,7 +70,7 @@ const PipelineDetail: React.FC = () => {
       try {
         const response = await getPipelineRun(id!);
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
-        const wrapperData = response.data as any;
+        const wrapperData = response.data as { data?: unknown };
         const apiData = wrapperData?.data ?? wrapperData;
         if (apiData && (apiData.run || apiData.stages)) {
           const run = apiData.run || apiData;
@@ -120,7 +120,7 @@ const PipelineDetail: React.FC = () => {
       message.success('Pipeline 重新运行成功');
       // Reload pipeline detail after re-run
       const response = await getPipelineRun(id!);
-      const wrapperData = response.data as any;
+      const wrapperData = response.data as { data?: unknown };
       const apiData = wrapperData?.data ?? wrapperData;
       if (apiData && (apiData.run || apiData.stages)) {
         const run = apiData.run || apiData;
@@ -155,7 +155,7 @@ const PipelineDetail: React.FC = () => {
         try {
           setRetryingStageId(stageId);
           const response = await retryFromStage(id!, stageId);
-          const newRun = response.data?.data as any;
+          const newRun = response.data?.data as { id?: string; run?: { id?: string } };
           message.success(`已从阶段「${stageName}」重新运行`);
           // Redirect to the new run's detail page
           if (newRun?.id || newRun?.run?.id) {
@@ -164,13 +164,13 @@ const PipelineDetail: React.FC = () => {
           } else {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
-            const reloaded = reloadResp.data.data as any;
-            const run = reloaded?.run || reloaded;
+            const reloaded = reloadResp.data.data as { run?: unknown; stages?: unknown };
+            const run = reloaded?.run as { id?: string; context?: { branch?: string; commitSha?: string }; branch?: string; commit?: string; pipelineVersion?: string };
             setPipeline({
               ...run,
               branch: run.context?.branch || run.branch || 'main',
               commit: run.context?.commitSha || run.commit || '-',
-              stages: reloaded?.stages || [],
+              stages: reloaded?.stages as unknown[],
             });
           }
         } catch (error: unknown) {

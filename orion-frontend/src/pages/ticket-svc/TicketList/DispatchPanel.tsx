@@ -128,10 +128,10 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
         // Load open/assigned tickets for queue
         const ticketsRes = await getTickets({ page: 1, pageSize: 50, status: 'open' });
         const apiData = ticketsRes.data?.data;
-        const tickets: any[] = Array.isArray(apiData) ? apiData : (apiData as any)?.items || [];
+        const tickets = Array.isArray(apiData) ? apiData as Ticket[] : (apiData as { items?: Ticket[] })?.items ?? [];
         const queueEntries: TicketEntry[] = tickets
-          .filter((t: any) => t.status === 'open' || t.status === 'assigned')
-          .map((t: any) => ({
+          .filter((t) => t.status === 'open' || t.status === 'assigned')
+          .map((t) => ({
             id: t.id,
             title: t.title,
             priority: t.priority || 'medium',

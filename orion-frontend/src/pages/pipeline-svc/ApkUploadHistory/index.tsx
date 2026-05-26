@@ -77,10 +77,10 @@ const ApkUploadHistoryPage: React.FC = () => {
         status: filters.status,
       });
 
-      const resData = (response as any).data;
-      const data = Array.isArray(resData?.data) ? resData.data : [];
+      const resData = response.data as { data?: { data?: ApkUploadRecord[]; total?: number } };
+      const data = Array.isArray(resData?.data?.data) ? resData.data.data : [];
       setRecords(data);
-      setTotal(resData?.total || 0);
+      setTotal(resData?.data?.total ?? 0);
     } catch (error) {
       console.error('Failed to load upload history:', error);
       setRecords([]);
@@ -92,8 +92,8 @@ const ApkUploadHistoryPage: React.FC = () => {
   const loadRecentFailures = async () => {
     try {
       const response = await getRecentFailures(tenantId, 5);
-      const resData = (response as any).data;
-      setRecentFailures(Array.isArray(resData?.data) ? resData.data : []);
+      const resData = response.data as { data?: { data?: ApkUploadRecord[] } };
+      setRecentFailures(Array.isArray(resData?.data?.data) ? resData.data.data : []);
     } catch (error) {
       console.error('Failed to load recent failures:', error);
       setRecentFailures([]);
@@ -103,13 +103,13 @@ const ApkUploadHistoryPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getApkUploadStats(tenantId);
-      const resData = (response as any).data;
-      if (resData?.data) {
+      const resData = response.data as { data?: { data?: { total?: number; published?: number; failed?: number; uploading?: number } } };
+      if (resData?.data?.data) {
         setStats({
-          total: resData.data.total,
-          published: resData.data.published,
-          failed: resData.data.failed,
-          uploading: resData.data.uploading,
+          total: resData.data.data.total,
+          published: resData.data.data.published,
+          failed: resData.data.data.failed,
+          uploading: resData.data.data.uploading,
         });
       }
     } catch (error) {

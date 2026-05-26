@@ -40,7 +40,7 @@ const RulesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listInspectionRules();
-      setRules((res.data as any).data || []);
+      setRules((res.data as { data?: InspectionRule[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载巡检规则失败');
     } finally { setLoading(false); }
@@ -186,7 +186,7 @@ const TasksTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listInspectionTasks();
-      setTasks((res.data as any).data || []);
+      setTasks((res.data as { data?: InspectionTask[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载任务失败');
     } finally { setLoading(false); }
@@ -249,7 +249,7 @@ const ReportsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listInspectionReports();
-      setReports((res.data as any).data || []);
+      setReports((res.data as { data?: InspectionReport[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载报告失败');
     } finally { setLoading(false); }
@@ -312,7 +312,7 @@ const InspectionPage: React.FC = () => {
   const loadScore = async () => {
     try {
       const res = await getHealthScore();
-      const data = (res.data as any).data;
+      const data = (res.data as { data?: { score?: number; details?: Record<string, number> } })?.data;
       setHealthScore(data?.score || 100);
       setScoreDetails(data?.details || {});
     } catch { /* ignore */ }

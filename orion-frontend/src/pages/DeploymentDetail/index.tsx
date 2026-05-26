@@ -193,7 +193,7 @@ const DeploymentDetail: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <StatusBadge status={deployment.status as any} size="medium" />
+          <StatusBadge status={deployment.status === 'success' ? 'success' : deployment.status === 'running' ? 'running' : deployment.status === 'failed' ? 'failed' : deployment.status === 'pending' ? 'pending' : deployment.status === 'cancelled' ? 'cancelled' : 'unknown'} size="medium" />
           {canRollback && (
             <Button
               danger
@@ -315,7 +315,7 @@ const DeploymentDetail: React.FC = () => {
                             {stage.details}
                           </Text>
                         )}
-                        <StatusBadge status={stage.status as any} size="small" />
+                        <StatusBadge status={stage.status === 'success' ? 'success' : stage.status === 'running' ? 'running' : stage.status === 'failed' ? 'failed' : stage.status === 'pending' ? 'pending' : stage.status === 'cancelled' ? 'cancelled' : 'unknown'} size="small" />
                       </Space>
                     </div>
                   </Card>

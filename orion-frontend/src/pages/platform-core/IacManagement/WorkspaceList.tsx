@@ -195,7 +195,12 @@ const WorkspaceList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'locked' ? 'warning' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'lockedBy',

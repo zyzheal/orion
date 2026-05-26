@@ -499,7 +499,7 @@ const EphemeralEnvDetail: React.FC = () => {
       >
         {services.length > 0 ? (
           <AntTable
-            columns={serviceColumns as any}
+            columns={serviceColumns as const}
             dataSource={services}
             rowKey="key"
             size="small"

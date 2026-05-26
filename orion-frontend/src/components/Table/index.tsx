@@ -199,7 +199,7 @@ function OrionTable<T extends object>({
     if (activeFilters.length > 0) {
       data = data.filter((record) =>
         activeFilters.every(([key, value]) => {
-          const cellValue = String((record as any)[key] ?? '');
+          const cellValue = String((record as Record<string, unknown>)[key] ?? '');
           return cellValue.toLowerCase().includes(value.toLowerCase());
         })
       );
@@ -208,8 +208,8 @@ function OrionTable<T extends object>({
     // Apply sorting
     if (sortConfig.order && sortConfig.columnKey) {
       data.sort((a, b) => {
-        const aVal = (a as any)[sortConfig.columnKey];
-        const bVal = (b as any)[sortConfig.columnKey];
+        const aVal = (a as Record<string, unknown>)[sortConfig.columnKey];
+        const bVal = (b as Record<string, unknown>)[sortConfig.columnKey];
 
         if (aVal === bVal) return 0;
         if (aVal == null) return 1;

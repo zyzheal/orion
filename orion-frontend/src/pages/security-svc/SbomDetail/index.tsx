@@ -355,7 +355,7 @@ const SbomDetail: React.FC = () => {
               <Descriptions.Item label="Pipeline Run">{doc.pipelineRunId}</Descriptions.Item>
               <Descriptions.Item label="包数量">{doc.packageCount}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <StatusBadge status={doc.status as any} size="small" />
+                <StatusBadge status={doc.status === 'failed' ? 'failed' : doc.status === 'success' ? 'success' : doc.status === 'expired' ? 'cancelled' : 'pending'} size="small" />
               </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(doc.createdAt).format('YYYY-MM-DD HH:mm')}

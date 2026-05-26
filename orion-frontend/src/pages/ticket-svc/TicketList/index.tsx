@@ -544,8 +544,8 @@ const TicketList: React.FC = () => {
 
       {/* Ticket table */}
       <Table
-        columns={columns as any}
-        dataSource={filteredTickets as any}
+        columns={columns}
+        dataSource={filteredTickets}
         loading={loading}
         rowKey="id"
         size="middle"

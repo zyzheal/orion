@@ -216,7 +216,7 @@ const AlertConfig: React.FC = () => {
       dataIndex: 'enabled',
       width: 80,
       render: (v: unknown) => (
-        <StatusBadge status={v ? ('success' as any) : ('warning' as any)} size="small" />
+        <StatusBadge status={v ? ('success' as const) : ('warning' as const)} size="small" />
       ),
     },
     {

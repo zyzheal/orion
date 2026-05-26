@@ -90,7 +90,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     rolled_back: { color: 'error', text: '已回滚' },
   };
   const { color, text } = statusMap[status] || { color: 'default', text: status };
-  return <Badge status={color as any} text={text} />;
+  return <Badge status={color as 'success' | 'error' | 'processing' | 'warning' | 'default'} text={text} />;
 };
 
 /** Severity color mapping for alerts */

@@ -3,19 +3,6 @@
  *
  * 使用 Orion-MF 替代 wujie (2026-05-21)
  */
-import { getDefaultChannel, DEFAULT_CHANNEL, createSubAppChannel } from './eventBus';
-import type { EventBusPayload } from '@orion-mf/core';
-import {
-  loadSubApp,
-  destroySubApp,
-  getSubApp,
-  PreloadStrategy,
-  getPreloadStrategy as getPreloadStrategyFromCore,
-} from '@orion-mf/core';
-import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
-
-// Re-export for direct access
-export { subAppConfigs, getSubAppConfig, getEnabledApps };
 
 // Orion 认证状态类型
 export interface OrionAuthState {
@@ -34,6 +21,19 @@ declare global {
     $orion?: OrionAuthState;
   }
 }
+
+import { getDefaultChannel, createSubAppChannel } from './eventBus';
+import type { EventBusPayload } from '@orion-mf/core';
+import {
+  loadSubApp,
+  destroySubApp,
+  PreloadStrategy,
+  getPreloadStrategy as getPreloadStrategyFromCore,
+} from '@orion-mf/core';
+import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
+
+// Re-export for direct access
+export { subAppConfigs, getSubAppConfig, getEnabledApps };
 
 /**
  * 初始化微前端配置
@@ -151,7 +151,7 @@ export const subscribeAuthState = (
 ): (() => void) => {
   const channel = getDefaultChannel();
   const handler = (payload: EventBusPayload) => {
-    callback(payload.data as OrionAuthState);
+    callback(payload.data as unknown as OrionAuthState);
   };
   channel.on('orionAuth', handler, owner);
   return () => channel.off('orionAuth', handler);
@@ -161,7 +161,7 @@ export const subscribeAuthState = (
  * 全局状态注入 (兼容旧接口)
  */
 export const injectGlobalState = (state: Record<string, unknown>): void => {
-  window.$orion = state as OrionAuthState;
+  window.$orion = state as unknown as OrionAuthState;
 };
 
 // ============================================================================

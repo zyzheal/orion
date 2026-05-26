@@ -36,6 +36,13 @@ import { pipelineVersionsApi } from '@/api/pipeline-versions';
 import type { PipelineVersion, VersionDiff, DiffItem } from '@/api/pipeline-versions';
 import dayjs from 'dayjs';
 
+// 接口扩展：PipelineVersion 的额外性能指标字段
+interface PipelineVersionWithMetrics extends PipelineVersion {
+  durationMs?: number;
+  successRate?: number;
+  changeSummary?: string;
+}
+
 const { Title, Text, Paragraph } = Typography;
 
 // ---- Color maps ----
@@ -279,9 +286,9 @@ const PipelineVersionPage: React.FC = () => {
       dataIndex: 'change_summary',
       key: 'change_summary',
       ellipsis: true,
-      render: (v: unknown, record) => {
+      render: (v: unknown, record: PipelineVersionWithMetrics) => {
         // Support both snake_case and camelCase from backend
-        const summary = (v as string) || (record as any).changeSummary || '-';
+        const summary = (v as string) || record.changeSummary || '-';
         return <Text type="secondary">{summary}</Text>;
       },
     },
@@ -289,9 +296,9 @@ const PipelineVersionPage: React.FC = () => {
       title: '性能指标',
       key: 'metrics',
       width: 150,
-      render: (_, record) => {
-        const durationMs = (record as any).durationMs;
-        const successRate = (record as any).successRate;
+      render: (_, record: PipelineVersionWithMetrics) => {
+        const durationMs = record.durationMs;
+        const successRate = record.successRate;
         return (
           <Space direction="vertical" size={0}>
             {durationMs !== undefined && (
@@ -489,14 +496,14 @@ const PipelineVersionPage: React.FC = () => {
                 <Text copyable style={{ fontSize: 12 }}>{selectedVersion.id}</Text>
               </Descriptions.Item>
               {/* Additional metrics if available */}
-              {(selectedVersion as any).durationMs !== undefined && (
+              {(selectedVersion as PipelineVersionWithMetrics).durationMs !== undefined && (
                 <Descriptions.Item label="执行耗时">
-                  {(((selectedVersion as any).durationMs as number) / 1000).toFixed(1)}s
+                  {(((selectedVersion as PipelineVersionWithMetrics).durationMs as number) / 1000).toFixed(1)}s
                 </Descriptions.Item>
               )}
-              {(selectedVersion as any).successRate !== undefined && (
+              {(selectedVersion as PipelineVersionWithMetrics).successRate !== undefined && (
                 <Descriptions.Item label="成功率">
-                  {(((selectedVersion as any).successRate as number) * 100).toFixed(1)}%
+                  {(((selectedVersion as PipelineVersionWithMetrics).successRate as number) * 100).toFixed(1)}%
                 </Descriptions.Item>
               )}
             </Descriptions>

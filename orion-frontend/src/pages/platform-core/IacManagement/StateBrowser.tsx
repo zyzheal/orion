@@ -312,7 +312,7 @@ const StateBrowser: React.FC = () => {
               rowKey="id"
               size="small"
               striped
-              pagination={{ pageSize: 8, current: 1, total: stateVersions.length } as any}
+              pagination={{ pageSize: 8, current: 1, total: stateVersions.length }}
             />
           </Card>
         </Col>
