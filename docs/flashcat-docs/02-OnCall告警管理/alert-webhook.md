@@ -1,0 +1,239 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.flashcat.cloud/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# 告警 Webhook
+
+> 配置告警 Webhook，当告警发生特定操作时，系统通过 HTTP 回调您配置的地址
+
+<Tip>**版本要求**：此功能需要 On-call 标准版及以上订阅。[了解更多](https://flashcat.cloud/flashduty/price/)</Tip>
+
+配置告警 Webhook，当告警发生特定操作（如触发、关闭）时，系统通过 HTTP 回调您配置的地址。回调内容将包含告警最新关键信息，您可以与自研工具进行集成。
+
+<span id="EventTypes" />
+
+## 一、事件类型
+
+目前支持以下事件类型，未来可能会增加。
+
+<div className="md-block">
+  |    事件类型   | 释义                                          |
+  | :-------: | :------------------------------------------ |
+  |   a\_new  | 集成推送新事件，触发一条新告警                             |
+  | a\_update | 集成推送新事件，合并到一条告警，并更新告警信息（严重程度、状态、labels、描述等） |
+  |  a\_merge | 合并告警至故障                                     |
+  |  a\_close | 手动关闭告警（系统事件，当告警被手动关闭时由系统自动触发，无法在 UI 中勾选）    |
+</div>
+
+## 二、推送描述
+
+### 请求方式
+
+<div className="md-block">
+  POST, Content-Type:"application/json"
+</div>
+
+### 请求 Payload：
+
+<div className="md-block">
+  |      字段     |         类型        |  必含 | 释义                                   |
+  | :---------: | :---------------: | :-: | :----------------------------------- |
+  | event\_time |       int64       |  是  | 事件发生`毫秒时间戳`                          |
+  | event\_type |       string      |  是  | 事件类型，枚举值见[事件类型](#EventTypes)         |
+  |  event\_id  |       string      |  是  | 事件 ID，`同一个事件可能因为超时等原因重试多次，接收方需要能够去重` |
+  |    person   | [Person](#Person) |  否  | 操作人，仅人为动作时存在                         |
+  |    alert    |  [Alert](#Alert)  |  是  | 告警详情                                 |
+
+  <span id="Person" />
+
+  **Person**:
+
+  |      字段      |   类型   |  必含 | 释义    |
+  | :----------: | :----: | :-: | :---- |
+  |  person\_id  |  int64 |  是  | 人员 ID |
+  | person\_name | string |  是  | 人员名称  |
+  |     email    | string |  是  | 邮件地址  |
+
+  <span id="Alert" />
+
+  **Alert**:
+
+  |         字段         |           类型          |  必含 | 释义                                                      |
+  | :----------------: | :-------------------: | :-: | :------------------------------------------------------ |
+  |      alert\_id     |         string        |  是  | 告警 ID                                                   |
+  |  data\_source\_id  |         int64         |  是  | 集成 ID                                                   |
+  | data\_source\_name |         string        |  是  | 集成名称                                                    |
+  | data\_source\_type |         string        |  是  | 集成类型                                                    |
+  |     channel\_id    |         int64         |  是  | 协作空间 ID                                                 |
+  |    channel\_name   |         string        |  是  | 协作空间名称                                                  |
+  |        title       |         string        |  是  | 告警标题                                                    |
+  |     title\_rule    |         string        |  否  | 标题生成规则                                                  |
+  |     description    |         string        |  否  | 告警描述                                                    |
+  |     alert\_key     |         string        |  是  | 告警关联依据                                                  |
+  |   alert\_severity  |         string        |  是  | 严重程度，枚举值：Critical，Warning，Info                          |
+  |    alert\_status   |         string        |  是  | 告警状态，枚举值：Critical，Warning，Info，Ok                       |
+  |      progress      |         string        |  是  | 处理进度，枚举值：Triggered，Closed                               |
+  |     created\_at    |         int64         |  是  | 创建时间                                                    |
+  |     updated\_at    |         int64         |  是  | 更新时间                                                    |
+  |     start\_time    |         int64         |  是  | 首次触发时间（平台接收到的首个事件的时间），Unix 秒时间戳                         |
+  |     last\_time     |         int64         |  是  | 最新事件时间（平台接收到的最新事件时间），Unix 秒时间戳                          |
+  |      end\_time     |         int64         |  否  | 告警恢复时间（平台上一次接收到结束类型事件的时间），Unix 秒时间戳，默认为 0               |
+  |     close\_time    |         int64         |  否  | 关闭时间，不同于 end\_time，这个是处理进度的关闭，不代表告警真的恢复。Unix 秒时间戳，默认为 0 |
+  |       labels       |   map\[string]string  |  否  | 标签 KV，Key 和 Value 均为字符串                                 |
+  |     event\_cnt     |         int64         |  否  | 关联事件个数                                                  |
+  |      incident      | [Incident](#Incident) |  否  | 所属故障                                                    |
+
+  <span id="Incident" />
+
+  **Incident**:
+
+  |      字段      |   类型   |  必含 | 释义    |
+  | :----------: | :----: | :-: | :---- |
+  | incident\_id | string |  是  | 故障 ID |
+  |     title    | string |  是  | 故障标题  |
+</div>
+
+### 请求响应
+
+HTTP status code 为 200，认为推送成功。
+
+### 请求示例
+
+```
+curl -X POST 'https://example.com/alert/webhook?a=a' \
+-H 'Content-Type: application/json' \
+-H 'X-Customize-Header-A: a' \
+-d '{
+    "alert":{
+        "alert_id":"645c3affd2b92d989a0bd824",
+        "alert_key":"d21d9e3126f5ae94",
+        "alert_severity":"Warning",
+        "alert_status":"Warning",
+        "channel_id":1163577812973,
+        "channel_name":"订单系统",
+        "close_time":0,
+        "created_at":1683766015,
+        "data_source_id":1571358104973,
+        "data_source_name":"阿里云 SLS",
+        "data_source_ref_id":"",
+        "data_source_type":"aliyun-sls.alert",
+        "description":"测试发送到Flashduty告警触发",
+        "end_time":0,
+        "event_cnt":1,
+        "incident":{
+            "incident_id":"645db17c9759374196929314",
+            "title":"123123123"
+        },
+        "labels":{
+            "a":"a",
+            "alert_type":"sls_alert",
+            "alert_url":"https://sls.console.aliyun.com/lognext/project/sls-api-testing/alert/alert-1683548531-071659",
+            "aliuid":"1082109605037616",
+            "check":"测试发送到Flashduty",
+            "fire_results":"{\"_col0\":\"true\"}",
+            "fire_results_count":"1",
+            "project":"sls-api-testing",
+            "raw_condition":"Count:__count__ \u003e 0; Condition:",
+            "region":"cn-beijing",
+            "resource":"d18195cd567c6e8b-5fb6a5e6fb8ad-1f269e0",
+            "severity":"6"
+        },
+        "last_time":1683809153,
+        "progress":"Triggered",
+        "start_time":1683766013,
+        "title":"测试发送到Flashduty告警触发",
+        "title_rule":"$resource::$check",
+        "updated_at":1683809170
+    },
+    "event_id":"ffcf1d47a8d853dc800d000c87e5568b",
+    "event_time":1683890681639,
+    "event_type":"a_merge",
+    "person":{
+        "email":"zhangsan@flashcat.cloud",
+        "person_id":82138731581973,
+        "person_name":"快猫星云"
+    }
+}' -v
+```
+
+## 三、配置指南
+
+进入 **集成中心** → **Webhook** → 添加或编辑 **告警 Webhook** 集成。
+
+### 基础设置
+
+填写集成名称和描述，便于后续管理。
+
+### Webhook 设置
+
+| 配置项          | 说明                                                    |
+| :----------- | :---------------------------------------------------- |
+| **管理团队**     | 选择管理该集成的团队，只有团队成员可以编辑此集成配置                            |
+| **Endpoint** | 接收回调的 HTTP/HTTPS 地址，必须以 `http://` 或 `https://` 开头     |
+| **TLS 验证**   | 默认启用。关闭后将跳过目标服务器的 TLS 证书验证，适用于测试环境或自签名证书场景            |
+| **Headers**  | 自定义请求头，以 Key-Value 形式添加，支持添加多个                        |
+| **协作空间**     | 选择 **全部空间** 或 **部分空间**。选择部分空间时，仅该空间下的告警事件会触发回调        |
+| **事件类型**     | 勾选需要订阅的事件类型（参见[事件类型](#EventTypes)），支持全选。仅选中的事件类型会触发回调 |
+
+<Warning>
+  关闭 TLS 证书验证可能存在中间人攻击风险，建议仅在测试环境或使用自签名证书时关闭。
+</Warning>
+
+## 四、调用历史
+
+告警 Webhook 提供完整的调用历史记录，方便你排查推送是否成功以及调试回调接口。
+
+### 查看调用历史
+
+进入告警 Webhook 集成详情页，切换到 **调用历史** 页签即可查看。
+
+### 筛选与搜索
+
+| 筛选项       | 说明                                               |
+| :-------- | :----------------------------------------------- |
+| **时间范围**  | 支持选择最近 1 小时、6 小时、1 天、7 天，或自定义时间范围（最多查看最近 7 天的数据） |
+| **告警 ID** | 输入告警 ID 进行精确搜索                                   |
+| **事件类型**  | 按事件类型筛选记录                                        |
+| **请求状态**  | 按成功或失败筛选                                         |
+
+### 历史记录字段
+
+| 字段        | 说明                              |
+| :-------- | :------------------------------ |
+| **触发时间**  | 事件触发的时间                         |
+| **事件类型**  | 触发的事件类型（如 `a_new`、`a_update` 等） |
+| **告警 ID** | 关联的告警 ID，可点击跳转到告警详情             |
+| **事件 ID** | 本次回调的唯一标识，可用于去重                 |
+| **请求状态**  | 成功或失败，附带 HTTP 状态码               |
+| **耗时**    | 请求往返耗时                          |
+| **请求次数**  | 包括首次请求和重试次数                     |
+
+### 查看调用详情
+
+点击某条记录的 **查看详情**，可查看完整的请求和响应信息：
+
+* **Request**：包括 Endpoint、Request Headers 和 Request Payload
+* **Response**：成功时显示 Response Headers 和 Response Body；失败时显示 Error Message
+
+## 五、常见问题
+
+1. **服务是否有响应超时时间？**
+
+   * 服务需要在 2 秒内返回响应，超过 2 秒则认为响应失败
+
+2. **推送失败后是否会持续推送？**
+
+针对特定的网络错误，会进行重试，最多重试1次:
+
+* context deadline exceeded (排除 awaiting headers)
+* i/o timeout
+* eof
+
+3. **如何保证推送顺序？**
+
+   * 理论上同一个告警的事件是按照时间顺序进行推送，但是重试等情况可能会导致乱序
+   * 服务可以根据 event\_time 进行过滤，如果已经收到了更晚的事件，可以直接过滤掉更早的事件，每一次推送都会携带最新的、完整的信息，偶尔丢失事件是可以容忍的
+
+4. **推送来源可信 IP 白名单？**
+   * {ip_whitelist}
+   * 未来可能会更新，请定期查验

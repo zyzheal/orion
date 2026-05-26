@@ -1,0 +1,435 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.flashcat.cloud/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# 通知渠道
+
+> 全面了解 Flashduty On-call 支持的通知渠道，包括 App 推送、语音、短信、邮件及各类 IM 工具
+
+## 概览
+
+***
+
+### 支持的渠道矩阵
+
+Flashduty On-call 提供覆盖移动端 App、传统通信和主流即时消息 (IM) 工具的全方位通知矩阵。
+
+| 渠道类型              | 通知形式  | 交互能力   | 推荐指数  | 说明                  |
+| ----------------- | ----- | ------ | ----- | ------------------- |
+| **Flashduty App** | 单聊    | ✅ 原生   | ⭐⭐⭐⭐⭐ | 移动办公首选，支持告警处理，功能完整  |
+| **语音通话**          | 单聊    | ✅ 按键交互 | ⭐⭐⭐⭐  | 高可用保障，用于重大故障升级，强制触达 |
+| **手机短信**          | 单聊    | ❌ 纯文本  | ⭐⭐    | 高可用保障，覆盖无网络信号场景     |
+| **邮件**            | 单聊    | ❌ 纯文本  | ⭐⭐    | 兜底通知渠道，适合发送详细故障报告   |
+| **IM 应用集成**       | 单聊/群聊 | ✅ 卡片交互 | ⭐⭐⭐⭐⭐ | 团队协作首选，支持在群内直接处理故障  |
+| **IM 机器人**        | 单聊/群聊 | ❌ 链接跳转 | ⭐⭐    | 快速集成备选，配置简单，无需管理员权限 |
+
+***
+
+## 核心通知渠道配置
+
+***
+
+### Flashduty App
+
+Flashduty App 是 On-call 工程师最高效的移动办公工具。无论您身在何处，都能像在电脑前一样全面掌控故障处理流程。
+
+![Flashduty App](https://docs-cdn.flashcat.cloud/images/png/63bbac8f1f3de4dee54b8605e414c163.png)
+
+<AccordionGroup>
+  <Accordion title="核心功能" icon="star">
+    **关键通知，必达用户**：iOS 关键告警基于 Apple 官方 Critical Alerts 协议，可穿透静音和勿扰模式；Android 支持主流厂商的系统级推送通道，确保 App 在后台也能及时收到通知。
+
+    **移动端高效处理**：可在手机上完成故障的检索、查看详情、认领、关闭、升级等所有核心操作。
+
+    **语音通知智能识别**：App 可将 Flashduty On-call 的语音通知号码自动同步到手机通讯录，避免被误拦截。
+  </Accordion>
+
+  <Accordion title="如何开启和使用" icon="mobile">
+    <Steps>
+      <Step title="下载并安装">
+        前往 App Store 或安卓各大应用市场搜索"Flashduty"下载，或前往控制台个人中心扫描二维码下载
+      </Step>
+
+      <Step title="登录并关联设备">
+        打开 App 并使用您的 Flashduty 账户登录，或扫描控制台登录。登录后，当前设备将自动与您的账户绑定
+      </Step>
+
+      <Step title="开启关键权限">
+        * **iOS 用户**：在手机系统设置 → 通知 → Flashduty On-call 中，开启**关键警报**开关
+        * **所有用户**：建议在 App 的设置 → 语音通知中，开启**同步联系人**权限
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="常见问题" icon="circle-question">
+    **为什么收不到 App 推送？**
+
+    1. 检查手机系统的通知权限是否已为 Flashduty App 开启
+    2. 确认在您的分派策略中，已将 App 推送设置为通知渠道之一
+    3. 如果设置了"遵循个人偏好"，需检查个人通知设置中是否勾选了 Flashduty App
+  </Accordion>
+</AccordionGroup>
+
+### 语音、短信、邮件
+
+<Tabs>
+  <Tab title="适用场景">
+    * **故障升级**：在分派策略的最后环节，使用语音电话进行强制触达
+    * **IM 失效兜底**：当 IM 应用消息发送失败时，系统会自动通过短信或邮件进行补充提醒
+    * **离线覆盖**：覆盖网络环境不佳或未使用智能手机的团队成员
+  </Tab>
+
+  <Tab title="如何开启">
+    <Steps>
+      <Step title="绑定联系方式">
+        前往**个人中心** → **基本信息**，绑定并验证您的手机号和邮箱
+      </Step>
+
+      <Step title="在分派策略中使用">
+        在**分派策略**的规则中，添加语音、短信或邮件作为通知方式
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="语音号码">
+    **中国大陆号码**：
+
+    * +86 (010)21364727、(021)32017538、(010)21364713
+    * (010)21364708、(0571)23675454、(0571)23675496
+
+    **中国大陆以外地区**：统一使用号码 `16465861127`，覆盖全球 200+ 国家和地区。
+
+    <Note>
+      完整的支持地区列表请参考 [常见问题](/zh/on-call/quickstart/faq)。
+    </Note>
+  </Tab>
+</Tabs>
+
+<AccordionGroup>
+  <Accordion title="为什么无法收到语音通知？">
+    1. **检查手机拦截设置**：检查手机的黑名单或骚扰拦截记录，Flashduty On-call 使用固定号码推送语音，您可以下载 Flashduty App 来同步号码白名单
+    2. **检查运营商服务**：部分用户可能开通了运营商级别的高频骚扰电话拦截服务，可关注相应运营商的公众号进行查询和设置
+    3. **携号转网用户**：请同时查询多家运营商的拦截情况
+  </Accordion>
+
+  <Accordion title="为什么邮件会被归入垃圾箱？">
+    1. 检查"垃圾邮件"或"Spam"文件夹，将 Flashduty On-call 的邮件标记为"不是垃圾邮件"
+    2. 将 Flashduty On-call 的发信域名或地址加入您邮箱的白名单
+    3. 联系公司邮箱管理员，在公司域内设置 Flashduty 邮件白名单（`no-reply@notice.flashcat.cloud`）
+  </Accordion>
+</AccordionGroup>
+
+***
+
+## 即时消息 (IM) 集成
+
+***
+
+通过将 Flashduty On-call 与您团队日常使用的 IM 工具（如飞书、钉钉）集成，可以在熟悉的协作环境中接收和处理故障，极大提升 On-call 效率。
+
+### 应用集成（推荐）
+
+应用集成提供了最完整的交互体验，我们强烈推荐有条件的团队采用此方式。
+
+<CardGroup cols={2}>
+  <Card title="交互式卡片" icon="hand-pointer">
+    直接在 IM 消息卡片上进行认领、关闭、升级等操作，无需跳转
+  </Card>
+
+  <Card title="免密操作" icon="key">
+    成员账户与 IM 账户关联后，操作时无需重复登录 Flashduty
+  </Card>
+
+  <Card title="功能完整" icon="list-check">
+    支持获取完整的故障详情、查看时间线、添加评论等
+  </Card>
+
+  <Card title="维护简单" icon="wrench">
+    一次配置，长期有效
+  </Card>
+</CardGroup>
+
+#### 配置指南
+
+<CardGroup cols={3}>
+  <Card title="飞书集成" icon="comments" href="/zh/on-call/integration/instant-messaging/lark">
+    Feishu/Lark 应用集成
+  </Card>
+
+  <Card title="钉钉集成" icon="comments" href="/zh/on-call/integration/instant-messaging/dingtalk">
+    DingTalk 应用集成
+  </Card>
+
+  <Card title="企业微信集成" icon="comments" href="/zh/on-call/integration/instant-messaging/wecom">
+    WeCom 应用集成
+  </Card>
+
+  <Card title="Slack 集成" icon="slack" href="/zh/on-call/integration/instant-messaging/slack">
+    Slack 应用集成
+  </Card>
+
+  <Card title="Teams 集成" icon="microsoft" href="/zh/on-call/integration/instant-messaging/microsoft-teams">
+    Microsoft Teams 集成
+  </Card>
+</CardGroup>
+
+### 机器人集成
+
+如果您的团队暂时无法进行应用集成，使用机器人是一种配置简单、快速有效的替代方案。
+
+**适用场景**：
+
+* 无法获取 IM 平台的管理员权限来安装应用
+* 只需要基础的故障通知推送功能，无需复杂的在线交互
+* 需要在临时项目群或跨部门群中快速建立通知
+
+<Tabs>
+  <Tab title="飞书机器人">
+    <Steps>
+      <Step title="创建自定义机器人">
+        进入飞书群聊 → **群设置** → **群机器人** → **添加机器人** → 选择**自定义机器人**
+      </Step>
+
+      <Step title="配置机器人参数">
+        设置机器人名称和描述，配置自定义关键词：`#`，点击**添加**生成 Webhook 地址
+      </Step>
+
+      <Step title="集成到 Flashduty On-call">
+        复制 Webhook 地址，在 Flashduty On-call 的**协作空间** → **分派策略**中添加飞书机器人
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="钉钉机器人">
+    <Steps>
+      <Step title="创建自定义机器人">
+        进入钉钉群聊 → **群设置** → **群管理** → **智能群助手** → **添加机器人** → 选择**自定义**类型
+      </Step>
+
+      <Step title="配置安全设置">
+        设置机器人名称，添加关键词：`#`，同意相关协议
+      </Step>
+
+      <Step title="完成集成">
+        复制 Webhook 地址，在 Flashduty On-call 的**协作空间** → **分派策略**中配置钉钉机器人
+      </Step>
+    </Steps>
+
+    <Tip>
+      钉钉默认使用成员手机号进行 @ 提醒，您无需额外配置。
+    </Tip>
+  </Tab>
+
+  <Tab title="企微机器人">
+    <Steps>
+      <Step title="创建群机器人">
+        进入企业微信群聊 → **右上角设置** → **添加群机器人** → **新创建一个机器人**
+      </Step>
+
+      <Step title="配置并获取 Webhook">
+        设置机器人名称，点击**添加机器人**，复制生成的 Webhook 地址
+      </Step>
+
+      <Step title="配置 Flashduty">
+        在 Flashduty On-call 的**协作空间** → **分派策略**中选择**企微机器人**，粘贴 Webhook 地址
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Telegram">
+    <Warning>
+      Telegram 服务在国内可能无法直接访问，请确保您使用的 Webhook 通知地址在当前网络环境下可以正常访问。
+    </Warning>
+
+    <Steps>
+      <Step title="创建 Telegram 机器人">
+        在 Telegram 中搜索 `BotFather` 并发送 `/newbot` 命令，输入机器人名称，记录返回的 Token
+      </Step>
+
+      <Step title="创建 Channel 并添加机器人">
+        点击左上角设置 → **New Channel**，创建 Channel 并将机器人添加为成员
+      </Step>
+
+      <Step title="获取 Chat ID">
+        访问 `https://api.telegram.org/bot{Token}/getUpdates`，从返回的 JSON 中找到 `chat.id`。您也可以使用 [@userinfobot](https://t.me/userinfobot) 等工具获取
+      </Step>
+
+      <Step title="配置 Flashduty">
+        在**协作空间** → **分派策略**中配置 Telegram 机器人：
+
+        * **Webhook 通知地址**：填入 Bot Token 或国内可访问的 Telegram 服务代理地址
+        * **Chat IDs**：填入需要接收通知的群聊 ID，支持配置多个 Chat ID，输入每个 ID 后按回车确认
+        * **别名**（可选）：为机器人设置别名，方便区分不同通知渠道
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Slack">
+    <Steps>
+      <Step title="创建 Slack 应用">
+        访问 `https://api.slack.com/apps?new_app=1`，选择应用名称和工作区，点击 **Create App**
+      </Step>
+
+      <Step title="启用 Incoming Webhook">
+        在应用设置页面选择 **Incoming Webhook**，开启 **Activate Incoming Webhooks** 开关
+      </Step>
+
+      <Step title="获取 Webhook URL">
+        点击 **Add New Webhook to Workspace**，选择目标频道，复制生成的 Webhook URL
+      </Step>
+
+      <Step title="配置 Flashduty">
+        在**协作空间** → **分派策略**中配置 Slack 机器人，粘贴 Webhook URL
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Webhook 通用机器人">
+    如果您使用的 IM 工具不在上述列表中，或希望将告警转发到自研的消息网关，可以选择任意一种机器人类型（推荐使用钉钉 / 飞书 / 企微机器人，消息体结构最通用），将 Webhook 地址填写为您自己的 HTTP 服务 URL。Flashduty 不会校验 Webhook 域名，只要您的服务端能接收并解析 Flashduty 推送的 JSON 报文，即可完成对接。
+
+    <Steps>
+      <Step title="准备 Webhook 服务">
+        在您的服务端提供一个可公网访问的 HTTPS 接口，能够接收 `POST` 请求并解析 JSON body。如需发往内网，可借助反向代理或 Flashduty 的边缘节点转发。
+      </Step>
+
+      <Step title="在分派策略中添加渠道">
+        在**协作空间** → **分派策略**中选择一种机器人类型（例如**钉钉机器人**），将 **Webhook 通知地址或 Token** 填写为您自己的服务 URL。
+      </Step>
+
+      <Step title="按需配置高级选项">
+        可为该渠道设置**别名**、**严重程度过滤**、**触发通知事件类型**。如果您的服务需要识别具体处理人员，可在消息体中读取 Flashduty 注入的处理人信息。
+      </Step>
+    </Steps>
+
+    <Tip>
+      详细的消息体结构与对接示例，请参考[常见问题：如何接入自研通知系统](/zh/on-call/quickstart/faq#我没有飞书钉钉企微telegram如何接收机器人通知)。
+    </Tip>
+  </Tab>
+
+  <Tab title="Zoom">
+    <Warning>
+      Zoom Incoming Webhook 的连接与创建者的 Zoom 账号绑定。当创建者离职或账号被停用时，其创建的所有 Webhook 连接将自动失效。**强烈建议使用团队共享的服务账号**（而非个人账号）来创建 Webhook 连接，避免因人员变动导致通知中断。
+    </Warning>
+
+    <Steps>
+      <Step title="创建机器人">
+        打开 Zoom 应用，进入 **Apps** → **Add Apps**，搜索并添加 `Incoming Webhook` 应用。返回聊天界面，确认 `Incoming Webhook` 应用已成功添加。在任意频道或 `Incoming Webhook` 应用中输入命令：`/inc connect flashduty`，系统将返回应用的连接信息
+      </Step>
+
+      <Step title="配置 Flashduty">
+        在**协作空间** → **分派策略**中配置 Zoom 机器人：
+
+        * **Webhook 地址**：复制返回信息中的 `Endpoint` 地址
+        * **Verify Token**：复制返回信息中的 `Verification Token`，用于验证请求合法性
+        * **别名**（可选）：为机器人设置别名，方便区分不同通知渠道
+      </Step>
+
+      <Step title="(可选) 使用 @ 提醒">
+        开启 @ 提醒后，系统通过用户信息映射表中的数据 @ 提醒对应的处理人员：
+
+        1. 管理员在 Zoom 控制台获取用户 `user_id`
+        2. 在 Flashduty **平台管理** → **映射表管理**中创建 Zoom 类型映射表，将 Flashduty 成员邮箱映射到 Zoom `user_id`
+        3. 在**分派策略**中关联对应的 Zoom 机器人和映射表
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+<Tip>
+  **没有上述 IM 平台？您仍然可以使用机器人通知。** Flashduty 不会校验机器人 Webhook 地址的域名，因此您可以选择任意一种机器人类型（如钉钉机器人），将 Webhook 地址填写为您自己的服务端 URL。只需在您的服务端实现对应 IM 平台的消息推送协议，即可接收 Flashduty 的告警通知。这种方式适合自研通知系统或需要对接非标准 IM 工具的场景。详细步骤请参考[常见问题](/zh/on-call/quickstart/faq#我没有飞书钉钉企微telegram如何接收机器人通知)。
+</Tip>
+
+#### 高级配置
+
+所有机器人类型在配置时均支持以下高级选项，您可以展开**高级配置**进行设置：
+
+| 配置项          | 支持的机器人类型            | 说明                                                                    |
+| :----------- | :------------------ | :-------------------------------------------------------------------- |
+| **别名**       | 全部                  | 为机器人设置别名，方便记忆和区分不同的通知渠道                                               |
+| **严重程度过滤**   | 全部                  | 选择需要推送通知的告警严重程度，未选中的严重程度对应的故障将不会推送                                    |
+| **触发通知事件类型** | 飞书、钉钉、企微、Slack、Zoom | 选择哪些事件类型触发通知推送（如触发、认领、关闭等），默认全选                                       |
+| **@ 提醒**     | 飞书、钉钉、企微、Slack、Zoom | 开启后 @ 提醒对应的处理人员。飞书和 Zoom 需配置用户信息映射表，企微可选配置映射表，钉钉默认使用手机号匹配。钉钉还支持 @ 所有人 |
+
+<Tip>
+  用户信息映射表定义了 Flashduty 用户与 IM 平台用户之间的对应关系。您可以在 **平台管理** → **映射表管理** 页面创建和维护映射表。
+</Tip>
+
+#### 常见问题
+
+<AccordionGroup>
+  <Accordion title="Telegram 消息推送失败，提示网络异常？">
+    请检查 Webhook 通知地址在当前网络环境下是否可以正常访问。Telegram 服务在国内可能存在访问限制，建议使用可靠的代理服务地址。
+  </Accordion>
+
+  <Accordion title="如何获取 Telegram 群聊的 Chat ID？">
+    将 Bot 添加到目标群聊后，您可以通过调用 Telegram Bot API 的 `getUpdates` 方法获取群聊 Chat ID。也可以使用 [@userinfobot](https://t.me/userinfobot) 等工具获取。
+  </Accordion>
+
+  <Accordion title="Zoom 通知发送失败，提示 Failed to send bot message？">
+    该错误表示 Zoom 无法通过该 Webhook 发送消息，可能的原因包括：Webhook 连接已失效、创建者账号被停用或离职、Webhook 被手动删除等。
+
+    **排查方法：**
+
+    1. 在 Zoom 中创建一个新的 Incoming Webhook 连接
+    2. 在 Flashduty 分派策略中使用新的 Webhook 地址进行测试
+    3. 如果新 Webhook 发送正常，说明原 Webhook 连接已失效（常见原因是创建者离职导致账号被停用），使用新的 Webhook 替换即可
+    4. 如果新 Webhook 同样失败，请检查消息内容格式或联系 Zoom 支持
+
+    **预防建议：** 使用团队共享的服务账号（而非个人账号）创建 Webhook 连接，避免因人员变动导致通知中断。
+  </Accordion>
+
+  <Accordion title="Zoom 的 Verify Token 在哪里获取？">
+    在 Zoom 中添加 Incoming Webhook 应用后，使用 `/inc connect flashduty` 命令，系统返回的连接信息中包含 `Verification Token`。
+  </Accordion>
+
+  <Accordion title="机器人的 @ 提醒不生效怎么办？">
+    请确认以下事项：
+
+    * 已开启 **@ 提醒** 开关
+    * 飞书、Zoom：已正确选择 **用户信息映射表**，映射关系正确且完整
+    * 企微：如使用映射表，确认映射关系正确
+    * 钉钉：确认成员手机号正确
+    * Slack：确认成员账户关联正确
+  </Accordion>
+</AccordionGroup>
+
+***
+
+## 通用配置
+
+***
+
+<AccordionGroup>
+  <Accordion title="如何自定义通知内容？" icon="paint-brush">
+    Flashduty On-call 允许您为不同渠道定制个性化的通知消息。
+
+    **配置路径**：控制台 → 模板管理
+
+    在这里，您可以选择不同的通知类型（如故障触发、认领、关闭等），并为各个渠道编辑消息格式。模板支持引用变量，以动态展示故障信息。
+
+    更多内容请查阅 [通知模板配置](/zh/on-call/configuration/templates)。
+  </Accordion>
+
+  <Accordion title="如何为不同级别的故障配置不同的通知策略？" icon="layer-group">
+    您可以基于告警的严重等级、来源、标签等任意维度，设计精细化的通知流程。这主要通过**路由规则**和**分派策略**实现。
+
+    * **路由规则**：集成中心 → 具体集成 → 路由规则。决定哪些告警应该被路由到哪个协作空间
+    * **分派策略**：协作空间 → 分派策略。决定故障应该通知给谁、通过什么渠道、以及在无人响应时如何升级
+
+    例如，您可以配置：P1 级别的故障，首先通过 Flashduty App 和飞书应用通知主值班人员；如果 5 分钟内无人认领，则通过语音电话通知其主管。
+  </Accordion>
+</AccordionGroup>
+
+## 延伸阅读
+
+***
+
+<CardGroup cols={2}>
+  <Card title="分派策略" icon="sitemap" href="/zh/on-call/channel/escalation-rule">
+    配置告警通知规则和升级路径
+  </Card>
+
+  <Card title="通知模板" icon="file-code" href="/zh/on-call/configuration/templates">
+    自定义各渠道的通知内容格式
+  </Card>
+</CardGroup>

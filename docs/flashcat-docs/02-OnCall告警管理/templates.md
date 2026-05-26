@@ -1,0 +1,700 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.flashcat.cloud/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# 通知模板
+
+> 通知模板用于控制故障通知的内容格式，系统在分派故障时，使用模板渲染故障信息并发送通知。
+
+<Tip>**版本要求**：此功能需要 On-call 专业版及以上订阅。[了解更多](https://flashcat.cloud/flashduty/price/)</Tip>
+
+## 使用场景
+
+系统在以下场景分派故障时会使用模板：
+
+| 场景     | 说明                            |
+| :----- | :---------------------------- |
+| 手动创建故障 | 手动创建故障并分派                     |
+| 自动生成故障 | 上报告警事件，系统自动生成故障，按匹配到的分派策略进行分派 |
+| 重新分派   | 故障创建后，手动更改分派                  |
+| 升级分派   | 根据分派策略设置，系统自动升级分派             |
+| 重开分派   | 故障关闭后重新打开，按照之前的设置重新分派         |
+
+<Note>
+  系统使用 [Golang 模板语法](https://pkg.go.dev/html/template@go1.18.1) 解析数据，支持逻辑判断、循环、pipeline 及常用函数。更多函数请参考 [sprig 函数库](https://github.com/flashcatcloud/sprig/tree/flashcat)。
+</Note>
+
+<Warning>
+  出于安全考虑，以下 sprig 函数已被禁用，在模板中使用会触发 `function "xxx" not defined` 解析错误：
+
+  | 分类   | 已禁用函数                                                                                                                                          |
+  | :--- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 环境读取 | `env`、`expandenv`                                                                                                                              |
+  | 网络解析 | `getHostByName`                                                                                                                                |
+  | 密码学  | `bcrypt`、`htpasswd`、`derivePassword`、`encryptAES`、`decryptAES`                                                                                 |
+  | 证书生成 | `genPrivateKey`、`buildCustomCert`、`genCA`、`genCAWithKey`、`genSelfSignedCert`、`genSelfSignedCertWithKey`、`genSignedCert`、`genSignedCertWithKey` |
+  | 随机数  | `randBytes`、`uuidv4`、`randAlphaNum`、`randAlpha`、`randAscii`、`randNumeric`、`randInt`、`shuffle`                                                  |
+  | 错误抛出 | `fail`                                                                                                                                         |
+
+  如需在模板中使用唯一标识，可改用故障变量（如 `{{.IncidentID}}`、`{{.LabelsMD5}}`）；如需引用环境信息，请通过告警标签或字段映射传入，不要在模板中读取宿主机环境变量。
+</Warning>
+
+## 配置模板
+
+<Steps>
+  <Step title="创建自定义模板">
+    进入 **模板管理** 页面，点击 **创建自定义模板** 或 **复制默认模板**
+  </Step>
+
+  <Step title="编辑模板内容">
+    按通知渠道编辑对应内容，可引用下方变量列表中的字段
+  </Step>
+
+  <Step title="保存模板">
+    点击 **保存** 完成创建
+  </Step>
+</Steps>
+
+### 应用模板
+
+<Steps>
+  <Step title="进入分派策略">
+    前往 **协作空间** → **分派策略**，点击 **编辑**
+  </Step>
+
+  <Step title="选择模板">
+    在策略配置中选择 **按照哪个模板** 进行通知
+  </Step>
+
+  <Step title="保存配置">
+    点击 **保存** 完成配置。详见 [配置分派策略](/zh/on-call/channel/escalation-rule)
+  </Step>
+</Steps>
+
+## 变量引用
+
+### 引用示例
+
+```go theme={null}
+// 引用故障标题
+{{.Title}}
+
+// 引用发起人名称
+{{.Creator.PersonName}}
+
+// 引用 resource 标签值
+{{.Labels.resource}}
+
+// 引用带 "." 的标签（如 "A.B"）
+{{index .Labels "A.B"}}
+```
+
+### Incident 变量
+
+故障对象的完整变量列表：
+
+| 字段                 | 类型           |  必含 | 说明                                   |
+| :----------------- | :----------- | :-: | :----------------------------------- |
+| ID                 | string       |  ✓  | 故障 ID                                |
+| `Title`            | string       |  ✓  | 故障标题                                 |
+| `Description`      | string       |  ✓  | 故障描述，可能为空                            |
+| DetailUrl          | string       |  ✓  | 故障详情页地址                              |
+| Num                | string       |  ✓  | 故障短标识，仅用于方便肉眼识别                      |
+| `IncidentSeverity` | string       |  ✓  | 严重程度：Critical / Warning / Info       |
+| IncidentStatus     | string       |  ✓  | 故障状态：Critical / Warning / Info / Ok  |
+| `Progress`         | string       |  ✓  | 处理进度：Triggered / Processing / Closed |
+| `StartTime`        | int64        |  ✓  | 触发时间，Unix 秒时间戳                       |
+| LastTime           | int64        |     | 最新事件时间，Unix 秒时间戳                     |
+| EndTime            | int64        |     | 恢复时间，Unix 秒时间戳                       |
+| SnoozedBefore      | int64        |     | 暂缓截止时间，Unix 秒时间戳                     |
+| AckTime            | int64        |     | 首次认领时间，Unix 秒时间戳                     |
+| CloseTime          | int64        |     | 关闭时间，Unix 秒时间戳                       |
+| Creator            | Person       |     | 发起人信息，系统自动生成时不存在                     |
+| Closer             | Person       |     | 关闭人信息，故障自动恢复时不存在                     |
+| AssignedTo         | Assignment   |     | 分派配置                                 |
+| Responders         | \[]Responder |     | 处理人列表                                |
+| ChannelID          | int64        |     | 协作空间 ID                              |
+| ChannelName        | string       |     | 协作空间名称                               |
+| GroupMethod        | string       |     | 聚合方式：n（不聚合）/ p（按规则）/ i（智能）           |
+| `Labels`           | map          |     | 标签 KV，Key 和 Value 均为字符串              |
+| AlertCnt           | int64        |  ✓  | 关联告警个数                               |
+| Alerts             | \[]Alert     |     | 关联告警详情                               |
+| FireType           | string       |     | 通知类型：fire（通知）/ refire（循环通知）          |
+| IsFlapping         | bool         |     | 是否处于抖动状态                             |
+| Impact             | string       |     | 故障影响，关闭后填写                           |
+| RootCause          | string       |     | 故障根因，关闭后填写                           |
+| Resolution         | string       |     | 解决办法，关闭后填写                           |
+
+### 关联对象
+
+<AccordionGroup>
+  <Accordion title="Person - 人员信息">
+    | 字段           | 类型     |  必含 | 说明    |
+    | :----------- | :----- | :-: | :---- |
+    | person\_id   | int64  |  ✓  | 人员 ID |
+    | person\_name | string |  ✓  | 人员名称  |
+    | email        | string |  ✓  | 邮件地址  |
+  </Accordion>
+
+  <Accordion title="Assignment - 分派配置">
+    | 字段               | 类型       |  必含 | 说明                                         |
+    | :--------------- | :------- | :-: | :----------------------------------------- |
+    | PersonIDs        | \[]int64 |     | 人员 ID 列表，仅当按人员分派时存在                        |
+    | EscalateRuleID   | string   |     | 分派策略 ID                                    |
+    | EscalateRuleName | string   |     | 分派策略名称                                     |
+    | LayerIdx         | int      |     | 分派环节，从 0 开始                                |
+    | Type             | string   |  ✓  | 分派类型：assign / reassign / escalate / reopen |
+  </Accordion>
+
+  <Accordion title="Responder - 处理人">
+    | 字段             | 类型     |  必含 | 说明             |
+    | :------------- | :----- | :-: | :------------- |
+    | PersonID       | int64  |  ✓  | 人员 ID          |
+    | PersonName     | string |  ✓  | 人员名称           |
+    | Email          | string |  ✓  | 邮件地址           |
+    | AssignedAt     | int64  |  ✓  | 分派时间，Unix 秒时间戳 |
+    | AcknowledgedAt | int64  |     | 认领时间，Unix 秒时间戳 |
+  </Accordion>
+
+  <Accordion title="Alert - 告警详情">
+    | 字段            | 类型     |  必含 | 说明                                  |
+    | :------------ | :----- | :-: | :---------------------------------- |
+    | Title         | string |  ✓  | 告警标题                                |
+    | Description   | string |  ✓  | 告警描述，可能为空                           |
+    | AlertSeverity | string |  ✓  | 严重程度：Critical / Warning / Info      |
+    | AlertStatus   | string |  ✓  | 告警状态：Critical / Warning / Info / Ok |
+    | StartTime     | int64  |  ✓  | 触发时间，Unix 秒时间戳                      |
+    | LastTime      | int64  |     | 最新事件时间，Unix 秒时间戳                    |
+    | EndTime       | int64  |     | 恢复时间，Unix 秒时间戳                      |
+    | Labels        | map    |     | 标签 KV                               |
+  </Accordion>
+</AccordionGroup>
+
+## 常见问题
+
+<AccordionGroup>
+  <Accordion title="如何知道 Labels 有哪些标签？">
+    * 手动创建的故障没有标签
+    * 自动创建的故障存在标签，与合入的第一条告警的标签相同
+
+    前往 **故障列表** → 查看故障详情，可以看到全部标签信息。
+  </Accordion>
+
+  <Accordion title="配置了自定义模板，实际却使用了默认模板？">
+    创建自定义模板时，系统使用 mock 数据检查语法。mock 数据覆盖场景有限，实际运行时可能渲染失败，系统将使用默认模板兜底。
+
+    <Tip>
+      建议在引用变量前先判断是否存在：
+
+      ```go theme={null}
+      // ❌ 错误：直接读取标签
+      {{.Labels.resource}}
+
+      // ✅ 推荐：先判断再读取
+      {{if .Labels.resource}}{{.Labels.resource}}{{end}}
+      ```
+    </Tip>
+  </Accordion>
+
+  <Accordion title="故障标题含有字符转义（如 >）？">
+    使用 `toHtml` 函数处理：
+
+    ```go theme={null}
+    // 转义 HTML 字符
+    {{toHtml .Title}}
+
+    // 使用第一个不为空的值渲染
+    {{toHtml .Title .TitleEnglish}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何转换时间格式？">
+    ```go theme={null}
+    // date 函数：将时间戳转换为可读格式
+    {{date "2006-01-02 15:04:05" .StartTime}}
+
+    // ago 函数：将时间差转换为可读格式（如 "5 分钟前"）
+    {{ago .StartTime}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何在 for 循环内部引用外部变量？">
+    在外部变量前增加 `$`：
+
+    ```go theme={null}
+    {{range .Responders}}
+      {{if eq $.Progress "Triggered"}}
+        【待处理】{{.Email}}
+      {{end}}
+    {{end}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何提取带 . 的字段值（如 obj.instance）？">
+    使用 `index` 函数：
+
+    ```go theme={null}
+    {{index .Labels "obj.instance"}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何提取关联告警中的 label 并去重？">
+    ```go theme={null}
+    // alertLabels：得到去重后的数组
+    {{alertLabels . "resource"}}
+
+    // joinAlertLabels：去重后按分隔符拼接为字符串
+    {{joinAlertLabels . "resource" ", "}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何遍历并打印 Labels？">
+    ```go theme={null}
+    // 完整遍历
+    {{range $k, $v := .Labels}}
+      {{$k}} : {{toHtml $v}}
+    {{end}}
+
+    // 排除单个 label
+    {{range $k, $v := .Labels}}
+      {{if ne $k "resource"}}
+        {{$k}} : {{toHtml $v}}
+      {{end}}
+    {{end}}
+
+    // 排除多个 labels
+    {{range $k, $v := .Labels}}
+      {{if not (in $k "resource" "body_text")}}
+        {{$k}} : {{toHtml $v}}
+      {{end}}
+    {{end}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何从 JSON 字段中提取信息？">
+    使用 `jsonGet` 函数从合法 JSON 中按 path 提取值。语法参考 [gjson.dev](https://gjson.dev/)。
+
+    ```go theme={null}
+    // 提取 rule_note 标签中的 detail_url 字段
+    {{jsonGet .Labels.rule_note "detail_url"}}
+
+    // 提取 JSON 数组中第一个元素的 name 字段
+    {{jsonGet .Labels.slice "0.name"}}
+
+    // 遍历数组，匹配 userId==7777 的 instanceId 字段
+    {{jsonGet .Labels.rule_note "#(userId==7777)#.instanceId"}}
+    ```
+  </Accordion>
+
+  <Accordion title="如何在发送应用消息时携带图片？">
+    ### 通过 imageSrcToURL 获取图片 URL
+
+    **imageSrcToURL** 函数用于将图片的 `Src` 属性转换为可访问的 URL。
+
+    **参数说明：**
+
+    * `$root`：根上下文对象
+    * `Src`：图片源，可以是 `image_key` 或 http/https URL
+
+    **处理逻辑：**
+
+    * 如果 `Src` 是从图片上传界面获取的 `image_key`，会转换为可访问的 URL（短期有效）
+    * 如果 `Src` 是 http/https 地址，直接返回该地址
+
+    **适用平台：** 钉钉应用、Slack 应用
+
+    **使用示例：**
+
+    ```go theme={null}
+    {{ $root := . }}
+    {{ range $i, $v := .Images }}
+      {{ $imageURL := imageSrcToURL $root $v.Src }}
+      {{ if $imageURL }}![]({{$imageURL}}){{ end }}
+    {{ end }}
+    ```
+
+    ### 通过 transferImage 上传图片到第三方平台
+
+    **transferImage** 函数用于将图片转换并上传到第三方通知平台。
+
+    **参数说明：**
+
+    * `$root`：根上下文对象
+    * `Src`：图片源，可以是 `image_key` 或 http/https URL
+
+    **限制条件：**
+
+    * 最大图片大小：10 MB
+    * 支持格式：JPG、JPEG、PNG、WEBP、GIF、BMP、ICO、TIFF、HEIC
+
+    **权限要求：** 需要应用具备"获取与上传图片或文件资源"的权限
+
+    **适用平台：** 飞书应用（Lark App）
+
+    **使用示例：**
+
+    ```go theme={null}
+    {{ $root := . }}
+    {{ range $i, $v := .Images }}
+      {{ $transferURL := transferImage $root $v.Src }}
+      {{ if $transferURL }}![]({{$transferURL}}){{ end }}
+    {{ end }}
+    ```
+  </Accordion>
+
+  <Accordion title="如何使用逻辑运算？">
+    | 函数          | 说明        | 示例                                   |
+    | :---------- | :-------- | :----------------------------------- |
+    | `and`       | 逻辑与       | `{{if and (eq .A "x") (eq .B "y")}}` |
+    | `or`        | 逻辑或       | `{{if or (eq .A "x") (eq .A "y")}}`  |
+    | `not`       | 逻辑非       | `{{if not (eq .A "x")}}`             |
+    | `eq`        | 等于        | `{{if eq .A "x"}}`                   |
+    | `ne`        | 不等于       | `{{if ne .A "x"}}`                   |
+    | `gt` / `ge` | 大于 / 大于等于 | `{{if gt .AlertCnt 1}}`              |
+    | `lt` / `le` | 小于 / 小于等于 | `{{if lt .AlertCnt 10}}`             |
+  </Accordion>
+
+  <Accordion title="如何查阅更多函数？">
+    * 函数列表：[functions.go](https://github.com/flashcatcloud/sprig/blob/master/functions.go#L97)
+    * 使用示例：查看对应的 `_test.go` 文件，如 [date\_test.go](https://github.com/flashcatcloud/sprig/blob/master/date_test.go)
+  </Accordion>
+</AccordionGroup>
+
+## 渠道模板
+
+不同通知渠道支持的模板格式和限制不同。
+
+<Tabs>
+  <Tab title="飞书应用">
+    需预先配置 [飞书集成](/zh/on-call/integration/instant-messaging/lark)。支持消息卡片格式，系统会自动删除因标签不存在导致的渲染空行。
+
+    **默认模板**（渲染全部标签）：
+
+    ```go theme={null}
+    {{if .Labels.body_text}}{{.Labels.body_text}}{{else if .Description}}{{.Description}}{{end}}
+    {{if .Labels.resource}}**resource** : {{(joinAlertLabels . "resource" ", ")}}{{end}}
+    {{range $k, $v := .Labels}}
+    {{if not (in $k "resource" "body_text" "body_text_with_table")}}**{{$k}}** : {{$v}}{{end}}{{end}}
+    {{ $root := . }}
+    {{ range $i, $v := .Images }}
+      {{ $transferURL := transferImage $root $v.Src }}
+      {{ if $transferURL }}![]({{$transferURL}}){{ end }}
+    {{ end }}
+    ```
+
+    <Frame caption="飞书应用通知效果">
+      <img src="https://download.flashcat.cloud/flashduty/changelog/20230720/feishu_app_render.png" alt="飞书应用通知" />
+    </Frame>
+
+    **精简模板**（仅展示关键标签）：
+
+    ```go theme={null}
+    {{if (index .Labels "resource")}}resource：{{toHtml (joinAlertLabels . "resource" ", ")}}{{end}}
+    {{if (index .Labels "check")}}check：{{toHtml (index .Labels "check")}}{{end}}
+    {{if (index .Labels "metric")}}metric：{{index .Labels "metric"}}{{end}}
+    {{if (index .Labels "trigger_value")}}trigger_value：{{index .Labels "trigger_value"}}{{end}}
+    {{if (index .Labels "region")}}region：{{index .Labels "region"}}{{end}}
+    {{if (index .Labels "cluster")}}cluster：{{index .Labels "cluster"}}{{end}}
+    {{if (index .Labels "service")}}service：{{index .Labels "service"}}{{end}}
+    {{if (index .Labels "env")}}env：{{index .Labels "env"}}{{end}}
+    ```
+  </Tab>
+
+  <Tab title="钉钉应用">
+    需预先配置 [钉钉集成](/zh/on-call/integration/instant-messaging/dingtalk)。支持消息卡片格式，系统会自动删除渲染空行。
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{if .Description}}**description** :{{toHtml .Labels.body_text .Description}}{{end}}
+    {{if .Labels.resource}}**resource** : {{toHtml (joinAlertLabels . "resource" ", ")}}{{end}}
+    {{range $k, $v := .Labels}}
+    {{if not (in $k "resource" "body_text")}}**{{$k}}** : {{toHtml $v}}{{end}}{{end}}
+    {{ $root := . }}
+    {{ range $i, $v := .Images }}
+    {{ $imageURL := imageSrcToURL $root $v.Src }}
+    {{ if $imageURL }}![]({{$imageURL}}){{ end }}{{ end }}
+    ```
+
+    <Frame caption="钉钉应用通知效果">
+      <img src="https://download.flashcat.cloud/flashduty/changelog/20230720/dingtalk_app_render.png" alt="钉钉应用通知" />
+    </Frame>
+  </Tab>
+
+  <Tab title="企业微信应用">
+    需预先配置 [企业微信集成](/zh/on-call/integration/instant-messaging/wecom)。支持消息卡片格式。
+
+    <Warning>
+      企业微信限制卡片长度，模板渲染区域最多 **8 行**，超出部分将被隐藏。
+    </Warning>
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{if (index .Labels "resource")}}resource：{{toHtml (joinAlertLabels . "resource" ", ")}}{{end}}
+    {{if (index .Labels "metric")}}metric：{{index .Labels "metric"}}{{end}}
+    {{if (index .Labels "trigger_value")}}trigger_value：{{index .Labels "trigger_value"}}{{end}}
+    {{if (index .Labels "region")}}region：{{index .Labels "region"}}{{end}}
+    {{if (index .Labels "cluster")}}cluster：{{index .Labels "cluster"}}{{end}}
+    {{if (index .Labels "service")}}service：{{index .Labels "service"}}{{end}}
+    {{if (index .Labels "env")}}env：{{index .Labels "env"}}{{end}}
+    ```
+
+    <Frame caption="企业微信应用通知效果">
+      <img src="https://download.flashcat.cloud/flashduty/changelog/20230720/wecom_app_render.png" alt="企业微信应用通知" />
+    </Frame>
+  </Tab>
+
+  <Tab title="Slack 应用">
+    需预先配置 [Slack 集成](/zh/on-call/integration/instant-messaging/slack)。消息最大长度约 15000 字符，超出后截断。
+
+    <Tip>
+      展示图片时，请用 `---` 把图片和其他内容分割开来，格式以 `![` 开头。
+    </Tip>
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{if .Labels.body_text}}{{.Labels.body_text}}{{else if .Description}}{{.Description}}{{end}}
+    {{if .Labels.resource}}*resource* : {{(joinAlertLabels . "resource" ", ")}}{{end}}
+    {{range $k, $v := .Labels}}
+    {{if not (in $k "resource" "body_text" "body_text_with_table")}}*{{$k}}* : {{$v}}{{end}}{{end}}
+    {{ $root := . }}
+    {{ range $i, $v := .Images }}
+     {{ $imageURL := imageSrcToURL $root $v.Src }}
+     {{ if $imageURL }}
+      ---
+      ![{{$v.Alt}}]({{$imageURL}})
+     {{ end }}
+    {{ end }}
+    ```
+
+    <Frame caption="Slack 应用通知效果">
+      <img src="https://download.flashcat.cloud/flashduty/integration/slack/slack_app_message.png" alt="Slack 应用通知" />
+    </Frame>
+  </Tab>
+
+  <Tab title="Microsoft Teams">
+    需预先配置 [Teams 集成](/zh/on-call/integration/instant-messaging/microsoft-teams)。消息最大约 28KB，超出后报错。
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{if .Description}}**description** :{{toHtml .Labels.body_text .Description}}{{end}}
+    {{if .Labels.resource}}**resource** : {{toHtml (joinAlertLabels . "resource" ", ")}}{{end}}
+    {{range $k, $v := .Labels}}
+    {{if not (in $k "resource" "body_text" "body_text_with_table")}}**{{$k}}** : {{toHtml $v}}{{end}}{{end}}
+    ```
+
+    <Frame caption="Teams 应用通知效果">
+      <img src="https://download.flashcat.cloud/flashduty/integration/microsoft-teams/teams_app_message.png" alt="Teams 应用通知" />
+    </Frame>
+  </Tab>
+</Tabs>
+
+## 机器人模板
+
+群聊机器人支持的模板格式。
+
+<Tabs>
+  <Tab title="飞书机器人">
+    支持消息卡片、富文本和普通文本三种格式。消息最大 4000 字节，超出后截断。
+
+    <AccordionGroup>
+      <Accordion title="消息卡片（msg_type: interactive）">
+        ```json theme={null}
+        {
+          "msg_type": "interactive",
+          "card": {
+            "config": {
+              "wide_screen_mode": true,
+              "enable_forward": true
+            },
+            "header": {
+              "template": "{{if eq .IncidentSeverity \"Critical\"}}red{{else if eq .IncidentSeverity \"Warning\"}}orange{{else}}yellow{{end}}",
+              "title": {
+                "content": "{{fireReason .}}INC #{{.Num}} {{toHtml .Title}}",
+                "tag": "plain_text"
+              }
+            },
+            "elements": [{
+              "tag": "div",
+              "fields": [{
+                "text": {
+                  "tag": "lark_md",
+                  "content": "**🏢 协作空间:**{{.ChannelName}}"
+                }
+              },
+              {
+                "text": {
+                  "tag": "lark_md",
+                  "content": "**⏰ 触发时间:**{{date \"2006-01-02 15:04:05\" .StartTime}}"
+                }
+              }]
+            },
+            {
+              "tag": "action",
+              "actions": [{
+                "tag": "button",
+                "text": { "tag": "plain_text", "content": "故障详情" },
+                "type": "primary",
+                "url": "{{.DetailUrl}}"
+              },
+              {
+                "tag": "button",
+                "text": { "tag": "plain_text", "content": "认领" },
+                "type": "primary",
+                "url": "{{.DetailUrl}}?ack=1"
+              }]
+            }]
+          }
+        }
+        ```
+      </Accordion>
+
+      <Accordion title="富文本（msg_type: post）">
+        ```json theme={null}
+        {
+          "msg_type": "post",
+          "post": {
+            "zh_cn": {
+              "title": "{{if eq .IncidentSeverity \"Critical\"}}🔴{{else if eq .IncidentSeverity \"Warning\"}}⚠️{{else}}ℹ️{{end}} {{fireReason .}}INC #{{.Num}} {{toHtml .Title}}",
+              "content": [
+                [{"tag": "text", "text": "🏢 "}, {"tag": "text", "text": "协作空间：", "style": ["bold"]}, {"tag": "text", "text": "{{.ChannelName}}"}],
+                [{"tag": "text", "text": "⏰ "}, {"tag": "text", "text": "触发时间：", "style": ["bold"]}, {"tag": "text", "text": "{{date \"2006-01-02 15:04:05\" .StartTime}}"}],
+                [{"tag": "a", "href": "{{.DetailUrl}}", "text": "故障详情"}, {"tag": "text", "text": "  "}, {"tag": "a", "href": "{{.DetailUrl}}?ack=1", "text": "认领"}]
+              ]
+            }
+          }
+        }
+        ```
+      </Accordion>
+
+      <Accordion title="普通文本">
+        ```go theme={null}
+        {{fireReason .}}INC #{{.Num}} {{toHtml .Title}}
+        -----
+        协作空间：{{if .ChannelName}}{{.ChannelName}}{{else}}无{{end}}
+        严重程度：{{.IncidentSeverity}}
+        触发时间：{{date "2006-01-02 15:04:05" .StartTime}}
+        持续时长：{{ago .StartTime}}
+        <br />详情：{{.DetailUrl}}
+        ```
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+
+  <Tab title="钉钉机器人">
+    仅支持 Markdown 消息（[语法限制](https://open.dingtalk.com/document/robots/custom-robot-access#title-7ur-3ok-s1a)）。消息最大 4000 字节。
+
+    <Note>
+      如果文本包含 `<br />`，渲染时会先删除空行，再替换为换行符。
+    </Note>
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{fireReason .}}INC [#{{.Num}}]({{.DetailUrl}}) {{toHtml .Title}}
+
+    ---
+    - 协作空间：{{if .ChannelName}}{{.ChannelName}}{{else}}无{{end}}
+    - 严重程度：{{$s := colorSeverity .IncidentSeverity}}{{toHtml $s}}
+    - 触发时间：{{date "2006-01-02 15:04:05" .StartTime}}
+    - 持续时长：{{ago .StartTime}}{{if gt .AlertCnt 1}}
+    - 聚合告警：{{.AlertCnt}}条{{end}}{{if .Labels.resource}}
+    - 告警对象：{{toHtml (joinAlertLabels . "resource" ", ")}}{{end}}
+    ---
+    <br />[详情]({{.DetailUrl}})|[认领]({{.DetailUrl}}?ack=1)
+    ```
+  </Tab>
+
+  <Tab title="企业微信机器人">
+    仅支持 Markdown 消息（[语法限制](https://developer.work.weixin.qq.com/document/path/91770#markdown%E7%B1%BB%E5%9E%8B)）。消息最大 4000 字节。
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{fireReason .}}**INC [#{{.Num}}]({{.DetailUrl}}) {{toHtml .Title}}**
+    > 协作空间：<font color="warning">{{if .ChannelName}}{{.ChannelName}}{{else}}无{{end}}</font>
+    > 严重程度：<font color="warning">{{.IncidentSeverity}}</font>
+    > 触发时间：{{date "2006-01-02 15:04:05" .StartTime}}
+    > 持续时长：{{ago .StartTime}}{{if gt .AlertCnt 1}}
+    > 聚合告警：{{.AlertCnt}}条{{end}}
+    <br />[详情]({{.DetailUrl}})|[认领]({{.DetailUrl}}?ack=1)
+    ```
+  </Tab>
+
+  <Tab title="Slack 机器人">
+    消息最大约 15000 字符，超出后截断。
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{fireReason .}}INC <{{.DetailUrl}}|#{{.Num}}> {{toHtml .Title}}
+    -----
+    协作空间：{{if .ChannelName}}{{.ChannelName}}{{else}}无{{end}}
+    严重程度：{{.IncidentSeverity}}
+    触发时间：{{date "2006-01-02 15:04:05" .StartTime}}
+    持续时长：{{ago .StartTime}}{{if gt .AlertCnt 1}}
+    聚合告警：{{.AlertCnt}}条{{end}}
+    -----
+    <br /><{{.DetailUrl}}|详情>|<{{.DetailUrl}}?ack=1|认领>
+    ```
+  </Tab>
+
+  <Tab title="Telegram 机器人">
+    消息最大 4096 字符，超出后不发送。需配置国内可访问的 Telegram 服务地址。
+
+    **默认模板**：
+
+    ```go theme={null}
+    {{fireReason .}}INC [#{{.Num}}]({{.DetailUrl}}) {{toHtml .Title}}
+    -----
+    协作空间：{{if .ChannelName}}{{.ChannelName}}{{else}}无{{end}}
+    严重程度：{{.IncidentSeverity}}
+    触发时间：{{date "2006-01-02 15:04:05" .StartTime}}
+    持续时长：{{ago .StartTime}}
+    <br />[详情]({{.DetailUrl}})|[认领]({{.DetailUrl}}?ack=1)
+    ```
+  </Tab>
+</Tabs>
+
+## 其他渠道
+
+<Tabs>
+  <Tab title="短信">
+    **默认模板**：
+
+    ```go theme={null}
+    您有故障待处理：{{toHtml .Title}}，协作空间：{{.ChannelName}}，等级：{{.IncidentSeverity}}{{if gt .AlertCnt 1}}，共聚合{{.AlertCnt}}条告警{{end}}
+    ```
+  </Tab>
+
+  <Tab title="语音">
+    **默认模板**：
+
+    ```go theme={null}
+    您有故障待处理：{{toHtml .Title}}，协作空间：{{.ChannelName}}，等级：{{.IncidentSeverity}}{{if gt .AlertCnt 1}}，共聚合{{.AlertCnt}}条告警{{end}}
+    ```
+  </Tab>
+
+  <Tab title="邮件">
+    支持完整 HTML 格式。默认模板提供专业的邮件排版，包含故障标题、严重程度、协作空间、触发时间、处理人员等信息，以及「立即认领」和「查看详情」按钮。
+
+    <Frame caption="邮件通知效果">
+      <img src="https://download.flashcat.cloud/flashduty/changelog/20230720/email_render.png" alt="邮件通知" />
+    </Frame>
+  </Tab>
+</Tabs>
+
+## 延伸阅读
+
+<CardGroup cols={2}>
+  <Card title="配置分派策略" icon="route" href="/zh/on-call/channel/escalation-rule">
+    定义故障的通知规则和升级机制
+  </Card>
+
+  <Card title="配置个人偏好" icon="user-gear" href="/zh/on-call/configuration/personal-settings">
+    自定义通知时段和渠道偏好
+  </Card>
+</CardGroup>

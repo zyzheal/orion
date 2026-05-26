@@ -1,0 +1,52 @@
+version: "3.8"
+services:
+  auth-svc:
+    build: .
+    ports:
+      - "8082:8082"
+    environment:
+      - DATABASE_URL=postgres://orion:orion@postgres:5432/orion_auth?sslmode=disable
+      - REDIS_ADDR=redis:6379
+      - JWT_SECRET=change-me-in-production
+      - SERVICE_NAME=orion-auth-svc
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - orion
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=orion
+      - POSTGRES_PASSWORD=orion
+      - POSTGRES_DB=orion_auth
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orion"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - orion
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - orion
+volumes:
+  pgdata:
+networks:
+  orion:
+    driver: bridge

@@ -1,0 +1,112 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.flashcat.cloud/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Slack
+
+> 通过集成 Slack 第三方应用，您可以在 Slack 内接收和响应告警
+
+<Tip>**版本要求**：IM 集成需要 On-call 专业版及以上订阅。[了解更多](https://flashcat.cloud/flashduty/price/)</Tip>
+
+<span id="install-app" />
+
+## 一、安装应用
+
+<Steps>
+  <Step title="添加集成">
+    访问 Flashduty On-call 集成中心 → 即时消息 → **Slack**，点击 **添加**。
+  </Step>
+
+  <Step title="授权应用">
+    在跳转的 Slack 页面，于右上角选择 **工作区**，然后点击 **允许**。
+
+    ![2025-09-18-15-03-58](https://docs-cdn.flashcat.cloud/images/png/01a96bb9a8bf1d6c4c6f176542f12722.png)
+  </Step>
+
+  <Step title="保存配置">
+    输入数据源名称，点击 **保存**。
+  </Step>
+</Steps>
+
+## 二、配置作战室
+
+完成先前步骤后，在 Flashduty On-call 集成配置页面的 **增强功能** 模块，勾选 **开启作战室** 即可启用该功能，无需额外配置。
+
+<Note>
+  若需启用 AI 生成复盘报告（读取作战室聊天记录），应用需要额外的 `channels:history` 权限。对于已授权的 Slack 集成，您需要手动重新授权以获取该权限。
+</Note>
+
+## 三、关联用户
+
+在集成详情页的 **关联用户** 页签中，你可以查看团队成员与 Slack 账号的关联状态，并快速完成批量关联。
+
+### 查看关联状态
+
+关联用户列表展示所有团队成员及其关联状态。你可以通过以下方式筛选：
+
+| 筛选项     | 说明                   |
+| :------ | :------------------- |
+| **全部**  | 查看所有团队成员             |
+| **已关联** | 仅查看已完成 Slack 账号关联的成员 |
+| **未关联** | 仅查看尚未关联 Slack 账号的成员  |
+
+支持通过名称或邮箱搜索成员。
+
+### 一键关联
+
+当存在未关联的成员时，可以点击 **一键关联** 按钮。系统将尝试通过手机号或邮箱换取 Slack 开放平台的账号 ID 并自动关联，效果等同于成员使用相同信息在 Slack 平台登录 Flashduty。
+
+<Tip>
+  成员完成关联后，系统才能向其推送 Slack 消息通知。如果关联失败，请确认成员的邮箱是否与 Slack 账号一致。
+</Tip>
+
+## 四、常见问题
+
+<AccordionGroup>
+  <Accordion title="作战室功能的注意事项？">
+    * 同一时间仅支持在一个 IM 集成中开启作战室功能。如果您已在其他 IM 集成（如钉钉、飞书、企业微信）中启用了作战室，需要先在该集成中关闭后，才能在当前 Slack 集成中开启
+    * 开启作战室时，系统会自动验证当前 Slack 应用是否具备作战室所需的全部权限。如果检测到缺少必要权限，页面会显示一条警告提示，并提供 **重新授权** 链接
+    * 点击 **重新授权** 链接后，系统会跳转到 Slack 授权页面，请求作战室功能所需的额外权限（包括频道管理、消息读写、用户信息读取等）。完成授权后，页面会自动返回 Flashduty
+    * 如果您的 Slack 集成是在作战室功能上线之前完成授权的，首次开启时通常需要重新授权以补充新增权限。重新授权不会影响已有的集成配置和用户关联
+  </Accordion>
+
+  <Accordion title="分派策略的群聊列表中没有想要的私有频道？">
+    * 确保 [**安装应用**](#install-app) 步骤已成功完成且未报错
+    * 进入相关的 Slack 频道，执行 `/invite @Flashduty` 命令
+    * 当看到 `已加入` 或 `已由 xxx 添加至 xxx` 的提示时，即表示添加成功
+  </Accordion>
+
+  <Accordion title="分派策略的群聊列表中没有想要的公共频道？">
+    * 将应用授权人添加到公共频道中
+    * 参考上一问题的方法，将应用添加到频道中
+  </Accordion>
+
+  <Accordion title="点击授权时的「允许」按钮后报错？">
+    请重新操作。这可能是由于服务器与 Slack 通信异常导致授权失败。请返回添加数据源页面重试。如果重试后仍然报错，请联系客服。
+  </Accordion>
+
+  <Accordion title="点击「保存」按钮后报错？">
+    请重新操作。这可能是由于 Flashduty 服务器在获取永久授权码时与 Slack 通信异常。请返回添加数据源页面重试。如果重试后仍然报错，请联系客服。
+  </Accordion>
+
+  <Accordion title="Slack App 提示 not_authed 错误？">
+    请重新操作，这可能是 Slack 服务暂时出现问题。如果重试后仍然报错，请联系客服。
+  </Accordion>
+
+  <Accordion title="Slack App 提示 Operation timed out 错误？">
+    请重新操作。这可能是服务器与 Slack 通信超时。如果重试后仍然报错，请联系客服。
+  </Accordion>
+
+  <Accordion title="Slack App 提示 Status Code 500 错误？">
+    请重新操作。这可能是 Flashduty On-call 服务端出现错误（例如，数据源被关闭）。如果重试后仍然报错，请联系客服。
+  </Accordion>
+
+  <Accordion title="Slack App 提示其他未知错误？">
+    请重新操作。如果重试后仍然报错，请联系客服以记录和解决新问题。
+  </Accordion>
+
+  <Accordion title="为什么作战室功能未按预期工作？">
+    * 对于之前授权的 Slack IM 集成，需要您在 Flashduty On-call 集成配置页中对 Slack 手动进行重新授权，以使应用获得作战室功能所需的额外权限
+    * 请参考 [作战室介绍文档](/zh/on-call/advanced/war-room) 的 **常见问题** 部分
+  </Accordion>
+</AccordionGroup>
