@@ -3,7 +3,7 @@
  * List diagnostic sessions, view details, add symptoms, complete sessions
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer } from 'antd';
+import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
@@ -316,6 +316,18 @@ const DiagnosticSessions: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredSessions.length === 0 && !loading && (
+        <Empty
+          description="暂无诊断会话"
+          extra={
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/diagnostic/trigger')}>
+              新诊断
+            </Button>
+          }
+          style={{ marginTop: 48 }}
+        />
+      )}
 
       {/* Add Symptom Modal */}
       <Modal

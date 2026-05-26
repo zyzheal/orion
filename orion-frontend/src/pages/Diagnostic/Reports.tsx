@@ -3,7 +3,7 @@
  * List and view diagnostic reports with pattern matches and confidence scores
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message, Drawer, Card } from 'antd';
+import { Typography, Button, Space, Tag, message, Drawer, Card, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -187,6 +187,13 @@ const DiagnosticReports: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredReports.length === 0 && !loading && (
+        <Empty
+          description="暂无诊断报告"
+          style={{ marginTop: 48 }}
+        />
+      )}
 
       {/* Report Detail Drawer */}
       <Drawer

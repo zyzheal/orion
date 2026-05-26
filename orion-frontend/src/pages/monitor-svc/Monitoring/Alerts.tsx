@@ -3,7 +3,7 @@
  * List and manage active alerts with acknowledge, resolve, and escalate actions
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, message } from 'antd';
+import { Typography, Button, Space, Tag, Modal, Form, Input, message, Empty } from 'antd';
 import {
   ReloadOutlined,
   BellOutlined,
@@ -278,6 +278,13 @@ const MonitoringAlerts: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredAlerts.length === 0 && !loading && (
+        <Empty
+          description="暂无告警"
+          style={{ marginTop: 48 }}
+        />
+      )}
 
       {/* Escalate Modal */}
       <Modal

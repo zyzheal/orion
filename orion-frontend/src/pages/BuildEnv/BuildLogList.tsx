@@ -3,8 +3,8 @@
  * Table of build logs with search/filter and navigation to the log viewer.
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, message } from 'antd';
-import { spacing } from '@/tokens';
+import { Typography, Button, message, Empty } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, EyeOutlined, FileTextOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -223,6 +223,13 @@ const BuildLogList: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredLogs.length === 0 && !loading && (
+        <Empty
+          description="暂无构建日志"
+          style={{ marginTop: 48 }}
+        />
+      )}
     </div>
   );
 };

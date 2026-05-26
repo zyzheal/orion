@@ -15,6 +15,7 @@ import {
   message,
   Tag,
   Drawer,
+  Empty,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, LineChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -281,6 +282,18 @@ const MonitoringMetrics: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredMetrics.length === 0 && !loading && (
+        <Empty
+          description="暂无指标"
+          extra={
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)}>
+              注册指标
+            </Button>
+          }
+          style={{ marginTop: 48 }}
+        />
+      )}
 
       {/* Record Metric Modal */}
       <Modal
