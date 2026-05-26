@@ -77,12 +77,12 @@ export async function getEvents(options?: { eventType?: string; status?: string;
   if (options?.status) params.append('status', options.status);
   if (options?.limit) params.append('limit', String(options.limit));
   const qs = params.toString();
-  return api.get<{ events: EventBusEvent[] }>(`/v1/eventbus/events${qs ? '?' + qs : ''}`);
+  return api.get<EventBusEvent[]>(`/v1/eventbus/events${qs ? '?' + qs : ''}`);
 }
 
 export async function getSubscriptions(tenantId?: string) {
   const qs = tenantId ? `?tenantId=${tenantId}` : '';
-  return api.get<{ subscriptions: EventBusSubscription[] }>(`/v1/eventbus/subscriptions${qs}`);
+  return api.get<EventBusSubscription[]>(`/v1/eventbus/subscriptions${qs}`);
 }
 
 export async function getStats() {

@@ -14,6 +14,7 @@ import { Typography, Card, Drawer, message, Form } from 'antd';
 import { ReloadOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors } from '@/tokens';
 
 import VersionTable, { type VersionFilters } from './VersionTable';
 import TraceabilityChainView from './TraceabilityChainView';

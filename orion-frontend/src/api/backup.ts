@@ -29,15 +29,15 @@ export interface BackupInput {
 }
 
 export async function getBackupStats() {
-  return api.get<{ stats: BackupStats }>('/v1/backup/stats');
+  return api.get<BackupStats>('/v1/backup/stats');
 }
 
 export async function getBackups() {
-  return api.get<{ backups: BackupRecord[] }>('/v1/backup');
+  return api.get<BackupRecord[]>('/v1/backup');
 }
 
 export async function createBackup(input: BackupInput) {
-  return api.post<{ backup: BackupRecord }>('/v1/backup', input);
+  return api.post<BackupRecord>('/v1/backup', input);
 }
 
 export async function restoreBackup(id: string) {

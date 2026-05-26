@@ -12,6 +12,7 @@ import {
   ThunderboltOutlined,
   TeamOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { Modal, Tag } from 'antd';
 import {

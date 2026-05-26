@@ -12,6 +12,7 @@ import {
   ThunderboltOutlined,
   TeamOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { Modal, Tag } from 'antd';
 import {
@@ -216,7 +217,7 @@ const CodeOwnersPage: React.FC = () => {
       // Recommend approvers for common paths
       const filePaths = ['src/', 'tests/', 'docs/'];
       const response = await recommendCodeOwnersApprovers(selectedRepoId, filePaths);
-      const data = response.data.data as any[];
+      const data = (response.data.data as CodeOwnerRecommendation[]) || [];
       if (Array.isArray(data)) {
         setRecommendations(data);
         message.success('推荐加载完成');

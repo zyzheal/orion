@@ -18,6 +18,7 @@ import {
   message,
 } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined, DatabaseOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';

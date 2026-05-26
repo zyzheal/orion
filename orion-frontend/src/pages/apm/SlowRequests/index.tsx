@@ -87,7 +87,7 @@ const ApmSlowRequestsPage: React.FC = () => {
     { title: '平均耗时', dataIndex: 'avg_duration_ms', key: 'avg_duration_ms', render: (ms: number) => `${ms.toFixed(0)} ms` },
     {
       title: 'P95 耗时', dataIndex: 'p95_duration_ms', key: 'p95_duration_ms',
-      render: (ms: number) => <span style={{ color: ms > 2000 ? colors.error[500] : colors.neutral[900 }}>{ms.toFixed(0)} ms</span>,
+      render: (ms: number) => <span style={{ color: ms > 2000 ? colors.error[500] : colors.neutral[900] }}>{ms.toFixed(0)} ms</span>,
     },
     { title: '错误次数', dataIndex: 'error_count', key: 'error_count', render: (v: number) => v > 0 ? <Tag color={colors.error[500]}>{v}</Tag> : '-' },
     {

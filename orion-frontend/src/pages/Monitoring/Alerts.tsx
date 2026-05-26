@@ -16,6 +16,7 @@ import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilte
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
 import type { Alert } from '@/api/monitoring';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;

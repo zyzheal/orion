@@ -39,7 +39,7 @@ const BuilderImageList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState<any[]>([]);
+  const [images, setImages] = useState<BuilderImage[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<BuilderImage | null>(null);
   const [form] = Form.useForm<BuilderImageInput>();
@@ -49,7 +49,7 @@ const BuilderImageList: React.FC = () => {
     try {
       const response = await getBuilderImages();
       const apiData = response.data.data;
-      setImages(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setImages(Array.isArray(apiData) ? apiData : (apiData as { items?: BuilderImage[] })?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建镜像失败：${error.message}`);

@@ -10,6 +10,7 @@ import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

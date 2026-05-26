@@ -168,7 +168,7 @@ const TicketList: React.FC = () => {
       const params = { page: 1, pageSize: 50, ...filters };
       const response = await getTickets(params);
       const apiData = response.data.data;
-      setTickets(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setTickets(Array.isArray(apiData) ? apiData : (apiData as { items?: Ticket[] })?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载工单列表失败：${error.message}`);
@@ -358,7 +358,7 @@ const TicketList: React.FC = () => {
       width: 100,
       render: (value: unknown) => {
         const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
-        return <Badge status={config.color as any} text={config.label} />;
+        return <Badge status={config.color} text={config.label} />;
       },
     },
     {

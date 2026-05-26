@@ -9,6 +9,9 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { NotificationRepository } from '../services/notification';
 import { DatabasePool } from '../services/database';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface NotificationRoutesOptions {
   database?: DatabasePool;
@@ -57,7 +60,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
           },
         });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: 'unknown-trace',
+            tenantId: 'unknown-tenant',
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error fetching notifications'
+        );
         return reply.status(500).send({
           success: false,
           error: 'INTERNAL_ERROR',

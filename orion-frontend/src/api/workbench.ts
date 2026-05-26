@@ -108,34 +108,34 @@ export async function getWorkbenchData(): Promise<WorkbenchData> {
  */
 export async function getWorkbenchFallback(): Promise<WorkbenchData> {
   const [pipelines, alerts, tickets, deployments] = await Promise.allSettled([
-    api.get('/v1/pipeline-runs?limit=5&status=all'),
-    api.get('/v1/alerts?limit=5&status=active'),
-    api.get('/v1/tickets?limit=5&status=active'),
-    api.get('/v1/deployments?limit=5'),
+    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>('/v1/pipeline-runs?limit=5&status=all'),
+    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>('/v1/alerts?limit=5&status=active'),
+    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>('/v1/tickets?limit=5&status=active'),
+    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>('/v1/deployments?limit=5'),
   ]);
 
   // Parse pipeline runs
   const pipelineItems =
     pipelines.status === 'fulfilled'
-      ? (pipelines.value.data?.items || pipelines.value.data?.data || [])
+      ? ((pipelines.value.data as any)?.items || (pipelines.value.data as any)?.data || (pipelines.value.data as any)?.data?.data || [])
       : [];
 
   // Parse alerts
   const alertItems =
     alerts.status === 'fulfilled'
-      ? (alerts.value.data?.items || alerts.value.data?.data || [])
+      ? ((alerts.value.data as any)?.items || (alerts.value.data as any)?.data || (alerts.value.data as any)?.data?.data || [])
       : [];
 
   // Parse tickets
   const ticketItems =
     tickets.status === 'fulfilled'
-      ? (tickets.value.data?.items || tickets.value.data?.data || [])
+      ? ((tickets.value.data as any)?.items || (tickets.value.data as any)?.data || (tickets.value.data as any)?.data?.data || [])
       : [];
 
   // Parse deployments
   const deploymentItems =
     deployments.status === 'fulfilled'
-      ? (deployments.value.data?.items || deployments.value.data?.data || [])
+      ? ((deployments.value.data as any)?.items || (deployments.value.data as any)?.data || (deployments.value.data as any)?.data?.data || [])
       : [];
 
   return {

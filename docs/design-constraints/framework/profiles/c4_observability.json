@@ -6,11 +6,57 @@
   "layer": "operations",
   "description": "可观测性检查项",
   "checks": [
-    { "id": "C4-01", "category": "metrics", "level": "P0", "rule": "监控指标定义", "description": "每项服务需定义核心指标（QPS、错误率、延迟 P99）", "detection": "code-review" },
-    { "id": "C4-02", "category": "alert", "level": "P0", "rule": "告警规则", "description": "告警阈值、告警级别、告警渠道、告警抑制", "detection": "code-review" },
-    { "id": "C4-03", "category": "logging", "level": "P0", "rule": "日志规范", "description": "日志级别、字段规范、日志脱敏、日志保留周期", "detection": "code-review" },
-    { "id": "C4-04", "category": "tracing", "level": "P1", "rule": "链路追踪", "description": "跨服务调用有 Trace ID 传递", "detection": "code-review" },
-    { "id": "C4-05", "category": "health", "level": "P0", "rule": "健康检查", "description": "存活探针、就绪探针、健康检查端点", "detection": "code-review" },
-    { "id": "C4-06", "category": "metrics", "level": "P1", "rule": "指标采集", "description": "Prometheus metrics 暴露格式、采集间隔", "detection": "code-review" }
-  ]
+    {
+      "id": "C4-01",
+      "category": "metrics",
+      "level": "P0",
+      "rule": "监控指标定义",
+      "description": "每项服务需定义核心指标（QPS、错误率、延迟 P99）",
+      "detection": "code-review"
+    },
+    {
+      "id": "C4-02",
+      "category": "alert",
+      "level": "P0",
+      "rule": "告警规则",
+      "description": "告警阈值、告警级别、告警渠道、告警抑制",
+      "detection": "code-review"
+    },
+    {
+      "id": "C4-03",
+      "category": "logging",
+      "level": "P0",
+      "rule": "日志规范",
+      "description": "日志级别、字段规范、日志脱敏、日志保留周期",
+      "detection": "code-review"
+    },
+    {
+      "id": "C4-04",
+      "category": "tracing",
+      "level": "P1",
+      "rule": "链路追踪",
+      "description": "跨服务调用有 Trace ID 传递",
+      "detection": "code-review"
+    },
+    {
+      "id": "C4-05",
+      "category": "health",
+      "level": "P0",
+      "rule": "健康检查",
+      "description": "存活探针、就绪探针、健康检查端点",
+      "detection": "code-review"
+    },
+    {
+      "id": "C4-06",
+      "category": "metrics",
+      "level": "P1",
+      "rule": "指标采集",
+      "description": "Prometheus metrics 暴露格式、采集间隔",
+      "detection": "code-review"
+    }
+  ],
+  "coveragePolicy": "ast+review",
+  "responsibleSkill": "design-constraint + code-design-analyzer",
+  "coveragePolicyReason": "observability detector 已覆盖 4 项 AST，其余需 Review",
+  "noNewAST": "observability detector 已覆盖核心项"
 }

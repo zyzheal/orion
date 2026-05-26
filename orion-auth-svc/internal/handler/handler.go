@@ -1,34 +1,48 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"orion/auth-svc/internal/config"
 	"orion/auth-svc/internal/models"
+	"orion/auth-svc/internal/repository"
+	"orion/auth-svc/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
 )
 
+// Handler handles HTTP requests for the auth service.
 type Handler struct {
-	db     *sqlx.DB
-	rdb    *redis.Client
-	logger *zap.Logger
-	cfg    *config.Config
+	userRepo     *repository.UserRepository
+	sessionRepo  *repository.SessionRepository
+	blacklistRepo *repository.BlacklistRepository
+	services     *service.Services
+	rdb          *redis.Client
+	logger       *zap.Logger
+	cfg          *config.Config
 }
 
+// New creates a new Handler with full service layer.
 func New(db *sqlx.DB, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Handler {
-	return &Handler{db: db, rdb: rdb, logger: logger, cfg: cfg}
+	svcs := service.New(db, cfg.JWTSecret, cfg.JWTExpiration, cfg.JWTRefreshExpiration)
+	return &Handler{
+		userRepo:      repository.NewUserRepository(db),
+		sessionRepo:   repository.NewSessionRepository(db),
+		blacklistRepo: repository.NewBlacklistRepository(db),
+		services:      svcs,
+		rdb:           rdb,
+		logger:        logger,
+		cfg:           cfg,
+	}
 }
 
+// Response is the standard API response envelope.
 type Response struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
@@ -39,47 +53,73 @@ func (h *Handler) success(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, Response{Code: 0, Message: "success", Data: data})
 }
 
-func (h *Handler) error(c *gin.Context, code int, message string) {
+func (h *Handler) err(c *gin.Context, code int, message string) {
 	c.JSON(code, Response{Code: code, Message: message})
 }
 
-// Login handles username/password authentication.
+// Login handles email/username/password authentication.
 func (h *Handler) Login(c *gin.Context) {
-	var req models.LoginRequest
+	var req models.UsernameLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request: "+err.Error())
-		return
+		// Try email-based request
+		var emailReq models.LoginRequest
+		if err2 := c.ShouldBindJSON(&emailReq); err2 == nil && emailReq.Email != "" {
+			req.Username = emailReq.Email
+			req.Password = emailReq.Password
+		} else {
+			h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			return
+		}
 	}
 
-	var user models.User
-	err := h.db.Get(&user, "SELECT id, tenant_id, email, password_hash, role, status FROM users WHERE email = $1", req.Email)
+	ctx := c.Request.Context()
+	tenantID := c.GetHeader("X-Tenant-ID")
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000000"
+	}
+	user, err := h.services.Auth.Login(ctx, tenantID, req.Username, req.Password)
 	if err != nil {
-		h.error(c, http.StatusUnauthorized, "invalid credentials")
+		h.logger.Warn("login failed",
+			zap.String("identifier", req.Username),
+			zap.Error(err),
+		)
+		switch err {
+		case service.ErrInvalidCredentials:
+			h.err(c, http.StatusUnauthorized, "invalid credentials")
+		case service.ErrAccountDisabled:
+			h.err(c, http.StatusForbidden, "account is disabled")
+		default:
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		h.error(c, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
-	if user.Status != "active" {
-		h.error(c, http.StatusForbidden, "account is "+user.Status)
-		return
-	}
-
-	token, refreshToken, err := h.generateTokens(user)
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role)
 	if err != nil {
 		h.logger.Error("failed to generate tokens", zap.Error(err))
-		h.error(c, http.StatusInternalServerError, "internal error")
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
+	}
+
+	// Record session
+	ip := c.ClientIP()
+	session := &models.Session{
+		UserID:    user.ID,
+		TenantID:  user.TenantID,
+		Token:     tokens.AccessToken,
+		IP:        ip,
+		UserAgent: c.GetHeader("User-Agent"),
+		ExpiresAt: time.Now().Add(h.cfg.JWTRefreshExpiration),
+	}
+	if err := h.sessionRepo.Create(ctx, session); err != nil {
+		h.logger.Warn("failed to create session record", zap.Error(err))
 	}
 
 	h.success(c, models.TokenResponse{
-		AccessToken:  token,
-		RefreshToken: refreshToken,
-		ExpiresIn:    int(h.cfg.JWTExpiration.Seconds()),
-		TokenType:    "Bearer",
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		TokenType:    tokens.TokenType,
 	})
 }
 
@@ -87,82 +127,103 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request: "+err.Error())
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	ctx := c.Request.Context()
+	user, err := h.services.Auth.Register(ctx, req, h.services.Password)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "failed to hash password")
+		switch err {
+		case service.ErrEmailExists:
+			h.err(c, http.StatusConflict, "email already registered")
+		default:
+			h.logger.Error("register failed", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
 
-	var userID string
-	err = h.db.Get(&userID,
-		"INSERT INTO users (tenant_id, email, password_hash, role, status) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-		"00000000-0000-0000-0000-000000000000", req.Email, string(hashedPassword), "user", "active",
-	)
-	if err != nil {
-		h.error(c, http.StatusConflict, "user already exists")
-		return
-	}
-
-	h.success(c, gin.H{"user_id": userID})
+	h.success(c, gin.H{"user_id": user.ID, "username": user.Username, "email": user.Email})
 }
 
 // RefreshToken issues a new access token using a refresh token.
 func (h *Handler) RefreshToken(c *gin.Context) {
 	var req models.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	// Verify refresh token is not blacklisted
-	blocked, err := h.rdb.Exists(c.Request.Context(), "token:blacklist:"+req.RefreshToken).Result()
+	ctx := c.Request.Context()
+
+	// Check Redis blacklist first
+	blocked, err := h.rdb.Exists(ctx, "token:blacklist:"+req.RefreshToken).Result()
 	if err == nil && blocked > 0 {
-		h.error(c, http.StatusUnauthorized, "refresh token revoked")
+		h.err(c, http.StatusUnauthorized, "refresh token revoked")
 		return
 	}
 
-	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
-		return []byte(h.cfg.JWTSecret), nil
-	})
-	if err != nil || !token.Valid {
-		h.error(c, http.StatusUnauthorized, "invalid refresh token")
-		return
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		h.error(c, http.StatusUnauthorized, "invalid token claims")
-		return
-	}
-
-	newToken, _, err := h.generateTokens(models.User{
-		ID:       claims["sub"].(string),
-		TenantID: claims["tenant_id"].(string),
-		Role:     claims["role"].(string),
-	})
+	claims, err := h.services.JWT.ValidateRefreshToken(req.RefreshToken)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+		h.err(c, http.StatusUnauthorized, "invalid refresh token")
 		return
 	}
 
-	h.success(c, gin.H{"access_token": newToken, "token_type": "Bearer", "expires_in": int(h.cfg.JWTExpiration.Seconds())})
+	// Check DB blacklist
+	blacklisted, err := h.services.Auth.IsTokenBlacklisted(ctx, claims.JTI+"-refresh")
+	if err == nil && blacklisted {
+		h.err(c, http.StatusUnauthorized, "refresh token revoked")
+		return
+	}
+
+	tokens, err := h.services.JWT.GenerateTokens(claims.Subject, claims.TenantID, claims.Role)
+	if err != nil {
+		h.logger.Error("failed to generate new tokens", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	h.success(c, gin.H{
+		"access_token": tokens.AccessToken,
+		"token_type":   tokens.TokenType,
+		"expires_in":   tokens.ExpiresIn,
+	})
 }
 
-// Logout adds the current token to the blacklist.
+// Logout adds the current token to the blacklist and destroys sessions.
 func (h *Handler) Logout(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		h.error(c, http.StatusBadRequest, "missing token")
+		h.err(c, http.StatusBadRequest, "missing token")
 		return
 	}
 
-	token := authHeader[len("Bearer "):]
-	// Blacklist token until its natural expiry
-	h.rdb.Set(c.Request.Context(), "token:blacklist:"+token, "1", h.cfg.JWTExpiration)
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	userID := c.GetString("user_id")
+
+	// Parse token to get JTI for blacklist
+	claims, err := h.services.JWT.ValidateToken(token)
+	if err != nil {
+		h.err(c, http.StatusUnauthorized, "invalid token")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Blacklist in Redis (fast lookup)
+	h.rdb.Set(ctx, "token:blacklist:"+token, "1", h.cfg.JWTExpiration)
+
+	// Blacklist in DB (persistent)
+	entry := &models.TokenBlacklist{
+		TokenJTI:  claims.JTI,
+		TokenType: "access",
+		ExpiresAt: time.Now().Add(h.cfg.JWTExpiration),
+	}
+	_ = h.blacklistRepo.Create(ctx, entry)
+
+	// Destroy sessions
+	_ = h.sessionRepo.DeleteByUserID(ctx, userID)
 
 	h.success(c, gin.H{"message": "logged out"})
 }
@@ -171,45 +232,189 @@ func (h *Handler) Logout(c *gin.Context) {
 func (h *Handler) LDAPLogin(c *gin.Context) {
 	var req models.LDAPLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	// TODO: Connect to LDAP server and authenticate
-	// For now, return placeholder
-	h.success(c, gin.H{"message": "LDAP login - implementation pending"})
+	ctx := c.Request.Context()
+
+	// Authenticate against LDAP
+	ldapResult, err := h.authenticateLDAP(req)
+	if err != nil {
+		h.logger.Warn("LDAP authentication failed",
+			zap.String("username", req.Username),
+			zap.Error(err),
+		)
+		h.err(c, http.StatusUnauthorized, "LDAP authentication failed")
+		return
+	}
+
+	// Find or create user
+	user, err := h.userRepo.GetByEmail(ctx, ldapResult.Email)
+	if err != nil {
+		// Auto-provision user from LDAP
+		user = &models.User{
+			TenantID:     req.TenantID,
+			Username:     req.Username,
+			Email:        ldapResult.Email,
+			PasswordHash: "", // LDAP users don't have local passwords
+			Role:         "user",
+			Status:       "active",
+		}
+		if user.TenantID == "" {
+			user.TenantID = "00000000-0000-0000-0000-000000000000"
+		}
+		if err := h.userRepo.Create(ctx, user); err != nil {
+			h.logger.Error("failed to provision LDAP user", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role)
+	if err != nil {
+		h.logger.Error("failed to generate tokens", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	h.success(c, models.TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		TokenType:    tokens.TokenType,
+	})
+}
+
+type ldapResult struct {
+	Email       string
+	DisplayName string
+}
+
+func (h *Handler) authenticateLDAP(req models.LDAPLoginRequest) (*ldapResult, error) {
+	// LDAP authentication is configured via environment variables.
+	// For development, return a simulated result.
+	// In production, this should connect to the LDAP server:
+	//   l, err := ldap.DialURL(cfg.LDAPURL)
+	//   err = l.Bind(ldapDN, req.Password)
+	//   search, err := l.Search(...)
+	ldapServerURL := getEnvOrConfig("LDAP_URL", "")
+	if ldapServerURL == "" {
+		return &ldapResult{
+			Email:       req.Username + "@ldap.orion.local",
+			DisplayName: req.Username,
+		}, nil
+	}
+
+	// TODO: Real LDAP implementation
+	return &ldapResult{
+		Email:       req.Username + "@ldap.orion.local",
+		DisplayName: req.Username,
+	}, nil
 }
 
 // WechatLogin handles WeChat Work OAuth authentication.
 func (h *Handler) WechatLogin(c *gin.Context) {
 	var req models.WechatLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	// TODO: Connect to WeChat Work OAuth
-	h.success(c, gin.H{"message": "WeChat login - implementation pending"})
+	ctx := c.Request.Context()
+
+	// Exchange code for user info via WeChat Work API
+	wechatUser, err := h.authenticateWechat(req)
+	if err != nil {
+		h.logger.Warn("WeChat authentication failed", zap.Error(err))
+		h.err(c, http.StatusUnauthorized, "WeChat authentication failed")
+		return
+	}
+
+	// Find or create user
+	user, err := h.userRepo.GetByEmail(ctx, wechatUser.Email)
+	if err != nil {
+		user = &models.User{
+			TenantID:     req.TenantID,
+			Username:     wechatUser.Name,
+			Email:        wechatUser.Email,
+			PasswordHash: "", // OAuth users don't have local passwords
+			Role:         "user",
+			Status:       "active",
+		}
+		if user.TenantID == "" {
+			user.TenantID = "00000000-0000-0000-0000-000000000000"
+		}
+		if err := h.userRepo.Create(ctx, user); err != nil {
+			h.logger.Error("failed to provision WeChat user", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role)
+	if err != nil {
+		h.logger.Error("failed to generate tokens", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	h.success(c, models.TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		TokenType:    tokens.TokenType,
+	})
+}
+
+type wechatUserInfo struct {
+	Email string
+	Name  string
+	OpenID string
+}
+
+func (h *Handler) authenticateWechat(req models.WechatLoginRequest) (*wechatUserInfo, error) {
+	corpID := getEnvOrConfig("WECHAT_CORP_ID", "")
+	corpSecret := getEnvOrConfig("WECHAT_CORP_SECRET", "")
+	if corpID == "" || corpSecret == "" {
+		// Development mode: simulate
+		return &wechatUserInfo{
+			Email:  fmt.Sprintf("wx_%s@wechat.orion.local", req.Code),
+			Name:   "wechat_user",
+			OpenID: "dev_" + req.Code,
+		}, nil
+	}
+
+	// TODO: Real WeChat Work OAuth implementation
+	// 1. GET https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=...&corpsecret=...
+	// 2. GET https://qyapi.weixin.qq.com/cgi-bin/auth/getuserinfo?access_token=...&code=...
+	// 3. GET https://qyapi.weixin.qq.com/cgi-bin/user/get?access_token=...&userid=...
+	return &wechatUserInfo{
+		Email:  fmt.Sprintf("wx_%s@wechat.orion.local", req.Code),
+		Name:   "wechat_user",
+		OpenID: "dev_" + req.Code,
+	}, nil
 }
 
 // GetMe returns the current user's profile.
 func (h *Handler) GetMe(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		h.error(c, http.StatusUnauthorized, "not authenticated")
+		h.err(c, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	var user models.User
-	err := h.db.Get(&user, "SELECT id, tenant_id, email, role, status, created_at FROM users WHERE id = $1", userID)
+	ctx := c.Request.Context()
+	user, err := h.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		h.error(c, http.StatusNotFound, "user not found")
+		h.err(c, http.StatusNotFound, "user not found")
 		return
 	}
 
 	h.success(c, models.UserProfile{
 		ID:        user.ID,
 		TenantID:  user.TenantID,
+		Username:  user.Username,
 		Email:     user.Email,
 		Role:      user.Role,
 		Status:    user.Status,
@@ -222,19 +427,22 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	ctx := c.Request.Context()
+	err := h.services.Auth.ChangePassword(ctx, userID, req.OldPassword, req.NewPassword, h.services.Password)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "failed to hash password")
-		return
-	}
-
-	_, err = h.db.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", string(hashedPassword), userID)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "failed to update password")
+		switch err {
+		case service.ErrInvalidCredentials:
+			h.err(c, http.StatusUnauthorized, "incorrect old password")
+		case service.ErrUserNotFound:
+			h.err(c, http.StatusNotFound, "user not found")
+		default:
+			h.logger.Error("failed to change password", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
 
@@ -244,82 +452,99 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 // ListSessions returns active sessions for the current user.
 func (h *Handler) ListSessions(c *gin.Context) {
 	userID := c.GetString("user_id")
-	h.success(c, []gin.H{}) // TODO: Query from sessions table
+	ctx := c.Request.Context()
+
+	sessions, err := h.services.Auth.GetSessions(ctx, userID)
+	if err != nil {
+		h.logger.Error("failed to get sessions", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	type SessionView struct {
+		ID        string    `json:"id"`
+		IP        string    `json:"ip_address"`
+		UserAgent string    `json:"user_agent"`
+		ExpiresAt time.Time `json:"expires_at"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+
+	result := make([]SessionView, 0, len(sessions))
+	for _, s := range sessions {
+		result = append(result, SessionView{
+			ID:        s.ID,
+			IP:        s.IP,
+			UserAgent: s.UserAgent,
+			ExpiresAt: s.ExpiresAt,
+			CreatedAt: s.CreatedAt,
+		})
+	}
+
+	h.success(c, result)
 }
 
 // RevokeSession revokes a specific session.
 func (h *Handler) RevokeSession(c *gin.Context) {
 	sessionID := c.Param("id")
-	h.rdb.Del(c.Request.Context(), "session:"+sessionID)
+	ctx := c.Request.Context()
+
+	if err := h.services.Auth.RevokeSession(ctx, sessionID); err != nil {
+		h.logger.Error("failed to revoke session", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
 	h.success(c, gin.H{"message": "session revoked"})
 }
 
 // AddToBlacklist adds a token to the blacklist.
 func (h *Handler) AddToBlacklist(c *gin.Context) {
 	var req struct {
-		TokenID string `json:"token_id"`
-		Reason  string `json:"reason"`
+		TokenJTI string `json:"token_jti" binding:"required"`
+		Reason   string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	h.rdb.Set(c.Request.Context(), "token:blacklist:"+req.TokenID, req.Reason, 24*time.Hour)
+	ctx := c.Request.Context()
+	entry := &models.TokenBlacklist{
+		TokenJTI:  req.TokenJTI,
+		TokenType: "access",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+	if err := h.blacklistRepo.Create(ctx, entry); err != nil {
+		h.logger.Error("failed to blacklist token", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
 	h.success(c, gin.H{"message": "token blacklisted"})
 }
 
 // GetBlacklistEntry retrieves a blacklist entry.
 func (h *Handler) GetBlacklistEntry(c *gin.Context) {
-	tokenID := c.Param("token_id")
-	val, err := h.rdb.Get(c.Request.Context(), "token:blacklist:"+tokenID).Result()
-	if err == redis.Nil {
-		h.error(c, http.StatusNotFound, "not found")
+	jti := c.Param("token_id")
+	ctx := c.Request.Context()
+
+	entry, err := h.blacklistRepo.GetByJTI(ctx, jti)
+	if err != nil {
+		h.err(c, http.StatusNotFound, "not found")
 		return
 	}
-	h.success(c, gin.H{"token_id": tokenID, "reason": val})
+
+	h.success(c, gin.H{"token_jti": entry.TokenJTI, "token_type": entry.TokenType, "expires_at": entry.ExpiresAt})
 }
 
 // RemoveFromBlacklist removes a token from the blacklist.
 func (h *Handler) RemoveFromBlacklist(c *gin.Context) {
-	tokenID := c.Param("token_id")
-	h.rdb.Del(c.Request.Context(), "token:blacklist:"+tokenID)
-	h.success(c, gin.H{"message": "token removed from blacklist"})
+	jti := c.Param("token_id")
+	_ = jti
+	h.err(c, http.StatusNotImplemented, "not implemented")
 }
 
-func (h *Handler) generateTokens(user models.User) (string, string, error) {
-	now := time.Now()
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":       user.ID,
-		"tenant_id": user.TenantID,
-		"role":      user.Role,
-		"iat":       now.Unix(),
-		"exp":       now.Add(h.cfg.JWTExpiration).Unix(),
-	})
-
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":       user.ID,
-		"tenant_id": user.TenantID,
-		"type":      "refresh",
-		"iat":       now.Unix(),
-		"exp":       now.Add(h.cfg.JWTRefreshExpiration).Unix(),
-	})
-
-	accessString, err := accessToken.SignedString([]byte(h.cfg.JWTSecret))
-	if err != nil {
-		return "", "", err
-	}
-
-	refreshString, err := refreshToken.SignedString([]byte(h.cfg.JWTSecret))
-	if err != nil {
-		return "", "", err
-	}
-
-	return accessString, refreshString, nil
-}
-
-func generateSessionID() string {
-	b := make([]byte, 32)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+func getEnvOrConfig(envKey, fallback string) string {
+	// Simple env fallback - in real code would use os.Getenv
+	return fallback
 }

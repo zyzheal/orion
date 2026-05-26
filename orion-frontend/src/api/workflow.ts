@@ -85,7 +85,8 @@ export async function getWorkflowList(params?: {
   if (params?.offset) query.set('offset', String(params.offset));
   const qs = query.toString();
   const response = await api.get<WorkflowDefinition[]>(`/v1/workflows${qs ? `?${qs}` : ''}`);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return (response.data as { data?: WorkflowDefinition[] }).data ?? [];
 }
 
 /**
@@ -93,7 +94,8 @@ export async function getWorkflowList(params?: {
  */
 export async function getWorkflow(id: string): Promise<WorkflowDefinition> {
   const response = await api.get<WorkflowDefinition>(`/v1/workflows/${id}`);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowDefinition;
 }
 
 /**
@@ -112,7 +114,8 @@ export async function createWorkflow(data: {
   triggers?: string[];
 }): Promise<WorkflowDefinition> {
   const response = await api.post<WorkflowDefinition>('/v1/workflows', data);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowDefinition;
 }
 
 /**
@@ -129,7 +132,8 @@ export async function updateWorkflow(
   }>
 ): Promise<WorkflowDefinition> {
   const response = await api.put<WorkflowDefinition>(`/v1/workflows/${id}`, data);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowDefinition;
 }
 
 /**
@@ -153,7 +157,8 @@ export async function executeWorkflow(
     triggeredBy: input?.triggeredBy || 'system',
     initialInput: input?.initialInput || {},
   });
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowExecution;
 }
 
 /**
@@ -161,7 +166,8 @@ export async function executeWorkflow(
  */
 export async function getExecutionHistory(id: string): Promise<WorkflowExecution[]> {
   const response = await api.get<WorkflowExecution[]>(`/v1/workflows/${id}/executions`);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return (response.data as { data?: WorkflowExecution[] }).data ?? [];
 }
 
 /**
@@ -169,7 +175,8 @@ export async function getExecutionHistory(id: string): Promise<WorkflowExecution
  */
 export async function getExecutionDetail(executionId: string): Promise<WorkflowExecution> {
   const response = await api.get<WorkflowExecution>(`/v1/workflows/executions/${executionId}`);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowExecution;
 }
 
 /**
@@ -177,7 +184,8 @@ export async function getExecutionDetail(executionId: string): Promise<WorkflowE
  */
 export async function suspendWorkflow(id: string): Promise<WorkflowDefinition> {
   const response = await api.post<WorkflowDefinition>(`/v1/workflows/${id}/pause`);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowDefinition;
 }
 
 /**
@@ -185,7 +193,8 @@ export async function suspendWorkflow(id: string): Promise<WorkflowDefinition> {
  */
 export async function resumeWorkflow(id: string): Promise<WorkflowDefinition> {
   const response = await api.post<WorkflowDefinition>(`/v1/workflows/${id}/resume`);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  return response.data as WorkflowDefinition;
 }
 
 /**

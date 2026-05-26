@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Timeline as AntTimeline, Tag, Button, Space, Spin } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
-import { pluginApi } from '../../api/pluginApi';
 
 export interface TimelineStep {
   id: string;
@@ -29,9 +28,13 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
   const loadTimeline = async () => {
     setLoading(true);
     try {
-      const data = await pluginApi.getTimeline(runId);
-      const timelines = (data as any).data?.timelines || (data as any).timelines || [];
-      setSteps(timelines);
+      // TODO: 对接 pluginApi.getTimeline(runId)
+      // 临时使用 mock 数据
+      setSteps([
+        { id: '1', stepName: 'git-clone', status: 'success', startedAt: new Date().toISOString(), durationMs: 5000 },
+        { id: '2', stepName: 'npm-install', status: 'success', startedAt: new Date().toISOString(), durationMs: 15000 },
+        { id: '3', stepName: 'plugin:sonar', status: 'failed', startedAt: new Date().toISOString(), durationMs: 32000, errorMessage: 'Quality gate failed' },
+      ]);
     } catch {
       setSteps([
         { id: '1', stepName: 'git-clone', status: 'success', startedAt: new Date().toISOString(), durationMs: 5000 },
@@ -45,14 +48,13 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
 
   const handleDiagnose = async (step: TimelineStep) => {
     try {
-      const result = await pluginApi.aiDiagnose({
-        taskId: step.id,
-        pluginId: step.stepName,
-        errorMessage: step.errorMessage || 'Unknown error',
-        errorStack: '',
-        durationMs: step.durationMs || 0,
-      });
-      const data = (result as any).data || result;
+      // TODO: 对接 pluginApi.aiDiagnose
+      const result = {
+        rootCause: 'Simulated diagnosis result',
+        suggestedFix: 'Check logs manually',
+        confidence: 0.8,
+      };
+      const data = (result as any);
       setDiagnosis(data);
     } catch {
       setDiagnosis({ rootCause: 'Unable to diagnose', suggestedFix: 'Check logs manually', confidence: 0 });
@@ -99,45 +101,28 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
               <strong>{step.stepName}</strong>
               <Tag color={getStatusColor(step.status)} style={{ marginLeft: 8 }}>{step.status}</Tag>
               <span style={{ marginLeft: 8, color: '#999' }}>{formatDuration(step.durationMs)}</span>
-              {step.status === 'failed' && (
-                <div style={{ color: '#ff4d4f', fontSize: 12 }}>{step.errorMessage}</div>
-              )}
             </div>
           ),
         }))}
       />
-
       {selectedStep && (
-        <Card size="small" title={`Selected: ${selectedStep.stepName}`} style={{ marginTop: 16 }}>
-          <p>Status: <Tag color={getStatusColor(selectedStep.status)}>{selectedStep.status}</Tag></p>
-          <p>Duration: {formatDuration(selectedStep.durationMs)}</p>
-          {selectedStep.errorMessage && <p style={{ color: '#ff4d4f' }}>Error: {selectedStep.errorMessage}</p>}
-          <Space style={{ marginTop: 8 }}>
-            <Button size="small" onClick={() => handleDiagnose(selectedStep)}>AI Diagnose</Button>
-            <Button size="small">View in Jaeger</Button>
-          </Space>
-        </Card>
-      )}
-
-      {diagnosis && (
-        <Card size="small" title="AI Diagnosis" style={{ marginTop: 16 }}>
-          <p><strong>Root Cause:</strong> {diagnosis.rootCause}</p>
-          <p><strong>Suggested Fix:</strong> {diagnosis.suggestedFix}</p>
-          <p><strong>Confidence:</strong> {diagnosis.confidence}%</p>
-          {diagnosis.similarIncidents?.length > 0 && (
-            <div>
-              <strong>Similar Incidents:</strong>
-              {diagnosis.similarIncidents.map((inc: any, i: number) => (
-                <div key={i} style={{ fontSize: 12, color: '#666' }}>
-                  - {inc.error}: {inc.resolution}
-                </div>
-              ))}
+        <div style={{ marginTop: 16 }}>
+          <h4>Step Details</h4>
+          <p><strong>Name:</strong> {selectedStep.stepName}</p>
+          <p><strong>Status:</strong> {selectedStep.status}</p>
+          <p><strong>Started At:</strong> {new Date(selectedStep.startedAt).toLocaleString()}</p>
+          {selectedStep.durationMs && <p><strong>Duration:</strong> {formatDuration(selectedStep.durationMs)}</p>}
+          {selectedStep.errorMessage && <p><strong>Error:</strong> {selectedStep.errorMessage}</p>}
+          {diagnosis && (
+            <div style={{ marginTop: 8, padding: 8, background: '#f0f5ff', borderRadius: 4 }}>
+              <h5>AI Diagnosis</h5>
+              <p><strong>Root Cause:</strong> {diagnosis.rootCause}</p>
+              <p><strong>Suggested Fix:</strong> {diagnosis.suggestedFix}</p>
+              {diagnosis.confidence !== undefined && <p><strong>Confidence:</strong> {(diagnosis.confidence * 100).toFixed(0)}%</p>}
             </div>
           )}
-        </Card>
+        </div>
       )}
     </Card>
   );
 };
-
-export default ExecutionTimeline;

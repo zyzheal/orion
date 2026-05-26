@@ -23,8 +23,33 @@ import * as path from 'path';
 // @ts-ignore TS2591: requires @types/node — already available in project runtime
 declare const __dirname: string;
 
-const LOG_FILE = path.join(__dirname, 'false-positive-log.json');
-const CONFIG_FILE = path.join(__dirname, 'confidence-config.json');
+// Resolve persistent data path: prefer project-level .design-constraints/ directory
+function resolveDataPath(fileName: string): string {
+  // Strategy 1: Look for .design-constraints/ directory at project root
+  let current = __dirname;
+  for (let depth = 0; depth < 8; depth++) {
+    const candidate = path.join(current, '.design-constraints', fileName);
+    if (fs.existsSync(path.dirname(candidate)) ||
+        (depth > 0 && fs.existsSync(path.join(current, '.design-constraints')))) {
+      return candidate;
+    }
+    // Also check if .design-constraints exists at this level
+    const dcDir = path.join(current, '.design-constraints');
+    if (fs.existsSync(dcDir)) {
+      return path.join(dcDir, fileName);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  // Strategy 2: Fallback to same directory as this file (legacy behavior)
+  return path.join(__dirname, fileName);
+}
+
+const LOG_FILE = resolveDataPath('false-positive-log.json');
+const CONFIG_FILE = resolveDataPath('confidence-config.json');
+const DETECTION_COUNTS_FILE = resolveDataPath('detection-counts.json');
 
 /**
  * A single false positive report.

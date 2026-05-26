@@ -19,6 +19,7 @@ import {
   Segmented,
 } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   PlusOutlined,
   EditOutlined,

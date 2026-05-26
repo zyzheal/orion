@@ -117,7 +117,7 @@ export function getTrace(traceId: string) {
 }
 
 export function getTraces(params?: TraceQuery) {
-  return api.get<{ data: LLMTrace[]; total: number; limit: number }>('/v1/llm/traces', { params });
+  return api.get<LLMTrace[]>('/v1/llm/traces', { params });
 }
 
 // ---- Statistics ----

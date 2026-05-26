@@ -12,7 +12,7 @@
       "level": "P1",
       "rule": "步骤条/引导",
       "description": "多步骤流程必须有步骤条或引导",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "多步骤流程"
     },
     {
@@ -21,7 +21,7 @@
       "level": "P1",
       "rule": "上一步/下一步状态保留",
       "description": "多步骤流程中上一步/下一步状态必须保留",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "多步骤流程"
     },
     {
@@ -30,7 +30,7 @@
       "level": "P0",
       "rule": "数据为空处理",
       "description": "列表数据为空时必须有处理逻辑",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "列表页"
     },
     {
@@ -39,7 +39,7 @@
       "level": "P1",
       "rule": "数据超长截断",
       "description": "超长文本必须有截断处理",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "详情页"
     },
     {
@@ -48,7 +48,7 @@
       "level": "P1",
       "rule": "分页边界处理",
       "description": "分页边界情况必须有处理逻辑",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "列表页"
     },
     {
@@ -57,7 +57,7 @@
       "level": "P1",
       "rule": "超大数字/日期显示",
       "description": "超大数字和日期必须有格式化显示",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "所有页"
     },
     {
@@ -66,7 +66,7 @@
       "level": "P0",
       "rule": "批量选择 UI",
       "description": "列表页必须支持批量选择",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "列表页"
     },
     {
@@ -75,7 +75,7 @@
       "level": "P1",
       "rule": "批量进度提示",
       "description": "批量操作必须有进度提示",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "批量操作"
     },
     {
@@ -84,7 +84,7 @@
       "level": "P0",
       "rule": "批量失败处理",
       "description": "批量操作失败必须有处理逻辑",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "批量操作"
     },
     {
@@ -93,7 +93,7 @@
       "level": "P1",
       "rule": "批量取消功能",
       "description": "长时间批量操作必须有取消功能",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "批量操作"
     },
     {
@@ -102,7 +102,7 @@
       "level": "P0",
       "rule": "执行周期定义",
       "description": "定时任务必须有明确的执行周期定义",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "后端任务"
     },
     {
@@ -111,7 +111,7 @@
       "level": "P0",
       "rule": "并发控制",
       "description": "定时任务必须有并发控制（避免重复执行）",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "后端任务"
     },
     {
@@ -120,7 +120,7 @@
       "level": "P1",
       "rule": "超时处理",
       "description": "定时任务必须有超时处理",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "后端任务"
     },
     {
@@ -129,7 +129,7 @@
       "level": "P1",
       "rule": "Webhook 定义",
       "description": "集成点必须有明确的 Webhook 定义",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "集成点"
     },
     {
@@ -138,7 +138,7 @@
       "level": "P1",
       "rule": "消息队列契约",
       "description": "异步通信必须有消息队列契约",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "异步通信"
     },
     {
@@ -147,8 +147,12 @@
       "level": "P0",
       "rule": "危险操作二次确认",
       "description": "删除、修改等危险操作必须有二次确认",
-      "detection": "code-review",
+      "detection": "ast",
       "appliesTo": "删除/修改"
     }
-  ]
+  ],
+  "coveragePolicy": "ast",
+  "responsibleSkill": "design-constraint",
+  "coveragePolicyReason": "流程/列表/表单检测已 AST 化",
+  "noNewAST": "已覆盖，不再新增"
 }

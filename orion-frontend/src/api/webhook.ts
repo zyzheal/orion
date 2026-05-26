@@ -37,19 +37,19 @@ export interface WebhookLog {
 }
 
 export async function getWebhooks() {
-  return api.get<{ webhooks: Webhook[] }>('/v1/webhooks');
+  return api.get<Webhook[]>('/v1/webhooks');
 }
 
 export async function getWebhook(id: string) {
-  return api.get<{ webhook: Webhook }>(`/v1/webhooks/${id}`);
+  return api.get<Webhook>(`/v1/webhooks/${id}`);
 }
 
 export async function createWebhook(input: WebhookInput) {
-  return api.post<{ webhook: Webhook }>('/v1/webhooks', input);
+  return api.post<Webhook>('/v1/webhooks', input);
 }
 
 export async function updateWebhook(id: string, input: Partial<WebhookInput>) {
-  return api.put<{ webhook: Webhook }>(`/v1/webhooks/${id}`, input);
+  return api.put<Webhook>(`/v1/webhooks/${id}`, input);
 }
 
 export async function deleteWebhook(id: string) {
@@ -62,5 +62,5 @@ export async function testWebhook(id: string) {
 
 export async function getWebhookLogs(id: string, limit?: number) {
   const qs = limit ? `?limit=${limit}` : '';
-  return api.get<{ logs: WebhookLog[] }>(`/v1/webhooks/${id}/logs${qs}`);
+  return api.get<WebhookLog[]>(`/v1/webhooks/${id}/logs${qs}`);
 }

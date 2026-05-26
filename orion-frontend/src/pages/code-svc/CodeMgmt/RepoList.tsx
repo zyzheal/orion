@@ -13,6 +13,7 @@ import {
   CodeOutlined,
 } from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   getCodeRepoAdapters,
   getCodeRepos,
@@ -86,7 +87,7 @@ const RepoList: React.FC = () => {
   const loadRepoDetails = useCallback(async (repo: CodeRepo) => {
     try {
       const branchesResp = await getCodeRepoBranches(repo.adapterId, repo.id);
-      const branches = branchesResp.data.data as any[];
+      const branches = branchesResp.data.data as Array<{ name?: string }>;
       if (Array.isArray(branches)) {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
@@ -95,7 +96,7 @@ const RepoList: React.FC = () => {
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
-      const prs = prResp.data.data as any[];
+      const prs = prResp.data.data as Array<{ number?: string }>;
       if (Array.isArray(prs)) {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }

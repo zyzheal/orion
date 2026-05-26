@@ -37,21 +37,21 @@ export interface PolicyEvaluation {
 }
 
 export async function getSecurityStats() {
-  return api.get<{ stats: SecurityStats }>('/v1/ai-security/stats');
+  return api.get<SecurityStats>('/v1/ai-security/stats');
 }
 
 export async function getPolicies() {
-  return api.get<{ policies: SecurityPolicy[] }>('/v1/ai-security/policies');
+  return api.get<SecurityPolicy[]>('/v1/ai-security/policies');
 }
 
 export async function createPolicy(
   input: Omit<SecurityPolicy, 'id' | 'matchCount' | 'createdAt' | 'updatedAt'>
 ) {
-  return api.post<{ policy: SecurityPolicy }>('/v1/ai-security/policies', input);
+  return api.post<SecurityPolicy>('/v1/ai-security/policies', input);
 }
 
 export async function updatePolicy(id: string, input: Partial<SecurityPolicy>) {
-  return api.put<{ policy: SecurityPolicy }>(`/v1/ai-security/policies/${id}`, input);
+  return api.put<SecurityPolicy>(`/v1/ai-security/policies/${id}`, input);
 }
 
 export async function deletePolicy(id: string) {
@@ -59,12 +59,12 @@ export async function deletePolicy(id: string) {
 }
 
 export async function togglePolicy(id: string, enabled: boolean) {
-  return api.patch<{ policy: SecurityPolicy }>(`/v1/ai-security/policies/${id}/toggle`, {
+  return api.patch<SecurityPolicy>(`/v1/ai-security/policies/${id}/toggle`, {
     enabled,
   });
 }
 
 export async function getEvaluations(policyId?: string) {
   const qs = policyId ? `?policyId=${policyId}` : '';
-  return api.get<{ evaluations: PolicyEvaluation[] }>(`/v1/ai-security/evaluations${qs}`);
+  return api.get<PolicyEvaluation[]>(`/v1/ai-security/evaluations${qs}`);
 }

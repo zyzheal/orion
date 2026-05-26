@@ -14,6 +14,9 @@ import (
 	"orion/tenant-svc/internal/otel"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
@@ -43,6 +46,11 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
+	// Run database migrations on startup
+	if err := runMigrations(cfg.DatabaseURL, logger); err != nil {
+		logger.Fatal("migration failed", zap.Error(err))
+	}
+
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -55,7 +63,23 @@ func main() {
 
 	r.GET("/metrics", middleware.MetricsHandler())
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "orion-tenant-svc", "timestamp": time.Now().UTC().Format(time.RFC3339)})
+		status := gin.H{
+			"status":    "healthy",
+			"service":   "orion-tenant-svc",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		}
+
+		// Check database
+		if err := db.Ping(); err != nil {
+			status["status"] = "unhealthy"
+			status["db"] = "error"
+			status["db_error"] = err.Error()
+			c.JSON(http.StatusServiceUnavailable, status)
+			return
+		}
+		status["db"] = "ok"
+
+		c.JSON(http.StatusOK, status)
 	})
 
 	h := handler.New(db, logger, cfg)
@@ -102,4 +126,19 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Fatal("server forced to shutdown", zap.Error(err))
 	}
+}
+
+// runMigrations executes pending database migrations on startup.
+func runMigrations(dbURL string, logger *zap.Logger) error {
+	m, err := migrate.New("file://migrations", dbURL)
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+	logger.Info("database migrations applied or up-to-date")
+	return nil
 }

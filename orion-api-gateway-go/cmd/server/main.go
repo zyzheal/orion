@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -19,7 +16,6 @@ import (
 	"orion/api-gateway/internal/otel"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -83,7 +79,10 @@ func main() {
 	}
 
 	// SSE proxy for pipeline logs
-	r.Any("/api/v1/pipelines/:id/logs/sse", proxy.SSEHandler(logger, cfg))
+	if sseUpstream, ok := cfg.Upstreams["/v1/pipeline"]; ok {
+		sseCfg := &proxy.SSEHandlerConfig{UpstreamBaseURL: sseUpstream}
+		r.Any("/api/v1/pipelines/:id/logs/sse", proxy.SSEHandler(logger, sseCfg))
+	}
 
 	logger.Info("API Gateway starting",
 		zap.String("addr", cfg.HTTPAddr),
@@ -114,21 +113,3 @@ func main() {
 	logger.Info("gateway stopped")
 }
 
-// Helper: parse JWT and extract claims for auth middleware
-func parseJWT(tokenString string, jwtSecret string) (map[string]interface{}, error) {
-	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-
-	type claims struct {
-		Subject  string `json:"sub"`
-		TenantID string `json:"tenant_id"`
-		UserID   string `json:"user_id"`
-		Role     string `json:"role"`
-	}
-
-	// Decoded claims — actual parsing in middleware package
-	return map[string]interface{}{
-		"tenant_id": "",
-		"user_id":   "",
-		"role":      "",
-	}, nil
-}

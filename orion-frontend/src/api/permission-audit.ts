@@ -28,7 +28,8 @@ export interface AuditStats {
  */
 export async function queryDeniedLogs(limit = 100) {
   const res = await api.get<AuditLogEntry[]>('/permission-audit/denied', { params: { limit } });
-  const data = res.data.data;
+  // 拦截器已自动解包，res.data 直接是响应数据
+  const data = (res.data as { data?: AuditLogEntry[] }).data ?? [];
   return { data, total: data.length };
 }
 
@@ -37,7 +38,8 @@ export async function queryDeniedLogs(limit = 100) {
  */
 export async function queryUserAuditLogs(userId: string, limit = 100) {
   const res = await api.get<AuditLogEntry[]>(`/permission-audit/user/${userId}`, { params: { limit } });
-  const data = res.data.data;
+  // 拦截器已自动解包，res.data 直接是响应数据
+  const data = (res.data as { data?: AuditLogEntry[] }).data ?? [];
   return { data, total: data.length };
 }
 
@@ -48,7 +50,8 @@ export async function queryResourceAuditLogs(resourceType: string, resourceId?: 
   const res = await api.get<AuditLogEntry[]>(`/permission-audit/resource/${resourceType}`, {
     params: { resourceId, limit },
   });
-  const data = res.data.data;
+  // 拦截器已自动解包，res.data 直接是响应数据
+  const data = (res.data as { data?: AuditLogEntry[] }).data ?? [];
   return { data, total: data.length };
 }
 
@@ -57,7 +60,8 @@ export async function queryResourceAuditLogs(resourceType: string, resourceId?: 
  */
 export async function queryDeniedStats(hours = 24) {
   const res = await api.get<AuditStats[]>('/permission-audit/stats/denied-by-user', { params: { hours } });
-  return { data: res.data.data, hours };
+  // 拦截器已自动解包，res.data 直接是响应数据
+  return { data: (res.data as { data?: AuditStats[] }).data ?? [], hours };
 }
 
 // ─── UEBA Types & APIs ──────────────────────────────────────────────────────
@@ -93,7 +97,8 @@ export type UEBARiskUser = UEBAStats;
  */
 export async function analyzeUserBehavior(userId: string, hours = 24) {
   const res = await api.get<UEBAStats>(`/ueba/user/${userId}`, { params: { hours } });
-  return res.data.data;
+  // 拦截器已自动解包，res.data 直接是响应数据
+  return res.data as UEBAStats;
 }
 
 /**
@@ -101,7 +106,8 @@ export async function analyzeUserBehavior(userId: string, hours = 24) {
  */
 export async function getHighRiskUsers(hours = 24, limit = 10) {
   const res = await api.get<UEBARiskUser[]>('/ueba/risks', { params: { hours, limit } });
-  return res.data.data;
+  // 拦截器已自动解包，res.data 直接是响应数据
+  return res.data as UEBAStats[];
 }
 
 /**
@@ -109,5 +115,6 @@ export async function getHighRiskUsers(hours = 24, limit = 10) {
  */
 export async function getAnomalies(hours = 24) {
   const res = await api.get<UEBAAnomaly[]>('/ueba/anomalies', { params: { hours } });
-  return res.data.data;
+  // 拦截器已自动解包，res.data 直接是响应数据
+  return res.data as AnomalyAlert[];
 }

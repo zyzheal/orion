@@ -20,6 +20,7 @@ import {
 import { PlusOutlined, ReloadOutlined, EditOutlined, ThunderboltOutlined,} from '@ant-design/icons';
 import { getStrategies, createStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

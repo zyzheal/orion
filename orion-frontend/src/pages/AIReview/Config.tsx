@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Form, Input, Button, Select, message, Divider, Space } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import { SaveOutlined, ReloadOutlined, SettingOutlined,} from '@ant-design/icons';
 import { getReviewConfig, updateReviewConfig } from '@/api/ai-review';
 import type { AIReviewConfig } from '@/api/ai-review';

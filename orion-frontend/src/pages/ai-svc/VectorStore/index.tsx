@@ -39,6 +39,7 @@ import CollectionDetail from './CollectionDetail';
 import VectorSearch from './VectorSearch';
 import DocumentManager from './DocumentManager';
 import CreateCollectionModal from './CreateCollectionModal';
+import { colors } from '@/tokens';
 
 dayjs.extend(relativeTime);
 

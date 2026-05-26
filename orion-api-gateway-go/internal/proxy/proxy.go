@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -53,8 +53,13 @@ func Handler(proxy *httputil.ReverseProxy, prefix string, logger *zap.Logger) gi
 	}
 }
 
+// SSEHandlerConfig holds the upstream configuration for SSE.
+type SSEHandlerConfig struct {
+	UpstreamBaseURL string
+}
+
 // SSEHandler handles Server-Sent Events for pipeline logs.
-func SSEHandler(logger *zap.Logger, cfg any) gin.HandlerFunc {
+func SSEHandler(logger *zap.Logger, cfg *SSEHandlerConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "text/event-stream")
 		c.Header("Cache-Control", "no-cache")
@@ -67,12 +72,45 @@ func SSEHandler(logger *zap.Logger, cfg any) gin.HandlerFunc {
 			return
 		}
 
-		// TODO: Connect to upstream SSE source and pipe events
-		c.Stream(func(w io.Writer) bool {
-			// SSE event forwarding logic
-			return false
-		})
+		// Forward the request to upstream SSE endpoint
+		upstreamURL := cfg.UpstreamBaseURL + c.Request.URL.Path
+		if c.Request.URL.RawQuery != "" {
+			upstreamURL += "?" + c.Request.URL.RawQuery
+		}
 
-		flusher.Flush()
+		req, err := http.NewRequestWithContext(c.Request.Context(), "GET", upstreamURL, nil)
+		if err != nil {
+			logger.Error("failed to create SSE upstream request", zap.Error(err))
+			return
+		}
+
+		// Forward headers
+		req.Header.Set("Accept", "text/event-stream")
+		if auth := c.GetHeader("Authorization"); auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logger.Error("SSE upstream connection failed", zap.Error(err))
+			return
+		}
+		defer resp.Body.Close()
+
+		buf := make([]byte, 4096)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				_, writeErr := c.Writer.Write(buf[:n])
+				if writeErr != nil {
+					flusher.Flush()
+					return
+				}
+				flusher.Flush()
+			}
+			if readErr != nil {
+				return
+			}
+		}
 	}
 }

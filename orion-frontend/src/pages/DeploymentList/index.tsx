@@ -41,7 +41,7 @@ const DeploymentList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [deployments, setDeployments] = useState<any[]>([]);
+  const [deployments, setDeployments] = useState<DeploymentRecord[]>([]);
 
   // Load deployments from API
   const loadDeployments = async () => {
@@ -49,7 +49,7 @@ const DeploymentList: React.FC = () => {
     try {
       const response = await getDeployments();
       const apiData = response.data.data;
-      setDeployments(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setDeployments(Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载部署列表失败：${error.message}`);
@@ -198,7 +198,7 @@ const DeploymentList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value} size="small" />,
     },
     {
       key: 'triggeredBy',

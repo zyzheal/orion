@@ -20,6 +20,7 @@ import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-des
 import { getSession, completeSession, getSessionComplexity } from '@/api/diagnostic';
 import type { DiagnosticSymptom } from '@/api/diagnostic';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

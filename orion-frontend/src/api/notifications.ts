@@ -118,21 +118,22 @@ export const getNotifications = async (
   const userId = getCurrentUserId();
 
   try {
-    const response = await api.get(`/v1/notifications/${userId}`, {
+    const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/v1/notifications/${userId}`, {
       params: {
         limit: params?.pageSize || 20,
         page: params?.page || 1,
       },
     });
 
+    // 拦截器已自动解包，response.data 直接是响应数据
     const result = response.data;
 
     // Backend returns { data: [...], total: N } or just [...]
-    const backendNotifications: BackendNotification[] = result?.data || result || [];
+    const backendNotifications = (result as { data?: BackendNotification[] }).data ?? [];
     let notifications: MockNotification[] = Array.isArray(backendNotifications)
       ? backendNotifications.map(mapBackendToNotification)
       : [];
-    let total = result?.total ?? notifications.length;
+    let total = (result as { total?: number }).total ?? backendNotifications.length;
 
     // Apply client-side filtering for tabs that backend doesn't support directly
     if (params?.type) {
@@ -205,7 +206,8 @@ export const getNotifications = async (
 export const getNotification = async (id: string): Promise<MockNotification> => {
   try {
     const response = await api.get(`/v1/notifications/${id}`);
-    return mapBackendToNotification(response.data?.data as BackendNotification);
+    // 拦截器已自动解包，response.data 直接是 BackendNotification
+    return mapBackendToNotification(response.data as BackendNotification);
   } catch (error) {
     const notification = mockNotifications.find((n) => n.id === id);
     if (!notification) throw new Error('Notification not found');
@@ -231,9 +233,8 @@ export const markAllAsRead = async (): Promise<void> => {
   try {
     const userId = getCurrentUserId();
     const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    const notifications: BackendNotification[] =
-      (response.data?.data as BackendNotification[]) || [];
-
+    // 拦截器已自动解包，response.data 直接是 BackendNotification[]
+    const notifications: BackendNotification[] = response.data as BackendNotification[] | [];
     // Mark each unread notification as read
     for (const n of notifications) {
       if (n.status !== 'read' && !n.read_at) {
@@ -261,18 +262,18 @@ export const deleteNotification = async (id: string): Promise<void> => {
  * 获取通知统计
  */
 export const getNotificationStats = async (): Promise<NotificationStats> => {
+  const userId = getCurrentUserId();
   try {
-    const userId = getCurrentUserId();
-
-    // Get unread count from backend
-    const unreadRes = await api.get(`/v1/notifications/${userId}/unread-count`);
-    const unreadCount =
-      Number((unreadRes.data as unknown as Record<string, unknown>)?.unreadCount) || 0;
+    const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/v1/notifications/${userId}/unread-count`);
+    // 拦截器已自动解包，response1.data 直接是响应数据
+    const data1 = response1.data as { data?: { unreadCount?: number } };
+    const unreadCount = Number(data1.data?.unreadCount) || 0;
 
     // Fetch recent notifications for other stats
-    const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    const backendNotifications: BackendNotification[] =
-      (response.data?.data as BackendNotification[]) || [];
+    const response2 = await api.get<{ data?: BackendNotification[] }>(`/v1/notifications/${userId}`, { params: { limit: 100 } });
+    // 拦截器已自动解包，response2.data 直接是响应数据
+    const data2 = response2.data as { data?: BackendNotification[] };
+    const backendNotifications: BackendNotification[] = data2.data ?? [];
     const notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
     const now = new Date();
@@ -312,10 +313,8 @@ export const getNotificationSettings = async (): Promise<NotificationSettings> =
     const response = await api.get(`/v1/notifications/settings/${userId}`, {
       params: { tenantId },
     });
-    const data =
-      (response.data?.data as unknown as Record<string, unknown>) ||
-      (response.data as unknown as Record<string, unknown>) ||
-      {};
+    // 拦截器已自动解包，response.data 直接是响应数据
+    const data = response.data as unknown as Record<string, unknown>;
 
     return {
       emailEnabled: Boolean(data?.email_enabled ?? true),
@@ -383,10 +382,8 @@ export const updateNotificationSettings = async (
     const response = await api.put(`/v1/notifications/settings/${userId}`, backendUpdates, {
       params: { tenantId },
     });
-    const data =
-      (response.data?.data as unknown as Record<string, unknown>) ||
-      (response.data as unknown as Record<string, unknown>) ||
-      {};
+    // 拦截器已自动解包，response.data 直接是响应数据
+    const data = response.data as unknown as Record<string, unknown>;
 
     return {
       emailEnabled: Boolean(data?.email_enabled ?? true),
@@ -431,7 +428,8 @@ export const broadcastNotification = async (input: BroadcastInput): Promise<Broa
     title: input.title,
     message: input.message,
   });
-  const data = (response.data?.data as unknown as Record<string, unknown>) || {};
+  // 拦截器已自动解包，response.data 直接是响应数据
+  const data = response.data as unknown as Record<string, unknown>;
   return {
     sent: Number(data?.sent ?? 0),
   };

@@ -10,7 +10,7 @@ import * as ts from 'typescript';
 import * as fs from 'fs';
 // @ts-ignore TS2591: requires @types/node — already available in project runtime
 import * as path from 'path';
-import { getTsxFiles } from './file-utils';
+import { getTsxFiles, getFilesWithExtensions } from './file-utils';
 import { gatherProjectContext, validateWithContext, ProjectContext } from './cross-validator';
 import { aggregateResults, AggregatedIssue, AggregationResult, formatAggregationSummary } from './issue-aggregator';
 import { logScanResults } from './false-positive-logger';
@@ -55,6 +55,12 @@ import { MissingResponsiveDetector } from './detectors/responsive';
 import { MissingA11yDetector } from './detectors/a11y';
 import { MissingStateTransitionDetector } from './detectors/state-transition';
 import { StyleImprovementDetector } from './detectors/style-improvement';
+
+// B1 Fix Standard detector（5项）
+import { B1FixStandardDetector, B1FixStandardIssueTypes } from './detectors/b1-fix-standard';
+
+// Observability detector
+import { ObservabilityDetector } from './detectors/observability';
 
 // ── Orchestrator class (wraps all detectors, preserves original API) ──
 
@@ -165,6 +171,10 @@ export class FrontendInteractionAnalyzer {
       new MissingLazyLoadDetector(this.filePath),
       new MissingRequestCancelDetector(this.filePath),
       new MissingRequestMergeDetector(this.filePath),
+      // B1 fix standard detectors（5项）
+      new B1FixStandardDetector(this.filePath),
+      // Observability detector
+      new ObservabilityDetector(this.filePath),
     ];
   }
 
@@ -218,13 +228,15 @@ export class FrontendInteractionAnalyzer {
 
 export class InteractionScanner {
   private rootPath: string;
+  private fileExtensions: string[];
 
-  constructor(rootPath: string = 'orion-frontend/src/pages/') {
+  constructor(rootPath: string = 'orion-frontend/src/pages/', extensions: string[] = ['.tsx']) {
     this.rootPath = rootPath;
+    this.fileExtensions = extensions;
   }
 
   /**
-   * 扫描目录下所有 TSX 文件，支持交叉验证和聚合去重。
+   * 扫描目录下所有 TS/TSX 文件，支持交叉验证和聚合去重。
    */
   async scan(
     maxFiles: number = 100,
@@ -232,7 +244,7 @@ export class InteractionScanner {
   ): Promise<AggregatedIssue[]> {
     const { minConfidence = 50, enableCrossValidation = true, enableDedup = true } = options;
     const results: ScanResult[] = [];
-    const files = getTsxFiles(this.rootPath).slice(0, maxFiles);
+    const files = getFilesWithExtensions(this.rootPath, this.fileExtensions).slice(0, maxFiles);
 
     // Gather project-wide context for cross-validation
     let projectContext: ProjectContext | undefined;

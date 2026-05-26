@@ -13,6 +13,7 @@ import {
   CodeOutlined,
 } from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   getCodeRepoAdapters,
   getCodeRepos,

@@ -64,6 +64,7 @@ import {
 } from '@/api/product-lines';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors } from '@/tokens';
 
 dayjs.extend(relativeTime);
 

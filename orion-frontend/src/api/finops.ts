@@ -77,7 +77,8 @@ export interface CostTrendParams {
  */
 export const getCostSummary = async (): Promise<CostSummary> => {
   const response = await api.get<CostSummary>('/v1/cost/summary');
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 CostSummary
+  return response.data;
 };
 
 /**
@@ -87,7 +88,8 @@ export const getCostByService = async (
   params?: CostByServiceParams
 ): Promise<CostByServiceItem[]> => {
   const response = await api.get<CostByServiceItem[]>('/v1/cost/breakdown', { params });
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 CostByServiceItem[]
+  return response.data;
 };
 
 /**
@@ -95,7 +97,8 @@ export const getCostByService = async (
  */
 export const getCostTrend = async (params?: CostTrendParams): Promise<CostTrendItem[]> => {
   const response = await api.post<CostTrendItem[]>('/v1/cost/trend', params);
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 CostTrendItem[]
+  return response.data;
 };
 
 /**
@@ -103,7 +106,8 @@ export const getCostTrend = async (params?: CostTrendParams): Promise<CostTrendI
  */
 export const getOptimizations = async (): Promise<OptimizationItem[]> => {
   const response = await api.get<OptimizationItem[]>('/v1/finops/optimize/suggestions');
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 OptimizationItem[]
+  return response.data;
 };
 
 /**
@@ -113,7 +117,8 @@ export const applyOptimization = async (id: string): Promise<{ success: boolean 
   const response = await api.patch<{ success: boolean }>(`/v1/finops/optimize/${id}/status`, {
     status: 'applied',
   });
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 { success: boolean }
+  return response.data;
 };
 
 /**
@@ -121,7 +126,8 @@ export const applyOptimization = async (id: string): Promise<{ success: boolean 
  */
 export const getBudgetAlerts = async (): Promise<BudgetAlertItem[]> => {
   const response = await api.get<BudgetAlertItem[]>('/v1/finops/budget/check-alerts');
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 BudgetAlertItem[]
+  return response.data;
 };
 
 /**

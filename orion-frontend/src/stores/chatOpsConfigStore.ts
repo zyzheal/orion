@@ -27,6 +27,12 @@ export interface ChatOpsCommandConfig {
   enabled: boolean;
 }
 
+export interface ConfigListResponse {
+  data?: {
+    data?: ChatOpsQuestionConfig[] | ChatOpsCommandConfig[];
+  };
+}
+
 interface ChatOpsConfigState {
   questions: ChatOpsQuestionConfig[];
   commands: ChatOpsCommandConfig[];
@@ -137,10 +143,10 @@ export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
       ]);
 
       const remoteQuestions = qRes.status === 'fulfilled' && qRes.value?.data?.data
-        ? (qRes.value.data.data as any[])
+        ? (qRes.value.data.data as ChatOpsQuestionConfig[])
         : null;
       const remoteCommands = cRes.status === 'fulfilled' && cRes.value?.data?.data
-        ? (cRes.value.data.data as any[])
+        ? (cRes.value.data.data as ChatOpsCommandConfig[])
         : null;
 
       if (remoteQuestions !== null || remoteCommands !== null) {

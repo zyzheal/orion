@@ -20,14 +20,14 @@ const BuildPodList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [pods, setPods] = useState<any[]>([]);
+  const [pods, setPods] = useState<BuildPod[]>([]);
 
   const loadPods = async () => {
     setLoading(true);
     try {
       const response = await getBuildPods();
       const apiData = response.data.data;
-      setPods(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setPods(Array.isArray(apiData) ? apiData : (apiData as { items?: BuildPod[] })?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建 Pod 失败：${error.message}`);

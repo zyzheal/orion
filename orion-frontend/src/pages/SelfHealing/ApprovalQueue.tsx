@@ -21,6 +21,7 @@ import { CheckOutlined, CloseOutlined, ReloadOutlined, CheckCircleOutlined,} fro
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

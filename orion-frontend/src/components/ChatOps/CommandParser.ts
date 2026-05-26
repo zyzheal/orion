@@ -6,6 +6,12 @@
  */
 
 import Ajv, { ErrorObject as AjvErrorObject } from 'ajv';
+import type { ErrorObject } from 'ajv';
+
+// Ajv 的 ErrorObject 类型缺少 instancePath 属性，添加类型声明
+interface ExtendedErrorObject extends ErrorObject {
+  instancePath?: string;
+}
 
 export interface ParsedCommand {
   command: string;
@@ -152,8 +158,8 @@ export class CommandParser {
     return { success: false, error: '无法识别命令' };
   }
 
-  private formatAjvErrors(errors: AjvErrorObject[] | null): string {
+  private formatAjvErrors(errors: ExtendedErrorObject[] | null): string {
     if (!errors || errors.length === 0) return '参数校验失败';
-    return errors.map((e) => `${(e as any).instancePath || '参数'}: ${e.message}`).join('; ');
+    return errors.map((e) => `${e.instancePath || '参数'}: ${e.message}`).join('; ');
   }
 }

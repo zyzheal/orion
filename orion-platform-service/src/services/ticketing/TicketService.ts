@@ -8,6 +8,9 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 import { TicketGenerator } from './TicketGenerator';
 import { TicketWorkflowService } from './TicketWorkflowService';
 import { TicketRelationAnalyzer } from './TicketRelationAnalyzer';
@@ -219,12 +222,12 @@ export class TicketService extends EventEmitter {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('[TicketService] Already running');
+      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Already running');
       return;
     }
 
     this.isRunning = true;
-    console.log('[TicketService] Starting...');
+    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Starting...');
 
     // Start escalation checks
     if (this.config.enableAutoEscalation) {
@@ -238,7 +241,7 @@ export class TicketService extends EventEmitter {
     await this.connectNats();
 
     this.emit('started');
-    console.log('[TicketService] Started');
+    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Started');
   }
 
   /**
@@ -248,7 +251,7 @@ export class TicketService extends EventEmitter {
     if (!this.isRunning) return;
 
     this.isRunning = false;
-    console.log('[TicketService] Stopping...');
+    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Stopping...');
 
     // Stop escalation checks
     this.workflow.stopEscalationChecks();
@@ -262,13 +265,13 @@ export class TicketService extends EventEmitter {
         await this.natsUnsubscribe?.();
         await this.natsConnection.close();
       } catch (error) {
-        console.warn('[TicketService] Error disconnecting NATS:', error);
+        logger.warn({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Error disconnecting NATS', error);
       }
       this.natsConnection = null;
     }
 
     this.emit('stopped');
-    console.log('[TicketService] Stopped');
+    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Stopped');
   }
 
   /**
@@ -369,8 +372,14 @@ export class TicketService extends EventEmitter {
     this.analyzer.unregisterTicket(tempTicket.id);
 
     if (duplicates.length > 0) {
-      console.log(
-        `[TicketService] Potential duplicate detected for alert ${source.alertId}: ${duplicates[0].ticket.id}`
+      logger.info(
+        {
+          traceId: 'unknown-trace',
+          tenantId: 'unknown-tenant',
+          alertId: source.alertId ? '***' : '',
+          duplicateTicketId: duplicates[0].ticket.id ? '***' : ''
+        },
+        '[TicketService] Potential duplicate detected for alert'
       );
     }
 
@@ -650,7 +659,16 @@ export class TicketService extends EventEmitter {
   private async attemptAutoDispatch(ticketId: string): Promise<void> {
     const result = await this.autoDispatch(ticketId);
     if (result) {
-      console.log(`[TicketService] Auto-dispatched ticket ${ticketId} to ${result.assignee} (score: ${result.score})`);
+      logger.info(
+        {
+          traceId: 'unknown-trace',
+          tenantId: 'unknown-tenant',
+          ticketId: ticketId ? '***' : '',
+          assignee: result.assignee ? '***' : '',
+          score: result.score
+        },
+        '[TicketService] Auto-dispatched ticket'
+      );
     }
   }
 
@@ -1326,7 +1344,7 @@ export class TicketService extends EventEmitter {
       const { connect } = await import('nats').catch(() => ({ connect: null }));
 
       if (!connect) {
-        console.log('[TicketService] NATS not available, running without event subscription');
+        logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] NATS not available, running without event subscription');
         return;
       }
 
@@ -1336,12 +1354,12 @@ export class TicketService extends EventEmitter {
         reconnect: false,
       });
 
-      console.log('[TicketService] Connected to NATS');
+      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Connected to NATS');
 
       // Subscribe to relevant events
       await this.subscribeToEvents();
     } catch (error) {
-      console.log('[TicketService] NATS connection failed, running without event bus:', error);
+      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] NATS connection failed, running without event bus', error);
     }
   }
 
@@ -1370,7 +1388,7 @@ export class TicketService extends EventEmitter {
               await this.handleAlertEvent(data);
               msg.ack();
             } catch (error) {
-              console.error('[TicketService] Error processing NATS message:', error);
+              logger.error({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Error processing NATS message', error);
             }
           }
         })().catch(console.error);
@@ -1380,9 +1398,9 @@ export class TicketService extends EventEmitter {
         // Drain handled by connection close
       };
 
-      console.log(`[TicketService] Subscribed to alert events`);
+      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Subscribed to alert events');
     } catch (error) {
-      console.warn('[TicketService] Failed to subscribe to NATS events:', error);
+      logger.warn({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Failed to subscribe to NATS events', error);
     }
   }
 
@@ -1392,7 +1410,14 @@ export class TicketService extends EventEmitter {
   private async handleAlertEvent(data: any): Promise<void> {
     if (!data || !data.alertId) return;
 
-    console.log(`[TicketService] Received alert event: ${data.alertId}`);
+    logger.info(
+        {
+          traceId: 'unknown-trace',
+          tenantId: 'unknown-tenant',
+          alertId: data.alertId ? '***' : ''
+        },
+        '[TicketService] Received alert event'
+      );
 
     const alertSource: AlertTicketSource = {
       alertId: data.alertId,
@@ -1406,7 +1431,15 @@ export class TicketService extends EventEmitter {
 
     try {
       const ticket = await this.createTicketFromAlert(alertSource);
-      console.log(`[TicketService] Auto-created ticket ${ticket.id} from alert ${data.alertId}`);
+      logger.info(
+        {
+          traceId: 'unknown-trace',
+          tenantId: 'unknown-tenant',
+          ticketId: ticket.id ? '***' : '',
+          alertId: data.alertId ? '***' : ''
+        },
+        '[TicketService] Auto-created ticket from alert'
+      );
     } catch (error) {
       console.error('[TicketService] Failed to create ticket from alert:', error);
     }

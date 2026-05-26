@@ -16,6 +16,7 @@ import { NatsServiceRegistry } from './services/nats-registry';
 import { initializeOpenTelemetry } from './otel-setup';
 import { shutdownAllExecutors } from './services/plugin-executor-service';
 import { shutdownAllTimelines } from './services/observability/ExecutionTimelineService';
+import { initCircuitBreakerService, getCircuitBreakerService } from './services/circuit-breaker';
 
 async function main() {
   const cfg = platformConfig;
@@ -96,6 +97,9 @@ async function main() {
 
     // 4. Initialize OpenTelemetry
     await initializeOpenTelemetry();
+
+    // 4.5 Initialize Circuit Breaker Service
+    await initCircuitBreakerService(database);
 
     // 5. 创建应用
     console.log('Creating Fastify application...');

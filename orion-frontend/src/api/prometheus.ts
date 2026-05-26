@@ -36,5 +36,5 @@ export async function queryRangeMetrics(query: string, start: number, end: numbe
 }
 
 export async function getDashboardData() {
-  return api.get<{ data: DashboardData }>('/v1/metrics/dashboard');
+  return api.get<DashboardData>('/v1/metrics/dashboard');
 }

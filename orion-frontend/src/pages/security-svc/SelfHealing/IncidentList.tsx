@@ -21,6 +21,7 @@ import { getHealingHistory, createIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

@@ -29,18 +29,26 @@ describe('Webhook API', () => {
   });
 
   it('should get webhooks', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { webhooks: [] } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: [],
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
 
     const result = await getWebhooks();
     expect(api.get).toHaveBeenCalledWith('/v1/webhooks');
-    expect(Array.isArray(result.data.data.webhooks)).toBe(true);
+    expect(Array.isArray(result.data)).toBe(true);
   });
 
   it('should create a webhook', async () => {
     vi.mocked(api.post).mockResolvedValue({
-      data: {
-        data: { webhook: { id: '1', url: 'https://example.com', events: ['test'], enabled: true } },
-      },
+      data: { id: '1', url: 'https://example.com', events: ['test'], enabled: true },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
     } as any);
 
     const result = await createWebhook({ url: 'https://example.com', events: ['test'] });
@@ -48,32 +56,56 @@ describe('Webhook API', () => {
       url: 'https://example.com',
       events: ['test'],
     });
-    expect(result.data.data.webhook.url).toBe('https://example.com');
+    expect(result.data.url).toBe('https://example.com');
   });
 
   it('should update a webhook', async () => {
-    vi.mocked(api.put).mockResolvedValue({ data: { data: { webhook: { id: '1' } } } } as any);
+    vi.mocked(api.put).mockResolvedValue({
+      data: { id: '1' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
 
     await updateWebhook('1', { enabled: false });
     expect(api.put).toHaveBeenCalledWith('/v1/webhooks/1', { enabled: false });
   });
 
   it('should delete a webhook', async () => {
-    vi.mocked(api.delete).mockResolvedValue({ data: { data: undefined } } as any);
+    vi.mocked(api.delete).mockResolvedValue({
+      data: undefined,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
 
     await deleteWebhook('1');
     expect(api.delete).toHaveBeenCalledWith('/v1/webhooks/1');
   });
 
   it('should test a webhook', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: undefined } } as any);
+    vi.mocked(api.post).mockResolvedValue({
+      data: undefined,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
 
     await testWebhook('1');
     expect(api.post).toHaveBeenCalledWith('/v1/webhooks/1/test');
   });
 
   it('should get webhook logs', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { logs: [] } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: { logs: [] },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
 
     await getWebhookLogs('1', 20);
     expect(api.get).toHaveBeenCalledWith('/v1/webhooks/1/logs?limit=20');

@@ -7,7 +7,8 @@ import type { LoginRequest, LoginResponse, RefreshTokenResponse, UserInfo } from
 export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   const response = await api.post<LoginResponse>('/v1/auth/login', data);
   // 响应格式：{ success: true, data: { accessToken, ... } }
-  return response.data.data as LoginResponse;
+  // 拦截器已自动解包，response.data 直接是 LoginResponse
+  return response.data;
 };
 
 /**
@@ -22,7 +23,8 @@ export const logout = async (): Promise<void> => {
  */
 export const refreshToken = async (refreshToken: string): Promise<RefreshTokenResponse> => {
   const response = await api.post<RefreshTokenResponse>('/v1/auth/refresh', { refreshToken });
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 RefreshTokenResponse
+  return response.data;
 };
 
 /**
@@ -48,5 +50,6 @@ export const refreshAuthTokenApi = async (
  */
 export const getCurrentUser = async (): Promise<UserInfo> => {
   const response = await api.get<UserInfo>('/v1/auth/me');
-  return response.data.data;
+  // 拦截器已自动解包，response.data 直接是 UserInfo
+  return response.data;
 };

@@ -29,19 +29,19 @@ export interface CronJobInput {
 }
 
 export async function getCronJobs() {
-  return api.get<{ jobs: CronJob[] }>('/v1/cron/jobs');
+  return api.get<CronJob[]>('/v1/cron/jobs');
 }
 
 export async function getCronJob(id: string) {
-  return api.get<{ job: CronJob }>(`/v1/cron/jobs/${id}`);
+  return api.get<CronJob>(`/v1/cron/jobs/${id}`);
 }
 
 export async function createCronJob(input: CronJobInput) {
-  return api.post<{ job: CronJob }>('/v1/cron/jobs', input);
+  return api.post<CronJob>('/v1/cron/jobs', input);
 }
 
 export async function updateCronJob(id: string, input: Partial<CronJobInput>) {
-  return api.put<{ job: CronJob }>(`/v1/cron/jobs/${id}`, input);
+  return api.put<CronJob>(`/v1/cron/jobs/${id}`, input);
 }
 
 export async function deleteCronJob(id: string) {

@@ -6,52 +6,385 @@
   "layer": "experience",
   "description": "用户体验检查项（可用性/可访问性/一致性/性能感知/情感化）",
   "checks": [
-    { "id": "D1-01", "category": "usability", "level": "P1", "rule": "操作步骤少", "description": "≤3步达成目标", "detection": "code-review" },
-    { "id": "D1-02", "category": "usability", "level": "P1", "rule": "常用操作入口明显", "description": "高频操作应在显眼位置", "detection": "code-review" },
-    { "id": "D1-03", "category": "usability", "level": "P1", "rule": "快捷键支持", "description": "应支持键盘快捷键操作", "detection": "code-review" },
-    { "id": "D1-04", "category": "learning", "level": "P1", "rule": "新用户引导", "description": "首次使用应有引导流程", "detection": "code-review" },
-    { "id": "D1-05", "category": "learning", "level": "P1", "rule": "工具提示完善", "description": "图标按钮等应有 tooltip 说明", "detection": "code-review" },
-    { "id": "D1-06", "category": "learning", "level": "P1", "rule": "示例/模板丰富", "description": "复杂操作应有示例或模板", "detection": "code-review" },
-    { "id": "D1-07", "category": "forgiveness", "level": "P0", "rule": "误操作可撤销", "description": "误操作应支持撤销", "detection": "code-review" },
-    { "id": "D1-08", "category": "forgiveness", "level": "P0", "rule": "危险操作二次确认", "description": "删除/修改应有二次确认", "detection": "code-review" },
-    { "id": "D1-09", "category": "forgiveness", "level": "P0", "rule": "错误信息有指导性", "description": "错误提示应告知用户如何解决", "detection": "code-review" },
-    { "id": "D1-10", "category": "help", "level": "P1", "rule": "帮助文档入口", "description": "应用内应有帮助文档入口", "detection": "code-review" },
-    { "id": "D1-11", "category": "help", "level": "P1", "rule": "在线帮助/FQA", "description": "常见问题应有在线解答", "detection": "code-review" },
-    { "id": "D1-12", "category": "help", "level": "P2", "rule": "截图/视频教程", "description": "复杂操作应有截图或视频教程", "detection": "code-review" },
-    { "id": "D2-01", "category": "a11y", "level": "P0", "rule": "所有功能可键盘操作", "description": "所有交互功能应支持键盘操作", "detection": "test" },
-    { "id": "D2-02", "category": "a11y", "level": "P1", "rule": "Tab 顺序合理", "description": "Tab 导航顺序应符视觉顺序", "detection": "code-review" },
-    { "id": "D2-03", "category": "a11y", "level": "P0", "rule": "焦点状态可见", "description": "键盘焦点应有可见指示", "detection": "code-review" },
-    { "id": "D2-04", "category": "a11y", "level": "P0", "rule": "ARIA 标签完整", "description": "交互组件应有 ARIA 标签", "detection": "code-review" },
-    { "id": "D2-05", "category": "a11y", "level": "P0", "rule": "图片 alt 文字", "description": "图片应有 alt 描述", "detection": "code-review" },
-    { "id": "D2-06", "category": "a11y", "level": "P1", "rule": "语义化 HTML", "description": "应使用语义化 HTML 元素", "detection": "code-review" },
-    { "id": "D2-07", "category": "a11y", "level": "P0", "rule": "颜色不是唯一信息", "description": "状态信息不应仅依赖颜色", "detection": "code-review" },
-    { "id": "D2-08", "category": "a11y", "level": "P0", "rule": "对比度达标", "description": "文本与背景对比度 ≥4.5:1", "detection": "code-review" },
-    { "id": "D2-09", "category": "a11y", "level": "P1", "rule": "状态有图标/文字辅助", "description": "状态变化应有图标或文字辅助", "detection": "code-review" },
-    { "id": "D2-10", "category": "a11y", "level": "P1", "rule": "字体大小可调", "description": "应支持字体大小调整", "detection": "code-review" },
-    { "id": "D2-11", "category": "a11y", "level": "P1", "rule": "行高合理", "description": "文本行高 ≥1.5", "detection": "code-review" },
-    { "id": "D3-01", "category": "consistency", "level": "P0", "rule": "Design Token 统一", "description": "颜色/间距/圆角应使用统一 Design Token", "detection": "code-review" },
-    { "id": "D3-02", "category": "consistency", "level": "P0", "rule": "组件风格统一", "description": "同类组件视觉风格应一致", "detection": "code-review" },
-    { "id": "D3-03", "category": "consistency", "level": "P1", "rule": "图标风格统一", "description": "图标应使用同一图标库", "detection": "code-review" },
-    { "id": "D3-04", "category": "consistency", "level": "P0", "rule": "类似功能交互相似", "description": "类似功能交互方式应一致", "detection": "code-review" },
-    { "id": "D3-05", "category": "consistency", "level": "P1", "rule": "按钮位置统一", "description": "操作按钮位置应统一", "detection": "code-review" },
-    { "id": "D3-06", "category": "consistency", "level": "P0", "rule": "反馈方式统一", "description": "成功/失败反馈方式应统一", "detection": "code-review" },
-    { "id": "D3-07", "category": "consistency", "level": "P0", "rule": "术语全局统一", "description": "业务术语全局应一致", "detection": "code-review" },
-    { "id": "D3-08", "category": "consistency", "level": "P0", "rule": "标签文案统一", "description": "表单标签文案应统一", "detection": "code-review" },
-    { "id": "D3-09", "category": "consistency", "level": "P1", "rule": "错误提示风格统一", "description": "错误提示文案和样式应统一", "detection": "code-review" },
-    { "id": "D4-01", "category": "perceived", "level": "P0", "rule": "骨架屏/占位符", "description": "数据加载时应有骨架屏或占位符", "detection": "code-review" },
-    { "id": "D4-02", "category": "perceived", "level": "P1", "rule": "渐进式加载", "description": "内容应支持渐进式加载", "detection": "code-review" },
-    { "id": "D4-03", "category": "perceived", "level": "P1", "rule": "缓存提示", "description": "缓存数据应有提示", "detection": "code-review" },
-    { "id": "D4-04", "category": "perceived", "level": "P0", "rule": "操作即时反馈", "description": "用户操作后应该有即时反馈", "detection": "code-review" },
-    { "id": "D4-05", "category": "perceived", "level": "P1", "rule": "乐观更新", "description": "写操作可使用乐观更新提升体验", "detection": "code-review" },
-    { "id": "D4-06", "category": "perceived", "level": "P1", "rule": "防抖/节流", "description": "高频操作应使用防抖或节流", "detection": "code-review" },
-    { "id": "D4-07", "category": "perceived", "level": "P1", "rule": "动画流畅", "description": "动画应流畅 (60fps)", "detection": "test" },
-    { "id": "D4-08", "category": "perceived", "level": "P1", "rule": "滚动流畅", "description": "列表滚动应流畅无卡顿", "detection": "test" },
-    { "id": "D4-09", "category": "perceived", "level": "P1", "rule": "无卡顿/掉帧", "description": "页面不应有明显卡顿或掉帧", "detection": "test" },
-    { "id": "D5-01", "category": "emotion", "level": "P1", "rule": "成功/完成有积极反馈", "description": "操作成功时应有积极的反馈", "detection": "code-review" },
-    { "id": "D5-02", "category": "emotion", "level": "P1", "rule": "空状态有温度", "description": "空状态提示应有温度和引导", "detection": "code-review" },
-    { "id": "D5-03", "category": "emotion", "level": "P2", "rule": "加载动画有趣", "description": "加载动画可以有趣/个性化", "detection": "code-review" },
-    { "id": "D5-04", "category": "trust", "level": "P1", "rule": "安全感提示", "description": "涉及敏感数据时应有安全感提示", "detection": "code-review" },
-    { "id": "D5-05", "category": "trust", "level": "P0", "rule": "隐私保护告知", "description": "隐私相关操作应有明确告知", "detection": "code-review" },
-    { "id": "D5-06", "category": "trust", "level": "P0", "rule": "数据安全标识", "description": "数据传输/存储应有安全标识", "detection": "code-review" }
-  ]
+    {
+      "id": "D1-01",
+      "category": "usability",
+      "level": "P1",
+      "rule": "操作步骤少",
+      "description": "≤3步达成目标",
+      "detection": "review"
+    },
+    {
+      "id": "D1-02",
+      "category": "usability",
+      "level": "P1",
+      "rule": "常用操作入口明显",
+      "description": "高频操作应在显眼位置",
+      "detection": "review"
+    },
+    {
+      "id": "D1-03",
+      "category": "usability",
+      "level": "P1",
+      "rule": "快捷键支持",
+      "description": "应支持键盘快捷键操作",
+      "detection": "review"
+    },
+    {
+      "id": "D1-04",
+      "category": "learning",
+      "level": "P1",
+      "rule": "新用户引导",
+      "description": "首次使用应有引导流程",
+      "detection": "review"
+    },
+    {
+      "id": "D1-05",
+      "category": "learning",
+      "level": "P1",
+      "rule": "工具提示完善",
+      "description": "图标按钮等应有 tooltip 说明",
+      "detection": "review"
+    },
+    {
+      "id": "D1-06",
+      "category": "learning",
+      "level": "P1",
+      "rule": "示例/模板丰富",
+      "description": "复杂操作应有示例或模板",
+      "detection": "review"
+    },
+    {
+      "id": "D1-07",
+      "category": "forgiveness",
+      "level": "P0",
+      "rule": "误操作可撤销",
+      "description": "误操作应支持撤销",
+      "detection": "review"
+    },
+    {
+      "id": "D1-08",
+      "category": "forgiveness",
+      "level": "P0",
+      "rule": "危险操作二次确认",
+      "description": "删除/修改应有二次确认",
+      "detection": "review"
+    },
+    {
+      "id": "D1-09",
+      "category": "forgiveness",
+      "level": "P0",
+      "rule": "错误信息有指导性",
+      "description": "错误提示应告知用户如何解决",
+      "detection": "review"
+    },
+    {
+      "id": "D1-10",
+      "category": "help",
+      "level": "P1",
+      "rule": "帮助文档入口",
+      "description": "应用内应有帮助文档入口",
+      "detection": "review"
+    },
+    {
+      "id": "D1-11",
+      "category": "help",
+      "level": "P1",
+      "rule": "在线帮助/FQA",
+      "description": "常见问题应有在线解答",
+      "detection": "review"
+    },
+    {
+      "id": "D1-12",
+      "category": "help",
+      "level": "P2",
+      "rule": "截图/视频教程",
+      "description": "复杂操作应有截图或视频教程",
+      "detection": "review"
+    },
+    {
+      "id": "D2-01",
+      "category": "a11y",
+      "level": "P0",
+      "rule": "所有功能可键盘操作",
+      "description": "所有交互功能应支持键盘操作",
+      "detection": "review"
+    },
+    {
+      "id": "D2-02",
+      "category": "a11y",
+      "level": "P1",
+      "rule": "Tab 顺序合理",
+      "description": "Tab 导航顺序应符视觉顺序",
+      "detection": "review"
+    },
+    {
+      "id": "D2-03",
+      "category": "a11y",
+      "level": "P0",
+      "rule": "焦点状态可见",
+      "description": "键盘焦点应有可见指示",
+      "detection": "review"
+    },
+    {
+      "id": "D2-04",
+      "category": "a11y",
+      "level": "P0",
+      "rule": "ARIA 标签完整",
+      "description": "交互组件应有 ARIA 标签",
+      "detection": "review"
+    },
+    {
+      "id": "D2-05",
+      "category": "a11y",
+      "level": "P0",
+      "rule": "图片 alt 文字",
+      "description": "图片应有 alt 描述",
+      "detection": "review"
+    },
+    {
+      "id": "D2-06",
+      "category": "a11y",
+      "level": "P1",
+      "rule": "语义化 HTML",
+      "description": "应使用语义化 HTML 元素",
+      "detection": "review"
+    },
+    {
+      "id": "D2-07",
+      "category": "a11y",
+      "level": "P0",
+      "rule": "颜色不是唯一信息",
+      "description": "状态信息不应仅依赖颜色",
+      "detection": "review"
+    },
+    {
+      "id": "D2-08",
+      "category": "a11y",
+      "level": "P0",
+      "rule": "对比度达标",
+      "description": "文本与背景对比度 ≥4.5:1",
+      "detection": "review"
+    },
+    {
+      "id": "D2-09",
+      "category": "a11y",
+      "level": "P1",
+      "rule": "状态有图标/文字辅助",
+      "description": "状态变化应有图标或文字辅助",
+      "detection": "review"
+    },
+    {
+      "id": "D2-10",
+      "category": "a11y",
+      "level": "P1",
+      "rule": "字体大小可调",
+      "description": "应支持字体大小调整",
+      "detection": "review"
+    },
+    {
+      "id": "D2-11",
+      "category": "a11y",
+      "level": "P1",
+      "rule": "行高合理",
+      "description": "文本行高 ≥1.5",
+      "detection": "review"
+    },
+    {
+      "id": "D3-01",
+      "category": "consistency",
+      "level": "P0",
+      "rule": "Design Token 统一",
+      "description": "颜色/间距/圆角应使用统一 Design Token",
+      "detection": "review"
+    },
+    {
+      "id": "D3-02",
+      "category": "consistency",
+      "level": "P0",
+      "rule": "组件风格统一",
+      "description": "同类组件视觉风格应一致",
+      "detection": "review"
+    },
+    {
+      "id": "D3-03",
+      "category": "consistency",
+      "level": "P1",
+      "rule": "图标风格统一",
+      "description": "图标应使用同一图标库",
+      "detection": "review"
+    },
+    {
+      "id": "D3-04",
+      "category": "consistency",
+      "level": "P0",
+      "rule": "类似功能交互相似",
+      "description": "类似功能交互方式应一致",
+      "detection": "review"
+    },
+    {
+      "id": "D3-05",
+      "category": "consistency",
+      "level": "P1",
+      "rule": "按钮位置统一",
+      "description": "操作按钮位置应统一",
+      "detection": "review"
+    },
+    {
+      "id": "D3-06",
+      "category": "consistency",
+      "level": "P0",
+      "rule": "反馈方式统一",
+      "description": "成功/失败反馈方式应统一",
+      "detection": "review"
+    },
+    {
+      "id": "D3-07",
+      "category": "consistency",
+      "level": "P0",
+      "rule": "术语全局统一",
+      "description": "业务术语全局应一致",
+      "detection": "review"
+    },
+    {
+      "id": "D3-08",
+      "category": "consistency",
+      "level": "P0",
+      "rule": "标签文案统一",
+      "description": "表单标签文案应统一",
+      "detection": "review"
+    },
+    {
+      "id": "D3-09",
+      "category": "consistency",
+      "level": "P1",
+      "rule": "错误提示风格统一",
+      "description": "错误提示文案和样式应统一",
+      "detection": "review"
+    },
+    {
+      "id": "D4-01",
+      "category": "perceived",
+      "level": "P0",
+      "rule": "骨架屏/占位符",
+      "description": "数据加载时应有骨架屏或占位符",
+      "detection": "review"
+    },
+    {
+      "id": "D4-02",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "渐进式加载",
+      "description": "内容应支持渐进式加载",
+      "detection": "review"
+    },
+    {
+      "id": "D4-03",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "缓存提示",
+      "description": "缓存数据应有提示",
+      "detection": "review"
+    },
+    {
+      "id": "D4-04",
+      "category": "perceived",
+      "level": "P0",
+      "rule": "操作即时反馈",
+      "description": "用户操作后应该有即时反馈",
+      "detection": "review"
+    },
+    {
+      "id": "D4-05",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "乐观更新",
+      "description": "写操作可使用乐观更新提升体验",
+      "detection": "review"
+    },
+    {
+      "id": "D4-06",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "防抖/节流",
+      "description": "高频操作应使用防抖或节流",
+      "detection": "review"
+    },
+    {
+      "id": "D4-07",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "动画流畅",
+      "description": "动画应流畅 (60fps)",
+      "detection": "review"
+    },
+    {
+      "id": "D4-08",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "滚动流畅",
+      "description": "列表滚动应流畅无卡顿",
+      "detection": "review"
+    },
+    {
+      "id": "D4-09",
+      "category": "perceived",
+      "level": "P1",
+      "rule": "无卡顿/掉帧",
+      "description": "页面不应有明显卡顿或掉帧",
+      "detection": "review"
+    },
+    {
+      "id": "D5-01",
+      "category": "emotion",
+      "level": "P1",
+      "rule": "成功/完成有积极反馈",
+      "description": "操作成功时应有积极的反馈",
+      "detection": "review"
+    },
+    {
+      "id": "D5-02",
+      "category": "emotion",
+      "level": "P1",
+      "rule": "空状态有温度",
+      "description": "空状态提示应有温度和引导",
+      "detection": "review"
+    },
+    {
+      "id": "D5-03",
+      "category": "emotion",
+      "level": "P2",
+      "rule": "加载动画有趣",
+      "description": "加载动画可以有趣/个性化",
+      "detection": "review"
+    },
+    {
+      "id": "D5-04",
+      "category": "trust",
+      "level": "P1",
+      "rule": "安全感提示",
+      "description": "涉及敏感数据时应有安全感提示",
+      "detection": "review"
+    },
+    {
+      "id": "D5-05",
+      "category": "trust",
+      "level": "P0",
+      "rule": "隐私保护告知",
+      "description": "隐私相关操作应有明确告知",
+      "detection": "review"
+    },
+    {
+      "id": "D5-06",
+      "category": "trust",
+      "level": "P0",
+      "rule": "数据安全标识",
+      "description": "数据传输/存储应有安全标识",
+      "detection": "review"
+    }
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "design-doc-reviewer",
+  "coveragePolicyReason": "用户体验是运行时/产品层面",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
 }

@@ -10,6 +10,7 @@ import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -42,9 +43,9 @@ const BuildPodDetail: React.FC = () => {
     if (!id) return;
     try {
       const response = await getBuildPodLogs(id);
-      const logsData = response.data.data as any[];
+      const logsData = response.data.data as Array<{ id?: string }> | null;
       const logs = Array.isArray(logsData) ? logsData : [];
-      setLogIds(logs.map((log: any) => log.id));
+      setLogIds(logs.map((log) => log.id || '').filter(Boolean));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pod 日志失败：${error.message}`);
@@ -111,7 +112,7 @@ const BuildPodDetail: React.FC = () => {
             <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
-            {pod && <StatusBadge status={pod.status as any} size="small" />}
+            {pod && <StatusBadge status={pod.status} size="small" />}
           </div>
           <Space>
             <Button

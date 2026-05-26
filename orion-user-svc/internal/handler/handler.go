@@ -2,10 +2,12 @@ package handler
 
 import (
 	"net/http"
-	"time"
+	"strconv"
 
 	"orion/user-svc/internal/config"
 	"orion/user-svc/internal/models"
+	"orion/user-svc/internal/repository"
+	"orion/user-svc/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -13,17 +15,37 @@ import (
 	"go.uber.org/zap"
 )
 
+// Handler handles HTTP requests for the user service.
 type Handler struct {
-	db     *sqlx.DB
-	rdb    *redis.Client
-	logger *zap.Logger
-	cfg    *config.Config
+	userRepo    *repository.UserRepository
+	roleRepo    *repository.RoleRepository
+	permRepo    *repository.PermissionRepository
+	userSvc     *service.UserService
+	rbacSvc     *service.RBACService
+	rdb         *redis.Client
+	logger      *zap.Logger
+	cfg         *config.Config
 }
 
+// New creates a new Handler with full service layer.
 func New(db *sqlx.DB, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Handler {
-	return &Handler{db: db, rdb: rdb, logger: logger, cfg: cfg}
+	userRepo := repository.NewUserRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
+	permRepo := repository.NewPermissionRepository(db)
+
+	return &Handler{
+		userRepo: userRepo,
+		roleRepo: roleRepo,
+		permRepo: permRepo,
+		userSvc:  service.NewUserService(userRepo),
+		rbacSvc:  service.NewRBACService(userRepo, roleRepo, permRepo),
+		rdb:      rdb,
+		logger:   logger,
+		cfg:      cfg,
+	}
 }
 
+// Response is the standard API response envelope.
 type Response struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
@@ -34,7 +56,7 @@ func (h *Handler) success(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, Response{Code: 0, Message: "success", Data: data})
 }
 
-func (h *Handler) error(c *gin.Context, code int, message string) {
+func (h *Handler) err(c *gin.Context, code int, message string) {
 	c.JSON(code, Response{Code: code, Message: message})
 }
 
@@ -42,33 +64,15 @@ func (h *Handler) error(c *gin.Context, code int, message string) {
 
 func (h *Handler) ListUsers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	page := c.DefaultQuery("page", "1")
-	pageSize := c.DefaultQuery("page_size", "20")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	search := c.Query("search")
 
-	query := `SELECT id, tenant_id, email, display_name, role, status, created_at FROM users
-	          WHERE tenant_id = $1`
-	args := []interface{}{tenantID}
-	argCount := 1
-
-	if search != "" {
-		argCount++
-		query += " AND (email LIKE $" + itoa(argCount) + " OR display_name LIKE $" + itoa(argCount) + ")"
-		args = append(args, "%"+search+"%")
-	}
-
-	query += " ORDER BY created_at DESC"
-	argCount++
-	query += " LIMIT $" + itoa(argCount)
-	args = append(args, atoi(pageSize))
-	argCount++
-	query += " OFFSET $" + itoa(argCount)
-	args = append(args, (atoi(page)-1)*atoi(pageSize))
-
-	var users []models.User
-	err := h.db.Select(&users, query, args...)
+	ctx := c.Request.Context()
+	users, err := h.userSvc.ListUsers(ctx, tenantID, search, page, pageSize)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+		h.logger.Error("failed to list users", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -79,21 +83,31 @@ func (h *Handler) GetUser(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := c.GetString("tenant_id")
 
-	var user models.User
-	err := h.db.Get(&user, "SELECT id, tenant_id, email, display_name, role, status, created_at, updated_at FROM users WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	ctx := c.Request.Context()
+	user, err := h.userSvc.GetUser(ctx, id, tenantID)
 	if err != nil {
-		h.error(c, http.StatusNotFound, "user not found")
+		switch err {
+		case service.ErrUserNotFound:
+			h.err(c, http.StatusNotFound, "user not found")
+		default:
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
 
 	// Get user's roles
-	var roles []string
-	_ = h.db.Select(&roles, `SELECT r.name FROM roles r
-	                          JOIN user_roles ur ON r.id = ur.role_id
-	                          WHERE ur.user_id = $1`, id)
-	user.Roles = roles
+	roles, err := h.userSvc.GetUserRoles(ctx, id)
+	if err != nil {
+		h.logger.Warn("failed to get user roles", zap.Error(err))
+	}
 
-	h.success(c, user)
+	type UserWithRoles struct {
+		models.User
+		Roles []models.Role `json:"roles,omitempty"`
+	}
+
+	result := UserWithRoles{User: *user, Roles: roles}
+	h.success(c, result)
 }
 
 func (h *Handler) UpdateUser(c *gin.Context) {
@@ -102,18 +116,22 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	var req models.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	_, err := h.db.Exec(
-		"UPDATE users SET display_name = $1, role = $2, status = $3, updated_at = now() WHERE id = $4 AND tenant_id = $5",
-		req.DisplayName, req.Role, req.Status, id, tenantID,
-	)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+	ctx := c.Request.Context()
+	if err := h.userSvc.UpdateUser(ctx, id, tenantID, req); err != nil {
+		switch err {
+		case service.ErrUserNotFound:
+			h.err(c, http.StatusNotFound, "user not found")
+		default:
+			h.logger.Error("failed to update user", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
+
 	h.success(c, gin.H{"message": "user updated"})
 }
 
@@ -121,11 +139,18 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := c.GetString("tenant_id")
 
-	_, err := h.db.Exec("UPDATE users SET status = 'deleted', updated_at = now() WHERE id = $1 AND tenant_id = $2", id, tenantID)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+	ctx := c.Request.Context()
+	if err := h.userSvc.DeleteUser(ctx, id, tenantID); err != nil {
+		switch err {
+		case service.ErrUserNotFound:
+			h.err(c, http.StatusNotFound, "user not found")
+		default:
+			h.logger.Error("failed to delete user", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
+
 	h.success(c, gin.H{"message": "user deleted"})
 }
 
@@ -136,56 +161,73 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required,oneof=active suspended deleted"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request")
 		return
 	}
-	_, err := h.db.Exec("UPDATE users SET status = $1, updated_at = now() WHERE id = $2 AND tenant_id = $3", req.Status, id, tenantID)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.userSvc.UpdateUserStatus(ctx, id, tenantID, req.Status); err != nil {
+		switch err {
+		case service.ErrUserNotFound:
+			h.err(c, http.StatusNotFound, "user not found")
+		default:
+			h.logger.Error("failed to update user status", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
+
 	h.success(c, gin.H{"message": "status updated"})
 }
 
 // === Role CRUD ===
 
 func (h *Handler) CreateRole(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	var req models.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	var id string
-	err := h.db.Get(&id,
-		"INSERT INTO roles (tenant_id, name, description) VALUES ($1, $2, $3) RETURNING id",
-		"00000000-0000-0000-0000-000000000000", req.Name, req.Description,
-	)
+	ctx := c.Request.Context()
+	role, err := h.rbacSvc.CreateRole(ctx, req, tenantID)
 	if err != nil {
-		h.error(c, http.StatusConflict, "role already exists")
+		h.logger.Error("failed to create role", zap.Error(err))
+		h.err(c, http.StatusConflict, "role already exists")
 		return
 	}
-	h.success(c, gin.H{"id": id})
+
+	h.success(c, gin.H{"id": role.ID, "name": role.Name})
 }
 
 func (h *Handler) ListRoles(c *gin.Context) {
-	var roles []models.Role
-	err := h.db.Select(&roles, "SELECT * FROM roles ORDER BY created_at DESC")
+	ctx := c.Request.Context()
+	roles, err := h.rbacSvc.ListRoles(ctx)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+		h.logger.Error("failed to list roles", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, roles)
 }
 
 func (h *Handler) GetRole(c *gin.Context) {
 	id := c.Param("id")
-	var role models.Role
-	err := h.db.Get(&role, "SELECT * FROM roles WHERE id = $1", id)
+
+	ctx := c.Request.Context()
+	role, err := h.rbacSvc.GetRole(ctx, id)
 	if err != nil {
-		h.error(c, http.StatusNotFound, "role not found")
+		switch err {
+		case service.ErrRoleNotFound:
+			h.err(c, http.StatusNotFound, "role not found")
+		default:
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
+
 	h.success(c, role)
 }
 
@@ -193,24 +235,40 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
-	_, err := h.db.Exec("UPDATE roles SET name = $1, description = $2, updated_at = now() WHERE id = $3", req.Name, req.Description, id)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.rbacSvc.UpdateRole(ctx, id, req); err != nil {
+		switch err {
+		case service.ErrRoleNotFound:
+			h.err(c, http.StatusNotFound, "role not found")
+		default:
+			h.logger.Error("failed to update role", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
+
 	h.success(c, gin.H{"message": "role updated"})
 }
 
 func (h *Handler) DeleteRole(c *gin.Context) {
 	id := c.Param("id")
-	_, err := h.db.Exec("DELETE FROM roles WHERE id = $1", id)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.rbacSvc.DeleteRole(ctx, id); err != nil {
+		switch err {
+		case service.ErrRoleNotFound:
+			h.err(c, http.StatusNotFound, "role not found")
+		default:
+			h.logger.Error("failed to delete role", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
 		return
 	}
+
 	h.success(c, gin.H{"message": "role deleted"})
 }
 
@@ -219,29 +277,30 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 func (h *Handler) CreatePermission(c *gin.Context) {
 	var req models.CreatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	var id string
-	err := h.db.Get(&id,
-		"INSERT INTO permissions (resource, action, description) VALUES ($1, $2, $3) RETURNING id",
-		req.Resource, req.Action, req.Description,
-	)
+	ctx := c.Request.Context()
+	perm, err := h.rbacSvc.CreatePermission(ctx, req)
 	if err != nil {
-		h.error(c, http.StatusConflict, "permission already exists")
+		h.logger.Error("failed to create permission", zap.Error(err))
+		h.err(c, http.StatusConflict, "permission already exists")
 		return
 	}
-	h.success(c, gin.H{"id": id})
+
+	h.success(c, gin.H{"id": perm.ID, "resource": perm.Resource, "action": perm.Action})
 }
 
 func (h *Handler) ListPermissions(c *gin.Context) {
-	var perms []models.Permission
-	err := h.db.Select(&perms, "SELECT * FROM permissions ORDER BY resource, action")
+	ctx := c.Request.Context()
+	perms, err := h.rbacSvc.ListPermissions(ctx)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+		h.logger.Error("failed to list permissions", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, perms)
 }
 
@@ -249,24 +308,30 @@ func (h *Handler) UpdatePermission(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
-	_, err := h.db.Exec("UPDATE permissions SET resource = $1, action = $2, description = $3 WHERE id = $4", req.Resource, req.Action, req.Description, id)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.rbacSvc.UpdatePermission(ctx, id, req); err != nil {
+		h.logger.Error("failed to update permission", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, gin.H{"message": "permission updated"})
 }
 
 func (h *Handler) DeletePermission(c *gin.Context) {
 	id := c.Param("id")
-	_, err := h.db.Exec("DELETE FROM permissions WHERE id = $1", id)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.rbacSvc.DeletePermission(ctx, id); err != nil {
+		h.logger.Error("failed to delete permission", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, gin.H{"message": "permission deleted"})
 }
 
@@ -278,14 +343,17 @@ func (h *Handler) AssignPermissionToRole(c *gin.Context) {
 		PermissionID string `json:"permission_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
-	_, err := h.db.Exec("INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", req.RoleID, req.PermissionID)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.rbacSvc.AssignPermissionToRole(ctx, req.RoleID, req.PermissionID); err != nil {
+		h.logger.Error("failed to assign permission to role", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, gin.H{"message": "permission assigned"})
 }
 
@@ -295,36 +363,30 @@ func (h *Handler) RemovePermissionFromRole(c *gin.Context) {
 		PermissionID string `json:"permission_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.error(c, http.StatusBadRequest, "invalid request")
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
-	_, err := h.db.Exec("DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2", req.RoleID, req.PermissionID)
-	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+
+	ctx := c.Request.Context()
+	if err := h.rbacSvc.RemovePermissionFromRole(ctx, req.RoleID, req.PermissionID); err != nil {
+		h.logger.Error("failed to remove permission from role", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, gin.H{"message": "permission removed"})
 }
 
 func (h *Handler) GetRolePermissions(c *gin.Context) {
 	roleID := c.Param("role_id")
-	var perms []models.Permission
-	err := h.db.Select(&perms, `SELECT p.* FROM permissions p
-	                             JOIN role_permissions rp ON p.id = rp.permission_id
-	                             WHERE rp.role_id = $1`, roleID)
+
+	ctx := c.Request.Context()
+	perms, err := h.rbacSvc.GetRolePermissions(ctx, roleID)
 	if err != nil {
-		h.error(c, http.StatusInternalServerError, "internal error")
+		h.logger.Error("failed to get role permissions", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
 	h.success(c, perms)
-}
-
-func atoi(s string) int {
-	var n int
-	_, _ = fmt.Sscanf(s, "%d", &n)
-	return n
-}
-
-func itoa(n int) string {
-	return fmt.Sprintf("%d", n)
 }

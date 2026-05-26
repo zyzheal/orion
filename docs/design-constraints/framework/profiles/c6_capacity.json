@@ -6,10 +6,49 @@
   "layer": "operations",
   "description": "容量规划检查项",
   "checks": [
-    { "id": "C6-01", "category": "quota", "level": "P0", "rule": "资源配额", "description": "服务必须定义 CPU/内存/磁盘配额", "detection": "code-review" },
-    { "id": "C6-02", "category": "scaling", "level": "P0", "rule": "扩缩容策略", "description": "服务必须有手动/自动扩缩容策略（HPA）", "detection": "code-review" },
-    { "id": "C6-03", "category": "budget", "level": "P1", "rule": "资源预算", "description": "服务应有资源成本预估", "detection": "code-review" },
-    { "id": "C6-04", "category": "monitoring", "level": "P1", "rule": "资源监控", "description": "资源使用率超过 80% 应有告警", "detection": "code-review" },
-    { "id": "C6-05", "category": "alert", "level": "P1", "rule": "容量预警", "description": "容量瓶颈提前预警", "detection": "code-review" }
-  ]
+    {
+      "id": "C6-01",
+      "category": "quota",
+      "level": "P0",
+      "rule": "资源配额",
+      "description": "服务必须定义 CPU/内存/磁盘配额",
+      "detection": "review"
+    },
+    {
+      "id": "C6-02",
+      "category": "scaling",
+      "level": "P0",
+      "rule": "扩缩容策略",
+      "description": "服务必须有手动/自动扩缩容策略（HPA）",
+      "detection": "review"
+    },
+    {
+      "id": "C6-03",
+      "category": "budget",
+      "level": "P1",
+      "rule": "资源预算",
+      "description": "服务应有资源成本预估",
+      "detection": "review"
+    },
+    {
+      "id": "C6-04",
+      "category": "monitoring",
+      "level": "P1",
+      "rule": "资源监控",
+      "description": "资源使用率超过 80% 应有告警",
+      "detection": "review"
+    },
+    {
+      "id": "C6-05",
+      "category": "alert",
+      "level": "P1",
+      "rule": "容量预警",
+      "description": "容量瓶颈提前预警",
+      "detection": "review"
+    }
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "design-doc-reviewer",
+  "coveragePolicyReason": "容量规划是设计文档层面",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
 }

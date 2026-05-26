@@ -109,14 +109,20 @@ export class UserStatusService {
       timestamp: new Date(),
     });
 
+    // 获取traceId和tenantId（从请求上下文或默认值）
+    const traceId = process.env.TRACE_ID || 'unknown-trace';
+    const tenantId = userResult.rows[0]?.tenant_id || 'unknown-tenant';
+
     logger.info(
       {
+        traceId,
+        tenantId,
         userId,
-        username: user.username,
+        username: user.username ? '***' : '',
         oldStatus,
         newStatus,
-        reason,
-        operatorId,
+        reason: reason ? '***' : '',
+        operatorId: operatorId ? '***' : '',
         revokedTokens,
         blacklistedSessions,
         unboundSso,
@@ -175,7 +181,7 @@ export class UserStatusService {
       await this.pool.query('DELETE FROM active_sessions WHERE user_id = $1', [userId]);
     } catch (error) {
       // Table may not exist yet - ignore
-      logger.debug('[UserStatus] active_sessions table not found, skipping');
+      logger.debug({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[UserStatus] active_sessions table not found, skipping');
     }
 
     // 5. Clear user cache (if Redis is available)
@@ -227,13 +233,13 @@ export class UserStatusService {
         );
         results.push(result);
       } catch (error) {
-        logger.error(`[UserStatus] Failed to disable user ${user.id}:`, error);
+        logger.error({ traceId: 'unknown-trace', tenantId: 'unknown-tenant', userId: user.id }, '[UserStatus] Failed to disable user', error);
         errors++;
       }
     }
 
     if (errors > 0) {
-      logger.warn(`[UserStatus] Batch disable completed with ${errors} errors`);
+      logger.warn({ traceId: 'unknown-trace', tenantId: 'unknown-tenant', errors }, '[UserStatus] Batch disable completed with errors');
     }
 
     return { disabledCount: results.length, results };
@@ -269,7 +275,7 @@ export class UserStatusService {
         ]
       );
     } catch (error) {
-      logger.error('[UserStatus] Failed to log status change:', error);
+      logger.error({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[UserStatus] Failed to log status change:', error);
     }
   }
 }

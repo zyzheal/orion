@@ -106,9 +106,12 @@ export async function getDocs(params?: {
   const res = await api.get<{ data: KnowledgeDoc[]; meta: { total: number } }>(
     `/v1/knowledge/docs?${queryParams.toString()}`
   );
+  // 拦截器已自动解包，res.data 直接是返回的数据
+  const data = res.data?.data;
+  const total = res.data?.meta?.total;
   return {
-    data: res.data?.data || [],
-    total: res.data?.meta?.total || 0,
+    data: data ?? [],
+    total: total ?? 0,
   };
 }
 
@@ -116,16 +119,16 @@ export async function getDocs(params?: {
  * 获取单个文档详情
  */
 export async function getDoc(id: string): Promise<KnowledgeDoc> {
-  const res = await api.get<{ data: KnowledgeDoc }>(`/v1/knowledge/docs/${id}`);
-  return res.data?.data;
+  const res = await api.get<KnowledgeDoc>(`/v1/knowledge/docs/${id}`);
+  return res.data;
 }
 
 /**
  * 获取文档分类列表 (按 tag 聚合)
  */
 export async function getDocTags(): Promise<string[]> {
-  const res = await api.get<{ data: string[] }>('/v1/knowledge/docs/tags?type=docs');
-  return res.data?.data || [];
+  const res = await api.get<string[]>('/v1/knowledge/docs/tags?type=docs');
+  return res.data ?? [];
 }
 
 /**
@@ -135,10 +138,10 @@ export async function getDocToc(): Promise<{
   spaces: KnowledgeSpace[];
   tags: string[];
 }> {
-  const res = await api.get<{ data: { spaces: KnowledgeSpace[]; tags: string[] } }>(
+  const res = await api.get<{ spaces: KnowledgeSpace[]; tags: string[] }>(
     '/v1/knowledge/docs/toc?type=docs'
   );
-  return res.data?.data || { spaces: [], tags: [] };
+  return res.data ?? { spaces: [], tags: [] };
 }
 
 /**
@@ -158,9 +161,11 @@ export async function getDocSpaces(params?: {
   const res = await api.get<{ data: KnowledgeSpace[]; meta: { total: number } }>(
     `/v1/knowledge/spaces?${queryParams.toString()}`
   );
+  const data = res.data?.data;
+  const total = res.data?.meta?.total;
   return {
-    data: res.data?.data || [],
-    total: res.data?.meta?.total || 0,
+    data: data ?? [],
+    total: total ?? 0,
   };
 }
 
@@ -170,10 +175,10 @@ export async function getDocSpaces(params?: {
 export async function triggerDocSync(
   syncType: 'full' | 'incremental'
 ): Promise<SyncResult> {
-  const res = await api.post<{ data: SyncResult }>(
+  const res = await api.post<SyncResult>(
     `/v1/knowledge/sync?type=${syncType}`
   );
-  return res.data?.data;
+  return res.data;
 }
 
 /**
@@ -190,9 +195,11 @@ export async function getSyncLogs(params?: {
   const res = await api.get<{ data: SyncLog[]; meta: { total: number } }>(
     `/v1/knowledge/sync/logs?${queryParams.toString()}`
   );
+  const data = res.data?.data;
+  const total = res.data?.meta?.total;
   return {
-    data: res.data?.data || [],
-    total: res.data?.meta?.total || 0,
+    data: data ?? [],
+    total: total ?? 0,
   };
 }
 
@@ -211,7 +218,7 @@ export async function searchDocs(
     score: number;
   }>;
 }> {
-  const res = await api.post<{ data: { results: any[]; total: number } }>(
+  const res = await api.post<{ results: Array<{ docId: string; title: string; snippet: string; score: number }> }>(
     '/v1/knowledge/rag/retrieve',
     {
       query,
@@ -220,7 +227,7 @@ export async function searchDocs(
     }
   );
   return {
-    results: res.data?.data?.results || [],
+    results: res.data?.results ?? [],
   };
 }
 
@@ -246,19 +253,19 @@ export interface KnowledgeInput {
 }
 
 export async function searchKnowledge(query: string) {
-  return api.get<{ items: KnowledgeItem[] }>(`/v1/knowledge/search?q=${encodeURIComponent(query)}`);
+  return api.get<KnowledgeItem[]>(`/v1/knowledge/search?q=${encodeURIComponent(query)}`);
 }
 
 export async function getKnowledge(id: string) {
-  return api.get<{ item: KnowledgeItem }>(`/v1/knowledge/${id}`);
+  return api.get<KnowledgeItem>(`/v1/knowledge/${id}`);
 }
 
 export async function createKnowledge(input: KnowledgeInput) {
-  return api.post<{ item: KnowledgeItem }>('/v1/knowledge', input);
+  return api.post<KnowledgeItem>('/v1/knowledge', input);
 }
 
 export async function updateKnowledge(id: string, input: Partial<KnowledgeInput>) {
-  return api.put<{ item: KnowledgeItem }>(`/v1/knowledge/${id}`, input);
+  return api.put<KnowledgeItem>(`/v1/knowledge/${id}`, input);
 }
 
 export async function deleteKnowledge(id: string) {

@@ -134,7 +134,7 @@ const PipelineErrorDetail: React.FC<PipelineErrorDetailProps> = ({ runId, onRetr
     try {
       // Trigger a fresh run via the existing retry API
       const response = await getPipelineRun(runId);
-      if (response.data.data?.pipelineId) {
+      if ((response.data as { data?: { pipelineId?: string } }).data?.pipelineId) {
         // Use the retry endpoint via the pipelineRuns API
         const { retryPipelineRun } = await import('@/api/pipelineRuns');
         await retryPipelineRun(runId);
@@ -143,7 +143,7 @@ const PipelineErrorDetail: React.FC<PipelineErrorDetailProps> = ({ runId, onRetr
         // Refresh error detail
         setErrorDetail(null);
         const detailResp = await getPipelineErrorDetail(runId);
-        setErrorDetail(detailResp.data.data);
+        setErrorDetail((detailResp.data as { data?: unknown }).data);
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };

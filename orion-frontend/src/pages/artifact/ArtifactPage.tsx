@@ -39,6 +39,7 @@ import {
   type ArtifactStats as ArtifactStatsType,
 } from '@/api/artifacts';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

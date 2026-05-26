@@ -40,7 +40,7 @@ export const ChatInput: React.FC = () => {
     return commands.slice(0, 6).map((cmd) => ({
       label: `/${cmd.name}`,
       value: `/${cmd.name}`,
-      icon: cmd.icon || '\u26A1',
+      icon: (cmd as { icon?: string }).icon || '\u26A1',
     }));
   }, [commands]);
 

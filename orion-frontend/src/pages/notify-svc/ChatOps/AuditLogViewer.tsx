@@ -15,6 +15,7 @@ import {
   DatePicker,
 } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';

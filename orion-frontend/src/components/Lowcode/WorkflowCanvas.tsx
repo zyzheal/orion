@@ -7,8 +7,6 @@ import { Typography, Empty } from 'antd';
 import { colors } from '@/tokens';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
-import { spacing } from '@/tokens/spacing';
-import { animation } from '@/tokens/animation';
 import type { WorkflowNodeType, WorkflowCanvasNode, WorkflowCanvasEdge } from './types';
 import { nodeTypeConfig, createDefaultNodeConfig } from './types';
 
@@ -178,7 +176,7 @@ const WorkflowNodeCard: React.FC<{
           y={-3}
           width={NODE_WIDTH + 6}
           height={NODE_HEIGHT + 6}
-          rx={componentRadius.lg}
+          rx={componentRadius.card}
           fill="none"
           stroke={colors.primary[500]}
           strokeWidth={2}

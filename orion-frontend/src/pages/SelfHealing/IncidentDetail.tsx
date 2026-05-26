@@ -20,6 +20,7 @@ import { getIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title } = Typography;
 

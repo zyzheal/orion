@@ -37,9 +37,15 @@ import { PermissionAuditRepository } from './repositories/PermissionAuditReposit
 import { setAuthzEngine } from './middleware/requirePermission';
 import { setCapabilityService } from './middleware/requireCapability';
 import { CacheService } from './services/cache/CacheService';
+import { CacheStrategyService } from './services/cache/CacheStrategyService';
 import { TeamRepository, TeamService } from './services/team';
 import { CapabilityRepository, CapabilityService } from './services/capability';
 import capabilityRoutes from './api/capability-routes';
+import { getCircuitBreakerService } from './services/circuit-breaker';
+import circuitBreakerRoutes from './api/circuit-breaker-routes';
+import { MessageQueueService } from './services/message-queue/message-queue-service';
+import messageQueueRoutes from './api/message-queue-routes';
+import cacheRoutes from './api/cache-routes';
 
 export interface PlatformAppOptions {
   redis?: RedisCache;
@@ -350,6 +356,18 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
     // Register Capability routes
     await app.register(capabilityRoutes, { database: options.database });
+
+    // F003: Register Circuit Breaker routes
+    const cbService = getCircuitBreakerService();
+    await app.register(circuitBreakerRoutes, { circuitBreakerService: cbService });
+
+    // F008: Register Message Queue routes
+    const mqService = new MessageQueueService();
+    await app.register(messageQueueRoutes, { messageQueueService: mqService });
+
+    // F014: Register Cache Management routes
+    // CacheStrategyService is initialized above for AuthZ cache, reuse it for cache management
+    await app.register(cacheRoutes, { cacheService: cacheStrategyService });
 
     // Register permission cleanup cron job (creates its own lightweight service instance)
     setupPermissionCleanupJob(options.database);

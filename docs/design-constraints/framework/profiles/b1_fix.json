@@ -6,17 +6,105 @@
   "layer": "develop",
   "description": "修复能力检查项",
   "checks": [
-    { "id": "B1-01", "category": "test", "level": "P0", "rule": "Bug 修复必须有测试用例", "description": "每个 Bug 修复必须配套测试用例", "detection": "code-review" },
-    { "id": "B1-02", "category": "test", "level": "P1", "rule": "关键路径测试覆盖", "description": "关键业务路径必须有测试覆盖", "detection": "test" },
-    { "id": "B1-03", "category": "hotfix", "level": "P1", "rule": "支持配置热更新", "description": "配置变更无需重启即可生效", "detection": "code-review" },
-    { "id": "B1-04", "category": "hotfix", "level": "P1", "rule": "支持 UI 热更新", "description": "UI 更新无需重新部署", "detection": "code-review" },
-    { "id": "B1-05", "category": "logging", "level": "P0", "rule": "足够上下文信息", "description": "日志必须包含足够上下文用于排查", "detection": "code-review" },
-    { "id": "B1-06", "category": "logging", "level": "P1", "rule": "日志级别正确", "description": "错误日志使用 error 级别，警告使用 warn", "detection": "code-review" },
-    { "id": "B1-07", "category": "logging", "level": "P0", "rule": "敏感信息不记录", "description": "日志中不得包含密码、token 等敏感信息", "detection": "code-review" },
-    { "id": "B1-08", "category": "degradation", "level": "P0", "rule": "服务降级方案", "description": "核心服务必须有降级方案", "detection": "code-review" },
-    { "id": "B1-09", "category": "degradation", "level": "P1", "rule": "熔断器实现", "description": "外部服务调用必须有熔断器", "detection": "code-review" },
-    { "id": "B1-10", "category": "degradation", "level": "P0", "rule": "降级后用户提示", "description": "服务降级时必须向用户展示友好提示", "detection": "code-review" },
-    { "id": "B1-11", "category": "rollback", "level": "P0", "rule": "数据库回滚脚本", "description": "数据库变更必须有回滚脚本", "detection": "code-review" },
-    { "id": "B1-12", "category": "rollback", "level": "P1", "rule": "配置回滚方案", "description": "配置变更必须有回滚方案", "detection": "code-review" }
-  ]
+    {
+      "id": "B1-01",
+      "category": "test",
+      "level": "P0",
+      "rule": "Bug 修复必须有测试用例",
+      "description": "每个 Bug 修复必须配套测试用例",
+      "detection": "review"
+    },
+    {
+      "id": "B1-02",
+      "category": "test",
+      "level": "P1",
+      "rule": "关键路径测试覆盖",
+      "description": "关键业务路径必须有测试覆盖",
+      "detection": "review"
+    },
+    {
+      "id": "B1-03",
+      "category": "hotfix",
+      "level": "P1",
+      "rule": "支持配置热更新",
+      "description": "配置变更无需重启即可生效",
+      "detection": "review"
+    },
+    {
+      "id": "B1-04",
+      "category": "hotfix",
+      "level": "P1",
+      "rule": "支持 UI 热更新",
+      "description": "UI 更新无需重新部署",
+      "detection": "review"
+    },
+    {
+      "id": "B1-05",
+      "category": "logging",
+      "level": "P0",
+      "rule": "足够上下文信息",
+      "description": "日志必须包含足够上下文用于排查",
+      "detection": "review"
+    },
+    {
+      "id": "B1-06",
+      "category": "logging",
+      "level": "P1",
+      "rule": "日志级别正确",
+      "description": "错误日志使用 error 级别，警告使用 warn",
+      "detection": "review"
+    },
+    {
+      "id": "B1-07",
+      "category": "logging",
+      "level": "P0",
+      "rule": "敏感信息不记录",
+      "description": "日志中不得包含密码、token 等敏感信息",
+      "detection": "review"
+    },
+    {
+      "id": "B1-08",
+      "category": "degradation",
+      "level": "P0",
+      "rule": "服务降级方案",
+      "description": "核心服务必须有降级方案",
+      "detection": "review"
+    },
+    {
+      "id": "B1-09",
+      "category": "degradation",
+      "level": "P1",
+      "rule": "熔断器实现",
+      "description": "外部服务调用必须有熔断器",
+      "detection": "review"
+    },
+    {
+      "id": "B1-10",
+      "category": "degradation",
+      "level": "P0",
+      "rule": "降级后用户提示",
+      "description": "服务降级时必须向用户展示友好提示",
+      "detection": "review"
+    },
+    {
+      "id": "B1-11",
+      "category": "rollback",
+      "level": "P0",
+      "rule": "数据库回滚脚本",
+      "description": "数据库变更必须有回滚脚本",
+      "detection": "review"
+    },
+    {
+      "id": "B1-12",
+      "category": "rollback",
+      "level": "P1",
+      "rule": "配置回滚方案",
+      "description": "配置变更必须有回滚方案",
+      "detection": "review"
+    }
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "code-design-analyzer",
+  "coveragePolicyReason": "修复合理性无法静态检测，需人工评审",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
 }

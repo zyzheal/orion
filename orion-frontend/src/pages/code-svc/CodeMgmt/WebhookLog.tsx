@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Drawer, Input, message } from 'antd';
 import { ReloadOutlined, EyeOutlined, WebhookOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getWebhookLogs, type WebhookEvent } from '@/api/code-mgmt';

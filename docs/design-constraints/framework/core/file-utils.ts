@@ -91,3 +91,24 @@ function traverse(dir: string, files: string[], extensions: string[], excludedPa
     // 忽略访问错误
   }
 }
+
+/**
+ * 获取指定扩展名的文件（通用版本，支持 .ts + .tsx 等）
+ */
+export function getFilesWithExtensions(dir: string, extensions: string[]): string[] {
+  const files: string[] = [];
+  const excludedPatterns: string[] = [];
+  for (const ext of extensions) {
+    if (ext === '.ts') {
+      excludedPatterns.push('*.test.ts', '*.spec.ts', '*.d.ts');
+    } else if (ext === '.tsx') {
+      excludedPatterns.push('*.test.tsx', '*.spec.tsx');
+    } else if (ext === '.go') {
+      excludedPatterns.push('*_test.go');
+    } else if (ext === '.py') {
+      excludedPatterns.push('conftest.py', 'test_*.py', '__init__.py');
+    }
+  }
+  traverse(dir, files, extensions, excludedPatterns);
+  return files;
+}

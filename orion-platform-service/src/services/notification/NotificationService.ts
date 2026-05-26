@@ -6,6 +6,7 @@
  */
 
 import { NotificationRepository, Notification, CreateNotificationInput } from './NotificationRepository';
+import pino from 'pino';
 
 export class NotificationServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'NotificationServiceError'; }
@@ -19,6 +20,8 @@ export class NotificationServiceError extends Error {
 export interface NotificationEventPublisher {
   publish(type: string, data: unknown, options?: any): Promise<void | string>;
 }
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export class NotificationService {
   private repository: NotificationRepository;
@@ -44,7 +47,16 @@ export class NotificationService {
         message: notification.message,
         channel: notification.channel,
       }, { source: 'notification-service', tenantId: notification.tenant_id }).catch(err => {
-        console.error('[NotificationService] Failed to emit notification event:', err);
+        logger.error(
+          {
+            traceId: 'unknown-trace',
+            tenantId: notification.tenant_id,
+            notificationId: notification.id ? '***' : '',
+            userId: notification.user_id ? '***' : '',
+            error: err instanceof Error ? err.message : err,
+          },
+          '[NotificationService] Failed to emit notification event'
+        );
       });
     }
 
@@ -85,7 +97,16 @@ export class NotificationService {
           title,
           message,
         }, { source: 'notification-service', tenantId }).catch(err => {
-          console.error('[NotificationService] Failed to emit broadcast event:', err);
+          logger.error(
+            {
+              traceId: 'unknown-trace',
+              tenantId,
+              notificationId: notification.id ? '***' : '',
+              userId: userId ? '***' : '',
+              error: err instanceof Error ? err.message : err,
+            },
+            '[NotificationService] Failed to emit broadcast event'
+          );
         });
       }
     }

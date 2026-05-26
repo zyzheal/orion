@@ -190,7 +190,7 @@ export const startSubApp = async (
 
   // 注入 props 到 window.$orion
   if (options?.props) {
-    const orion = (options.props as any).$orion;
+    const orion = (options.props as { $orion?: OrionAuthState }).$orion;
     window.$orion = {
       token: orion?.token || '',
       tenantId: orion?.tenantId || localStorage.getItem('tenant_id') || '',

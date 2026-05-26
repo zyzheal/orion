@@ -24,7 +24,8 @@ export interface AbacPolicy {
  */
 export async function getAllPolicies() {
   const res = await api.get('/abac-policies');
-  return res.data as { data: AbacPolicy[]; total: number };
+  const data = res.data as { data?: AbacPolicy[]; total?: number };
+  return { data: data.data || [], total: data.total || 0 };
 }
 
 /**
@@ -32,7 +33,8 @@ export async function getAllPolicies() {
  */
 export async function getPolicy(id: string) {
   const res = await api.get(`/abac-policies/${id}`);
-  return res.data as { data: AbacPolicy };
+  const data = res.data as { data?: AbacPolicy };
+  return { data: data.data };
 }
 
 /**
@@ -40,7 +42,8 @@ export async function getPolicy(id: string) {
  */
 export async function getPoliciesByResourceType(resourceType: string) {
   const res = await api.get(`/abac-policies/resource/${resourceType}`);
-  return res.data as { data: AbacPolicy[]; total: number };
+  const data = res.data as { data?: AbacPolicy[]; total?: number };
+  return { data: data.data || [], total: data.total || 0 };
 }
 
 /**

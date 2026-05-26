@@ -86,6 +86,27 @@ npx jest path/to/file.test.ts
 npx vitest run path/to/test.ts
 ```
 
+## Key Environment Variables (Skills CLI Reference)
+
+> 以下环境变量被 4 个 AI 技能（design-constraint / design-doc-reviewer / code-design-analyzer / task-decomposer）的 CLI 命令引用。所有 `${...}` 变量在此统一定义，技能文件中不再重复赋值。
+
+| 变量名 | 值 | 说明 |
+|--------|-----|------|
+| `CLI_CHECK_PATH` | `docs/design-constraints/framework/core/cli-check.ts` | AST 检测引擎 CLI 入口 |
+| `FRONTEND_SRC` | `orion-frontend/src` | 前端源码根目录 |
+| `BACKEND_SRC` | `orion-platform-service/src` | 后端核心服务源码 |
+| `BACKEND_SVC_ROOT` | `.` (项目根目录) | `orion-*-svc` 微服务目录所在 |
+| `GATEWAY_ROOT` | `orion-api-gateway` | API 网关源码 |
+| `PROJECT_ROOT` | `.` (项目根目录) | 项目根目录 |
+| `PROJECT_NORMS` | `docs/规范汇总/Orion统一规范汇总.md` | Orion 规范汇总文档 |
+| `NORMS_DOC_NAME` | `Orion统一规范汇总.md` | 规范文档简称 |
+| `PROJECT_DESIGN_CONSTRAINTS_ROOT` | `.design-constraints` | 设计约束结果输出目录（baseline、false-positives） |
+
+**使用方式**：Agent 在执行 CLI 命令前，先读取本章节获取变量值。例如：
+```bash
+npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-frontend/src/pages/ --max-files 200
+```
+
 ## Key Architecture Numbers (2026-05-15)
 
 | Dimension | Count | Notes |
@@ -408,6 +429,24 @@ import { colors } from '@/tokens/colors';
 | 768-1199px | `level={3}` (18px) |
 | <768px | `level={3}` (16px) |
 
+## 能力边界约束（防止过度设计）
+
+> 以下 4 项能力已被明确拒绝，**任何 Agent 不得在后续会话中尝试实现**。
+
+| 编号 | 被拒绝能力 | 拒绝理由 | 正确做法 |
+|------|-----------|---------|---------|
+| RC-01 | 实现 200 项 AST detector | 当前 37 项 AST detector + 128 项 Review 覆盖 213 项检查项（AST 40% = 85 项, Review 60% = 128 项），不再追求 100% AST 覆盖 | 未覆盖维度由 design-doc-reviewer 文档评审 + code-design-analyzer 架构分析补充 |
+| RC-02 | 重复检测同一问题 | design-constraint 是 AST 检测唯一权威，其他技能消费结果不做重复检测 | code-design-analyzer 能力四已改为消费 AST 结果，不自行 grep 检测 |
+| RC-03 | 自动编写生产代码 | 技能只负责检测/评审/拆分，不直接修改生产代码 | task-decomposer 生成子任务 + 验收标准，由用户确认后执行 |
+| RC-04 | CICD 实时监控集成 | CICD 属于运维层，应由运维文档 + design-doc-reviewer 评审覆盖，非 AST 可检测范围 | 在 CI pipeline 中调用 `cli-check.ts` 作为静态检查步骤 |
+
+### 执行约束
+
+1. **覆盖率目标**：保持 AST 40% (85 specs) + Review 60% (128 specs) = 100% (213 项规格)，不再追求 100% AST 覆盖
+2. **单一职责**：每项检测只有一个技能负责，其他技能只消费不检测
+3. **人工确认门控**：所有自动检测结果必须经用户确认后才能转化为生产代码修改
+4. **AST 适用边界**：仅对代码级可静态检测的维度使用 AST（A1/A2/A3/B2/S 层），运维/体验/运行时维度由文档评审补充
+
 ## 四技能自动触发规则
 
 当检测到以下场景时，**必须自动调用对应技能**，不得跳过或延迟执行：
@@ -423,13 +462,21 @@ import { colors } from '@/tokens/colors';
 | 用户说"评审 xxx.md" | 自动评审文档 | design-doc-reviewer | 7 维度 + 代码验证 |
 | 用户说"分析代码"/"对比实现" | 自动代码分析 | code-design-analyzer | 架构评审 + 文档对比 |
 | 用户说"拆分任务"/"生成计划" | 自动拆分任务 | task-decomposer | 子任务表 + 验收标准 + 验证用例 |
+| 用户说"九维输出"/"九维方案"/"设计开发系统" | 自动触发九维方案设计 | task-decomposer 能力九 | 九维覆盖度 → 分表 → 子任务拆分 → 验证门控 |
+| 用户说"修复"/"自动修复"/"帮我修"/"直接改代码" | 自动修复代码 + 生成测试 | task-decomposer 能力十 | 读取 AST 结果 → 按规则生成修复代码 → 写测试骨架 → --verify 验证 |
 | 修改涉及微前端相关代码 | 自动验证 Orion-MF 规范 | design-constraint | CLI --scan microfront/ SubAppRoute/ |
 
 ### 技能协同自动执行
 
-当单个技能执行完毕后，**自动触发下游技能**：
+当单个技能执行完毕后，**必须自动触发下游技能**，不得等待用户再次触发：
 
 ```
+design-constraint 扫描完成
+    │
+    ├── B1/B2/S 层问题 → 自动 → code-design-analyzer 架构分析
+    ├── A1/A3/C/D 层问题 → 自动 → design-doc-reviewer 文档评审
+    └── D1-D5 层问题 → 自动 → task-decomposer 任务拆分
+
 评审文档 (design-doc-reviewer)
   ↓ 发现缺失项
   自动 → task-decomposer 拆分修复任务
@@ -443,10 +490,161 @@ import { colors } from '@/tokens/colors';
 开发完成 (task-decomposer)
   ↓ 子任务标记完成
   自动 → design-constraint 回归检测
+
+修复完成 (task-decomposer 能力十)
+  ↓ 代码修改完成
+  自动 → design-constraint --verify 验证修复
+
+验证不通过
+  ↓ 自动重新生成修复方案（最多 3 次）
+  → 仍不通过 → 标记 P0 待人工
 ```
+
+#### 协同输出格式规范
+
+- **design-constraint 扫描完成**：输出末尾必须包含 `Skill Handoff Checklist`，标注各下游技能的问题数和触发方式
+- **design-doc-reviewer 评审完成**：输出末尾必须包含 `structured_missing_items` JSON 块，task-decomposer 读取此 JSON 直接拆分任务
+- **task-decomposer 拆分任务**：读取 design-doc-reviewer 的 JSON 时，必须确认 `downstream_routing.task_decomposer.count` 与实际数组长度一致
+
+#### 后端验证门控（补充）
+
+前端使用 `--verify` 验证，后端修复使用以下门控：
+
+| 后端修复类型 | 验证方式 | 通过标准 |
+|------------|---------|---------|
+| tenant_id 过滤 | grep `WHERE.*tenant_id` 或 Repository 基类 | 所有查询含 tenant_id |
+| 结构化日志 | grep `logger\.(error\|warn)\({.*traceId}` | 异常处理用结构化日志 |
+| 错误码统一 | grep `OrionError\|CLIENT\.\|SERVER\.` | 无 `throw new Error` |
+| Repository 模式 | grep `@Inject\|repository\|createQueryBuilder` | 无直接 SQL 拼接 |
+| API 路径一致 | 对比前端 `api/` vs 后端 `*-routes.ts` | 路径/方法/参数匹配 |
+| ACL 权限守卫 | grep `aclMiddleware\|authGuard\|canAccess` | 路由有 ACL 拦截 |
+
+#### 修复优先级规则
+
+修复任务必须按依赖关系排序执行：
+1. 先修**基础设施层**（Repository 基类、axios 拦截器、错误码常量）
+2. 再修**业务逻辑层**（service 调用、controller 处理、组件交互）
+3. 最后修**验证层**（测试用例、CLI 验证、回归检测）
 
 ### 违反规则的后果
 
 - 编码后不执行 design-constraint 验证 → 代码评审不通过
 - 文档修改不执行 design-doc-reviewer 评审 → 文档质量不达标
 - 开发完成不执行三轮评审 → 任务不能标记完成
+
+## 技能一致性契约（Skill Consistency Contract）
+
+> 本节是 4 个 AI 技能的单一事实来源（Single Source of Truth）。所有技能文件中的数值、能力列表、评分公式必须与本节一致。当技能文件与本文冲突时，以本文为准。
+
+### 技能概览
+
+| 技能 | 版本 | 核心职责 | 能力数量 | 负责检测层 |
+|------|------|---------|---------|-----------|
+| design-constraint | v2.5+ | AST 静态检测引擎 | 1 项核心能力 | A1/A2/A3 + B2 + S1-S6（37 个 detector） |
+| design-doc-reviewer | v2.4+ | 设计文档 7 维度评审 | 12 项能力 | A1/A3 + C + D 层（文档侧） |
+| code-design-analyzer | v2.9+ | 代码架构分析与文档对比 | 13 项能力 | B1/B2/S 层（架构侧） |
+| task-decomposer | v2.8+ | 功能拆分、Spec 执行、修复代码生成 | 10 项能力 | 消费所有技能的输出转化为子任务 |
+
+### 覆盖率统一口径
+
+| 指标 | 值 | 说明 |
+|------|-----|------|
+| AST detector 数量 | 37 | 27 个 AST + 6 个 regex + 4 个其他 |
+| AST 覆盖规格数 | 85 项 | profiles/ 200 项规格中的 40% |
+| Review 覆盖规格数 | 128 项 | 文档评审覆盖 60% |
+| 总覆盖检查项 | 213 项 | 85 + 128 |
+| 覆盖率公式 | AST 40% + Review 60% = 100% | 不再追求 100% AST 覆盖 |
+
+### 评分公式分母统一
+
+| 技能 | 能力 | 评分公式分母 | 对应维度数 |
+|------|------|-------------|-----------|
+| design-doc-reviewer | 能力一（操作链路） | /6 | 6 环节 |
+| design-doc-reviewer | 能力二（页面交互） | /4 | 4 检查维度 |
+| design-doc-reviewer | 能力三（跨系统串联） | /5 | 5 检查项 |
+| design-doc-reviewer | 能力四（产品用户视角） | /3 | 3 子维度平均 |
+| design-doc-reviewer | 能力五（开发者视角） | /3 | 3 子维度平均 |
+| design-doc-reviewer | 能力七（页面级设计质量） | /9 | 9 评审维度 |
+| design-doc-reviewer | 能力七扩展（全栈评审） | /23 | 23 技术栈维度 |
+| code-design-analyzer | 能力五（全栈代码分析） | /11 | 11 技术栈维度 |
+| code-design-analyzer | 能力九（系统级瓶颈诊断） | /N/A | 诊断型，不评分 |
+| code-design-analyzer | 能力十（数据结构设计） | /8 | 8 检查项 |
+| code-design-analyzer | 能力十一（框架选型） | /6 | 6 检查项 |
+| code-design-analyzer | 能力十二（代码自主探索） | /N/A | 探索型，不评分 |
+| code-design-analyzer | 能力十三（依赖影响分析） | /N/A | 分析型，不评分 |
+
+### 九维责任归属
+
+| 维度 | 负责技能 | 说明 |
+|------|---------|------|
+| 1. 数据结构 | code-design-analyzer | 数据模型/存储选型/一致性 |
+| 2. 软件设计原则 | code-design-analyzer | 代码模式/设计模式 |
+| 3. 架构设计 | code-design-analyzer | 五层架构/依赖方向 |
+| 4. 框架选型 | code-design-analyzer | 技术栈/依赖分析 |
+| 5. 容错与弹性 | code-design-analyzer | 异常处理/降级/熔断 |
+| 6. 安全与隔离 | design-constraint（AST: S1-S6）+ code-design-analyzer（架构安全分析） | AST 检测归 design-constraint，架构分析归 code-design-analyzer |
+| 7. 可观测性 | code-design-analyzer | 日志/指标/追踪 |
+| 8. 前端/交互 | design-constraint（AST: A2/A3） | 交互链/五态/Token |
+| 8a/8b/8c. 兼容性/扩展性/生态 | design-doc-reviewer | 文档侧评审 |
+
+### 环境变量引用统一
+
+所有技能使用的环境变量定义在 CLAUDE.md 的 "Key Environment Variables (Skills CLI Reference)" 章节。技能文件中禁止硬编码路径。
+
+### 概念性设计标注规则
+
+以下内容在技能文件中标注为"概念性"，当前不可执行，仅供架构参考：
+
+- design-constraint: 自动协同管道（YAML 协议）
+- task-decomposer: 并行开发支持（多 Agent 分发协议）
+- design-doc-reviewer: 自动管道联动
+
+**实际执行方式**：Agent 手动串行调用下游技能。
+
+## 九维方案 Runbook
+
+> 用户说"九维输出"/"九维方案"/"设计开发系统"时的完整执行流程。
+
+### 执行步骤
+
+```
+用户请求"九维方案"
+    │
+    ├─ Step 1: 识别目标
+    │   → 确定分析范围（整个项目 or 特定模块）
+    │   → 确认目标文件/目录路径
+    │
+    ├─ Step 2: 九维扫描
+    │   → 维度 1/2/3/4/5/7 → code-design-analyzer
+    │   → 维度 6 → design-constraint (AST/grep)
+    │   → 维度 8/9/8a/8b/8c → design-doc-reviewer
+    │
+    ├─ Step 3: 汇总报告
+    │   → 合并各维度结果
+    │   → 应用错误传播契约（失败维度标记降级状态）
+    │   → 输出覆盖率 + 核心缺失项
+    │
+    ├─ Step 4: 子任务拆分（如用户要求）
+    │   → task-decomposer 按维度拆分修复任务
+    │   → 生成依赖 DAG + 验收标准
+    │
+    └─ Step 5: 验证门控
+        → 每个子任务完成后执行三轮评审
+        → AST 验证 + 规范合规 + 交互链 8 项
+```
+
+### 自检命令
+
+| 检查项 | 命令 |
+|--------|------|
+| 九维完整性 | `grep "九维自检命令" .claude/skills/*/SKILL.md` |
+| AST 引擎 | `npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-frontend/src/pages/DashboardNew/ --max-files 5` |
+| 版本一致性 | `grep "v2\." .claude/skills/design-constraint/SKILL.md .claude/skills/task-decomposer/SKILL.md .claude/skills/code-design-analyzer/SKILL.md .claude/skills/design-doc-reviewer/SKILL.md` |
+
+### 回退策略
+
+| 失败场景 | 处理方式 |
+|---------|---------|
+| CLI 不可用 | 降级为 grep，报告标注"⚠️ 降级模式" |
+| 核心维度缺失（数据结构/架构/安全） | 标记 P0 阻塞项，输出"核心维度缺失"警告 |
+| 代码样本不足 | 标记"跳过-开发中"，建议完成后复查 |

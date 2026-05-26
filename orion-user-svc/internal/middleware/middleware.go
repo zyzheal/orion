@@ -88,7 +88,10 @@ func RequireRole(requiredRole string) gin.HandlerFunc {
 }
 
 func MetricsHandler() gin.HandlerFunc {
-	return promhttp.HandlerFunc
+	h := promhttp.Handler()
+	return func(c *gin.Context) {
+		h.ServeHTTP(c.Writer, c.Request)
+	}
 }
 
 func NewRedisClient(redisURL string) *redis.Client {

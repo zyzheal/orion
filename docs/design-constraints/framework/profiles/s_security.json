@@ -6,30 +6,209 @@
   "layer": "security",
   "description": "安全控制检查项",
   "checks": [
-    { "id": "S1-01", "category": "auth", "level": "P0", "rule": "登录认证", "description": "支持多因素认证(MFA)、JWT/Token有效期、强制登出", "detection": "code-review" },
-    { "id": "S1-02", "category": "auth", "level": "P0", "rule": "权限模型", "description": "RBAC权限体系、角色继承、最小权限原则", "detection": "code-review" },
-    { "id": "S1-03", "category": "auth", "level": "P0", "rule": "权限校验", "description": "接口级和按钮级权限校验", "detection": "code-review" },
-    { "id": "S1-04", "category": "auth", "level": "P0", "rule": "会话管理", "description": "会话超时、会话并发控制、安全登出", "detection": "code-review" },
-    { "id": "S1-05", "category": "auth", "level": "P0", "rule": "密码策略", "description": "复杂度要求、定期更换、加密存储", "detection": "code-review" },
-    { "id": "S2-01", "category": "data", "level": "P0", "rule": "传输加密", "description": "全站HTTPS、TLS 1.2+", "detection": "code-review" },
-    { "id": "S2-02", "category": "data", "level": "P1", "rule": "存储加密", "description": "敏感字段AES-256加密、密钥管理", "detection": "code-review" },
-    { "id": "S2-03", "category": "data", "level": "P0", "rule": "脱敏规则", "description": "身份证/手机号/银行卡/密码等脱敏展示", "detection": "code-review" },
-    { "id": "S2-04", "category": "data", "level": "P0", "rule": "数据隔离", "description": "多租户数据隔离、租户ID校验", "detection": "code-review" },
-    { "id": "S2-05", "category": "data", "level": "P0", "rule": "隐私合规", "description": "GDPR/中国个人信息保护法合规", "detection": "code-review" },
-    { "id": "S3-01", "category": "infra", "level": "P0", "rule": "SQL注入防护", "description": "参数化查询、ORM使用", "detection": "code-review" },
-    { "id": "S3-02", "category": "infra", "level": "P0", "rule": "XSS防护", "description": "输入过滤、输出编码", "detection": "code-review" },
-    { "id": "S3-03", "category": "infra", "level": "P0", "rule": "CSRF防护", "description": "Token校验、SameSite Cookie", "detection": "code-review" },
-    { "id": "S3-04", "category": "infra", "level": "P0", "rule": "文件上传安全", "description": "类型限制、大小限制、病毒扫描", "detection": "code-review" },
-    { "id": "S3-05", "category": "infra", "level": "P0", "rule": "命令注入防护", "description": "避免shell执行、输入校验", "detection": "code-review" },
-    { "id": "S4-01", "category": "audit", "level": "P0", "rule": "操作审计日志", "description": "记录敏感操作(登录/删除/权限变更)", "detection": "code-review" },
-    { "id": "S4-02", "category": "audit", "level": "P0", "rule": "日志保留", "description": "安全日志保留≥6个月、不可篡改", "detection": "code-review" },
-    { "id": "S4-03", "category": "audit", "level": "P1", "rule": "异常行为检测", "description": "暴力破解检测、异常访问模式", "detection": "code-review" },
-    { "id": "S4-04", "category": "audit", "level": "P1", "rule": "漏洞扫描", "description": "依赖漏洞扫描、代码安全扫描", "detection": "code-review" },
-    { "id": "S4-05", "category": "audit", "level": "P1", "rule": "安全事件响应", "description": "安全事件响应流程文档", "detection": "code-review" },
-    { "id": "S5-01", "category": "third-party", "level": "P0", "rule": "API密钥管理", "description": "密钥加密存储、定期轮换", "detection": "code-review" },
-    { "id": "S5-02", "category": "third-party", "level": "P1", "rule": "第三方授权", "description": "OAuth2.0、Scope限制", "detection": "code-review" },
-    { "id": "S5-03", "category": "third-party", "level": "P1", "rule": "Webhook安全", "description": "签名校验、IP白名单", "detection": "code-review" },
-    { "id": "S5-04", "category": "third-party", "level": "P0", "rule": "回调数据校验", "description": "外部回调数据完整性校验", "detection": "code-review" },
-    { "id": "S5-05", "category": "third-party", "level": "P1", "rule": "依赖安全扫描", "description": "定期扫描第三方依赖漏洞", "detection": "code-review" }
-  ]
+    {
+      "id": "S1-01",
+      "category": "auth",
+      "level": "P0",
+      "rule": "登录认证",
+      "description": "支持多因素认证(MFA)、JWT/Token有效期、强制登出",
+      "detection": "ast"
+    },
+    {
+      "id": "S1-02",
+      "category": "auth",
+      "level": "P0",
+      "rule": "权限模型",
+      "description": "RBAC权限体系、角色继承、最小权限原则",
+      "detection": "ast"
+    },
+    {
+      "id": "S1-03",
+      "category": "auth",
+      "level": "P0",
+      "rule": "权限校验",
+      "description": "接口级和按钮级权限校验",
+      "detection": "ast"
+    },
+    {
+      "id": "S1-04",
+      "category": "auth",
+      "level": "P0",
+      "rule": "会话管理",
+      "description": "会话超时、会话并发控制、安全登出",
+      "detection": "ast"
+    },
+    {
+      "id": "S1-05",
+      "category": "auth",
+      "level": "P0",
+      "rule": "密码策略",
+      "description": "复杂度要求、定期更换、加密存储",
+      "detection": "ast"
+    },
+    {
+      "id": "S2-01",
+      "category": "data",
+      "level": "P0",
+      "rule": "传输加密",
+      "description": "全站HTTPS、TLS 1.2+",
+      "detection": "ast"
+    },
+    {
+      "id": "S2-02",
+      "category": "data",
+      "level": "P1",
+      "rule": "存储加密",
+      "description": "敏感字段AES-256加密、密钥管理",
+      "detection": "ast"
+    },
+    {
+      "id": "S2-03",
+      "category": "data",
+      "level": "P0",
+      "rule": "脱敏规则",
+      "description": "身份证/手机号/银行卡/密码等脱敏展示",
+      "detection": "ast"
+    },
+    {
+      "id": "S2-04",
+      "category": "data",
+      "level": "P0",
+      "rule": "数据隔离",
+      "description": "多租户数据隔离、租户ID校验",
+      "detection": "ast"
+    },
+    {
+      "id": "S2-05",
+      "category": "data",
+      "level": "P0",
+      "rule": "隐私合规",
+      "description": "GDPR/中国个人信息保护法合规",
+      "detection": "ast"
+    },
+    {
+      "id": "S3-01",
+      "category": "infra",
+      "level": "P0",
+      "rule": "SQL注入防护",
+      "description": "参数化查询、ORM使用",
+      "detection": "ast"
+    },
+    {
+      "id": "S3-02",
+      "category": "infra",
+      "level": "P0",
+      "rule": "XSS防护",
+      "description": "输入过滤、输出编码",
+      "detection": "ast"
+    },
+    {
+      "id": "S3-03",
+      "category": "infra",
+      "level": "P0",
+      "rule": "CSRF防护",
+      "description": "Token校验、SameSite Cookie",
+      "detection": "ast"
+    },
+    {
+      "id": "S3-04",
+      "category": "infra",
+      "level": "P0",
+      "rule": "文件上传安全",
+      "description": "类型限制、大小限制、病毒扫描",
+      "detection": "ast"
+    },
+    {
+      "id": "S3-05",
+      "category": "infra",
+      "level": "P0",
+      "rule": "命令注入防护",
+      "description": "避免shell执行、输入校验",
+      "detection": "ast"
+    },
+    {
+      "id": "S4-01",
+      "category": "audit",
+      "level": "P0",
+      "rule": "操作审计日志",
+      "description": "记录敏感操作(登录/删除/权限变更)",
+      "detection": "ast"
+    },
+    {
+      "id": "S4-02",
+      "category": "audit",
+      "level": "P0",
+      "rule": "日志保留",
+      "description": "安全日志保留≥6个月、不可篡改",
+      "detection": "ast"
+    },
+    {
+      "id": "S4-03",
+      "category": "audit",
+      "level": "P1",
+      "rule": "异常行为检测",
+      "description": "暴力破解检测、异常访问模式",
+      "detection": "ast"
+    },
+    {
+      "id": "S4-04",
+      "category": "audit",
+      "level": "P1",
+      "rule": "漏洞扫描",
+      "description": "依赖漏洞扫描、代码安全扫描",
+      "detection": "ast"
+    },
+    {
+      "id": "S4-05",
+      "category": "audit",
+      "level": "P1",
+      "rule": "安全事件响应",
+      "description": "安全事件响应流程文档",
+      "detection": "ast"
+    },
+    {
+      "id": "S5-01",
+      "category": "third-party",
+      "level": "P0",
+      "rule": "API密钥管理",
+      "description": "密钥加密存储、定期轮换",
+      "detection": "ast"
+    },
+    {
+      "id": "S5-02",
+      "category": "third-party",
+      "level": "P1",
+      "rule": "第三方授权",
+      "description": "OAuth2.0、Scope限制",
+      "detection": "ast"
+    },
+    {
+      "id": "S5-03",
+      "category": "third-party",
+      "level": "P1",
+      "rule": "Webhook安全",
+      "description": "签名校验、IP白名单",
+      "detection": "ast"
+    },
+    {
+      "id": "S5-04",
+      "category": "third-party",
+      "level": "P0",
+      "rule": "回调数据校验",
+      "description": "外部回调数据完整性校验",
+      "detection": "ast"
+    },
+    {
+      "id": "S5-05",
+      "category": "third-party",
+      "level": "P1",
+      "rule": "依赖安全扫描",
+      "description": "定期扫描第三方依赖漏洞",
+      "detection": "ast"
+    }
+  ],
+  "coveragePolicy": "ast",
+  "responsibleSkill": "design-constraint",
+  "coveragePolicyReason": "5 项安全检测可 AST 化",
+  "noNewAST": "已覆盖，不再新增"
 }

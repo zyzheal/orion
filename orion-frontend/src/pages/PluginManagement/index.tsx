@@ -17,6 +17,7 @@ import {
   type PluginExecutionResult,
 } from '@/api/plugins';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import PluginList from './PluginList';
 import PluginDetailDrawer from './PluginDetail';
 import PluginCreateModal from './PluginCreateModal';

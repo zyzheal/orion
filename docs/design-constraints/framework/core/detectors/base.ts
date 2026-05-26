@@ -9,6 +9,61 @@ import * as fs from 'fs';
 
 // ── Shared types ──
 
+/** Unified issue type for cross-scanner aggregation (AST + C/D/S/B analysis) */
+export type UnifiedIssueType = string;
+
+/** Issue dimension identifier */
+export type IssueDimension = 'A' | 'B1' | 'B2' | 'C' | 'D' | 'S';
+
+/** Issue source scanner */
+export type IssueSource = 'ast' | 'security' | 'operations' | 'experience' | 'fix' | 'optimize' | 'data-structure' | 'flow';
+
+export interface UnifiedIssue {
+  file: string;
+  line: number;
+  column: number;
+  type: UnifiedIssueType;
+  severity: 'P0' | 'P1' | 'P2';
+  message: string;
+  suggestion: string;
+  dimension: IssueDimension;
+  checkId?: string;          // Original checkId (e.g. C4-01, S3-02)
+  confidence?: number;
+  source: IssueSource;
+  requiresConfirmation?: boolean;
+}
+
+/** Convert any scanner-specific issue to UnifiedIssue */
+export function toUnifiedIssue(issue: {
+  file: string;
+  line: number;
+  column?: number;
+  type: string;
+  severity: 'P0' | 'P1' | 'P2';
+  message: string;
+  suggestion?: string;
+  dimension?: IssueDimension;
+  checkId?: string;
+  confidence?: number;
+  source?: IssueSource;
+  requiresConfirmation?: boolean;
+}): UnifiedIssue {
+  return {
+    file: issue.file,
+    line: issue.line,
+    column: issue.column ?? 1,
+    type: issue.type,
+    severity: issue.severity,
+    message: issue.message,
+    suggestion: issue.suggestion ?? '待修复',
+    dimension: issue.dimension ?? 'A',
+    checkId: issue.checkId,
+    confidence: issue.confidence ?? 80,
+    source: issue.source ?? 'ast',
+    requiresConfirmation: issue.requiresConfirmation ?? false,
+  };
+}
+
 export type InteractionIssueType =
   // 基础检测（5项）
   | 'missing-feedback' | 'missing-loading' | 'missing-empty' | 'missing-submit' | 'missing-edit'
@@ -27,7 +82,16 @@ export type InteractionIssueType =
   | 'missing-auth-guard' | 'missing-sensitive-log-mask' | 'missing-sql-parameterization'
   | 'missing-cors-config' | 'missing-tenant-isolation'
   // B2 optimization detectors（3项）
-  | 'missing-lazy-load' | 'missing-request-cancel' | 'missing-request-merge';
+  | 'missing-lazy-load' | 'missing-request-cancel' | 'missing-request-merge'
+  // B1 fix standard detectors（5项）
+  | 'missing-test-coverage' | 'missing-rollback' | 'missing-fallback'
+  | 'missing-circuit-breaker' | 'missing-degrade-notice'
+  // SOLID + Anti-patterns（3项）
+  | 'god-object' | 'controller-bloat' | 'fat-interface'
+  // Security deep（3项）
+  | 'secret-hardcode' | 'sql-injection-risk' | 'xss-risk'
+  // Observability（4项）
+  | 'unstructured-log' | 'missing-traceId-injection' | 'missing-metrics' | 'missing-health-check';
 
 export interface InteractionIssue {
   file: string;

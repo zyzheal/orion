@@ -48,16 +48,26 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
-// 响应拦截器 — 带自动 Token 刷新
+// 响应拦截器 — 带自动 Token 刷新和 ApiResponse 自动解包
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
-    // 处理不一致的 API 响应格式
-    // 部分接口返回 { data: [...], total }，部分返回 { success: true, data: [...] }
-    // 统一规范：response.data 应该是实际数据
+    // 自动解包 ApiResponse 格式
+    // ApiResponse<T> = { code?, message?, data?: T, success?, meta? }
+    // 解包后 response.data 直接是 T
     const rawData = response.data;
-    if (rawData && rawData.data !== undefined && rawData.success === undefined) {
-      // 后端直接返回 { data: [...], total }，无需解包
-      // 保持原样，让调用方处理
+    if (rawData && typeof rawData === 'object') {
+      // 新格式: { success: true, data: T, meta? }
+      if (rawData.success === true && rawData.data !== undefined) {
+        response.data = rawData.data as any;
+      }
+      // 旧格式: { code: 200, message: 'OK', data: T }
+      else if (rawData.code === 200 && rawData.data !== undefined) {
+        response.data = rawData.data as any;
+      }
+      // 直接返回 data 字段的格式: { data: T }
+      else if (rawData.data !== undefined && rawData.success === undefined && rawData.code === undefined) {
+        response.data = rawData.data as any;
+      }
     }
     return response;
   },
@@ -158,39 +168,39 @@ export const api = {
   get<T = unknown>(
     url: string,
     config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<ApiResponse<T>>> {
-    return apiClient.get(url, config) as Promise<AxiosResponse<ApiResponse<T>>>;
+  ): Promise<AxiosResponse<T>> {
+    return apiClient.get(url, config) as Promise<AxiosResponse<T>>;
   },
 
   post<T = unknown>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<ApiResponse<T>>> {
-    return apiClient.post(url, data, config) as Promise<AxiosResponse<ApiResponse<T>>>;
+  ): Promise<AxiosResponse<T>> {
+    return apiClient.post(url, data, config) as Promise<AxiosResponse<T>>;
   },
 
   put<T = unknown>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<ApiResponse<T>>> {
-    return apiClient.put(url, data, config) as Promise<AxiosResponse<ApiResponse<T>>>;
+  ): Promise<AxiosResponse<T>> {
+    return apiClient.put(url, data, config) as Promise<AxiosResponse<T>>;
   },
 
   delete<T = unknown>(
     url: string,
     config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<ApiResponse<T>>> {
-    return apiClient.delete(url, config) as Promise<AxiosResponse<ApiResponse<T>>>;
+  ): Promise<AxiosResponse<T>> {
+    return apiClient.delete(url, config) as Promise<AxiosResponse<T>>;
   },
 
   patch<T = unknown>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<ApiResponse<T>>> {
-    return apiClient.patch(url, data, config) as Promise<AxiosResponse<ApiResponse<T>>>;
+  ): Promise<AxiosResponse<T>> {
+    return apiClient.patch(url, data, config) as Promise<AxiosResponse<T>>;
   },
 };
 

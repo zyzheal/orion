@@ -27,6 +27,7 @@ import {
   toggleAlertRule,
 } from '@/api/monitoring';
 import type { AlertRule } from '@/api/monitoring';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

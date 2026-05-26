@@ -22,7 +22,7 @@ interface PluginItem {
   tags: string[];
 }
 
-interface PluginPickerProps {
+export interface PluginPickerProps {
   open: boolean;
   onClose: () => void;
   onSelect: (plugin: PluginItem) => void;

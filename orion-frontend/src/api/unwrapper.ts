@@ -16,6 +16,14 @@
 import type { AxiosResponse } from 'axios';
 
 /**
+ * 错误扩展接口
+ */
+interface ErrorWithCode extends Error {
+  code?: string;
+  requestId?: string;
+}
+
+/**
  * 新标准响应格式
  */
 interface OrionResponseBody<T = unknown> {
@@ -49,7 +57,7 @@ export function unwrapResponse<T>(response: AxiosResponse<OrionResponseBody<T> |
 
   if (!body || typeof body !== 'object') {
     // 非对象类型，直接返回
-    return body as UnwrappedData<T>;
+    return (body as unknown) as UnwrappedData<T>;
   }
 
   // 新标准格式: { success, data, meta }
@@ -57,35 +65,37 @@ export function unwrapResponse<T>(response: AxiosResponse<OrionResponseBody<T> |
     const newFormat = body as OrionResponseBody<T>;
     if (!newFormat.success) {
       const errorMsg = newFormat.error?.message || '请求失败';
-      const error = new Error(errorMsg);
-      (error as any).code = newFormat.error?.code;
-      (error as any).requestId = newFormat.meta?.requestId;
+      const error: ErrorWithCode = new Error(errorMsg);
+      // error.code 和 error.requestId 的类型是 string | undefined
+      if (newFormat.error?.code) error.code = newFormat.error.code;
+      error.requestId = newFormat.meta?.requestId as string | undefined;
       throw error;
     }
     // 列表接口: data 为数组或 null（null → 空数组）
     if (newFormat.data === null) {
       return [] as unknown as UnwrappedData<T>;
     }
-    return newFormat.data as UnwrappedData<T>;
+    // newFormat.data 的类型是 T | null，需要断言
+    return (newFormat.data ?? undefined) as UnwrappedData<T>;
   }
 
   // 旧格式: { code, message, data }
   if ('code' in body) {
     const legacy = body as LegacyResponseBody<T>;
     if (legacy.code && legacy.code !== 200) {
-      const error = new Error(legacy.message || '请求失败');
-      (error as any).code = `LEGACY.${legacy.code}`;
+      const error: ErrorWithCode = new Error(legacy.message || '请求失败');
+      error.code = `LEGACY.${legacy.code}`;
       throw error;
     }
     if (legacy.data !== undefined) {
-      return legacy.data as UnwrappedData<T>;
+      return (legacy.data ?? undefined) as UnwrappedData<T>;
     }
     // 旧格式但没有 data 字段，返回整个 body
-    return body as UnwrappedData<T>;
+    return (body as unknown) as UnwrappedData<T>;
   }
 
   // 裸数据（后端直接返回业务对象）
-  return body as UnwrappedData<T>;
+  return (body as unknown) as UnwrappedData<T>;
 }
 
 /**

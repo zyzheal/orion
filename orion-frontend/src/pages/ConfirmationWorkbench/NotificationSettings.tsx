@@ -10,6 +10,7 @@ import {
   type NotificationSettings,
 } from '@/api/confirmations';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

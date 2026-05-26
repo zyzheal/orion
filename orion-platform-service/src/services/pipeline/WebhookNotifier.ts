@@ -18,6 +18,7 @@
 
 import crypto from 'crypto';
 import pino from 'pino';
+import { pipelineCircuitBreaker } from '../circuit-breaker/pipeline-circuit-breaker';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -189,7 +190,7 @@ export class WebhookNotifier {
   }
 
   /**
-   * 执行单次 HTTP 请求
+   * 执行单次 HTTP 请求 (F004: 通过熔断器保护)
    */
   private async doSend(config: WebhookConfig, body: string): Promise<void> {
     const headers: Record<string, string> = {
@@ -204,21 +205,42 @@ export class WebhookNotifier {
       headers['X-Webhook-Signature-Algorithm'] = 'sha256';
     }
 
-    const response = await fetch(config.url, {
-      method: config.method || 'POST',
-      headers,
-      body,
+    // F004: 通过熔断器执行 webhook 调用
+    await pipelineCircuitBreaker.execute('notification', this.extractProvider(config.url), async () => {
+      const response = await fetch(config.url, {
+        method: config.method || 'POST',
+        headers,
+        body,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook returned ${response.status} ${response.statusText}`);
+      }
+
+      try {
+        await response.json();
+      } catch {
+        // 忽略解析错误
+      }
     });
+  }
 
-    if (!response.ok) {
-      throw new Error(`Webhook returned ${response.status} ${response.statusText}`);
-    }
-
-    // 尝试解析响应体（非必须，解析失败不影响成功状态）
+  /**
+   * Extract notification provider name from webhook URL hostname.
+   * e.g., https://hooks.slack.com/... → 'slack'
+   */
+  private extractProvider(url: string): string {
     try {
-      await response.json();
+      const hostname = new URL(url).hostname.toLowerCase();
+      if (hostname.includes('slack')) return 'slack';
+      if (hostname.includes('dingtalk') || hostname.includes('ding')) return 'dingtalk';
+      if (hostname.includes('wecom') || hostname.includes('wechat')) return 'wecom';
+      if (hostname.includes('lark') || hostname.includes('feishu')) return 'lark';
+      if (hostname.includes('teams') || hostname.includes('microsoft')) return 'teams';
+      // Use hostname as provider fallback
+      return hostname.split('.')[0];
     } catch {
-      // 响应体不是 JSON，忽略
+      return 'unknown';
     }
   }
 

@@ -56,7 +56,8 @@ export interface TestNotificationResult {
  */
 export async function getIMNotificationRules(): Promise<IMNotificationRule[]> {
   const response = await api.get<IMNotificationRule[]>('/v1/notifications/im-rules');
-  return (response.data.data as unknown as IMNotificationRule[]) ?? [];
+  // 拦截器已自动解包，response.data 直接是 IMNotificationRule[]
+  return response.data ?? [];
 }
 
 /**
@@ -66,7 +67,8 @@ export async function createIMNotificationRule(
   input: IMNotificationRuleInput
 ): Promise<IMNotificationRule> {
   const response = await api.post<IMNotificationRule>('/v1/notifications/im-rules', input);
-  return (response.data.data as unknown as IMNotificationRule) ?? ({} as IMNotificationRule);
+  // 拦截器已自动解包，response.data 直接是 IMNotificationRule
+  return response.data ?? ({} as IMNotificationRule);
 }
 
 /**
@@ -80,7 +82,8 @@ export async function updateIMNotificationRule(
     `/v1/notifications/im-rules/${id}`,
     input
   );
-  return (response.data.data as unknown as IMNotificationRule) ?? ({} as IMNotificationRule);
+  // 拦截器已自动解包，response.data 直接是 IMNotificationRule
+  return response.data ?? ({} as IMNotificationRule);
 }
 
 /**
@@ -101,7 +104,8 @@ export async function toggleIMNotificationRule(
     `/v1/notifications/im-rules/${id}/toggle`,
     { enabled }
   );
-  return (response.data.data as unknown as IMNotificationRule) ?? ({} as IMNotificationRule);
+  // 拦截器已自动解包，response.data 直接是 IMNotificationRule
+  return response.data ?? ({} as IMNotificationRule);
 }
 
 /**
@@ -113,7 +117,8 @@ export async function testIMNotificationRule(
   const response = await api.post<TestNotificationResult>(
     `/v1/notifications/im-rules/${id}/test`
   );
-  return (response.data.data as unknown as TestNotificationResult) ?? {
+  // 拦截器已自动解包，response.data 直接是 TestNotificationResult
+  return response.data ?? {
     success: false,
     message: 'No response from server',
   };

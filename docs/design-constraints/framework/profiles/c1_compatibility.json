@@ -12,7 +12,7 @@
       "level": "P0",
       "rule": "新增字段不破坏旧版",
       "description": "API 新增字段必须向后兼容，不破坏旧版客户端",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-02",
@@ -20,7 +20,7 @@
       "level": "P0",
       "rule": "废弃字段标记 deprecated",
       "description": "废弃的 API 字段必须标记 deprecated",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-03",
@@ -28,7 +28,7 @@
       "level": "P0",
       "rule": "API 版本化策略",
       "description": "API 必须有版本化策略（URL/Header）",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-04",
@@ -36,7 +36,7 @@
       "level": "P0",
       "rule": "Schema 变更有 migration",
       "description": "数据库 Schema 变更必须有 migration 脚本",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-05",
@@ -44,7 +44,7 @@
       "level": "P0",
       "rule": "迁移脚本可回滚",
       "description": "migration 脚本必须有对应的回滚脚本",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-06",
@@ -52,7 +52,7 @@
       "level": "P0",
       "rule": "迁移不影响现有数据",
       "description": "数据迁移不应破坏现有数据",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-07",
@@ -60,7 +60,7 @@
       "level": "P0",
       "rule": "浏览器兼容",
       "description": "前端必须兼容主流浏览器（Chrome/Firefox/Safari/Edge）",
-      "detection": "test"
+      "detection": "review"
     },
     {
       "id": "C1-08",
@@ -68,7 +68,7 @@
       "level": "P1",
       "rule": "移动端适配",
       "description": "前端应适配移动端设备",
-      "detection": "test"
+      "detection": "review"
     },
     {
       "id": "C1-09",
@@ -76,7 +76,7 @@
       "level": "P1",
       "rule": "暗色模式支持",
       "description": "前端应支持暗色模式",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-10",
@@ -84,7 +84,7 @@
       "level": "P0",
       "rule": "旧版本客户端可用",
       "description": "API 变更不应导致旧版客户端完全不可用",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-11",
@@ -92,7 +92,7 @@
       "level": "P0",
       "rule": "降级提示清晰",
       "description": "客户端不兼容时应有清晰的升级提示",
-      "detection": "code-review"
+      "detection": "review"
     },
     {
       "id": "C1-12",
@@ -100,7 +100,11 @@
       "level": "P1",
       "rule": "时区处理",
       "description": "日期时间必须正确处理时区",
-      "detection": "code-review"
+      "detection": "review"
     }
-  ]
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "design-doc-reviewer",
+  "coveragePolicyReason": "兼容性是配置/文档层面",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
 }
