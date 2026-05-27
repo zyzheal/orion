@@ -27,11 +27,13 @@ import {
   ReloadOutlined,
   DiffOutlined,
   SyncOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import {
   getConfigs,
   getConfigStats,
   createConfig,
+  updateConfig,
   deleteConfig,
   getGitOpsConfig,
   syncFromGit,
@@ -48,6 +50,7 @@ const ConfigMgmtPage: React.FC = () => {
   const [stats, setStats] = useState<{ total: number; byEnvironment: Record<string, number>; byCategory: Record<string, number>; byStatus: Record<string, number> } | null>(null);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
   const [form] = Form.useForm();
   const [diffForm] = Form.useForm();
   const [diffResult, setDiffResult] = useState<any>(null);
@@ -93,6 +96,36 @@ const ConfigMgmtPage: React.FC = () => {
       loadData();
     } catch {
       message.error('Failed to create config');
+    }
+  };
+
+  const handleEdit = (record: ConfigItem) => {
+    setEditingConfig(record);
+    form.setFieldsValue({
+      key: record.key,
+      value: record.value,
+      environment: record.environment,
+      category: record.category,
+      description: record.description,
+      sensitive: record.sensitive,
+    });
+    setCreateModalOpen(true);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!editingConfig) return;
+    try {
+      await updateConfig(editingConfig.id, {
+        value: values.value,
+        changeReason: values.changeReason,
+      });
+      message.success('Config updated');
+      setCreateModalOpen(false);
+      setEditingConfig(null);
+      form.resetFields();
+      loadData();
+    } catch {
+      message.error('Failed to update config');
     }
   };
 
@@ -156,6 +189,9 @@ const ConfigMgmtPage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: ConfigItem) => (
         <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            Edit
+          </Button>
           <Button size="small" danger disabled={record.status === 'active'} onClick={() => handleDelete(record.id)}>
             Delete
           </Button>
@@ -261,17 +297,17 @@ const ConfigMgmtPage: React.FC = () => {
         />
       </Card>
 
-      {/* Create Modal */}
+      {/* Create/Edit Modal */}
       <Modal
-        title="Add Configuration"
+        title={editingConfig ? 'Edit Configuration' : 'Add Configuration'}
         open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
+        onCancel={() => { setCreateModalOpen(false); setEditingConfig(null); form.resetFields(); }}
         onOk={() => form.submit()}
         width={600}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
+        <Form form={form} layout="vertical" onFinish={editingConfig ? handleUpdate : handleCreate}>
           <Form.Item label="Key" name="key" rules={[{ required: true }]}>
-            <Input placeholder="config.key.name" />
+            <Input placeholder="config.key.name" disabled={!!editingConfig} />
           </Form.Item>
           <Form.Item label="Value" name="value" rules={[{ required: true }]}>
             <Input.TextArea rows={3} placeholder="Configuration value" />
@@ -283,10 +319,11 @@ const ConfigMgmtPage: React.FC = () => {
                 { value: 'staging', label: 'Staging' },
                 { value: 'production', label: 'Production' },
               ]}
+              disabled={!!editingConfig}
             />
           </Form.Item>
           <Form.Item label="Category" name="category" rules={[{ required: true }]}>
-            <Input placeholder="database / feature-flag / etc" />
+            <Input placeholder="database / feature-flag / etc" disabled={!!editingConfig} />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <Input placeholder="Config description" />
@@ -294,6 +331,11 @@ const ConfigMgmtPage: React.FC = () => {
           <Form.Item label="Sensitive" name="sensitive" valuePropName="checked">
             <Select options={[{ value: true, label: 'Yes' }, { value: false, label: 'No' }]} />
           </Form.Item>
+          {editingConfig && (
+            <Form.Item label="Change Reason" name="changeReason" rules={[{ required: true, message: 'Please provide a change reason' }]}>
+              <Input.TextArea rows={2} placeholder="Reason for this change" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>
