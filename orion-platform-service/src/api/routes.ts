@@ -87,6 +87,13 @@ import capabilityRoutes from './capability-routes';
 import { registerAIAgentRoutes } from './ai-agent-routes';
 import apiMarketRoutes from './api-market-routes';
 
+// Phase 3.5: Previously orphan routes — Alert, Cache, Circuit Breaker, Maintenance, Message Queue, Team
+import alertRoutes from './alert-routes';
+import cacheRoutes from './cache-routes';
+import circuitBreakerRoutes from './circuit-breaker-routes';
+import messageQueueRoutes from './message-queue-routes';
+import teamRoutes from './team-routes';
+
 // Previously orphan routes now being registered — Phase 3.5: register ticketing, CMDB, monitoring
 import ticketingRoutes from './ticketing-routes';
 import cmdbRoutes from './cmdb-routes';
@@ -1137,4 +1144,41 @@ import middlewareOpsRoutes from './middleware-ops-routes';
 
   // ==================== AI Agent Framework ====================
   registerAIAgentRoutes(app);
+
+  // ==================== Phase 3: Alert Management ====================
+  // Phase 3.5 Fix: Register alert routes — previously orphan
+  // NOTE: Alert routes are in-memory only; no DB dependency
+  await registerWithRoleGuard(app, alertRoutes, '/alert');
+
+  // ==================== Phase 3: Cache Management ====================
+  // Phase 3.5 Fix: Register cache routes — previously orphan
+  const { CacheStrategyService } = await import('../services/cache/CacheStrategyService');
+  const cacheStrategyService = options.redis ? new CacheStrategyService(options.redis) : null;
+  await registerWithRoleGuard(app, cacheRoutes, '/v1/cache', { cacheService: cacheStrategyService });
+
+  // ==================== Phase 3: Circuit Breaker ====================
+  // Phase 3.5 Fix: Register circuit breaker routes — previously orphan
+  const { initCircuitBreakerService } = await import('../services/circuit-breaker');
+  const circuitBreakerServiceInstance = await initCircuitBreakerService(options.database);
+  await registerWithRoleGuard(app, circuitBreakerRoutes, '/v1/circuit-breakers', { circuitBreakerService: circuitBreakerServiceInstance });
+
+  // ==================== Phase 3: Maintenance Window ====================
+  // Phase 3.5 Fix: Register maintenance window routes — previously orphan
+  if (options.database) {
+    const { registerMaintenanceWindowRoutes } = await import('./maintenance-window-routes');
+    await app.register(async (instance) => {
+      instance.addHook('onRequest', authenticateUser);
+      await registerMaintenanceWindowRoutes(instance, { database: options.database });
+    });
+  }
+
+  // ==================== Phase 3: Message Queue ====================
+  // Phase 3.5 Fix: Register message queue routes — previously orphan
+  const { MessageQueueService } = await import('../services/message-queue/message-queue-service');
+  const messageQueueServiceInstance = new MessageQueueService();
+  await registerWithRoleGuard(app, messageQueueRoutes, '/v1/message-queue', { messageQueueService: messageQueueServiceInstance });
+
+  // ==================== Team Management ====================
+  // Phase 3.5 Fix: Register team routes — previously orphan
+  await registerWithRoleGuard(app, teamRoutes, '/teams', { database: options.database });
 }
