@@ -1,8 +1,8 @@
 /**
- * MLOps API Routes (Phase 4 Batch 2)
+ * MLOps API Routes (Phase 4 P0)
  *
  * Routes under /api/v1/mlops
- * Experiment tracking, model registry, training jobs
+ * Experiment tracking, model registry, training jobs, model deployment, metrics
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -42,6 +42,36 @@ export default async function mlopsRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ success: true, data: exp });
   });
 
+  app.put('/mlops/experiments/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const body = request.body as any;
+    const tenantId = String((request as any).user?.tenantId || 1);
+    const exp = await mlopsService.updateExperiment(params.id, body, tenantId);
+    if (!exp) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+    return reply.send({ success: true, data: exp });
+  });
+
+  app.delete('/mlops/experiments/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const tenantId = String((request as any).user?.tenantId || 1);
+    const deleted = await mlopsService.deleteExperiment(params.id, tenantId);
+    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+    return reply.send({ success: true, data: null });
+  });
+
+  app.get('/mlops/experiments/:id/runs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const tenantId = String((request as any).user?.tenantId || 1);
+    const runs = await mlopsService.getExperimentRuns(params.id, tenantId);
+    return reply.send({ success: true, data: runs });
+  });
+
   app.post('/mlops/experiments/:id/status', {
     onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -70,6 +100,26 @@ export default async function mlopsRoutes(app: FastifyInstance): Promise<void> {
     const tenantId = String((request as any).user?.tenantId || 1);
     const models = await mlopsService.listModels(tenantId, { status: query.status });
     return reply.send({ success: true, data: models });
+  });
+
+  app.get('/mlops/models/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const model = await mlopsService.getModel(params.id);
+    if (!model) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Model not found' });
+    return reply.send({ success: true, data: model });
+  });
+
+  app.post('/mlops/models/:id/deploy', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const body = request.body as any;
+    const tenantId = String((request as any).user?.tenantId || 1);
+    const model = await mlopsService.deployModel(params.id, tenantId, { endpoint: body?.endpoint });
+    if (!model) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Model not found' });
+    return reply.send({ success: true, data: model });
   });
 
   app.post('/mlops/models/:id/status', {
@@ -110,5 +160,15 @@ export default async function mlopsRoutes(app: FastifyInstance): Promise<void> {
     const job = await mlopsService.updateJobStatus(params.id, body.status);
     if (!job) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Training job not found' });
     return reply.send({ success: true, data: job });
+  });
+
+  // ==================== Metrics ====================
+
+  app.get('/mlops/metrics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mlops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as any).user?.tenantId || 1);
+    const metrics = await mlopsService.getMetrics(tenantId);
+    return reply.send({ success: true, data: metrics });
   });
 }
