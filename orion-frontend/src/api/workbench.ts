@@ -171,7 +171,7 @@ export async function getWorkbenchFallback(): Promise<WorkbenchData> {
         severity: alert.severity as string || 'info',
         message: (alert.message as string) || (alert.description as string) || '',
         createdAt: alert.createdAt as string || '',
-        acknowledged: alert.status === 'acknowledged' || alert.acknowledged || false,
+        acknowledged: ((alert.status === 'acknowledged') || (alert.acknowledged as boolean) || false) as boolean,
       })),
     },
     myTickets: {

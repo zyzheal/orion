@@ -45,6 +45,9 @@ export interface Recommendation {
   actions: ExtendedAction[];
   createdAt: Date;
   source: string;
+  // Extended fields for frontend processing state
+  status?: 'pending' | 'dismissed' | 'resolved' | 'archived';
+  assignee?: string;
 }
 
 export interface PageContext {

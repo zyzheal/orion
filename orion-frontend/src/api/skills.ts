@@ -187,7 +187,7 @@ export interface SkillExecution {
   id: string;
   skillId: string;
   instanceId?: string;
-  tenantId: string;
+  tenantId?: string;
   projectId?: string;
   userId?: string;
   capability?: string;
@@ -225,12 +225,12 @@ export async function getSkillExecutions(skillId: string, params?: { page?: numb
     id: e.id,
     skillId: e.skill_id,
     instanceId: e.instance_id,
-    tenantId: e.tenant_id,
+    tenantId: e.tenant_id ?? '',
     userId: e.triggered_by,
     capability: e.capability,
     input: e.input ?? {},
     output: e.output ?? {},
-    status: e.status,
+    status: (e.status as SkillExecution['status']) ?? 'pending',
     duration: e.duration_ms,
     errorMessage: e.error_message,
     createdAt: e.started_at ?? e.created_at ?? '',
