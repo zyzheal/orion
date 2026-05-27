@@ -900,7 +900,7 @@ const PipelineMonitor: React.FC = () => {
                           height: 20,
                           borderRadius: '50%',
                           background: index < 3 ? colors.error[500] : colors.neutral[300],
-                          color: '#fff',
+                          color: '#ffffff',
                           fontSize: 12,
                           marginRight: spacing.sm,
                         }}

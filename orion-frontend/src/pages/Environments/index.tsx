@@ -103,7 +103,7 @@ const EnvironmentManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getEnvironments();
-      setEnvironments(Array.isArray(res.data?.data) ? res.data.data : []);
+      setEnvironments(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setEnvironments([]);
       message.error(`加载环境列表失败: ${(error as Error).message}`);

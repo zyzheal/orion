@@ -883,17 +883,17 @@ const DeployPage: React.FC = () => {
           <StatCard title="部署中" value={stats.deploying} icon={<SyncOutlined spin />} color={colors.primary[500]} />
         </Col>
         <Col span={5}>
-          <StatCard title="成功" value={stats.success} icon={<CheckCircleOutlined />} color="#52c41a" />
+          <StatCard title="成功" value={stats.success} icon={<CheckCircleOutlined />} color={colors.success[500]} />
         </Col>
         <Col span={5}>
-          <StatCard title="失败" value={stats.failed} icon={<CloseCircleOutlined />} color="#ff4d4f" />
+          <StatCard title="失败" value={stats.failed} icon={<CloseCircleOutlined />} color={colors.error[500]} />
         </Col>
         <Col span={4}>
           <Statistic
             title={<Text type="secondary">成功率</Text>}
             value={stats.successRate}
             suffix="%"
-            valueStyle={{ color: parseFloat(stats.successRate) >= 90 ? '#52c41a' : '#faad14' }}
+            valueStyle={{ color: parseFloat(stats.successRate) >= 90 ? colors.success[500] : colors.warning[500] }}
           />
         </Col>
       </Row>
@@ -1206,7 +1206,7 @@ const DeployPage: React.FC = () => {
 
       {/* Emergency Deploy Modal */}
       <Modal
-        title={<><ThunderboltOutlined style={{ marginRight: 8, color: '#ff4d4f' }} />紧急部署</>}
+        title={<><ThunderboltOutlined style={{ marginRight: 8, color: colors.error[400] }} />紧急部署</>}
         open={emergencyModalVisible}
         onCancel={() => setEmergencyModalVisible(false)}
         footer={null}
@@ -1311,7 +1311,7 @@ const DeployPage: React.FC = () => {
 
       {/* Progressive Deploy Create Modal */}
       <Modal
-        title={<><RiseOutlined style={{ marginRight: 8, color: '#52c41a' }} />创建渐进式部署</>}
+        title={<><RiseOutlined style={{ marginRight: 8, color: colors.success[500] }} />创建渐进式部署</>}
         open={progressiveDeployModalVisible}
         onCancel={() => setProgressiveDeployModalVisible(false)}
         onOk={() => progressiveDeployForm.submit()}

@@ -280,7 +280,7 @@ const ModuleEditor: React.FC<{
                   borderRadius: 6,
                   background: child.enabled
                     ? isDark ? 'rgba(51,112,230,0.1)' : 'rgba(51,112,230,0.06)'
-                    : isDark ? 'rgba(255,255,255,0.03)' : '#f5f5f5',
+                    : isDark ? 'rgba(255,255,255,0.03)' : colors.neutral[100],
                   border: `1px solid ${isDragOver
                     ? colors.primary
                     : child.enabled
@@ -406,7 +406,7 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
       width={560}
       placement="right"
       styles={{
-        body: { padding: '20px 24px', background: isDark ? '#1f1f1f' : '#ffffff' },
+        body: { padding: '20px 24px', background: isDark ? colors.neutral[900] : '#ffffff' },
         header: {
           borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f0f0f0'}`,
           paddingBottom: 16,

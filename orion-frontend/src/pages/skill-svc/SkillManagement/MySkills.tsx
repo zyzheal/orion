@@ -39,7 +39,7 @@ const MySkills: React.FC = () => {
     setLoading(true);
     try {
       const res = await getMySkills();
-      setSkills(Array.isArray(res.data.data) ? res.data.data : []);
+      setSkills(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load installed skills：${error.message}`);

@@ -381,7 +381,7 @@ const DigitalTwinPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃孪生体" value={activeTwins} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃孪生体" value={activeTwins} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>

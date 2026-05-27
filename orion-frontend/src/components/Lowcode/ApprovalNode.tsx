@@ -129,7 +129,7 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
         <div style={{ padding: 4 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>{config.name}</div>
           {config.description && (
-            <div style={{ color: '#8c8c8c', marginBottom: 8, fontSize: 12 }}>
+            <div style={{ color: colors.neutral[500], marginBottom: 8, fontSize: 12 }}>
               {config.description}
             </div>
           )}

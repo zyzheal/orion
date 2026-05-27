@@ -199,13 +199,13 @@ const MultiCloudAdvancedPage: React.FC = () => {
                   </Col>
                   <Col span={8}>
                     <Card title="RTO (Recovery Time Objective)" size="small">
-                      <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor="#faad14" />
+                      <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor={colors.warning[500]} />
                       <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Target: {'<'} 30 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="DR Readiness" size="small">
-                      <Progress type="dashboard" percent={88} strokeColor="#52c41a" />
+                      <Progress type="dashboard" percent={88} strokeColor={colors.success[500]} />
                       <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Status: Ready</p>
                     </Card>
                   </Col>

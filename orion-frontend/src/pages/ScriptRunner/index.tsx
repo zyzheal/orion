@@ -180,7 +180,7 @@ const ScriptRunnerPage: React.FC = () => {
             <Tag>退出码: {execResult.exitCode}</Tag>
           </Space>
           {execResult.output && (
-            <Card size="small" title="输出" style={{ background: colors.light?.bg?.secondary || '#f5f5f5' }}>
+            <Card size="small" title="输出" style={{ background: colors.light?.bg?.secondary || colors.neutral[100] }}>
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>
                 {execResult.output}
               </pre>

@@ -41,10 +41,10 @@ const MonitoringDashboard: React.FC = () => {
         getMonitoringHealth(),
         getAnomalySummary(),
       ]);
-      setDashboardData(dashRes.data.data);
-      setHealth(healthRes.data.data);
-      setAnomalies(anomalyRes.data.data);
-      setMonitoring(healthRes.data.data?.status === 'running');
+      setDashboardData(dashRes.data);
+      setHealth(healthRes.data);
+      setAnomalies(anomalyRes.data);
+      setMonitoring(healthRes.data?.status === 'running');
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载监控仪表盘数据失败：${error.message}`);

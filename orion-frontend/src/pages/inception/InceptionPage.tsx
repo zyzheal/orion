@@ -17,6 +17,7 @@ import {
   ReloadOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -64,7 +65,7 @@ const InceptionPage: React.FC = () => {
   const loadStatus = async () => {
     try {
       const res = await inceptionApi.status();
-      setStatus(res.data.data as { connected: boolean; host: string; port: number });
+      setStatus(res.data as { connected: boolean; host: string; port: number });
     } catch {
       // If status endpoint is unavailable, fallback to health check
       try {
@@ -79,7 +80,7 @@ const InceptionPage: React.FC = () => {
   const loadDatabases = async () => {
     try {
       const res = await inceptionApi.listDatabases();
-      const data = res.data.data as { databases: string[] };
+      const data = res.data as { databases: string[] };
       setDatabases(data?.databases || []);
     } catch {
       // Databases endpoint may not be available yet
@@ -91,7 +92,7 @@ const InceptionPage: React.FC = () => {
     setHistoryLoading(true);
     try {
       const res = await inceptionApi.history({ page, limit: pageSize });
-      const data = res.data.data as { records: AuditRecord[]; total: number };
+      const data = res.data as { records: AuditRecord[]; total: number };
       setHistory(data?.records || []);
       setPagination((prev) => ({ ...prev, current: page, total: data?.total || 0 }));
     } catch {
@@ -111,7 +112,7 @@ const InceptionPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await inceptionApi.audit(sql, database || undefined);
-      setAuditResult(res.data.data as SqlAuditResult);
+      setAuditResult(res.data as SqlAuditResult);
       setResultTab('audit');
       message.success('SQL 审计完成');
       loadHistory(1, pagination.pageSize);
@@ -130,7 +131,7 @@ const InceptionPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await inceptionApi.parse(sql);
-      setParseResult(res.data.data as SqlParseResult);
+      setParseResult(res.data as SqlParseResult);
       setResultTab('parse');
       message.success('SQL 解析完成');
     } catch {
@@ -152,7 +153,7 @@ const InceptionPage: React.FC = () => {
         database || undefined,
         dryRun
       );
-      setExecuteResult(res.data.data as SqlExecuteResult);
+      setExecuteResult(res.data as SqlExecuteResult);
       setResultTab('execute');
       message.success(dryRun ? 'Dry Run 执行完成' : 'SQL 执行完成');
       loadHistory(1, pagination.pageSize);
@@ -185,7 +186,7 @@ const InceptionPage: React.FC = () => {
       key: 'sql',
       ellipsis: true,
       render: (sqlText: string) => (
-        <code style={{ fontSize: 12, color: '#595959' }}>{sqlText.slice(0, 80)}{sqlText.length > 80 ? '...' : ''}</code>
+        <code style={{ fontSize: 12, color: colors.neutral[600] }}>{sqlText.slice(0, 80)}{sqlText.length > 80 ? '...' : ''}</code>
       ),
     },
     {
@@ -325,7 +326,7 @@ const InceptionPage: React.FC = () => {
           <Card title="执行结果">
             <Spin spinning={loading}>
               {resultTab === 'none' && (
-                <div style={{ textAlign: 'center', color: '#8c8c8c', padding: '60px 0' }}>
+                <div style={{ textAlign: 'center', color: colors.neutral[500], padding: '60px 0' }}>
                   输入 SQL 并点击操作按钮查看结果
                 </div>
               )}
@@ -343,7 +344,7 @@ const InceptionPage: React.FC = () => {
                   {/* Errors Table */}
                   {auditResult.errors.length > 0 && (
                     <div style={{ marginBottom: 16 }}>
-                      <h4 style={{ color: '#f5222d', marginBottom: 8 }}>错误 ({auditResult.errors.length})</h4>
+                      <h4 style={{ color: colors.error[500], marginBottom: 8 }}>错误 ({auditResult.errors.length})</h4>
                       <Table
                         bordered
                         size="small"
@@ -362,7 +363,7 @@ const InceptionPage: React.FC = () => {
                   {/* Warnings Table */}
                   {auditResult.warnings.length > 0 && (
                     <div>
-                      <h4 style={{ color: '#faad14', marginBottom: 8 }}>警告 ({auditResult.warnings.length})</h4>
+                      <h4 style={{ color: colors.warning[500], marginBottom: 8 }}>警告 ({auditResult.warnings.length})</h4>
                       <Table
                         bordered
                         size="small"
@@ -404,7 +405,7 @@ const InceptionPage: React.FC = () => {
                         style={{
                           fontFamily: 'monospace',
                           fontSize: 13,
-                          background: '#f5f5f5',
+                          background: colors.neutral[100],
                           padding: 12,
                           borderRadius: 4,
                           maxHeight: 300,

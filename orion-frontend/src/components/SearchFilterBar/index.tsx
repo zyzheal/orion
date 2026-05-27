@@ -8,6 +8,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Input, Select, Tag, Button } from 'antd';
 import { SearchOutlined, CloseOutlined, FilterOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -179,7 +180,7 @@ function SearchFilterBar({
             size="small"
             icon={<CloseOutlined />}
             onClick={clearAll}
-            style={{ color: '#8c8c8c' }}
+            style={{ color: colors.neutral[500] }}
             data-testid="clear-all-filters"
           >
             Clear All

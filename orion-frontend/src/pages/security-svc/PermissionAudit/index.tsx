@@ -8,6 +8,7 @@ import { Card, Table, Tag, Select, Button, Space, Statistic, Row, Col, message, 
 import { ReloadOutlined, FilterOutlined, BarChartOutlined, WarningOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { queryDeniedLogs, queryDeniedStats, getAnomalies, getHighRiskUsers, type AuditLogEntry, type AuditStats, type UEBAAnomaly, type UEBARiskUser } from '@/api/permission-audit';
+import { colors } from '@/tokens';
 
 const { Option } = Select;
 
@@ -163,7 +164,7 @@ const PermissionAudit: React.FC = () => {
               title="拒绝记录总数"
               value={total}
               prefix={<BarChartOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: colors.error[400] }}
             />
           </Card>
         </Col>
@@ -181,7 +182,7 @@ const PermissionAudit: React.FC = () => {
             <Statistic
               title="活跃用户数"
               value={stats.length}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
           </Card>
         </Col>
@@ -190,7 +191,7 @@ const PermissionAudit: React.FC = () => {
             <Statistic
               title="最高拒绝数"
               value={stats[0]?.count || 0}
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: colors.warning[500] }}
             />
           </Card>
         </Col>
@@ -229,9 +230,9 @@ const PermissionAudit: React.FC = () => {
         <Card
           title={
             <Space>
-              <WarningOutlined style={{ color: '#faad14' }} />
+              <WarningOutlined style={{ color: colors.warning[500] }} />
               异常行为告警 (UEBA)
-              <Badge count={anomalies.length} style={{ backgroundColor: '#f5222d' }} />
+              <Badge count={anomalies.length} style={{ backgroundColor: colors.error[500] }} />
             </Space>
           }
           style={{ marginBottom: 16 }}

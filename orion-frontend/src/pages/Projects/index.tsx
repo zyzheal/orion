@@ -247,7 +247,7 @@ const ProjectManagement: React.FC = () => {
   const loadResources = async (projectId: string) => {
     try {
       const res = await getProjectResources(projectId);
-      setProjectResources(Array.isArray(res.data?.data) ? res.data.data : []);
+      setProjectResources(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setProjectResources([]);
     }

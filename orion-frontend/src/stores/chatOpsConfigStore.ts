@@ -142,11 +142,11 @@ export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
         getCommandConfigs(),
       ]);
 
-      const remoteQuestions = qRes.status === 'fulfilled' && qRes.value?.data?.data
-        ? (qRes.value.data.data as ChatOpsQuestionConfig[])
+      const remoteQuestions = qRes.status === 'fulfilled' && qRes.value?.data
+        ? (qRes.value.data as ChatOpsQuestionConfig[])
         : null;
-      const remoteCommands = cRes.status === 'fulfilled' && cRes.value?.data?.data
-        ? (cRes.value.data.data as ChatOpsCommandConfig[])
+      const remoteCommands = cRes.status === 'fulfilled' && cRes.value?.data
+        ? (cRes.value.data as ChatOpsCommandConfig[])
         : null;
 
       if (remoteQuestions !== null || remoteCommands !== null) {

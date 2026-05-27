@@ -193,7 +193,7 @@ export const nodeTypeConfig: Record<WorkflowNodeType, NodeTypeInfo> = {
   start: {
     type: 'start',
     label: '开始',
-    color: '#52c41a',
+    color: colors.success[500],
     icon: 'Play',
     description: '工作流入口节点',
   },
@@ -207,7 +207,7 @@ export const nodeTypeConfig: Record<WorkflowNodeType, NodeTypeInfo> = {
   condition: {
     type: 'condition',
     label: '条件',
-    color: '#faad14',
+    color: colors.warning[500],
     icon: 'GitBranch',
     description: '条件分支判断',
   },
@@ -221,14 +221,14 @@ export const nodeTypeConfig: Record<WorkflowNodeType, NodeTypeInfo> = {
   webhook: {
     type: 'webhook',
     label: 'Webhook',
-    color: '#8c8c8c',
+    color: colors.neutral[500],
     icon: 'Link',
     description: 'HTTP 回调调用',
   },
   end: {
     type: 'end',
     label: '结束',
-    color: '#f5222d',
+    color: colors.error[500],
     icon: 'Stop',
     description: '工作流终止节点',
   },

@@ -85,7 +85,7 @@ const PendingReviews: React.FC = () => {
         params.category = categoryFilter;
       }
       const res = await getPendingReviews(params);
-      const data = res.data.data;
+      const data = res.data;
       setReviews(Array.isArray(data.skills) ? data.skills : []);
       setTotal(data.total || 0);
     } catch (error: unknown) {

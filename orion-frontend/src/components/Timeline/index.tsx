@@ -8,6 +8,7 @@ import React from 'react';
 import { Timeline as AntTimeline } from 'antd';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -64,17 +65,17 @@ function formatTime(time: string | Date): string {
 function getStatusColor(status?: StatusType): string {
   switch (status) {
     case 'success':
-      return '#52c41a';
+      return colors.success[500];
     case 'failed':
-      return '#f5222d';
+      return colors.error[500];
     case 'warning':
-      return '#faad14';
+      return colors.warning[500];
     case 'running':
-      return '#1890ff';
+      return colors.primary[500];
     case 'pending':
       return '#d9d9d9';
     case 'cancelled':
-      return '#8c8c8c';
+      return colors.neutral[500];
     default:
       return '#d9d9d9';
   }
@@ -175,7 +176,7 @@ function OrionTimeline({
               width: 10,
               height: 10,
               borderRadius: '50%',
-              background: '#1890ff',
+              background: colors.primary[500],
               animation: 'status-pulse 1.5s ease-in-out infinite',
             }}
           />
@@ -188,7 +189,7 @@ function OrionTimeline({
           <a
             onClick={onShowMore}
             style={{
-              color: '#1890ff',
+              color: colors.primary[500],
               cursor: 'pointer',
               fontSize: 14,
             }}

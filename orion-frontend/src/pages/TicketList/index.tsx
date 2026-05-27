@@ -167,7 +167,7 @@ const TicketList: React.FC = () => {
     try {
       const params = { page: 1, pageSize: 50, ...filters };
       const response = await getTickets(params);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setTickets(Array.isArray(apiData) ? apiData : (apiData as { items?: Ticket[] })?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {

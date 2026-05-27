@@ -43,7 +43,7 @@ const RAGQueryPage: React.FC = () => {
   const loadSpaces = async () => {
     try {
       const res = await getSpaces();
-      const spaceList = Array.isArray(res.data.data) ? res.data.data : [];
+      const spaceList = Array.isArray(res.data) ? res.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (error: unknown) {
       setSpaces([]);
@@ -74,7 +74,7 @@ const RAGQueryPage: React.FC = () => {
         spaceId: selectedSpace || undefined,
         topK: 5,
       });
-      const data = res.data.data as { answer?: string; sources?: RAGResult[]; confidence?: number };
+      const data = res.data as { answer?: string; sources?: RAGResult[]; confidence?: number };
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',

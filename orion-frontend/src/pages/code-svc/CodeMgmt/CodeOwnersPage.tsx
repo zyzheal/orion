@@ -67,14 +67,14 @@ const CodeOwnersPage: React.FC = () => {
     setLoading(true);
     try {
       const adaptersResp = await getCodeRepoAdapters();
-      const adapters = adaptersResp.data.data as Array<{ id: string; name: string; type: string }>;
+      const adapters = adaptersResp.data as Array<{ id: string; name: string; type: string }>;
       if (!Array.isArray(adapters)) return;
 
       const allRepos: RepoOption[] = [];
       for (const adapter of adapters) {
         try {
           const reposResp = await getCodeRepos(adapter.id);
-          const repos = reposResp.data.data as Array<{ id: string; name: string }>;
+          const repos = reposResp.data as Array<{ id: string; name: string }>;
           if (Array.isArray(repos)) {
             repos.forEach((repo) => allRepos.push({ ...repo, adapterId: adapter.id }));
           }
@@ -103,7 +103,7 @@ const CodeOwnersPage: React.FC = () => {
     setValidationResult(null);
     try {
       const response = await getCodeOwners(selectedRepoId);
-      const data = response.data.data as { content?: string } | null;
+      const data = response.data as { content?: string } | null;
       if (data?.content) {
         setContent(data.content);
         setSavedContent(data.content);
@@ -136,7 +136,7 @@ const CodeOwnersPage: React.FC = () => {
     setValidating(true);
     try {
       const response = await validateCodeOwners(content);
-      const data = response.data.data as { valid: boolean; message?: string };
+      const data = response.data as { valid: boolean; message?: string };
       setValidationResult({
         valid: data.valid ?? true,
         message: data.message || (data.valid ? 'CODEOWNERS 格式正确' : 'CODEOWNERS 格式错误'),
@@ -217,7 +217,7 @@ const CodeOwnersPage: React.FC = () => {
       // Recommend approvers for common paths
       const filePaths = ['src/', 'tests/', 'docs/'];
       const response = await recommendCodeOwnersApprovers(selectedRepoId, filePaths);
-      const data = (response.data.data as CodeOwnerRecommendation[]) || [];
+      const data = (response.data as CodeOwnerRecommendation[]) || [];
       if (Array.isArray(data)) {
         setRecommendations(data);
         message.success('推荐加载完成');

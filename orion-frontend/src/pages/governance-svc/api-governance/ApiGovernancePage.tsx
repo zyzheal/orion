@@ -20,6 +20,7 @@ import {
   WarningOutlined, BranchesOutlined, StopOutlined,
   VerifiedOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -278,7 +279,7 @@ const ApiGovernancePage: React.FC = () => {
       title: 'Enabled',
       dataIndex: 'enabled',
       key: 'enabled',
-      render: (enabled: boolean) => (enabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <WarningOutlined style={{ color: '#faad14' }} />),
+      render: (enabled: boolean) => (enabled ? <CheckCircleOutlined style={{ color: colors.success[500] }} /> : <WarningOutlined style={{ color: colors.warning[500] }} />),
     },
     { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
   ];
@@ -302,7 +303,7 @@ const ApiGovernancePage: React.FC = () => {
       title: 'Resolved',
       dataIndex: 'resolved',
       key: 'resolved',
-      render: (resolved: boolean) => (resolved ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <WarningOutlined style={{ color: '#faad14' }} />),
+      render: (resolved: boolean) => (resolved ? <CheckCircleOutlined style={{ color: colors.success[500] }} /> : <WarningOutlined style={{ color: colors.warning[500] }} />),
     },
     { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
   ];
@@ -353,7 +354,7 @@ const ApiGovernancePage: React.FC = () => {
               title="Overall Score"
               value={report?.overall_score ?? 0}
               suffix="/ 100"
-              valueStyle={{ color: (report?.overall_score ?? 0) >= 80 ? '#52c41a' : '#faad14' }}
+              valueStyle={{ color: (report?.overall_score ?? 0) >= 80 ? colors.success[500] : colors.warning[500] }}
             />
           </Col>
           <Col span={4}>
@@ -366,14 +367,14 @@ const ApiGovernancePage: React.FC = () => {
             <Statistic
               title="Violations"
               value={violations.length}
-              valueStyle={{ color: violations.length > 0 ? '#ff4d4f' : '#52c41a' }}
+              valueStyle={{ color: violations.length > 0 ? colors.error[400] : colors.success[500] }}
             />
           </Col>
           <Col span={4}>
             <Statistic
               title="Deprecated"
               value={deprecatedCount}
-              valueStyle={{ color: deprecatedCount > 0 ? '#faad14' : '#52c41a' }}
+              valueStyle={{ color: deprecatedCount > 0 ? colors.warning[500] : colors.success[500] }}
             />
           </Col>
           <Col span={2}>

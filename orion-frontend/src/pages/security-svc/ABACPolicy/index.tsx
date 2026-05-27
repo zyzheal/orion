@@ -8,6 +8,7 @@ import { Card, Table, Tag, Button, Space, Modal, Form, Input, Select, Switch, me
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getAllPolicies, createPolicy, updatePolicy, deletePolicy, togglePolicy, type AbacPolicy } from '@/api/abac-policy';
+import { colors } from '@/tokens';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -106,7 +107,7 @@ const ABACPolicyManagement: React.FC = () => {
       render: (val, record) => (
         <Space>
           <span>{val}</span>
-          <InfoCircleOutlined onClick={() => openDetail(record)} style={{ cursor: 'pointer', color: '#1890ff' }} />
+          <InfoCircleOutlined onClick={() => openDetail(record)} style={{ cursor: 'pointer', color: colors.primary[500] }} />
         </Space>
       ),
     },
@@ -221,7 +222,7 @@ const ABACPolicyManagement: React.FC = () => {
             <p><strong>优先级:</strong> {selectedPolicy.priority}</p>
             <p><strong>状态:</strong> {selectedPolicy.enabled ? '启用' : '禁用'}</p>
             <p><strong>条件:</strong></p>
-            <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4 }}>{JSON.stringify(selectedPolicy.conditions, null, 2)}</pre>
+            <pre style={{ background: colors.neutral[100], padding: 12, borderRadius: 4 }}>{JSON.stringify(selectedPolicy.conditions, null, 2)}</pre>
           </>
         )}
       </Drawer>

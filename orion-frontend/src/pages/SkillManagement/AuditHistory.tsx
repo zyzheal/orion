@@ -84,7 +84,7 @@ const AuditHistory: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAllAuditHistory({ page, limit: 50 });
-      const data = res.data.data;
+      const data = res.data;
       const items = data.logs || [];
       setAuditLogs(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
@@ -374,7 +374,7 @@ const AuditHistory: React.FC = () => {
               </div>
               {selectedLog.details && (
                 <Card title="详细信息" size="small">
-                  <pre style={{ fontSize: 12, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                  <pre style={{ fontSize: 12, background: colors.neutral[100], padding: 8, borderRadius: 4 }}>
                     {JSON.stringify(selectedLog.details, null, 2)}
                   </pre>
                 </Card>

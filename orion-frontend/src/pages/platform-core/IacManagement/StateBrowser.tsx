@@ -45,7 +45,7 @@ const StateBrowser: React.FC = () => {
   const loadWorkspaces = async () => {
     try {
       const res = await getWorkspaces();
-      const wsList = Array.isArray(res.data.data) ? res.data.data : [];
+      const wsList = Array.isArray(res.data) ? res.data : [];
       setWorkspaces(wsList.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })));
       if (wsList.length > 0) {
         setSelectedWorkspaceId(wsList[0].id);
@@ -67,8 +67,8 @@ const StateBrowser: React.FC = () => {
         getWorkspaceStateVersions(wsId),
         getWorkspaceResources(wsId),
       ]);
-      setStateVersions(Array.isArray(verRes.data.data) ? verRes.data.data : []);
-      setResources(Array.isArray(resRes.data.data) ? resRes.data.data : []);
+      setStateVersions(Array.isArray(verRes.data) ? verRes.data : []);
+      setResources(Array.isArray(resRes.data) ? resRes.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load state data：${error.message}`);

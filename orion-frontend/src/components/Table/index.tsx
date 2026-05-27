@@ -11,6 +11,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Table as AntTable, Pagination, Input, Space, Button } from 'antd';
 import { SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
+import { colors } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -181,7 +182,7 @@ function OrionTable<T extends object>({
             </div>
           );
           antCol.filterIcon = (filtered: boolean) => (
-            <FilterOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+            <FilterOutlined style={{ color: filtered ? colors.primary[500] : undefined }} />
           );
           antCol.onFilter = undefined; // We handle filter externally
         }

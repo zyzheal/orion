@@ -31,7 +31,7 @@ const CommandBrowser: React.FC = () => {
     setApiError(null);
     try {
       const res = await getCommands();
-      setCommands(Array.isArray(res.data.data) ? res.data.data : []);
+      setCommands(Array.isArray(res.data) ? res.data : []);
     } catch {
       // 静默失败，显示空状态
       setApiError('后端服务暂不可用，请配置 ChatOps 平台连接后使用');

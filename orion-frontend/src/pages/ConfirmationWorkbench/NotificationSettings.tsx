@@ -37,7 +37,7 @@ const NotificationSettingsPage: React.FC = () => {
   const loadSettings = async () => {
     try {
       const res = await getNotificationSettings();
-      const data = res.data.data || {};
+      const data = res.data || {};
       setSettings(data);
       form.setFieldsValue(data);
     } catch {

@@ -155,7 +155,7 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({ item, isActive, theme, on
       {hasChildren && (
         <DownOutlined style={{
           fontSize: 10,
-          color: isDark ? 'rgba(255,255,255,0.35)' : '#bfbfbf',
+          color: isDark ? 'rgba(255,255,255,0.35)' : colors.neutral[400],
           marginLeft: 2,
         }} />
       )}
@@ -616,7 +616,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           <div style={{
                             fontSize: 12,
                             fontWeight: 600,
-                            color: isDark ? 'rgba(255,255,255,0.4)' : '#8f959e',
+                            color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
                             marginBottom: 8,
                             paddingLeft: 4,
                             textTransform: 'uppercase',
@@ -677,7 +677,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   {child.description && (
                                     <div style={{
                                       fontSize: 12,
-                                      color: isDark ? 'rgba(255,255,255,0.4)' : '#8f959e',
+                                      color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
                                       lineHeight: '18px',
                                     }}>
                                       {child.description}

@@ -508,6 +508,7 @@ import inspectionRoutes from './inspection-routes';
 import capacityRoutes from './capacity-routes';
 import middlewareOpsRoutes from './middleware-ops-routes';
 import serverlessRoutes from './serverless-routes';
+import multiCloudRoutes from './multi-cloud-routes';
   await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations');
   // FinOps V2 - 完整 FinOps 成本管理路由
   await registerWithRoleGuard(app, finOpsV2Routes, '/v1/finops', { database: options.database });
@@ -523,6 +524,8 @@ import serverlessRoutes from './serverless-routes';
   await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware');
   // 注册 Serverless API 路由 (Phase 4 P0 - Serverless Module)
   await registerWithRoleGuard(app, serverlessRoutes, '/serverless');
+  // 注册 Multi-Cloud API 路由 (Phase 4 P1 - Multi-Cloud Module)
+  await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud', { database: options.database });
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)

@@ -50,7 +50,7 @@ const RepoList: React.FC = () => {
   const loadAdapters = useCallback(async () => {
     try {
       const response = await getCodeRepoAdapters();
-      const data = response.data.data as AdapterOption[];
+      const data = response.data as AdapterOption[];
       setAdapters(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -65,7 +65,7 @@ const RepoList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getCodeRepos(adapterId);
-      const data = response.data.data as CodeRepo[];
+      const data = response.data as CodeRepo[];
       setRepos(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -92,7 +92,7 @@ const RepoList: React.FC = () => {
   const loadRepoDetails = useCallback(async (repo: CodeRepo) => {
     try {
       const branchesResp = await getCodeRepoBranches(repo.adapterId, repo.id);
-      const branches = (branchesResp.data.data as ApiResponse<string[]>)?.data ?? (branchesResp.data.data as ListResponse<string>)?.items ?? [];
+      const branches = (branchesResp.data as ApiResponse<string[]>)?.data ?? (branchesResp.data as ListResponse<string>)?.items ?? [];
       if (Array.isArray(branches)) {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
@@ -101,7 +101,7 @@ const RepoList: React.FC = () => {
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
-      const prs = (prResp.data.data as ApiResponse<unknown[]>)?.data ?? (prResp.data.data as ListResponse<unknown>)?.items ?? [];
+      const prs = (prResp.data as ApiResponse<unknown[]>)?.data ?? (prResp.data as ListResponse<unknown>)?.items ?? [];
       if (Array.isArray(prs)) {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }

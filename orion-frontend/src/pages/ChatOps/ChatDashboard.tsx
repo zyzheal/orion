@@ -61,9 +61,9 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, suffix, trend, co
           trend != null && trend !== 0 ? (
             <span style={{ fontSize: 12, marginRight: 4 }}>
               {trend > 0 ? (
-                <ArrowUpOutlined style={{ color: trend > 0 ? '#52c41a' : '#ff4d4f' }} />
+                <ArrowUpOutlined style={{ color: trend > 0 ? colors.success[500] : colors.error[400] }} />
               ) : (
-                <ArrowDownOutlined style={{ color: trend > 0 ? '#ff4d4f' : '#52c41a' }} />
+                <ArrowDownOutlined style={{ color: trend > 0 ? colors.error[400] : colors.success[500] }} />
               )}
             </span>
           ) : undefined
@@ -89,7 +89,7 @@ export default function ChatDashboard() {
     setApiError(null);
     try {
       const res = await getDashboardStats({ range: timeRange });
-      setStats(res.data.data as DashboardStats);
+      setStats(res.data as DashboardStats);
     } catch {
       setApiError('后端服务暂不可用');
       setStats(null);
@@ -173,7 +173,7 @@ export default function ChatDashboard() {
               height: 18,
               borderRadius: '50%',
               background: index < 3 ? colors.primary[500] : '#d9d9d9',
-              color: '#fff',
+              color: '#ffffff',
               fontSize: 10,
               fontWeight: 600,
             }}
@@ -223,7 +223,7 @@ export default function ChatDashboard() {
                 value={stats.metrics.successRate}
                 suffix="%"
                 trend={stats.comparison.successRate}
-                color="#52c41a"
+                color={colors.success[500]}
                 tooltip="成功数 / 总执行数 × 100%"
               />
             </Col>
@@ -232,7 +232,7 @@ export default function ChatDashboard() {
                 title="失败数"
                 value={stats.metrics.failedCount}
                 trend={stats.comparison.failedCount}
-                color="#ff4d4f"
+                color={colors.error[400]}
                 tooltip="状态为 failed 的执行数"
               />
             </Col>
@@ -292,7 +292,7 @@ export default function ChatDashboard() {
                       display: 'flex',
                       alignItems: 'center',
                       padding: '8px 12px',
-                      background: '#fafafa',
+                      background: colors.neutral[50],
                       borderRadius: 6,
                     }}
                   >

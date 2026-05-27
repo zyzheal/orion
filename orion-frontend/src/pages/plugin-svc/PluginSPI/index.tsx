@@ -126,9 +126,9 @@ const PluginSPIPage: React.FC = () => {
         getPluginRegistrations(),
         getSPIConfigs(),
       ]);
-      setExtensionPoints(extRes.data.data.extensionPoints.map(mapApiExtensionPoint));
-      setPluginRegistrations(regRes.data.data.registrations.map(mapApiRegistration));
-      setSpiConfigs(cfgRes.data.data.configs.map(mapApiSPIConfig));
+      setExtensionPoints(extRes.data.extensionPoints.map(mapApiExtensionPoint));
+      setPluginRegistrations(regRes.data.registrations.map(mapApiRegistration));
+      setSpiConfigs(cfgRes.data.configs.map(mapApiSPIConfig));
     } catch (error: unknown) {
       message.error(`Failed to load SPI data: ${(error as Error).message}`);
     } finally {
@@ -139,7 +139,7 @@ const PluginSPIPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSPIStats();
-      setStats(mapApiStats(response.data.data.stats));
+      setStats(mapApiStats(response.data.stats));
     } catch (error: unknown) {
       message.error(`Failed to load SPI stats: ${(error as Error).message}`);
     }

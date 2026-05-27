@@ -65,8 +65,8 @@ const PolicyManagement: React.FC = () => {
     setLoading(true);
     try {
       const [policyRes, violationRes] = await Promise.all([getPolicies(), getPolicyViolations()]);
-      setPolicies(Array.isArray(policyRes.data.data) ? policyRes.data.data : []);
-      setViolations(Array.isArray(violationRes.data.data) ? violationRes.data.data : []);
+      setPolicies(Array.isArray(policyRes.data) ? policyRes.data : []);
+      setViolations(Array.isArray(violationRes.data) ? violationRes.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load policy data：${error.message}`);

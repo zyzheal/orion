@@ -26,7 +26,7 @@ const WebhookLog: React.FC = () => {
     setLoading(true);
     try {
       const response = await getWebhookLogs();
-      const data = response.data.data as WebhookEvent[];
+      const data = response.data as WebhookEvent[];
       setEvents(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {

@@ -48,7 +48,7 @@ const BuilderImageList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuilderImages();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setImages(Array.isArray(apiData) ? apiData : (apiData as { items?: BuilderImage[] })?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {

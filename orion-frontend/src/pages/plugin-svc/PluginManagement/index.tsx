@@ -48,7 +48,7 @@ const PluginManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getInstalledPlugins({});
-      setPlugins(response.data.data || []);
+      setPlugins(response.data || []);
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.includes('403')) {
@@ -72,7 +72,7 @@ const PluginManagement: React.FC = () => {
     // Refresh plugin details
     try {
       const response = await getPlugin(plugin.id);
-      setSelectedPlugin(response.data.data as ApiPlugin);
+      setSelectedPlugin(response.data as ApiPlugin);
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error(`加载插件详情失败：${err.message}`);
@@ -104,7 +104,7 @@ const PluginManagement: React.FC = () => {
       message.success('配置保存成功');
       // Refresh plugin details
       const response = await getPlugin(selectedPlugin.id);
-      setSelectedPlugin(response.data.data as ApiPlugin);
+      setSelectedPlugin(response.data as ApiPlugin);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '保存配置失败';
       message.error(`保存配置失败：${msg}`);

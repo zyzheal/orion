@@ -362,7 +362,7 @@ const PRTriggerManagement: React.FC = () => {
             <Statistic
               title="活跃规则"
               value={rules.filter((r) => r.enabled).length}
-              valueStyle={{ color: colors.success?.[500] || '#52c41a' }}
+              valueStyle={{ color: colors.success?.[500] || colors.success[500] }}
             />
           </Card>
         </Col>

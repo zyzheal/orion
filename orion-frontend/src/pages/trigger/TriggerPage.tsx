@@ -44,6 +44,7 @@ import {
   type Trigger,
   type TriggerStats,
 } from '@/api/triggers';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -354,7 +355,7 @@ const TriggerPage: React.FC = () => {
             <Statistic
               title="活跃 Webhook"
               value={webhooks.filter((w) => w.enabled).length}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -369,7 +370,7 @@ const TriggerPage: React.FC = () => {
               title="成功率"
               value={successRate}
               valueStyle={{
-                color: triggerStats && triggerStats.successRate >= 0.9 ? '#52c41a' : '#faad14',
+                color: triggerStats && triggerStats.successRate >= 0.9 ? colors.success[500] : colors.warning[500],
               }}
             />
           </Card>

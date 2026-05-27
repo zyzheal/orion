@@ -54,6 +54,7 @@ import {
   type ComplianceScore,
   type AuditPlan,
 } from '@/api/compliance';
+import { colors } from '@/tokens';
 
 // API 响应包装接口
 interface AuditLogResponse { data?: { entries?: AuditLogEntry[] } }
@@ -513,7 +514,7 @@ const CompliancePage: React.FC = () => {
               title="合规分数"
               value={overallScore}
               suffix="/ 100"
-              valueStyle={{ color: overallScore >= 80 ? '#52c41a' : '#faad14' }}
+              valueStyle={{ color: overallScore >= 80 ? colors.success[500] : colors.warning[500] }}
             />
           </Card>
         </Col>
@@ -527,7 +528,7 @@ const CompliancePage: React.FC = () => {
             <Statistic
               title="不合规评估"
               value={nonCompliantCount}
-              valueStyle={{ color: nonCompliantCount > 0 ? '#ff4d4f' : '#52c41a' }}
+              valueStyle={{ color: nonCompliantCount > 0 ? colors.error[400] : colors.success[500] }}
             />
           </Card>
         </Col>
@@ -536,7 +537,7 @@ const CompliancePage: React.FC = () => {
             <Statistic
               title="总违规数"
               value={totalViolations}
-              valueStyle={{ color: totalViolations > 0 ? '#ff4d4f' : '#52c41a' }}
+              valueStyle={{ color: totalViolations > 0 ? colors.error[400] : colors.success[500] }}
             />
           </Card>
         </Col>
@@ -558,7 +559,7 @@ const CompliancePage: React.FC = () => {
               <Statistic
                 title="链完整性"
                 value={chainInfo.isValid ? '有效' : '无效'}
-                valueStyle={{ color: chainInfo.isValid ? '#52c41a' : '#ff4d4f' }}
+                valueStyle={{ color: chainInfo.isValid ? colors.success[500] : colors.error[400] }}
               />
             </Col>
             <Col span={8}>
@@ -566,7 +567,7 @@ const CompliancePage: React.FC = () => {
                 title="合规趋势"
                 value={complianceScore?.trend === 'improving' ? '改善中' : complianceScore?.trend === 'degrading' ? '恶化中' : '稳定'}
                 valueStyle={{
-                  color: complianceScore?.trend === 'improving' ? '#52c41a' : complianceScore?.trend === 'degrading' ? '#ff4d4f' : '#faad14',
+                  color: complianceScore?.trend === 'improving' ? colors.success[500] : complianceScore?.trend === 'degrading' ? colors.error[400] : colors.warning[500],
                 }}
               />
             </Col>

@@ -470,7 +470,7 @@ const PipelineTemplatePage: React.FC = () => {
                 <Title level={5}>YAML 定义</Title>
                 <pre
                   style={{
-                    background: '#f5f5f5',
+                    background: colors.neutral[100],
                     padding: 16,
                     borderRadius: 4,
                     fontSize: 13,

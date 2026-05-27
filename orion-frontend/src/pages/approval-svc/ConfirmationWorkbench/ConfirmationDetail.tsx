@@ -57,7 +57,7 @@ const ConfirmationDetail: React.FC = () => {
     setLoading(true);
     try {
       const res = await getConfirmation(confirmationId);
-      setConfirmation(res.data.data as ConfirmationRequest | null);
+      setConfirmation(res.data as ConfirmationRequest | null);
     } catch {
       message.error('Failed to load confirmation');
     } finally {

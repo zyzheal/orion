@@ -182,11 +182,11 @@ const EfficiencyDashboard: React.FC = () => {
         getClickHouseStatus(),
         getTeams(),
       ]);
-      setDoraMetrics(metricsRes.data.data);
-      setBenchmarks(benchmarksRes.data.data);
-      setDashboardData(dashboardRes.data.data as unknown as EfficiencyDashboardData | null);
-      setClickHouseStatus(statusRes.data.data);
-      setTeams(teamsRes.data.data?.teams || []);
+      setDoraMetrics(metricsRes.data);
+      setBenchmarks(benchmarksRes.data);
+      setDashboardData(dashboardRes.data as unknown as EfficiencyDashboardData | null);
+      setClickHouseStatus(statusRes.data);
+      setTeams(teamsRes.data?.teams || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
       message.error(msg);
@@ -200,7 +200,7 @@ const EfficiencyDashboard: React.FC = () => {
     setComparisonLoading(true);
     try {
       const res = await getTeamComparison({ teamIds: teamIds?.join(','), interval: 'weekly' });
-      setTeamComparison(res.data.data?.teams || []);
+      setTeamComparison(res.data?.teams || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载团队对比数据失败';
       message.error(msg);
@@ -520,7 +520,7 @@ const EfficiencyDashboard: React.FC = () => {
                       key: 'level',
                       render: (level: string) => {
                         const levelInfo = DORA_LEVELS.find((l) => l.level === level);
-                        return <Tag color={levelInfo?.color || '#8c8c8c'}>{levelInfo?.name || level}</Tag>;
+                        return <Tag color={levelInfo?.color || colors.neutral[500]}>{levelInfo?.name || level}</Tag>;
                       },
                     },
                     {

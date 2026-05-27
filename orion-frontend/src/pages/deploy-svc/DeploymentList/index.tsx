@@ -53,7 +53,7 @@ const DeploymentList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getDeployments();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setDeployments(Array.isArray(apiData) ? apiData : (apiData as ListResponse<DeploymentRecord>)?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {

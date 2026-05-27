@@ -87,7 +87,7 @@ const DeploymentDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getDeployment(id);
-      const data = response.data.data || response.data;
+      const data = response.data;
       setDeployment(data as Deployment);
     } catch (error: unknown) {
       if (error instanceof Error) {

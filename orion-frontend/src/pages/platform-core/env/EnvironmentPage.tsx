@@ -167,7 +167,7 @@ const EnvironmentPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getEnvironments();
-      setEnvironments(Array.isArray(res.data?.data) ? res.data.data : []);
+      setEnvironments(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setEnvironments([]);
       message.error(`加载环境列表失败: ${(error as Error).message}`);
@@ -551,13 +551,13 @@ const EnvironmentPage: React.FC = () => {
           <StatCard title="总环境数" value={stats.total} icon={<CloudServerOutlined />} />
         </Col>
         <Col span={6}>
-          <StatCard title="运行中" value={stats.active} icon={<PlayCircleOutlined />} color="#52c41a" />
+          <StatCard title="运行中" value={stats.active} icon={<PlayCircleOutlined />} color={colors.success[500]} />
         </Col>
         <Col span={6}>
-          <StatCard title="休眠中" value={stats.hibernated} icon={<PauseCircleOutlined />} color="#faad14" />
+          <StatCard title="休眠中" value={stats.hibernated} icon={<PauseCircleOutlined />} color={colors.warning[500]} />
         </Col>
         <Col span={6}>
-          <StatCard title="维护中" value={stats.maintenance} icon={<ClockCircleOutlined />} color="#faad14" />
+          <StatCard title="维护中" value={stats.maintenance} icon={<ClockCircleOutlined />} color={colors.info[500]} />
         </Col>
       </Row>
 

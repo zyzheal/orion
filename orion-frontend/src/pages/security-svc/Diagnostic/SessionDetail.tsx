@@ -46,8 +46,8 @@ const DiagnosticSessionDetail: React.FC = () => {
         getSession(id),
         getSessionComplexity(id),
       ]);
-      setSession(sessionRes.data.data);
-      setComplexity(complexityRes.data.data);
+      setSession(sessionRes.data);
+      setComplexity(complexityRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载会话详情失败：${error.message}`);

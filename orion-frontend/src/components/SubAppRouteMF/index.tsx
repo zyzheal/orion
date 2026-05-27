@@ -11,6 +11,7 @@ import type { SubAppInstance } from '@orion-mf/core';
 import { useAppStore } from '@/stores/appStore';
 import { getSubAppConfig } from '@/microfront/apps';
 import { Loading } from '@/components/Loading';
+import { colors } from '@/tokens';
 
 // Orion-MF 配置接口
 interface OrionMFConfig {
@@ -204,7 +205,7 @@ const SubAppRouteMF: React.FC = () => {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          background: '#fafafa',
+          background: colors.neutral[50],
         }}
       >
         <div
@@ -216,15 +217,15 @@ const SubAppRouteMF: React.FC = () => {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           }}
         >
-          <h3 style={{ color: '#f5222d', marginBottom: 16 }}>子应用加载失败</h3>
+          <h3 style={{ color: colors.error[500], marginBottom: 16 }}>子应用加载失败</h3>
           <pre
             style={{
               textAlign: 'left',
               fontSize: 14,
-              color: '#595959',
+              color: colors.neutral[600],
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
-              background: '#f5f5f5',
+              background: colors.neutral[100],
               padding: 12,
               borderRadius: 4,
               marginBottom: 16,
@@ -232,10 +233,10 @@ const SubAppRouteMF: React.FC = () => {
           >
             {error}
           </pre>
-          <p style={{ color: '#8c8c8c', fontSize: 14 }}>
+          <p style={{ color: colors.neutral[500], fontSize: 14 }}>
             子应用: <strong>{mfConfig.name}</strong>
           </p>
-          <p style={{ color: '#8c8c8c', fontSize: 14 }}>
+          <p style={{ color: colors.neutral[500], fontSize: 14 }}>
             入口: {mfConfig.remoteEntry}
           </p>
           <div style={{ marginTop: 24 }}>

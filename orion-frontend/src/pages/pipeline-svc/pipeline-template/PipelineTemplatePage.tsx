@@ -167,7 +167,7 @@ const PipelineTemplatePage: React.FC = () => {
     try {
       const response = await pipelineTemplatesApi.list();
       if (response.data?.data) {
-        setTemplates(response.data.data);
+        setTemplates(response.data);
       }
     } catch (error) {
       // Use mock data on error
@@ -486,7 +486,7 @@ const PipelineTemplatePage: React.FC = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#fff',
+                          color: '#ffffff',
                           fontSize: 18,
                         }}
                       >

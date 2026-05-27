@@ -200,7 +200,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
     setJobsLoading(true);
     try {
       const response = await getRunnerJobs(runnerId);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setJobs(Array.isArray(apiData) ? apiData : []);
     } catch {
       setJobs([]);
@@ -264,7 +264,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
                 style={{
                   width: `${Math.min(utilization, 100)}%`,
                   height: '100%',
-                  background: utilization > 80 ? '#ff4d4f' : utilization > 50 ? '#faad14' : '#52c41a',
+                  background: utilization > 80 ? colors.error[400] : utilization > 50 ? colors.warning[500] : colors.success[500],
                   borderRadius: 4,
                   transition: 'width 0.3s',
                 }}
@@ -377,7 +377,7 @@ const RunnerManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getRunners();
-      const apiData = response.data.data;
+      const apiData = response.data;
       const runnerList = Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? [];
       setRunners(runnerList);
     } catch (error: unknown) {
@@ -471,7 +471,7 @@ const RunnerManagement: React.FC = () => {
       render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
-            <CloudServerOutlined style={{ marginRight: 6, color: '#8c8c8c' }} />
+            <CloudServerOutlined style={{ marginRight: 6, color: colors.neutral[500] }} />
             {record.name}
           </Text>
           <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>
@@ -494,7 +494,7 @@ const RunnerManagement: React.FC = () => {
             <Tag color={cfg.color}>{cfg.label}</Tag>
             {stale && (
               <Tooltip title="心跳超时（> 5 分钟）">
-                <ClockCircleOutlined style={{ color: '#faad14', fontSize: 14 }} />
+                <ClockCircleOutlined style={{ color: colors.warning[500], fontSize: 14 }} />
               </Tooltip>
             )}
           </Space>

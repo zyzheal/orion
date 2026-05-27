@@ -23,7 +23,7 @@ import { Typography, Tooltip, Badge, Space, ConfigProvider } from 'antd';
 const tooltipTheme = {
   token: {
     colorBgSpotlight: '#ffffff',
-    colorTextLightSolid: '#1f1f1f',
+    colorTextLightSolid: colors.neutral[900],
   },
 };
 
@@ -117,16 +117,16 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
 
   return (
     <Tooltip
-      color="#fff"
+      color='#ffffff'
       title={
         <div style={{ minWidth: 160 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: '#1f1f1f', paddingBottom: 8, borderBottom: `1px solid #f0f0f0` }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid #f0f0f0` }}>
             <Space size={6}>
               <Badge
                 count={data.index + 1}
                 style={{
                   backgroundColor: statusColors[data.status] || '#d9d9d9',
-                  color: '#fff',
+                  color: '#ffffff',
                   fontSize: 10,
                   minWidth: 16,
                   height: 16,

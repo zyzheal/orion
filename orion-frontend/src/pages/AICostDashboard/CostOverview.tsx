@@ -36,8 +36,8 @@ const CostOverview: React.FC = () => {
     setLoading(true);
     try {
       const [dashRes, pricingRes] = await Promise.all([getDashboardData(), getModelPricing()]);
-      setDashboard(dashRes.data.data as DashboardData | null);
-      setPricing(Array.isArray(pricingRes.data.data) ? pricingRes.data.data : []);
+      setDashboard(dashRes.data as DashboardData | null);
+      setPricing(Array.isArray(pricingRes.data) ? pricingRes.data : []);
     } catch (error: unknown) {
       setDashboard(null);
       setPricing([]);

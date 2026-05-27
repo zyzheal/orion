@@ -221,8 +221,8 @@ const ExecutorManagementPage: React.FC = () => {
       {dashboard && (
         <Row gutter={24} style={{ marginBottom: 24 }}>
           <Col span={6}><Card><Statistic title="Total Executors" value={dashboard.total_executors} prefix={<DashboardOutlined />} /></Card></Col>
-          <Col span={6}><Card><Statistic title="Online" value={dashboard.online_executors} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-          <Col span={6}><Card><Statistic title="Degraded" value={dashboard.degraded_executors} valueStyle={{ color: '#faad14' }} /></Card></Col>
+          <Col span={6}><Card><Statistic title="Online" value={dashboard.online_executors} valueStyle={{ color: colors.success[500] }} /></Card></Col>
+          <Col span={6}><Card><Statistic title="Degraded" value={dashboard.degraded_executors} valueStyle={{ color: colors.warning[500] }} /></Card></Col>
           <Col span={6}><Card><Statistic title="Running Jobs" value={dashboard.total_running_jobs} /></Card></Col>
         </Row>
       )}

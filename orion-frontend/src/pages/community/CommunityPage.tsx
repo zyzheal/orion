@@ -337,7 +337,7 @@ const CommunityPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已通过" value={stats.approved} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="已通过" value={stats.approved} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>

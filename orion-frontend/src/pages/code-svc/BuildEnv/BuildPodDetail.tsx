@@ -26,7 +26,7 @@ const BuildPodDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuildPod(id);
-      const podData = response.data.data as BuildPod | null;
+      const podData = response.data as BuildPod | null;
       setPod(podData);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -43,7 +43,7 @@ const BuildPodDetail: React.FC = () => {
     if (!id) return;
     try {
       const response = await getBuildPodLogs(id);
-      const logsData = response.data.data as Array<{ id?: string }> | null;
+      const logsData = response.data as Array<{ id?: string }> | null;
       const logs = Array.isArray(logsData) ? logsData : [];
       setLogIds(logs.map((log) => log.id || '').filter(Boolean));
     } catch (error: unknown) {

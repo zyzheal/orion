@@ -101,7 +101,7 @@ const InternalLibraryManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getInternalLibraries();
-      setLibraries(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLibraries(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setLibraries([]);
       message.error(`加载二方库数据失败: ${(error as Error).message}`);

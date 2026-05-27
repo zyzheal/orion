@@ -28,7 +28,7 @@ const TrackingAccuracyView: React.FC = () => {
     setLoading(true);
     try {
       const response = await getTrackingAccuracy();
-      setAccuracy(response.data.data as TrackingAccuracy | null);
+      setAccuracy(response.data as TrackingAccuracy | null);
     } catch (error: unknown) {
       setAccuracy(null);
       message.error(`加载精度数据失败: ${(error as Error).message}`);

@@ -45,9 +45,9 @@ const ArtifactVersionPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArtifactVersions({ limit: pageSize, offset: (page - 1) * pageSize });
-      if (res.data.data) {
-        setVersions(res.data.data.versions || []);
-        setTotal(res.data.data.total || 0);
+      if (res.data) {
+        setVersions(res.data.versions || []);
+        setTotal(res.data.total || 0);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载版本列表失败';
@@ -67,12 +67,12 @@ const ArtifactVersionPage: React.FC = () => {
 
     try {
       const chainRes = await getTraceabilityChain(version.id);
-      if (chainRes.data.data) setChain(chainRes.data.data);
+      if (chainRes.data) setChain(chainRes.data);
     } catch { /* ignore */ }
 
     try {
       const depRes = await getDeploymentHistory(version.pipelineId);
-      if (depRes.data.data) setDeployHistory(depRes.data.data);
+      if (depRes.data) setDeployHistory(depRes.data);
     } catch { /* ignore */ }
   };
 

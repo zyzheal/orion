@@ -35,7 +35,7 @@ const ArtifactList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getArtifacts();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setArtifacts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {

@@ -154,7 +154,7 @@ const DashboardCore: React.FC = () => {
               trend: 'up',
               trendPercent: 2.3,
               previousValue: prevSuccessRate,
-              color: '#52c41a',
+              color: colors.success[500],
             });
           }
 
@@ -189,7 +189,7 @@ const DashboardCore: React.FC = () => {
             trend: activeCount > 0 ? 'up' : 'stable',
             trendPercent: 25,
             previousValue: Math.max(0, activeCount - 1),
-            color: '#faad14',
+            color: colors.warning[500],
           });
 
           // Use alerts as activity events

@@ -42,8 +42,8 @@ const ApiKeyManagement: React.FC = () => {
     setError(null);
     try {
       const [keysRes, statsRes] = await Promise.all([getApiKeys(), getApiKeyStats()]);
-      setKeys(keysRes.data.data?.keys ?? []);
-      setStats(statsRes.data.data?.stats ?? null);
+      setKeys(keysRes.data?.keys ?? []);
+      setStats(statsRes.data?.stats ?? null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('加载 API Key 列表失败'));
     } finally {
@@ -56,7 +56,7 @@ const ApiKeyManagement: React.FC = () => {
   const handleCreate = async (values: ApiKeyInput) => {
     try {
       const res = await createApiKey(values);
-      const newKey = res.data.data?.key?.key ?? '';
+      const newKey = res.data?.key?.key ?? '';
       setCreatedKey(newKey);
       message.success('API Key 已创建，请妥善保存');
       form.resetFields();

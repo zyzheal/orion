@@ -43,7 +43,7 @@ const BranchPolicyList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBranchPolicies();
-      const data = response.data.data as BranchPolicy[];
+      const data = response.data as BranchPolicy[];
       setPolicies(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {

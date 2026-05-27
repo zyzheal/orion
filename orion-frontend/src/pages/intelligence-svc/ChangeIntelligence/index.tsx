@@ -61,8 +61,8 @@ const ChangeIntelligence: React.FC = () => {
         getChangeReports(),
         getChangeTrends({ days: 30 }),
       ]);
-      setReports(Array.isArray(reportRes.data.data) ? reportRes.data.data : []);
-      setTrends(Array.isArray(trendRes.data.data) ? trendRes.data.data : []);
+      setReports(Array.isArray(reportRes.data) ? reportRes.data : []);
+      setTrends(Array.isArray(trendRes.data) ? trendRes.data : []);
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : 'Failed to load change intelligence data';
@@ -119,12 +119,12 @@ const ChangeIntelligence: React.FC = () => {
         getChangeReportDetail(report.id),
         getBlastRadius(report.id),
       ]);
-      const detailData = detailRes.data.data as
+      const detailData = detailRes.data as
         | { affectedServices?: AffectedService[] }
         | undefined;
       const svcList = detailData?.affectedServices;
       setAffectedServices(Array.isArray(svcList) ? svcList : []);
-      setBlastRadius((blastRes.data.data as BlastRadiusData) || null);
+      setBlastRadius((blastRes.data as BlastRadiusData) || null);
       setReportDetailVisible(true);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to load report detail';

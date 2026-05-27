@@ -62,10 +62,10 @@ const AIGatewayPage: React.FC = () => {
         getEngineStatus(),
         getRules(),
       ]);
-      setHealthData(healthRes.data.data.health || []);
-      setGatewayStatus(statusRes.data.data);
-      setEngineStatus(engineRes.data.data);
-      setRules(rulesRes.data.data.rules);
+      setHealthData(healthRes.data.health || []);
+      setGatewayStatus(statusRes.data);
+      setEngineStatus(engineRes.data);
+      setRules(rulesRes.data.rules);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 AI Gateway 数据失败：${error.message}`);

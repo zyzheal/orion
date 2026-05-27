@@ -39,7 +39,7 @@ const SkillMarketplace: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSkills();
-      setSkills(Array.isArray(res.data.data) ? res.data.data : []);
+      setSkills(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load skills：${error.message}`);

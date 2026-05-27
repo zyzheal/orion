@@ -51,7 +51,7 @@ const CostDetail: React.FC = () => {
         startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
         endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
       });
-      setCosts(Array.isArray(res.data.data) ? res.data.data : []);
+      setCosts(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setCosts([]);
       message.error(`加载成本数据失败: ${(error as Error).message}`);

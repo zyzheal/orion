@@ -61,7 +61,7 @@ const RoleManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRoles(DEFAULT_TENANT_ID);
-      setRoles(Array.isArray(res.data?.data) ? res.data.data : []);
+      setRoles(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setRoles([]);
       if (error instanceof Error) {

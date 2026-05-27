@@ -88,7 +88,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             background: isUser
               ? `linear-gradient(135deg, ${colors.primary[500]}, ${colors.primary[600]})`
               : colors.light.bg.primary,
-            color: isUser ? '#fff' : colors.light.text.primary,
+            color: isUser ? '#ffffff' : colors.light.text.primary,
             border: isUser ? 'none' : `1px solid ${colors.light.border.light}`,
             boxShadow: isUser
               ? `0 2px 10px ${colors.primary[400]}30`

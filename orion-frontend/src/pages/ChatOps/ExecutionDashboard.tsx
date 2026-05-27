@@ -51,7 +51,7 @@ const ExecutionDashboard: React.FC = () => {
         page: 1,
         perPage: 50,
       });
-      const data = Array.isArray(res.data.data) ? res.data.data : [];
+      const data = Array.isArray(res.data) ? res.data : [];
       setExecutions(data);
     } catch {
       setApiError('后端服务暂不可用');

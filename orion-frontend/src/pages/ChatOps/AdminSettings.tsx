@@ -97,7 +97,7 @@ const CapabilityMappingTab: React.FC = () => {
       const res = await chatopsAdminApi.getCapabilityMappings(
         environment || undefined
       );
-      const data = res.data.data ?? [];
+      const data = res.data ?? [];
       setMappings(Array.isArray(data) ? data : []);
     } catch {
       message.error('获取映射列表失败');
@@ -419,8 +419,8 @@ const ApprovalConfigTab: React.FC = () => {
         chatopsAdminApi.getApprovalConfigs(),
         chatopsAdminApi.getApprovers(),
       ]);
-      setConfigs(configRes.data.data ?? []);
-      setApprovers(approverRes.data.data ?? []);
+      setConfigs(configRes.data ?? []);
+      setApprovers(approverRes.data ?? []);
     } catch {
       message.error('获取审批配置失败');
       setConfigs([]);
@@ -677,7 +677,7 @@ const AuditLogTab: React.FC = () => {
         ...filters,
       };
       const res = await getAuditLogs(params);
-      const data = res.data.data ?? [];
+      const data = res.data ?? [];
       setLogs(Array.isArray(data) ? data : []);
     } catch {
       message.error('获取审计日志失败');

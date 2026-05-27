@@ -150,7 +150,7 @@ export async function getSsoProviders(): Promise<Array<{
 }>> {
   try {
     const response = await axios.get('/api/v1/auth/sso/providers-enabled');
-    return response.data.data || [];
+    return response.data || [];
   } catch {
     // Fallback to default providers
     return [

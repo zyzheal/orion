@@ -39,7 +39,7 @@ const IncidentDetail: React.FC = () => {
     setLoading(true);
     try {
       const res = await getIncident(id);
-      setIncident(res.data.data || null);
+      setIncident(res.data || null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载事件详情失败：${error.message}`);

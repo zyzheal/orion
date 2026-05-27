@@ -10,6 +10,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Card, Button, Space, Typography, message, Divider } from 'antd';
 import { RocketOutlined, SyncOutlined, DeleteOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 // 动态加载 orion-mf
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,10 +238,10 @@ const TestMFLoader: React.FC = () => {
                       style={{
                         color:
                           result.status === 'success'
-                            ? '#52c41a'
+                            ? colors.success[500]
                             : result.status === 'error'
-                            ? '#f5222d'
-                            : '#faad14',
+                            ? colors.error[500]
+                            : colors.warning[500],
                       }}
                     >
                       {result.status === 'loading' && '加载中...'}
@@ -272,7 +273,7 @@ const TestMFLoader: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#8c8c8c',
+            color: colors.neutral[500],
           }}
         >
           {testResults.length === 0 ? '点击上方按钮加载子应用' : ''}

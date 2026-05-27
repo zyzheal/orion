@@ -64,8 +64,8 @@ const DocumentListPage: React.FC = () => {
     setLoading(true);
     try {
       const [docRes, spaceRes] = await Promise.all([getDocs(), getSpaces()]);
-      setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data : []);
-      const spaceList = Array.isArray(spaceRes.data.data) ? spaceRes.data.data : [];
+      setDocuments(Array.isArray(docRes.data) ? docRes.data : []);
+      const spaceList = Array.isArray(spaceRes.data) ? spaceRes.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (error: unknown) {
       setDocuments([]);

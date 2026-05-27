@@ -54,7 +54,7 @@ const PlanViewer: React.FC = () => {
     setLoading(true);
     try {
       const wsRes = await getWorkspaces();
-      const wsList = Array.isArray(wsRes.data.data) ? wsRes.data.data : [];
+      const wsList = Array.isArray(wsRes.data) ? wsRes.data : [];
       setWorkspaces(wsList.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })));
 
       // Collect plans from all workspaces
@@ -62,8 +62,8 @@ const PlanViewer: React.FC = () => {
       for (const ws of wsList.slice(0, 5)) {
         try {
           const planRes = await getWorkspacePlans(ws.id);
-          if (Array.isArray(planRes.data.data)) {
-            allPlans.push(...planRes.data.data);
+          if (Array.isArray(planRes.data)) {
+            allPlans.push(...planRes.data);
           }
         } catch (error: unknown) {
           // Workspace may not have plans - silently ignore

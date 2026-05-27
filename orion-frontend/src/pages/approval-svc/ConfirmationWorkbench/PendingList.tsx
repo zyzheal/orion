@@ -74,7 +74,7 @@ const PendingList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getConfirmations();
-      setConfirmations(Array.isArray(res.data.data) ? res.data.data : []);
+      setConfirmations(Array.isArray(res.data) ? res.data : []);
     } catch {
       message.error('Failed to load confirmations');
     } finally {

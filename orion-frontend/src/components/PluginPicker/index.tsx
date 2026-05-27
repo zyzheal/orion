@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Input, Tabs, Card, Tag, Button, Spin, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { getBuiltInPlugins, searchMarketplace } from '../../api/pluginApi';
+import { colors } from '@/tokens';
 
 const { Search } = Input;
 
@@ -64,8 +65,8 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
 
   const extractData = <T,>(response: unknown): T[] => {
     const axiosResp = response as { data?: { data?: T[] } };
-    if (axiosResp.data?.data && Array.isArray(axiosResp.data.data)) {
-      return axiosResp.data.data;
+    if (axiosResp.data?.data && Array.isArray(axiosResp.data)) {
+      return axiosResp.data;
     }
     const direct = response as T[];
     return Array.isArray(direct) ? direct : [];
@@ -132,7 +133,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <strong>{plugin.name}</strong>
-          <div style={{ fontSize: 12, color: '#666' }}>{plugin.description}</div>
+          <div style={{ fontSize: 12, color: colors.neutral[600] }}>{plugin.description}</div>
         </div>
         <Tag color={TIER_COLORS[plugin.tier] || 'default'}>{plugin.tier}</Tag>
       </div>
@@ -208,7 +209,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
         <Tabs items={tabsItems} defaultActiveKey="builtin" />
       </Spin>
       {selectedPlugin && (
-        <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+        <div style={{ marginTop: 16, padding: 12, background: colors.neutral[100], borderRadius: 4 }}>
           <strong>Selected: {selectedPlugin.name}</strong>
           <div>Version: {selectedPlugin.version}</div>
         </div>

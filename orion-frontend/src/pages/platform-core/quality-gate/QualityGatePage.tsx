@@ -41,6 +41,7 @@ import {
   type PolicyViolation,
 } from '@/api/policies';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -415,7 +416,7 @@ const QualityGatePage: React.FC = () => {
             title="已启用"
             value={stats.enabled}
             icon={<CheckCircleOutlined />}
-            color="#52c41a"
+            color={colors.success[500]}
           />
         </Col>
         <Col span={6}>
@@ -423,7 +424,7 @@ const QualityGatePage: React.FC = () => {
             title="未处理违规"
             value={stats.openViolations}
             icon={<ExclamationCircleOutlined />}
-            color={stats.openViolations > 0 ? '#faad14' : '#52c41a'}
+            color={stats.openViolations > 0 ? colors.warning[500] : colors.success[500]}
           />
         </Col>
         <Col span={6}>
@@ -431,7 +432,7 @@ const QualityGatePage: React.FC = () => {
             title="阻塞中"
             value={stats.blocked}
             icon={<CloseCircleOutlined />}
-            color={stats.blocked > 0 ? '#ff4d4f' : '#52c41a'}
+            color={stats.blocked > 0 ? colors.error[400] : colors.success[500]}
           />
         </Col>
       </Row>
@@ -556,7 +557,7 @@ const QualityGatePage: React.FC = () => {
             <Title level={5}>评估结果</Title>
             <pre
               style={{
-                background: '#f5f5f5',
+                background: colors.neutral[100],
                 padding: 16,
                 borderRadius: 4,
                 fontSize: 13,

@@ -60,6 +60,7 @@ import {
   CategoryInfo,
 } from '../../api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
+import { colors } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -366,7 +367,7 @@ const DeveloperPortalPage: React.FC = () => {
       width: 80,
       render: (count: number) => (
         <Text>
-          <StarOutlined style={{ color: '#faad14', marginRight: 4 }} />
+          <StarOutlined style={{ color: colors.warning[500], marginRight: 4 }} />
           {count || 0}
         </Text>
       ),
@@ -519,7 +520,7 @@ const DeveloperPortalPage: React.FC = () => {
             <Statistic
               title="已发布"
               value={stats.published}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -528,7 +529,7 @@ const DeveloperPortalPage: React.FC = () => {
             <Statistic
               title="草稿"
               value={stats.draft}
-              valueStyle={{ color: '#8c8c8c' }}
+              valueStyle={{ color: colors.neutral[500] }}
             />
           </Card>
         </Col>
@@ -544,7 +545,7 @@ const DeveloperPortalPage: React.FC = () => {
         <Card
           title={
             <>
-              <StarOutlined style={{ marginRight: 8, color: '#faad14' }} />
+              <StarOutlined style={{ marginRight: 8, color: colors.warning[500] }} />
               热门文档
             </>
           }
@@ -850,7 +851,7 @@ const DeveloperPortalPage: React.FC = () => {
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="帮助数">
-                <StarOutlined style={{ color: '#faad14' }} /> {selectedDoc.helpfulCount || 0}
+                <StarOutlined style={{ color: colors.warning[500] }} /> {selectedDoc.helpfulCount || 0}
               </Descriptions.Item>
               <Descriptions.Item label="作者">
                 {selectedDoc.authorId}

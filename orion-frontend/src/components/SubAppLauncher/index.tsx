@@ -37,8 +37,8 @@ const iconMap: Record<string, React.ReactNode> = {
 
 // 子应用颜色映射
 const colorMap: Record<string, string> = {
-  dba: '#1890ff',
-  knowledge: '#52c41a',
+  dba: colors.primary[500],
+  knowledge: colors.success[500],
   visor: '#722ed1',
 };
 
@@ -74,7 +74,7 @@ const SubAppTrigger: React.FC<SubAppTriggerProps> = ({ onClick }) => (
       e.currentTarget.style.boxShadow = `0 2px 8px ${colors.primary[400]}30`;
     }}
   >
-    <AppstoreOutlined style={{ fontSize: 15, color: '#fff' }} />
+    <AppstoreOutlined style={{ fontSize: 15, color: '#ffffff' }} />
   </div>
 );
 
@@ -119,7 +119,7 @@ const SubAppCard: React.FC<SubAppCardProps> = ({ app, onClick }) => (
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: 20,
-        color: '#fff',
+        color: '#ffffff',
         flexShrink: 0,
         boxShadow: `0 3px 8px ${app.color}40`,
       }}
@@ -217,7 +217,7 @@ export const SubAppLauncher: React.FC & { Trigger: React.FC<SubAppTriggerProps> 
                 justifyContent: 'center',
               }}
             >
-              <AppstoreOutlined style={{ fontSize: 15, color: '#fff' }} />
+              <AppstoreOutlined style={{ fontSize: 15, color: '#ffffff' }} />
             </div>
             <Text strong style={{ fontSize: 15 }}>子系统应用</Text>
           </div>

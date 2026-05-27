@@ -25,7 +25,7 @@ const DiagnosticReports: React.FC = () => {
     setLoading(true);
     try {
       const response = await getReports();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setReports(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -60,7 +60,7 @@ const DiagnosticReports: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const res = await getReport(report.id);
-      setSelectedReport(res.data.data);
+      setSelectedReport(res.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载报告详情失败：${error.message}`);

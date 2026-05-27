@@ -26,7 +26,7 @@ const BuildPodList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuildPods();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setPods(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {

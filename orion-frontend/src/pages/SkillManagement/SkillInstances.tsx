@@ -70,7 +70,7 @@ const SkillInstances: React.FC = () => {
         getSkillInstances(skillId),
         getSkill(skillId),
       ]);
-      setInstances(Array.isArray(instRes.data.data) ? instRes.data.data : []);
+      setInstances(Array.isArray(instRes.data) ? instRes.data : []);
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
       setSkill(skillData || null);
     } catch (error: unknown) {

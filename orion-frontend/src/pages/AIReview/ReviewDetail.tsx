@@ -49,7 +49,7 @@ const AIReviewDetail: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewDetail(reviewId);
-      setDetail(res.data.data || null);
+      setDetail(res.data || null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审详情失败：${error.message}`);

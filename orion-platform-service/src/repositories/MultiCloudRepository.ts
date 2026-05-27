@@ -10,7 +10,7 @@ import { BaseRepository } from '../db/base-repository';
 export interface CloudAccountEntity {
   id: string;
   tenant_id: string;
-  provider_id: string | null;
+  provider_id: string | null; // UUID as string
   account_name: string;
   account_id: string;
   credential_type: string;

@@ -54,7 +54,7 @@ const WebhookManagement: React.FC = () => {
     setError(null);
     try {
       const res = await getWebhooks();
-      setWebhooks(res.data.data?.webhooks ?? []);
+      setWebhooks(res.data?.webhooks ?? []);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('加载 Webhook 列表失败'));
     } finally {
@@ -115,7 +115,7 @@ const WebhookManagement: React.FC = () => {
     setLogDrawerVisible(true);
     try {
       const res = await getWebhookLogs(webhook.id, 20);
-      setLogs(res.data.data?.logs ?? []);
+      setLogs(res.data?.logs ?? []);
     } catch (err) {
       message.error('加载日志失败');
       setLogs([]);

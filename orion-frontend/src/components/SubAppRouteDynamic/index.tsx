@@ -275,7 +275,7 @@ const SubAppRouteDynamic: React.FC = () => {
   // 无效子应用处理
   if (!appConfig && subAppKey) {
     return (
-      <div style={{ padding: 40, minHeight: '100vh', background: '#f5f5f5' }}>
+      <div style={{ padding: 40, minHeight: '100vh', background: colors.neutral[100] }}>
         <Result
           status="404"
           title="子应用未找到"
@@ -292,7 +292,7 @@ const SubAppRouteDynamic: React.FC = () => {
 
   if (!subAppKey) {
     return (
-      <div style={{ padding: 40, minHeight: '100vh', background: '#f5f5f5' }}>
+      <div style={{ padding: 40, minHeight: '100vh', background: colors.neutral[100] }}>
         <Result
           status="warning"
           title="缺少子应用标识"

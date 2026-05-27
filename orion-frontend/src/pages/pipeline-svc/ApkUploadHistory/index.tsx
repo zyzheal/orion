@@ -78,7 +78,7 @@ const ApkUploadHistoryPage: React.FC = () => {
       });
 
       const resData = response.data as { data?: { data?: ApkUploadRecord[]; total?: number } };
-      const data = Array.isArray(resData?.data?.data) ? resData.data.data : [];
+      const data = Array.isArray(resData.data) ? resData.data : [];
       setRecords(data);
       setTotal(resData?.data?.total ?? 0);
     } catch (error) {
@@ -93,7 +93,7 @@ const ApkUploadHistoryPage: React.FC = () => {
     try {
       const response = await getRecentFailures(tenantId, 5);
       const resData = response.data as { data?: { data?: ApkUploadRecord[] } };
-      setRecentFailures(Array.isArray(resData?.data?.data) ? resData.data.data : []);
+      setRecentFailures(Array.isArray(resData.data) ? resData.data : []);
     } catch (error) {
       console.error('Failed to load recent failures:', error);
       setRecentFailures([]);
@@ -106,10 +106,10 @@ const ApkUploadHistoryPage: React.FC = () => {
       const resData = response.data as { data?: { data?: { total?: number; published?: number; failed?: number; uploading?: number } } };
       if (resData?.data?.data) {
         setStats({
-          total: resData.data.data.total,
-          published: resData.data.data.published,
-          failed: resData.data.data.failed,
-          uploading: resData.data.data.uploading,
+          total: resData.data.total,
+          published: resData.data.published,
+          failed: resData.data.failed,
+          uploading: resData.data.uploading,
         });
       }
     } catch (error) {

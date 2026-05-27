@@ -97,7 +97,7 @@ const PipelineErrorDetail: React.FC<PipelineErrorDetailProps> = ({ runId, onRetr
       try {
         const response = await getPipelineErrorDetail(runId);
         if (!cancelled) {
-          setErrorDetail(response.data.data);
+          setErrorDetail(response.data);
         }
       } catch (err: unknown) {
         if (!cancelled) {

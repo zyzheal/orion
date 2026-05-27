@@ -30,6 +30,7 @@ import {
   BlockOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -365,7 +366,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
         size="small"
         title={
           <Space>
-            <ThunderboltOutlined style={{ color: '#faad14' }} />
+            <ThunderboltOutlined style={{ color: colors.warning[500] }} />
             <span>矩阵构建配置</span>
           </Space>
         }
@@ -459,7 +460,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
       size="small"
       title={
         <Space>
-          <ThunderboltOutlined style={{ color: '#faad14' }} />
+          <ThunderboltOutlined style={{ color: colors.warning[500] }} />
           <span>矩阵构建配置</span>
           {totalCount > 0 && (
             <Tag color="processing">{effectiveCount} 个任务</Tag>

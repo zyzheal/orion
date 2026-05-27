@@ -77,7 +77,7 @@ const VectorStorePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCollections();
-      setCollections(Array.isArray(res.data?.data) ? res.data.data : []);
+      setCollections(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setCollections([]);
       message.error(`加载集合数据失败: ${(error as Error).message}`);
@@ -142,7 +142,7 @@ const VectorStorePage: React.FC = () => {
     setDocsLoading(true);
     try {
       const res = await getCollectionDocuments(name);
-      setCollectionDocs(Array.isArray(res.data?.data) ? res.data.data : []);
+      setCollectionDocs(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setCollectionDocs([]);
       message.error(`加载文档列表失败: ${(error as Error).message}`);
@@ -177,7 +177,7 @@ const VectorStorePage: React.FC = () => {
         collection: searchCollection,
         topK: searchTopK,
       });
-      setSearchResults(Array.isArray(res.data?.data) ? res.data.data : []);
+      setSearchResults(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setSearchResults([]);
       message.error(`语义搜索失败: ${(error as Error).message}`);

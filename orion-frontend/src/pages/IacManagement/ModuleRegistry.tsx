@@ -56,7 +56,7 @@ const ModuleRegistry: React.FC = () => {
     setLoading(true);
     try {
       const res = await getModules();
-      setModules(Array.isArray(res.data.data) ? res.data.data : []);
+      setModules(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load modules：${error.message}`);

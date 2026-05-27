@@ -44,6 +44,7 @@ import {
   type DRPlan,
   type FailoverTest,
 } from '@/api/disaster-recovery';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -237,10 +238,10 @@ const DisasterRecoveryPage: React.FC = () => {
           <Card><Statistic title="Total Backups" value={stats?.total ?? 0} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Successful" value={stats?.successful ?? 0} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card><Statistic title="Successful" value={stats?.successful ?? 0} valueStyle={{ color: colors.success[500] }} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Failed" value={stats?.failed ?? 0} valueStyle={{ color: '#ff4d4f' }} /></Card>
+          <Card><Statistic title="Failed" value={stats?.failed ?? 0} valueStyle={{ color: colors.error[400] }} /></Card>
         </Col>
       </Row>
 

@@ -85,7 +85,7 @@ const PipelineRunList: React.FC = () => {
       console.log('[PipelineRunList] Response object:', response);
       console.log('[PipelineRunList] response.data:', response.data);
       console.log('[PipelineRunList] response.data type:', typeof response.data);
-      console.log('[PipelineRunList] response.data.data:', response.data?.data);
+      console.log('[PipelineRunList] response.data:', response.data);
 
       // 后端返回格式：{ data: [...], total }
       // Axios 响应拦截器保持原样，不解包

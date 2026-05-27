@@ -79,7 +79,7 @@ const MonitoringMetrics: React.FC = () => {
     setLoading(true);
     try {
       const response = await getMetrics();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setMetrics(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -152,8 +152,8 @@ const MonitoringMetrics: React.FC = () => {
         getMetricSeries(metric.name),
         getMetricSummary(metric.name),
       ]);
-      setSeriesData(seriesRes.data.data?.points || []);
-      setSummaryData(summaryRes.data.data);
+      setSeriesData(seriesRes.data?.points || []);
+      setSummaryData(summaryRes.data);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载指标详情失败';
       message.error(`加载指标详情失败: ${msg}`);

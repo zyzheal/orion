@@ -8,6 +8,7 @@ import { Card, Table, Tag, Button, Space, Row, Col, Statistic, Input, Select, me
 import { ReloadOutlined, WarningOutlined, UserOutlined, AlertOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getHighRiskUsers, getAnomalies, type UEBAStats, type AnomalyAlert } from '@/api/ueba';
+import { colors } from '@/tokens';
 
 const { Option } = Select;
 
@@ -124,12 +125,12 @@ const UEBAPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
-            <Statistic title="高风险用户" value={risks.length} prefix={<WarningOutlined />} valueStyle={{ color: '#ff4d4f' }} />
+            <Statistic title="高风险用户" value={risks.length} prefix={<WarningOutlined />} valueStyle={{ color: colors.error[400] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="异常告警" value={alerts.length} prefix={<AlertOutlined />} valueStyle={{ color: '#faad14' }} />
+            <Statistic title="异常告警" value={alerts.length} prefix={<AlertOutlined />} valueStyle={{ color: colors.warning[500] }} />
           </Card>
         </Col>
         <Col span={6}>

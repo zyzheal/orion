@@ -42,6 +42,7 @@ import {
   type Bottleneck,
   type PerformanceSuggestion,
 } from '@/api/performance';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -375,7 +376,7 @@ const PerformancePage: React.FC = () => {
             <Statistic
               title="严重瓶颈"
               value={stats.criticalBottlenecks}
-              valueStyle={{ color: stats.criticalBottlenecks > 0 ? '#ff4d4f' : undefined }}
+              valueStyle={{ color: stats.criticalBottlenecks > 0 ? colors.error[400] : undefined }}
             />
           </Card>
         </Col>

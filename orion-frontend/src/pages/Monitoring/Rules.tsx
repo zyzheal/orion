@@ -53,7 +53,7 @@ const MonitoringRules: React.FC = () => {
     setLoading(true);
     try {
       const response = await getAlertRules();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setRules(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -153,7 +153,7 @@ const MonitoringRules: React.FC = () => {
     try {
       const res = await toggleAlertRule(id);
       setRules((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, enabled: res.data.data?.enabled ?? !r.enabled } : r))
+        prev.map((r) => (r.id === id ? { ...r, enabled: res.data?.enabled ?? !r.enabled } : r))
       );
       message.success('规则状态已切换');
     } catch (error: unknown) {

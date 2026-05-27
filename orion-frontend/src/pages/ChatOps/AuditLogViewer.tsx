@@ -63,8 +63,8 @@ const AuditLogViewer: React.FC = () => {
       }
 
       const [logRes, statsRes] = await Promise.all([getAuditLogs(params), getAuditStats(params)]);
-      setLogs(Array.isArray(logRes.data.data) ? logRes.data.data : []);
-      setStats(statsRes.data.data as AuditStats | null);
+      setLogs(Array.isArray(logRes.data) ? logRes.data : []);
+      setStats(statsRes.data as AuditStats | null);
     } catch {
       setApiError('后端服务暂不可用');
       setLogs([]);

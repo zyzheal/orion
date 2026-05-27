@@ -63,7 +63,7 @@ const SpaceList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSpaces();
-      setSpaces(Array.isArray(res.data.data) ? res.data.data : []);
+      setSpaces(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setSpaces([]);
       message.error(`加载知识库数据失败: ${(error as Error).message}`);

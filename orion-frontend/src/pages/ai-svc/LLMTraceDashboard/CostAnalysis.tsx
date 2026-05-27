@@ -40,7 +40,7 @@ const CostAnalysis: React.FC = () => {
         params.endDate = dateRange[1];
       }
       const response = await getCostBreakdown(params);
-      setCostData(response.data.data as CostBreakdown | null);
+      setCostData(response.data as CostBreakdown | null);
     } catch (error: unknown) {
       setCostData(null);
       message.error(`加载成本数据失败: ${(error as Error).message}`);

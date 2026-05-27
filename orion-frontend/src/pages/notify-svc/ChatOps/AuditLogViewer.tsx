@@ -63,8 +63,8 @@ const AuditLogViewer: React.FC = () => {
       }
 
       const [logRes, statsRes] = await Promise.all([getAuditLogs(params), getAuditStats(params)]);
-      setLogs(Array.isArray(logRes.data.data) ? logRes.data.data : []);
-      setStats(statsRes.data.data as AuditStats | null);
+      setLogs(Array.isArray(logRes.data) ? logRes.data : []);
+      setStats(statsRes.data as AuditStats | null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load audit logs：${error.message}`);

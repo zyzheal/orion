@@ -729,8 +729,8 @@ const NotificationCenter: React.FC = () => {
 
       {/* Pagination - Top */}
       {total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '8px 12px', background: '#fafafa', borderRadius: 8 }}>
-          <span style={{ fontSize: 13, color: '#666' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '8px 12px', background: colors.neutral[50], borderRadius: 8 }}>
+          <span style={{ fontSize: 13, color: colors.neutral[600] }}>
             共 {total} 条通知，第 {currentPage} 页
           </span>
           <Pagination

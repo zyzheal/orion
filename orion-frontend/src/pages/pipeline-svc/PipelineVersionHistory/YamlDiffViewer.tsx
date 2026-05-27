@@ -231,7 +231,7 @@ const YamlDiffViewer: React.FC<YamlDiffViewerProps> = ({
         body: {
           maxHeight: 700,
           overflowY: 'auto',
-          background: colors.neutral[50] || '#fafafa',
+          background: colors.neutral[50] || colors.neutral[50],
           borderRadius: componentRadius.input,
           padding: spacing[2],
           lineHeight: '1.8',

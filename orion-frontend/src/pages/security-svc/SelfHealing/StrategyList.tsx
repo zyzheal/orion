@@ -47,7 +47,7 @@ const StrategyList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getStrategies();
-      setData(res.data.data?.items || []);
+      setData(res.data?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载策略列表失败：${error.message}`);

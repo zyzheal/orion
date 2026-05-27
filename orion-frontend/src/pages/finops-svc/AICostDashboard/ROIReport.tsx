@@ -48,7 +48,7 @@ const ROIFeatureReport: React.FC = () => {
     setLoading(true);
     try {
       const res = await getROIReport({ period });
-      const data = res.data.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
+      const data = res.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
       setRoiData(Array.isArray(data?.features) ? data.features : []);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
     } catch (error: unknown) {

@@ -126,9 +126,9 @@ const PluginSPIPage: React.FC = () => {
         getPluginRegistrations(),
         getSPIConfigs(),
       ]);
-      const extPoints = extRes.data.data?.extensionPoints || extRes.data.data?.data?.extensionPoints || [];
-      const regs = regRes.data.data?.registrations || regRes.data.data?.data?.registrations || [];
-      const cfgs = cfgRes.data.data?.configs || cfgRes.data.data?.data?.configs || [];
+      const extPoints = extRes.data?.extensionPoints || extRes.data?.extensionPoints || [];
+      const regs = regRes.data?.registrations || regRes.data?.registrations || [];
+      const cfgs = cfgRes.data?.configs || cfgRes.data?.configs || [];
       setExtensionPoints(extPoints.map(mapApiExtensionPoint));
       setPluginRegistrations(regs.map(mapApiRegistration));
       setSpiConfigs(cfgs.map(mapApiSPIConfig));
@@ -142,7 +142,7 @@ const PluginSPIPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSPIStats();
-      const statsData = response.data.data?.stats || response.data.data || {};
+      const statsData = response.data?.stats || response.data || {};
       setStats(mapApiStats(statsData));
     } catch (error: unknown) {
       message.error(`加载统计信息失败: ${(error as Error).message}`);

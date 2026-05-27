@@ -75,7 +75,7 @@ const SkillExecutions: React.FC = () => {
         getSkillExecutions(skillId, { page, limit: 20 }),
         getSkill(skillId),
       ]);
-      const execData = execRes.data.data;
+      const execData = execRes.data;
       const items = execData.executions || [];
       setExecutions(Array.isArray(items) ? items : []);
       setTotal(execData.total || 0);
@@ -455,13 +455,13 @@ const SkillExecutions: React.FC = () => {
             )}
 
             <Card style={{ marginTop: 16 }} title="输入参数" size="small">
-              <pre style={{ fontSize: 12, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedExecution.input, null, 2)}
               </pre>
             </Card>
 
             <Card style={{ marginTop: 16 }} title="输出结果" size="small">
-              <pre style={{ fontSize: 12, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedExecution.output, null, 2)}
               </pre>
             </Card>

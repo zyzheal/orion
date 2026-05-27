@@ -29,7 +29,7 @@ const BatchConfirmation: React.FC = () => {
     setLoading(true);
     try {
       const res = await getConfirmations({ status: 'pending' });
-      setConfirmations(Array.isArray(res.data.data) ? res.data.data : []);
+      setConfirmations(Array.isArray(res.data) ? res.data : []);
     } catch {
       message.error('Failed to load confirmations');
     } finally {

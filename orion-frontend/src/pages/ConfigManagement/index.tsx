@@ -173,8 +173,8 @@ const ConfigManagementPage: React.FC = () => {
         getConfigs({ pageSize: 50 }),
         getGitOpsConfig(),
       ]);
-      setConfigs(configsRes.data.data.configs || []);
-      setGitOpsConfig(gitOpsRes.data.data);
+      setConfigs(configsRes.data.configs || []);
+      setGitOpsConfig(gitOpsRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载配置失败：${error.message}`);
@@ -245,7 +245,7 @@ const ConfigManagementPage: React.FC = () => {
     setEnvDiffLoading(true);
     try {
       const res = await compareEnvironments(sourceEnv, targetEnv);
-      setEnvDiffResult(res.data.data);
+      setEnvDiffResult(res.data);
       message.success('环境对比完成');
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -275,7 +275,7 @@ const ConfigManagementPage: React.FC = () => {
     setVersionDiffLoading(true);
     try {
       const res = await compareConfigs(versionDiffConfigId, versionA, versionB);
-      setVersionDiffResult(res.data.data);
+      setVersionDiffResult(res.data);
       message.success('版本对比完成');
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -293,7 +293,7 @@ const ConfigManagementPage: React.FC = () => {
     setReportLoading(true);
     try {
       const res = await getDiffReport();
-      const data = res.data.data;
+      const data = res.data;
       setDiffReport({
         totalConfigs: data.totalConfigs,
         totalDifferences: data.summary.totalDifferences,
@@ -320,9 +320,9 @@ const ConfigManagementPage: React.FC = () => {
     setDriftLoading(true);
     try {
       const res = await detectDrift();
-      setDriftResult(res.data.data);
-      if (res.data.data.driftDetected) {
-        message.warning(`发现 ${res.data.data.itemCount} 处配置漂移`);
+      setDriftResult(res.data);
+      if (res.data.driftDetected) {
+        message.warning(`发现 ${res.data.itemCount} 处配置漂移`);
       } else {
         message.success('未检测到配置漂移');
       }
@@ -958,7 +958,7 @@ const ConfigManagementPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: '#fff', minHeight: '100vh' }}>
+    <div style={{ padding: 24, background: '#ffffff', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>

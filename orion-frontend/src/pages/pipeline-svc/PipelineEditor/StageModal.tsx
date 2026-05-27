@@ -38,6 +38,7 @@ import type {
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
+import { colors } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -1056,7 +1057,7 @@ const StageModal: React.FC<StageModalProps> = ({
         {/* 矩阵构建配置 */}
         <Divider orientation="left" orientationMargin={0}>
           <Space>
-            <ThunderboltOutlined style={{ color: '#faad14' }} />
+            <ThunderboltOutlined style={{ color: colors.warning[500] }} />
             <span>矩阵构建 (Matrix Build)</span>
           </Space>
         </Divider>

@@ -164,7 +164,7 @@ const PipelineDetail: React.FC = () => {
           } else {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
-            const reloaded = reloadResp.data.data as { run?: unknown; stages?: unknown };
+            const reloaded = reloadResp.data as { run?: unknown; stages?: unknown };
             const run = reloaded?.run as { id?: string; context?: { branch?: string; commitSha?: string }; branch?: string; commit?: string; pipelineVersion?: string };
             setPipeline({
               ...run,

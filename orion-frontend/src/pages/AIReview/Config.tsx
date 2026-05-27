@@ -22,7 +22,7 @@ const AIReviewConfig: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewConfig();
-      const config = res.data.data;
+      const config = res.data;
       if (config) {
         form.setFieldsValue(config);
       }

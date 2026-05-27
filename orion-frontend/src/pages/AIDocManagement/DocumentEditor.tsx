@@ -49,7 +49,7 @@ const DocumentEditor: React.FC = () => {
     setLoading(true);
     try {
       const res = await getDocs();
-      setDocuments(Array.isArray(res.data.data) ? res.data.data : []);
+      setDocuments(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setDocuments([
         {

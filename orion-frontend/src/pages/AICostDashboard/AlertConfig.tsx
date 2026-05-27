@@ -88,7 +88,7 @@ const AlertConfig: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAlerts();
-      setAlerts(Array.isArray(res.data.data) ? res.data.data : []);
+      setAlerts(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setAlerts([]);
       message.error(`加载告警数据失败: ${(error as Error).message}`);

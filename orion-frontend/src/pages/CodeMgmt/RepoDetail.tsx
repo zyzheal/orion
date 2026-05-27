@@ -68,13 +68,13 @@ const RepoDetail: React.FC = () => {
     setRepoLoading(true);
     try {
       const adaptersResp = await getCodeRepoAdapters();
-      const adapters = adaptersResp.data.data as Array<{ id: string; name: string; type: string }>;
+      const adapters = adaptersResp.data as Array<{ id: string; name: string; type: string }>;
       if (!Array.isArray(adapters)) return;
 
       for (const adapter of adapters) {
         try {
           const reposResp = await getCodeRepos(adapter.id);
-          const repos = reposResp.data.data as Array<{
+          const repos = reposResp.data as Array<{
             id: string;
             name: string;
             adapterId: string;
@@ -107,7 +107,7 @@ const RepoDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getCodeRepoBranches(adapterId, id);
-      const data = response.data.data as Branch[];
+      const data = response.data as Branch[];
       setBranches(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -125,7 +125,7 @@ const RepoDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getPullRequests(adapterId, id);
-      const data = response.data.data as PullRequest[];
+      const data = response.data as PullRequest[];
       setPullRequests(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {

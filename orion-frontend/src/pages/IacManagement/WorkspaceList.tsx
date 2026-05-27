@@ -78,7 +78,7 @@ const WorkspaceList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getWorkspaces();
-      setWorkspaces(Array.isArray(res.data.data) ? res.data.data : []);
+      setWorkspaces(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load workspaces：${error.message}`);

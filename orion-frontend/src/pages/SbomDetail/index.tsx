@@ -86,10 +86,10 @@ const SbomDetail: React.FC = () => {
         getSbomVulnerabilityResults({ sbomId: id }),
         getSbomAttestation(id),
       ]);
-      setDoc(docRes.data.data);
-      setPackages(Array.isArray(pkgRes.data.data) ? pkgRes.data.data : []);
-      setVulnResults(Array.isArray(vulnRes.data.data) ? vulnRes.data.data : []);
-      setAttestation(attRes.data.data);
+      setDoc(docRes.data);
+      setPackages(Array.isArray(pkgRes.data) ? pkgRes.data : []);
+      setVulnResults(Array.isArray(vulnRes.data) ? vulnRes.data : []);
+      setAttestation(attRes.data);
     } catch {
       message.error('Failed to load SBOM detail');
     } finally {
@@ -128,7 +128,7 @@ const SbomDetail: React.FC = () => {
   const handleViewVulnDetails = async (resultId: string) => {
     try {
       const res = await getSbomVulnerabilityDetails(resultId);
-      setVulnDetails(Array.isArray(res.data.data) ? res.data.data : []);
+      setVulnDetails(Array.isArray(res.data) ? res.data : []);
       setVulnDetailVisible(true);
     } catch {
       message.error('Failed to load vulnerability details');

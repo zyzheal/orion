@@ -52,9 +52,9 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     setLoading(true);
     try {
       const [patternsRes, statsRes] = await Promise.all([searchPatterns(), getKnowledgeStats()]);
-      const patternsData = patternsRes.data.data;
+      const patternsData = patternsRes.data;
       setPatterns(Array.isArray(patternsData) ? patternsData : []);
-      setStats(statsRes.data.data);
+      setStats(statsRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载知识库失败：${error.message}`);
@@ -77,7 +77,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       if (query) params.keyword = query;
       if (filters.category && filters.category !== 'all') params.category = filters.category;
       const response = await searchPatterns(params);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -111,7 +111,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       if (newFilters.category && newFilters.category !== 'all')
         params.category = newFilters.category;
       const response = await searchPatterns(params);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -127,7 +127,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const res = await getPattern(pattern.id);
-      setSelectedPattern(res.data.data);
+      setSelectedPattern(res.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载模式详情失败：${error.message}`);

@@ -26,8 +26,8 @@ const AIReviewHistory: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewHistory({ ...filters, page, pageSize });
-      setData(res.data.data?.items || []);
-      setTotal(res.data.data?.total || 0);
+      setData(res.data?.items || []);
+      setTotal(res.data?.total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审历史失败：${error.message}`);

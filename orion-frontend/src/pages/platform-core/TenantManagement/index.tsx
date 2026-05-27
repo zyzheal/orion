@@ -58,9 +58,9 @@ const TenantManagementPage: React.FC = () => {
         getNamespacePoolStatus(),
         getTenantNamespaces('1'),
       ]);
-      setQuota(quotaRes.data.data);
-      setPoolStatus(poolRes.data.data);
-      setNamespaces(namespacesRes.data.data.namespaces || []);
+      setQuota(quotaRes.data);
+      setPoolStatus(poolRes.data);
+      setNamespaces(namespacesRes.data.namespaces || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载租户数据失败：${error.message}`);

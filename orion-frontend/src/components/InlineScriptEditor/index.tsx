@@ -27,10 +27,10 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
         violations: [] as string[],
       };
       setScanResult(result);
-      if (data?.valid) {
+      if (result?.valid) {
         message.success('Security scan passed');
       } else {
-        message.error(`Security violations: ${data?.violations?.join(', ') || 'Unknown'}`);
+        message.error(`Security violations: ${result?.violations?.join(', ') || 'Unknown'}`);
       }
     } catch {
       message.error('Scan failed');

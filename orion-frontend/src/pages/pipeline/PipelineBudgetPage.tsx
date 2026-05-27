@@ -94,7 +94,7 @@ const UsageCard: React.FC<{
   icon: React.ReactNode;
 }> = ({ title, used, percent, unit, icon }) => {
   const statusColor = percent >= 90 ? 'exception' : percent >= 70 ? 'normal' : 'success';
-  const strokeColor = percent >= 90 ? '#ff4d4f' : percent >= 70 ? '#faad14' : '#52c41a';
+  const strokeColor = percent >= 90 ? colors.error[400] : percent >= 70 ? colors.warning[500] : colors.success[500];
 
   return (
     <Card size="small">

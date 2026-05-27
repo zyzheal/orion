@@ -7,6 +7,7 @@
 import React, { useMemo } from 'react';
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
+import { colors } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -120,11 +121,11 @@ function MetricCard({
     if (color) return color;
     switch (computedTrend) {
       case 'up':
-        return '#52c41a';
+        return colors.success[500];
       case 'down':
-        return '#f5222d';
+        return colors.error[500];
       default:
-        return '#8c8c8c';
+        return colors.neutral[500];
     }
   }, [computedTrend, color]);
 
@@ -187,7 +188,7 @@ function MetricCard({
               width: 24,
               height: 24,
               border: '3px solid #f0f0f0',
-              borderTopColor: '#1890ff',
+              borderTopColor: colors.primary[500],
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}
@@ -222,7 +223,7 @@ function MetricCard({
             </Tooltip>
           )}
         </span>
-        {icon && <span style={{ color: color || '#1890ff' }}>{icon}</span>}
+        {icon && <span style={{ color: color || colors.primary[500] }}>{icon}</span>}
       </div>
 
       {/* Value row */}

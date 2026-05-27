@@ -124,7 +124,7 @@ export default function ChatOpsChat() {
             size="small"
             style={{
               backgroundColor: isUser ? colors.primary[500] : colors.light.bg.secondary,
-              color: isUser ? '#fff' : undefined,
+              color: isUser ? '#ffffff' : undefined,
               borderRadius: 12,
             }}
             bodyStyle={{ padding: '8px 12px' }}
@@ -167,7 +167,7 @@ export default function ChatOpsChat() {
                       key={i}
                       size="small"
                       type={isUser ? 'default' : 'link'}
-                      style={isUser ? { color: '#fff', borderColor: 'rgba(255,255,255,0.5)' } : undefined}
+                      style={isUser ? { color: '#ffffff', borderColor: 'rgba(255,255,255,0.5)' } : undefined}
                       onClick={() => handleSend(s)}
                     >
                       {s}

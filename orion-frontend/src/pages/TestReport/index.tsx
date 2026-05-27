@@ -42,11 +42,11 @@ const TestReportPage: React.FC = () => {
         getTestReports({ runId, page: 1, pageSize: 100 }),
         getRunSummary(runId),
       ]);
-      if (reportsRes.data.data) {
-        setReports(reportsRes.data.data.items || []);
+      if (reportsRes.data) {
+        setReports(reportsRes.data.items || []);
       }
-      if (summaryRes.data.data) {
-        setSummary(summaryRes.data.data);
+      if (summaryRes.data) {
+        setSummary(summaryRes.data);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载测试报告失败';
@@ -64,8 +64,8 @@ const TestReportPage: React.FC = () => {
     setCaseLoading(true);
     try {
       const res = await getTestCases(reportId, { page: 1, pageSize: 200 });
-      if (res.data.data) {
-        setCases(res.data.data.items || []);
+      if (res.data) {
+        setCases(res.data.items || []);
       }
     } catch {
       message.error('加载测试用例失败');
@@ -224,7 +224,7 @@ const TestReportPage: React.FC = () => {
               <Statistic
                 title="通过"
                 value={summary.totalPassed}
-                valueStyle={{ color: colors.success?.[500] || '#52c41a' }}
+                valueStyle={{ color: colors.success?.[500] || colors.success[500] }}
                 prefix={<CheckCircleOutlined />}
               />
             </Col>
@@ -232,7 +232,7 @@ const TestReportPage: React.FC = () => {
               <Statistic
                 title="失败"
                 value={summary.totalFailed}
-                valueStyle={{ color: colors.error?.[500] || '#ff4d4f' }}
+                valueStyle={{ color: colors.error?.[500] || colors.error[400] }}
                 prefix={<CloseCircleOutlined />}
               />
             </Col>

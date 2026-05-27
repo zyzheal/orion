@@ -205,8 +205,8 @@ const AISecurityPage: React.FC = () => {
     setLoading(true);
     try {
       const [policiesRes, evaluationsRes] = await Promise.all([getPolicies(), getEvaluations()]);
-      setPolicies(policiesRes.data.data.policies.map(mapApiPolicyToUI));
-      setEvaluations(evaluationsRes.data.data.evaluations.map(mapApiEvalToUI));
+      setPolicies(policiesRes.data.policies.map(mapApiPolicyToUI));
+      setEvaluations(evaluationsRes.data.evaluations.map(mapApiEvalToUI));
     } catch (error: unknown) {
       message.error(`Failed to load security data: ${(error as Error).message}`);
     } finally {
@@ -217,7 +217,7 @@ const AISecurityPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSecurityStats();
-      const apiStats = response.data.data.stats;
+      const apiStats = response.data.stats;
       setStats({
         policiesActive: apiStats.policiesActive,
         requestsBlocked: apiStats.requestsBlocked,

@@ -50,7 +50,7 @@ const MonitoringChannels: React.FC = () => {
     setLoading(true);
     try {
       const response = await getChannels();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setChannels(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -66,7 +66,7 @@ const MonitoringChannels: React.FC = () => {
   const loadEscalationPolicies = async () => {
     try {
       const response = await getEscalationPolicies();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setEscalationPolicies(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -116,7 +116,7 @@ const MonitoringChannels: React.FC = () => {
     try {
       const res = await toggleChannel(id);
       setChannels((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, enabled: res.data.data?.enabled ?? !c.enabled } : c))
+        prev.map((c) => (c.id === id ? { ...c, enabled: res.data?.enabled ?? !c.enabled } : c))
       );
       message.success('渠道状态已切换');
     } catch (error: unknown) {

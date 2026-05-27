@@ -1355,7 +1355,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                         cx={(startX + endX) / 2}
                         cy={(startY + endY) / 2 + 10}
                         r={10}
-                        fill="#fff"
+                        fill='#ffffff'
                         stroke={colors.neutral[300]}
                         strokeWidth={1}
                       />
@@ -1407,7 +1407,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                   minWidth: 200,
                   maxWidth: 280,
                   minHeight: configured ? 100 : 80,
-                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[10] || '#f5f5f5' : '#fff',
+                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[10] || colors.neutral[100] : '#ffffff',
                   borderRadius: 12,
                   padding: '12px 16px',
                   boxShadow: isHovered

@@ -380,7 +380,7 @@ const ArtifactManagement: React.FC = () => {
   const loadTags = async (id: string) => {
     try {
       const res = await getArtifactTags(id);
-      setTags(Array.isArray(res.data?.data) ? res.data.data : []);
+      setTags(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setTags([]);
     }
@@ -389,7 +389,7 @@ const ArtifactManagement: React.FC = () => {
   const loadPromotionHistory = async (id: string) => {
     try {
       const res = await getPromotionHistory(id);
-      setPromotionHistory(Array.isArray(res.data?.data) ? res.data.data : []);
+      setPromotionHistory(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setPromotionHistory([]);
     }

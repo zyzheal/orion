@@ -51,7 +51,7 @@ const DiagnosticTrigger: React.FC = () => {
     setSubmitting(true);
     try {
       const response = await triggerDiagnostic(data);
-      const sessionId = response.data.data?.sessionId;
+      const sessionId = response.data?.sessionId;
       message.success('诊断会话已创建');
       if (sessionId) {
         navigate(`/diagnostic/sessions`);

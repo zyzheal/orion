@@ -29,7 +29,7 @@ const ApprovalManagement: React.FC = () => {
   const fetchFlows = async () => {
     try {
       const res = await getApprovalFlows();
-      setFlows(res.data.data || []);
+      setFlows(res.data || []);
     } catch {
       // API may not be fully ready
     }
@@ -39,7 +39,7 @@ const ApprovalManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getApprovals();
-      setRecords(Array.isArray(res.data?.data) ? res.data.data : []);
+      setRecords(Array.isArray(res.data) ? res.data : []);
     } catch {
       // API may not be fully ready
     } finally {
@@ -50,7 +50,7 @@ const ApprovalManagement: React.FC = () => {
   const fetchTimeoutConfigs = async () => {
     try {
       const res = await getTimeoutConfigs();
-      setTimeoutConfigs(Array.isArray(res.data?.data) ? res.data.data : []);
+      setTimeoutConfigs(Array.isArray(res.data) ? res.data : []);
     } catch {
       // API may not be fully ready
     }

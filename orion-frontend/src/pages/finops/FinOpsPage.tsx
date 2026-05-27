@@ -65,7 +65,7 @@ import type {
   OptimizationRecommendation,
   BudgetForecast,
 } from '@/types/finops';
-import { colors } from '@/tokens';
+import { colors, radius, componentRadius, typography } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -386,16 +386,16 @@ const FinOpsPage: React.FC = () => {
         {/* Summary Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
               <Statistic
                 title="总成本"
                 value={costSummary.totalCost}
                 precision={2}
                 prefix={
                   costSummary.totalCost > 0 ? (
-                    <ArrowUpOutlined style={{ color: colors.error[500], fontSize: 16 }} />
+                    <ArrowUpOutlined style={{ color: colors.error[500], fontSize: radius.xl }} />
                   ) : (
-                    <MinusOutlined style={{ color: colors.neutral[400], fontSize: 16 }} />
+                    <MinusOutlined style={{ color: colors.neutral[400], fontSize: radius.xl }} />
                   )
                 }
                 suffix="¥"
@@ -407,7 +407,7 @@ const FinOpsPage: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
               <Statistic
                 title="计算资源"
                 value={costSummary.computeCost}
@@ -418,7 +418,7 @@ const FinOpsPage: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
               <Statistic
                 title="存储"
                 value={costSummary.storageCost}
@@ -429,7 +429,7 @@ const FinOpsPage: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
               <Statistic
                 title="SaaS 工具"
                 value={costSummary.saasCost}
@@ -491,7 +491,7 @@ const FinOpsPage: React.FC = () => {
         </Card>
 
         {/* Cost Breakdown by Category Pie-like view */}
-        <Card title="费用构成" bordered={false} style={{ borderRadius: 12 }}>
+        <Card title="费用构成" bordered={false} style={{ borderRadius: componentRadius.card }}>
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             {costBreakdown.map((item) => (
               <div key={item.dimensionValue}>
@@ -730,7 +730,7 @@ const FinOpsPage: React.FC = () => {
                 <Card
                   title={`预测 #${index + 1}`}
                   bordered={false}
-                  style={{ borderRadius: 12 }}
+                  style={{ borderRadius: componentRadius.card }}
                 >
                   <Descriptions column={2} size="small">
                     <Descriptions.Item label="当前花费">
@@ -1002,7 +1002,7 @@ const FinOpsPage: React.FC = () => {
       </div>
 
       {/* Main Tabs */}
-      <Card bordered={false} style={{ borderRadius: 12 }}>
+      <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}

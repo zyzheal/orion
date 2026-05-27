@@ -132,7 +132,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
         isHotfix(plId, branch).catch(() => null),
       ]);
       setResult({
-        env: envRes?.data?.data ? String(envRes.data.data) : undefined,
+        env: envRes?.data ? String(envRes.data) : undefined,
         needsApproval: approvalRes?.data?.data?.requiresApproval,
         isHotfixBranch: hotfixRes?.data?.data?.isHotfix,
       });
@@ -260,7 +260,7 @@ const ProductLineManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getProductLines();
-      setProductLines(Array.isArray(res.data?.data) ? res.data.data : []);
+      setProductLines(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setProductLines([]);
       message.error(`加载产品线数据失败: ${(error as Error).message}`);

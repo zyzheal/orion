@@ -84,7 +84,7 @@ const CanaryAnalysis: React.FC = () => {
     try {
       const runRes = await getCanaryRuns();
       await getCanaryConfigs();
-      setRuns(Array.isArray(runRes.data.data) ? runRes.data.data : []);
+      setRuns(Array.isArray(runRes.data) ? runRes.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载金丝雀分析数据失败：${error.message}`);
@@ -122,8 +122,8 @@ const CanaryAnalysis: React.FC = () => {
         getCanaryMetrics(run.id),
         getCanaryMlResults(run.id),
       ]);
-      setMetrics(Array.isArray(metricRes.data.data) ? metricRes.data.data : []);
-      setMlResults(Array.isArray(mlRes.data.data) ? mlRes.data.data : []);
+      setMetrics(Array.isArray(metricRes.data) ? metricRes.data : []);
+      setMlResults(Array.isArray(mlRes.data) ? mlRes.data : []);
       setRunDetailVisible(true);
     } catch (error: unknown) {
       if (error instanceof Error) {

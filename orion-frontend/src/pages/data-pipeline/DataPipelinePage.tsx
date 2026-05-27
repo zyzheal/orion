@@ -43,6 +43,7 @@ import {
   type PipelineStatus,
   type DataLineage,
 } from '@/api/data-pipeline';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -348,7 +349,7 @@ const DataPipelinePage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃" value={stats.active} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -356,7 +357,7 @@ const DataPipelinePage: React.FC = () => {
             <Statistic
               title="失败"
               value={stats.failed}
-              valueStyle={{ color: stats.failed > 0 ? '#ff4d4f' : undefined }}
+              valueStyle={{ color: stats.failed > 0 ? colors.error[400] : undefined }}
             />
           </Card>
         </Col>
@@ -475,12 +476,12 @@ const DataPipelinePage: React.FC = () => {
                   {lineageData.nodes.filter((n) => n.type === 'transform').length > 0 && (
                     <>
                       <div style={{ textAlign: 'center', margin: '8px 0' }}>
-                        <ApiOutlined style={{ color: '#faad14' }} />
+                        <ApiOutlined style={{ color: colors.warning[500] }} />
                       </div>
                       {lineageData.nodes.filter((n) => n.type === 'transform').map((node) => (
-                        <Card key={node.id} size="small" style={{ marginBottom: 8, marginLeft: 24, borderColor: '#faad14' }}>
+                        <Card key={node.id} size="small" style={{ marginBottom: 8, marginLeft: 24, borderColor: colors.warning[500] }}>
                           <Space>
-                            <ApiOutlined style={{ color: '#faad14' }} />
+                            <ApiOutlined style={{ color: colors.warning[500] }} />
                             <Text>{node.name}</Text>
                           </Space>
                         </Card>
@@ -490,11 +491,11 @@ const DataPipelinePage: React.FC = () => {
 
                   {/* Destination Node */}
                   <div style={{ textAlign: 'center', margin: '8px 0' }}>
-                    <ApiOutlined style={{ color: '#52c41a' }} />
+                    <ApiOutlined style={{ color: colors.success[500] }} />
                   </div>
-                  <Card size="small" style={{ borderColor: '#52c41a' }}>
+                  <Card size="small" style={{ borderColor: colors.success[500] }}>
                     <Space>
-                      <DatabaseOutlined style={{ color: '#52c41a' }} />
+                      <DatabaseOutlined style={{ color: colors.success[500] }} />
                       <Text strong>Destination: {lineageData.nodes.find((n) => n.type === 'destination')?.name || '-'}</Text>
                     </Space>
                   </Card>

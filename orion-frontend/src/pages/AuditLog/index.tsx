@@ -55,9 +55,9 @@ const AuditLogPage: React.FC = () => {
         getChainInfo(),
         getStorageStats(),
       ]);
-      setAuditLogs(logsRes.data.data.entries || []);
-      setChainInfo(chainRes.data.data);
-      setStorageStats(storageRes.data.data);
+      setAuditLogs(logsRes.data.entries || []);
+      setChainInfo(chainRes.data);
+      setStorageStats(storageRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载审计日志失败：${error.message}`);
@@ -72,10 +72,10 @@ const AuditLogPage: React.FC = () => {
   const handleVerify = async () => {
     try {
       const result = await verifyChain();
-      if (result.data.data.result.isValid) {
+      if (result.data.result.isValid) {
         message.success('审计链完整性验证通过');
       } else {
-        message.warning(`发现 ${result.data.data.result.breaks?.length || 0} 处链断裂`);
+        message.warning(`发现 ${result.data.result.breaks?.length || 0} 处链断裂`);
       }
     } catch (error: unknown) {
       if (error instanceof Error) {

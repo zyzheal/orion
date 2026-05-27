@@ -239,13 +239,13 @@ const DashboardNew: React.FC = () => {
       // Fetch pipelines
       const pipelinesRes = await getPipelines();
       if (pipelinesRes.data?.data) {
-        setPipelines(Array.isArray(pipelinesRes.data.data) ? pipelinesRes.data.data : []);
+        setPipelines(Array.isArray(pipelinesRes.data) ? pipelinesRes.data : []);
       }
 
       // Fetch recent runs
       const runsRes = await getPipelineRuns('all', { page: 1, pageSize: 5 });
       if (runsRes.data?.data) {
-        setRecentRuns(Array.isArray(runsRes.data.data) ? runsRes.data.data : []);
+        setRecentRuns(Array.isArray(runsRes.data) ? runsRes.data : []);
       }
 
       // Fetch monitoring health
@@ -563,7 +563,7 @@ const DashboardNew: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 0',
-                    borderBottom: `1px solid ${colors.neutral?.[50] || '#f5f5f5'}`,
+                    borderBottom: `1px solid ${colors.neutral?.[50] || colors.neutral[100]}`,
                   }}
                 >
                   <Space>

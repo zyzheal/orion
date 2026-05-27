@@ -46,6 +46,7 @@ import {
   type OrchestrationStep,
   type CreateOrchestrationInput,
 } from '@/api/orchestration';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -415,7 +416,7 @@ const OrchestrationPage: React.FC = () => {
             <Statistic
               title="失败"
               value={stats.failed}
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: colors.error[400] }}
             />
           </Card>
         </Col>
@@ -424,7 +425,7 @@ const OrchestrationPage: React.FC = () => {
             <Statistic
               title="已完成"
               value={stats.completed}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>

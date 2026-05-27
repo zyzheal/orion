@@ -74,7 +74,7 @@ const BudgetManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBudgets();
-      setBudgets(Array.isArray(res.data.data) ? res.data.data : []);
+      setBudgets(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setBudgets([]);
       message.error(`加载预算数据失败: ${(error as Error).message}`);

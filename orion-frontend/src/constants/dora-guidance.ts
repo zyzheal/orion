@@ -85,7 +85,7 @@ export const DORA_LEVELS = [
   {
     level: 'elite',
     name: 'Elite（精英）',
-    color: '#52c41a',
+    color: colors.success[500],
     description: '行业顶尖水平，具备卓越的软件交付能力。',
     criteria: {
       deploymentFrequency: '按需部署（每天多次）',
@@ -97,7 +97,7 @@ export const DORA_LEVELS = [
   {
     level: 'high',
     name: 'High（高）',
-    color: '#1890ff',
+    color: colors.primary[500],
     description: '表现优秀，持续交付能力稳定可靠。',
     criteria: {
       deploymentFrequency: '每周至每月部署一次',
@@ -109,7 +109,7 @@ export const DORA_LEVELS = [
   {
     level: 'medium',
     name: 'Medium（中等）',
-    color: '#faad14',
+    color: colors.warning[500],
     description: '有改进空间，需要优化部分流程。',
     criteria: {
       deploymentFrequency: '每月至每季度部署一次',
@@ -121,7 +121,7 @@ export const DORA_LEVELS = [
   {
     level: 'low',
     name: 'Low（低）',
-    color: '#ff4d4f',
+    color: colors.error[400],
     description: '需要重点关注，建议制定改进计划。',
     criteria: {
       deploymentFrequency: '少于每季度部署一次',

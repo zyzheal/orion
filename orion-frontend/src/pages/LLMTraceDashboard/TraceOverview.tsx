@@ -38,8 +38,8 @@ const TraceOverview: React.FC = () => {
         getDailyStats({ tenantId }),
         getPricing(),
       ]);
-      setDailyStats(statsRes.data.data as DailyStats | null);
-      const pricingData = pricingRes.data.data as { pricing?: ModelPricing[] } | null;
+      setDailyStats(statsRes.data as DailyStats | null);
+      const pricingData = pricingRes.data as { pricing?: ModelPricing[] } | null;
       setPricing(pricingData?.pricing || []);
     } catch (error: unknown) {
       setDailyStats(null);

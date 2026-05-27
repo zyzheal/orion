@@ -170,7 +170,7 @@ const RoleManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRoles(DEFAULT_TENANT_ID);
-      setRoles(Array.isArray(res.data?.data) ? res.data.data : []);
+      setRoles(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       // Fallback to mock data when backend is unavailable
       setRoles(MOCK_ROLES);

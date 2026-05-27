@@ -40,6 +40,7 @@ import {
   type CrossClusterJob,
   type ResourcePool,
 } from '@/api/federation';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -340,7 +341,7 @@ const FederationPage: React.FC = () => {
         </Col>
         <Col span={5}>
           <Card>
-            <Statistic title="活跃集群" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃集群" value={stats.active} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={5}>

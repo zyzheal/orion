@@ -46,7 +46,7 @@ const MonitoringAlerts: React.FC = () => {
     setLoading(true);
     try {
       const response = await getAlerts();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setAlerts(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {

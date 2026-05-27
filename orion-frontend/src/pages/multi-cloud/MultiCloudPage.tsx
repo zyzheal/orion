@@ -37,6 +37,7 @@ import {
   type CloudAccount,
   type CloudResource,
 } from '@/api/multi-cloud';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -243,7 +244,7 @@ const MultiCloudPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已连接" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="已连接" value={stats.active} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -251,7 +252,7 @@ const MultiCloudPage: React.FC = () => {
             <Statistic
               title="异常"
               value={stats.error}
-              valueStyle={{ color: stats.error > 0 ? '#ff4d4f' : undefined }}
+              valueStyle={{ color: stats.error > 0 ? colors.error[400] : undefined }}
             />
           </Card>
         </Col>

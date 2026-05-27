@@ -52,7 +52,7 @@ const BuildCachePage: React.FC = () => {
     setLoadingConfigs(true);
     try {
       const response = await getBuildCacheConfigs();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setConfigs(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -69,7 +69,7 @@ const BuildCachePage: React.FC = () => {
     setLoadingEntries(true);
     try {
       const response = await getBuildCacheEntries();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setEntries(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
