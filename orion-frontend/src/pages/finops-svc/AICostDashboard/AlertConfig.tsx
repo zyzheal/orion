@@ -285,7 +285,7 @@ const AlertConfig: React.FC = () => {
           </Button>
         }
       >
-        <Table columns={ruleColumns} dataSource={rules} rowKey="id" size="middle" striped />
+        <Table columns={ruleColumns} dataSource={rules} rowKey="id" size="middle" striped loading={loading} />
       </Card>
 
       {/* Create Rule Modal */}
