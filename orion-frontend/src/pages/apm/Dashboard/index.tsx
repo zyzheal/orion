@@ -117,12 +117,14 @@ const ApmDashboardPage: React.FC = () => {
 
         {/* Recent Traces */}
         <Card title="最近链路" style={{ marginBottom: 16 }}>
-          <Table columns={traceColumns} dataSource={traces} rowKey="traceId" pagination={{ pageSize: 10 }} size="small" />
+          <Table columns={traceColumns} dataSource={traces} rowKey="traceId" pagination={{ pageSize: 10 }} size="small"
+            locale={{ emptyText: traces.length === 0 ? '暂无链路数据' : undefined }} />
         </Card>
 
         {/* Service List */}
         <Card title="服务列表">
-          <Table columns={serviceColumns} dataSource={services} rowKey="service_name" pagination={false} size="small" />
+          <Table columns={serviceColumns} dataSource={services} rowKey="service_name" pagination={false} size="small"
+            locale={{ emptyText: services.length === 0 ? '暂无服务数据' : undefined }} />
         </Card>
       </div>
     </Spin>

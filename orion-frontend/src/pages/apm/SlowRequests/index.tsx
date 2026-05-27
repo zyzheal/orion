@@ -115,12 +115,14 @@ const ApmSlowRequestsPage: React.FC = () => {
 
         {/* Slow Query Ranking */}
         <Card title={<><BarChartOutlined /> 慢请求排行</>} style={{ marginBottom: 16 }}>
-          <Table columns={queryColumns} dataSource={slowQueries} rowKey="id" pagination={{ pageSize: 10 }} size="small" />
+          <Table columns={queryColumns} dataSource={slowQueries} rowKey="id" pagination={{ pageSize: 10 }} size="small"
+            locale={{ emptyText: slowQueries.length === 0 ? '暂无慢请求数据' : undefined }} />
         </Card>
 
         {/* Query Pattern Stats */}
         <Card title="SQL 查询模式统计">
-          <Table columns={patternColumns} dataSource={patterns} rowKey="query_hash" pagination={{ pageSize: 10 }} size="small" />
+          <Table columns={patternColumns} dataSource={patterns} rowKey="query_hash" pagination={{ pageSize: 10 }} size="small"
+            locale={{ emptyText: patterns.length === 0 ? '暂无查询模式数据' : undefined }} />
         </Card>
       </div>
     </Spin>

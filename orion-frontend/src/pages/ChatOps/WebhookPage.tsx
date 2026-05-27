@@ -198,7 +198,8 @@ const WebhookPage: React.FC = () => {
           </Space>
         </div>
 
-        <Table columns={columns} dataSource={webhooks} rowKey="id" loading={loading} pagination={false} />
+        <Table columns={columns} dataSource={webhooks} rowKey="id" loading={loading} pagination={false}
+          locale={{ emptyText: webhooks.length === 0 ? '暂无 Webhook 配置' : undefined }} />
       </Card>
 
       {/* Edit/Create Modal */}

@@ -153,7 +153,8 @@ const RateLimitPage: React.FC = () => {
           </Space>
         </div>
 
-        <Table columns={columns} dataSource={limits} rowKey="id" loading={loading} pagination={false} />
+        <Table columns={columns} dataSource={limits} rowKey="id" loading={loading} pagination={false}
+          locale={{ emptyText: limits.length === 0 ? '暂无限流配置' : undefined }} />
       </Card>
 
       <Modal title={editingLimit ? '编辑限流配置' : '新建限流配置'} open={modalVisible} onCancel={() => setModalVisible(false)} onOk={handleSave} width={500}>

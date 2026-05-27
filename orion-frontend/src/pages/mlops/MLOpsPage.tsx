@@ -311,7 +311,8 @@ const ExperimentsTab: React.FC = () => {
           </Button>
         </Empty>
       ) : (
-        <Table columns={columns} dataSource={experiments} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table columns={columns} dataSource={experiments} rowKey="id" loading={loading} pagination={{ pageSize: 10 }}
+          locale={{ emptyText: experiments.length === 0 ? '暂无实验数据' : undefined }} />
       )}
 
       {/* Create Modal */}

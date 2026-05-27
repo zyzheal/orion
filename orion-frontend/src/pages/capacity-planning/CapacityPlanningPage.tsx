@@ -136,12 +136,14 @@ const OverviewTab: React.FC = () => {
 
       {/* Bottlenecks */}
       <Card title="瓶颈分析" style={{ marginBottom: 16 }}>
-        <Table columns={bottleneckColumns} dataSource={bottlenecks} rowKey={(r) => `${r.resourceId}-${r.metricName}`} pagination={false} size="small" />
+        <Table columns={bottleneckColumns} dataSource={bottlenecks} rowKey={(r) => `${r.resourceId}-${r.metricName}`} pagination={false} size="small"
+          locale={{ emptyText: bottlenecks.length === 0 ? '暂无瓶颈数据' : undefined }} />
       </Card>
 
       {/* Alerts */}
       <Card title="容量预警">
-        <Table columns={alertColumns} dataSource={alerts} rowKey="id" pagination={{ pageSize: 10 }} size="small" />
+        <Table columns={alertColumns} dataSource={alerts} rowKey="id" pagination={{ pageSize: 10 }} size="small"
+          locale={{ emptyText: alerts.length === 0 ? '暂无容量预警' : undefined }} />
       </Card>
     </div>
   );

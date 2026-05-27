@@ -245,7 +245,8 @@ const ExecutorManagementPage: React.FC = () => {
 
       {/* Executor List */}
       <Card title="Registered Executors">
-        <Table columns={executorColumns} dataSource={executors} rowKey="id" loading={loading} pagination={false} />
+        <Table columns={executorColumns} dataSource={executors} rowKey="id" loading={loading} pagination={false}
+          locale={{ emptyText: executors.length === 0 ? '暂无执行器数据' : undefined }} />
       </Card>
 
       {/* Create Executor Modal */}

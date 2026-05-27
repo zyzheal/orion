@@ -119,18 +119,44 @@ export class DataPipelineController extends BaseController {
     }, (data) => this.sendSuccess(reply, data));
   }
 
-  async getDataLineage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getExecutions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const executions = Array.from(this.executions.values()).filter(e => e.pipelineId === params.id);
+      return executions;
+    }, (executions) => this.sendSuccess(reply, executions));
+  }
+
+  async getLineage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const pipeline = this.pipelines.get(params.id);
       if (!pipeline) throw new Error(`Pipeline '${params.id}' not found`);
-      const lineage: DataLineage = {
-        source: pipeline.source,
-        destination: pipeline.destination,
-        transforms: pipeline.transforms.map((t) => ({ name: t, type: 'transform' })),
-        dependencies: [pipeline.source],
-      };
-      return lineage;
-    }, (lineage) => this.sendSuccess(reply, lineage));
+      return { lineage: { source: pipeline.source, destination: pipeline.destination } };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async getSchedule(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      return { schedule: null };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async setSchedule(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      return { success: true };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async getLineageGraph(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      return { nodes: [], edges: [] };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async getAllExecutions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      return Array.from(this.executions.values());
+    }, (data) => this.sendSuccess(reply, data));
   }
 }
