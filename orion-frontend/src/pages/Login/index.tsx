@@ -1,15 +1,33 @@
-import React from 'react';
-import { Form, Input, Button, message, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, message, Typography, Divider } from 'antd';
 import { colors } from '@/tokens/colors';
-import { UserOutlined, LockOutlined, RocketOutlined, CheckCircleOutlined, SafetyOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import {
+  UserOutlined,
+  LockOutlined,
+  RocketOutlined,
+  CheckCircleOutlined,
+  SafetyOutlined,
+  ThunderboltOutlined,
+  WechatOutlined,
+  IdcardOutlined,
+  GlobalOutlined,
+} from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { getEnabledSsoProviders } from '@/api/auth';
 
 const { Title, Text } = Typography;
 
 interface LoginFormData {
   username: string;
   password: string;
+}
+
+interface SsoProvider {
+  name: string;
+  type: string;
+  display_name: string;
+  display_icon?: string;
 }
 
 // 左侧装饰特性列表
@@ -19,6 +37,22 @@ const features = [
   { icon: <ThunderboltOutlined />, title: '效能洞察', desc: '研发效能度量与分析' },
   { icon: <CheckCircleOutlined />, title: '自愈系统', desc: '自动化故障检测与恢复' },
 ];
+
+// SSO 提供商图标映射
+const ssoIconMap: Record<string, React.ReactNode> = {
+  wechat: <WechatOutlined />,
+  ldap: <IdcardOutlined />,
+  oidc: <GlobalOutlined />,
+  saml: <SafetyOutlined />,
+  cas: <LockOutlined />,
+};
+
+/**
+ * 获取 SSO 提供商对应的图标
+ */
+function getSsoIcon(provider: SsoProvider): React.ReactNode {
+  return ssoIconMap[provider.type] || ssoIconMap[provider.name] || <UserOutlined />;
+}
 
 // 左侧背景装饰图形
 const DecorativeCircles: React.FC = () => (
@@ -43,18 +77,47 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, isLoading } = useAuth();
   const [form] = Form.useForm<LoginFormData>();
+  const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
 
-  React.useEffect(() => {
+  // Phase 3.8.3: 动态获取可用 SSO 提供商
+  useEffect(() => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('token_expires_at');
+
+    // 获取启用的 SSO 提供商
+    setLoadingProviders(true);
+    getEnabledSsoProviders()
+      .then((providers) => {
+        if (Array.isArray(providers) && providers.length > 0) {
+          setSsoProviders(providers);
+        }
+      })
+      .catch(() => {
+        // 静默失败，不影响本地登录
+      })
+      .finally(() => {
+        setLoadingProviders(false);
+      });
   }, []);
+
+  /**
+   * 处理 SSO 登录跳转
+   * Phase 3.8.3: 跳转到统一 SSO 登录端点
+   */
+  const handleSsoLogin = (provider: SsoProvider) => {
+    const redirectUri = encodeURIComponent(
+      `${window.location.origin}/auth/callback`,
+    );
+    window.location.href = `/api/v1/auth/sso/login/${provider.name}?redirect=${redirectUri}`;
+  };
 
   const handleSubmit = async (values: LoginFormData) => {
     const result = await login(values);
     if (result.success) {
       message.success('登录成功');
-      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? />dashboard/;
+      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/dashboard';
       navigate(from, { replace: true });
     } else {
       if (result.error && typeof result.error === 'object' && 'message' in result.error) {
@@ -86,7 +149,7 @@ const Login: React.FC = () => {
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="/logo.svg" alt="Orion" style={{ width: 40, height: 40 }} />
-            <span style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '0.5px' }}>
+            <span style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', letterSpacing: '0.5px' }}>
               Orion Platform
             </span>
           </div>
@@ -165,7 +228,7 @@ const Login: React.FC = () => {
                   {f.icon}
                 </div>
                 <div>
-                  <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{f.title}</div>
+                  <div style={{ color: '#ffffff', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{f.title}</div>
                   <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.5 }}>{f.desc}</div>
                 </div>
               </div>
