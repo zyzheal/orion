@@ -14,8 +14,6 @@ import { PipelineTemplateController } from './controllers/PipelineTemplateContro
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
 
 interface PipelineTemplateRoutesOptions {
   database?: DatabasePool;

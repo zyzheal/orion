@@ -491,7 +491,7 @@ export class WebhookServiceEnhanced {
     await this.enhancedRepo.updateDelivery(deliveryId, {
       status: 'pending',
       attempt: 0,
-      error_message: null,
+      error_message: undefined,
     });
 
     const updatedDelivery = await this.enhancedRepo.findDeliveryById(deliveryId);

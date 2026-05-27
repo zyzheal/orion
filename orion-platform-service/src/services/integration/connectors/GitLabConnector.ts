@@ -183,7 +183,7 @@ export class GitLabConnector implements Connector {
       source: 'gitlab',
       payload: event,
       timestamp: new Date(),
-      externalId: event.object_attributes?.id?.toString(),
+      externalId: (event.object_attributes as any)?.id?.toString(),
     };
   }
 
@@ -208,7 +208,8 @@ export class GitLabConnector implements Connector {
    * Use this when you need all projects (not just one page)
    */
   private async listAllProjects(params: Record<string, unknown> = {}): Promise<GitLabProject[]> {
-    const { search, membership, maxPages = 10 } = params;
+    const { search, membership, maxPages: maxPagesUnknown = 10 } = params;
+    const maxPages = maxPagesUnknown as number;
     const allProjects: GitLabProject[] = [];
     let currentPage = 1;
     const perPage = 100; // Maximum allowed by GitLab API

@@ -143,8 +143,8 @@ export default async function cmdbRoutes(
         success: true,
         data: result.data || [],
         total: result.total || 0,
-        page: result.page || 1,
-        pageSize: result.limit || result.pageSize || 20,
+        page: (result as any).page || 1,
+        pageSize: (result as any).pageSize || result.limit || 20,
       });
     } catch (error: any) {
       return reply.status(500).send({ error: 'LIST_ERROR', message: error.message });

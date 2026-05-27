@@ -94,9 +94,9 @@ export abstract class BaseAgent {
   /**
    * 统一的执行入口（包含限流、重试、审计）
    */
-  async execute<TInput, TOutput>(
+  async execute<TInput = unknown, TOutput = unknown>(
     input: TInput,
-    context: AgentExecutionContext
+    context: AgentExecutionContext = {}
   ): Promise<TOutput> {
     // 检查是否启用
     if (!this.isEnabled()) {
@@ -118,18 +118,19 @@ export abstract class BaseAgent {
 
     const startTime = Date.now();
     let success = false;
-    let output: TOutput | undefined;
+    let output: TOutput | undefined = undefined;
     let error: string | undefined;
     let tokenUsage: AgentTokenUsage = { input: 0, output: 0, total: 0 };
 
     try {
       // 执行（带重试）
-      output = await this.executeWithRetry(input, context);
+      const result = await this.executeWithRetry(input, context) as TOutput;
       success = true;
       this.status = 'idle';
       this.lastError = undefined;
+      output = result;
 
-      return output;
+      return result;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
       this.lastError = error;
@@ -173,7 +174,7 @@ export abstract class BaseAgent {
 
     for (let i = 0; i <= this.config.retry.maxRetries; i++) {
       try {
-        return await this.doExecute(input, context);
+        return await this.doExecute(input, context) as TOutput;
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e));
 
@@ -202,10 +203,10 @@ export abstract class BaseAgent {
    * @param context 执行上下文
    * @returns 执行结果
    */
-  protected abstract doExecute<TInput, TOutput>(
-    input: TInput,
+  protected abstract doExecute(
+    input: unknown,
     context: AgentExecutionContext
-  ): Promise<TOutput>;
+  ): Promise<unknown>;
 
   /**
    * 统一的 AI Gateway 调用

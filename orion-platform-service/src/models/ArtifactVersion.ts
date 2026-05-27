@@ -114,6 +114,8 @@ export interface ArtifactVersionQueryOptions {
   branch?: string;
   version?: string;
   artifactName?: string;
+  startDate?: Date;
+  endDate?: Date;
   limit?: number;
   offset?: number;
 }

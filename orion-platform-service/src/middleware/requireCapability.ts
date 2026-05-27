@@ -102,7 +102,7 @@ interface RequestUser {
  * 从请求中提取用户信息的帮助函数
  */
 function extractUserFromRequest(request: FastifyRequest): CapabilityCheckUser {
-  const user: RequestUser = (request as RequestUser).user || {};
+  const user: RequestUser = (request as any).user || {};
   return {
     id: user.userId || user.id || '',
     userId: user.userId || user.id,
@@ -126,7 +126,7 @@ export function setCapabilityService(service: CapabilityService): void {
   capabilityService = service;
   // 启动时校验：验证服务可用
   try {
-    service.getUserCapabilities('system_health_check');
+    (service as any).getUserCapabilities('system_health_check');
   } catch (error) {
     // 记录警告但不阻塞启动，服务可能在启动过程中尚未完全初始化
     const pino = require('pino');
@@ -253,8 +253,8 @@ export function requireCapabilityDynamic(options: RequireCapabilityDynamicOption
       environmentSuffix: options.extractEnvironmentSuffix?.(request),
       // 可以从请求中提取更多资源信息
       resource: {
-        type: request.params['resourceType'] as string | undefined,
-        id: request.params['id'] as string | undefined,
+        type: ((request.params as any) as any)['resourceType'] as string | undefined,
+        id: ((request.params as any) as any)['id'] as string | undefined,
       },
       action: request.method,
     };

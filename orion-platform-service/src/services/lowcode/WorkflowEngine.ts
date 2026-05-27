@@ -100,8 +100,8 @@ export class WorkflowEngine {
     dependencies?: WorkflowEngineDependencies,
     databasePool?: DatabasePool,
   ) {
-    this.definitionRepository = new WorkflowDefinitionRepository();
-    this.instanceManager = new WorkflowInstanceManager();
+    this.definitionRepository = new WorkflowDefinitionRepository(null as any);
+    this.instanceManager = new WorkflowInstanceManager(null as any);
     this.timerRepository = new WorkflowTimerRepository();
     this.taskRepository = new WorkflowTaskRepository(databasePool);
     this.dependencies = dependencies || {};

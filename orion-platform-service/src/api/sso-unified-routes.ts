@@ -29,7 +29,7 @@ import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const ACCESS_TOKEN_EXPIRES_IN = '5m';
 
-interface SsoRoutesOptions {
+export interface SsoRoutesOptions {
   database?: DatabasePool;
   redis?: RedisCache;
   tokenBlacklist?: TokenBlacklistService;

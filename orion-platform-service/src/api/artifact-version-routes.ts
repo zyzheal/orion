@@ -65,9 +65,9 @@ export default async function artifactVersionRoutes(
    */
   app.get('/', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
-  }, async (request: FastifyRequest<{ Querystring: ArtifactVersionQueryParams }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { pipelineId, branch, commitSha, version, artifactName, startDate, endDate, limit, offset } = request.query;
+      const { pipelineId, branch, commitSha, version, artifactName, startDate, endDate, limit, offset } = request.query as ArtifactVersionQueryParams;
 
       const result = await repository.findWithFilters({
         pipelineId,
@@ -105,9 +105,9 @@ export default async function artifactVersionRoutes(
    */
   app.get('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: VersionParams }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const version = await repository.findById(request.params.id);
+      const version = await repository.findById((request.params as any).id);
 
       if (!version) {
         return reply.status(404).send({
@@ -138,9 +138,9 @@ export default async function artifactVersionRoutes(
    */
   app.get('/:id/traceability', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: TraceabilityParams }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const chain = await repository.findTraceabilityChain(request.params.id);
+      const chain = await repository.findTraceabilityChain((request.params as any).id);
 
       if (!chain) {
         return reply.status(404).send({
@@ -171,9 +171,9 @@ export default async function artifactVersionRoutes(
    */
   app.get('/diff', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
-  }, async (request: FastifyRequest<{ Querystring: DiffQueryParams }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { pipelineId, versionA, versionB } = request.query;
+      const { pipelineId, versionA, versionB } = request.query as any;
 
       if (!pipelineId || !versionA || !versionB) {
         return reply.status(400).send({
@@ -206,10 +206,10 @@ export default async function artifactVersionRoutes(
    */
   app.get('/history/:pipelineId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: HistoryParams }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const limit = request.query.limit ? parseInt(request.query.limit as string, 10) : 20;
-      const history = await repository.getDeploymentHistory(request.params.pipelineId, limit);
+      const limit = (request.query as any).limit ? parseInt((request.query as any).limit as string, 10) : 20;
+      const history = await repository.getDeploymentHistory((request.params as any).pipelineId, limit);
 
       return reply.status(200).send({
         success: true,
@@ -232,9 +232,9 @@ export default async function artifactVersionRoutes(
    */
   app.get('/commit/:commitSha', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { commitSha: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const versions = await repository.findByCommitSha(request.params.commitSha);
+      const versions = await repository.findByCommitSha((request.params as any).commitSha);
 
       return reply.status(200).send({
         success: true,
@@ -257,9 +257,9 @@ export default async function artifactVersionRoutes(
    */
   app.post('/:id/tags', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: VersionParams; Body: { tag: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { tag } = request.body;
+      const { tag } = request.body as any;
 
       if (!tag) {
         return reply.status(400).send({
@@ -269,7 +269,7 @@ export default async function artifactVersionRoutes(
         });
       }
 
-      const version = await service.addTag(request.params.id, tag);
+      const version = await service.addTag((request.params as any).id, tag);
 
       return reply.status(200).send({
         success: true,
@@ -292,9 +292,9 @@ export default async function artifactVersionRoutes(
    */
   app.delete('/:id/tags/:tag', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: { id: string; tag: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      await service.removeTag(request.params.id, request.params.tag);
+      await service.removeTag((request.params as any).id, (request.params as any).tag);
 
       return reply.status(200).send({
         success: true,
@@ -317,9 +317,9 @@ export default async function artifactVersionRoutes(
    */
   app.post('/:id/promote', {
     onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: VersionParams; Body: { targetEnvironment: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { targetEnvironment } = request.body;
+      const { targetEnvironment } = request.body as any;
 
       if (!targetEnvironment) {
         return reply.status(400).send({
@@ -329,7 +329,7 @@ export default async function artifactVersionRoutes(
         });
       }
 
-      const newVersion = await service.promoteVersion(request.params.id, targetEnvironment);
+      const newVersion = await service.promoteVersion((request.params as any).id, targetEnvironment);
 
       return reply.status(200).send({
         success: true,

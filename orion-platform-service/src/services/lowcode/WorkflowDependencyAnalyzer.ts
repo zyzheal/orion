@@ -235,6 +235,7 @@ export class WorkflowDependencyAnalyzer {
 
     return {
       isSafe: cycles.length === 0,
+      isValid: cycles.length === 0,
       cycles,
       dependencies: directDependencies,
     };

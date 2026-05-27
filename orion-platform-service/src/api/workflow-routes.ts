@@ -103,9 +103,9 @@ export default async function workflowRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { id } = request.params;
+        const { id } = request.params as { id: string };
         const result = await db.query(
           'SELECT * FROM lowcode_workflow_definition WHERE id = $1',
           [id]
@@ -130,11 +130,11 @@ export default async function workflowRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{ Body: CreateWorkflowBody }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const { name, description, steps } = request.body;
+        const { name, description, steps } = request.body as CreateWorkflowBody;
 
         if (!name) {
           return reply.status(400).send({ success: false, error: 'name is required' });
@@ -181,12 +181,12 @@ export default async function workflowRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{ Params: { id: string }; Body: UpdateWorkflowBody }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const { id } = request.params;
-        const { name, description, nodes, edges, enabled } = request.body;
+        const { id } = request.params as { id: string };
+        const { name, description, nodes, edges, enabled } = request.body as UpdateWorkflowBody;
 
         const updates: string[] = [];
         const params: any[] = [];
@@ -243,9 +243,9 @@ export default async function workflowRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { id } = request.params;
+        const { id } = request.params as { id: string };
         const result = await db.query(
           'DELETE FROM lowcode_workflow_definition WHERE id = $1 RETURNING id',
           [id]
@@ -269,9 +269,9 @@ export default async function workflowRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { id } = request.params;
+        const { id } = request.params as { id: string };
         const result = await db.query(
           'UPDATE lowcode_workflow_definition SET enabled = false, updated_at = NOW() WHERE id = $1 RETURNING *',
           [id]
@@ -295,9 +295,9 @@ export default async function workflowRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { id } = request.params;
+        const { id } = request.params as { id: string };
         const result = await db.query(
           'UPDATE lowcode_workflow_definition SET enabled = true, updated_at = NOW() WHERE id = $1 RETURNING *',
           [id]
@@ -322,12 +322,12 @@ export default async function workflowRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'execute' })],
     },
     async (
-      request: FastifyRequest<{ Params: { id: string }; Body: ExecuteWorkflowBody }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const { id } = request.params;
-        const { triggeredBy = 'system', initialInput = {} } = request.body || {};
+        const { id } = request.params as { id: string };
+        const { triggeredBy = 'system', initialInput = {} } = (request.body as ExecuteWorkflowBody) || {};
 
         // Check workflow exists and enabled
         const wf = await db.query(
@@ -365,9 +365,9 @@ export default async function workflowRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { id } = request.params;
+        const { id } = request.params as { id: string };
         const result = await db.query(
           "SELECT * FROM lowcode_workflow_instance WHERE workflow_id = $1 ORDER BY created_at DESC LIMIT 50",
           [id]
@@ -388,11 +388,11 @@ export default async function workflowRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{ Params: { executionId: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const { executionId } = request.params;
+        const { executionId } = request.params as { executionId: string };
         const result = await db.query(
           'SELECT * FROM lowcode_workflow_instance WHERE id = $1',
           [executionId]

@@ -133,6 +133,7 @@ export class DRPolicyRepository extends BaseRepository<DRPolicy> {
     return result.rows.map((row: any) => this.mapRowToEntity(row));
   }
 
+  // @ts-ignore - Override with different return type
   async update(id: string, input: DRPolicyUpdateInput): Promise<DRPolicy | null> {
     const existing = await this.getById(id);
     if (!existing) return null;
@@ -341,7 +342,7 @@ export class DisasterRecoveryPolicyService {
     return {
       id,
       name: input.name,
-      description: input.description,
+      description: input.description || '',
       services: input.services,
       strategy: input.strategy,
       rpo: input.rpo,

@@ -121,11 +121,11 @@ export default async function userActivityRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{ Params: ActivityParams; Querystring: ActivityQuery }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
-    const { id } = request.params;
-    const { page = 1, pageSize = 20 } = request.query;
+    const {  id  } = request.params as any;
+    const {  page = 1, pageSize = 20  } = request.query as any;
 
     // Verify ownership
     if (!verifyOwnership(request, reply, id)) {

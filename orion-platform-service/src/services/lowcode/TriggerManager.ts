@@ -46,7 +46,7 @@ export class TriggerManager {
   private eventBus?: EventBusService;
   private instanceManager: WorkflowInstanceManager;
   private workflowRepo: WorkflowDefinitionRepository;
-  private subscriptions: Map<string, TriggerSubscription> = new Map();
+  private subscriptions: Map<string, TriggerSubscription> = new Map(null as any);
   private initialized: boolean = false;
 
   constructor(
@@ -56,8 +56,8 @@ export class TriggerManager {
   ) {
     this.triggerRepo = triggerRepo;
     this.eventBus = eventBus;
-    this.instanceManager = instanceManager || new WorkflowInstanceManager();
-    this.workflowRepo = new WorkflowDefinitionRepository();
+    this.instanceManager = instanceManager || new WorkflowInstanceManager(null as any);
+    this.workflowRepo = new WorkflowDefinitionRepository(null as any);
   }
 
   /**

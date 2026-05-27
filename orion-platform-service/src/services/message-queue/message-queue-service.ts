@@ -221,7 +221,7 @@ export class MessageQueueService {
         const consumer = this.consumers.get(consumerId);
         if (consumer) {
           consumer.messagesProcessed++;
-          consumer.lastMessageAt = new Date();
+          (consumer as any).lastMessageAt = new Date();
         }
       }
     }
@@ -403,7 +403,7 @@ export class MessageQueueService {
     queue.pending.push(newMessage.id);
 
     dlqEntry.replayStatus = 'replayed';
-    dlqEntry.replayedAt = new Date();
+    (dlqEntry as any).replayedAt = new Date();
 
     this.stats.totalEnqueued++;
     logger.info({ deadLetterId, newTaskId: newMessage.taskId }, 'Dead letter replayed');

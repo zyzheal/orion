@@ -68,9 +68,9 @@ export class CacheCleanupService {
     config?: CacheCleanupConfig,
   ) {
     this.pool = (databasePool ?? DatabasePool) as unknown as InstanceType<typeof DatabasePool>;
-    this.timerRepo = new WorkflowTimerRepository(this.pool as any);
+    this.timerRepo = new WorkflowTimerRepository();
     this.taskRepo = new WorkflowTaskRepository(this.pool as any);
-    this.instanceManager = new WorkflowInstanceManager();
+    this.instanceManager = new WorkflowInstanceManager(null as any);
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 

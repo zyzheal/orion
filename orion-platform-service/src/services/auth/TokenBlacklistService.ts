@@ -94,17 +94,17 @@ export class TokenBlacklistService extends EventEmitter {
       const Redis = require('ioredis');
       this.redisClient = new Redis(redisUrl);
 
-      this.redisClient.on('connect', () => {
+      (this.redisClient as any).on('connect', () => {
         logger.info('[TokenBlacklist] Connected to Redis');
         this.redisConnected = true;
       });
 
-      this.redisClient.on('error', (err: Error) => {
+      (this.redisClient as any).on('error', (err: Error) => {
         logger.warn(`[TokenBlacklist] Redis connection error: ${err.message}`);
         this.redisConnected = false;
       });
 
-      this.redisClient.on('disconnect', () => {
+      (this.redisClient as any).on('disconnect', () => {
         logger.info('[TokenBlacklist] Redis disconnected');
         this.redisConnected = false;
       });
@@ -515,7 +515,7 @@ export class TokenBlacklistService extends EventEmitter {
     // Close Redis connection if connected
     if (this.redisConnected && this.redisClient) {
       try {
-        await this.redisClient.quit();
+        await (this.redisClient as any).quit();
         logger.info('[TokenBlacklist] Redis connection closed');
       } catch (error: any) {
         logger.error('[TokenBlacklist] Failed to close Redis connection:', error);

@@ -34,7 +34,7 @@ export default async function registerPipelineErrorDetailRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { runId: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.getErrorDetail(request, reply);
     }
   );

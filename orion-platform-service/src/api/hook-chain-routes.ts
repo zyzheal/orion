@@ -28,9 +28,9 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // POST /api/v1/hook-chains - 创建 Hook 链
   app.post('/hook-chains', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
-  }, async (request: FastifyRequest<{ Body: HookChainDefinition }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const definition = request.body;
+      const definition = request.body as HookChainDefinition;
       const created = hookChainService.createChain(definition);
       return reply.status(201).send(created);
     } catch (error) {
@@ -54,8 +54,8 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // GET /api/v1/hook-chains/:chainId - 获取 Hook 链详情
   app.get('/hook-chains/:chainId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { chainId: string } }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
     const chain = hookChainService.getChain(chainId);
 
     if (!chain) {
@@ -68,9 +68,9 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // PUT /api/v1/hook-chains/:chainId - 更新 Hook 链
   app.put('/hook-chains/:chainId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: { chainId: string }; Body: Partial<HookChainDefinition> }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
-    const updates = request.body;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
+    const updates = request.body as Partial<HookChainDefinition>;
 
     const updated = hookChainService.updateChain(chainId, updates);
 
@@ -84,8 +84,8 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // DELETE /api/v1/hook-chains/:chainId - 删除 Hook 链
   app.delete('/hook-chains/:chainId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: { chainId: string } }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
     const deleted = hookChainService.deleteChain(chainId);
 
     if (!deleted) {
@@ -100,16 +100,13 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // POST /api/v1/hook-chains/:chainId/execute - 执行 Hook 链
   app.post('/hook-chains/:chainId/execute', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
-  }, async (request: FastifyRequest<{
-    Params: { chainId: string };
-    Body: {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
+    const { triggerSource, triggerPayload, tenantId } = request.body as {
       triggerSource: string;
       triggerPayload: Record<string, any>;
       tenantId: string;
     };
-  }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
-    const { triggerSource, triggerPayload, tenantId } = request.body;
 
     try {
       const result = await hookChainService.executeChain(chainId, triggerSource, triggerPayload, tenantId);
@@ -125,8 +122,8 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // GET /api/v1/hook-chains/:chainId/history - 获取执行历史
   app.get('/hook-chains/:chainId/history', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { chainId: string } }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
     const history = hookChainService.getExecutionHistory(chainId);
 
     return reply.send({
@@ -183,8 +180,8 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // POST /api/v1/hook-chains/executors - 注册自定义执行器
   app.post('/hook-chains/executors', {
     onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
-  }, async (request: FastifyRequest<{ Body: { type: string; handler: string } }>, reply: FastifyReply) => {
-    const { type, handler } = request.body;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { type, handler } = request.body as { type: string; handler: string };
 
     // 注意：这里只是示例，实际需要安全的执行器注册机制
     reply.status(501).send({

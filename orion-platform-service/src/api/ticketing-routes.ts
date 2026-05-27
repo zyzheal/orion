@@ -11,11 +11,14 @@ import { requirePermission } from '../middleware/requirePermission';
 import { TicketingController } from './controllers/ticketing/TicketingController';
 import { TicketService } from '../services/ticketing/TicketService';
 import { TicketingService } from '../services/ticketing/TicketingService';
+import { TicketingRepository } from '../services/ticketing/TicketingRepository';
 
 export default async function ticketingRoutes(app: FastifyInstance): Promise<void> {
   // Initialize services and controller
   const ticketService = new TicketService();
-  const ticketingService = new TicketingService();
+  const mockDb = {} as any;
+  const ticketingRepo = new TicketingRepository(mockDb);
+  const ticketingService = new TicketingService(ticketingRepo);
   const controller = new TicketingController(ticketService, ticketingService);
 
   // ==================== Service Control ====================

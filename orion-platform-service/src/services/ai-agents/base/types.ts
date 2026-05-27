@@ -52,13 +52,13 @@ export interface AgentRetryConfig {
  */
 export interface AgentExecutionContext {
   /** 追踪 ID */
-  traceId: string;
+  traceId?: string;
   /** 用户 ID */
-  userId: string;
+  userId?: string;
   /** 租户 ID */
-  tenantId: string;
+  tenantId?: string;
   /** 执行时间 */
-  timestamp: string;
+  timestamp?: string;
   /** 可选的额外上下文 */
   metadata?: Record<string, unknown>;
 }

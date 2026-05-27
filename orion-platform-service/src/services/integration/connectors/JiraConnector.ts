@@ -206,7 +206,7 @@ export class JiraConnector implements Connector {
       source: 'jira',
       payload: event,
       timestamp: new Date(),
-      externalId: event.issue?.key as string,
+      externalId: (event.issue as any)?.key,
     };
   }
 
@@ -294,7 +294,7 @@ export class JiraConnector implements Connector {
         components: [],
         fixVersions: [],
       },
-    } as JiraIssue;
+    } as unknown as JiraIssue;
   }
 
   private async updateIssue(params: Record<string, unknown>): Promise<unknown> {
@@ -357,7 +357,7 @@ export class JiraConnector implements Connector {
     }
 
     const response = await this.apiGet(endpoint);
-    return response as JiraIssue;
+    return response as unknown as JiraIssue;
   }
 
   private async searchIssues(params: Record<string, unknown>): Promise<JiraSearchResult> {

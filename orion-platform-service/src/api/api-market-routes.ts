@@ -12,8 +12,8 @@ import { ApiMarketService } from '../services/api-market/ApiMarketService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 
-interface AuthenticatedRequest extends FastifyRequest {
-  user?: { id: string; [key: string]: unknown };
+type AuthenticatedRequest = FastifyRequest & {
+  user: { id: string; [key: string]: unknown };
 }
 
 interface ApiMarketRoutesOptions {
@@ -38,14 +38,15 @@ export default async function apiMarketRoutes(
   // POST /market/products - Create product
   app.post('/market/products', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
-  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { name, description, version } = request.body as { name: string; description?: string; version?: string };
+      const user = (request as any).user;
 
       const product = await service.createProduct({
         name,
         description,
-        ownerId: request.user?.id,
+        ownerId: user?.id,
         version,
       });
 
@@ -105,12 +106,13 @@ export default async function apiMarketRoutes(
   // POST /market/apps - Create app
   app.post('/market/apps', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
-  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { name, description, redirectUris } = request.body as { name: string; description?: string; redirectUris?: string[] };
+      const user = (request as any).user;
 
       const app = await service.createDeveloperApp({
-        developerId: request.user?.id,
+        developerId: user?.id,
         name,
         description,
         redirectUris,
@@ -125,8 +127,9 @@ export default async function apiMarketRoutes(
   // GET /market/apps - List my apps
   app.get('/market/apps', {
     onRequest: [authenticateUser],
-  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
-    const apps = await service.listAppsByDeveloper(request.user?.id);
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user;
+    const apps = await service.listAppsByDeveloper(user?.id);
     return reply.send(apps);
   });
 
@@ -220,7 +223,7 @@ export default async function apiMarketRoutes(
   // GET /market/subscriptions/check - Check if app has access to product
   app.get('/market/subscriptions/check', {
     onRequest: [authenticateUser],
-  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { appId, productId } = request.query as { appId: string; productId: string };
 
     if (!appId || !productId) {
@@ -234,7 +237,7 @@ export default async function apiMarketRoutes(
   // POST /market/subscriptions - Subscribe to product
   app.post('/market/subscriptions', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
-  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { appId, productId, plan, quotaPerDay } = request.body as { appId: string; productId: string; plan: string; quotaPerDay?: number };
       await service.subscribe(appId, productId, plan, quotaPerDay);
@@ -247,9 +250,9 @@ export default async function apiMarketRoutes(
   // GET /market/subscriptions/:appId - List subscriptions (only for app owner)
   app.get('/market/subscriptions/:appId', {
     onRequest: [authenticateUser],
-  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { appId } = request.params as { appId: string };
-    const user = request.user;
+    const user = (request as any).user;
 
     // Verify user owns this app before showing subscriptions
     const app = await service.getApp(appId);

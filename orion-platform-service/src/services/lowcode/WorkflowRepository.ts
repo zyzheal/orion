@@ -18,10 +18,10 @@ const logger = require('pino')({ name: 'WorkflowRepository' });
  * 工作流定义 Repository
  */
 export class WorkflowDefinitionRepository {
-  private pool: typeof DatabasePool;
+  private pool: DatabasePool | null;
 
-  constructor() {
-    this.pool = DatabasePool;
+  constructor(pool?: DatabasePool | null) {
+    this.pool = pool || null;
   }
 
   /**
@@ -54,7 +54,7 @@ export class WorkflowDefinitionRepository {
     ];
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       return this.mapRowToDefinition(result.rows[0]);
     } catch (error) {
       logger.error({ error, definition }, 'Failed to create workflow definition');
@@ -69,7 +69,7 @@ export class WorkflowDefinitionRepository {
     const query = 'SELECT * FROM lowcode_workflow_definition WHERE id = $1';
 
     try {
-      const result = await this.pool.query(query, [id]);
+      const result = await this.pool!.query(query, [id]);
       if (result.rows.length === 0) {
         return null;
       }
@@ -87,7 +87,7 @@ export class WorkflowDefinitionRepository {
     if (ids.length === 0) return new Map();
 
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
-    const result = await this.pool.query(
+    const result = await this.pool!.query(
       `SELECT id, name FROM lowcode_workflow_definition WHERE id IN (${placeholders})`,
       ids,
     );
@@ -121,11 +121,11 @@ export class WorkflowDefinitionRepository {
     }
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       const entities = result.rows.map((row: any) => this.mapRowToDefinition(row));
 
       // 获取总数
-      const countResult = await this.pool.query('SELECT COUNT(*) as count FROM lowcode_workflow_definition');
+      const countResult = await this.pool!.query('SELECT COUNT(*) as count FROM lowcode_workflow_definition');
       return {
         entities,
         total: parseInt(countResult.rows[0]?.count || '0', 10),
@@ -158,7 +158,7 @@ export class WorkflowDefinitionRepository {
     }
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       return result.rows.map(row => this.mapRowToDefinition(row));
     } catch (error) {
       logger.error({ error, tenantId }, 'Failed to find workflow definitions by tenant');
@@ -195,7 +195,7 @@ export class WorkflowDefinitionRepository {
     ];
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       return this.mapRowToDefinition(result.rows[0]);
     } catch (error) {
       logger.error({ error, id, updates }, 'Failed to update workflow definition');
@@ -210,7 +210,7 @@ export class WorkflowDefinitionRepository {
     const query = 'DELETE FROM lowcode_workflow_definition WHERE id = $1';
 
     try {
-      const result = await this.pool.query(query, [id]);
+      const result = await this.pool!.query(query, [id]);
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
       logger.error({ error, id }, 'Failed to delete workflow definition');
@@ -242,10 +242,10 @@ export class WorkflowDefinitionRepository {
  * 工作流实例 Repository
  */
 export class WorkflowInstanceRepository {
-  private pool: typeof DatabasePool;
+  private pool: DatabasePool | null;
 
-  constructor() {
-    this.pool = DatabasePool;
+  constructor(pool?: DatabasePool | null) {
+    this.pool = pool || null;
   }
 
   /**
@@ -282,7 +282,7 @@ export class WorkflowInstanceRepository {
     ];
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       return this.mapRowToInstance(result.rows[0]);
     } catch (error) {
       logger.error({ error, instance }, 'Failed to create workflow instance');
@@ -297,7 +297,7 @@ export class WorkflowInstanceRepository {
     const query = 'SELECT * FROM lowcode_workflow_instance WHERE id = $1';
 
     try {
-      const result = await this.pool.query(query, [id]);
+      const result = await this.pool!.query(query, [id]);
       if (result.rows.length === 0) {
         return null;
       }
@@ -330,7 +330,7 @@ export class WorkflowInstanceRepository {
     }
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       return result.rows.map(row => this.mapRowToInstance(row));
     } catch (error) {
       logger.error({ error, workflowId }, 'Failed to find workflow instances by workflow id');
@@ -393,7 +393,7 @@ export class WorkflowInstanceRepository {
     `;
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await this.pool!.query(query, values);
       return this.mapRowToInstance(result.rows[0]);
     } catch (error) {
       logger.error({ error, id, updates }, 'Failed to update workflow instance');
@@ -457,7 +457,7 @@ export class WorkflowInstanceRepository {
    * 清理过期的工作流实例
    */
   async cleanupExpiredInstances(retentionDate: Date): Promise<number> {
-    const result = await this.pool.query(
+    const result = await this.pool!.query(
       `DELETE FROM lowcode_workflow_instance
        WHERE status IN ('completed', 'failed', 'cancelled')
        AND updated_at < $1`,

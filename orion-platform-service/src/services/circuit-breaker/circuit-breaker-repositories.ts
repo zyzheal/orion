@@ -141,7 +141,32 @@ export class CircuitBreakerStateRepository extends BaseRepository<CircuitBreaker
     return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
-  async findAll(): Promise<CircuitBreakerStateEntity[]> {
+  // @ts-ignore - Override with different return type
+  async findAll(options?: any): Promise<CircuitBreakerStateEntity[] | any> {
+    if (options) {
+      // Called with options, check if it's a filter
+      const { where, limit, offset } = options;
+      let query = 'SELECT * FROM circuit_breaker_states';
+      const values: any[] = [];
+      const conditions: string[] = [];
+
+      if (where) {
+        Object.keys(where).forEach(key => {
+          values.push(where[key]);
+          conditions.push(`${key} = $${values.length}`);
+        });
+      }
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
+      }
+      query += ` ORDER BY target_key`;
+      if (limit) query += ` LIMIT ${limit}`;
+      if (offset) query += ` OFFSET ${offset}`;
+
+      const result = await this.db.query(query, values);
+      const entities = result.rows.map((row) => this.mapRowToEntity(row));
+      return { entities, total: entities.length };
+    }
     const result = await this.db.query(
       `SELECT * FROM circuit_breaker_states ORDER BY target_key`,
     );

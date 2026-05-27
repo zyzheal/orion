@@ -288,10 +288,10 @@ export class CacheStrategyService {
    * F012: Cache penetration protection - null value caching.
    * Returns the value, or if it's the null marker, returns undefined.
    */
-  private handleNullValue<T>(key: string, value: T): T | undefined {
+  private handleNullValue<T>(key: string, value: T): T {
     if (this.options.enablePenetrationProtection && value === this.nullMarker(key)) {
       this.penetrationBlocks++;
-      return undefined;
+      return value;
     }
     return value;
   }

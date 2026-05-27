@@ -43,8 +43,8 @@ export default async function registerPipelineSSERoutes(
   // GET /api/v1/pipelines/sse/logs - SSE 实时日志推送
   app.get('/pipelines/sse/logs', {
     onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
-  }, async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
-    const { pipelineId, runId, logLevel } = request.query;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pipelineId, runId, logLevel  } = request.query as any;
     const userId = (request.user as any)?.id || 'anonymous';
 
     if (!pipelineId || !runId) {
@@ -62,7 +62,7 @@ export default async function registerPipelineSSERoutes(
     reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
 
     // 解析日志级别过滤
-    const logLevels = logLevel?.split(',').map(l => l.trim()) as PipelineLogEvent['level'][] | undefined;
+    const logLevels = logLevel?.split(',').map((l: any) => l.trim()) as PipelineLogEvent['level'][] | undefined;
 
     // 创建 SSE 连接
     const connId = pipelineLogSSE.createConnection(pipelineId, runId, userId, reply, {
@@ -83,8 +83,8 @@ export default async function registerPipelineSSERoutes(
   // GET /api/v1/pipelines/sse/status - SSE 实时状态推送
   app.get('/pipelines/sse/status', {
     onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
-  }, async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
-    const { pipelineId, runId } = request.query;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pipelineId, runId  } = request.query as any;
     const userId = (request.user as any)?.id || 'anonymous';
 
     if (!pipelineId) {

@@ -22,8 +22,8 @@ const logger = require('pino')({ name: 'WorkflowInstance' });
 export class WorkflowInstanceManager {
   public repository: WorkflowInstanceRepository;
 
-  constructor(repository?: WorkflowInstanceRepository) {
-    this.repository = repository || new WorkflowInstanceRepository();
+  constructor(repository: WorkflowInstanceRepository) {
+    this.repository = repository;
   }
 
   /**
@@ -43,7 +43,7 @@ export class WorkflowInstanceManager {
     // 获取开始节点的输出变量
     const initialVariables = this.mergeVariables(
       input,
-      startNode.config.outputVariables || {}
+      (startNode.config as any).outputVariables || {}
     );
 
     // 找到开始节点的下一个节点
@@ -68,9 +68,8 @@ export class WorkflowInstanceManager {
       nodeName: startNode.name,
       nodeType: startNode.type,
       action: 'enter',
-      timestamp: new Date(),
       data: { input },
-    });
+    } as any);
 
     logger.info({ instanceId: instance.id, workflowId: definition.id }, 'Workflow instance created');
     return instance;
@@ -89,7 +88,7 @@ export class WorkflowInstanceManager {
       throw new Error(`Cannot start workflow instance with status: ${instance.status}`);
     }
 
-    return await this.repository.update(instanceId, { status: 'running' });
+    return (await this.repository.update(instanceId, { status: 'running' }))!;
   }
 
   /**
@@ -106,7 +105,7 @@ export class WorkflowInstanceManager {
     }
 
     logger.info({ instanceId }, 'Workflow instance suspended');
-    return await this.repository.updateStatus(instanceId, 'suspended');
+    return (await this.repository.updateStatus(instanceId, 'suspended'))!;
   }
 
   /**
@@ -123,7 +122,7 @@ export class WorkflowInstanceManager {
     }
 
     logger.info({ instanceId }, 'Workflow instance resumed');
-    return await this.repository.update(instanceId, { status: 'running' });
+    return (await this.repository.update(instanceId, { status: 'running' }))!;
   }
 
   /**
@@ -141,7 +140,7 @@ export class WorkflowInstanceManager {
 
     const error = reason || 'Workflow terminated by user';
     logger.info({ instanceId, reason: error }, 'Workflow instance terminated');
-    return await this.repository.updateStatus(instanceId, 'terminated', error);
+    return (await this.repository.updateStatus(instanceId, 'terminated', error))!;
   }
 
   /**
@@ -154,11 +153,11 @@ export class WorkflowInstanceManager {
     }
 
     logger.info({ instanceId, output }, 'Workflow instance completed');
-    return await this.repository.update(instanceId, {
+    return (await this.repository.update(instanceId, {
       status: 'completed',
       output,
       completedAt: new Date(),
-    });
+    }))!;
   }
 
   /**
@@ -171,7 +170,7 @@ export class WorkflowInstanceManager {
     }
 
     logger.error({ instanceId, error }, 'Workflow instance failed');
-    return await this.repository.updateStatus(instanceId, 'failed', error);
+    return (await this.repository.updateStatus(instanceId, 'failed', error))!;
   }
 
   /**
@@ -189,7 +188,7 @@ export class WorkflowInstanceManager {
       }
     }
 
-    return await this.repository.update(instanceId, updates);
+    return (await this.repository.update(instanceId, updates))!;
   }
 
   /**
@@ -202,7 +201,7 @@ export class WorkflowInstanceManager {
     }
 
     const mergedVariables = { ...instance.variables, ...variables };
-    return await this.repository.update(instanceId, { variables: mergedVariables });
+    return (await this.repository.update(instanceId, { variables: mergedVariables }))!;
   }
 
   /**

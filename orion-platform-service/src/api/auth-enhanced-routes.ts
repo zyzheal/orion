@@ -114,9 +114,9 @@ export default async function enhancedAuthRoutes(
    */
   app.post('/keys/rotate', {
     onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'manage' })],
-  }, async (request: FastifyRequest<{ Body: { rotationType?: 'scheduled' | 'manual' | 'emergency'; reason?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { rotationType, reason } = request.body || {};
+      const { rotationType, reason } = (request.body as any) || {};
 
       // Generate new key
       const newKey = await jwtRotationService.generateNewKey();
@@ -189,9 +189,9 @@ export default async function enhancedAuthRoutes(
    */
   app.post('/tokens/revoke', {
     onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'write' })],
-  }, async (request: FastifyRequest<{ Body: { token: string; userId: string; tenantId: number; reason: 'logout' | 'security_incident' | 'password_change' | 'admin_revocation' | 'key_rotation'; revokedBy?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { token, userId, tenantId, reason, revokedBy } = request.body;
+      const { token, userId, tenantId, reason, revokedBy } = request.body as any;
 
       if (!token || !userId || !tenantId || !reason) {
         return reply.status(400).send({
@@ -228,9 +228,9 @@ export default async function enhancedAuthRoutes(
    */
   app.get('/tokens/check/:tokenHash', {
     onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { tokenHash: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { tokenHash } = request.params;
+      const { tokenHash } = request.params as any;
       // Note: In production, you'd pass the actual token, not just hash
       // This endpoint is for checking by hash (database lookup)
 
@@ -259,9 +259,9 @@ export default async function enhancedAuthRoutes(
    */
   app.post('/tokens/revoke-batch', {
     onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'write' })],
-  }, async (request: FastifyRequest<{ Body: { targetType: 'user' | 'tenant'; targetId: string; reason: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { targetType, targetId, reason } = request.body;
+      const { targetType, targetId, reason } = request.body as any;
 
       if (!targetType || !targetId || !reason) {
         return reply.status(400).send({

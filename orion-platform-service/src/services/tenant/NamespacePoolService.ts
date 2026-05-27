@@ -155,7 +155,7 @@ export class NamespacePoolService extends EventEmitter {
     tenantId: string | number,
     options: { purpose?: string; labels?: Record<string, string> } = {}
   ): Promise<NamespaceAllocationResult> {
-    const tenantKey = typeof tenantId === 'string' ? tenantId : Number(tenantId);
+    const tenantKey = typeof tenantId === 'string' ? parseInt(tenantId, 10) : tenantId;
     // Check tenant quota first
     const tenantNamespaces = this.tenantAllocations.get(tenantKey) || new Set();
     if (tenantNamespaces.size >= this.getMaxNamespacesPerTenant()) {

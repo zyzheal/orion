@@ -48,7 +48,7 @@ export class AuthCleanupService {
   private tracingService?: TracingService;
   private dbProfiler?: DatabaseProfiler;
   private config: Required<AuthCleanupConfig>;
-  private cronJob: cron.ScheduledTask | null = null;
+  private cronJob: any | null = null;
 
   constructor(
     pool: DatabasePool,

@@ -33,8 +33,7 @@ export default async function decisionExplanationRoutes(
     return;
   }
 
-  const repository = new DecisionExplanationRepository(options.database);
-  const service = new DecisionExplanationService(repository);
+  const service = new DecisionExplanationService(options.database!);
 
   // GET /api/v1/decisions/:id/explain - Get decision explanation
   app.get('/decisions/:id/explain', { onRequest: [authenticateUser, requirePermission({ resource: 'decision', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {

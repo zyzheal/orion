@@ -14,8 +14,6 @@ import { PipelineVersionController } from './controllers/PipelineVersionControll
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
 
 interface PipelineVersionRoutesOptions {
   database?: DatabasePool;

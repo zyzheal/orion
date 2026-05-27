@@ -12,10 +12,6 @@ import { escalationScheduler } from '../services/escalation';
 import { EventBusService } from '../services/event-bus-service';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
-import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
 
 interface EscalationRoutesOptions {
   database?: DatabasePool;

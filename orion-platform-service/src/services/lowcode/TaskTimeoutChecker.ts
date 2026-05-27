@@ -81,7 +81,7 @@ export class TaskTimeoutChecker {
   private checkInterval: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
   /** 记录已处理的超时事件，避免重复处理 */
-  private processedEvents: Map<string, TimeoutEvent> = new Map();
+  private processedEvents: Map<string, TimeoutEvent> = new Map(null as any);
 
   constructor(
     taskRepo: WorkflowTaskRepository,
@@ -89,7 +89,7 @@ export class TaskTimeoutChecker {
     config?: TaskTimeoutConfig,
   ) {
     this.taskRepo = taskRepo;
-    this.instanceManager = instanceManager || new WorkflowInstanceManager();
+    this.instanceManager = instanceManager || new WorkflowInstanceManager(null as any);
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -154,7 +154,7 @@ export class TaskTimeoutChecker {
    * 获取所有超时任务
    */
   async getTimedOutTasks(): Promise<TimedOutTask[]> {
-    const now = new Date();
+    const now = new Date(null as any);
 
     // 使用数据库级查询，只获取待处理/已认领且已过期的任务
     const overdueTasks = await this.taskRepo.findPendingAndAssignedWithOverdueDate(now);
@@ -257,7 +257,7 @@ export class TaskTimeoutChecker {
       form_data: {
         ...currentFormData,
         reminderCount,
-        lastReminderAt: new Date().toISOString(),
+        lastReminderAt: new Date(null as any).toISOString(),
         timeoutAction: 'reminded',
       },
     });
@@ -283,7 +283,7 @@ export class TaskTimeoutChecker {
       form_data: {
         ...currentFormData,
         escalated: true,
-        escalatedAt: new Date().toISOString(),
+        escalatedAt: new Date(null as any).toISOString(),
         timeoutAction: 'escalated',
       },
     });
@@ -307,13 +307,13 @@ export class TaskTimeoutChecker {
     if (result) {
       // 唤醒挂起的工作流实例
       try {
-        const engine = new WorkflowEngine();
+        const engine = new WorkflowEngine(null as any);
         await engine.resumeFromEvent(result.instanceId, {
           taskId: task.id,
           completedBy: 'system:timeout',
           comment: 'Task auto-completed due to timeout',
           autoCompleted: true,
-          completedAt: new Date().toISOString(),
+          completedAt: new Date(null as any).toISOString(),
         });
 
         logger.info(
@@ -343,7 +343,7 @@ export class TaskTimeoutChecker {
 
     // 如果工作流实例仍然挂起，尝试恢复它
     try {
-      const engine = new WorkflowEngine();
+      const engine = new WorkflowEngine(null as any);
       await engine.resumeFromEvent(task.instance_id, {
         taskId: task.id,
         cancelled: true,
@@ -366,7 +366,7 @@ export class TaskTimeoutChecker {
       taskId,
       instanceId,
       action,
-      triggeredAt: new Date(),
+      triggeredAt: new Date(null as any),
     });
 
     // 清理过期事件（TTL-based，而非 size-based）

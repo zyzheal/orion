@@ -255,7 +255,7 @@ export default async function tenantRoutes(
   app.get('/namespace/:tenantId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { tenantId } = request.params as { tenantId: string };
+    const {  tenantId  } = request.params as any as { tenantId: string };
 
     const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10));
 
@@ -302,7 +302,7 @@ export default async function tenantRoutes(
   app.get('/', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { page = '1', limit = '20', status, search } = request.query as Record<string, string>;
+    const {  page = '1', limit = '20', status, search  } = request.query as any as Record<string, string>;
 
     if (tenantService) {
       try {
@@ -310,7 +310,7 @@ export default async function tenantRoutes(
           page: parseInt(page, 10),
           limit: parseInt(limit, 10),
           status,
-          search,
+          
         });
         return success(reply, request, result.data, {
           total: result.total,
@@ -336,7 +336,7 @@ export default async function tenantRoutes(
   app.get('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
+    const {  id  } = request.params as any as { id: string };
 
     if (tenantService) {
       try {
@@ -443,7 +443,7 @@ export default async function tenantRoutes(
   app.put('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
+    const {  id  } = request.params as any as { id: string };
     const body = request.body as {
       name?: string;
       display_name?: string;
@@ -473,7 +473,7 @@ export default async function tenantRoutes(
   app.delete('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'delete' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
+    const {  id  } = request.params as any as { id: string };
 
     if (tenantService) {
       try {
@@ -497,7 +497,7 @@ export default async function tenantRoutes(
   app.post('/:id/split', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'manage' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
+    const {  id  } = request.params as any as { id: string };
     const body = request.body as {
       newTenantName: string;
       newTenantDisplayName?: string;
@@ -616,7 +616,7 @@ export default async function tenantRoutes(
   app.get('/count', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { status } = request.query as Record<string, string>;
+    const {  status  } = request.query as any as Record<string, string>;
 
     if (tenantService) {
       try {
@@ -674,7 +674,7 @@ export default async function tenantRoutes(
   app.get('/namespace/:tenantId/usage', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { tenantId } = request.params as { tenantId: string };
+    const {  tenantId  } = request.params as any as { tenantId: string };
 
     if (!options.database) {
       // Fallback to namespace pool service if no database
@@ -764,7 +764,7 @@ export default async function tenantRoutes(
   app.get('/:id/users', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
+    const {  id  } = request.params as any as { id: string };
 
     if (!options.database) {
       return serviceUnavailable(reply, request, 'Database not available');
@@ -792,7 +792,7 @@ export default async function tenantRoutes(
   app.delete('/:id/users/:userId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'manage' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id, userId } = request.params as { id: string; userId: string };
+    const {  id, userId  } = request.params as any as { id: string; userId: string };
 
     if (!options.database) {
       return serviceUnavailable(reply, request, 'Database not available');
@@ -854,7 +854,7 @@ export default async function tenantRoutes(
   app.post('/:id/invite', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'manage' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
+    const {  id  } = request.params as any as { id: string };
     const body = request.body as {
       email: string;
       role?: string;
@@ -961,7 +961,7 @@ export default async function tenantRoutes(
   app.post('/invite/:code/accept', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { code } = request.params as { code: string };
+    const {  code  } = request.params as any as { code: string };
 
     if (!options.database) {
       return serviceUnavailable(reply, request, 'Database not available');
@@ -1072,7 +1072,7 @@ export default async function tenantRoutes(
   app.get('/invite/:code', {
     // 不需要认证，任何人都可以查看邀请信息（但需要知道邀请码）
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { code } = request.params as { code: string };
+    const {  code  } = request.params as any as { code: string };
 
     if (!options.database) {
       return serviceUnavailable(reply, request, 'Database not available');
@@ -1127,7 +1127,7 @@ export default async function tenantRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
-    const { page = '1', limit = '20', resourceType, status } = request.query as Record<string, string>;
+    const {  page = '1', limit = '20', resourceType, status  } = request.query as any as Record<string, string>;
 
     if (!tenantIdHeader) {
       return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');

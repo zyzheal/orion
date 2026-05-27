@@ -297,10 +297,10 @@ export class SkillService {
     }
 
     // Verify the skill is installed in this tenant
-    if (!skill.tenant_id || skill.tenant_id !== input.tenant_id) {
+    if (!(skill as any).tenant_id || (skill as any).tenant_id !== input.tenant_id) {
       // Check if skill has any tenant association; if not, it might be a marketplace skill
       // In that case, allow instance creation but log it
-      if (skill.tenant_id && skill.tenant_id !== input.tenant_id) {
+      if ((skill as any).tenant_id && (skill as any).tenant_id !== input.tenant_id) {
         throw new SkillServiceError('This skill is not available for this tenant', 'TENANT_MISMATCH');
       }
     }
@@ -552,7 +552,7 @@ export class SkillService {
     // For now, mark as completed since actual execution is delegated to Pipeline TaskRunner
     const completedExecution = await this.repository.updateExecution(execution.id, {
       status: 'completed',
-      completed_at: new Date().toISOString(),
+      completed_at: new Date(),
     });
 
     return completedExecution || execution;

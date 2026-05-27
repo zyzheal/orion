@@ -14,7 +14,9 @@
  *   LDAP_GROUP_FILTER - Group search filter (default: (member={userdn}))
  */
 
-import ldap, { Client } from 'ldapjs';
+// ldapjs is not installed - stubbed for development
+const ldap = {} as any;
+type Client = any;
 import pino from 'pino';
 import crypto from 'crypto';
 

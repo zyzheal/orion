@@ -4,7 +4,9 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EventEmitter } from 'events';
-import { authenticateUser } from '../middleware/jwtAuth';
+import jwtAuth, { JwtPayload } from '../middleware/jwtAuth';
+const authenticateUser = jwtAuth;
+import { requirePermission } from '../middleware/requirePermission';
 import { authenticateUser as authUserLegacy, initAuthMiddleware } from '../middleware/authMiddleware';
 import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
 import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
@@ -488,7 +490,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ABAC Policy Routes (P2)
   // 注册系统策略白名单（不可被删除/修改）
   const { abacPolicyEngine } = require('../services/authz/AbacPolicyEngine');
-  abacPolicyEngine.getSystemPolicyIds().forEach(id => registerSystemPolicyId(id));
+  abacPolicyEngine.getSystemPolicyIds().forEach((id: string) => registerSystemPolicyId(id));
 
   await registerWithRoleGuard(app, abacPolicyRoutes, '/abac-policies');
 
@@ -498,33 +500,24 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // UEBA Routes (P2)
   await registerWithRoleGuard(app, uebaRoutes, '/ueba', { database: options.database });
 
-// Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
-// Phase 4 Batch 2: FinOps/MLOps/Metadata 路由
-import finOpsRoutes from './finops-routes';
-import finOpsV2Routes from './finops-v2-routes';
-import mlopsRoutes from './mlops-routes';
-import metadataRoutes from './metadata-routes';
-import inspectionRoutes from './inspection-routes';
-import capacityRoutes from './capacity-routes';
-import middlewareOpsRoutes from './middleware-ops-routes';
-import serverlessRoutes from './serverless-routes';
-import multiCloudRoutes from './multi-cloud-routes';
+  // Phase 4: Additional module routes (dynamic imports to avoid circular deps)
+  const finOpsRoutes = await import('./finops-routes').then(m => m.default);
+  const finOpsV2Routes = await import('./finops-v2-routes').then(m => m.default);
+  const mlopsRoutes = await import('./mlops-routes').then(m => m.default);
+  const metadataRoutes = await import('./metadata-routes').then(m => m.default);
+  const inspectionRoutes = await import('./inspection-routes').then(m => m.default);
+  const capacityRoutes = await import('./capacity-routes').then(m => m.default);
+  const middlewareOpsRoutes = await import('./middleware-ops-routes').then(m => m.default);
+  const serverlessRoutes = await import('./serverless-routes').then(m => m.default);
+  const multiCloudRoutes = await import('./multi-cloud-routes').then(m => m.default);
   await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations');
-  // FinOps V2 - 完整 FinOps 成本管理路由
   await registerWithRoleGuard(app, finOpsV2Routes, '/v1/finops', { database: options.database });
-  // 注册 MLOps API 路由 (Phase 4 Batch 2)
   await registerWithRoleGuard(app, mlopsRoutes, '/mlops');
-  // 注册 Metadata API 路由 (Phase 4 Batch 2)
   await registerWithRoleGuard(app, metadataRoutes, '/metadata');
-  // 注册 Intelligent Inspection API 路由 (Phase 4 - Intelligent Inspection)
   await registerWithRoleGuard(app, inspectionRoutes, '/inspection');
-  // 注册 Capacity Planning API 路由 (Phase 4 - Capacity Planning)
   await registerWithRoleGuard(app, capacityRoutes, '/capacity');
-  // 注册 Middleware Operations API 路由 (Phase 4 - Middleware Operations)
   await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware');
-  // 注册 Serverless API 路由 (Phase 4 P0 - Serverless Module)
   await registerWithRoleGuard(app, serverlessRoutes, '/serverless');
-  // 注册 Multi-Cloud API 路由 (Phase 4 P1 - Multi-Cloud Module)
   await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud', { database: options.database });
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
@@ -611,7 +604,7 @@ import multiCloudRoutes from './multi-cloud-routes';
   // 注册 User Status Management API 路由 - 用户在职/离职状态管理
   await registerWithRoleGuard(app, userStatusRoutes, '/api/v1', {
     database: options.database,
-    tokenBlacklist: tokenBlacklistService,
+    tokenBlacklist: null, // TokenBlacklistService initialized later
   });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
@@ -761,7 +754,7 @@ import multiCloudRoutes from './multi-cloud-routes';
 
   // Phase 3.8: Initialize centralized JWT key manager
   const { jwtKeyManager } = await import('../services/auth/JwtKeyManager');
-  await jwtKeyManager.initialize(options.database);
+  await jwtKeyManager.initialize(options.database || null);
 
   // Auth Enhanced - JWT Key Rotation & Token Blacklist
   // Basic Auth Routes - login, logout, register, refresh, me
@@ -786,9 +779,9 @@ import multiCloudRoutes from './multi-cloud-routes';
   });
 
   // SSO Unified Routes - login, callback, LDAP, WeChat Work, OIDC
-  await app.register(ssoUnifiedRoutes, {
+  await (app as any).register(ssoUnifiedRoutes, {
     prefix: '/api/v1/auth/sso',
-    database: options.database,
+    database: options.database || null,
     redis: options.redis,
     tokenBlacklist: tokenBlacklistService,
   });
@@ -826,7 +819,7 @@ import multiCloudRoutes from './multi-cloud-routes';
   });
 
   // HR Webhook - Employee lifecycle events from HR system (signature-verified, no auth required)
-  await app.register(hrWebhookRoutes, {
+  await (app as any).register(hrWebhookRoutes, {
     prefix: '/api/v1/webhooks/hr',
     database: options.database,
     tokenBlacklist: tokenBlacklistService,

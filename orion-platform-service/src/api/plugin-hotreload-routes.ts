@@ -10,8 +10,6 @@ import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleMa
 import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
 
 export interface HotReloadRoutesOptions {
   lifecycleManager: PluginLifecycleManager;
@@ -56,9 +54,9 @@ export default async function registerPluginHotReloadRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Params: { pluginId: string }; Body?: { manifest?: any } }>, reply: FastifyReply) => {
-    const { pluginId } = request.params;
-    const { manifest } = request.body || {};
+    async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pluginId  } = request.params as any as { pluginId: string };
+    const {  manifest  } = request.body as any as any || {};
 
     try {
       const result = await hotReloadService.triggerReload(pluginId, manifest);
@@ -81,9 +79,9 @@ export default async function registerPluginHotReloadRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Params: { pluginId: string }; Body?: { targetVersion?: string } }>, reply: FastifyReply) => {
-    const { pluginId } = request.params;
-    const { targetVersion } = request.body || {};
+    async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pluginId  } = request.params as any as { pluginId: string };
+    const {  targetVersion  } = request.body as any as any || {};
 
     try {
       const result = await hotReloadService.rollback(pluginId, targetVersion);
@@ -106,8 +104,8 @@ export default async function registerPluginHotReloadRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { pluginId: string } }>, reply: FastifyReply) => {
-    const { pluginId } = request.params;
+    async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pluginId  } = request.params as any;
 
     const history = hotReloadService.getVersionHistory(pluginId);
     return reply.send({
@@ -125,8 +123,8 @@ export default async function registerPluginHotReloadRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Body?: { paths?: string[] } }>, reply: FastifyReply) => {
-    const { paths } = request.body || {};
+    async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  paths  } = request.body as any || {};
 
     // 如果提供了新路径，更新配置
     if (paths && paths.length > 0) {

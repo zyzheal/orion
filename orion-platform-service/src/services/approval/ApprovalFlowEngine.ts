@@ -216,12 +216,12 @@ export class ApprovalFlowEngine {
         [tenantId, capabilityId, environment, riskLevel],
       );
 
-      if (result.rows.length === 0) {
+      if ((result as any).rows.length === 0) {
         logger.warn({ capabilityId, environment, riskLevel, tenantId }, 'No matching flow config found');
         return null;
       }
 
-      const config = this.parseFlowConfig(result.rows[0]);
+      const config = this.parseFlowConfig((result as any).rows[0]);
       this.cacheFlowConfig(tenantId, config);
       return config;
     } catch (error) {
@@ -455,9 +455,9 @@ export class ApprovalFlowEngine {
       [flowId, tenantId],
     );
 
-    if (result.rows.length === 0) return null;
+    if ((result as any).rows.length === 0) return null;
 
-    const config = this.parseFlowConfig(result.rows[0]);
+    const config = this.parseFlowConfig((result as any).rows[0]);
     this.cacheFlowConfig(tenantId, config);
     return config;
   }
@@ -471,7 +471,7 @@ export class ApprovalFlowEngine {
       [tenantId],
     );
 
-    return result.rows.map(row => this.parseFlowConfig(row));
+    return (result as any).rows.map((row: any) => this.parseFlowConfig(row));
   }
 
   /**
@@ -525,7 +525,7 @@ export class ApprovalFlowEngine {
       [flowId, tenantId],
     );
 
-    if (result.rowCount && result.rowCount > 0) {
+    if ((result as any).rowCount && (result as any).rowCount > 0) {
       this.flowConfigCache.get(tenantId)?.delete(flowId);
       logger.info({ flowId, tenantId }, 'Flow config deleted');
       return true;
@@ -566,23 +566,24 @@ export class ApprovalFlowEngine {
     environment: string,
     riskLevel: number,
   ): boolean {
+    const cfg = config as any;
     if (!config.enabled) return false;
 
     // 匹配 capability
-    const capabilityIds = config.capabilityIds || [];
+    const capabilityIds = cfg.capabilityIds || [];
     if (capabilityIds.length > 0 && !capabilityIds.includes(capabilityId)) {
       return false;
     }
 
     // 匹配环境
-    const environments = config.environments || [];
+    const environments = cfg.environments || [];
     if (environments.length > 0 && !environments.includes(environment)) {
       return false;
     }
 
     // 匹配风险等级
-    const minRisk = config.minRiskLevel ?? 1;
-    const maxRisk = config.maxRiskLevel ?? 4;
+    const minRisk = cfg.minRiskLevel ?? 1;
+    const maxRisk = cfg.maxRiskLevel ?? 4;
     if (riskLevel < minRisk || riskLevel > maxRisk) {
       return false;
     }

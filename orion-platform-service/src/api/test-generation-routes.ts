@@ -93,11 +93,11 @@ export default async function testGenerationRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: TestGenerationRequest }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      const result = await service.generateTests(request.body);
+      const result = await service.generateTests(request.body as any);
 
       return reply.status(200).send({
         success: true,
@@ -108,7 +108,7 @@ export default async function testGenerationRoutes(
       request.log.error({
         msg: 'Test generation failed',
         error: error.message,
-        filePath: request.body.change?.filePath,
+        filePath: (request.body as any)?.change?.filePath,
       });
 
       return reply.status(500).send({
@@ -141,21 +141,15 @@ export default async function testGenerationRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{
-      Body: {
-        diff: string;
-        filePath: string;
-        language: ProgrammingLanguage;
-        fileContent?: string;
-      };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
+      const body = request.body as any;
       const result: ChangeAnalysisResult = await service.analyzeChange(
-        request.body.diff,
-        request.body.filePath,
-        request.body.language
+        body.diff,
+        body.filePath,
+        body.language
       );
 
       return reply.status(200).send({
@@ -167,7 +161,7 @@ export default async function testGenerationRoutes(
       request.log.error({
         msg: 'Change analysis failed',
         error: error.message,
-        filePath: request.body.filePath,
+        filePath: (request.body as any)?.filePath,
       });
 
       return reply.status(500).send({
@@ -212,11 +206,11 @@ export default async function testGenerationRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: CoverageSuggestionRequest }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      const result: CoverageSuggestionResponse = await service.suggestCoverageImprovements(request.body);
+      const result: CoverageSuggestionResponse = await service.suggestCoverageImprovements(request.body as any);
 
       return reply.status(200).send({
         success: true,
@@ -227,7 +221,7 @@ export default async function testGenerationRoutes(
       request.log.error({
         msg: 'Coverage suggestion failed',
         error: error.message,
-        sourceFile: request.body.sourceFile,
+        sourceFile: (request.body as any)?.sourceFile,
       });
 
       return reply.status(500).send({
@@ -273,24 +267,20 @@ export default async function testGenerationRoutes(
   app.get('/templates/:language/:framework', {
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
   }, async (
-    request: FastifyRequest<{
-      Params: {
-        language: ProgrammingLanguage;
-        framework: TestFramework;
-      };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
+      const params = request.params as any;
       const allTemplates = service.getTemplates();
       const filtered = allTemplates.filter(
-        t => t.language === request.params.language && t.framework === request.params.framework
+        t => t.language === params.language && t.framework === params.framework
       );
 
       if (filtered.length === 0) {
         return reply.status(404).send({
           success: false,
-          error: `No templates found for ${request.params.language}/${request.params.framework}`,
+          error: `No templates found for ${params.language}/${params.framework}`,
           timestamp: new Date().toISOString(),
         });
       }
@@ -345,11 +335,11 @@ export default async function testGenerationRoutes(
   app.post('/history/:generationId/adopt', {
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
   }, async (
-    request: FastifyRequest<{ Params: { generationId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      service.markAsAdopted(request.params.generationId);
+      service.markAsAdopted((request.params as any).generationId);
 
       return reply.status(200).send({
         success: true,

@@ -107,8 +107,8 @@ export default async function userProfileRoutes(
         },
       },
     },
-  }, async (request: FastifyRequest<{ Params: ProfileParams }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  id  } = request.params as any;
 
     // Verify ownership
     if (!verifyOwnership(request, reply, id)) {
@@ -179,9 +179,9 @@ export default async function userProfileRoutes(
         },
       },
     },
-  }, async (request: FastifyRequest<{ Params: ProfileParams; Body: UpdateProfileBody }>, reply: FastifyReply) => {
-    const { id } = request.params;
-    const body = request.body;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  id  } = request.params as any;
+    const body = request.body as any;
 
     // Verify ownership
     if (!verifyOwnership(request, reply, id)) {
@@ -270,8 +270,8 @@ export default async function userProfileRoutes(
         },
       },
     },
-  }, async (request: FastifyRequest<{ Params: ProfileParams }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  id  } = request.params as any;
 
     // Verify ownership
     if (!verifyOwnership(request, reply, id)) {
@@ -334,8 +334,8 @@ export default async function userProfileRoutes(
         },
       },
     },
-  }, async (request: FastifyRequest<{ Params: ProfileParams }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  id  } = request.params as any;
 
     // Verify ownership
     if (!verifyOwnership(request, reply, id)) {

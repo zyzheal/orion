@@ -127,7 +127,7 @@ export default async function auditRoutes(
         tenantId: query.tenantId,
         userId: query.userId,
         action: query.action,
-        resource: query.resourceType,
+        resourceType: query.resourceType,
       });
 
       // Map to frontend-expected format: { entries, total }

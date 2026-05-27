@@ -359,7 +359,9 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
     // F003: Register Circuit Breaker routes
     const cbService = getCircuitBreakerService();
-    await app.register(circuitBreakerRoutes, { circuitBreakerService: cbService });
+    if (cbService) {
+      await app.register(circuitBreakerRoutes, { circuitBreakerService: cbService });
+    }
 
     // F008: Register Message Queue routes
     const mqService = new MessageQueueService();
@@ -367,7 +369,10 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
     // F014: Register Cache Management routes
     // CacheStrategyService is initialized above for AuthZ cache, reuse it for cache management
-    await app.register(cacheRoutes, { cacheService: cacheStrategyService });
+    if (options.redis) {
+      const cacheStrategyService = new CacheStrategyService(options.redis);
+      await app.register(cacheRoutes, { cacheService: cacheStrategyService });
+    }
 
     // Register permission cleanup cron job (creates its own lightweight service instance)
     setupPermissionCleanupJob(options.database);

@@ -110,9 +110,9 @@ export default async function testSelectorRoutes(
         },
       },
     },
-  }, async (request: FastifyRequest<{ Body: PRChange }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const plan = await service.selectTestsForPR(request.body);
+      const plan = await service.selectTestsForPR(request.body as any);
 
       return reply.status(200).send({
         success: true,
@@ -137,9 +137,9 @@ export default async function testSelectorRoutes(
    */
   app.get('/plan/:planId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { planId: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const plan = await service.getTestPlan(request.params.planId);
+      const plan = await service.getTestPlan((request.params as any).planId);
 
       if (!plan) {
         return reply.status(404).send({
@@ -172,9 +172,9 @@ export default async function testSelectorRoutes(
    */
   app.get('/pr/:prId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { prId: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const result = await service.getPRTestResult(request.params.prId);
+      const result = await service.getPRTestResult((request.params as any).prId);
 
       if (!result) {
         return reply.status(404).send({
@@ -207,9 +207,9 @@ export default async function testSelectorRoutes(
    */
   app.get('/history/:testId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { testId: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const stats = service.getTestHistory(request.params.testId);
+      const stats = service.getTestHistory((request.params as any).testId);
 
       return reply.status(200).send({
         success: true,
@@ -273,11 +273,11 @@ export default async function testSelectorRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: { testId: string; passed: boolean; duration: number; failureMessage?: string; prId?: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      const { testId, passed, duration, failureMessage, prId } = request.body;
+      const { testId, passed, duration, failureMessage, prId } = request.body as any;
 
       await service.recordTestResult(testId, passed, duration, failureMessage, prId);
 

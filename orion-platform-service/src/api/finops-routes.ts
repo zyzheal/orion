@@ -12,11 +12,13 @@ import { CostOperationsController } from './controllers/CostOperationsController
 import { CostBudgetGuardService } from '../services/cost/CostBudgetGuardService';
 import { CostAnomalyDetectionService } from '../services/cost/CostAnomalyDetectionService';
 import { CostOptimizationService } from '../services/cost/CostOptimizationService';
+import { DatabasePool } from '../services/database';
 
+const mockPool = {} as unknown as DatabasePool;
 const controller = new CostOperationsController(
-  new CostBudgetGuardService(),
-  new CostAnomalyDetectionService(),
-  new CostOptimizationService(),
+  new CostBudgetGuardService(mockPool),
+  new CostAnomalyDetectionService(mockPool),
+  new CostOptimizationService(mockPool),
 );
 
 export default async function finOpsRoutes(app: FastifyInstance): Promise<void> {

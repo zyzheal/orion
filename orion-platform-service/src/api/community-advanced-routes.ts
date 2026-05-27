@@ -9,8 +9,6 @@ import { CommunityAdvancedService } from '../services/community/CommunityAdvance
 import { CommunityAdvancedController } from './controllers/CommunityAdvancedController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
 
 const service = new CommunityAdvancedService();
 const controller = new CommunityAdvancedController(service);

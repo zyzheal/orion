@@ -140,7 +140,7 @@ export class CircuitBreakerService {
         stats.failureCount,
         stats.successCount,
         stats.lastFailureTime,
-        stats.lastSuccessTime,
+        (stats as any).lastSuccessTime,
       );
 
       // Log state change
@@ -168,7 +168,7 @@ export class CircuitBreakerService {
         stats.failureCount,
         stats.successCount,
         stats.lastFailureTime,
-        stats.lastSuccessTime,
+        (stats as any).lastSuccessTime,
       );
 
       // Log state change
@@ -232,7 +232,7 @@ export class CircuitBreakerService {
       stats.failureCount,
       stats.successCount,
       stats.lastFailureTime,
-      stats.lastSuccessTime,
+      (stats as any).lastSuccessTime,
     );
 
     // Log event

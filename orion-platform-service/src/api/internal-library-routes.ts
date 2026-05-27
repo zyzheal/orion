@@ -33,9 +33,9 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.post('/', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
-  }, async (request: FastifyRequest<{ Body: CreateLibraryInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const input = request.body;
+      const input = request.body as CreateLibraryInput;
       const library = await libraryService.create(input);
       reply.status(201).send(library);
     } catch (error: any) {
@@ -49,8 +49,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Querystring: LibraryQueryOptions }>, reply: FastifyReply) => {
-    const opts = request.query;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const opts = request.query as LibraryQueryOptions;
     const libraries = await libraryService.list(opts);
     reply.send(libraries);
   });
@@ -61,8 +61,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const library = await libraryService.getById(id);
     if (!library) {
       reply.status(404).send({ error: 'Library not found' });
@@ -77,8 +77,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/name/:name', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { name: string } }>, reply: FastifyReply) => {
-    const { name } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { name } = request.params as { name: string };
     const library = await libraryService.getByName(name);
     if (!library) {
       reply.status(404).send({ error: 'Library not found' });
@@ -93,8 +93,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/language/:language', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { language: string } }>, reply: FastifyReply) => {
-    const { language } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { language } = request.params as { language: string };
     const libraries = await libraryService.listByLanguage(language as any);
     reply.send(libraries);
   });
@@ -105,8 +105,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/owner/:owner', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { owner: string } }>, reply: FastifyReply) => {
-    const { owner } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { owner } = request.params as { owner: string };
     const libraries = await libraryService.listByOwner(owner);
     reply.send(libraries);
   });
@@ -117,8 +117,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.delete('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const deleted = await libraryService.delete(id);
     if (!deleted) {
       reply.status(404).send({ error: 'Library not found' });
@@ -162,8 +162,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/:id/versions', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const versions = await libraryService.getVersions(id);
     reply.send(versions);
   });
@@ -174,8 +174,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/:id/versions/:version', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { id: string; version: string } }>, reply: FastifyReply) => {
-    const { id, version } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id, version } = request.params as { id: string; version: string };
     const versionInfo = await libraryService.getVersion(id, version);
     if (!versionInfo) {
       reply.status(404).send({ error: 'Version not found' });
@@ -237,8 +237,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.post('/:id/activate', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const library = await libraryService.activate(id);
     if (!library) {
       reply.status(404).send({ error: 'Library not found' });
@@ -255,8 +255,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/:id/dependents', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const dependents = await libraryService.getDependents(id);
     reply.send(dependents);
   });
@@ -301,8 +301,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.get('/dependencies/:repoName', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
-  }, async (request: FastifyRequest<{ Params: { repoName: string } }>, reply: FastifyReply) => {
-    const { repoName } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { repoName } = request.params as { repoName: string };
     const dependencies = await libraryService.checkDependencies(repoName);
     reply.send(dependencies);
   });
@@ -313,8 +313,8 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    */
   app.post('/:id/update-stats', {
     onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     await libraryService.updateDependentsStats(id);
     reply.send({ success: true });
   });

@@ -140,7 +140,8 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest<{ Body: ProviderBody }>, reply: FastifyReply) => {
       try {
         // Authorization: only admin can update rates
-        if (request.user?.role !== 'admin') {
+        const roles = (request as any).user?.roles as string[] | undefined;
+        if (!roles?.includes('admin')) {
           reply.code(403).send({
             code: 403,
             error: 'FORBIDDEN',

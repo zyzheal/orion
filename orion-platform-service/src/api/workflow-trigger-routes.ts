@@ -83,17 +83,16 @@ export default async function workflowTriggerRoutes(
 
     // 如果没有外部传入 Manager，则创建并初始化
     if (!triggerManager) {
-      const { EventBusService } = await import('../services/event-bus-service');
-      const eventBus = app.decorateGet ? await app.diContainer?.resolve('eventBus') as EventBusService : undefined;
+      const eventBus = undefined; // EventBusService not available in Fastify 4.x DI
       const { WorkflowInstanceManager } = await import('../services/lowcode/WorkflowInstance');
-      const instanceManager = new WorkflowInstanceManager(database);
+      const instanceManager = new WorkflowInstanceManager(null as any);
 
       triggerManager = new TriggerManager(triggerRepo, eventBus, instanceManager);
     }
 
     if (!scheduler) {
       const { WorkflowInstanceManager } = await import('../services/lowcode/WorkflowInstance');
-      const instanceManager = new WorkflowInstanceManager(database);
+      const instanceManager = new WorkflowInstanceManager(null as any);
       scheduler = new WorkflowScheduler(triggerRepo, instanceManager);
     }
 

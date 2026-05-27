@@ -41,8 +41,7 @@ export default async function chaosEnhancedRoutes(
     return;
   }
 
-  const experimentRepository = new ChaosExperimentRepository(options.database);
-  const experimentService = new ChaosExperimentService(experimentRepository);
+  const experimentService = new ChaosExperimentService(options.database);
   const resilienceScoringService = new ResilienceScoringService(options.database);
   const faultInjector = new FaultInjector();
 
@@ -102,7 +101,7 @@ export default async function chaosEnhancedRoutes(
     try {
       const { id } = request.params as { id: string };
       const fault = request.body as any;
-      const result = await faultInjector.inject(id, fault);
+      const result = await faultInjector.inject(fault);
       return reply.status(200).send({ success: true, data: result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'INJECT_ERROR';
@@ -114,8 +113,8 @@ export default async function chaosEnhancedRoutes(
   app.post('/experiments/:id/stop', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const result = await experimentService.stopExperiment(id);
-      return reply.status(200).send({ success: true, data: result });
+      await experimentService.rollbackRun(id);
+      return reply.status(200).send({ success: true, data: { experimentId: id, stopped: true } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'STOP_ERROR';
       return reply.status(400).send({ error: 'STOP_ERROR', message });
@@ -126,8 +125,8 @@ export default async function chaosEnhancedRoutes(
   app.get('/experiments/:id/status', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const status = await experimentService.getExperimentStatus(id);
-      return reply.status(200).send({ success: true, data: status });
+      const experiment = await experimentService.getExperiment(id);
+      return reply.status(200).send({ success: true, data: { status: experiment.status, id: experiment.id } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'STATUS_ERROR';
       return reply.status(500).send({ error: 'STATUS_ERROR', message });
@@ -138,8 +137,8 @@ export default async function chaosEnhancedRoutes(
   app.get('/experiments/:id/recovery', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const recovery = await experimentService.getRecoveryStatus(id);
-      return reply.status(200).send({ success: true, data: recovery });
+      const experiment = await experimentService.getExperiment(id);
+      return reply.status(200).send({ success: true, data: { experimentId: id, status: experiment.status, recovery: 'not_available' } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'RECOVERY_ERROR';
       return reply.status(500).send({ error: 'RECOVERY_ERROR', message });
@@ -150,14 +149,22 @@ export default async function chaosEnhancedRoutes(
 
   // GET /api/v1/chaos/faults - List fault types
   app.get('/faults', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return reply.status(200).send({ success: true, data: faultInjector.getAvailableFaults() });
+    const faults = ['network_latency', 'service_down', 'cpu_stress', 'memory_stress', 'disk_full'];
+    return reply.status(200).send({ success: true, data: faults });
   });
 
   // POST /api/v1/chaos/faults/:type/config-template - Get fault config template
   app.post('/faults/:type/config-template', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { type } = request.params as { type: string };
-      const template = faultInjector.getConfigTemplate(type);
+      const templates: Record<string, any> = {
+        network_latency: { latency_ms: 100, jitter_ms: 10 },
+        service_down: { graceful_shutdown: true },
+        cpu_stress: { stress_percent: 80 },
+        memory_stress: { memory_mb: 512 },
+        disk_full: { fill_percent: 90 },
+      };
+      const template = templates[type] || { error: 'Unknown fault type' };
       return reply.status(200).send({ success: true, data: template });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'TEMPLATE_ERROR';

@@ -65,13 +65,13 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{
-        Querystring: { type?: string; search?: string; page?: string; perPage?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { type, search, page, perPage } = request.query;
+      const {   type, search, page, perPage   } = request.query as any as any as {
+        type?: string; search?: string; page?: string; perPage?: string
+      };
       const p = page ? parseInt(page, 10) : 1;
       const pp = perPage ? parseInt(perPage, 10) : 50;
 
@@ -99,13 +99,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{
-        Body: { name: string; type: 'public' | 'internal' | 'private'; description?: string; teamId?: string; ownerId?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { name, type, description, teamId, ownerId } = request.body;
+      const {   name, type, description, teamId, ownerId   } = request.body as any as any as { name: string; type: 'public' | 'internal' | 'private'; description?: string; teamId?: string; ownerId?: string };
 
       if (!name) {
         return reply.status(400).send({ error: 'INVALID_INPUT', message: 'Space name is required' });
@@ -138,9 +136,9 @@ export default async function knowledgeRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const space = await service.getSpace(request.params.id);
+        const space = await service.getSpace((request.params as any).id);
         return reply.send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
@@ -161,14 +159,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{
-        Params: { id: string };
-        Body: { name?: string; type?: 'public' | 'internal' | 'private'; description?: string; teamId?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const space = await service.updateSpace(request.params.id, request.body);
+        const space = await service.updateSpace((request.params as any).id, request.body as any);
         return reply.send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
@@ -188,9 +183,9 @@ export default async function knowledgeRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'delete' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        await service.deleteSpace(request.params.id);
+        await service.deleteSpace((request.params as any).id);
         return reply.status(204).send();
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
@@ -216,13 +211,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{
-        Querystring: { spaceId?: string; page?: string; pageSize?: string; status?: string; tag?: string; search?: string; perPage?: string; type?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { spaceId, status, tag, search, page, pageSize, perPage, type } = request.query;
+      const {   spaceId, status, tag, search, page, pageSize, perPage, type   } = request.query as any as any;
       const p = page ? parseInt(page, 10) : 1;
       const pp = pageSize || perPage ? parseInt(pageSize || perPage || '50', 10) : 50;
 
@@ -299,13 +292,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{
-        Body: { source?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { source } = request.body || {};
+      const {   source   } = request.body as any as any || {};
 
       try {
         const syncLog = await service.triggerSync(tenantId, source);
@@ -329,13 +320,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{
-        Querystring: { limit?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const limit = request.query.limit ? parseInt(request.query.limit, 10) : 10;
+      const limit = (request.query as any).limit ? parseInt((request.query as any).limit, 10) : 10;
 
       const logs = await service.getSyncLogs(tenantId, limit);
       return reply.send({ data: logs });
@@ -352,13 +341,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{
-        Body: { title: string; content: string; spaceId: string; tags?: string[]; status?: string; authorId?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { title, content, spaceId, tags, status, authorId } = request.body;
+      const {   title, content, spaceId, tags, status, authorId   } = request.body as any as any;
 
       if (!title || !content || !spaceId) {
         return reply.status(400).send({ error: 'INVALID_INPUT', message: 'title, content, and spaceId are required' });
@@ -392,9 +379,9 @@ export default async function knowledgeRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const doc = await service.getDoc(request.params.id);
+        const doc = await service.getDoc((request.params as any).id);
         return reply.send({ data: doc });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
@@ -415,18 +402,15 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{
-        Params: { id: string };
-        Body: { title?: string; content?: string; tags?: string[]; status?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const doc = await service.updateDoc(request.params.id, {
-          title: request.body.title,
-          content: request.body.content,
-          tags: request.body.tags,
-          status: request.body.status as any,
+        const doc = await service.updateDoc((request.params as any).id, {
+          title: (request.body as any).title,
+          content: (request.body as any).content,
+          tags: (request.body as any).tags,
+          status: (request.body as any).status as any,
         });
         return reply.send({ data: doc });
       } catch (err: any) {
@@ -447,9 +431,9 @@ export default async function knowledgeRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'delete' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        await service.deleteDoc(request.params.id);
+        await service.deleteDoc((request.params as any).id);
         return reply.status(204).send();
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
@@ -469,9 +453,9 @@ export default async function knowledgeRoutes(
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const versions = await service.getDocVersions(request.params.id);
+        const versions = await service.getDocVersions((request.params as any).id);
         return reply.send({ data: versions });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
@@ -496,13 +480,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{
-        Body: { query: string; spaceId?: string; topK?: number };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { query, spaceId, topK } = request.body;
+      const {   query, spaceId, topK   } = request.body as any as any;
 
       if (!query) {
         return reply.status(400).send({ error: 'INVALID_INPUT', message: 'query is required' });
@@ -540,13 +522,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{
-        Body: { query: string; spaceId?: string; topK?: number };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { query, spaceId, topK } = request.body;
+      const {   query, spaceId, topK   } = request.body as any as any;
 
       if (!query) {
         return reply.status(400).send({ error: 'INVALID_INPUT', message: 'query is required' });
@@ -604,11 +584,11 @@ export default async function knowledgeRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
     async (
-      request: FastifyRequest<{ Querystring: { spaceId?: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { spaceId } = request.query;
+      const {   spaceId   } = request.query as any as any;
 
       try {
         const spaces = spaceId

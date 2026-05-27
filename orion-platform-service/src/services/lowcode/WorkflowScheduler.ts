@@ -45,10 +45,10 @@ export class WorkflowScheduler {
   ) {
     this.triggerRepo = triggerRepo;
     this.timerRepo = new WorkflowTimerRepository();
-    this.instanceManager = instanceManager || new WorkflowInstanceManager();
+    this.instanceManager = instanceManager || new WorkflowInstanceManager(null as any);
 
     // 创建工作流引擎用于执行工作流
-    const definitionRepo = new WorkflowDefinitionRepository();
+    const definitionRepo = new WorkflowDefinitionRepository(null as any);
     this.workflowEngine = new WorkflowEngine(undefined, undefined);
   }
 

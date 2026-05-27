@@ -12,7 +12,6 @@ import { SecretSanitizer } from '../services/privacy/SecretSanitizer';
 import { PIISanitizer } from '../services/privacy/PIISanitizer';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { requirePermission } from '../middleware/requirePermission';
 
 interface TenantParams {
   tenantId: string;
@@ -65,7 +64,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
    */
   function verifyTenantAccess(request: FastifyRequest, tenantId: number): boolean {
     const userTenantId = request.user?.tenantId;
-    const userRole = request.user?.role;
+    const userRole = (request.user as any)?.role;
 
     // Admin can access any tenant
     if (userRole === 'admin') {
@@ -73,7 +72,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     }
 
     // Regular users can only access their own tenant
-    return userTenantId === tenantId;
+    return (userTenantId as any) === tenantId;
   }
 
   // Get tenant privacy policy
@@ -84,7 +83,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     },
     async (request: FastifyRequest<{ Params: TenantParams }>, reply: FastifyReply) => {
       try {
-        const tenantId = parseInt(request.params.tenantId, 10);
+        const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
           reply.code(400).send({
@@ -135,7 +134,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     },
     async (request: FastifyRequest<{ Params: TenantParams; Body: PolicyBody }>, reply: FastifyReply) => {
       try {
-        const tenantId = parseInt(request.params.tenantId, 10);
+        const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
           reply.code(400).send({
@@ -147,7 +146,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
         }
 
         // Authorization: admin can modify any tenant's policy
-        if (request.user?.role !== 'admin') {
+        if ((request.user as any)?.role !== 'admin') {
           reply.code(403).send({
             code: 403,
             error: 'FORBIDDEN',
@@ -177,7 +176,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     },
     async (request: FastifyRequest<{ Params: TenantParams }>, reply: FastifyReply) => {
       try {
-        const tenantId = parseInt(request.params.tenantId, 10);
+        const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
           reply.code(400).send({
@@ -217,7 +216,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     },
     async (request: FastifyRequest<{ Body: SanitizeBody }>, reply: FastifyReply) => {
       try {
-        const { content, options } = request.body;
+        const {  content, options  } = request.body as any;
 
         // Input validation
         if (!content || typeof content !== 'string') {
@@ -269,7 +268,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     },
     async (request: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) => {
       try {
-        const { content } = request.body;
+        const {  content  } = request.body as any;
 
         if (!content || typeof content !== 'string') {
           reply.code(400).send({
@@ -309,7 +308,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     },
     async (request: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) => {
       try {
-        const { content } = request.body;
+        const {  content  } = request.body as any;
 
         if (!content || typeof content !== 'string') {
           reply.code(400).send({

@@ -16,7 +16,7 @@ const DEFAULT_CONFIG: K8sSecretConfig = {
 };
 
 export class K8sSecretKeyStorage {
-  private config: K8sSecretConfig;
+  private config: K8sSecretConfig = DEFAULT_CONFIG;
   private k8sApi: CoreV1Api | null = null;
   private kubeConfig: KubeConfig | null = null;
   private available: boolean = false;

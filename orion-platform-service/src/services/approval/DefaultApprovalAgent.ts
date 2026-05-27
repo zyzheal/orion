@@ -452,7 +452,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
       throw new Error(`LLM API error: ${response.status}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as any;
     return {
       action: result.action || 'escalate',
       confidence: result.confidence || 0.5,
