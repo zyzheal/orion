@@ -81,6 +81,16 @@ export const chaosApi = {
     return response.data as ChaosRun;
   },
 
+  stopExperiment: async (experimentId: string) => {
+    const response = await apiClient.post(`/v1/chaos/experiments/${experimentId}/stop`);
+    return response.data;
+  },
+
+  deleteExperiment: async (experimentId: string) => {
+    const response = await apiClient.delete(`/v1/chaos/experiments/${experimentId}`);
+    return response.data;
+  },
+
   getRun: async (runId: string) => {
     const response = await apiClient.get(`/v1/chaos/runs/${runId}`);
     return response.data as ChaosRun;

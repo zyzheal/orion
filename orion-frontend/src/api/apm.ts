@@ -70,6 +70,14 @@ export interface ServiceInfo {
   max_duration_ms: number;
 }
 
+export interface ServiceDependency {
+  source_service: string;
+  target_service: string;
+  call_count: number;
+  avg_latency_ms: number;
+  error_rate: number;
+}
+
 export const apmApi = {
   // Distributed Tracing
   listTraces: async (params?: {
@@ -80,29 +88,29 @@ export const apmApi = {
     since?: string;
   }) => {
     const response = await apiClient.get('/v1/apm/traces', { params });
-    return response.data.data as TraceSummary[];
+    return response.data as TraceSummary[];
   },
 
   getTrace: async (traceId: string) => {
     const response = await apiClient.get(`/v1/apm/traces/${traceId}`);
-    return response.data.data as TraceDetail;
+    return response.data as TraceDetail;
   },
 
   getTraceSummary: async (traceId: string) => {
     const response = await apiClient.get(`/v1/apm/traces/${traceId}/summary`);
-    return response.data.data as TraceSummary;
+    return response.data as TraceSummary;
   },
 
   getSlowTraces: async (thresholdMs?: number, limit?: number) => {
     const response = await apiClient.get('/v1/apm/traces/slow', {
       params: { thresholdMs, limit },
     });
-    return response.data.data as TraceSummary[];
+    return response.data as TraceSummary[];
   },
 
   listServices: async () => {
     const response = await apiClient.get('/v1/apm/services');
-    return response.data.data as ServiceInfo[];
+    return response.data as ServiceInfo[];
   },
 
   // Database Profiling
@@ -112,14 +120,20 @@ export const apmApi = {
     tenantId?: string;
   }) => {
     const response = await apiClient.get('/v1/apm/slow-queries', { params });
-    return response.data.data as SlowQuery[];
+    return response.data as SlowQuery[];
   },
 
   getQueryPatternStats: async (since?: string) => {
     const response = await apiClient.get('/v1/apm/slow-queries/patterns', {
       params: { since },
     });
-    return response.data.data as QueryPatternStats[];
+    return response.data as QueryPatternStats[];
+  },
+
+  // Service Topology
+  getServiceTopology: async () => {
+    const response = await apiClient.get('/v1/apm/services/topology');
+    return response.data as { data?: ServiceDependency[] };
   },
 };
 

@@ -53,7 +53,7 @@ export default async function cmdbRoutes(
         tenantId: BigInt(body.tenantId || 1),
         createdBy: 'system',
       });
-      return reply.status(201).send({ success: true, data: { ci } });
+      return reply.status(201).send({ success: true, data: ci });
     } catch (error: any) {
       return reply.status(400).send({ error: 'CREATE_ERROR', message: error.message });
     }
@@ -69,7 +69,7 @@ export default async function cmdbRoutes(
       if (!ci) {
         return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.id} not found` });
       }
-      return reply.send({ success: true, data: { ci } });
+      return reply.send({ success: true, data: ci });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -86,7 +86,7 @@ export default async function cmdbRoutes(
       if (!ci) {
         return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.ciId} not found` });
       }
-      return reply.send({ success: true, data: { ci } });
+      return reply.send({ success: true, data: ci });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -103,7 +103,7 @@ export default async function cmdbRoutes(
       if (!ci) {
         return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.id} not found` });
       }
-      return reply.send({ success: true, data: { ci } });
+      return reply.send({ success: true, data: ci });
     } catch (error: any) {
       return reply.status(400).send({ error: 'UPDATE_ERROR', message: error.message });
     }
@@ -125,7 +125,7 @@ export default async function cmdbRoutes(
     }
   });
 
-  // List CIs
+  // List CIs - returns array directly for easier frontend consumption
   app.get('/cmdb/cis', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -138,7 +138,14 @@ export default async function cmdbRoutes(
         page: query.page ? parseInt(query.page) : 1,
         limit: query.limit ? parseInt(query.limit) : 20,
       } as any);
-      return reply.send({ success: true, data: result });
+      // Flatten: return data array directly, with pagination as separate field
+      return reply.send({
+        success: true,
+        data: result.data || [],
+        total: result.total || 0,
+        page: result.page || 1,
+        pageSize: result.limit || result.pageSize || 20,
+      });
     } catch (error: any) {
       return reply.status(500).send({ error: 'LIST_ERROR', message: error.message });
     }
@@ -153,7 +160,7 @@ export default async function cmdbRoutes(
     const params = request.params as any;
     try {
       const relations = await cmdbService.getCIRelations(params.ciId);
-      return reply.send({ success: true, data: { relations } });
+      return reply.send({ success: true, data: relations });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -175,7 +182,7 @@ export default async function cmdbRoutes(
         body.user || 'system',
         body.tenantId ? BigInt(body.tenantId) : undefined
       );
-      return reply.status(201).send({ success: true, data: { relation } });
+      return reply.status(201).send({ success: true, data: relation });
     } catch (error: any) {
       return reply.status(400).send({ error: 'CREATE_ERROR', message: error.message });
     }
@@ -206,7 +213,7 @@ export default async function cmdbRoutes(
     const params = request.params as any;
     try {
       const versions = await cmdbService.getVersions(params.ciId);
-      return reply.send({ success: true, data: { versions } });
+      return reply.send({ success: true, data: versions });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -219,7 +226,7 @@ export default async function cmdbRoutes(
     const params = request.params as any;
     try {
       const version = await cmdbService.getCurrentVersion(params.ciId);
-      return reply.send({ success: true, data: { version } });
+      return reply.send({ success: true, data: version });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -236,7 +243,7 @@ export default async function cmdbRoutes(
       if (!ci) {
         return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.ciId} not found` });
       }
-      return reply.send({ success: true, data: { ci } });
+      return reply.send({ success: true, data: ci });
     } catch (error: any) {
       return reply.status(400).send({ error: 'RESTORE_ERROR', message: error.message });
     }
@@ -255,7 +262,7 @@ export default async function cmdbRoutes(
         depth: query.depth ? parseInt(query.depth) : undefined,
         tenantId: BigInt(query.tenantId || 1),
       });
-      return reply.send({ success: true, data: { topology } });
+      return reply.send({ success: true, data: topology });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -268,7 +275,7 @@ export default async function cmdbRoutes(
     const params = request.params as any;
     try {
       const topology = await topologyService.getServiceDependencies(params.ciId);
-      return reply.send({ success: true, data: { topology } });
+      return reply.send({ success: true, data: topology });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }
@@ -281,7 +288,7 @@ export default async function cmdbRoutes(
     const params = request.params as any;
     try {
       const impact = await topologyService.getImpactAnalysis(params.ciId);
-      return reply.send({ success: true, data: { impact } });
+      return reply.send({ success: true, data: impact });
     } catch (error: any) {
       return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
     }

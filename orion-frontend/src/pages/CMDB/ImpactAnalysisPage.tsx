@@ -43,8 +43,8 @@ const ImpactAnalysisPage: React.FC = () => {
 
   const loadCIs = async () => {
     try {
-      const res = await getCIs({ pageSize: 200 });
-      setCIs((res.data as { data?: unknown[] })?.data ?? []);
+      const result = await getCIs({ pageSize: 200 });
+      setCIs(result.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载配置项失败：${error.message}`);
@@ -59,8 +59,8 @@ const ImpactAnalysisPage: React.FC = () => {
   const loadImpact = async (ciId: string) => {
     setLoading(true);
     try {
-      const res = await getImpactAnalysis(ciId);
-      setImpact((res.data as { data?: unknown })?.data ?? null);
+      const result = await getImpactAnalysis(ciId);
+      setImpact(result.impact ?? null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载影响分析失败：${error.message}`);

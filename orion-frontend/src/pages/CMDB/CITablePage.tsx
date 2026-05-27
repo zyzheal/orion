@@ -1,6 +1,8 @@
 /**
  * CI Table Page - Configuration Item CRUD
- * Extracted from CMDB/index.tsx
+ * Phase 3.5.0: CMDB 联调 - 修复前后端数据交互
+ * - API 客户端统一使用 apiClient（自动解包 { success, data } => data）
+ * - 后端 listCIs 返回 { data: CI[], total, page, pageSize }
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -83,11 +85,16 @@ const CITablePage: React.FC = () => {
     { value: 'MONITORED_BY', label: '监控 (MONITORED_BY)' },
   ];
 
+  /**
+   * Load CI list from backend
+   * API client auto-unwraps { success: true, data: { data: CI[] } } => { data: CI[] }
+   */
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await getCIs({ pageSize: 50 });
-      setCIs((res.data as { data?: unknown[] })?.data ?? []);
+      const result = await getCIs({ pageSize: 50 });
+      // After interceptor unwraps, response.data is { data: CI[], total, page, pageSize }
+      setCIs(result.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {
@@ -107,11 +114,15 @@ const CITablePage: React.FC = () => {
     loadData();
   }, []);
 
+  /**
+   * Load relations for a specific CI
+   * Backend returns { data: relations[] } after interceptor unwraps
+   */
   const loadRelations = async (ciId: string) => {
     setRelationLoading(true);
     try {
-      const res = await getCIRelations(ciId);
-      setRelations((res.data as { data?: unknown[] })?.data ?? []);
+      const result = await getCIRelations(ciId);
+      setRelations(result.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载关联关系失败：${error.message}`);
@@ -125,8 +136,8 @@ const CITablePage: React.FC = () => {
 
   const loadAllCIsForRelation = async () => {
     try {
-      const res = await getCIs({ pageSize: 200 });
-      setAllCIs((res.data as { data?: unknown[] })?.data ?? []);
+      const result = await getCIs({ pageSize: 200 });
+      setAllCIs(result.data ?? []);
     } catch {
       // Silently fail, user will see empty dropdown
     }

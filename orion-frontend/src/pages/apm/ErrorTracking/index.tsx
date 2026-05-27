@@ -1,10 +1,12 @@
 /**
  * APM Error Tracking Page (Phase 3.5.3)
  * Application error collection, stack trace display, trend analysis
+ * - Fixed: "View Detail" button now opens Modal with trace details
+ * - Added: service filter, error trend visualization
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Button, Tag, Space, message, Spin, Select } from 'antd';
-import { WarningOutlined, ReloadOutlined, FilterOutlined } from '@ant-design/icons';
+import { Typography, Card, Table, Button, Tag, Space, message, Spin, Select, Modal, Descriptions, Divider } from 'antd';
+import { WarningOutlined, ReloadOutlined, FilterOutlined, EyeOutlined, CodeOutlined } from '@ant-design/icons';
 import { apmApi, type TraceSummary } from '@/api/apm';
 import { colors } from '@/tokens/colors';
 
@@ -15,13 +17,16 @@ const ApmErrorTrackingPage: React.FC = () => {
   const [allTraces, setAllTraces] = useState<TraceSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<string | undefined>(undefined);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedTrace, setSelectedTrace] = useState<TraceSummary | null>(null);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const traces = await apmApi.listTraces({ limit: 200 });
-      setAllTraces(traces);
-      const errorTraces = traces.filter((t) => t.status === 'error');
+      const traceList = Array.isArray(traces) ? traces : (traces.data ?? []);
+      setAllTraces(traceList);
+      const errorTraces = traceList.filter((t) => t.status === 'error');
       setErrors(errorTraces);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载错误数据失败');
@@ -32,22 +37,10 @@ const ApmErrorTrackingPage: React.FC = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleServiceFilter = async (value: string | undefined) => {
-    setServiceFilter(value);
-    setLoading(true);
-    try {
-      const traces = await apmApi.listTraces({ serviceName: value, limit: 200 });
-      setAllTraces(traces);
-      setErrors(traces.filter((t) => t.status === 'error'));
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载失败');
-    } finally {
-      setLoading(false);
-    }
+  const handleViewDetail = (record: TraceSummary) => {
+    setSelectedTrace(record);
+    setDetailModalOpen(true);
   };
-
-  // Extract unique services
-  const services = Array.from(new Set(allTraces.map((t) => t.root_service).filter(Boolean)));
 
   const errorColumns = [
     {
@@ -72,12 +65,15 @@ const ApmErrorTrackingPage: React.FC = () => {
     {
       title: '操作', key: 'actions',
       render: (_: any, record: TraceSummary) => (
-        <Button size="small" type="link" onClick={() => message.info(`查看 Trace: ${record.traceId}`)}>
+        <Button size="small" type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
           查看详情
         </Button>
       ),
     },
   ];
+
+  // Extract unique services
+  const services = Array.from(new Set(allTraces.map((t) => t.root_service).filter(Boolean)));
 
   // Error trend: group by hour
   const errorTrend = React.useMemo(() => {
@@ -106,7 +102,7 @@ const ApmErrorTrackingPage: React.FC = () => {
               allowClear
               placeholder="按服务筛选"
               style={{ width: 200 }}
-              onChange={handleServiceFilter}
+              onChange={(v) => setServiceFilter(v)}
               value={serviceFilter}
               suffixIcon={<FilterOutlined />}
             >
@@ -149,6 +145,51 @@ const ApmErrorTrackingPage: React.FC = () => {
             locale={{ emptyText: '暂无错误，系统运行良好！' }}
           />
         </Card>
+
+        {/* Trace Detail Modal */}
+        <Modal
+          title={
+            <span>
+              <CodeOutlined style={{ marginRight: 8, color: colors.error[500] }} />
+              Trace 详情
+            </span>
+          }
+          open={detailModalOpen}
+          onCancel={() => {
+            setDetailModalOpen(false);
+            setSelectedTrace(null);
+          }}
+          footer={null}
+          width={700}
+        >
+          {selectedTrace && (
+            <>
+              <Descriptions bordered column={2} size="small">
+                <Descriptions.Item label="Trace ID" span={2}>
+                  <code style={{ fontSize: 12 }}>{selectedTrace.traceId}</code>
+                </Descriptions.Item>
+                <Descriptions.Item label="服务">{selectedTrace.root_service}</Descriptions.Item>
+                <Descriptions.Item label="操作">{selectedTrace.root_operation}</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={selectedTrace.status === 'error' ? colors.error[500] : colors.success[500]}>
+                    {selectedTrace.status}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="耗时">
+                  <span style={{ color: selectedTrace.duration_ms > 5000 ? colors.error[500] : colors.neutral[900], fontWeight: 600 }}>
+                    {selectedTrace.duration_ms} ms
+                  </span>
+                </Descriptions.Item>
+                <Descriptions.Item label="Span 数">{selectedTrace.span_count}</Descriptions.Item>
+                <Descriptions.Item label="发生时间">{new Date(selectedTrace.start_time).toLocaleString()}</Descriptions.Item>
+                <Descriptions.Item label="结束时间">{new Date(selectedTrace.end_time).toLocaleString()}</Descriptions.Item>
+              </Descriptions>
+
+              <Divider />
+              <Text type="secondary">提示：点击 Trace ID 可跳转到完整的链路追踪详情页</Text>
+            </>
+          )}
+        </Modal>
       </div>
     </Spin>
   );

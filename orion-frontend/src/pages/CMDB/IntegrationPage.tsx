@@ -1,6 +1,6 @@
 /**
  * Integration Page - Host and K8s resource sync status
- * Extracted from CMDB/index.tsx
+ * Phase 3.5.0: Fixed API response unpacking to use new cmdb.ts client format
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -41,6 +41,10 @@ const IntegrationPage: React.FC = () => {
   const [selectedHost, setSelectedHost] = useState<HostInfo | null>(null);
   const [hostDrawerOpen, setHostDrawerOpen] = useState(false);
 
+  /**
+   * Load integration data from backend
+   * API client auto-unwraps { success, data: { data: [...] } } => { data: [...] }
+   */
   const loadData = async () => {
     setLoading(true);
     try {
@@ -49,9 +53,10 @@ const IntegrationPage: React.FC = () => {
         getK8sResources(),
         getCICDResources(),
       ]);
-      setHosts((hostsRes.data as { data?: unknown[] })?.data ?? []);
-      setK8sResources((k8sRes.data as { data?: unknown[] })?.data ?? []);
-      setCICDResources((cicdRes.data as { data?: unknown[] })?.data ?? []);
+      // response.data is { data: [...] } after interceptor unwrapping
+      setHosts(hostsRes.data ?? []);
+      setK8sResources(k8sRes.data ?? []);
+      setCICDResources(cicdRes.data ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载集成数据失败：${error.message}`);

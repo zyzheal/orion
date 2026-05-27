@@ -65,7 +65,7 @@ const WebTerminalPage: React.FC = () => {
   useEffect(() => {
     getHosts({ pageSize: 100 })
       .then((res) => {
-        const list = (res.data as { data?: unknown[] })?.data ?? [];
+        const list = res.data ?? [];
         setHosts(list);
       })
       .catch((err) => {
@@ -352,7 +352,7 @@ const WebTerminalPage: React.FC = () => {
                 gap: 8,
                 padding: '4px 12px',
                 background: tab.id === activeTabId ? colors.primary[500] : colors.neutral[100],
-                color: tab.id === activeTabId ? '#fff' : colors.neutral[700],
+                color: tab.id === activeTabId ? '#ffffff' : colors.neutral[700],
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 13,
@@ -360,7 +360,7 @@ const WebTerminalPage: React.FC = () => {
               onClick={() => switchTab(tab.id)}
             >
               <CloudServerOutlined style={{ fontSize: 12 }} />
-              <Text style={{ color: tab.id === activeTabId ? '#fff' : colors.neutral[700] }}>
+              <Text style={{ color: tab.id === activeTabId ? '#ffffff' : colors.neutral[700] }}>
                 {tab.title}
               </Text>
               <span

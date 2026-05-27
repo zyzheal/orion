@@ -1401,6 +1401,12 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: 'apm', action: 'read' },
   },
+  {
+    path: '/apm/service-topology',
+    element: React.lazy(() => import('@/pages/apm/ServiceTopology')),
+    protected: true,
+    requiredPermission: { resource: 'apm', action: 'read' },
+  },
 
   // IaC - Infrastructure as Code / Multi-Cloud (Phase 4 - Multi-Cloud)
   {

@@ -157,8 +157,9 @@ const TopologyPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await getTopology();
-      const data = (res.data as { data?: unknown })?.data ?? null;
+      const result = await getTopology();
+      // API client returns { data?: TopologyData } after interceptor unwrapping
+      const data = result.data ?? null;
       setTopology(data);
       if (data) {
         setNodes(convertToFlowNodes(data.nodes || []));

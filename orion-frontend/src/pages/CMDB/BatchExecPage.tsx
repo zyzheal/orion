@@ -250,7 +250,7 @@ const CommandExecTab: React.FC = () => {
 
   useEffect(() => {
     getHosts({ pageSize: 100 })
-      .then((res) => setHosts((res.data as { data?: unknown[] })?.data ?? []))
+      .then((res) => setHosts(res.data ?? []))
       .catch((error: unknown) => {
         const msg = error instanceof Error ? error.message : '未知错误';
         message.error(`加载主机列表失败：${msg}`);
@@ -616,7 +616,7 @@ const CronJobTab: React.FC = () => {
 
   useEffect(() => {
     getHosts({ pageSize: 100 })
-      .then((res) => setHosts((res.data as { data?: unknown[] })?.data ?? []))
+      .then((res) => setHosts(res.data ?? []))
       .catch((error: unknown) => {
         const msg = error instanceof Error ? error.message : '未知错误';
         message.error(`加载主机列表失败：${msg}`);
@@ -789,7 +789,7 @@ const FileUploadTab: React.FC = () => {
 
   useEffect(() => {
     getHosts({ pageSize: 100 })
-      .then((res) => setHosts((res.data as { data?: unknown[] })?.data ?? []))
+      .then((res) => setHosts(res.data ?? []))
       .catch((error: unknown) => {
         const msg = error instanceof Error ? error.message : '未知错误';
         message.error(`加载主机列表失败：${msg}`);
