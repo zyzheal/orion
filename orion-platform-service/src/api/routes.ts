@@ -4,7 +4,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EventEmitter } from 'events';
-import { authenticateUser } from '../middleware/authMiddleware';
+import { authenticateUser } from '../middleware/jwtAuth';
+import { authenticateUser as authUserLegacy, initAuthMiddleware } from '../middleware/authMiddleware';
 import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
 import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
@@ -749,6 +750,10 @@ import middlewareOpsRoutes from './middleware-ops-routes';
 
   // ==================== Previously Orphan Routes (Now Registered) ====================
 
+  // Phase 3.8: Initialize centralized JWT key manager
+  const { jwtKeyManager } = await import('../services/auth/JwtKeyManager');
+  await jwtKeyManager.initialize(options.database);
+
   // Auth Enhanced - JWT Key Rotation & Token Blacklist
   // Basic Auth Routes - login, logout, register, refresh, me
   const tokenBlacklistService = options.database
@@ -756,7 +761,10 @@ import middlewareOpsRoutes from './middleware-ops-routes';
     : null;
   await tokenBlacklistService?.connect();
 
-  await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database, tokenBlacklist: tokenBlacklistService });
+  // Phase 3.8.1: Initialize auth middleware with centralized services
+  initAuthMiddleware(tokenBlacklistService);
+
+  await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database, tokenBlacklist: tokenBlacklistService, eventBus: options.eventBus });
 
   // Enhanced Auth Routes - JWT key rotation & token blacklist
   await registerWithRoleGuard(app, authEnhancedRoutes, '/auth', {
@@ -771,6 +779,13 @@ import middlewareOpsRoutes from './middleware-ops-routes';
   // SSO Unified Routes - login, callback, LDAP, WeChat Work, OIDC
   await app.register(ssoUnifiedRoutes, {
     prefix: '/api/v1/auth/sso',
+    database: options.database,
+    redis: options.redis,
+    tokenBlacklist: tokenBlacklistService,
+  });
+
+  // Legacy SSO Routes (backward compatibility)
+  await (await import('./sso-routes')).registerSsoRoutes(app, {
     database: options.database,
     redis: options.redis,
   });

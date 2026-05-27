@@ -23,10 +23,10 @@ import { ldapService } from '../services/auth/LdapService';
 import { wechatWorkService } from '../services/auth/WechatWorkService';
 import { SsoService } from '../services/auth/SsoService';
 import { RedisCache } from '../services/redis-cache';
+import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
-const JWT_SECRET = process.env.JWT_SECRET || 'orion-dev-secret-key-change-in-prod';
 const ACCESS_TOKEN_EXPIRES_IN = '5m';
 
 interface SsoRoutesOptions {
@@ -65,7 +65,7 @@ export default async function ssoUnifiedRoutes(
     expiresAt: number;
     user: typeof user;
   } {
-    const jwtSecret = JWT_SECRET;
+    const jwtSecret = jwtKeyManager.getCurrentSecret();
     const accessToken = jwt.sign(
       { userId: user.userId, username: user.username, email: user.email, roles: user.roles },
       jwtSecret,
@@ -80,23 +80,24 @@ export default async function ssoUnifiedRoutes(
     dbQuery(
       'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
       [user.userId, refreshTokenHash, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
-    ).catch((err) => console.error('[SsoUnifiedRoutes] Failed to store refresh token:', err));
+    ).catch((err) => logger.error('[SsoUnifiedRoutes] Failed to store refresh token:', err));
 
     return { accessToken, refreshToken, expiresAt, user };
   }
 
   /**
    * Find or create local user from SSO profile
+   * Phase 3.8.7: Returns user status alongside other fields
    */
   async function findOrCreateUser(profile: {
     username: string;
     email: string;
     name: string;
     roles?: string[];
-  }): Promise<{ userId: string; username: string; email: string; name: string; roles: string[] }> {
+  }): Promise<{ userId: string; username: string; email: string; name: string; roles: string[]; status: string }> {
     // Check if user exists
     const existing = await dbQuery(
-      'SELECT id, username, email, role FROM users WHERE username = $1 OR email = $2',
+      'SELECT id, username, email, role, status FROM users WHERE username = $1 OR email = $2',
       [profile.username, profile.email]
     );
 
@@ -108,14 +109,15 @@ export default async function ssoUnifiedRoutes(
         email: user.email,
         name: profile.name,
         roles: [user.role || 'user'],
+        status: user.status || 'active',
       };
     }
 
     // Create new user
     const userId = crypto.randomUUID();
     await dbQuery(
-      'INSERT INTO users (id, username, email, role, created_at) VALUES ($1, $2, $3, $4, NOW())',
-      [userId, profile.username, profile.email, 'user']
+      'INSERT INTO users (id, username, email, role, status, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+      [userId, profile.username, profile.email, 'user', 'active']
     );
 
     return {
@@ -124,6 +126,7 @@ export default async function ssoUnifiedRoutes(
       email: profile.email,
       name: profile.name,
       roles: ['user'],
+      status: 'active',
     };
   }
 
@@ -309,6 +312,27 @@ export default async function ssoUnifiedRoutes(
       switch (provider) {
         case 'wechat': {
           const localUser = await wechatWorkService.handleCallback(query.code);
+
+          // Phase 3.8.7: Check user status before issuing token
+          if (localUser.userId.startsWith('wechat_')) {
+            const statusCheck = await dbQuery(
+              'SELECT status FROM users WHERE id = $1 OR username = $2',
+              [localUser.userId, localUser.username]
+            );
+            if (statusCheck?.rows?.[0]?.status === 'terminated' || statusCheck?.rows?.[0]?.status === 'deleted') {
+              return reply.status(403).send({
+                error: 'ACCOUNT_DISABLED',
+                message: '账号已被禁用，无法登录',
+              });
+            }
+            if (statusCheck?.rows?.[0]?.status === 'suspended') {
+              return reply.status(403).send({
+                error: 'ACCOUNT_SUSPENDED',
+                message: '账号暂时被冻结，请联系管理员',
+              });
+            }
+          }
+
           const tokens = issueToken(localUser);
 
           // Redirect to frontend with token
@@ -336,6 +360,20 @@ export default async function ssoUnifiedRoutes(
             email: profile.email,
             name: profile.name,
           });
+
+          // Phase 3.8.7: 检查用户状态
+          if (localUser.status === 'terminated' || localUser.status === 'deleted') {
+            return reply.status(403).send({
+              error: 'ACCOUNT_DISABLED',
+              message: '账号已被禁用，无法登录',
+            });
+          }
+          if (localUser.status === 'suspended') {
+            return reply.status(403).send({
+              error: 'ACCOUNT_SUSPENDED',
+              message: '账号暂时被冻结，请联系管理员',
+            });
+          }
 
           const tokens = issueToken(localUser);
           const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?token=${tokens.accessToken}`;

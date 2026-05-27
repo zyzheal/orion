@@ -1,45 +1,55 @@
 /**
- * JWT Authentication Middleware
+ * JWT Authentication Middleware — Unified Version
  *
- * 统一的 JWT 验证中间件，支持:
- * - Bearer token 验证
- * - 多租户 (tenantId) 支持
- * - 角色 (roles) 数组支持
- * - Token 生成功能
+ * Unified JWT verification middleware that integrates:
+ * - Centralized JWT key management via JwtKeyManager
+ * - Token blacklist checking via TokenBlacklistService
+ * - User status validation (blocks terminated/suspended users)
+ * - Multi-tenant support
+ *
+ * This is the SINGLE authoritative JWT middleware.
+ * The older authMiddleware.ts (authenticateUser) is kept for backward compatibility
+ * but all new code should use this middleware.
  *
  * Usage:
- *   // 作为全局中间件
+ *   // As global middleware
  *   app.addHook('onRequest', jwtAuth);
  *
- *   // 作为 per-route 中间件
+ *   // As per-route middleware
  *   app.get('/protected', { onRequest: [jwtAuth] }, handler);
  *
- *   // 生成 Token
+ *   // Generate token
  *   const token = generateToken({ userId, tenantId, roles });
+ *
+ * Phase 3.8.1: Unified key management
+ * Phase 3.8.2: Token blacklist integration
+ * Phase 3.8.7: User status validation
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import * as jwt from 'jsonwebtoken';
+import { jwtKeyManager } from '../services/auth/JwtKeyManager';
+import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
+import { DatabasePool } from '../services/database';
+import pino from 'pino';
 
-// JWT_SECRET 从环境变量读取
-const JWT_SECRET = process.env.JWT_SECRET || 'orion-secret-key';
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
- * JWT Payload 接口
- * 包含用户身份信息和权限信息
+ * JWT Payload interface
  */
 export interface JwtPayload {
   userId: string;
   tenantId?: string;
   roles?: string[];
   username?: string;
+  email?: string;
   exp?: number;
   iat?: number;
 }
 
 /**
- * 扩展 FastifyRequest 类型
- * 添加 user 属性以存储解码后的 JWT 信息
+ * Extended FastifyRequest with user property
  */
 declare module 'fastify' {
   interface FastifyRequest {
@@ -47,19 +57,33 @@ declare module 'fastify' {
   }
 }
 
+// Singleton instances (initialized once during bootstrap)
+let tokenBlacklist: TokenBlacklistService | null = null;
+let dbPool: DatabasePool | null = null;
+
 /**
- * JWT 认证中间件
+ * Initialize the middleware with shared services.
+ * Called once during application bootstrap.
+ */
+export function initJwtAuth(
+  blacklist: TokenBlacklistService | null,
+  database: DatabasePool | null,
+): void {
+  tokenBlacklist = blacklist;
+  dbPool = database;
+  logger.info('[JwtAuth] Middleware initialized with shared services');
+}
+
+/**
+ * Unified JWT authentication middleware.
  *
- * 验证 Authorization header 中的 Bearer token。
- * 验证成功后将解码的用户信息附加到 request.user。
- * 验证失败返回 401 错误。
- *
- * @param request - Fastify 请求对象
- * @param reply - Fastify 响应对象
+ * Validates Authorization header, verifies JWT signature using
+ * centralized key management, checks token blacklist, and validates
+ * user status.
  */
 export async function jwtAuth(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> {
   const authHeader = request.headers.authorization;
 
@@ -74,8 +98,61 @@ export async function jwtAuth(
 
   const token = authHeader.slice(7);
 
+  // Phase 3.8.2: Check token blacklist before verification
+  if (tokenBlacklist) {
+    try {
+      const isBlacklisted = await tokenBlacklist.isRevoked(token);
+      if (isBlacklisted) {
+        return reply.code(401).send({
+          success: false,
+          error: 'TOKEN_REVOKED',
+          code: '20110',
+          message: 'Token has been revoked (logged out or admin revoked)',
+        });
+      }
+    } catch (err) {
+      // Non-fatal: if blacklist check fails, continue with verification
+      logger.warn('[JwtAuth] Blacklist check failed, continuing:', err);
+    }
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    // Phase 3.8.1: Verify using centralized key manager
+    const secret = jwtKeyManager.getCurrentSecret();
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+
+    // Phase 3.8.7: Validate user status on first request
+    if (dbPool) {
+      try {
+        const statusCheck = await dbPool.query(
+          'SELECT status FROM users WHERE id = $1',
+          [decoded.userId],
+        );
+        if (statusCheck?.rows?.[0]) {
+          const userStatus = statusCheck.rows[0].status;
+          if (userStatus === 'terminated' || userStatus === 'deleted') {
+            return reply.code(403).send({
+              success: false,
+              error: 'ACCOUNT_DISABLED',
+              code: '20111',
+              message: 'Account has been disabled or terminated',
+            });
+          }
+          if (userStatus === 'suspended') {
+            return reply.code(403).send({
+              success: false,
+              error: 'ACCOUNT_SUSPENDED',
+              code: '20112',
+              message: 'Account is temporarily suspended',
+            });
+          }
+        }
+      } catch (statusErr) {
+        // Non-fatal: if DB is unavailable, allow request through
+        logger.warn('[JwtAuth] User status check failed, allowing request:', statusErr);
+      }
+    }
+
     request.user = decoded;
   } catch (error) {
     return reply.code(401).send({
@@ -88,98 +165,58 @@ export async function jwtAuth(
 }
 
 /**
- * 生成 JWT Token
- *
- * @param payload - 要编码的用户信息 (不含 exp/iat)
- * @param options - 可选的 token 配置
- * @returns 生成的 JWT token 字符串
- *
- * @example
- * const token = generateToken({
- *   userId: '123',
- *   tenantId: 'tenant-456',
- *   roles: ['admin', 'user']
- * });
+ * Generate JWT Token using centralized key management
  */
 export function generateToken(
   payload: Omit<JwtPayload, 'exp' | 'iat'>,
-  options?: { expiresIn?: string }
+  options?: { expiresIn?: string },
 ): string {
   const expiresIn = options?.expiresIn || '24h';
-  return jwt.sign(payload, JWT_SECRET, { expiresIn } as any) as string;
+  const secret = jwtKeyManager.getCurrentSecret();
+  return jwt.sign(payload, secret, { expiresIn, algorithms: ['HS256'] } as jwt.SignOptions);
 }
 
 /**
- * 验证 JWT Token (不附加到 request)
- *
- * 适用于需要手动验证 token 的场景。
- *
- * @param token - JWT token 字符串
- * @returns 解码后的 payload 或 null (如果无效)
- *
- * @example
- * const payload = verifyToken(token);
- * if (payload) {
- *   console.log('User:', payload.userId);
- * }
+ * Verify JWT Token without attaching to request (for manual use)
  */
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
-  } catch (error) {
+    const secret = jwtKeyManager.getCurrentSecret();
+    return jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+  } catch {
     return null;
   }
 }
 
 /**
- * 可选的 JWT 认证中间件
- *
- * 如果请求包含有效的 JWT token，则附加用户信息；
- * 如果没有 token 或 token 无效，仍然允许请求通过。
- * 适用于需要区分认证用户和匿名用户的场景。
- *
- * @param request - Fastify 请求对象
- * @param reply - Fastify 响应对象
+ * Optional JWT auth — if valid token present, attach user;
+ * if not, proceed as anonymous.
  */
 export async function optionalJwtAuth(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> {
   const authHeader = request.headers.authorization;
-
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // 没有 token，继续处理请求
     return;
   }
 
   const token = authHeader.slice(7);
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const secret = jwtKeyManager.getCurrentSecret();
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
     request.user = decoded;
-  } catch (error) {
-    // token 无效，继续处理请求（作为匿名用户）
+  } catch {
+    // Invalid token — continue as anonymous
   }
 }
 
 /**
- * 角色验证装饰器
- *
- * 创建一个中间件函数，验证用户是否具有所需角色之一。
- * 需要在 jwtAuth 之后使用。
- *
- * @param requiredRoles - 必需的角色数组
- * @returns Fastify 中间件函数
- *
- * @example
- * app.get('/admin', {
- *   onRequest: [jwtAuth, requireRoles(['admin', 'platform_admin'])]
- * }, handler);
+ * Role validation decorator — must be used after jwtAuth
  */
 export function requireRoles(requiredRoles: string[]) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const user = request.user;
-
     if (!user) {
       return reply.code(401).send({
         success: false,
@@ -190,7 +227,7 @@ export function requireRoles(requiredRoles: string[]) {
     }
 
     const userRoles = user.roles || [];
-    const hasRequiredRole = requiredRoles.some((role) => userRoles.includes(role));
+    const hasRequiredRole = requiredRoles.some(r => userRoles.includes(r));
 
     if (!hasRequiredRole) {
       return reply.code(403).send({
@@ -204,23 +241,11 @@ export function requireRoles(requiredRoles: string[]) {
 }
 
 /**
- * 租户验证装饰器
- *
- * 创建一个中间件函数，验证用户是否属于指定租户。
- * 需要在 jwtAuth 之后使用。
- *
- * @param paramName - 从请求参数中获取租户 ID 的参数名
- * @returns Fastify 中间件函数
- *
- * @example
- * app.get('/tenants/:tenantId/resources', {
- *   onRequest: [jwtAuth, requireTenant('tenantId')]
- * }, handler);
+ * Tenant validation decorator — must be used after jwtAuth
  */
 export function requireTenant(paramName: string = 'tenantId') {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const user = request.user;
-
     if (!user) {
       return reply.code(401).send({
         success: false,
@@ -231,8 +256,6 @@ export function requireTenant(paramName: string = 'tenantId') {
     }
 
     const requestTenantId = (request.params as Record<string, string>)?.[paramName];
-
-    // 如果请求中没有租户 ID，或者用户没有租户 ID，则检查失败
     if (!requestTenantId) {
       return reply.code(400).send({
         success: false,

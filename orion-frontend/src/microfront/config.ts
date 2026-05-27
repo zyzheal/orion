@@ -41,8 +41,19 @@ export { subAppConfigs, getSubAppConfig, getEnabledApps };
  * Phase 4: 子应用按需加载（通过 SubAppRouteDynamic），不再预先注册
  */
 export const initMicroFrontend = (): void => {
+  // Phase 3.8.4: 监听服务端广播的登出事件，触发本地会话清理
+  const channel = getDefaultChannel();
+  channel.on('auth:logout', () => {
+    console.log('[OrionMF] Received server logout event, clearing local session');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('tenant_id');
+    window.$orion = undefined;
+    injectAuthState();
+  }, 'main-app-init');
+
   // 子应用改为按需动态加载，不需要预先注册
-  // 此函数保留用于未来的全局初始化
 };
 
 /**

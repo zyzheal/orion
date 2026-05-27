@@ -1,9 +1,13 @@
 // orion-platform-service/src/services/auth/index.ts
 /**
- * Auth Service Module - Phase 1 P0 Implementation
+ * Auth Service Module - Phase 1 P0 + Phase 3.8 SSO Implementation
  *
- * Exports JWT key rotation and token blacklist services
+ * Exports JWT key rotation, token blacklist, and centralized key management
  * for enhanced authentication security.
+ *
+ * Phase 3.8 additions:
+ *   - JwtKeyManager: Unified JWT secret management
+ *   - initAuthMiddleware: Middleware initialization helper
  */
 
 export { JwtKeyRotationService } from './JwtKeyRotationService';
@@ -12,6 +16,7 @@ export { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 export { SsoService } from './SsoService';
 export { LdapService, ldapService } from './LdapService';
 export { WechatWorkService, wechatWorkService } from './WechatWorkService';
+export { JwtKeyManager, jwtKeyManager } from './JwtKeyManager';
 
 export type { JwtKeyRotationConfig, JwtKey } from './JwtKeyRotationService';
 export type { TokenBlacklistConfig, RevokedTokenInfo, TokenBlacklistStats } from './TokenBlacklistService';

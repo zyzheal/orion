@@ -6,16 +6,20 @@ import type { LoginRequest, LoginResponse, RefreshTokenResponse, UserInfo } from
  */
 export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   const response = await api.post<LoginResponse>('/v1/auth/login', data);
-  // 响应格式：{ success: true, data: { accessToken, ... } }
-  // 拦截器已自动解包，response.data 直接是 LoginResponse
   return response.data;
 };
 
 /**
  * 用户登出
+ *
+ * Phase 3.8.4: 单点登出 — 通知后端广播 OrionBus 事件
+ * 前端需传递 accessToken 和 refreshToken 以触发 token 黑名单
  */
-export const logout = async (): Promise<void> => {
-  await api.post('/v1/auth/logout');
+export const logout = async (accessToken?: string, refreshToken?: string): Promise<void> => {
+  await api.post('/v1/auth/logout', {
+    accessToken,
+    refreshToken,
+  });
 };
 
 /**
@@ -23,7 +27,6 @@ export const logout = async (): Promise<void> => {
  */
 export const refreshToken = async (refreshToken: string): Promise<RefreshTokenResponse> => {
   const response = await api.post<RefreshTokenResponse>('/v1/auth/refresh', { refreshToken });
-  // 拦截器已自动解包，response.data 直接是 RefreshTokenResponse
   return response.data;
 };
 
@@ -50,6 +53,47 @@ export const refreshAuthTokenApi = async (
  */
 export const getCurrentUser = async (): Promise<UserInfo> => {
   const response = await api.get<UserInfo>('/v1/auth/me');
-  // 拦截器已自动解包，response.data 直接是 UserInfo
+  return response.data;
+};
+
+/**
+ * 获取启用的 SSO 提供商列表（公开接口，无需登录）
+ *
+ * Phase 3.8.3: 登录页动态展示可用 SSO Provider
+ */
+export const getEnabledSsoProviders = async (): Promise<Array<{
+  name: string;
+  type: string;
+  display_name: string;
+  display_icon?: string;
+}>> => {
+  const response = await api.get('/v1/auth/sso/providers-enabled');
+  return response.data || [];
+};
+
+/**
+ * 获取 SSO 登录状态
+ */
+export const getSsoStatus = async (): Promise<{
+  ssoEnabled: boolean;
+  ssoIssuer: string | null;
+  ssoScopes: string[];
+}> => {
+  const response = await api.get('/v1/auth/sso/status');
+  return response.data;
+};
+
+/**
+ * 获取 JWT 密钥轮换状态（管理员接口）
+ *
+ * Phase 3.8.1: 统一 JWT 密钥管理
+ */
+export const getJwtKeyStatus = async (): Promise<{
+  initialized: boolean;
+  activeKeyId?: string;
+  verificationKeyCount: number;
+  nextRotationDate?: string;
+}> => {
+  const response = await api.get('/v1/auth/keys');
   return response.data;
 };

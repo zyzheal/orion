@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
 	"strings"
@@ -13,6 +13,13 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
+
+// hashToken computes SHA256 hash of the token for blacklist lookup.
+// Matches the TokenBlacklistService.hashToken implementation in platform-service.
+func hashToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
+}
 
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -85,10 +92,11 @@ func JWTAuth(rdb *redis.Client, jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		// Check token blacklist
-		blocked, err := rdb.Exists(c.Request.Context(), "token:blacklist:"+tokenString).Result()
+		// Check token blacklist (use SHA256 hash, matching platform-service)
+		tokenHash := hashToken(tokenString)
+		blocked, err := rdb.Exists(c.Request.Context(), "token:blacklist:"+tokenHash).Result()
 		if err == nil && blocked > 0 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "token revoked"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "error": "TOKEN_REVOKED", "message": "token revoked"})
 			return
 		}
 

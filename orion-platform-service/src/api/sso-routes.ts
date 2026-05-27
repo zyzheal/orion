@@ -1,6 +1,11 @@
 /**
  * SSO/OIDC Routes
  *
+ * Phase 3.8.3: SSO 认证中心完善
+ * - 使用 JwtKeyManager 统一密钥管理
+ * - SSO 回调中检查用户状态（terminated 拒绝登录）
+ * - 集成 TokenBlacklistService
+ *
  * Registers SSO authentication endpoints under /api/v1/auth/sso/*
  * - GET /auth/sso/login      — Redirect to SSO provider
  * - GET /auth/sso/callback   — Handle SSO callback, auto-provision user, issue JWT
@@ -16,9 +21,10 @@ import { randomUUID } from 'crypto';
 import { SsoService, SsoStateStore } from '../services/auth/SsoService';
 import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
+import { jwtKeyManager } from '../services/auth/JwtKeyManager';
+import pino from 'pino';
 
-// JWT_SECRET from environment variable, with dev fallback
-const JWT_SECRET: string = process.env.JWT_SECRET || 'orion-dev-secret-key-change-in-prod';
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
  * Redis-backed SSO state store — enables multi-instance SSO
@@ -50,7 +56,7 @@ async function dbQuery(
   params?: unknown[],
 ): Promise<any> {
   if (!database) {
-    console.warn('[SsoRoutes] Database not available:', sql.substring(0, 50));
+    logger.warn('[SsoRoutes] Database not available:', sql.substring(0, 50));
     return null;
   }
   return database.query(sql, params);
@@ -61,7 +67,6 @@ export async function registerSsoRoutes(
   options: SsoRouteOptions = {},
 ): Promise<void> {
   const database = options.database;
-  // Use Redis-backed state store if Redis is available (supports multi-instance)
   const stateStore = options.redis ? new RedisSsoStateStore(options.redis) : undefined;
   const ssoService = new SsoService(stateStore);
 
@@ -123,10 +128,9 @@ export async function registerSsoRoutes(
   /**
    * GET /api/v1/auth/sso/callback
    * Handle the OAuth2 callback from the SSO provider.
-   * Exchanges the code, finds or creates the user, and issues a JWT.
    *
-   * The `state` parameter from the OIDC provider doubles as our state key
-   * for nonce/state validation.
+   * Phase 3.8.3: 检查用户状态，terminated 用户拒绝登录
+   * Phase 3.8.1: 使用 JwtKeyManager 统一密钥
    */
   fastify.get('/sso/callback', {
     onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
@@ -150,20 +154,19 @@ export async function registerSsoRoutes(
 
       fastify.log.info(`[SsoRoutes] SSO login for user: ${profile.email} (${profile.sub})`);
 
-      // Find or create user in local DB
+      // Find or create user in local DB, including status check
       const result = await dbQuery(
         database,
-        `SELECT id, email, name, role, sso_sub FROM users WHERE sso_sub = $1 OR email = $2`,
+        `SELECT id, email, name, role, sso_sub, status FROM users WHERE sso_sub = $1 OR email = $2`,
         [profile.sub, profile.email],
       );
 
-      let user: { id: string; email: string; name: string; role: string; sso_sub?: string } | null = null;
+      let user: { id: string; email: string; name: string; role: string; status: string; sso_sub?: string } | null = null;
 
       if (result && result.rows && result.rows.length > 0) {
         const foundUser = result.rows[0];
         if (foundUser) {
           user = foundUser;
-          // Update SSO sub if not set (user originally registered locally)
           if (!foundUser.sso_sub) {
             await dbQuery(
               database,
@@ -177,16 +180,15 @@ export async function registerSsoRoutes(
       if (!user) {
         // Auto-provision a new user
         const userId = randomUUID();
-        // Map SSO roles to a platform role (default to 'user')
         const platformRole =
           profile.roles && profile.roles.includes('admin') ? 'admin' : 'user';
 
         const insertResult = await dbQuery(
           database,
-          `INSERT INTO users (id, email, name, sso_sub, role, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())
-           RETURNING id, email, name, role`,
-          [userId, profile.email, profile.name, profile.sub, platformRole],
+          `INSERT INTO users (id, email, name, sso_sub, role, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW())
+           RETURNING id, email, name, role, status`,
+          [userId, profile.email, profile.name, profile.sub, platformRole, 'active'],
         );
 
         if (insertResult && insertResult.rows && insertResult.rows.length > 0) {
@@ -200,21 +202,32 @@ export async function registerSsoRoutes(
         fastify.log.info(`[SsoRoutes] Auto-provisioned user: ${user.email} (role: ${platformRole})`);
       }
 
-      // At this point user must exist — guard against unexpected null
       if (!user) {
         fastify.log.error('[SsoRoutes] User is null after lookup/provisioning');
         return reply.redirect(`${frontendUrl}/login?error=sso_user_error`);
       }
 
-      // Generate JWT access token
-      if (!JWT_SECRET) {
+      // Phase 3.8.7: 检查用户状态，非 active 拒绝登录
+      if (user.status === 'terminated' || user.status === 'deleted') {
+        fastify.log.warn(`[SsoRoutes] Terminated user attempted SSO login: ${user.email}`);
+        return reply.redirect(`${frontendUrl}/login?error=account_disabled`);
+      }
+
+      if (user.status === 'suspended') {
+        fastify.log.warn(`[SsoRoutes] Suspended user attempted SSO login: ${user.email}`);
+        return reply.redirect(`${frontendUrl}/login?error=account_suspended`);
+      }
+
+      // Phase 3.8.1: 使用 JwtKeyManager 获取密钥
+      const jwtSecret = jwtKeyManager.getCurrentSecret();
+      if (!jwtSecret) {
         fastify.log.error('[SsoRoutes] JWT_SECRET not set');
         return reply.redirect(`${frontendUrl}/login?error=jwt_not_configured`);
       }
 
       const accessToken = jwt.sign(
         { userId: user.id, username: user.email, role: user.role },
-        JWT_SECRET,
+        jwtSecret,
         { expiresIn: '5m' },
       );
 
@@ -247,7 +260,7 @@ export async function registerSsoRoutes(
   });
 
   /**
-   * GET /api/v1/auth/sso/config (admin-only placeholder)
+   * GET /api/v1/auth/sso/config (admin-only)
    * Returns SSO configuration details for admin settings page.
    */
   fastify.get('/sso/config', {

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { UserInfo } from '@/api/types';
-import { refreshAuthTokenApi } from '@/api/auth';
-import { injectAuthState } from '@/microfront/config';
+import { refreshAuthTokenApi, logout as apiLogout } from '@/api/auth';
+import { injectAuthState, getDefaultChannel } from '@/microfront/config';
 
 interface AuthState {
   user: UserInfo | null;
@@ -143,7 +143,26 @@ export const useAuthStore = create<AuthState>()(
       return tokenExpiresAt - Date.now() < 5 * 60 * 1000;
     },
 
-    logout: () => {
+    logout: async () => {
+      const { accessToken, refreshToken: rfToken } = get();
+
+      // Phase 3.8.4: 通知后端将 token 加入黑名单
+      try {
+        await apiLogout(accessToken, rfToken);
+      } catch (err) {
+        console.warn('[Auth] Logout API call failed, continuing local cleanup:', err);
+      }
+
+      // Phase 3.8.4: 广播登出事件通知子应用
+      try {
+        getDefaultChannel().emit('auth:logout', {
+          timestamp: new Date().toISOString(),
+          reason: 'user_logout',
+        });
+      } catch (err) {
+        console.warn('[Auth] Failed to broadcast logout event:', err);
+      }
+
       set({
         user: null,
         isAuthenticated: false,
@@ -155,6 +174,8 @@ export const useAuthStore = create<AuthState>()(
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(TOKEN_EXPIRES_KEY);
+      // 通知子应用清理
+      injectAuthState();
     },
   }))
 );

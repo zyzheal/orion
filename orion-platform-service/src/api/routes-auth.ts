@@ -1,6 +1,12 @@
 /**
- * 认证路由 - Fastify 版本（不使用 fp 以支持 prefix）
+ * 认证路由 - Fastify 版本
  * 处理用户登录、登出、Token 刷新等
+ *
+ * Phase 3.8 改造：
+ * - T-3.8.1: 使用 JwtKeyManager 统一密钥管理
+ * - T-3.8.2: 集成 TokenBlacklistService
+ * - T-3.8.4: 单点登出（广播 OrionBus 事件）
+ * - T-3.8.7: 登录时检查用户状态（禁止 terminated 用户登录）
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -10,22 +16,22 @@ import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import { DatabasePool } from '../services/database';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
+import { jwtKeyManager } from '../services/auth/JwtKeyManager';
+import { EventBusService } from '../services/event-bus-service';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 const scryptAsync = promisify(scrypt);
 
-// JWT_SECRET from environment variable, with dev fallback
-const JWT_SECRET: string = process.env.JWT_SECRET || 'orion-dev-secret-key-change-in-prod';
-
-function getJwtSecret(): string | null {
-  return JWT_SECRET || null;
+function getJwtSecret(): string {
+  return jwtKeyManager.getCurrentSecret();
 }
 
 export interface AuthRouteOptions {
   database?: DatabasePool;
   tokenBlacklist?: TokenBlacklistService;
+  eventBus?: EventBusService;
 }
 
 const ACCESS_TOKEN_EXPIRES_IN = '5m';
@@ -48,13 +54,14 @@ async function verifyPassword(storedPassword: string, suppliedPassword: string):
 export default async function authRoutes(app: FastifyInstance, options: AuthRouteOptions = {}): Promise<void> {
   const database = options.database;
   const tokenBlacklist = options.tokenBlacklist;
+  const eventBus = options.eventBus;
 
   /**
    * Helper to execute DB queries safely
    */
   async function dbQuery(sql: string, params?: any[]): Promise<any> {
     if (!database) {
-      console.warn('[AuthRoutes] Database not available:', sql.substring(0, 50));
+      logger.warn('[AuthRoutes] Database not available:', sql.substring(0, 50));
       return null;
     }
     return database.query(sql, params);
@@ -112,6 +119,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
   /**
    * POST /api/v1/auth/login - 用户登录
+   *
+   * Phase 3.8.7: 登录时检查用户状态，terminated/deleted/suspended 用户拒绝登录
    */
   app.post('/login', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
@@ -126,7 +135,10 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
       });
     }
 
-    const dbResult = await dbQuery('SELECT id, username, password_hash, email, role FROM users WHERE username = $1', [username]);
+    const dbResult = await dbQuery(
+      'SELECT id, username, password_hash, email, role, status FROM users WHERE username = $1',
+      [username]
+    );
     const user = dbResult?.rows?.[0];
 
     if (!user) {
@@ -135,6 +147,25 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         error: 'INVALID_CREDENTIALS',
         code: '20102',
         message: '用户名或密码错误',
+      });
+    }
+
+    // Phase 3.8.7: 检查用户状态
+    if (user.status === 'terminated' || user.status === 'deleted') {
+      return reply.status(403).send({
+        success: false,
+        error: 'ACCOUNT_DISABLED',
+        code: '20111',
+        message: '账号已被禁用或注销，无法登录',
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return reply.status(403).send({
+        success: false,
+        error: 'ACCOUNT_SUSPENDED',
+        code: '20112',
+        message: '账号暂时被冻结，请联系管理员',
       });
     }
 
@@ -168,6 +199,14 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
       [user.id, refreshTokenHash, expiresAt]
     );
 
+    // Log login event for audit trail
+    await dbQuery(
+      'INSERT INTO user_status_history (user_id, old_status, new_status, reason, operator_id, changed_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+      [user.id, user.status, 'active', 'login', user.id]
+    );
+
+    logger.info(`[AuthRoutes] User login: ${user.username} (${user.id})`);
+
     return reply.send({
       success: true,
       data: {
@@ -188,13 +227,14 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
   /**
    * POST /api/v1/auth/logout - 用户登出（单点登出）
    *
+   * Phase 3.8.4: 单点登出通知
    * 1. 删除 refresh_token
-   * 2. access_token 加入黑名单（TokenBlacklistService）
-   * 3. 返回成功，前端负责通知子应用 + 跳转登录页
+   * 2. access_token 加入黑名单
+   * 3. 广播 OrionBus 事件通知子应用清理会话
    */
   app.post('/logout', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
-    const { refreshToken, accessToken } = body;
+    const { refreshToken, accessToken, userId } = body;
 
     // 1. Delete refresh token
     if (refreshToken) {
@@ -206,19 +246,33 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     if (accessToken && tokenBlacklist) {
       try {
         const decoded = jwt.decode(accessToken) as { userId?: string; exp?: number } | null;
-        if (decoded?.userId && decoded?.exp) {
+        const revokeUserId = decoded?.userId || userId;
+        if (revokeUserId && decoded?.exp) {
           const ttl = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
           await tokenBlacklist.revokeToken(
             accessToken,
-            decoded.userId,
+            revokeUserId,
             0, // tenantId not available in this context
             'logout',
           );
-          logger.debug(`[AuthRoutes] Access token blacklisted: TTL=${ttl}s`);
+          logger.info(`[AuthRoutes] Access token blacklisted: user=${revokeUserId} TTL=${ttl}s`);
         }
       } catch (error: unknown) {
         logger.warn('[AuthRoutes] Failed to blacklist access token:', error);
-        // Continue - logout still succeeds even if blacklist fails
+      }
+    }
+
+    // Phase 3.8.4: Broadcast logout event to notify sub-apps
+    if (eventBus) {
+      try {
+        await eventBus.publish('auth:user:logout', {
+          userId: userId || (jwt.decode(accessToken) as any)?.userId,
+          timestamp: new Date().toISOString(),
+          reason: 'user_logout',
+        });
+        logger.info('[AuthRoutes] Logout event broadcast via OrionBus');
+      } catch (err) {
+        logger.warn('[AuthRoutes] Failed to broadcast logout event:', err);
       }
     }
 
@@ -230,6 +284,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
   /**
    * POST /api/v1/auth/refresh - 刷新 Token
+   *
+   * Phase 3.8.7: 刷新时检查用户状态
    */
   app.post('/refresh', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
@@ -246,7 +302,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     const result = await dbQuery(
-      'SELECT rt.user_id, u.username, u.role FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id WHERE rt.token_hash = $1 AND rt.expires_at > NOW()',
+      'SELECT rt.user_id, u.username, u.role, u.status FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id WHERE rt.token_hash = $1 AND rt.expires_at > NOW()',
       [tokenHash]
     );
 
@@ -257,6 +313,26 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         error: 'INVALID_OR_EXPIRED_REFRESH_TOKEN',
         code: '20105',
         message: '刷新 Token 无效或已过期',
+      });
+    }
+
+    // Phase 3.8.7: 刷新 Token 时检查用户状态
+    if (row.status === 'terminated' || row.status === 'deleted') {
+      await dbQuery('DELETE FROM refresh_tokens WHERE token_hash = $1', [tokenHash]);
+      return reply.status(403).send({
+        success: false,
+        error: 'ACCOUNT_DISABLED',
+        code: '20111',
+        message: '账号已被禁用，无法刷新 Token',
+      });
+    }
+
+    if (row.status === 'suspended') {
+      return reply.status(403).send({
+        success: false,
+        error: 'ACCOUNT_SUSPENDED',
+        code: '20112',
+        message: '账号暂时被冻结，无法刷新 Token',
       });
     }
 
@@ -294,6 +370,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
   /**
    * GET /api/v1/auth/me - 获取当前用户信息
+   *
+   * Phase 3.8.7: 返回时检查用户状态
    */
   app.get('/me', async (request: FastifyRequest, reply: FastifyReply) => {
     const authHeader = request.headers.authorization;
@@ -313,9 +391,12 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     }
 
     try {
-      const payload = jwt.verify(token, jwtSecret) as { userId: string; username: string; role: string };
+      const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as { userId: string };
 
-      const result = await dbQuery('SELECT id, username, email, role FROM users WHERE id = $1', [payload.userId]);
+      const result = await dbQuery(
+        'SELECT id, username, email, role, status FROM users WHERE id = $1',
+        [payload.userId]
+      );
       const user = result?.rows?.[0];
 
       if (!user) {
@@ -327,6 +408,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         });
       }
 
+      // Phase 3.8.7: 用户状态提示
       return reply.send({
         success: true,
         data: {
@@ -334,6 +416,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
           username: user.username,
           email: user.email,
           role: user.role,
+          status: user.status || 'active',
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=1890ff&color=fff`,
         },
       });
@@ -344,6 +427,13 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         code: '20102',
         message: 'Token 无效',
       });
+    }
+  });
+
+  // Shutdown hook for blacklist cleanup
+  app.addHook('onClose', async () => {
+    if (tokenBlacklist) {
+      await tokenBlacklist.disconnect();
     }
   });
 }

@@ -1,19 +1,36 @@
 /**
- * Authentication Middleware
+ * Authentication Hook — Backward Compatible with Unified Keys
  *
- * Verifies JWT tokens from the Authorization header and attaches
- * the decoded user information to request.user.
+ * Fastify onRequest hook used by legacy routes (sso-routes.ts, etc.).
+ * Now delegates to centralized JwtKeyManager and TokenBlacklistService.
  *
- * Usage:
- *   app.addHook('onRequest', authenticateUser);
+ * Phase 3.8.1: Uses JwtKeyManager instead of K8s env vars directly
+ * Phase 3.8.2: Checks TokenBlacklistService for revoked tokens
  *
- * Or as a per-route hook:
- *   app.get('/protected', { onRequest: [authenticateUser] }, handler);
+ * NOTE: New code should prefer jwtAuth from jwtAuth.ts middleware.
+ *       This hook is kept for backward compatibility with existing route registrations.
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
-import { k8sSecretStorage } from '../services/auth/K8sSecretKeyStorage';
+import { jwtKeyManager } from '../services/auth/JwtKeyManager';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+/**
+ * Reference to the shared TokenBlacklistService.
+ * Set via initAuthMiddleware during bootstrap.
+ */
+let tokenBlacklist: any = null;
+
+/**
+ * Initialize the auth middleware with shared services.
+ */
+export function initAuthMiddleware(blacklistService: any): void {
+  tokenBlacklist = blacklistService;
+  logger.info('[AuthMiddleware] Initialized with TokenBlacklistService');
+}
 
 /**
  * Authentication hook - verifies JWT and attaches user to request.
@@ -21,7 +38,7 @@ import { k8sSecretStorage } from '../services/auth/K8sSecretKeyStorage';
  */
 export async function authenticateUser(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> {
   const authHeader = request.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -33,16 +50,26 @@ export async function authenticateUser(
   }
 
   const token = authHeader.split(' ')[1];
+
+  // Phase 3.8.2: Check token blacklist
+  if (tokenBlacklist) {
+    try {
+      const isBlacklisted = await tokenBlacklist.isRevoked(token);
+      if (isBlacklisted) {
+        return reply.code(401).send({
+          code: 401,
+          error: 'TOKEN_REVOKED',
+          message: 'Token has been revoked',
+        });
+      }
+    } catch (err) {
+      logger.warn('[AuthMiddleware] Blacklist check failed:', err);
+    }
+  }
+
   try {
-    // Get current key from K8s Secret storage
-    const currentKeyId = process.env.JWT_CURRENT_KEY_ID;
-    const currentKeyHash = process.env.JWT_CURRENT_KEY_HASH;
-
-    // If K8s key is available, use it for verification
-    const secret = currentKeyHash
-      ? currentKeyHash // In production, this would be the actual key from K8s
-      : process.env.JWT_SECRET || 'dev-fallback-secret-not-for-production';
-
+    // Phase 3.8.1: Use centralized key manager
+    const secret = jwtKeyManager.getCurrentSecret();
     const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as {
       userId: string;
       username: string;
@@ -50,7 +77,6 @@ export async function authenticateUser(
       role?: string;
     };
 
-    // Attach user info to the request object for downstream use
     request.user = {
       userId: decoded.userId,
       username: decoded.username,
