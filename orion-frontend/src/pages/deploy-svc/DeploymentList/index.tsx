@@ -8,13 +8,13 @@
  * - Detail link
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message } from 'antd';
+import { Typography, Button, Space, Tag, message, Modal, Input } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RocketOutlined, RollbackOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getDeployments } from '@/api/deployments';
+import { getDeployments, rollbackDeployment } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -69,6 +69,30 @@ const DeploymentList: React.FC = () => {
   useEffect(() => {
     loadDeployments();
   }, []);
+
+  // Rollback handler - Phase 1.4 fix
+  const handleRollback = (record: DeploymentRecord) => {
+    Modal.confirm({
+      title: '确认回滚',
+      content: `确认将部署 ${record.appName} (${record.version}) 回滚到 ${record.version}？`,
+      okText: '确认回滚',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await rollbackDeployment(record.id, { targetVersion: record.version });
+          message.success('回滚成功');
+          loadDeployments();
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`回滚失败：${error.message}`);
+          } else {
+            message.error('回滚失败，请稍后重试');
+          }
+        }
+      },
+    });
+  };
 
   // Filter deployments based on search and filters
   const filteredDeployments = useMemo(() => {
@@ -251,7 +275,7 @@ const DeploymentList: React.FC = () => {
             详情
           </Button>
           {record.status === 'success' && (
-            <Button type="link" size="small" danger>
+            <Button type="link" size="small" danger onClick={() => handleRollback(record)}>
               回滚
             </Button>
           )}
