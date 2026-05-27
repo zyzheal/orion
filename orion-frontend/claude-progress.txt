@@ -1,0 +1,71 @@
+# Serverless 模块开发进度
+
+## 已完成 (Phase 4 P0)
+
+### 后端 (orion-platform-service)
+1. **数据模型与服务**: `src/services/serverless/ServerlessService.ts`
+   - ServerlessFunction, ServerlessTrigger, ServerlessDeployment, ServerlessMetrics, ServerlessLog 接口
+   - 函数 CRUD (create/list/get/update/delete)
+   - 函数部署 (deployFunction)
+   - 函数调用 (invokeFunction)
+   - 触发器管理 (createTrigger/listTriggers/getTrigger/deleteTrigger)
+   - 日志聚合 (getFunctionLogs)
+   - 指标收集 (recordMetric/getFunctionMetrics/getAggregateMetrics)
+   - 自动扩缩容评估 (evaluateAutoScaling)
+
+2. **API 路由**: `src/api/serverless-routes.ts`
+   - POST /v1/serverless/functions - 创建函数
+   - GET /v1/serverless/functions - 函数列表
+   - GET /v1/serverless/functions/:id - 函数详情
+   - PUT /v1/serverless/functions/:id - 更新函数
+   - DELETE /v1/serverless/functions/:id - 删除函数
+   - POST /v1/serverless/functions/:id/deploy - 部署函数
+   - GET /v1/serverless/functions/:id/deployments - 部署历史
+   - POST /v1/serverless/functions/:id/invoke - 调用函数
+   - GET /v1/serverless/functions/:id/logs - 函数日志
+   - GET /v1/serverless/functions/:id/metrics - 函数指标
+   - GET /v1/serverless/metrics - 聚合指标
+   - POST /v1/serverless/triggers - 创建触发器
+   - GET /v1/serverless/triggers - 触发器列表
+   - GET /v1/serverless/triggers/:id - 触发器详情
+   - DELETE /v1/serverless/triggers/:id - 删除触发器
+   - GET /v1/serverless/autoscaling - 自动扩缩容建议
+
+3. **路由注册**: `src/api/routes.ts` - 已注册 serverlessRoutes
+
+### 前端 (orion-frontend)
+1. **API 客户端**: `src/api/serverless.ts`
+   - 完整 API 调用函数
+   - TypeScript 类型定义
+
+2. **类型定义**: `src/types/serverless.ts`
+   - 前端类型 re-export
+
+3. **页面**: `src/pages/serverless/ServerlessPage.tsx`
+   - 函数管理 Tab: 创建/编辑/删除/部署/调用/查看详情/查看日志
+   - 事件触发器 Tab: 创建/删除触发器，支持 HTTP/Cron/Event/Queue/Kafka/S3 类型
+   - 指标与扩缩容 Tab: 聚合指标卡片、自动扩缩容建议表格
+   - 使用 Design Token 系统
+   - 完整交互链 (loading/success/error/empty 状态)
+   - CRUD 操作完整
+
+4. **路由注册**: `src/router/routes.tsx` - 已注册 /serverless 路由
+
+## TypeScript 编译状态
+- 后端 (orion-platform-service): serverless 相关文件无新增 TS 错误
+- 前端 (orion-frontend): serverless 相关文件无新增 TS 错误
+
+## 文件清单
+| 文件 | 大小 | 状态 |
+|------|------|------|
+| orion-platform-service/src/services/serverless/ServerlessService.ts | 17.8 KB | 新增 |
+| orion-platform-service/src/api/serverless-routes.ts | 11.4 KB | 新增 |
+| orion-platform-service/src/api/routes.ts | 修改 | 已添加 import + 注册 |
+| orion-frontend/src/api/serverless.ts | 5.9 KB | 新增 |
+| orion-frontend/src/types/serverless.ts | 0.3 KB | 新增 |
+| orion-frontend/src/pages/serverless/ServerlessPage.tsx | 31.5 KB | 新增 |
+| orion-frontend/src/router/routes.tsx | 修改 | 已添加路由 |
+
+## 注意事项
+- 数据存储当前使用 Map() 内存存储，后续可迁移到 PostgreSQL Repository 模式
+- 函数调用和部署逻辑当前为模拟实现，后续可对接真实的 Knative/K8s 运行时

@@ -1440,6 +1440,14 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'middleware', action: 'read' },
   },
 
+  // Serverless (Phase 4 P0 - Serverless Module)
+  {
+    path: '/serverless',
+    element: React.lazy(() => import('@/pages/serverless/ServerlessPage')),
+    protected: true,
+    requiredPermission: { resource: 'serverless', action: 'read' },
+  },
+
   // ==================== AI 能力平台（新路由） ====================
   {
     path: '/ai/dashboard',

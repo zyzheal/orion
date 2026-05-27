@@ -501,12 +501,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 // Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
 // Phase 4 Batch 2: FinOps/MLOps/Metadata 路由
 import finOpsRoutes from './finops-routes';
+import finOpsV2Routes from './finops-v2-routes';
 import mlopsRoutes from './mlops-routes';
 import metadataRoutes from './metadata-routes';
 import inspectionRoutes from './inspection-routes';
 import capacityRoutes from './capacity-routes';
 import middlewareOpsRoutes from './middleware-ops-routes';
+import serverlessRoutes from './serverless-routes';
   await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations');
+  // FinOps V2 - 完整 FinOps 成本管理路由
+  await registerWithRoleGuard(app, finOpsV2Routes, '/v1/finops', { database: options.database });
   // 注册 MLOps API 路由 (Phase 4 Batch 2)
   await registerWithRoleGuard(app, mlopsRoutes, '/mlops');
   // 注册 Metadata API 路由 (Phase 4 Batch 2)
@@ -517,6 +521,8 @@ import middlewareOpsRoutes from './middleware-ops-routes';
   await registerWithRoleGuard(app, capacityRoutes, '/capacity');
   // 注册 Middleware Operations API 路由 (Phase 4 - Middleware Operations)
   await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware');
+  // 注册 Serverless API 路由 (Phase 4 P0 - Serverless Module)
+  await registerWithRoleGuard(app, serverlessRoutes, '/serverless');
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
