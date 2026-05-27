@@ -240,8 +240,8 @@ export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
     set({ questions: [...defaultQuestions], commands: [...defaultCommands] });
     // 异步调用 API 重置
     Promise.all([
-      updateQuestionConfigs({ configs: [...defaultQuestions] }).catch(() => {}),
-      updateCommandConfigs({ configs: [...defaultCommands] }).catch(() => {}),
+      updateQuestionConfigs({ configs: [...defaultQuestions] }).catch((err: unknown) => console.error('Failed to reset questions:', err)),
+      updateCommandConfigs({ configs: [...defaultCommands] }).catch((err: unknown) => console.error('Failed to reset commands:', err)),
     ]);
   },
 }));

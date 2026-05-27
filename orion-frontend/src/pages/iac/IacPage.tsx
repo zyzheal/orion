@@ -192,7 +192,9 @@ const ResourcesTab: React.FC = () => {
     try {
       const res = await getWorkspaces();
       setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load:', error);
+    }
   };
 
   const loadResources = async (workspaceId: string) => {
@@ -342,7 +344,9 @@ const PlansTab: React.FC = () => {
     try {
       const res = await getWorkspaces();
       setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load:', error);
+    }
   };
 
   const loadPlans = async (workspaceId: string) => {

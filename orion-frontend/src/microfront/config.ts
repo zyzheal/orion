@@ -87,7 +87,7 @@ export const unloadSubApp = async (appKey: string): Promise<void> => {
   const app = getSubAppConfig(appKey);
   if (!app) return;
 
-  await destroySubApp(appKey).catch(() => {});
+  await destroySubApp(appKey).catch((err: unknown) => console.error(`Failed to destroy subapp ${appKey}:`, err));
 
   // 销毁完成后再清除容器内容
   const container = document.querySelector(app.container);

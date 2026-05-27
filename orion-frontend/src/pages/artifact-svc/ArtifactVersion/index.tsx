@@ -68,12 +68,16 @@ const ArtifactVersionPage: React.FC = () => {
     try {
       const chainRes = await getTraceabilityChain(version.id);
       if (chainRes.data) setChain(chainRes.data);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load traceability chain:', error);
+    }
 
     try {
       const depRes = await getDeploymentHistory(version.pipelineId);
       if (depRes.data) setDeployHistory(depRes.data);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load deployment history:', error);
+    }
   };
 
   const handleDeploy = async (version: ArtifactVersion, environment: string) => {

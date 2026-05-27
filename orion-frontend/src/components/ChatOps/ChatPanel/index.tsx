@@ -108,7 +108,7 @@ export const ChatPanel: React.FC = () => {
 
   React.useEffect(() => {
     initializeChatOpsStore();
-    loadConfig().catch(() => {});
+    loadConfig().catch((error: unknown) => console.error('Failed to load chat config:', error));
   }, []);
 
   // Prevent background scrolling when panel is open

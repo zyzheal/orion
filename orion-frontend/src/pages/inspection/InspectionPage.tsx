@@ -315,7 +315,9 @@ const InspectionPage: React.FC = () => {
       const data = (res.data as { data?: { score?: number; details?: Record<string, number> } })?.data;
       setHealthScore(data?.score || 100);
       setScoreDetails(data?.details || {});
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load health score:', error);
+    }
   };
 
   useEffect(() => { loadScore(); }, []);

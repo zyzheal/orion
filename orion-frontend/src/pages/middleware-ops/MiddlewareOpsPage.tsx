@@ -347,7 +347,9 @@ const MiddlewareOpsPage: React.FC = () => {
     try {
       const res = await getMiddlewareHealthSummary();
       setHealthSummary((res.data as HealthResponse).data || null);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load health summary:', error);
+    }
   };
 
   useEffect(() => { loadHealth(); }, []);

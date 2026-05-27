@@ -69,12 +69,16 @@ const ArtifactVersionPage: React.FC = () => {
     try {
       const chainRes = await getTraceabilityChain(version.id);
       if (chainRes.data) setChain(chainRes.data);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load data:', error);
+    }
 
     try {
       const depRes = await getDeploymentHistory(version.pipelineId);
       if (depRes.data) setDeployHistory(depRes.data);
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      console.error('Failed to load data:', error);
+    }
   };
 
   const handleDeploy = async (version: ArtifactVersion, environment: string) => {

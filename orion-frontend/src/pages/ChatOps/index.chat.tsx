@@ -54,7 +54,7 @@ export default function ChatOpsChat() {
   useEffect(() => {
     getAvailableTools()
       .then((res) => setTools(res.data.tools || []))
-      .catch(() => {});
+      .catch((err: unknown) => console.error('Failed to load tools:', err));
   }, []);
 
   const handleSend = async (text?: string) => {
