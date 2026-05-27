@@ -1,3 +1,39 @@
+# FinOps 模块开发进度
+
+## 已完成 (Phase 4 P0) - Commit: abf2bcd7
+
+### 后端 (orion-platform-service)
+1. **API 路由**: `src/api/finops-v2-routes.ts` (新增)
+   - 注册在 `/api/v1/finops/*` 前缀下，30+ 端点
+   - 使用 PostgreSQL -backed FinOpsRepository + FinOpsService + FinOpsV2Controller
+   - 覆盖：成本追踪、成本概览、成本分解、预算 CRUD、预算告警、成本预测、优化建议 CRUD、报告、ROI 指标、健康检查
+   - 所有路由带 ACL 权限守卫
+
+2. **路由注册**: `src/api/routes.ts` (修改)
+   - 注册 finOpsV2Routes 到 `/v1/finops` 前缀
+
+### 前端 (orion-frontend)
+1. **类型定义**: `src/types/finops.ts` (新增)
+   - CostSummary, CostBreakdownItem, Budget, BudgetInput, BudgetStatus, BudgetForecast
+   - OptimizationRecommendation, RightSizingRecommendation, ROISummary, FinOpsMetrics
+
+2. **API 客户端**: `src/api/finops.ts` (重写)
+   - 20+ API 函数对齐 `/v1/finops/*` 后端路由
+   - 向后兼容导出（getCostSummary, getCostByService, getOptimizations, applyOptimization, getBudgetAlerts）
+   - 修复了 FinOpsDashboard 的 12 个历史类型错误
+
+3. **FinOps 页面**: `src/pages/finops/FinOpsPage.tsx` (新增)
+   - 4 个 Tab：成本总览 / 预算管理 / 成本预测 / 优化建议
+   - 使用 Design Token 体系
+   - 完整 CRUD 交互链：loading 状态、空状态引导、操作反馈、二次确认
+   - 零 TypeScript 错误
+
+### 类型检查结果
+- 新增代码：0 错误
+- 历史遗留错误（finops-svc/cost-operations/）：10 个（非本次修改引入）
+
+---
+
 # Serverless 模块开发进度
 
 ## 已完成 (Phase 4 P0)
