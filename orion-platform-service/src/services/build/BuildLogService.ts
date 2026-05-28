@@ -21,6 +21,9 @@ import {
   parseLogLine,
 } from '../../models/BuildLog';
 import { BuildLogRepository } from '../../repositories/BuildLogRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LBuild-LLog-LService' });
 
 /**
  * 日志订阅者（用于 WebSocket/SSE 推送）
@@ -71,7 +74,7 @@ export class BuildLogService {
           createdAt: log.createdAt,
         });
       } catch (err) {
-        console.warn(`[BuildLogService] Failed to persist log record: ${err}`);
+        logger.warn(`[BuildLogService] Failed to persist log record: ${err}`);
       }
     }
     return log;
@@ -267,7 +270,7 @@ this.logs.set(logId, updated);
         try {
           subscriber.onLog(entry);
         } catch (error) {
-          console.error(`[BuildLogService] Error notifying subscriber ${subscriber.id}:`, error);
+          logger.error(`[BuildLogService] Error notifying subscriber ${subscriber.id}:`, error);
           subscriber.onError?.(error as Error);
         }
       }

@@ -11,6 +11,9 @@ import { ProjectRepository } from '../services/project/ProjectRepository';
 import { ProjectService, ProjectServiceError } from '../services/project/ProjectService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'project-routes' });
 
 interface ProjectRoutesOptions {
   database?: DatabasePool;
@@ -37,7 +40,7 @@ export default async function projectRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[ProjectRoutes] No database pool provided, project routes will not be functional');
+    logger.warn('[ProjectRoutes] No database pool provided, project routes will not be functional');
     return;
   }
 

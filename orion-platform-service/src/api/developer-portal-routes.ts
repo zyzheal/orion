@@ -12,6 +12,9 @@ import { PortalDocumentService } from '../services/developer-portal/PortalDocume
 import { PortalDocumentController } from './controllers/PortalDocumentController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'developer-portal-routes' });
 
 interface DeveloperPortalRoutesOptions {
   database?: DatabasePool;
@@ -26,7 +29,7 @@ export default async function developerPortalRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[DeveloperPortalRoutes] No database pool provided, developer portal routes will not be functional');
+    logger.warn('[DeveloperPortalRoutes] No database pool provided, developer portal routes will not be functional');
     return;
   }
 

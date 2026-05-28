@@ -18,6 +18,9 @@ import {
   ChangedLine,
 } from './types';
 import { DiffAnalyzer } from './DiffAnalyzer';
+import pino from 'pino';
+
+const logger = pino({ name: 'LReview-LRule-LEngine' });
 
 /** 默认配置 */
 const DEFAULT_RULES: ReviewRule[] = [

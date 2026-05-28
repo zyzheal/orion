@@ -12,6 +12,9 @@ import { RoleService } from '../services/role/RoleService';
 import { RoleController } from './controllers/RoleController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission, getAuthzEngine } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'role-routes' });
 
 interface RoleRoutesOptions {
   database?: DatabasePool;
@@ -31,7 +34,7 @@ export default async function roleRoutes(
     const service = new RoleService(repository);
     controller = new RoleController(service);
   } else {
-    console.warn('[RoleRoutes] No database pool provided, role routes will return 503');
+    logger.warn('[RoleRoutes] No database pool provided, role routes will return 503');
   }
 
   // Handler for when DB is unavailable

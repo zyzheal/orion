@@ -14,6 +14,9 @@ import { PipelineVersionController } from './controllers/PipelineVersionControll
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'pipeline-version-routes' });
 
 interface PipelineVersionRoutesOptions {
   database?: DatabasePool;
@@ -25,7 +28,7 @@ export default async function pipelineVersionRoutes(
   options: PipelineVersionRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[PipelineVersionRoutes] No database pool available, routes will not be functional');
+    logger.warn('[PipelineVersionRoutes] No database pool available, routes will not be functional');
     // Still register routes but they will fail at service level
     return;
   }

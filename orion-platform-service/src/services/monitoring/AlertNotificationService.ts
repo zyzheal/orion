@@ -8,6 +8,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LAlert-LNotification-LService' });
   Alert,
   AlertChannel,
   AlertSeverity,
@@ -240,7 +243,7 @@ export class AlertNotificationService {
     const body = this.formatAlertText(alert);
 
     // In production: await emailService.send({ to: config.recipients, subject, body });
-    console.log(`[Email] To: ${config.recipients.join(', ')} | Subject: ${subject}`);
+    logger.info(`[Email] To: ${config.recipients.join(', ')} | Subject: ${subject}`);
 
     record.status = 'sent';
     record.responsePayload = JSON.stringify({ recipients: config.recipients, subject });
@@ -280,7 +283,7 @@ export class AlertNotificationService {
     // });
     // if (!response.ok) throw new Error(`Webhook returned ${response.status}`);
 
-    console.log(`[Webhook] POST ${config.url} | Payload: ${JSON.stringify(payload).substring(0, 200)}...`);
+    logger.info(`[Webhook] POST ${config.url} | Payload: ${JSON.stringify(payload).substring(0, 200)}...`);
 
     record.status = 'sent';
     record.responsePayload = JSON.stringify({ status: 'delivered' });
@@ -309,7 +312,7 @@ export class AlertNotificationService {
     };
 
     // In production: await fetch(config.webhookUrl, { method: 'POST', body: JSON.stringify(message) });
-    console.log(`[Slack] Channel: ${message.channel} | Text: ${message.text.substring(0, 200)}...`);
+    logger.info(`[Slack] Channel: ${message.channel} | Text: ${message.text.substring(0, 200)}...`);
 
     record.status = 'sent';
     record.responsePayload = JSON.stringify(message);
@@ -377,7 +380,7 @@ export class AlertNotificationService {
       };
 
       // Log escalation
-      console.log(
+      logger.info(
         `[Escalation] Alert ${alertId} -> Step ${state.currentStep} | Recipients: ${step.recipients.join(', ')}`
       );
 
@@ -388,7 +391,7 @@ export class AlertNotificationService {
       });
 
       this.notifications.push(record);
-    })().catch(console.error);
+    })().catch((err) => logger.error({ err }, 'Notification step failed'));
 
     // Schedule next step
     if (state.currentStep < policy.steps.length - 1) {
@@ -436,7 +439,7 @@ export class AlertNotificationService {
     // Cancel escalation
     this.cancelEscalation(alertId);
 
-    console.log(`[Alert] Alert ${alertId} acknowledged by ${acknowledgedBy}`);
+    logger.info(`[Alert] Alert ${alertId} acknowledged by ${acknowledgedBy}`);
   }
 
   // ==================== Notification History ====================

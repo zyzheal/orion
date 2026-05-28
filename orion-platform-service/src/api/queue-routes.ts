@@ -12,6 +12,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { QueueRepository } from '../services/queue/QueueRepository';
 import { QueueService } from '../services/queue/QueueService';
 import { QueueController } from './controllers/QueueController';
+import pino from 'pino';
+
+const logger = pino({ name: 'queue-routes' });
 
 interface QueueRoutesOptions {
   database?: DatabasePool;
@@ -27,7 +30,7 @@ export default async function queueRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[QueueRoutes] No database pool provided, queue routes will not be functional');
+    logger.warn('[QueueRoutes] No database pool provided, queue routes will not be functional');
     return;
   }
 

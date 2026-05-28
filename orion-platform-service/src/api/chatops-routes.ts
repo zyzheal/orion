@@ -49,6 +49,9 @@ import { PermissionService } from '../services/chatops/PermissionService';
 import { CommandVersionService } from '../services/chatops/CommandVersionService';
 import { RateLimitService } from '../services/chatops/RateLimitService';
 import { WebhookService } from '../services/chatops/WebhookService';
+import pino from 'pino';
+
+const logger = pino({ name: 'chatops-routes' });
 
 interface ChatOpsRoutesOptions {
   eventBus?: EventBusService;
@@ -66,7 +69,7 @@ export default async function chatopsRoutes(
   options: ChatOpsRoutesOptions,
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[ChatOpsRoutes] No database pool provided, chatops routes will not be functional');
+    logger.warn('[ChatOpsRoutes] No database pool provided, chatops routes will not be functional');
     return;
   }
 
@@ -306,7 +309,7 @@ export default async function chatopsRoutes(
   if (options.eventBus) {
     eventSubscriber = new ChatOpsEventSubscriber(options.eventBus);
     await eventSubscriber.initialize().catch(err => {
-      console.warn('[ChatOpsRoutes] EventSubscriber initialization failed:', err);
+      logger.warn('[ChatOpsRoutes] EventSubscriber initialization failed:', err);
     });
 
     connectionManager = new SSEConnectionManager(eventSubscriber!.getLocalBus());

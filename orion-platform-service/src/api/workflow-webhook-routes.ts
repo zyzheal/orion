@@ -13,6 +13,9 @@ import * as crypto from 'crypto';
 import { DatabasePool } from '../services/database';
 import { WorkflowTriggerRepository } from '../repositories/WorkflowTriggerRepository';
 import { WorkflowTriggerLogRepository } from '../repositories/WorkflowTriggerLogRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'workflow-webhook-routes' });
 
 /**
  * 默认导出函数
@@ -125,7 +128,7 @@ export default async function workflowWebhookRoutes(
           } else {
             // 异步执行
             engine.execute(instance.id).catch(err => {
-              console.error(`[Webhook Trigger] Workflow execution failed: ${err}`);
+              logger.error(`[Webhook Trigger] Workflow execution failed: ${err}`);
             });
 
             return reply.status(202).send({

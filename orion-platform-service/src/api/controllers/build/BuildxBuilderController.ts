@@ -6,6 +6,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BuildxBuilderService } from '../../../services/build/BuildxBuilderService';
 import { ArtifactRegistryServiceImpl } from '../../../services/artifact/ArtifactRegistryService';
+import pino from 'pino';
+
+const logger = pino({ name: 'LBuildx-LBuilder-LController' });
 
 export class BuildxBuilderController {
   constructor(
@@ -226,7 +229,7 @@ export class BuildxBuilderController {
    * 错误处理
    */
   private handleError(error: any, reply: FastifyReply): void {
-    console.error('Buildx Builder Controller Error:', error);
+    logger.error('Buildx Builder Controller Error:', error);
     
     if (error.message.includes('buildx is not available')) {
       reply.code(503).send({ error: 'Docker buildx is not available' });

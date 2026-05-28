@@ -15,6 +15,9 @@ import { ApprovalGateRepository } from '../repositories/ApprovalGateRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
+import pino from 'pino';
+
+const logger = pino({ name: 'approval-routes' });
 
 export interface ApprovalRoutesOptions {
   database?: Pool | DatabasePool;
@@ -37,7 +40,7 @@ export async function registerApprovalRoutes(
     templateService = new ApprovalTemplateService(db);
   } else {
     // Fallback: return early without database
-    console.warn('[ApprovalRoutes] No database, skipping routes');
+    logger.warn('[ApprovalRoutes] No database, skipping routes');
     return;
   }
 

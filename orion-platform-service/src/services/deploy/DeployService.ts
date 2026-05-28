@@ -5,6 +5,9 @@
  */
 
 import { 
+import pino from 'pino';
+
+const logger = pino({ name: 'LDeploy-LService' });
   DeployRepository, 
   Deployment,
   DeploymentEvent,
@@ -128,7 +131,7 @@ export class DeployService {
 
     // Execute deployment asynchronously
     this.executeDeployment(id).catch(err => {
-      console.error(`Deployment execution failed: ${err.message}`);
+      logger.error(`Deployment execution failed: ${err.message}`);
     });
 
     return updated;
@@ -260,7 +263,7 @@ export class DeployService {
         actor_id: actorId,
       });
     } catch (err) {
-      console.error('Failed to log deployment event:', err);
+      logger.error('Failed to log deployment event:', err);
     }
   }
 

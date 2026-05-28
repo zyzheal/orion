@@ -10,6 +10,9 @@ import { DatabasePool } from '../services/database';
 import { UserRepository } from '../services/user/UserRepository';
 import { UserProfileService, UpdateProfileInput } from '../services/user/UserProfileService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import pino from 'pino';
+
+const logger = pino({ name: 'user-profile-routes' });
 
 interface UserProfileRoutesOptions {
   database?: DatabasePool;
@@ -56,7 +59,7 @@ export default async function userProfileRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[UserProfileRoutes] No database pool provided, profile routes will not be functional');
+    logger.warn('[UserProfileRoutes] No database pool provided, profile routes will not be functional');
     return;
   }
 
@@ -130,7 +133,7 @@ export default async function userProfileRoutes(
         data: profile,
       });
     } catch (error) {
-      console.error('[UserProfileRoutes] Error getting profile:', error);
+      logger.error('[UserProfileRoutes] Error getting profile:', error);
       return reply.status(500).send({
         success: false,
         error: 'Internal server error',
@@ -221,7 +224,7 @@ export default async function userProfileRoutes(
         data: profile,
       });
     } catch (error) {
-      console.error('[UserProfileRoutes] Error updating profile:', error);
+      logger.error('[UserProfileRoutes] Error updating profile:', error);
       return reply.status(500).send({
         success: false,
         error: 'Internal server error',
@@ -286,7 +289,7 @@ export default async function userProfileRoutes(
         data: teams,
       });
     } catch (error) {
-      console.error('[UserProfileRoutes] Error getting user teams:', error);
+      logger.error('[UserProfileRoutes] Error getting user teams:', error);
       return reply.status(500).send({
         success: false,
         error: 'Internal server error',
@@ -350,7 +353,7 @@ export default async function userProfileRoutes(
         data: permissions,
       });
     } catch (error) {
-      console.error('[UserProfileRoutes] Error getting user permissions:', error);
+      logger.error('[UserProfileRoutes] Error getting user permissions:', error);
       return reply.status(500).send({
         success: false,
         error: 'Internal server error',

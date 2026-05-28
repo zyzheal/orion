@@ -21,6 +21,9 @@ import { SkillService } from '../services/skill/SkillService';
 import { SkillController } from './controllers/SkillController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'skill-routes' });
 
 /**
  * Skill permissions matrix
@@ -48,7 +51,7 @@ export default async function skillRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[SkillRoutes] No database pool provided, skill routes will not be functional');
+    logger.warn('[SkillRoutes] No database pool provided, skill routes will not be functional');
     return;
   }
 

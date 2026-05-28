@@ -254,7 +254,7 @@ export class DegradationConfigService {
           await this.repository.create(config);
         }
       } catch (err) {
-        console.error(`Failed to initialize config for ${config.scenario}:`, err);
+        logger.error(`Failed to initialize config for ${config.scenario}:`, err);
       }
     }
     this.initialized = true;

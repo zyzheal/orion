@@ -6,6 +6,9 @@
  */
 
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LDiff-LAnalyzer' });
   DiffParseResult,
   FileDiff,
   DiffHunk,

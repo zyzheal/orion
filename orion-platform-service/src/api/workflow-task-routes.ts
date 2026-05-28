@@ -17,6 +17,9 @@ import { WorkflowTaskRepository } from '../repositories/WorkflowTaskRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import type { WorkflowTask } from '../repositories/WorkflowTaskRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'workflow-task-routes' });
 
 /**
  * 路由选项接口
@@ -311,7 +314,7 @@ export default async function workflowTaskRoutes(
         } catch (resumeError) {
           const resumeMessage = resumeError instanceof Error ? resumeError.message : String(resumeError);
           // 任务已完成，但工作流唤醒失败
-          console.error(`[WorkflowTask] Task completed but workflow resume failed: ${resumeMessage}`);
+          logger.error(`[WorkflowTask] Task completed but workflow resume failed: ${resumeMessage}`);
 
           return reply.status(200).send({
             success: true,

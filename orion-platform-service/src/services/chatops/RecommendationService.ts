@@ -8,6 +8,9 @@
 
 import { ChatOpsRecommendation } from './EventSubscriber';
 import { DatabasePool } from '../database';
+import pino from 'pino';
+
+const logger = pino({ name: 'LRecommendation-LService' });
 
 // ==================== DataProvider 接口 ====================
 
@@ -101,9 +104,9 @@ export class RealDataProvider implements DataProvider {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('does not exist')) {
-        console.warn(`[RealDataProvider] Table not found, returning empty: ${msg}`);
+        logger.warn(`[RealDataProvider] Table not found, returning empty: ${msg}`);
       } else {
-        console.warn(`[RealDataProvider] Query failed, returning empty: ${msg}`);
+        logger.warn(`[RealDataProvider] Query failed, returning empty: ${msg}`);
       }
       return [];
     }
@@ -218,7 +221,7 @@ export class RecommendationService {
       const anomalies = await this.dataProvider.getCostAnomalies();
       results.push(...anomalies.map((a: MockCostAnomaly) => this.finopsToRecommendation(a)));
     } catch (err) {
-      console.error('[RecommendationService] Failed to fetch recommendations:', err);
+      logger.error('[RecommendationService] Failed to fetch recommendations:', err);
     }
 
     this.cache.set(cacheKey, { data: results, expiresAt: Date.now() + this.CACHE_TTL_MS });

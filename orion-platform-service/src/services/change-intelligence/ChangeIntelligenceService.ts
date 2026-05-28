@@ -26,6 +26,9 @@ type RiskFactorEntityArray = RiskFactorEntity[];
 type HistoricalMatchEntityArray = HistoricalMatchEntity[];
 type ReportEntityArray = ChangeIntelligenceReportEntity[];
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LChange-LIntelligence-LService' });
   ChangeIntelligenceAnalyzeInput,
   ChangeIntelligenceReport,
   AffectedService,
@@ -618,7 +621,7 @@ export class ChangeIntelligenceService {
         await this.affectedServiceRepo.batchCreate(serviceEntities);
       }
     } catch (err) {
-      console.error(`Failed to persist affected services for report ${reportId}:`, err);
+      logger.error(`Failed to persist affected services for report ${reportId}:`, err);
     }
 
     try {
@@ -634,7 +637,7 @@ export class ChangeIntelligenceService {
         await this.riskFactorRepo.batchCreate(factorEntities);
       }
     } catch (err) {
-      console.error(`Failed to persist risk factors for report ${reportId}:`, err);
+      logger.error(`Failed to persist risk factors for report ${reportId}:`, err);
     }
 
     try {
@@ -652,7 +655,7 @@ export class ChangeIntelligenceService {
         }
       }
     } catch (err) {
-      console.error(`Failed to persist historical matches for report ${reportId}:`, err);
+      logger.error(`Failed to persist historical matches for report ${reportId}:`, err);
     }
 
     return reportEntity;

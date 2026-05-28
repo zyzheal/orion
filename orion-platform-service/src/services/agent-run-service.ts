@@ -29,6 +29,9 @@ import {
 } from '../models/AgentRun';
 import { AgentProfileService } from './agent-profile-service';
 import { EventBusService } from './event-bus-service';
+import pino from 'pino';
+
+const logger = pino({ name: 'agent-run-service' });
 
 // ==================== Interfaces ====================
 
@@ -598,7 +601,7 @@ export class AgentRunService {
           await this.failRunWithError(run.id, 'Run timed out');
           timedOutIds.push(run.id);
         } catch (err) {
-          console.error(`Failed to mark run ${run.id} as timed out:`, err);
+          logger.error(`Failed to mark run ${run.id} as timed out:`, err);
         }
       }
     }
@@ -618,7 +621,7 @@ export class AgentRunService {
       await this.eventBus.publish(type, data);
     } catch (err) {
       // Silently ignore event publishing errors to avoid disrupting the main flow
-      console.warn(`[AgentRunService] Failed to publish event ${type}:`, err);
+      logger.warn(`[AgentRunService] Failed to publish event ${type}:`, err);
     }
   }
 }

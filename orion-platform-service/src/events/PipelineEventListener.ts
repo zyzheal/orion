@@ -7,6 +7,9 @@
 
 import { EventBusService, TypedEnvelope } from '../services/event-bus-service';
 import { PipelineRunEventData, StageEventData, TaskEventData } from './types';
+import pino from 'pino';
+
+const logger = pino({ name: 'LPipeline-LEvent-LListener' });
 
 export type PipelineEventHandlerType =
   | 'onRunCreated' | 'onRunStarted' | 'onRunCompleted' | 'onRunFailed' | 'onRunCancelled'
@@ -97,10 +100,10 @@ export class PipelineEventListener {
 }
 
 export const defaultHandlers: Partial<PipelineEventHandler> = {
-  async onRunCreated(event) { console.log(`[PipelineEvent] Run created: ${(event.data as any).runId}`); },
-  async onRunStarted(event) { console.log(`[PipelineEvent] Run started: ${(event.data as any).runId}`); },
-  async onRunCompleted(event) { console.log(`[PipelineEvent] Run completed: ${(event.data as any).runId}`); },
-  async onRunFailed(event) { console.error(`[PipelineEvent] Run failed: ${(event.data as any).runId}`); },
-  async onStageCompleted(event) { console.log(`[PipelineEvent] Stage completed: ${(event.data as any).stageName}`); },
-  async onStageFailed(event) { console.error(`[PipelineEvent] Stage failed: ${(event.data as any).stageName}`); },
+  async onRunCreated(event) { logger.info(`[PipelineEvent] Run created: ${(event.data as any).runId}`); },
+  async onRunStarted(event) { logger.info(`[PipelineEvent] Run started: ${(event.data as any).runId}`); },
+  async onRunCompleted(event) { logger.info(`[PipelineEvent] Run completed: ${(event.data as any).runId}`); },
+  async onRunFailed(event) { logger.error(`[PipelineEvent] Run failed: ${(event.data as any).runId}`); },
+  async onStageCompleted(event) { logger.info(`[PipelineEvent] Stage completed: ${(event.data as any).stageName}`); },
+  async onStageFailed(event) { logger.error(`[PipelineEvent] Stage failed: ${(event.data as any).stageName}`); },
 };

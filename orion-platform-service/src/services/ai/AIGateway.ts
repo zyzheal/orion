@@ -154,7 +154,7 @@ export class AIGateway {
       try {
         handler(event);
       } catch (error) {
-        console.error('Event handler error:', error);
+        logger.error('Event handler error:', error);
       }
     }
   }

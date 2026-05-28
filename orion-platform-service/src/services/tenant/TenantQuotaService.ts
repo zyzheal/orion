@@ -9,6 +9,9 @@
 
 import { EventEmitter } from 'events';
 import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LTenant-LQuota-LService' });
 
 export interface TenantQuota {
   tenantId: number;
@@ -381,7 +384,7 @@ export class TenantQuotaService extends EventEmitter {
     };
 
     this.emit('quota:alert', alert);
-    console.warn(`[TenantQuotaService] Quota alert: Tenant ${tenantId} ${resourceType} usage at ${thresholdPercent.toFixed(1)}% (${currentUsage}/${quotaLimit})`);
+    logger.warn(`[TenantQuotaService] Quota alert: Tenant ${tenantId} ${resourceType} usage at ${thresholdPercent.toFixed(1)}% (${currentUsage}/${quotaLimit})`);
   }
 
   /**

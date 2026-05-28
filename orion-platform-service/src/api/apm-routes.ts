@@ -22,6 +22,9 @@ import { TracingService } from '../services/monitoring/TracingService';
 import { DatabaseProfiler } from '../services/monitoring/DatabaseProfiler';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'apm-routes' });
 
 interface ApmRoutesOptions {
   database?: DatabasePool;
@@ -32,7 +35,7 @@ export default async function apmRoutes(
   options: ApmRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[ApmRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[ApmRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

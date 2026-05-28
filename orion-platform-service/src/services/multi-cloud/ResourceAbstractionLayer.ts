@@ -7,6 +7,9 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import { UnifiedResourceRepository, DeploymentResultRepository, UnifiedResourceEntity, DeploymentResultEntity } from '../../repositories/ResourceAbstractionRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LResource-LAbstraction-LLayer' });
 
 export interface ProviderResource {
   id: string;
@@ -185,7 +188,7 @@ export class ResourceAbstractionLayer {
 
     // Simulate deployment asynchronously
     this.executeDeploymentAsync(result, config).catch((error) => {
-      console.error(`[ResourceAbstractionLayer] Deployment failed for ${result.id}:`, error.message);
+      logger.error(`[ResourceAbstractionLayer] Deployment failed for ${result.id}:`, error.message);
     });
 
     return result;

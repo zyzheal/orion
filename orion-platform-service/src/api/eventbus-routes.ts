@@ -14,6 +14,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { EventBusService } from '../services/event-bus-service';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'eventbus-routes' });
   EventBusConfigRepository,
   EventSubscriptionRepository,
   EventBusEventRepository,
@@ -43,7 +46,7 @@ export default async function eventbusRoutes(
       const subscriptionRepo = new EventSubscriptionRepository(options.database);
       const eventRepo = new EventBusEventRepository(options.database);
       service.setRepositories({ configRepo, subscriptionRepo, eventRepo });
-      console.log('[EventBusRoutes] Repositories injected into main EventBusService');
+      logger.info('[EventBusRoutes] Repositories injected into main EventBusService');
     }
   } else if (options.database) {
     // No main eventBus, create one with full persistence
@@ -54,10 +57,10 @@ export default async function eventbusRoutes(
       { enabled: true },
       { configRepo, subscriptionRepo, eventRepo },
     );
-    console.log('[EventBusRoutes] Created new EventBusService with database');
+    logger.info('[EventBusRoutes] Created new EventBusService with database');
   } else {
     // Fallback: no persistence, no NATS
-    console.warn('[EventBusRoutes] No database pool and no eventBus, event bus will run without persistence');
+    logger.warn('[EventBusRoutes] No database pool and no eventBus, event bus will run without persistence');
     service = new EventBusService({ enabled: false });
   }
 

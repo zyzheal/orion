@@ -391,7 +391,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
       });
     }
 
-    console.log('[Routes] Four-layer tenant isolation enabled');
+    logger.info('[Routes] Four-layer tenant isolation enabled');
   }
 
   // ==================== ModuleManager 初始化 ====================
@@ -531,11 +531,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
         { dbClient: null as unknown as PoolClient, tenantId: SYSTEM_TENANT_ID as unknown as number, isSystemTenant: true },
         async () => {
           await escalationScheduler.start();
-          console.log('[routes] Escalation scheduler started');
+          logger.info('[routes] Escalation scheduler started');
         }
       );
     } catch (error) {
-      console.warn('[routes] Failed to start escalation scheduler:', error);
+      logger.warn('[routes] Failed to start escalation scheduler:', error);
     }
   }
 

@@ -50,7 +50,7 @@ export default async function ssoUnifiedRoutes(
 
   async function dbQuery(sql: string, params?: any[]): Promise<any> {
     if (!database) {
-      console.warn('[SsoUnifiedRoutes] Database not available');
+      logger.warn('[SsoUnifiedRoutes] Database not available');
       return null;
     }
     return database.query(sql, params);

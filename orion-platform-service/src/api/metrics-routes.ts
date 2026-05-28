@@ -12,6 +12,9 @@ import { MetricsService } from '../services/metrics/MetricsService';
 import { MetricsController } from './controllers/MetricsController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'metrics-routes' });
 
 interface MetricsRoutesOptions {
   database?: DatabasePool;
@@ -27,7 +30,7 @@ export default async function metricsRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[MetricsRoutes] No database pool provided, metrics routes will not be functional');
+    logger.warn('[MetricsRoutes] No database pool provided, metrics routes will not be functional');
     return;
   }
 

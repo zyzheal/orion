@@ -15,6 +15,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
+import pino from 'pino';
+
+const logger = pino({ name: 'LConfig-LChange-LService' });
 
 // ============================================================
 // Types
@@ -629,9 +632,9 @@ export class ConfigChangeService {
     if (this.configService && changeRequest.oldValue) {
       try {
         // Restore old value (simplified — actual implementation would use config service)
-        console.log(`[ConfigChangeService] Rollback applied for request ${requestId}`);
+        logger.info(`[ConfigChangeService] Rollback applied for request ${requestId}`);
       } catch (error) {
-        console.error(`[ConfigChangeService] Rollback failed for request ${requestId}:`, error);
+        logger.error(`[ConfigChangeService] Rollback failed for request ${requestId}:`, error);
       }
     }
 

@@ -8,6 +8,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LDispatch-LQueue-LManager' });
   Ticket,
   TicketPriority,
   DispatchQueueEntry,
@@ -211,7 +214,7 @@ export class DispatchQueueManager {
       this.checkSLAAlerts();
 
       if (count > 0) {
-        console.log(
+        logger.info(
           `[DispatchQueueManager] Re-prioritized ${count} entries, ${this.alerts.size} SLA alerts`
         );
       }

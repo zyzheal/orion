@@ -16,13 +16,16 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'pipeline-budget-routes' });
 
 export function registerBudgetRoutes(
   app: FastifyInstance,
   budgetService: PipelineBudgetService,
 ): void {
   if (!budgetService) {
-    console.warn('[BudgetRoutes] No budget service provided, budget routes will not be functional');
+    logger.warn('[BudgetRoutes] No budget service provided, budget routes will not be functional');
     return;
   }
 

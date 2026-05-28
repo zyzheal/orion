@@ -6,6 +6,9 @@
  */
 
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LHost-LBuild-LExecutor' });
   BuildExecutor,
   BuildType,
   Platform,
@@ -163,7 +166,7 @@ export class HostBuildExecutor implements BuildExecutor {
 
   async cancel(runId: string): Promise<void> {
     // Log the cancellation request for now (production would implement actual process termination)
-    console.log(`[HostBuildExecutor] Cancellation requested for build: ${runId}`);
+    logger.info(`[HostBuildExecutor] Cancellation requested for build: ${runId}`);
     // TODO: Implement actual process termination using PID tracking
   }
 

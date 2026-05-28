@@ -14,6 +14,9 @@ import { WebhookService } from '../services/webhook/WebhookService';
 import { WebhookController } from './controllers/webhook/WebhookController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'webhook-routes' });
 
 interface WebhookRoutesOptions {
   database?: DatabasePool;
@@ -24,7 +27,7 @@ export default async function webhookRoutes(
   options: WebhookRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[WebhookRoutes] No database pool provided, webhook routes will not be functional');
+    logger.warn('[WebhookRoutes] No database pool provided, webhook routes will not be functional');
     return;
   }
 

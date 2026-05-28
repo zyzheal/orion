@@ -28,6 +28,9 @@ import { ReviewRuleEngine } from './ReviewRuleEngine';
 import { ReviewAggregator } from './ReviewAggregator';
 import { ReviewIntegrationService } from './ReviewIntegrationService';
 import { createLLMClient, LLMClient } from './LLMClient';
+import pino from 'pino';
+
+const logger = pino({ name: 'LA-LI-LReview-LService' });
 
 /** 审查历史记录存储 (内存版，生产环境应使用数据库) */
 interface ReviewHistoryEntry {
@@ -343,7 +346,7 @@ export class AIReviewService {
       await this.eventBus.subscribe(
         'code.pr.opened',
         async (event: any) => {
-          console.log('[AIReview] Received code.pr.opened event:', event.type);
+          logger.info('[AIReview] Received code.pr.opened event:', event.type);
           // 这里可以从事件中提取 diff 并触发审查
           // 实际实现需要获取 diff 内容
         },
@@ -353,14 +356,14 @@ export class AIReviewService {
       await this.eventBus.subscribe(
         'code.pr.updated',
         async (event: any) => {
-          console.log('[AIReview] Received code.pr.updated event:', event.type);
+          logger.info('[AIReview] Received code.pr.updated event:', event.type);
         },
         { filterSubject: 'code.pr.updated' }
       );
 
-      console.log('[AIReview] Subscribed to code review events');
+      logger.info('[AIReview] Subscribed to code review events');
     } catch (error) {
-      console.warn('[AIReview] Failed to subscribe to events:', error);
+      logger.warn('[AIReview] Failed to subscribe to events:', error);
     }
   }
 

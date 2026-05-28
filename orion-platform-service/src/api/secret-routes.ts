@@ -16,6 +16,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { SecretsController } from './controllers/SecretsController';
 import { SecretsService } from '../services/pipeline/SecretsService';
 import { SecretRepository } from '../repositories/SecretRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'secret-routes' });
 
 // Global secrets service instance shared across the application
 let globalSecretsService: SecretsService | null = null;
@@ -27,7 +30,7 @@ export interface SecretRouteDeps {
 
 export async function registerSecretRoutes(app: FastifyInstance, deps: SecretRouteDeps): Promise<void> {
   if (!deps.database) {
-    console.warn('[SecretRoutes] Database not available, secret routes will not be registered');
+    logger.warn('[SecretRoutes] Database not available, secret routes will not be registered');
     return;
   }
 

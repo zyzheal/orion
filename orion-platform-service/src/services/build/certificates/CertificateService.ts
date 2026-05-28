@@ -62,7 +62,7 @@ export class CertificateService {
     };
 
     certificates.set(id, cert);
-    console.log(`[CertificateService] iOS certificate uploaded, expires at: ${expiresAt.toISOString()}`);
+    logger.info(`[CertificateService] iOS certificate uploaded, expires at: ${expiresAt.toISOString()}`);
     return this.toPublicCert(cert);
   }
 
@@ -91,7 +91,7 @@ export class CertificateService {
     };
 
     certificates.set(id, cert);
-    console.log(`[CertificateService] Android keystore uploaded, expires at: ${expiresAt.toISOString()}`);
+    logger.info(`[CertificateService] Android keystore uploaded, expires at: ${expiresAt.toISOString()}`);
     return this.toPublicCert(cert);
   }
 
@@ -131,12 +131,12 @@ export class CertificateService {
     const now = new Date();
     for (const [id, cert] of certificates.entries()) {
       if (cert.expiresAt && cert.expiresAt < now) {
-        console.log(`[CertificateService] Cleaning up expired certificate: ${id}, expired at: ${cert.expiresAt.toISOString()}`);
+        logger.info(`[CertificateService] Cleaning up expired certificate: ${id}, expired at: ${cert.expiresAt.toISOString()}`);
         certificates.delete(id);
         cleaned++;
       }
     }
-    console.log(`[CertificateService] Cleaned up ${cleaned} expired certificates`);
+    logger.info(`[CertificateService] Cleaned up ${cleaned} expired certificates`);
     return cleaned;
   }
 

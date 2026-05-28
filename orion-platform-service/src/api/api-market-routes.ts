@@ -11,6 +11,9 @@ import { ApiMarketRepository } from '../services/api-market/ApiMarketRepository'
 import { ApiMarketService } from '../services/api-market/ApiMarketService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'api-market-routes' });
 
 type AuthenticatedRequest = FastifyRequest & {
   user: { id: string; [key: string]: unknown };
@@ -25,7 +28,7 @@ export default async function apiMarketRoutes(
   options: ApiMarketRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[ApiMarketRoutes] No database pool provided, api-market routes will not be functional');
+    logger.warn('[ApiMarketRoutes] No database pool provided, api-market routes will not be functional');
     return;
   }
 

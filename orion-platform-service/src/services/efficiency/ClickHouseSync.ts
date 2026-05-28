@@ -11,6 +11,9 @@
 
 import { EventEmitter } from 'events';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LClick-LHouse-LSync' });
   EfficiencyMetricsRow,
   EfficiencyEventRow,
   ClickHouseSyncStatus,
@@ -159,7 +162,7 @@ export class ClickHouseSync extends EventEmitter {
         },
       };
     } catch {
-      console.warn('[ClickHouseSync] @clickhouse/client not available, running in degraded mode');
+      logger.warn('[ClickHouseSync] @clickhouse/client not available, running in degraded mode');
       return null;
     }
   }

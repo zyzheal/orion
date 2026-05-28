@@ -11,6 +11,9 @@ import { DynamicParamsResolver, TriggerContext } from '../../services/pipeline/D
 import { PipelineBudgetService } from '../../services/pipeline/PipelineBudgetService';
 import { PipelineTenantIsolationService } from '../../services/pipeline/PipelineTenantIsolationService';
 import { PipelineRBACService } from '../../services/pipeline/PipelineRBACService';
+import pino from 'pino';
+
+const logger = pino({ name: 'LPipeline-LRun-LController' });
 
 export class PipelineRunController {
   private runService: PipelineRunService;
@@ -112,7 +115,7 @@ export class PipelineRunController {
           dynamicStages = resolved.dynamicStages;
         } catch (resolveError) {
           // Log but don't fail - params resolution is optional
-          console.warn('[PipelineRun] Dynamic param resolution failed:', resolveError);
+          logger.warn('[PipelineRun] Dynamic param resolution failed:', resolveError);
         }
 
         // Budget estimation

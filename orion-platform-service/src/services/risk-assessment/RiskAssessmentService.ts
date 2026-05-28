@@ -25,6 +25,9 @@ import { RiskScoringEngine } from './RiskScoringEngine';
 import { HealthCheckService } from './HealthCheckService';
 import { RiskAssessmentRepository, RiskAssessmentEntity } from '../../repositories/RiskAssessmentRepository';
 import { RiskReportRepository, RiskReportEntity } from '../../repositories/RiskReportRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LRisk-LAssessment-LService' });
 
 /**
  * 风险评估服务
@@ -476,7 +479,7 @@ export class RiskAssessmentService {
 
       await this.eventBus.publish(event);
     } catch (error) {
-      console.error('[RiskAssessmentService] Failed to publish risk assessment event:', error);
+      logger.error('[RiskAssessmentService] Failed to publish risk assessment event:', error);
     }
   }
 }

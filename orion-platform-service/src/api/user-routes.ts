@@ -14,6 +14,9 @@ import { UserController } from './controllers/UserController';
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'user-routes' });
 
 interface UserRoutesOptions {
   database?: DatabasePool;
@@ -30,7 +33,7 @@ export default async function userRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[UserRoutes] No database pool provided, user routes will not be functional');
+    logger.warn('[UserRoutes] No database pool provided, user routes will not be functional');
     return;
   }
 

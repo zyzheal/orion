@@ -24,6 +24,9 @@ import { CommandService } from './CommandService';
 import { CommandRouter } from './CommandRouter';
 import { InputValidator, ParsedCommand } from './InputValidator';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LExecution-LService' });
   ChatOpsExecutionRepository,
   ChatOpsSessionRepository,
   ChatOpsAuditLogRepository,
@@ -229,9 +232,9 @@ export class ExecutionService {
 
     // ARCH-004: 记录事件发布失败（但不阻塞执行）
     if (!eventResult.success) {
-      console.warn('[ExecutionService] Event publish failed:', eventResult.error);
+      logger.warn('[ExecutionService] Event publish failed:', eventResult.error);
       if (eventResult.fallback) {
-        console.log('[ExecutionService] Event persisted for fallback retry, eventId:', eventResult.eventId);
+        logger.info('[ExecutionService] Event persisted for fallback retry, eventId:', eventResult.eventId);
       }
     }
 

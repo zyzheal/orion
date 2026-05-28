@@ -27,6 +27,9 @@ import {
 } from '../services/chaos-engineering';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'chaos-enhanced-routes' });
 
 interface ChaosRoutesOptions {
   database?: DatabasePool;
@@ -37,7 +40,7 @@ export default async function chaosEnhancedRoutes(
   options: ChaosRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[ChaosRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[ChaosRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

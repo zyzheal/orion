@@ -247,7 +247,7 @@ export default async function mcpRoutes(
     // Store connection
     sseConnections.set(connectionId, { reply, lastEventId });
 
-    console.log(`[McpRoutes] SSE connection established: ${connectionId}`);
+    logger.info(`[McpRoutes] SSE connection established: ${connectionId}`);
 
     // Send initial server info
     reply.raw.write(`event: server-info\ndata: ${JSON.stringify(mcpConfig)}\n\n`);
@@ -261,7 +261,7 @@ export default async function mcpRoutes(
     request.raw.on('close', () => {
       clearInterval(keepaliveInterval);
       sseConnections.delete(connectionId);
-      console.log(`[McpRoutes] SSE connection closed: ${connectionId}`);
+      logger.info(`[McpRoutes] SSE connection closed: ${connectionId}`);
     });
 
     // Keep connection alive
@@ -348,5 +348,5 @@ export default async function mcpRoutes(
     });
   });
 
-  console.log('[McpRoutes] MCP routes registered with authentication middleware');
+  logger.info('[McpRoutes] MCP routes registered with authentication middleware');
 }

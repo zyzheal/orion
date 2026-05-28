@@ -7,6 +7,9 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LPerformance-LProfile-LService' });
   PerformanceProfileRepository,
   PerformanceProfileEntity,
 } from '../../repositories/PerformanceRepository';
@@ -106,7 +109,7 @@ export class PerformanceProfileService {
 
     // Execute profile asynchronously
     this.executeProfileAsync(record).catch(err => {
-      console.error(`[PerformanceProfile] Profile ${id} execution failed:`, err);
+      logger.error(`[PerformanceProfile] Profile ${id} execution failed:`, err);
     });
 
     return record;

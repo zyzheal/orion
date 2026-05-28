@@ -16,6 +16,9 @@ import { KnowledgeRepository } from '../services/knowledge/KnowledgeRepository';
 import { KnowledgeService, KnowledgeServiceError } from '../services/knowledge/KnowledgeService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'knowledge-routes' });
 
 interface KnowledgeRoutesOptions {
   database?: DatabasePool;
@@ -45,7 +48,7 @@ export default async function knowledgeRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[KnowledgeRoutes] No database pool provided, knowledge routes will not be functional');
+    logger.warn('[KnowledgeRoutes] No database pool provided, knowledge routes will not be functional');
     return;
   }
 

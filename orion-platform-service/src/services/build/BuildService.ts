@@ -5,6 +5,9 @@
  */
 
 import { 
+import pino from 'pino';
+
+const logger = pino({ name: 'LBuild-LService' });
   BuildRepository, 
   Build,
   BuildEnvironment,
@@ -194,7 +197,7 @@ export class BuildService {
 
     // In real implementation, trigger actual build
     this.executeBuild(id).catch(err => {
-      console.error(`Build execution failed: ${err.message}`);
+      logger.error(`Build execution failed: ${err.message}`);
     });
 
     return updated;

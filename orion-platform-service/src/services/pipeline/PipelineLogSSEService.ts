@@ -7,6 +7,9 @@
 import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
 import { SSEConnectionManager, SSEConnection } from '../chatops/SSEConnectionManager';
+import pino from 'pino';
+
+const logger = pino({ name: 'LPipeline-LLog-LS-LS-LE-LService' });
 
 export interface PipelineLogEvent {
   pipelineId: string;
@@ -143,7 +146,7 @@ export class PipelineLogSSEService {
       const eventStr = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
       raw.write(eventStr);
     } catch (error) {
-      console.error('[PipelineLogSSE] Failed to send event:', error);
+      logger.error('[PipelineLogSSE] Failed to send event:', error);
     }
   }
 

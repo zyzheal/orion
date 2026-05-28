@@ -12,6 +12,9 @@ import { ErrorClassifier } from '../../services/pipeline/ErrorClassifier';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { Stage } from '../../models/Stage';
 import { Task } from '../../models/Task';
+import pino from 'pino';
+
+const logger = pino({ name: 'LPipeline-LError-LDetail-LController' });
 
 // ==================== User-friendly error category mapping ====================
 
@@ -346,7 +349,7 @@ export class PipelineErrorDetailController {
 
       await reply.send({ data: errorDetail });
     } catch (error) {
-      console.error('[PipelineErrorDetail] Failed to get error detail:', error);
+      logger.error('[PipelineErrorDetail] Failed to get error detail:', error);
       await reply.status(500).send({
         error: 'INTERNAL_ERROR',
         message: error instanceof Error ? error.message : 'Failed to get error detail',

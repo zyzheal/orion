@@ -6,6 +6,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ArtifactRegistryServiceImpl } from '../../../services/artifact/ArtifactRegistryService';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LArtifact-LController' });
   CreateArtifactInput,
   UpdateArtifactInput,
   ArtifactQueryOptions,
@@ -349,7 +352,7 @@ export class ArtifactController {
    * 错误处理
    */
   private handleError(error: any, reply: FastifyReply): void {
-    console.error('Artifact Controller Error:', error);
+    logger.error('Artifact Controller Error:', error);
     
     if (error.message.includes('not found')) {
       reply.code(404).send({ error: error.message });

@@ -14,6 +14,9 @@
  */
 
 import { DatabasePool } from '../database';
+import pino from 'pino';
+
+const logger = pino({ name: 'LError-LClassifier' });
 
 export type ErrorType = 'transient' | 'permanent' | 'flaky' | 'config';
 export type RetryStrategy = 'immediate' | 'backoff' | 'skip';
@@ -303,7 +306,7 @@ export class ErrorClassifier {
       );
     } catch (err) {
       // 数据库写入失败不影响分类结果返回
-      console.warn('[ErrorClassifier] Failed to save classification:', err);
+      logger.warn('[ErrorClassifier] Failed to save classification:', err);
     }
   }
 
@@ -380,7 +383,7 @@ export class ErrorClassifier {
 
       return { total, byType, retrySuccessRate, topErrors };
     } catch (err) {
-      console.error('[ErrorClassifier] Failed to get error stats:', err);
+      logger.error('[ErrorClassifier] Failed to get error stats:', err);
       return { total: 0, byType: { transient: 0, permanent: 0, flaky: 0, config: 0 }, retrySuccessRate: 0, topErrors: [] };
     }
   }

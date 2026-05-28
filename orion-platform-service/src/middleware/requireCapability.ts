@@ -29,6 +29,9 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CapabilityService } from '../services/capability';
+import pino from 'pino';
+
+const logger = pino({ name: 'require-LCapability' });
 
 /**
  * 能力检查选项 - 静态模式
@@ -153,7 +156,7 @@ export function getCapabilityService(): CapabilityService | null {
 export function requireCapability(options: RequireCapabilityOptions) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     if (!capabilityService) {
-      console.error('[requireCapability] CapabilityService not initialized');
+      logger.error('[requireCapability] CapabilityService not initialized');
       return reply.code(500).send({
         code: 500,
         error: 'INTERNAL_ERROR',
@@ -162,7 +165,7 @@ export function requireCapability(options: RequireCapabilityOptions) {
     }
 
     if (!options.capabilityId) {
-      console.error('[requireCapability] capabilityId is required');
+      logger.error('[requireCapability] capabilityId is required');
       return reply.code(500).send({
         code: 500,
         error: 'INVALID_CONFIG',
@@ -219,7 +222,7 @@ export function requireCapability(options: RequireCapabilityOptions) {
       };
 
     } catch (error) {
-      console.error('[requireCapability] Error checking capability:', error);
+      logger.error('[requireCapability] Error checking capability:', error);
       return reply.code(500).send({
         code: 500,
         error: 'INTERNAL_ERROR',
@@ -279,7 +282,7 @@ export function requireCapabilityDynamic(options: RequireCapabilityDynamicOption
       };
 
     } catch (error) {
-      console.error('[requireCapability] Error in dynamic capability check:', error);
+      logger.error('[requireCapability] Error in dynamic capability check:', error);
       return reply.code(500).send({
         code: 500,
         error: 'INTERNAL_ERROR',
@@ -312,7 +315,7 @@ export function requireAnyCapability(capabilityIds: string[], options?: {
 }) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     if (!capabilityService) {
-      console.error('[requireAnyCapability] CapabilityService not initialized');
+      logger.error('[requireAnyCapability] CapabilityService not initialized');
       return reply.code(500).send({
         code: 500,
         error: 'INTERNAL_ERROR',
@@ -360,7 +363,7 @@ export function requireAnyCapability(capabilityIds: string[], options?: {
       });
 
     } catch (error) {
-      console.error('[requireAnyCapability] Error checking capability:', error);
+      logger.error('[requireAnyCapability] Error checking capability:', error);
       return reply.code(500).send({
         code: 500,
         error: 'INTERNAL_ERROR',

@@ -6,6 +6,9 @@
 
 import Redis, { RedisOptions } from 'ioredis';
 import { EventEmitter } from 'events';
+import pino from 'pino';
+
+const logger = pino({ name: 'redis-cache' });
 
 export interface RedisConfig {
   host: string;
@@ -66,23 +69,23 @@ export class RedisCache extends EventEmitter {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.emit('connect');
-      console.log('[RedisCache] Connected to Redis');
+      logger.info('[RedisCache] Connected to Redis');
     });
 
     this.client.on('close', () => {
       this.isConnected = false;
       this.emit('close');
-      console.log('[RedisCache] Connection closed');
+      logger.info('[RedisCache] Connection closed');
     });
 
     this.client.on('error', (error) => {
       this.emit('error', error);
-      console.error('[RedisCache] Error:', error.message);
+      logger.error('[RedisCache] Error:', error.message);
     });
 
     this.client.on('reconnecting', (delay: number) => {
       this.emit('reconnecting', { delay });
-      console.log(`[RedisCache] Reconnecting in ${delay}ms`);
+      logger.info(`[RedisCache] Reconnecting in ${delay}ms`);
     });
 
     // 等待连接建立

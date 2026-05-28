@@ -10,6 +10,9 @@ import { DatabasePool } from '../services/database';
 import { MultiModalTriggerController } from './controllers/MultiModalTriggerController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'multi-modal-trigger-routes' });
 
 interface MultiModalTriggerRoutesOptions {
   database?: DatabasePool;
@@ -20,7 +23,7 @@ export default async function multiModalTriggerRoutes(
   options: MultiModalTriggerRoutesOptions,
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[MultiModalTriggerRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[MultiModalTriggerRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

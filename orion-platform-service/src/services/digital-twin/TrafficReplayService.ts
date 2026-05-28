@@ -10,6 +10,9 @@ import { randomUUID } from 'crypto';
 import { DatabasePool } from '../database';
 import { ReplaySessionRepository } from '../../repositories/DigitalTwinEnhancedRepository';
 import { TrafficRecord } from './TrafficRecorderService';
+import pino from 'pino';
+
+const logger = pino({ name: 'LTraffic-LReplay-LService' });
 
 export interface ReplayConfig {
   speedMultiplier?: number;
@@ -86,7 +89,7 @@ export class TrafficReplayService {
 
       // Start replay asynchronously
       this.executeReplayWithRepo(entity.id, filteredRecords).catch((err) => {
-        console.error(`Replay session ${entity.id} failed:`, err);
+        logger.error(`Replay session ${entity.id} failed:`, err);
       });
 
       return this.entityToSession(entity);
@@ -112,7 +115,7 @@ export class TrafficReplayService {
 
     // Start replay asynchronously
     this.executeReplay(session, filteredRecords).catch((err) => {
-      console.error(`Replay session ${session.id} failed:`, err);
+      logger.error(`Replay session ${session.id} failed:`, err);
     });
 
     return session;

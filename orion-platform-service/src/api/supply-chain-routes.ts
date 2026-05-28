@@ -19,6 +19,9 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { SupplyChainController } from './controllers/SupplyChainController';
+import pino from 'pino';
+
+const logger = pino({ name: 'supply-chain-routes' });
 
 interface SupplyChainRoutesOptions {
   database?: DatabasePool;
@@ -29,7 +32,7 @@ export default async function supplyChainRoutes(
   options: SupplyChainRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[SupplyChainRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[SupplyChainRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

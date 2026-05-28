@@ -20,6 +20,9 @@ import { CanaryAnalysisController } from './controllers/CanaryAnalysisController
 import { EventBusService } from '../services/event-bus-service';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'canary-analysis-routes' });
 
 interface CanaryAnalysisOptions {
   eventBus?: EventBusService;
@@ -31,7 +34,7 @@ export default async function canaryAnalysisRoutes(
   options: CanaryAnalysisOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[CanaryAnalysisRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[CanaryAnalysisRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

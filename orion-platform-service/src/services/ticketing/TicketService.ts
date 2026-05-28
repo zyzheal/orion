@@ -1391,7 +1391,7 @@ export class TicketService extends EventEmitter {
               logger.error({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Error processing NATS message', error);
             }
           }
-        })().catch(console.error);
+        })().catch((err) => logger.error({ err }, 'NATS subscription failed'));
       }
 
       this.natsUnsubscribe = async () => {
@@ -1441,7 +1441,7 @@ export class TicketService extends EventEmitter {
         '[TicketService] Auto-created ticket from alert'
       );
     } catch (error) {
-      console.error('[TicketService] Failed to create ticket from alert:', error);
+      logger.error('[TicketService] Failed to create ticket from alert:', error);
     }
   }
 

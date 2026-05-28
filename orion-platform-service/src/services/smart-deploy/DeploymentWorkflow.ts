@@ -24,6 +24,9 @@ import { DeploymentVerifier } from './DeploymentVerifier';
 import { DeploymentHistoryService } from './DeploymentHistoryService';
 import { RollbackService } from './RollbackService';
 import { EnvironmentLockService } from '../environment/EnvironmentLockService';
+import pino from 'pino';
+
+const logger = pino({ name: 'LDeployment-LWorkflow' });
 
 /**
  * Deployment workflow orchestration
@@ -416,7 +419,7 @@ export class DeploymentWorkflow {
         }
       } catch (error: any) {
         // If the environment lookup fails, log but don't block
-        console.warn(`[DeploymentWorkflow] Environment lock check failed: ${error.message}`);
+        logger.warn(`[DeploymentWorkflow] Environment lock check failed: ${error.message}`);
       }
     }
 
@@ -647,7 +650,7 @@ export class DeploymentWorkflow {
           source: 'orion-smart-deploy',
         });
       } catch (error) {
-        console.warn(
+        logger.warn(
           `[DeploymentWorkflow] Failed to publish event ${type}:`,
           error
         );

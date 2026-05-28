@@ -27,6 +27,9 @@ import { AlertRuleEngine } from './AlertRuleEngine';
 import { AlertNotificationService } from './AlertNotificationService';
 import { MonitoringDashboard } from './MonitoringDashboard';
 import { AlertRule, AlertChannel, EscalationPolicy } from './types';
+import pino from 'pino';
+
+const logger = pino({ name: 'LMonitoring-LService' });
 
 export interface ListAlertsOptions {
   page?: number;
@@ -453,7 +456,7 @@ export class MonitoringService {
         this.alertRuleEngine.addRule(this.ruleRecordToRule(record));
       }
     } catch (error) {
-      console.warn('[MonitoringService] Failed to load persisted rules:', error);
+      logger.warn('[MonitoringService] Failed to load persisted rules:', error);
     }
   }
 
@@ -465,7 +468,7 @@ export class MonitoringService {
         this.notificationService.addChannel(this.channelRecordToChannel(record));
       }
     } catch (error) {
-      console.warn('[MonitoringService] Failed to load persisted channels:', error);
+      logger.warn('[MonitoringService] Failed to load persisted channels:', error);
     }
   }
 

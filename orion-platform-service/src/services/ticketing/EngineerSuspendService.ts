@@ -26,6 +26,9 @@ import {
   EngineerAvailability,
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LEngineer-LSuspend-LService' });
 
 /**
  * Engineer Suspend Service
@@ -243,7 +246,7 @@ export class EngineerSuspendService {
       const activated = await this.checkAutoActivate();
       const ended = await this.checkAutoEnd();
       if (activated.length > 0 || ended.length > 0) {
-        console.log(`[EngineerSuspendService] Auto-activated: ${activated.length}, Auto-ended: ${ended.length}`);
+        logger.info(`[EngineerSuspendService] Auto-activated: ${activated.length}, Auto-ended: ${ended.length}`);
       }
     }, intervalMs);
   }

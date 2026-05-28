@@ -22,6 +22,9 @@ import { WorkflowScheduler } from '../services/lowcode/WorkflowScheduler';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import type {
+import pino from 'pino';
+
+const logger = pino({ name: 'workflow-trigger-routes' });
   WorkflowTrigger,
   CreateWorkflowTriggerInput,
   UpdateWorkflowTriggerInput,
@@ -100,9 +103,9 @@ export default async function workflowTriggerRoutes(
     try {
       await triggerManager.initialize();
       await scheduler.start();
-      console.log('[WorkflowTriggerRoutes] TriggerManager and WorkflowScheduler initialized');
+      logger.info('[WorkflowTriggerRoutes] TriggerManager and WorkflowScheduler initialized');
     } catch (error) {
-      console.error('[WorkflowTriggerRoutes] Failed to initialize triggers:', error);
+      logger.error('[WorkflowTriggerRoutes] Failed to initialize triggers:', error);
     }
   }
 
@@ -621,7 +624,7 @@ export default async function workflowTriggerRoutes(
 
         // 异步执行
         engine.execute(instance.id).catch(err => {
-          console.error(`[Manual Trigger] Workflow execution failed: ${err}`);
+          logger.error(`[Manual Trigger] Workflow execution failed: ${err}`);
         });
 
         return reply.status(202).send({

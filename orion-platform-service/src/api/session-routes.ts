@@ -12,6 +12,9 @@ import { DatabasePool } from '../services/database';
 import { SessionRepository } from '../services/session/SessionRepository';
 import { SessionService } from '../services/session/SessionService';
 import { SessionController } from './controllers/SessionController';
+import pino from 'pino';
+
+const logger = pino({ name: 'session-routes' });
 
 interface SessionRoutesOptions {
   database?: DatabasePool;
@@ -27,7 +30,7 @@ export default async function sessionRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[SessionRoutes] No database pool provided, session routes will not be functional');
+    logger.warn('[SessionRoutes] No database pool provided, session routes will not be functional');
     return;
   }
 

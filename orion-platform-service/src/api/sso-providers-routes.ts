@@ -22,6 +22,9 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'sso-providers-routes' });
 
 interface SsoProviderConfig {
   id?: string;
@@ -47,7 +50,7 @@ export default async function ssoProvidersRoutes(
 
   async function dbQuery(sql: string, params?: any[]): Promise<any> {
     if (!database) {
-      console.warn('[SsoProvidersRoutes] Database not available');
+      logger.warn('[SsoProvidersRoutes] Database not available');
       return null;
     }
     return database.query(sql, params);

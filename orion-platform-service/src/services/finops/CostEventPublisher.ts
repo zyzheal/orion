@@ -6,6 +6,9 @@
  */
 
 import { CostEvent, CostEventType } from './types';
+import pino from 'pino';
+
+const logger = pino({ name: 'LCost-LEvent-LPublisher' });
 
 /**
  * 事件总线接口（兼容 EventBusService）
@@ -105,7 +108,7 @@ export class CostEventPublisher {
         });
         return eventId;
       } catch (error) {
-        console.warn('[CostEventPublisher] Failed to publish cost.collected event:', error);
+        logger.warn('[CostEventPublisher] Failed to publish cost.collected event:', error);
       }
     }
 
@@ -134,7 +137,7 @@ export class CostEventPublisher {
         });
         return eventId;
       } catch (error) {
-        console.warn('[CostEventPublisher] Failed to publish cost.anomaly_detected event:', error);
+        logger.warn('[CostEventPublisher] Failed to publish cost.anomaly_detected event:', error);
       }
     }
 

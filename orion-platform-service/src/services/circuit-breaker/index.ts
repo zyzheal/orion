@@ -11,6 +11,9 @@ import {
   CircuitBreakerEventRepository,
 } from './circuit-breaker-repositories';
 import { CircuitBreakerService } from './circuit-breaker-service';
+import pino from 'pino';
+
+const logger = pino({ name: 'index' });
 
 let circuitBreakerService: CircuitBreakerService | null = null;
 
@@ -22,7 +25,7 @@ export async function initCircuitBreakerService(
   db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
 ): Promise<CircuitBreakerService | null> {
   if (!db) {
-    console.warn('Circuit Breaker Service: Database not available, running in memory-only mode');
+    logger.warn('Circuit Breaker Service: Database not available, running in memory-only mode');
     circuitBreakerService = createInMemoryService();
     return circuitBreakerService;
   }
@@ -37,10 +40,10 @@ export async function initCircuitBreakerService(
     // Load existing configs from DB
     await circuitBreakerService.initialize();
 
-    console.log('Circuit Breaker Service initialized');
+    logger.info('Circuit Breaker Service initialized');
     return circuitBreakerService;
   } catch (error) {
-    console.error('Failed to initialize Circuit Breaker Service:', error);
+    logger.error('Failed to initialize Circuit Breaker Service:', error);
     circuitBreakerService = createInMemoryService();
     return circuitBreakerService;
   }
@@ -61,7 +64,7 @@ function createInMemoryService(): CircuitBreakerService {
   const memoryStore: any[] = [];
   const fakeDb = {
     query: async (text: string, params?: unknown[]) => {
-      console.warn('[CircuitBreaker] In-memory mode (no database):', text.substring(0, 50));
+      logger.warn('[CircuitBreaker] In-memory mode (no database):', text.substring(0, 50));
       return { rows: [], rowCount: 0 };
     },
   };

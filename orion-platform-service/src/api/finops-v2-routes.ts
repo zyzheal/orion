@@ -12,6 +12,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { FinOpsV2Controller } from './controllers/finops/FinOpsV2Controller';
 import { FinOpsService } from '../services/finops/FinOpsService';
 import { FinOpsRepository } from '../services/finops/FinOpsRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'finops-v2-routes' });
 
 interface FinOpsRoutesOptions {
   database?: DatabasePool;
@@ -27,7 +30,7 @@ export default async function finOpsV2Routes(
     : undefined;
 
   if (!repository) {
-    console.warn('[FinOpsRoutes] No database pool provided, FinOps routes will not be functional');
+    logger.warn('[FinOpsRoutes] No database pool provided, FinOps routes will not be functional');
     return;
   }
 

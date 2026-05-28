@@ -10,6 +10,9 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { SecurityComplianceController } from './controllers/SecurityComplianceController';
+import pino from 'pino';
+
+const logger = pino({ name: 'security-compliance-routes' });
 
 interface SecurityComplianceRoutesOptions {
   database?: DatabasePool;
@@ -20,7 +23,7 @@ export default async function securityComplianceRoutes(
   options: SecurityComplianceRoutesOptions,
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[SecurityComplianceRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[SecurityComplianceRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

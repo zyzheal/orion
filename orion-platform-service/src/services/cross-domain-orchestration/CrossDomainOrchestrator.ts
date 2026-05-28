@@ -24,6 +24,9 @@ import {
   createSagaContext,
 } from '../../saga/types';
 import { DomainConnector } from './DomainConnector';
+import pino from 'pino';
+
+const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
 
 // ============================================================
 // Types
@@ -663,7 +666,7 @@ export class CrossDomainOrchestrator {
           await connector.compensateTransaction(orchId);
         } catch (error) {
           // Log compensation failure but don't throw - saga handles this
-          console.error(
+          logger.error(
             `[CrossDomainOrchestrator] Compensation failed for step ${step.stepName}:`,
             error
           );

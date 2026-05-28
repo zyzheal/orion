@@ -19,6 +19,9 @@ import {
 } from '../services/decision-explanation';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'decision-explanation-routes' });
 
 interface DecisionExplanationRoutesOptions {
   database?: DatabasePool;
@@ -29,7 +32,7 @@ export default async function decisionExplanationRoutes(
   options: DecisionExplanationRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[DecisionExplanationRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[DecisionExplanationRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

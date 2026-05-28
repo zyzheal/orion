@@ -25,6 +25,9 @@ import {
   ConfigEvents,
 } from './types';
 import { ConfigApprovalRepository } from '../../repositories/ConfigApprovalRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LConfig-LApproval-LService' });
 
 export interface ConfigApprovalServiceConfig {
   configService: ConfigService;
@@ -107,7 +110,7 @@ export class ConfigApprovalService {
           requiredApprovals: changeRequest.requiredApprovals,
         });
       } catch (err) {
-        console.error('[ConfigApprovalService] Failed to persist change request to DB, falling back to memory:', err);
+        logger.error('[ConfigApprovalService] Failed to persist change request to DB, falling back to memory:', err);
         this.changeRequests.set(id, changeRequest);
       }
     } else {

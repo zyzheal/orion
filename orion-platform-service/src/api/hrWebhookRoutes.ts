@@ -55,7 +55,7 @@ export default async function hrWebhookRoutes(
   options: HrWebhookRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[HrWebhook] Database not available');
+    logger.warn('[HrWebhook] Database not available');
     return;
   }
 

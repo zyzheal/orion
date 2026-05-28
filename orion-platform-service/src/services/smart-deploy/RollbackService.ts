@@ -20,6 +20,9 @@ import {
 } from './types';
 import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 import { DeploymentVerifier } from './DeploymentVerifier';
+import pino from 'pino';
+
+const logger = pino({ name: 'LRollback-LService' });
 
 /**
  * Rollback service for managing deployment rollbacks
@@ -382,7 +385,7 @@ export class RollbackService {
           source: 'orion-smart-deploy',
         });
       } catch (error) {
-        console.warn(
+        logger.warn(
           `[RollbackService] Failed to publish event ${type}:`,
           error
         );

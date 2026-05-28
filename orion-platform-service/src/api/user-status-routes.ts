@@ -21,6 +21,9 @@ import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { UserStatusService, UserStatus } from '../services/user/UserStatusService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'user-status-routes' });
 
 interface UserStatusRoutesOptions {
   database?: DatabasePool;
@@ -32,7 +35,7 @@ export default async function userStatusRoutes(
   options: UserStatusRoutesOptions
 ): Promise<void> {
   if (!options.database || !options.tokenBlacklist) {
-    console.warn('[UserStatusRoutes] Database or TokenBlacklist not available');
+    logger.warn('[UserStatusRoutes] Database or TokenBlacklist not available');
     return;
   }
 

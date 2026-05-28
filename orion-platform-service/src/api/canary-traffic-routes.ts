@@ -11,6 +11,9 @@ import { TrafficSplitter } from '../services/canary-traffic/TrafficSplitter';
 import { CanaryTrafficController } from './controllers/CanaryTrafficController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'canary-traffic-routes' });
 
 interface CanaryTrafficOptions {
   database?: DatabasePool;
@@ -21,7 +24,7 @@ export default async function canaryTrafficRoutes(
   options: CanaryTrafficOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[CanaryTrafficRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[CanaryTrafficRoutes] No database pool provided, routes will not be functional');
     return;
   }
 

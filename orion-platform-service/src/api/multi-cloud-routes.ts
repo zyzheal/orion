@@ -4,6 +4,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { MultiCloudManagerService } from '../services/multi-cloud/MultiCloudManagerService';
 import { MultiCloudRepository } from '../repositories/MultiCloudRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'multi-cloud-routes' });
 
 interface MultiCloudRoutesOptions {
   database?: DatabasePool;
@@ -32,7 +35,7 @@ export default async function multiCloudRoutes(
   }
 
   if (!options.database) {
-    console.warn('[MultiCloudRoutes] No database pool provided, using in-memory mode');
+    logger.warn('[MultiCloudRoutes] No database pool provided, using in-memory mode');
   }
 
   // ============================================================================

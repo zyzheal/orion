@@ -10,6 +10,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LHealing-LDecision-LMaker' });
   HealingStrategy,
   HealingAction,
   HealingDecision,
@@ -316,7 +319,7 @@ export class HealingDecisionMaker {
           actionType
         );
       } catch (error) {
-        console.warn(
+        logger.warn(
           `[HealingDecisionMaker] Risk assessment failed, using default:`,
           error
         );

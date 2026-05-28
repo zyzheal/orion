@@ -11,6 +11,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { AuditRepository, CreateAuditLogInput } from './audit/AuditRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'ai-security' });
 
 // ============================================================================
 // Type Definitions
@@ -265,9 +268,9 @@ export class ExecutionSandbox {
   private createSandbox(context: Record<string, any>): any {
     const sandbox: any = {
       console: {
-        log: (...args: any[]) => console.log('[Sandbox]', ...args),
-        error: (...args: any[]) => console.error('[Sandbox]', ...args),
-        warn: (...args: any[]) => console.warn('[Sandbox]', ...args),
+        log: (...args: any[]) => logger.info('[Sandbox]', ...args),
+        error: (...args: any[]) => logger.error('[Sandbox]', ...args),
+        warn: (...args: any[]) => logger.warn('[Sandbox]', ...args),
       },
     };
 

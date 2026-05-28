@@ -7,6 +7,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LCloud-LCost-LCollector' });
   CloudResource,
   CloudProvider,
   CloudResourceType,
@@ -272,7 +275,7 @@ export class CloudCostCollector {
         const resources = await this.collectFromProvider(provider, startDate, endDate);
         allResources.push(...resources);
       } catch (error) {
-        console.error(`[CloudCostCollector] Failed to collect from ${provider}:`, error);
+        logger.error(`[CloudCostCollector] Failed to collect from ${provider}:`, error);
         const schedule = this.schedules.get(provider);
         if (schedule) {
           schedule.lastStatus = 'failed';

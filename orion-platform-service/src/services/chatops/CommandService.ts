@@ -15,6 +15,9 @@ import {
   createChatOpsCommand,
 } from '../../models/ChatOps';
 import { ChatOpsCommandRepository } from '../../repositories/ChatOpsRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LCommand-LService' });
 
 export interface ChatOpsCommandListFilter {
   permissionLevel?: string;
@@ -132,7 +135,7 @@ export class CommandService {
 
     this.initialized = true;
 
-    console.log('[CommandService] Initialized');
+    logger.info('[CommandService] Initialized');
   }
 
   /** Seed default commands if the database is empty. Called once on startup. */
@@ -368,7 +371,7 @@ export class CommandService {
 // 
 // // 3. 订阅事件（解耦通信）
 // registry.subscribe('MyApp', 'chatops.command.created', async (data) => {
-//   console.log('Command created:', data.commandName);
+//   logger.info('Command created:', data.commandName);
 // });
 
 export default CommandService;

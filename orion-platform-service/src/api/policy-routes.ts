@@ -19,6 +19,9 @@ import { PolicyController } from './controllers/PolicyController';
 import { PolicyEvaluationController } from './controllers/PolicyEvaluationController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'policy-routes' });
 
 interface PolicyRoutesOptions {
   database?: DatabasePool;
@@ -26,7 +29,7 @@ interface PolicyRoutesOptions {
 
 export default async function policyRoutes(app: FastifyInstance, options: PolicyRoutesOptions): Promise<void> {
   if (!options.database) {
-    console.warn('[PolicyRoutes] No database pool provided, policy routes will not be functional');
+    logger.warn('[PolicyRoutes] No database pool provided, policy routes will not be functional');
     return;
   }
 

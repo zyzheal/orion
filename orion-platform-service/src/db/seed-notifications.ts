@@ -4,6 +4,9 @@
  */
 
 import { Pool } from 'pg';
+import pino from 'pino';
+
+const logger = pino({ name: 'seed-notifications' });
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -78,7 +81,7 @@ async function seed() {
   const { rows } = await pool.query('SELECT COUNT(*) as count FROM notifications WHERE user_id = $1', [ADMIN_USER_ID]);
   const count = parseInt(rows[0].count, 10);
   if (count > 0) {
-    console.log(`Notifications already seeded: ${count} records exist. Skipping.`);
+    logger.info(`Notifications already seeded: ${count} records exist. Skipping.`);
     return;
   }
 
@@ -90,15 +93,15 @@ async function seed() {
       [n.id, n.user_id, n.tenant_id, n.type, n.title, n.message, n.channel, n.status, n.created_at]
     );
   }
-  console.log(`Seeded ${NOTIFICATIONS.length} notifications for user_id=1`);
+  logger.info(`Seeded ${NOTIFICATIONS.length} notifications for user_id=1`);
 }
 
 async function main() {
   try {
     await seed();
-    console.log('Seed completed');
+    logger.info('Seed completed');
   } catch (error) {
-    console.error('Seed failed:', error);
+    logger.error('Seed failed:', error);
     process.exit(1);
   } finally {
     await pool.end();

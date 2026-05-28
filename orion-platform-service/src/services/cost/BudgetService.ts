@@ -27,6 +27,9 @@ import {
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
 import { DatabasePool } from '../database';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LBudget-LService' });
   CostRecordRepository,
   AlertRuleRepository,
   ModelPricingRepository,
@@ -245,7 +248,7 @@ export class BudgetService {
         if (input.projectId) await this._updateBudgetSpent('project', input.projectId, input.totalCost);
         if (input.userId) await this._updateBudgetSpent('user', input.userId, input.totalCost);
       } catch (err) {
-        console.error('[BudgetService] Budget update failed after cost record created:', err);
+        logger.error('[BudgetService] Budget update failed after cost record created:', err);
       }
       return this.mapCostRecordEntityToRecord(entity);
     }

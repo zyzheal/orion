@@ -11,6 +11,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { HealingAuditRepository } from '../../repositories/HealingAuditRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LSelf-LHealing-LGuardian' });
 
 // ==================== Types ====================
 
@@ -110,7 +113,7 @@ export class SelfHealingGuardian {
           result: auditEntry.result,
         });
       } catch (err) {
-        console.warn('[SelfHealingGuardian] Failed to persist audit entry to DB, keeping in-memory:', err);
+        logger.warn('[SelfHealingGuardian] Failed to persist audit entry to DB, keeping in-memory:', err);
         // Fall back to in-memory
         this.auditLog.push(auditEntry);
       }
@@ -151,7 +154,7 @@ export class SelfHealingGuardian {
         // Map entity to entry (createdAt -> timestamp)
         entries = dbEntries.map((e: import('../../repositories/HealingAuditRepository').HealingAuditEntity) => this.entityToEntry(e));
       } catch (err) {
-        console.warn('[SelfHealingGuardian] Failed to query audit entries from DB, falling back to memory:', err);
+        logger.warn('[SelfHealingGuardian] Failed to query audit entries from DB, falling back to memory:', err);
       }
     }
 
@@ -200,7 +203,7 @@ export class SelfHealingGuardian {
         ]);
         return { total, byStatus, byRiskLevel, byEnvironment };
       } catch (err) {
-        console.warn('[SelfHealingGuardian] Failed to get audit stats from DB, falling back to memory:', err);
+        logger.warn('[SelfHealingGuardian] Failed to get audit stats from DB, falling back to memory:', err);
       }
     }
 
@@ -254,7 +257,7 @@ export class SelfHealingGuardian {
           this.stormWindow.set(key, { count: 1, resetAt: now + rule.windowMs });
         } else if (window.count >= rule.maxExecutions) {
           // Suppressed!
-          console.log(
+          logger.info(
             `[SelfHealingGuardian] Storm suppression: ${key} (count=${window.count}, max=${rule.maxExecutions})`
           );
           return true;

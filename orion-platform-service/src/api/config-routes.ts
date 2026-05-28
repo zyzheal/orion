@@ -19,6 +19,9 @@ import { RedisCache } from '../services/redis-cache';
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'config-routes' });
 
 export interface ConfigRoutesOptions {
   database?: DatabasePool;
@@ -30,7 +33,7 @@ export default async function configRoutes(
   options: ConfigRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[ConfigRoutes] No database pool provided, config routes will not be functional');
+    logger.warn('[ConfigRoutes] No database pool provided, config routes will not be functional');
     return;
   }
   // Initialize repository with PostgreSQL connection

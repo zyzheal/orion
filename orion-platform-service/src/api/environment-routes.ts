@@ -22,6 +22,9 @@ import { EnvironmentController } from './controllers/EnvironmentController';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'environment-routes' });
 
 export interface EnvironmentRoutesOptions {
   database?: DatabasePool;
@@ -32,7 +35,7 @@ export default async function environmentRoutes(
   options: EnvironmentRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[EnvironmentRoutes] No database, skipping routes'); return;
+    logger.warn('[EnvironmentRoutes] No database, skipping routes'); return;
   }
   // Initialize repository with PostgreSQL connection
   const envRepo = new EnvironmentRepository(options.database);

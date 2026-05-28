@@ -16,6 +16,9 @@ import { DatabasePool } from '../services/database';
 import { BranchPolicyController } from './controllers/code-repo/BranchPolicyController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'branch-policy-routes' });
 
 interface BranchPolicyRoutesOptions {
   database?: DatabasePool;
@@ -29,7 +32,7 @@ export default async function branchPolicyRoutes(
   const controller = new BranchPolicyController(options.database || null);
 
   if (!options.database) {
-    console.warn('[BranchPolicyRoutes] No database pool provided, routes will use in-memory mode');
+    logger.warn('[BranchPolicyRoutes] No database pool provided, routes will use in-memory mode');
   }
 
   // ==================== Branch Policy CRUD ====================

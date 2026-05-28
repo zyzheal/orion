@@ -12,6 +12,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DoraMetricsService } from './DoraMetricsService';
 import { PipelineCompletionRecord, DeploymentRecord, TimeWindow, DoraMetricsReport } from './types';
+import pino from 'pino';
+
+const logger = pino({ name: 'LWeekly-LReport-LService' });
 
 // Loose TicketService interface to avoid circular imports
 // Supports both sync (in-memory fallback) and async (PostgreSQL-backed) implementations
@@ -398,7 +401,7 @@ export class WeeklyReportService {
         ],
       );
     } catch (err) {
-      console.error(`[WeeklyReportService] Failed to persist report ${report.reportId} (team=${report.teamId}, week=${this.formatDate(report.weekStart)}):`, err);
+      logger.error(`[WeeklyReportService] Failed to persist report ${report.reportId} (team=${report.teamId}, week=${this.formatDate(report.weekStart)}):`, err);
       // Report generation still succeeds; only persistence fails
       // Emit error event for monitoring systems
       this.emitPersistenceError(report, err);
@@ -415,7 +418,7 @@ export class WeeklyReportService {
       error: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString(),
     };
-    console.error('[WeeklyReportService]', JSON.stringify(errorDetails));
+    logger.error('[WeeklyReportService]', JSON.stringify(errorDetails));
   }
 
   private formatDate(d: Date): string {

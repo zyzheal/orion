@@ -13,6 +13,9 @@
  */
 
 import { DatabasePool } from '../database';
+import pino from 'pino';
+
+const logger = pino({ name: 'LAdaptive-LTimeout-LService' });
 
 export interface TimeoutBaseline {
   stageName: string;
@@ -73,7 +76,7 @@ export class AdaptiveTimeoutService {
 
       return parseInt(row.suggested_timeout_ms, 10);
     } catch (err) {
-      console.warn('[AdaptiveTimeout] Failed to get timeout for stage:', err);
+      logger.warn('[AdaptiveTimeout] Failed to get timeout for stage:', err);
       return DEFAULT_TIMEOUT_MS;
     }
   }
@@ -116,7 +119,7 @@ export class AdaptiveTimeoutService {
         lastUpdated: new Date(row.last_updated),
       };
     } catch (err) {
-      console.error('[AdaptiveTimeout] Failed to get baseline stats:', err);
+      logger.error('[AdaptiveTimeout] Failed to get baseline stats:', err);
       return null;
     }
   }
@@ -210,7 +213,7 @@ export class AdaptiveTimeoutService {
       await this.pool.query('COMMIT');
     } catch (err) {
       await this.pool.query('ROLLBACK').catch(() => {});
-      console.error('[AdaptiveTimeout] Failed to record execution:', err);
+      logger.error('[AdaptiveTimeout] Failed to record execution:', err);
     }
   }
 
@@ -253,7 +256,7 @@ export class AdaptiveTimeoutService {
         };
       });
     } catch (err) {
-      console.error('[AdaptiveTimeout] Failed to get all baselines:', err);
+      logger.error('[AdaptiveTimeout] Failed to get all baselines:', err);
       return [];
     }
   }

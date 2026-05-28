@@ -10,6 +10,9 @@
  */
 
 import { DatabasePool } from '../database';
+import pino from 'pino';
+
+const logger = pino({ name: 'LPermission-LService' });
 
 export interface PermissionCheckResult {
   allowed: boolean;
@@ -62,7 +65,7 @@ export class PermissionService {
       this.rolePermsCache.set(roleName, { perms, expiresAt: Date.now() + this.CACHE_TTL_MS });
       return perms;
     } catch (err) {
-      console.warn(`[PermissionService] Failed to query permissions for role ${roleName}:`, err);
+      logger.warn(`[PermissionService] Failed to query permissions for role ${roleName}:`, err);
       // 降级: 返回空权限 (拒绝所有)
       return [];
     }
@@ -107,7 +110,7 @@ export class PermissionService {
 
       return { allowed: true };
     } catch (err) {
-      console.warn('[PermissionService] Resource level check failed:', err);
+      logger.warn('[PermissionService] Resource level check failed:', err);
       return { allowed: false, reason: '资源权限校验失败', deniedAt: 'resource_level' };
     }
   }
@@ -190,7 +193,7 @@ export class PermissionService {
         requiresApproval: mapping.requires_approval,
       };
     } catch (err) {
-      console.warn('[PermissionService] Capability check failed:', err);
+      logger.warn('[PermissionService] Capability check failed:', err);
       return { allowed: false, reason: 'Capability 权限检查失败' };
     }
   }
@@ -289,7 +292,7 @@ export class PermissionService {
         ],
       );
     } catch (err) {
-      console.warn('[PermissionService] Failed to write audit log:', err);
+      logger.warn('[PermissionService] Failed to write audit log:', err);
     }
   }
 

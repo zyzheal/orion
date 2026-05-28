@@ -13,6 +13,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import pino from 'pino';
+
+const logger = pino({ name: 'LDomain-LConnector' });
 
 // ============================================================
 // Types
@@ -228,7 +231,7 @@ export class DomainConnector {
 
     if (!domain) {
       // If no registration found, simulate execution (development mode)
-      console.warn(
+      logger.warn(
         `[DomainConnector] Domain '${domainName}' not registered, simulating execution`
       );
       return this.simulateDomainInvocation(domainName, action, payload);
@@ -410,7 +413,7 @@ export class DomainConnector {
           }
         );
       } catch (error) {
-        console.error(
+        logger.error(
           `[DomainConnector] Compensation failed for domain ${entry.domain}:`,
           error
         );

@@ -448,7 +448,7 @@ export class PipelineTemplateService {
           await this.repository.create(template);
         }
       } catch (err) {
-        console.error(`Failed to create template ${template.name}:`, err);
+        logger.error(`Failed to create template ${template.name}:`, err);
       }
     }
     this.initialized = true;

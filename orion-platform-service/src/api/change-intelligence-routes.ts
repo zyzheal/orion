@@ -17,6 +17,9 @@ import {
 import { ChangeIntelligenceController } from './controllers/ChangeIntelligenceController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'change-intelligence-routes' });
 
 interface ChangeIntelligenceRoutesOptions {
   database?: DatabasePool;
@@ -27,7 +30,7 @@ export default async function changeIntelligenceRoutes(
   options: ChangeIntelligenceRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[ChangeIntelligenceRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[ChangeIntelligenceRoutes] No database pool provided, routes will not be functional');
     return;
   }
 
@@ -78,5 +81,5 @@ export default async function changeIntelligenceRoutes(
     return controller.getBlastRadius(request, reply);
   });
 
-  console.log('[ChangeIntelligenceRoutes] Registered all change intelligence routes');
+  logger.info('[ChangeIntelligenceRoutes] Registered all change intelligence routes');
 }

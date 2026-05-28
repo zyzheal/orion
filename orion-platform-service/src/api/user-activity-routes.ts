@@ -9,6 +9,9 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { UserActivityService, UserActivity } from '../services/user/UserActivityService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import pino from 'pino';
+
+const logger = pino({ name: 'user-activity-routes' });
 
 interface UserActivityRoutesOptions {
   database?: DatabasePool;
@@ -52,7 +55,7 @@ export default async function userActivityRoutes(
     : undefined;
 
   if (!activityService) {
-    console.warn('[UserActivityRoutes] No database pool provided, activity routes will not be functional');
+    logger.warn('[UserActivityRoutes] No database pool provided, activity routes will not be functional');
     return;
   }
 
@@ -152,7 +155,7 @@ export default async function userActivityRoutes(
         pageSize: validPageSize,
       });
     } catch (error) {
-      console.error('[UserActivityRoutes] Error getting activities:', error);
+      logger.error('[UserActivityRoutes] Error getting activities:', error);
       return reply.status(500).send({
         success: false,
         error: 'Internal server error',

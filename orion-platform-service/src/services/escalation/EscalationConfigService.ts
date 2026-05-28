@@ -5,6 +5,9 @@
  */
 
 import { DatabasePool } from '../database';
+import pino from 'pino';
+
+const logger = pino({ name: 'LEscalation-LConfig-LService' });
 
 export interface EscalationPolicy {
   id: string;
@@ -57,7 +60,7 @@ export class EscalationConfigService {
    */
   async initialize(): Promise<void> {
     if (!this.db) {
-      console.log('[EscalationConfig] No DB, using in-memory config');
+      logger.info('[EscalationConfig] No DB, using in-memory config');
       return;
     }
 
@@ -83,10 +86,10 @@ export class EscalationConfigService {
 
     try {
       await this.db.query(createTableSQL);
-      console.log('[EscalationConfig] Table initialized');
+      logger.info('[EscalationConfig] Table initialized');
       await this.loadPolicies();
     } catch (error) {
-      console.error('[EscalationConfig] Failed to initialize:', error);
+      logger.error('[EscalationConfig] Failed to initialize:', error);
     }
   }
 
@@ -123,9 +126,9 @@ export class EscalationConfigService {
         this.cache.set(key, existing);
       }
 
-      console.log(`[EscalationConfig] Loaded ${result.rows.length} policies`);
+      logger.info(`[EscalationConfig] Loaded ${result.rows.length} policies`);
     } catch (error) {
-      console.error('[EscalationConfig] Failed to load policies:', error);
+      logger.error('[EscalationConfig] Failed to load policies:', error);
     }
   }
 

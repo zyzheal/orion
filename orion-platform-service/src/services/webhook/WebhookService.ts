@@ -6,6 +6,9 @@
 
 import * as crypto from 'crypto';
 import { WebhookRepository, Webhook, WebhookDelivery, WebhookRepositoryEnhanced, WebhookEndpoint, WebhookSubscription, WebhookDeliveryEnhanced } from './WebhookRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LWebhook-LService' });
 
 export class WebhookServiceError extends Error {
   constructor(message: string, public code: string) {
@@ -256,7 +259,7 @@ export class WebhookServiceEnhanced {
 
       // Process delivery asynchronously (fire and forget, but log errors)
       this.processDelivery(delivery, endpoint, payload, eventType).catch((err) => {
-        console.error(`[WebhookDispatcher] Failed to process delivery ${delivery.id}:`, err);
+        logger.error(`[WebhookDispatcher] Failed to process delivery ${delivery.id}:`, err);
         // In production, consider queuing failed deliveries for background retry workers
       });
 

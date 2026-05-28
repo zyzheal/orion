@@ -10,6 +10,9 @@
 
 import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
+import pino from 'pino';
+
+const logger = pino({ name: 'LS-LS-LE-LConnection-LManager' });
 
 export interface SSEConnection {
   id: string;
@@ -108,7 +111,7 @@ export class SSEConnectionManager {
     const count = this.connections.size;
     if (count === 0) return;
 
-    console.log(`[SSEConnectionManager] Shutting down ${count} active connections`);
+    logger.info(`[SSEConnectionManager] Shutting down ${count} active connections`);
 
     for (const conn of this.connections.values()) {
       try {

@@ -14,6 +14,9 @@ import { MaintenanceWindowService } from '../services/MaintenanceWindowService';
 import { MaintenanceWindowRepository } from '../repositories/MaintenanceWindowRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'maintenance-window-routes' });
 
 export interface MaintenanceWindowRouteDeps {
   database?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
@@ -24,7 +27,7 @@ export async function registerMaintenanceWindowRoutes(
   deps: MaintenanceWindowRouteDeps,
 ): Promise<void> {
   if (!deps.database) {
-    console.warn('[MaintenanceWindowRoutes] Database not available, routes will not be registered');
+    logger.warn('[MaintenanceWindowRoutes] Database not available, routes will not be registered');
     return;
   }
 

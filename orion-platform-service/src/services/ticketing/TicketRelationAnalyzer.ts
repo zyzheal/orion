@@ -18,6 +18,9 @@ import {
   TicketPriority,
 } from './types';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LTicket-LRelation-LAnalyzer' });
 
 /**
  * Ticket Relation Analyzer
@@ -71,7 +74,7 @@ export class TicketRelationAnalyzer {
         this.ticketsCache.set(record.id, this.mapRecordToTicket(record));
       }
     } catch (err) {
-      console.warn(`[TicketRelationAnalyzer] Failed to load tickets from repository: ${err}`);
+      logger.warn(`[TicketRelationAnalyzer] Failed to load tickets from repository: ${err}`);
     }
   }
 
@@ -90,7 +93,7 @@ export class TicketRelationAnalyzer {
         return ticket;
       }
     } catch (err) {
-      console.warn(`[TicketRelationAnalyzer] Failed to fetch ticket: ${err}`);
+      logger.warn(`[TicketRelationAnalyzer] Failed to fetch ticket: ${err}`);
     }
     return undefined;
   }
@@ -130,7 +133,7 @@ export class TicketRelationAnalyzer {
         confidence: confidence ?? 1.0,
       });
     } catch (err) {
-      console.warn(`[TicketRelationAnalyzer] Failed to persist relation to repository: ${err}`);
+      logger.warn(`[TicketRelationAnalyzer] Failed to persist relation to repository: ${err}`);
     }
 
     return relation;

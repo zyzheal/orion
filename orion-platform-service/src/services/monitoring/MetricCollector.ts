@@ -15,6 +15,9 @@ import {
   DataPoint,
 } from './types';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LMetric-LCollector' });
   MetricStorageRepository,
 } from './MetricStorageRepository';
 
@@ -312,7 +315,7 @@ export class MetricCollector {
         unit: params.unit,
         default_tags: params.defaultTags,
         description: params.description,
-      }).catch(err => console.warn('[MetricCollector] Failed to register metric in repository:', err));
+      }).catch(err => logger.warn('[MetricCollector] Failed to register metric in repository:', err));
     }
   }
 
@@ -325,7 +328,7 @@ export class MetricCollector {
 
     if (this.repository) {
       this.repository.unregisterMetric(name).catch(err =>
-        console.warn('[MetricCollector] Failed to unregister metric in repository:', err)
+        logger.warn('[MetricCollector] Failed to unregister metric in repository:', err)
       );
     }
 
@@ -380,7 +383,7 @@ export class MetricCollector {
         value,
         tags: tags || {},
         timestamp: ts,
-      }).catch(err => console.warn('[MetricCollector] Failed to persist data point:', err));
+      }).catch(err => logger.warn('[MetricCollector] Failed to persist data point:', err));
     }
   }
 
@@ -613,8 +616,8 @@ export class MetricCollector {
     // Also prune repository
     if (this.repository) {
       this.repository.pruneExpired(this.retentionMs, this.defaultTenantId)
-        .then(count => console.log(`[MetricCollector] Pruned ${count} expired points from repository`))
-        .catch(err => console.warn('[MetricCollector] Failed to prune from repository:', err));
+        .then(count => logger.info(`[MetricCollector] Pruned ${count} expired points from repository`))
+        .catch(err => logger.warn('[MetricCollector] Failed to prune from repository:', err));
     }
 
     return pruned;
@@ -630,7 +633,7 @@ export class MetricCollector {
 
     if (this.repository) {
       this.repository.clearAll(this.defaultTenantId)
-        .catch(err => console.warn('[MetricCollector] Failed to clear repository:', err));
+        .catch(err => logger.warn('[MetricCollector] Failed to clear repository:', err));
     }
   }
 

@@ -5,6 +5,9 @@
  */
 
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LKnowledge-LService' });
   KnowledgeRepository,
   KnowledgeSpace,
   CreateSpaceInput,
@@ -197,7 +200,7 @@ export class KnowledgeService {
 
     // In production: trigger async document sync from external source
     // For now, return mock success
-    console.log(`[DocumentCenter] Sync triggered for tenant ${tenantId}, source: ${source || 'manual'}`);
+    logger.info(`[DocumentCenter] Sync triggered for tenant ${tenantId}, source: ${source || 'manual'}`);
 
     return syncLog;
   }

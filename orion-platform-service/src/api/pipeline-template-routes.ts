@@ -14,6 +14,9 @@ import { PipelineTemplateController } from './controllers/PipelineTemplateContro
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'pipeline-template-routes' });
 
 interface PipelineTemplateRoutesOptions {
   database?: DatabasePool;
@@ -25,7 +28,7 @@ export default async function pipelineTemplateRoutes(
   options: PipelineTemplateRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[PipelineTemplateRoutes] No database pool available, routes will not be functional');
+    logger.warn('[PipelineTemplateRoutes] No database pool available, routes will not be functional');
     return;
   }
 

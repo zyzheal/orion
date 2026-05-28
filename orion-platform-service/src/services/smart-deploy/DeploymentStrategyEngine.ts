@@ -9,6 +9,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LDeployment-LStrategy-LEngine' });
   DeploymentStrategyConfig,
   DeploymentStrategyType,
   DeploymentStage,
@@ -625,7 +628,7 @@ export class DeploymentStrategyEngine {
           source: 'orion-smart-deploy',
         });
       } catch (error) {
-        console.warn(
+        logger.warn(
           `[DeploymentStrategyEngine] Failed to publish event ${type}:`,
           error
         );

@@ -11,6 +11,9 @@ import { DeployController } from './controllers/DeployController';
 import { SmartDeployService } from '../services/smart-deploy/SmartDeployService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import pino from 'pino';
+
+const logger = pino({ name: 'deploy-routes' });
 
 interface DeployRoutesOptions {
   database?: DatabasePool;
@@ -21,7 +24,7 @@ export default async function deployRoutes(
   options: DeployRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[DeployRoutes] No database pool provided, routes will not be functional');
+    logger.warn('[DeployRoutes] No database pool provided, routes will not be functional');
     return;
   }
 
@@ -109,5 +112,5 @@ export default async function deployRoutes(
     return controller.getAuditTrail(request, reply);
   });
 
-  console.log('[DeployRoutes] Registered all deployment routes');
+  logger.info('[DeployRoutes] Registered all deployment routes');
 }
