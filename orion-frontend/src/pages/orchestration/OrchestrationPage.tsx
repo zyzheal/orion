@@ -407,7 +407,7 @@ const OrchestrationPage: React.FC = () => {
             <Statistic
               title="活跃"
               value={stats.active}
-              valueStyle={{ color: '#1677ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
           </Card>
         </Col>

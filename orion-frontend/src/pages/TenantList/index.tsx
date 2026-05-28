@@ -499,7 +499,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <BankOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+            <BankOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             租户管理
           </Title>
           <Text type="secondary">

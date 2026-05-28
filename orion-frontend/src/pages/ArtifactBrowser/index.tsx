@@ -328,7 +328,7 @@ const ArtifactBrowser: React.FC = () => {
                 padding: '4px 12px',
                 border: '1px solid #d9d9d9',
                 borderRadius: 4,
-                background: '#ffffff',
+                background: colors.neutral[0],
                 cursor: 'pointer',
               }}
             >

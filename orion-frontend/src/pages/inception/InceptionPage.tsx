@@ -238,7 +238,7 @@ const InceptionPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={16}>
           <h2 style={{ margin: 0 }}>
-            <SafetyCertificateOutlined style={{ marginRight: 8, color: '#3370E6' }} />
+            <SafetyCertificateOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
             SQL 审计引擎 (Inception)
           </h2>
         </Col>

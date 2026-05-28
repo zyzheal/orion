@@ -958,7 +958,7 @@ const ConfigManagementPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: '#ffffff', minHeight: '100vh' }}>
+    <div style={{ padding: 24, background: colors.neutral[0], minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>

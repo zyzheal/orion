@@ -58,7 +58,7 @@ const YamlDiffViewer: React.FC<YamlDiffViewerProps> = ({
               key={`added-${idx}-${i}`}
               style={{
                 display: 'flex',
-                background: colors.success[50] || '#f6ffed',
+                background: colors.success[50] || colors.success[50],
                 padding: `0 ${spacing.sm}`,
                 borderLeft: `3px solid ${colors.success[500]}`,
               }}

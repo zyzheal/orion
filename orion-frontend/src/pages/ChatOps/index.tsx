@@ -24,6 +24,7 @@ import ChatDashboard from './ChatDashboard';
 import ExecutionDashboard from './ExecutionDashboard';
 import AuditLogViewer from './AuditLogViewer';
 import AdminSettings from './AdminSettings';
+import { colors } from '@/tokens';
 
 export default function ChatOpsPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -85,8 +86,8 @@ export default function ChatOpsPage() {
           message={
             <span style={{ fontSize: 13 }}>
               <strong>如何使用 ChatOps？</strong>
-              {' '}本页为<span style={{ color: '#3370e6', fontWeight: 500 }}>管理中心</span>（数据看板、命令文档、执行记录、配置管理）。
-              {' '}需要对话操作？点击页面<span style={{ color: '#3370e6', fontWeight: 500 }}>右下角</span>的悬浮按钮打开 AI 助手。
+              {' '}本页为<span style={{ color: colors.primary[500], fontWeight: 500 }}>管理中心</span>（数据看板、命令文档、执行记录、配置管理）。
+              {' '}需要对话操作？点击页面<span style={{ color: colors.primary[500], fontWeight: 500 }}>右下角</span>的悬浮按钮打开 AI 助手。
             </span>
           }
           action={

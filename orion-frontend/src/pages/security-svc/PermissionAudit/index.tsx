@@ -270,7 +270,7 @@ const PermissionAudit: React.FC = () => {
         <Card
           title={
             <Space>
-              <UserOutlined style={{ color: '#7C5CFC' }} />
+              <UserOutlined style={{ color: colors.purple[500] }} />
               高风险用户列表 (UEBA)
             </Space>
           }

@@ -6,6 +6,7 @@
  * - Alerts
  */
 
+import { colors } from '@/tokens';
 import type {
   DashboardMetric,
   ActivityEvent,
@@ -28,7 +29,7 @@ export const mockDashboardMetrics: DashboardMetric[] = [
     trend: 'up',
     trendPercent: 2.3,
     previousValue: '92.9',
-    color: '#52c41a',
+    color: colors.success[500],
   },
   {
     id: 'deployment-frequency',
@@ -38,7 +39,7 @@ export const mockDashboardMetrics: DashboardMetric[] = [
     trend: 'up',
     trendPercent: 12.1,
     previousValue: 139,
-    color: '#1890ff',
+    color: colors.primary[500],
   },
   {
     id: 'active-alerts',
@@ -48,7 +49,7 @@ export const mockDashboardMetrics: DashboardMetric[] = [
     trend: 'down',
     trendPercent: 25,
     previousValue: 4,
-    color: '#faad14',
+    color: colors.warning[500],
   },
   {
     id: 'system-health',
@@ -58,7 +59,7 @@ export const mockDashboardMetrics: DashboardMetric[] = [
     trend: 'stable',
     trendPercent: 0,
     previousValue: '99.8',
-    color: '#722ed1',
+    color: colors.purple[600],
   },
 ];
 
@@ -130,28 +131,28 @@ export const mockQuickActions: QuickAction[] = [
     name: '创建 Pipeline',
     icon: 'RocketOutlined',
     path: '/pipelines',
-    color: '#1890ff',
+    color: colors.primary[500],
     description: '新建 CI/CD 流水线',
   },
   {
     name: '部署应用',
     icon: 'CloudUploadOutlined',
     path: '/deployments',
-    color: '#52c41a',
+    color: colors.success[500],
     description: '部署应用到目标环境',
   },
   {
     name: '查看告警',
     icon: 'BellOutlined',
     path: '/alerts',
-    color: '#fa541c',
+    color: colors.error[600],
     description: '查看活跃告警',
   },
   {
     name: '查看日志',
     icon: 'FileTextOutlined',
     path: '/pipelines',
-    color: '#722ed1',
+    color: colors.purple[600],
     description: '查看流水线执行日志',
   },
 ];

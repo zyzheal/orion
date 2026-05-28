@@ -22,6 +22,7 @@ import PluginDetailDrawer from './PluginDetail';
 import PluginCreateModal from './PluginCreateModal';
 import PluginLifecycleModal from './PluginLifecycle';
 import { type ApiPlugin, type PluginConfig } from './types';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -135,7 +136,7 @@ const PluginManagement: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <AppstoreOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+            <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             插件管理
           </Title>
           <Text type="secondary">共 {plugins.length} 个插件</Text>

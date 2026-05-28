@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -331,7 +332,7 @@ const SecretsManagement: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <SafetyCertificateOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Secrets 管理
           </Title>
           <Text type="secondary">

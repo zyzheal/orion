@@ -106,27 +106,27 @@ const WebTerminalPage: React.FC = () => {
       fontSize: 14,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
       theme: {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-        cursorAccent: '#1e1e1e',
+        background: colors.neutral[950],
+        foreground: colors.neutral[300],
+        cursor: colors.neutral[300],
+        cursorAccent: colors.neutral[950],
         selectionBackground: 'rgba(255, 255, 255, 0.15)',
-        black: '#1e1e1e',
-        red: '#f44747',
+        black: colors.neutral[950],
+        red: colors.error[400],
         green: '#6a9955',
         yellow: '#d7ba7d',
         blue: '#569cd6',
         magenta: '#c586c0',
         cyan: '#4dc9b0',
-        white: '#d4d4d4',
-        brightBlack: '#808080',
-        brightRed: '#f44747',
+        white: colors.neutral[300],
+        brightBlack: colors.neutral[500],
+        brightRed: colors.error[400],
         brightGreen: '#6a9955',
         brightYellow: '#d7ba7d',
         brightBlue: '#569cd6',
         brightMagenta: '#c586c0',
         brightCyan: '#4dc9b0',
-        brightWhite: '#ffffff',
+        brightWhite: colors.neutral[0],
       },
       allowProposedApi: true,
     });
@@ -352,7 +352,7 @@ const WebTerminalPage: React.FC = () => {
                 gap: 8,
                 padding: '4px 12px',
                 background: tab.id === activeTabId ? colors.primary[500] : colors.neutral[100],
-                color: tab.id === activeTabId ? '#ffffff' : colors.neutral[700],
+                color: tab.id === activeTabId ? colors.neutral[0] : colors.neutral[700],
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 13,
@@ -360,7 +360,7 @@ const WebTerminalPage: React.FC = () => {
               onClick={() => switchTab(tab.id)}
             >
               <CloudServerOutlined style={{ fontSize: 12 }} />
-              <Text style={{ color: tab.id === activeTabId ? '#ffffff' : colors.neutral[700] }}>
+              <Text style={{ color: tab.id === activeTabId ? colors.neutral[0] : colors.neutral[700] }}>
                 {tab.title}
               </Text>
               <span
@@ -383,7 +383,7 @@ const WebTerminalPage: React.FC = () => {
           height: fullscreen ? 'calc(100vh - 160px)' : 500,
           borderRadius: 8,
           overflow: 'hidden',
-          background: '#1e1e1e',
+          background: colors.neutral[950],
         }}
       >
         {activeTabs.length === 0 ? (

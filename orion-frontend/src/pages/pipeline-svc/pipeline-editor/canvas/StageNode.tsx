@@ -95,7 +95,7 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
     return (
       <Space direction="vertical" size={4}>
         {lines.map((line, i) => (
-          <Text key={i} style={{ color: '#ffffff' }}>
+          <Text key={i} style={{ color: colors.neutral[0] }}>
             {line}
           </Text>
         ))}

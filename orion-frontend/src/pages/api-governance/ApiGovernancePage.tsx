@@ -483,7 +483,7 @@ const ApiGovernancePage: React.FC = () => {
             children: (
               <Card title="Contract Verification History">
                 {verificationResults.length === 0 ? (
-                  <p style={{ color: '#888' }}>No verification results yet. Use the Verify button on a contract to start.</p>
+                  <p style={{ color: colors.neutral[500] }}>No verification results yet. Use the Verify button on a contract to start.</p>
                 ) : (
                   verificationResults.map((result, idx) => (
                     <Card key={idx} size="small" style={{ marginBottom: 8 }}>

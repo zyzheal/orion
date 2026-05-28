@@ -58,8 +58,8 @@ const nodeTypeColors: Record<string, string> = {
   notification: colors.info[500],
   webhook: colors.primary[500],
   task: colors.primary[600],
-  'sub-workflow': '#722ED1',
-  delay: '#13C2C2',
+  'sub-workflow': colors.purple[600],
+  delay: colors.info[400],
   timer: '#EB2F96',
   end: colors.neutral[500],
 };
@@ -1355,7 +1355,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                         cx={(startX + endX) / 2}
                         cy={(startY + endY) / 2 + 10}
                         r={10}
-                        fill='#ffffff'
+                        fill={colors.neutral[0]}
                         stroke={colors.neutral[300]}
                         strokeWidth={1}
                       />
@@ -1407,7 +1407,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                   minWidth: 200,
                   maxWidth: 280,
                   minHeight: configured ? 100 : 80,
-                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[10] || colors.neutral[100] : '#ffffff',
+                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[10] || colors.neutral[100] : colors.neutral[0],
                   borderRadius: 12,
                   padding: '12px 16px',
                   boxShadow: isHovered

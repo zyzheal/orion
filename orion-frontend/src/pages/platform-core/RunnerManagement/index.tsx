@@ -255,7 +255,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
               style={{
                 width: 120,
                 height: 8,
-                background: '#f0f0f0',
+                background: colors.neutral[200],
                 borderRadius: 4,
                 overflow: 'hidden',
               }}

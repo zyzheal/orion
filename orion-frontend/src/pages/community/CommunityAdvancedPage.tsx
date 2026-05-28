@@ -10,6 +10,7 @@ import {
   message, Space, Statistic, Row, Col, Avatar, Tabs,
   Badge as AntBadge, List
 } from 'antd';
+import { colors } from '@/tokens';
 import {
   TrophyOutlined, TeamOutlined, StarOutlined,
   PlusOutlined, ReloadOutlined, UserOutlined,
@@ -86,7 +87,7 @@ const CommunityAdvancedPage: React.FC = () => {
       case 'gold': return '#ffd700';
       case 'silver': return '#c0c0c0';
       case 'bronze': return '#cd7f32';
-      default: return '#d9d9d9';
+      default: return colors.neutral[300];
     }
   };
 
@@ -205,7 +206,7 @@ const CommunityAdvancedPage: React.FC = () => {
                           icon={getBadgeIcon(badge.category)}
                         />
                         <div style={{ fontWeight: 'bold' }}>{badge.name}</div>
-                        <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>{badge.description}</div>
+                        <div style={{ color: colors.neutral[500], fontSize: 12, marginTop: 4 }}>{badge.description}</div>
                         <Tag style={{ marginTop: 8 }} color={getBadgeColor(badge.level)}>
                           {badge.level}
                         </Tag>
@@ -213,7 +214,7 @@ const CommunityAdvancedPage: React.FC = () => {
                     </Col>
                   ))}
                 </Row>
-                {badges.length === 0 && <p style={{ color: '#888', textAlign: 'center' }}>No badges available</p>}
+                {badges.length === 0 && <p style={{ color: colors.neutral[500], textAlign: 'center' }}>No badges available</p>}
               </Card>
             ),
           },

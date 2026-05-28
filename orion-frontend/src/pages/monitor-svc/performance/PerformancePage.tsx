@@ -385,7 +385,7 @@ const PerformancePage: React.FC = () => {
             <Statistic
               title="高危瓶颈"
               value={stats.highBottlenecks}
-              valueStyle={{ color: stats.highBottlenecks > 0 ? '#fa8c16' : undefined }}
+              valueStyle={{ color: stats.highBottlenecks > 0 ? colors.warning[600] : undefined }}
             />
           </Card>
         </Col>

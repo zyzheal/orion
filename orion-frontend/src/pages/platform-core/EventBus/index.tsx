@@ -36,6 +36,7 @@ import { getEvents, getStats } from '@/api/eventbus';
 import type { EventBusEvent as ApiEventBusEvent } from '@/api/eventbus';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -281,7 +282,7 @@ const EventBusMonitoring: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <AuditOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+            <AuditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             EventBus
           </Title>
           <Text type="secondary">事件总线监控</Text>

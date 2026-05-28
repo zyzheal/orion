@@ -386,7 +386,7 @@ const DigitalTwinPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃录制" value={activeRecordings} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="活跃录制" value={activeRecordings} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={6}>

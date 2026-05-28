@@ -131,10 +131,10 @@ export default function ChatDashboard() {
       type: 'category' as const,
       data: stats?.trends.map(t => dayjs(t.date).format('MM-DD')) || [],
       axisLine: { lineStyle: { color: '#eee' } },
-      axisLabel: { color: '#999' },
+      axisLabel: { color: colors.neutral[500] },
     },
     yAxis: [
-      { type: 'value' as const, name: '执行数', axisLabel: { color: '#999' }, splitLine: { lineStyle: { type: 'dashed' } } },
+      { type: 'value' as const, name: '执行数', axisLabel: { color: colors.neutral[500] }, splitLine: { lineStyle: { type: 'dashed' } } },
     ],
     series: [
       {
@@ -172,8 +172,8 @@ export default function ChatDashboard() {
               width: 18,
               height: 18,
               borderRadius: '50%',
-              background: index < 3 ? colors.primary[500] : '#d9d9d9',
-              color: '#ffffff',
+              background: index < 3 ? colors.primary[500] : colors.neutral[300],
+              color: colors.neutral[0],
               fontSize: 10,
               fontWeight: 600,
             }}
@@ -242,7 +242,7 @@ export default function ChatDashboard() {
                 value={stats.metrics.avgResponseTime}
                 suffix="s"
                 trend={stats.comparison.avgResponseTime !== 0 ? -Math.round(stats.comparison.avgResponseTime * 10) / 10 : 0}
-                color="#722ed1"
+                color={colors.purple[600]}
                 tooltip="成功执行的平均响应时间"
               />
             </Col>

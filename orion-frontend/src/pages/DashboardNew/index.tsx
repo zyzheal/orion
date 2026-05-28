@@ -533,7 +533,7 @@ const DashboardNew: React.FC = () => {
                       flexDirection: 'column',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      border: `1px solid ${colors.light?.border?.light || '#f0f0f0'}`,
+                      border: `1px solid ${colors.light?.border?.light || colors.neutral[200]}`,
                       transition: 'all 0.3s',
                     }}
                   >

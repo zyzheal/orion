@@ -254,7 +254,7 @@ const ExecutiveDashboard: React.FC = () => {
           subTitle={
             <div>
               <div>效能仪表盘 API 尚未返回数据。</div>
-              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: colors.neutral[500] }}>
                 请确认后端 <code>orion-ticket-svc</code> 服务已正确部署并返回数据。
               </div>
             </div>
@@ -274,7 +274,7 @@ const ExecutiveDashboard: React.FC = () => {
           subTitle={
             <div>
               <div>效能仪表盘依赖后端 <code>orion-ticket-svc</code> 微服务，该服务当前未部署或未启动。</div>
-              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: colors.neutral[500] }}>
                 请确认后端服务已启动后刷新页面，或联系运维人员检查服务状态。
               </div>
             </div>

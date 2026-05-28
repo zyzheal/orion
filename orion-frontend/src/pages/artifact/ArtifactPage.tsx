@@ -431,7 +431,7 @@ const ArtifactPage: React.FC = () => {
                         percent={Math.round(percent)}
                         size={60}
                         format={() => count}
-                        strokeColor={stageColorMap[stage] || '#d9d9d9'}
+                        strokeColor={stageColorMap[stage] || colors.neutral[300]}
                       />
                     </div>
                   </div>

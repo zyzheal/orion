@@ -328,7 +328,7 @@ const CanaryAnalysis: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <CheckCircleOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+            <CheckCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             ML 金丝雀分析
           </Title>
           <Text type="secondary">全指标比对与智能决策</Text>

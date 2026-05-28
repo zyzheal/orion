@@ -194,19 +194,19 @@ const MultiCloudAdvancedPage: React.FC = () => {
                   <Col span={8}>
                     <Card title="RPO (Recovery Point Objective)" size="small">
                       <Progress type="dashboard" percent={95} format={() => '5 min'} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Target: {'<'} 10 min</p>
+                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Target: {'<'} 10 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="RTO (Recovery Time Objective)" size="small">
                       <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor={colors.warning[500]} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Target: {'<'} 30 min</p>
+                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Target: {'<'} 30 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="DR Readiness" size="small">
                       <Progress type="dashboard" percent={88} strokeColor={colors.success[500]} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Status: Ready</p>
+                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Status: Ready</p>
                     </Card>
                   </Col>
                 </Row>
@@ -241,7 +241,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                     <Statistic title="Monthly Cost (Azure)" value={8200} prefix="$" valueStyle={{ color: colors.purple[500] }} />
                   </Col>
                   <Col span={8}>
-                    <Statistic title="Monthly Cost (GCP)" value={6300} prefix="$" valueStyle={{ color: '#fa541c' }} />
+                    <Statistic title="Monthly Cost (GCP)" value={6300} prefix="$" valueStyle={{ color: colors.error[600] }} />
                   </Col>
                 </Row>
                 <Collapse defaultActiveKey={['recommendations']}>

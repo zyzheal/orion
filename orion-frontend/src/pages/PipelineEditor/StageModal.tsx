@@ -724,7 +724,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 onChange={setMatrixConfig}
               />
             ) : (
-              <div style={{ padding: '8px 0', color: '#999' }}>
+              <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
                 启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
               </div>
             )}

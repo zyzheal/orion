@@ -344,7 +344,7 @@ const DataPipelinePage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中" value={stats.running} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="运行中" value={stats.running} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -465,9 +465,9 @@ const DataPipelinePage: React.FC = () => {
               ) : lineageData ? (
                 <div>
                   {/* Source Node */}
-                  <Card size="small" style={{ marginBottom: 8, borderColor: '#1677ff' }}>
+                  <Card size="small" style={{ marginBottom: 8, borderColor: colors.primary[500] }}>
                     <Space>
-                      <DatabaseOutlined style={{ color: '#1677ff' }} />
+                      <DatabaseOutlined style={{ color: colors.primary[500] }} />
                       <Text strong>Source: {lineageData.nodes.find((n) => n.type === 'source')?.name || '-'}</Text>
                     </Space>
                   </Card>

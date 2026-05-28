@@ -307,7 +307,7 @@ const DeveloperPortalPage: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1677ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => openDetail(record)}
           >
             {documentTypeConfig[record.documentType]?.icon}
@@ -615,7 +615,7 @@ const DeveloperPortalPage: React.FC = () => {
       <Modal
         title={
           <>
-            <CloudUploadOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+            <CloudUploadOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
             创建文档
           </>
         }

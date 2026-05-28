@@ -486,7 +486,7 @@ const PipelineTemplatePage: React.FC = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#ffffff',
+                          color: colors.neutral[0],
                           fontSize: 18,
                         }}
                       >

@@ -298,7 +298,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#ffffff',
+                  color: colors.neutral[0],
                   fontSize: spacing[4],
                   fontWeight: 600,
                   boxShadow:

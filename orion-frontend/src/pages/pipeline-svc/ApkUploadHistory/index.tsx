@@ -214,7 +214,7 @@ const ApkUploadHistoryPage: React.FC = () => {
             <Statistic
               title="上传失败"
               value={displayStats.failed}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: colors.error[600] }}
             />
           </Card>
         </Col>
@@ -249,7 +249,7 @@ const ApkUploadHistoryPage: React.FC = () => {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '8px 16px',
-                  background: '#fff1f0',
+                  background: colors.error[50],
                   borderRadius: 4,
                 }}
               >

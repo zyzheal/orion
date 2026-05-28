@@ -115,7 +115,7 @@ const QuestionConfigTab: React.FC = () => {
             size="small"
             style={{
               opacity: q.enabled ? 1 : 0.5,
-              borderLeft: `3px solid ${q.enabled ? '#3370E6' : '#d9d9d9'}`,
+              borderLeft: `3px solid ${q.enabled ? colors.primary[500] : colors.neutral[300]}`,
             }}
             extra={
               <Space>
@@ -215,7 +215,7 @@ const CommandConfigTab: React.FC = () => {
             size="small"
             style={{
               opacity: cmd.enabled ? 1 : 0.5,
-              borderLeft: `3px solid ${cmd.enabled ? '#3370E6' : '#d9d9d9'}`,
+              borderLeft: `3px solid ${cmd.enabled ? colors.primary[500] : colors.neutral[300]}`,
             }}
             extra={
               <Space>
@@ -248,7 +248,7 @@ const CommandConfigTab: React.FC = () => {
                 placeholder="命令内容"
                 style={{ flex: 1 }}
                 size="small"
-                prefix={<CodeOutlined style={{ color: '#999' }} />}
+                prefix={<CodeOutlined style={{ color: colors.neutral[500] }} />}
               />
               <Tag>{cmd.key}</Tag>
             </div>

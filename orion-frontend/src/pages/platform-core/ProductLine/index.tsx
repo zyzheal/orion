@@ -64,6 +64,7 @@ import {
 } from '@/api/product-lines';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -916,7 +917,7 @@ const ProductLineManagement: React.FC = () => {
           >
             <div>
               <Title level={2} style={{ marginBottom: 8 }}>
-                <AppstoreOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+                <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 多分支产品线
               </Title>
               <Text type="secondary">管理产品线的分支策略、环境映射、发布列车和紧急修复通道</Text>

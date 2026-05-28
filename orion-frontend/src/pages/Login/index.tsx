@@ -15,6 +15,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { getEnabledSsoProviders } from '@/api/auth';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -149,7 +150,7 @@ const Login: React.FC = () => {
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="/logo.svg" alt="Orion" style={{ width: 40, height: 40 }} />
-            <span style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', letterSpacing: '0.5px' }}>
+            <span style={{ fontSize: 22, fontWeight: 700, color: colors.neutral[0], letterSpacing: '0.5px' }}>
               Orion Platform
             </span>
           </div>
@@ -160,7 +161,7 @@ const Login: React.FC = () => {
           <Title
             level={1}
             style={{
-              color: '#ffffff',
+              color: colors.neutral[0],
               fontSize: 36,
               fontWeight: 700,
               lineHeight: 1.3,
@@ -228,7 +229,7 @@ const Login: React.FC = () => {
                   {f.icon}
                 </div>
                 <div>
-                  <div style={{ color: '#ffffff', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{f.title}</div>
+                  <div style={{ color: colors.neutral[0], fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{f.title}</div>
                   <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.5 }}>{f.desc}</div>
                 </div>
               </div>

@@ -1089,7 +1089,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 onChange={setMatrixConfig}
               />
             ) : (
-              <div style={{ padding: '8px 0', color: '#999' }}>
+              <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
                 启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
               </div>
             )}
@@ -1194,7 +1194,7 @@ const StageModal: React.FC<StageModalProps> = ({
           )}
 
           {!timeoutConfig.enabled && (
-            <div style={{ padding: '8px 0', color: '#999' }}>
+            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
               启用后可配置超时时长和超时后的动作（失败/跳过/重试）
             </div>
           )}
@@ -1308,7 +1308,7 @@ const StageModal: React.FC<StageModalProps> = ({
           )}
 
           {!approvalConfig.enabled && (
-            <div style={{ padding: '8px 0', color: '#999' }}>
+            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
               启用后可配置审批人、审批模式和超时处理策略
             </div>
           )}
@@ -1423,7 +1423,7 @@ const StageModal: React.FC<StageModalProps> = ({
           )}
 
           {!qualityGateConfig.enabled && (
-            <div style={{ padding: '8px 0', color: '#999' }}>
+            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
               启用后可配置质量检查规则，如测试通过率、代码覆盖率、漏洞数量等
             </div>
           )}

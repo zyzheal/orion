@@ -169,7 +169,7 @@ const TenantManagementPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
             <Title level={2} style={{ marginBottom: 8 }}>
-              <BankOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+              <BankOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               租户管理
             </Title>
             <Text type="secondary">多租户隔离、配额管理、Namespace 池</Text>

@@ -346,7 +346,7 @@ const FederationPage: React.FC = () => {
         </Col>
         <Col span={5}>
           <Card>
-            <Statistic title="运行中作业" value={stats.runningJobs} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="运行中作业" value={stats.runningJobs} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={5}>

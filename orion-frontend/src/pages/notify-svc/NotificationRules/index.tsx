@@ -53,9 +53,9 @@ const PLATFORM_OPTIONS = [
 
 /** Platform display config */
 const PLATFORM_CONFIG: Record<string, { color: string; label: string }> = {
-  dingtalk: { color: '#0089FF', label: '钉钉' },
+  dingtalk: { color: colors.primary[500], label: '钉钉' },
   wecom: { color: '#2BAE67', label: '企业微信' },
-  feishu: { color: '#3370FF', label: '飞书' },
+  feishu: { color: colors.primary[500], label: '飞书' },
 };
 
 /** Pipeline events available for IM notification subscription */
