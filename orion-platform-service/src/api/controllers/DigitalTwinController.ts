@@ -10,6 +10,7 @@ import { BaseController } from './BaseController';
 import { TrafficRecorderService, RecordingConfig, RecordingSession } from '../../services/digital-twin/TrafficRecorderService';
 import { TrafficReplayService, ReplayConfig, ReplaySession } from '../../services/digital-twin/TrafficReplayService';
 import { SandboxService, SandboxConfig } from '../../services/digital-twin/SandboxService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 interface DigitalTwin {
   id: string;
@@ -100,7 +101,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const twin = this.twins.get(params.id);
-      if (!twin) throw new Error(`Twin '${params.id}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${params.id}' not found`);
       const state: TwinState = {
         twinId: twin.id,
         status: twin.status,
@@ -119,7 +120,7 @@ export class DigitalTwinController extends BaseController {
       const params = request.params as { id: string };
       const body = request.body as { name: string };
       const twin = this.twins.get(params.id);
-      if (!twin) throw new Error(`Twin '${params.id}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${params.id}' not found`);
       const snapshot = {
         id: `snap-${Date.now()}`,
         twinId: params.id,
@@ -139,7 +140,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const body = request.body as { twinId: string; name: string; snapshotId?: string };
       const twin = this.twins.get(body.twinId);
-      if (!twin) throw new Error(`Twin '${body.twinId}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${body.twinId}' not found`);
 
       const config: SandboxConfig = {
         twinId: body.twinId,
@@ -176,7 +177,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const sandbox = await this.sandboxService.stopSandbox(params.id);
-      if (!sandbox) throw new Error(`Sandbox '${params.id}' not found or already stopped`);
+      if (!sandbox) throw new OrionError(ErrorCode.NOT_FOUND, `Sandbox '${params.id}' not found or already stopped`);
       return sandbox;
     }, (sandbox) => this.sendSuccess(reply, sandbox));
   }
@@ -185,7 +186,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const destroyed = await this.sandboxService.destroySandbox(params.id);
-      if (!destroyed) throw new Error(`Sandbox '${params.id}' not found`);
+      if (!destroyed) throw new OrionError(ErrorCode.NOT_FOUND, `Sandbox '${params.id}' not found`);
       return { id: params.id, destroyed: true };
     }, (result) => this.sendSuccess(reply, result));
   }
@@ -194,7 +195,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const sandbox = await this.sandboxService.healthCheck(params.id);
-      if (!sandbox) throw new Error(`Sandbox '${params.id}' not found`);
+      if (!sandbox) throw new OrionError(ErrorCode.NOT_FOUND, `Sandbox '${params.id}' not found`);
       return sandbox;
     }, (sandbox) => this.sendSuccess(reply, sandbox));
   }
@@ -205,10 +206,10 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const twin = this.twins.get(params.id);
-      if (!twin) throw new Error(`Twin '${params.id}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${params.id}' not found`);
 
       const body = request.body as RecordingConfig;
-      if (!body.name) throw new Error('Recording name is required');
+      if (!body.name) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Recording name is required');
 
       const session = await this.trafficRecorder.startRecording(params.id, body);
       return session;
@@ -219,7 +220,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { recordingId: string };
       const session = await this.trafficRecorder.stopRecording(params.recordingId);
-      if (!session) throw new Error(`Recording '${params.recordingId}' not found or not active`);
+      if (!session) throw new OrionError(ErrorCode.NOT_FOUND, `Recording '${params.recordingId}' not found or not active`);
       return session;
     }, (session) => this.sendSuccess(reply, session));
   }
@@ -228,7 +229,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { recordingId: string };
       const session = await this.trafficRecorder.pauseRecording(params.recordingId);
-      if (!session) throw new Error(`Recording '${params.recordingId}' not found or not active`);
+      if (!session) throw new OrionError(ErrorCode.NOT_FOUND, `Recording '${params.recordingId}' not found or not active`);
       return session;
     }, (session) => this.sendSuccess(reply, session));
   }
@@ -252,7 +253,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { recordingId: string };
       const session = await this.trafficRecorder.getSession(params.recordingId);
-      if (!session) throw new Error(`Recording '${params.recordingId}' not found`);
+      if (!session) throw new OrionError(ErrorCode.NOT_FOUND, `Recording '${params.recordingId}' not found`);
       return {
         ...session,
         recordCount: session.records.length,
@@ -274,7 +275,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const twin = this.twins.get(params.id);
-      if (!twin) throw new Error(`Twin '${params.id}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${params.id}' not found`);
 
       const body = request.body as {
         recordingSessionId: string;
@@ -282,11 +283,11 @@ export class DigitalTwinController extends BaseController {
         config?: ReplayConfig;
       };
 
-      if (!body.recordingSessionId) throw new Error('recordingSessionId is required');
-      if (!body.sandboxEndpoint) throw new Error('sandboxEndpoint is required');
+      if (!body.recordingSessionId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'recordingSessionId is required');
+      if (!body.sandboxEndpoint) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'sandboxEndpoint is required');
 
       const recordingSession = await this.trafficRecorder.getSession(body.recordingSessionId);
-      if (!recordingSession) throw new Error(`Recording session '${body.recordingSessionId}' not found`);
+      if (!recordingSession) throw new OrionError(ErrorCode.NOT_FOUND, `Recording session '${body.recordingSessionId}' not found`);
 
       const replay = await this.trafficReplayer.startReplay(
         params.id,
@@ -304,7 +305,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { replayId: string };
       const replay = await this.trafficReplayer.getSession(params.replayId);
-      if (!replay) throw new Error(`Replay '${params.replayId}' not found`);
+      if (!replay) throw new OrionError(ErrorCode.NOT_FOUND, `Replay '${params.replayId}' not found`);
       return {
         id: replay.id,
         status: replay.status,
@@ -339,7 +340,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { replayId: string };
       const replay = await this.trafficReplayer.cancelSession(params.replayId);
-      if (!replay) throw new Error(`Replay '${params.replayId}' not found or not running`);
+      if (!replay) throw new OrionError(ErrorCode.NOT_FOUND, `Replay '${params.replayId}' not found or not running`);
       return replay;
     }, (replay) => this.sendSuccess(reply, replay));
   }
@@ -348,7 +349,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { replayId: string };
       const replay = await this.trafficReplayer.getSession(params.replayId);
-      if (!replay) throw new Error(`Replay '${params.replayId}' not found`);
+      if (!replay) throw new OrionError(ErrorCode.NOT_FOUND, `Replay '${params.replayId}' not found`);
       return {
         replayId: replay.id,
         status: replay.status,
@@ -374,7 +375,7 @@ export class DigitalTwinController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const twin = this.twins.get(params.id);
-      if (!twin) throw new Error(`Twin '${params.id}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${params.id}' not found`);
       const record: TrafficRecord = {
         id: `traffic-${Date.now()}`,
         twinId: params.id,
@@ -395,7 +396,7 @@ export class DigitalTwinController extends BaseController {
       const params = request.params as { id: string };
       const body = request.body as { recordId: string; speed?: number };
       const twin = this.twins.get(params.id);
-      if (!twin) throw new Error(`Twin '${params.id}' not found`);
+      if (!twin) throw new OrionError(ErrorCode.NOT_FOUND, `Twin '${params.id}' not found`);
       const record: TrafficRecord = {
         id: `replay-${Date.now()}`,
         twinId: params.id,

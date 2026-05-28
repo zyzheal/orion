@@ -30,6 +30,7 @@ import {
   SandboxExecutionResult,
   SecurityEventType,
 } from './plugin';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -623,7 +624,7 @@ export class PluginExecutorService {
 
     if (policy === PullPolicy.Never) {
       if (!existsLocally) {
-        throw new Error(`Image ${image} not found locally and pull policy is 'never'`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Image ${image} not found locally and pull policy is 'never'`);
       }
       return;
     }

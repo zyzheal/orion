@@ -12,6 +12,7 @@ import * as yaml from 'js-yaml';
 import { spawn } from 'child_process';
 import pino from 'pino';
 import { PipelineStep } from '../../engine/YamlPreprocessor';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'shared-action-service' });
 
@@ -45,7 +46,7 @@ export class SharedActionService {
     depth: number = 0,
   ): Promise<PipelineStep[]> {
     if (visited.has(ref)) {
-      throw new Error(`Circular action reference detected: ${ref}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Circular action reference detected: ${ref}`);
     }
 
     if (depth > MAX_DEPTH) {
@@ -107,7 +108,7 @@ export class SharedActionService {
 
     // Validate repo format: only allow org/repo pattern with alphanumeric chars
     if (!/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(repo)) {
-      throw new Error(`Invalid repository format: ${repo}. Expected: org/repo`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Invalid repository format: ${repo}. Expected: org/repo`);
     }
 
     if (!version || /^(main|master|HEAD)$/i.test(version)) {

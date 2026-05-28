@@ -6,6 +6,7 @@
  */
 
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   AuditPlanRepository,
   AuditExecutionRepository,
@@ -54,7 +55,7 @@ export class SecurityAuditService {
   // ==================== Audit Plan CRUD ====================
 
   async createAuditPlan(tenantId: string, input: AuditPlanInput): Promise<AuditPlanEntity> {
-    if (!this.planRepo) throw new Error('Database not configured');
+    if (!this.planRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const id = `audit-plan-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const entity = await this.planRepo.create({
@@ -75,17 +76,17 @@ export class SecurityAuditService {
   }
 
   async getAuditPlan(planId: string): Promise<AuditPlanEntity | undefined> {
-    if (!this.planRepo) throw new Error('Database not configured');
+    if (!this.planRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.planRepo.findById(planId);
   }
 
   async listAuditPlans(tenantId: string): Promise<AuditPlanEntity[]> {
-    if (!this.planRepo) throw new Error('Database not configured');
+    if (!this.planRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.planRepo.findByTenant(tenantId);
   }
 
   async updateAuditPlan(planId: string, updates: Partial<AuditPlanInput>): Promise<AuditPlanEntity> {
-    if (!this.planRepo) throw new Error('Database not configured');
+    if (!this.planRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     const entity: any = {};
     if (updates.name !== undefined) entity.name = updates.name;
     if (updates.description !== undefined) entity.description = updates.description;
@@ -98,18 +99,18 @@ export class SecurityAuditService {
   }
 
   async deleteAuditPlan(planId: string): Promise<boolean> {
-    if (!this.planRepo) throw new Error('Database not configured');
+    if (!this.planRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.planRepo.delete(planId);
   }
 
   // ==================== Audit Execution ====================
 
   async executeAudit(tenantId: string, auditId: string): Promise<AuditExecutionEntity> {
-    if (!this.planRepo || !this.executionRepo) throw new Error('Database not configured');
+    if (!this.planRepo || !this.executionRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const plan = await this.planRepo.findById(auditId);
-    if (!plan) throw new Error(`Audit plan not found: ${auditId}`);
-    if (plan.tenant_id !== tenantId) throw new Error('Audit plan does not belong to this tenant');
+    if (!plan) throw new OrionError(ErrorCode.NOT_FOUND, `Audit plan not found: ${auditId}`);
+    if (plan.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Audit plan does not belong to this tenant');
 
     // Update plan status to active
     await this.planRepo.update(auditId, { status: 'active' });
@@ -159,12 +160,12 @@ export class SecurityAuditService {
   }
 
   async getExecution(executionId: string): Promise<AuditExecutionEntity | undefined> {
-    if (!this.executionRepo) throw new Error('Database not configured');
+    if (!this.executionRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.executionRepo.findById(executionId);
   }
 
   async listExecutions(planId: string): Promise<AuditExecutionEntity[]> {
-    if (!this.executionRepo) throw new Error('Database not configured');
+    if (!this.executionRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.executionRepo.findByPlanId(planId);
   }
 
@@ -172,15 +173,15 @@ export class SecurityAuditService {
 
   async generateAuditReport(tenantId: string, auditId: string): Promise<AuditReport> {
     if (!this.planRepo || !this.executionRepo || !this.findingRepo) {
-      throw new Error('Database not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     }
 
     const plan = await this.planRepo.findById(auditId);
-    if (!plan) throw new Error(`Audit plan not found: ${auditId}`);
-    if (plan.tenant_id !== tenantId) throw new Error('Audit plan does not belong to this tenant');
+    if (!plan) throw new OrionError(ErrorCode.NOT_FOUND, `Audit plan not found: ${auditId}`);
+    if (plan.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Audit plan does not belong to this tenant');
 
     const execution = await this.executionRepo.findLatestByPlan(auditId);
-    if (!execution) throw new Error(`No executions found for audit plan: ${auditId}`);
+    if (!execution) throw new OrionError(ErrorCode.NOT_FOUND, `No executions found for audit plan: ${auditId}`);
 
     const findings = await this.findingRepo.findByExecutionId(execution.id);
 
@@ -213,27 +214,27 @@ export class SecurityAuditService {
   // ==================== Findings ====================
 
   async trackAuditFindings(tenantId: string, auditId: string): Promise<AuditFindingEntity[]> {
-    if (!this.executionRepo || !this.findingRepo) throw new Error('Database not configured');
+    if (!this.executionRepo || !this.findingRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     // Find the latest execution for this audit
     const execution = await this.executionRepo.findLatestByPlan(auditId);
-    if (!execution) throw new Error(`No executions found for audit plan: ${auditId}`);
-    if (execution.tenant_id !== tenantId) throw new Error('Execution does not belong to this tenant');
+    if (!execution) throw new OrionError(ErrorCode.NOT_FOUND, `No executions found for audit plan: ${auditId}`);
+    if (execution.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Execution does not belong to this tenant');
 
     return this.findingRepo.findByExecutionId(execution.id);
   }
 
   async getFinding(findingId: string): Promise<AuditFindingEntity | undefined> {
-    if (!this.findingRepo) throw new Error('Database not configured');
+    if (!this.findingRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.findingRepo.findById(findingId);
   }
 
   async closeFinding(tenantId: string, findingId: string, resolution?: string): Promise<AuditFindingEntity> {
-    if (!this.findingRepo) throw new Error('Database not configured');
+    if (!this.findingRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const finding = await this.findingRepo.findById(findingId);
-    if (!finding) throw new Error(`Finding not found: ${findingId}`);
-    if (finding.tenant_id !== tenantId) throw new Error('Finding does not belong to this tenant');
+    if (!finding) throw new OrionError(ErrorCode.NOT_FOUND, `Finding not found: ${findingId}`);
+    if (finding.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Finding does not belong to this tenant');
 
     return this.findingRepo.update(findingId, {
       status: 'closed',
@@ -247,11 +248,11 @@ export class SecurityAuditService {
     assignedTo?: string;
     recommendation?: string;
   }): Promise<AuditFindingEntity> {
-    if (!this.findingRepo) throw new Error('Database not configured');
+    if (!this.findingRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const finding = await this.findingRepo.findById(findingId);
-    if (!finding) throw new Error(`Finding not found: ${findingId}`);
-    if (finding.tenant_id !== tenantId) throw new Error('Finding does not belong to this tenant');
+    if (!finding) throw new OrionError(ErrorCode.NOT_FOUND, `Finding not found: ${findingId}`);
+    if (finding.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Finding does not belong to this tenant');
 
     const entity: any = {};
     if (updates.status !== undefined) entity.status = updates.status;

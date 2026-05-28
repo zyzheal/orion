@@ -6,6 +6,9 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import pino from 'pino';
+
+const logger = pino({ name: 'test-selector-routes' });
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { TestSelectorService, TestSelectorServiceConfig } from '../services/test-selector/TestSelectorService';
@@ -49,9 +52,9 @@ export default async function testSelectorRoutes(
     testRunRepo = new TestRunRepository(options.database);
     testTagRepo = new TestTagRepository(options.database);
     testCoverageRepo = new TestCoverageRepository(options.database);
-    console.log('[TestSelectorRoutes] Database repositories initialized');
+    logger.info('Database repositories initialized');
   } else {
-    console.warn('[TestSelectorRoutes] No database provided, using in-memory storage');
+    logger.warn('No database provided, using in-memory storage');
   }
 
   // 获取或创建服务实例

@@ -7,6 +7,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
+import { OrionError, ErrorCode } from '../../../errors';
 
 interface ApiContract {
   id: string;
@@ -124,7 +125,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contract = this.contracts.get(params.id);
-      if (!contract) throw new Error(`Contract '${params.id}' not found`);
+      if (!contract) throw new OrionError(ErrorCode.NOT_FOUND, `Contract '${params.id}' not found`);
       return contract;
     }, (contract) => this.sendSuccess(reply, contract));
   }
@@ -133,7 +134,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contract = this.contracts.get(params.id);
-      if (!contract) throw new Error(`Contract '${params.id}' not found`);
+      if (!contract) throw new OrionError(ErrorCode.NOT_FOUND, `Contract '${params.id}' not found`);
       return {
         contractId: params.id,
         compliance: true,
@@ -151,7 +152,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contract = this.contracts.get(params.id);
-      if (!contract) throw new Error(`Contract '${params.id}' not found`);
+      if (!contract) throw new OrionError(ErrorCode.NOT_FOUND, `Contract '${params.id}' not found`);
 
       const body = request.body as {
         actualResponse?: Record<string, unknown>;
@@ -264,7 +265,7 @@ export class ApiGovernanceController extends BaseController {
       const params = request.params as { id: string };
       const body = request.body as { replacementVersion?: string; retirementDate?: string };
       const version = this.versions.get(params.id);
-      if (!version) throw new Error(`Version '${params.id}' not found`);
+      if (!version) throw new OrionError(ErrorCode.NOT_FOUND, `Version '${params.id}' not found`);
 
       version.status = 'deprecated';
       version.deprecationDate = new Date().toISOString();
@@ -280,7 +281,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const version = this.versions.get(params.id);
-      if (!version) throw new Error(`Version '${params.id}' not found`);
+      if (!version) throw new OrionError(ErrorCode.NOT_FOUND, `Version '${params.id}' not found`);
       if (version.status !== 'deprecated') {
         throw new Error(`Version must be deprecated before retirement`);
       }

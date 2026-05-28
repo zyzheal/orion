@@ -6,6 +6,7 @@
 
 import { DatabasePool } from '../database';
 import { SubAppRepository, SubAppConfig, CreateSubAppInput, UpdateSubAppInput, SubAppConfigHistory } from './SubAppRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class SubAppService {
   private repository: SubAppRepository;
@@ -45,7 +46,7 @@ export class SubAppService {
     // Check if key already exists
     const existing = await this.repository.findByKey(input.key);
     if (existing) {
-      throw new Error(`Sub-app with key '${input.key}' already exists`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${input.key}' already exists`);
     }
 
     // Create the config
@@ -79,13 +80,13 @@ export class SubAppService {
 
     // Validate input if provided
     if ((input as any).key && (input as any).key !== key) {
-      throw new Error('Cannot change sub-app key');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot change sub-app key');
     }
 
     // Update the config
     const updated = await this.repository.update(key, input);
     if (!updated) {
-      throw new Error('Failed to update sub-app configuration');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to update sub-app configuration');
     }
 
     // Add history record
@@ -108,12 +109,12 @@ export class SubAppService {
   async toggleStatus(key: string, userId?: string): Promise<SubAppConfig> {
     const current = await this.repository.findByKey(key);
     if (!current) {
-      throw new Error(`Sub-app with key '${key}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${key}' not found`);
     }
 
     const updated = await this.repository.toggleStatus(key);
     if (!updated) {
-      throw new Error('Failed to toggle sub-app status');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to toggle sub-app status');
     }
 
     // Add history record
@@ -135,12 +136,12 @@ export class SubAppService {
   async delete(key: string, userId?: string): Promise<void> {
     const current = await this.repository.findByKey(key);
     if (!current) {
-      throw new Error(`Sub-app with key '${key}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${key}' not found`);
     }
 
     const deleted = await this.repository.delete(key);
     if (!deleted) {
-      throw new Error('Failed to delete sub-app configuration');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to delete sub-app configuration');
     }
 
     // Add history record
@@ -180,7 +181,7 @@ export class SubAppService {
           throw new Error('Development entry must use HTTP or HTTPS');
         }
       } catch {
-        throw new Error('Invalid development entry URL');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid development entry URL');
       }
     }
 

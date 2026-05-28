@@ -20,6 +20,7 @@ import { AISecurityService, sanitizeInput, validateOutput } from './ai-security'
 import type { DatabasePool } from './database';
 import {
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
   CrossDomainWorkflowRepository,
@@ -303,7 +304,7 @@ export class CrossDomainOrchestrator {
   ): Promise<ExecutionRecord> {
     const workflow = this.workflows.get(workflowId);
     if (!workflow) {
-      throw new Error('Workflow not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Workflow not found');
     }
 
     // Allow re-execution of completed or failed workflows

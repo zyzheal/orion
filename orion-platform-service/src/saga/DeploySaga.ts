@@ -14,6 +14,7 @@
 import { SagaStep, SagaContext, SagaDefinition } from './types';
 import { DeploymentEventPublisher } from '../events/DeploymentEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * Deploy Saga 输入
@@ -219,7 +220,7 @@ export function createDeploySagaDefinition(
         const deployment = deployments.get(deploymentId);
 
         if (!deployment) {
-          throw new Error(`Deployment '${deploymentId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
         }
 
         // 仅 canary/blue-green 策略需要 Canary 分析
@@ -290,13 +291,13 @@ export function createDeploySagaDefinition(
         const deployment = deployments.get(deploymentId);
 
         if (!deployment) {
-          throw new Error(`Deployment '${deploymentId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
         }
 
         // 检查 Canary 结果
         const canaryOutput = context.stepExecutions[1]?.output as RunCanaryOutput;
         if (canaryOutput && !canaryOutput.passed && !canaryOutput.skipped) {
-          throw new Error('Canary analysis failed, cannot promote to production');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Canary analysis failed, cannot promote to production');
         }
 
         deployment.status = DeploySagaStatus.PROMOTING;
@@ -367,7 +368,7 @@ export function createDeploySagaDefinition(
         const deployment = deployments.get(deploymentId);
 
         if (!deployment) {
-          throw new Error(`Deployment '${deploymentId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
         }
 
         const previousStatus = deployment.status;
@@ -412,7 +413,7 @@ export function createDeploySagaDefinition(
         const deployment = deployments.get(deploymentId);
 
         if (!deployment) {
-          throw new Error(`Deployment '${deploymentId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
         }
 
         const events: string[] = [];
@@ -460,7 +461,7 @@ export function createDeploySagaDefinition(
     const deployment = deployments.get(deploymentId);
 
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
     }
 
     const canaryOutput = context.stepExecutions[1]?.output as RunCanaryOutput;

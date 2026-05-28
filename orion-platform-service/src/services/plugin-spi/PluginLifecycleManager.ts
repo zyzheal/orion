@@ -25,6 +25,7 @@ import {
   PluginDependency,
 } from './types';
 import { PluginDependencyResolver } from './PluginDependencyResolver';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -125,7 +126,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found. Install it first.`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found. Install it first.`);
     }
 
     // Validate state transition
@@ -153,7 +154,7 @@ export class PluginLifecycleManager extends EventEmitter {
     // Update status
     const updated = this.registry.updateStatus(pluginId, 'enabled');
     if (!updated) {
-      throw new Error(`Plugin "${pluginId}" not found during enable`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found during enable`);
     }
 
     // Run after-enable hooks
@@ -176,7 +177,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found.`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found.`);
     }
 
     // Validate state transition
@@ -204,7 +205,7 @@ export class PluginLifecycleManager extends EventEmitter {
     // Update status
     const updated = this.registry.updateStatus(pluginId, 'disabled');
     if (!updated) {
-      throw new Error(`Plugin "${pluginId}" not found during disable`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found during disable`);
     }
 
     // Run after-disable hooks
@@ -227,7 +228,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found.`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found.`);
     }
 
     // Validate state transition

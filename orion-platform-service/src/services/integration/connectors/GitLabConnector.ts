@@ -10,6 +10,7 @@ import {
   ConnectorConfig,
   IntegrationEvent,
 } from '../ConnectorRegistry';
+import { OrionError, ErrorCode } from '../../../../errors';
 
 // GitLab API response types
 interface GitLabProject {
@@ -116,7 +117,7 @@ export class GitLabConnector implements Connector {
 
     // Validate required config
     if (!config.token) {
-      throw new Error('GitLab token is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'GitLab token is required');
     }
   }
 
@@ -238,7 +239,7 @@ export class GitLabConnector implements Connector {
   private async getProject(params: Record<string, unknown>): Promise<GitLabProject> {
     const { projectId } = params;
     if (!projectId) {
-      throw new Error('projectId is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
     }
 
     const response = await this.apiGet(`/projects/${encodeURIComponent(String(projectId))}`);
@@ -248,7 +249,7 @@ export class GitLabConnector implements Connector {
   private async listBranches(params: Record<string, unknown>): Promise<GitLabBranch[]> {
     const { projectId, page = 1, perPage = 100 } = params;
     if (!projectId) {
-      throw new Error('projectId is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
     }
 
     const queryParams = new URLSearchParams({
@@ -265,7 +266,7 @@ export class GitLabConnector implements Connector {
   private async getCommit(params: Record<string, unknown>): Promise<GitLabCommit> {
     const { projectId, sha } = params;
     if (!projectId || !sha) {
-      throw new Error('projectId and sha are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and sha are required');
     }
 
     const response = await this.apiGet(
@@ -277,7 +278,7 @@ export class GitLabConnector implements Connector {
   private async listCommits(params: Record<string, unknown>): Promise<GitLabCommit[]> {
     const { projectId, refName, page = 1, perPage = 20 } = params;
     if (!projectId) {
-      throw new Error('projectId is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
     }
 
     const queryParams = new URLSearchParams({
@@ -297,7 +298,7 @@ export class GitLabConnector implements Connector {
     const { projectId, sourceBranch, targetBranch, title, description } = params;
 
     if (!projectId || !sourceBranch || !targetBranch || !title) {
-      throw new Error('projectId, sourceBranch, targetBranch, and title are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId, sourceBranch, targetBranch, and title are required');
     }
 
     const response = await this.apiPost(
@@ -315,7 +316,7 @@ export class GitLabConnector implements Connector {
   private async listMergeRequests(params: Record<string, unknown>): Promise<GitLabMergeRequest[]> {
     const { projectId, state, page = 1, perPage = 20 } = params;
     if (!projectId) {
-      throw new Error('projectId is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
     }
 
     const queryParams = new URLSearchParams({
@@ -335,7 +336,7 @@ export class GitLabConnector implements Connector {
     const { projectId, ref, variables } = params;
 
     if (!projectId || !ref) {
-      throw new Error('projectId and ref are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and ref are required');
     }
 
     const body: Record<string, unknown> = { ref };
@@ -354,7 +355,7 @@ export class GitLabConnector implements Connector {
     const { projectId, pipelineId } = params;
 
     if (!projectId || !pipelineId) {
-      throw new Error('projectId and pipelineId are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and pipelineId are required');
     }
 
     const response = await this.apiGet(
@@ -367,7 +368,7 @@ export class GitLabConnector implements Connector {
     const { projectId, pipelineId } = params;
 
     if (!projectId || !pipelineId) {
-      throw new Error('projectId and pipelineId are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and pipelineId are required');
     }
 
     const response = await this.apiGet(

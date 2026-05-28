@@ -14,6 +14,7 @@ import {
   ComplianceEvaluationEntity,
   ComplianceRemediationEntity,
 } from '../../repositories/Phase3Repository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export interface CompliancePolicyInput {
   name: string;
@@ -110,7 +111,7 @@ export class ComplianceFrameworkService {
   // ==================== Policy CRUD ====================
 
   async definePolicy(tenantId: string, input: CompliancePolicyInput): Promise<CompliancePolicyEntity> {
-    if (!this.policyRepo) throw new Error('Database not configured');
+    if (!this.policyRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const id = `policy-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const entity = await this.policyRepo.create({
@@ -130,12 +131,12 @@ export class ComplianceFrameworkService {
   }
 
   async getPolicy(policyId: string): Promise<CompliancePolicyEntity | undefined> {
-    if (!this.policyRepo) throw new Error('Database not configured');
+    if (!this.policyRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.policyRepo.findById(policyId);
   }
 
   async listPolicies(tenantId: string, frameworkType?: string): Promise<CompliancePolicyEntity[]> {
-    if (!this.policyRepo) throw new Error('Database not configured');
+    if (!this.policyRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     if (frameworkType) {
       return this.policyRepo.findByFramework(tenantId, frameworkType);
@@ -144,18 +145,18 @@ export class ComplianceFrameworkService {
   }
 
   async deletePolicy(policyId: string): Promise<boolean> {
-    if (!this.policyRepo) throw new Error('Database not configured');
+    if (!this.policyRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.policyRepo.delete(policyId);
   }
 
   // ==================== Compliance Evaluation ====================
 
   async evaluateCompliance(tenantId: string, policyId: string): Promise<ComplianceEvaluationEntity> {
-    if (!this.policyRepo || !this.evaluationRepo) throw new Error('Database not configured');
+    if (!this.policyRepo || !this.evaluationRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const policy = await this.policyRepo.findById(policyId);
-    if (!policy) throw new Error(`Policy not found: ${policyId}`);
-    if (policy.tenant_id !== tenantId) throw new Error('Policy does not belong to this tenant');
+    if (!policy) throw new OrionError(ErrorCode.NOT_FOUND, `Policy not found: ${policyId}`);
+    if (policy.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Policy does not belong to this tenant');
 
     const id = `eval-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -212,14 +213,14 @@ export class ComplianceFrameworkService {
   }
 
   async getComplianceReport(tenantId: string, policyId: string): Promise<ComplianceReport> {
-    if (!this.policyRepo || !this.evaluationRepo) throw new Error('Database not configured');
+    if (!this.policyRepo || !this.evaluationRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const policy = await this.policyRepo.findById(policyId);
-    if (!policy) throw new Error(`Policy not found: ${policyId}`);
-    if (policy.tenant_id !== tenantId) throw new Error('Policy does not belong to this tenant');
+    if (!policy) throw new OrionError(ErrorCode.NOT_FOUND, `Policy not found: ${policyId}`);
+    if (policy.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Policy does not belong to this tenant');
 
     const evaluation = await this.evaluationRepo.findLatestByPolicy(policyId);
-    if (!evaluation) throw new Error(`No evaluation found for policy: ${policyId}`);
+    if (!evaluation) throw new OrionError(ErrorCode.NOT_FOUND, `No evaluation found for policy: ${policyId}`);
 
     const gaps: ComplianceGap[] = (evaluation.gaps || []) as ComplianceGap[];
 
@@ -233,7 +234,7 @@ export class ComplianceFrameworkService {
   }
 
   async getComplianceScore(tenantId: string): Promise<ComplianceScoreSummary> {
-    if (!this.policyRepo || !this.evaluationRepo) throw new Error('Database not configured');
+    if (!this.policyRepo || !this.evaluationRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const policies = await this.policyRepo.findByTenant(tenantId);
     const evaluations = await this.evaluationRepo.findByTenant(tenantId);
@@ -283,7 +284,7 @@ export class ComplianceFrameworkService {
   // ==================== Remediation ====================
 
   async autoRemediateCompliance(tenantId: string, gaps: { gapId: string; evaluationId?: string }[]): Promise<ComplianceRemediationEntity[]> {
-    if (!this.remediationRepo) throw new Error('Database not configured');
+    if (!this.remediationRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const remediations: ComplianceRemediationEntity[] = [];
 
@@ -593,7 +594,7 @@ export class ComplianceFrameworkService {
   async performGapAnalysis(tenantId: string, frameworkId: string): Promise<GapAnalysisResult> {
     const framework = await this.getFramework(frameworkId);
     if (!framework) {
-      throw new Error(`Framework not found: ${frameworkId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Framework not found: ${frameworkId}`);
     }
 
     const gaps: GapAnalysisResult['gaps'] = [];

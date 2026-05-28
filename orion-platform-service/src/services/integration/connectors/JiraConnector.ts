@@ -10,6 +10,7 @@ import {
   ConnectorConfig,
   IntegrationEvent,
 } from '../ConnectorRegistry';
+import { OrionError, ErrorCode } from '../../../../errors';
 
 // Jira API response types
 interface JiraProject {
@@ -120,7 +121,7 @@ export class JiraConnector implements Connector {
     this.config = config;
 
     if (!config.host) {
-      throw new Error('Jira host is required (e.g., https://yourcompany.atlassian.net)');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Jira host is required (e.g., https://yourcompany.atlassian.net)');
     }
 
     this.baseUrl = config.host.replace(/\/$/, '');
@@ -131,7 +132,7 @@ export class JiraConnector implements Connector {
 
     // Validate required config
     if (!config.token && !(config.username && config.password)) {
-      throw new Error('Jira token or username/password is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Jira token or username/password is required');
     }
   }
 
@@ -193,7 +194,7 @@ export class JiraConnector implements Connector {
       case 'getComments':
         return this.getComments(params);
       default:
-        throw new Error(`Unknown action: ${action}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Unknown action: ${action}`);
     }
   }
 
@@ -224,7 +225,7 @@ export class JiraConnector implements Connector {
   private async getProject(params: Record<string, unknown>): Promise<JiraProject> {
     const { projectKey } = params;
     if (!projectKey) {
-      throw new Error('projectKey is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectKey is required');
     }
 
     const response = await this.apiGet(`/project/${encodeURIComponent(String(projectKey))}`);
@@ -235,7 +236,7 @@ export class JiraConnector implements Connector {
     const { projectKey, summary, description, issueType, priority, labels, assigneeAccountId } = params;
 
     if (!projectKey || !summary || !issueType) {
-      throw new Error('projectKey, summary, and issueType are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectKey, summary, and issueType are required');
     }
 
     const fields: Record<string, unknown> = {
@@ -301,7 +302,7 @@ export class JiraConnector implements Connector {
     const { issueKey, summary, description, labels, assigneeAccountId } = params;
 
     if (!issueKey) {
-      throw new Error('issueKey is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
     }
 
     const fields: Record<string, unknown> = {};
@@ -347,7 +348,7 @@ export class JiraConnector implements Connector {
   private async getIssue(params: Record<string, unknown>): Promise<JiraIssue> {
     const { issueKey, fields: fieldsParam } = params;
     if (!issueKey) {
-      throw new Error('issueKey is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
     }
 
     let endpoint = `/issue/${encodeURIComponent(String(issueKey))}`;
@@ -385,11 +386,11 @@ export class JiraConnector implements Connector {
     const { issueKey, transitionId, transitionName } = params;
 
     if (!issueKey) {
-      throw new Error('issueKey is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
     }
 
     if (!transitionId && !transitionName) {
-      throw new Error('transitionId or transitionName is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'transitionId or transitionName is required');
     }
 
     let transition: Record<string, unknown> = {};
@@ -416,7 +417,7 @@ export class JiraConnector implements Connector {
   private async getTransitions(params: Record<string, unknown>): Promise<JiraTransition[]> {
     const { issueKey } = params;
     if (!issueKey) {
-      throw new Error('issueKey is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
     }
 
     const response = await this.apiGet(
@@ -430,7 +431,7 @@ export class JiraConnector implements Connector {
     const { issueKey, body } = params;
 
     if (!issueKey || !body) {
-      throw new Error('issueKey and body are required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey and body are required');
     }
 
     const commentBody = {
@@ -462,7 +463,7 @@ export class JiraConnector implements Connector {
     const { issueKey, startAt = 0, maxResults = 50 } = params;
 
     if (!issueKey) {
-      throw new Error('issueKey is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
     }
 
     const queryParams = new URLSearchParams({

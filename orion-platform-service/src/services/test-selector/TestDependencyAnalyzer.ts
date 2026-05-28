@@ -8,6 +8,9 @@
 import { TestSuite, TestCase, TestDependency, TestCodeMapping } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
+import pino from 'pino';
+
+const logger = pino({ name: 'test-dependency-analyzer' });
 import * as path from 'path';
 
 export interface DependencyAnalyzerConfig {
@@ -169,7 +172,7 @@ export class TestDependencyAnalyzer {
     try {
       await this.walkDirectory(this.testRoot, testFiles);
     } catch (error) {
-      console.warn(`[TestDependencyAnalyzer] Failed to scan test directory ${this.testRoot}:`, error);
+      logger.warn({ err: error, testRoot: this.testRoot }, 'Failed to scan test directory');
     }
 
     return testFiles.filter(f => this.testPattern.test(f));
@@ -243,7 +246,7 @@ export class TestDependencyAnalyzer {
 
       return { suite, cases, mapping };
     } catch (error) {
-      console.warn(`[TestDependencyAnalyzer] Failed to analyze ${testPath}:`, error);
+      logger.warn({ err: error, testPath }, 'Failed to analyze test file');
       return null;
     }
   }

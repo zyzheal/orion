@@ -24,6 +24,7 @@ import {
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LTicket-LWorkflow-LService' });
 
@@ -92,7 +93,7 @@ export class TicketWorkflowService {
     if (options && options.ticketingRepository) {
       this.ticketingRepository = options.ticketingRepository;
     } else {
-      throw new Error('TicketingRepository is required for TicketWorkflowService');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'TicketingRepository is required for TicketWorkflowService');
     }
   }
 

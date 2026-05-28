@@ -19,6 +19,9 @@ import { TestImpactAnalyzer, ImpactAnalysisResult } from './TestImpactAnalyzer';
 import { TestExecutionOptimizer } from './TestExecutionOptimizer';
 import { TestFailurePredictor, TestHistoryStats } from './TestFailurePredictor';
 import { v4 as uuidv4 } from 'uuid';
+import pino from 'pino';
+
+const logger = pino({ name: 'test-selector-service' });
 
 /**
  * 事件总线接口（兼容 EventBusService）
@@ -101,9 +104,9 @@ export class TestSelectorService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    console.log('[TestSelectorService] Analyzing test dependencies...');
+    logger.info('Analyzing test dependencies...');
     const dependencyResult = await this.dependencyAnalyzer.analyzeTestDependencies();
-    console.log(`[TestSelectorService] Found ${dependencyResult.suites.length} test suites, ${dependencyResult.cases.length} test cases`);
+    logger.info({ suites: dependencyResult.suites.length, cases: dependencyResult.cases.length }, 'Found test suites and cases');
 
     // 自动订阅 PR 事件
     if (this.eventBus) {
@@ -126,15 +129,15 @@ export class TestSelectorService {
       await this.initialize();
     }
 
-    console.log(`[TestSelectorService] Selecting tests for PR ${prChange.prId}, ${prChange.changedFiles.length} changed files`);
+    logger.info({ prId: prChange.prId, changedFiles: prChange.changedFiles.length }, 'Selecting tests for PR');
 
     // 1. 分析变更影响
     const impactResult = await this.impactAnalyzer.analyzeImpact(prChange.changedFiles);
 
     if (impactResult.allAffectedTestIds.size === 0) {
-      console.log('[TestSelectorService] No tests affected by changes');
+      logger.info('No tests affected by changes');
     } else {
-      console.log(`[TestSelectorService] Found ${impactResult.allAffectedTestIds.size} affected tests`);
+      logger.info({ count: impactResult.allAffectedTestIds.size }, 'Found affected tests');
     }
 
     // 2. 优化执行
@@ -293,15 +296,15 @@ export class TestSelectorService {
 
     try {
       const unsubscribe = await this.eventBus.subscribe('code.pr.opened', async (event: any) => {
-        console.log('[TestSelectorService] Received code.pr.opened event:', event.data?.prId);
+        logger.info({ prId: event.data?.prId }, 'Received code.pr.opened event');
         // 事件处理需要 PR 变更数据，这里仅做记录
         // 实际的测试选择需要外部提供变更文件列表
       });
 
       this.unsubscribe = unsubscribe;
-      console.log('[TestSelectorService] Subscribed to code.pr.opened events');
+      logger.info('Subscribed to code.pr.opened events');
     } catch (error) {
-      console.warn('[TestSelectorService] Failed to subscribe to PR events:', error);
+      logger.warn({ err: error }, 'Failed to subscribe to PR events');
     }
   }
 
@@ -321,7 +324,7 @@ export class TestSelectorService {
         planId: plan.planId,
       });
     } catch (error) {
-      console.warn('[TestSelectorService] Failed to publish test selection event:', error);
+      logger.warn({ err: error }, 'Failed to publish test selection event');
     }
   }
 }

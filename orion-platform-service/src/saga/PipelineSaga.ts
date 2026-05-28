@@ -17,6 +17,7 @@ import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * Pipeline Saga 输入
@@ -104,7 +105,7 @@ export function createPipelineSagaDefinition(
         // 获取 Pipeline 定义
         const pipeline = await pipelineService.getById(input.pipelineId);
         if (!pipeline) {
-          throw new Error(`Pipeline '${input.pipelineId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${input.pipelineId}' not found`);
         }
 
         // 解析 YAML
@@ -116,7 +117,7 @@ export function createPipelineSagaDefinition(
           const result = parsePipelineYaml(pipeline.yamlDefinition);
           spec = result.spec;
         } catch (error) {
-          throw new Error(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
         // 创建 PipelineRun
@@ -414,7 +415,7 @@ export function createPipelineSagaDefinition(
         const stages = stagesByRun.get(runId) || [];
 
         if (!run) {
-          throw new Error(`PipelineRun '${runId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `PipelineRun '${runId}' not found`);
         }
 
         const events: string[] = [];
@@ -471,7 +472,7 @@ export function createPipelineSagaDefinition(
     }
 
     if (!run) {
-      throw new Error(`PipelineRun '${runId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `PipelineRun '${runId}' not found`);
     }
 
     return {

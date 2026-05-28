@@ -12,6 +12,7 @@ import pino from 'pino';
 import { EventEmitter } from 'events';
 import { EventBusService } from './event-bus-service';
 import { PluginRepository } from '../repositories/PluginRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -217,7 +218,7 @@ export class PluginManagerService extends EventEmitter {
     // 检查插件是否已存在
     let existing = this.plugins.get(pluginId);
     if (existing && existing.state !== 'UNINSTALLED') {
-      throw new Error(`Plugin ${pluginId} is already installed`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} is already installed`);
     }
 
     // 如果有仓库，先检查数据库
@@ -272,7 +273,7 @@ export class PluginManagerService extends EventEmitter {
 
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin ${pluginId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} not found`);
     }
 
     // 如果插件正在运行，先停用
@@ -310,11 +311,11 @@ export class PluginManagerService extends EventEmitter {
 
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin ${pluginId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} not found`);
     }
 
     if (plugin.state === 'UNINSTALLED') {
-      throw new Error(`Plugin ${pluginId} is uninstalled`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} is uninstalled`);
     }
 
     // 根据安全等级启动运行时
@@ -380,7 +381,7 @@ export class PluginManagerService extends EventEmitter {
 
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin ${pluginId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} not found`);
     }
 
     // 验证配置
@@ -416,7 +417,7 @@ export class PluginManagerService extends EventEmitter {
       const availablePlugin = availablePlugins.find((p) => p.id === pluginId);
 
       if (!availablePlugin) {
-        throw new Error(`Plugin ${pluginId} not found`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} not found`);
       }
 
       return {
@@ -568,7 +569,7 @@ export class PluginManagerService extends EventEmitter {
   private validateConfig(plugin: PluginInfo, config: Record<string, any>): void {
     for (const [key, field] of Object.entries(plugin.configSchema)) {
       if (field.required && !(key in config)) {
-        throw new Error(`Missing required config field: ${key}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Missing required config field: ${key}`);
       }
     }
   }
@@ -649,7 +650,7 @@ export class PluginManagerService extends EventEmitter {
 
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin ${pluginId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} not found`);
     }
 
     plugin.state = state;

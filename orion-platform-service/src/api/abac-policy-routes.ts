@@ -9,6 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { abacPolicyEngine, AbacPolicy, ConditionRule } from '../services/authz/AbacPolicyEngine';
+import { OrionError, ErrorCode } from '../../errors';
 
 interface PolicyParams {
   id: string;
@@ -86,13 +87,13 @@ function validateConditionRule(rule: ConditionRule, path = 'root'): void {
  */
 function validatePolicyBody(body: CreatePolicyBody): void {
   if (!body.name || typeof body.name !== 'string') {
-    throw new Error('Policy name is required');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Policy name is required');
   }
   if (!body.resourceType || (typeof body.resourceType !== 'string' && !Array.isArray(body.resourceType))) {
-    throw new Error('resourceType is required and must be a string or array');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'resourceType is required and must be a string or array');
   }
   if (!body.actionType || (typeof body.actionType !== 'string' && !Array.isArray(body.actionType))) {
-    throw new Error('actionType is required and must be a string or array');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'actionType is required and must be a string or array');
   }
   if (!body.effect || !['allow', 'deny'].includes(body.effect)) {
     throw new Error('effect must be "allow" or "deny"');

@@ -47,6 +47,7 @@ import { ApprovalFlowEngine } from '../approval/ApprovalFlowEngine';
 import type { ApprovalFlowConfig, FlowStartContext, ApprovalResult as ApprovalFlowResult } from '../approval/ApprovalFlowEngine';
 import { NotificationService } from '../notification/NotificationService';
 import { WebhookService } from '../webhook/WebhookService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'WorkflowEngine' });
 
@@ -123,11 +124,11 @@ export class WorkflowEngine {
     // 获取工作流定义
     const definition = await this.definitionRepository.findById(workflowId);
     if (!definition) {
-      throw new Error(`Workflow definition not found: ${workflowId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow definition not found: ${workflowId}`);
     }
 
     if (!definition.enabled) {
-      throw new Error(`Workflow is not enabled: ${workflowId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow is not enabled: ${workflowId}`);
     }
 
     // 创建实例
@@ -154,12 +155,12 @@ export class WorkflowEngine {
 
     const definition = await this.definitionRepository.findById(instance.workflowDefinitionId);
     if (!definition) {
-      throw new Error(`Workflow definition not found: ${instance.workflowDefinitionId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow definition not found: ${instance.workflowDefinitionId}`);
     }
 
     // 检查实例状态（允许 pending/suspended/running，running 用于 resume 场景）
     if (instance.status !== 'pending' && instance.status !== 'suspended' && instance.status !== 'running') {
-      throw new Error(`Cannot execute workflow instance with status: ${instance.status}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot execute workflow instance with status: ${instance.status}`);
     }
 
     // 启动实例
@@ -307,7 +308,7 @@ export class WorkflowEngine {
     // 更新实例变量，合并任务结果
     const instance = await this.instanceManager.getInstance(instanceId);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${instanceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
     }
 
     if (instance.status !== 'suspended') {

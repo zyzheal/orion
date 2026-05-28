@@ -13,6 +13,7 @@ import {
 } from './ConnectorRegistry';
 import { GitLabConnector } from './connectors/GitLabConnector';
 import { JiraConnector } from './connectors/JiraConnector';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // Auto-register built-in connectors
 let connectorsRegistered = false;
@@ -89,7 +90,7 @@ export class IntegrationService {
     // Validate connector exists
     const connector = globalConnectorRegistry.get(provider);
     if (!connector) {
-      throw new Error(`Unknown provider: ${provider}. Available: ${this.listAvailableProviders().join(', ')}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Unknown provider: ${provider}. Available: ${this.listAvailableProviders().join(', ')}`);
     }
 
     // Validate config
@@ -163,11 +164,11 @@ export class IntegrationService {
       if (connector) {
         const isValid = await connector.validateConfig(updates.config);
         if (!isValid) {
-          throw new Error('Invalid configuration');
+          throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid configuration');
         }
         const connected = await connector.testConnection(updates.config);
         if (!connected) {
-          throw new Error('Failed to connect with new configuration');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to connect with new configuration');
         }
         updates.config = this.sanitizeConfig(updates.config);
       }
@@ -189,7 +190,7 @@ export class IntegrationService {
   async deleteIntegration(id: string): Promise<void> {
     const integration = this.integrations.get(id);
     if (!integration) {
-      throw new Error(`Integration not found: ${id}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Integration not found: ${id}`);
     }
 
     this.integrations.delete(id);
@@ -206,11 +207,11 @@ export class IntegrationService {
   ): Promise<unknown> {
     const integration = this.integrations.get(integrationId);
     if (!integration) {
-      throw new Error(`Integration not found: ${integrationId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Integration not found: ${integrationId}`);
     }
 
     if (integration.status !== 'active') {
-      throw new Error(`Integration is not active: ${integrationId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Integration is not active: ${integrationId}`);
     }
 
     const connector = globalConnectorRegistry.get(integration.provider);
@@ -230,12 +231,12 @@ export class IntegrationService {
   async testConnection(integrationId: string): Promise<boolean> {
     const integration = this.integrations.get(integrationId);
     if (!integration) {
-      throw new Error(`Integration not found: ${integrationId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Integration not found: ${integrationId}`);
     }
 
     const connector = globalConnectorRegistry.get(integration.provider);
     if (!connector) {
-      throw new Error(`Connector not found: ${integration.provider}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Connector not found: ${integration.provider}`);
     }
 
     return connector.testConnection(integration.config);
@@ -255,7 +256,7 @@ export class IntegrationService {
 
     const integration = this.integrations.get(integrationId);
     if (!integration) {
-      throw new Error(`Integration not found: ${integrationId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Integration not found: ${integrationId}`);
     }
 
     const mapping: IntegrationMapping = {
