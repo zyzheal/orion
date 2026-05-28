@@ -258,21 +258,13 @@ export function createDeploySagaDefinition(
           }
         }
 
-        // Fallback: 模拟 Canary 分析
-        const mockResult = {
-          passed: true,
-          metrics: {
-            latency: 50,
-            error_rate: 0.1,
-            throughput: 1000,
-          },
-          durationSeconds: input.canaryConfig?.durationSeconds ?? 60,
-        };
-
-        deployment.status = DeploySagaStatus.RUNNING;
+        // CanaryAnalysisService 未注入时显式失败，不再静默返回 mock
+        deployment.status = DeploySagaStatus.FAILED;
         deployments.set(deploymentId, deployment);
-
-        return mockResult;
+        throw new Error(
+          'CanaryAnalysisService not injected — cannot run canary analysis. ' +
+          'Pass a real CanaryAnalysisService instance to DeploySaga constructor.'
+        );
       },
       compensate: async (input: DeploySagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const typedOutput = output as RunCanaryOutput;

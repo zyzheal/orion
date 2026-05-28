@@ -215,24 +215,23 @@ export function createPipelineSagaDefinition(
           tasksByStage.set(stage.id, tasks);
         }
 
-        // 模拟资源预留（实际应调用资源管理服务）
-        // 这里简单标记为预留成功
-        const reserved = true;
-
-        return { stages, tasksByStage: tasksByStageMap, reserved };
+        // 资源预留 — ResourceService 尚未实现，显式失败而非静默成功
+        // TODO: 注入 ResourceService 后替换为真实调用
+        throw new Error(
+          'ResourceService not implemented — cannot reserve resources for pipeline run. ' +
+          'Implement ResourceService and inject it into PipelineSaga.'
+        );
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const typedOutput = output as ReserveResourcesOutput;
         const runId = context.metadata.runId as string;
 
-        // 释放资源（模拟）
-        // 实际应调用资源管理服务释放预留的资源
-
-        // 清理 Stages 和 Tasks
+        // 清理 Stages 和 Tasks（内存清理仍需执行）
         stagesByRun.delete(runId);
         for (const stage of typedOutput.stages) {
           tasksByStage.delete(stage.id);
         }
+        // TODO: ResourceService 实现后，此处应调用 releaseResources
       },
       timeoutMs: 10000,
     },
