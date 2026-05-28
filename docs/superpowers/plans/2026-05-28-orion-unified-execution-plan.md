@@ -1052,19 +1052,19 @@ git commit -m "test(backend): add base test suites for 20+ untested services"
 
 ### Task 4.3: SSO 认证中心完善（1.5 周）
 
-- [ ] **Step 1: 统一登录入口**
-- [ ] **Step 2: OIDC/OAuth2 集成**
-- [ ] **Step 3: 多租户认证隔离**
+- [x] **Step 1: 统一登录入口** — sso-unified-routes.ts + sso-routes.ts (legacy auth guards removed)
+- [x] **Step 2: OIDC/OAuth2 集成** — SsoService.ts with openid-client v6, Redis state store
+- [x] **Step 3: 多租户认证隔离** — X-Tenant-ID injected via subAppAuthAdapter, tenant middleware extracts from JWT/header/subdomain
 
 ### Task 4.4: 单点登出（0.5 周）
 
-- [ ] **Step 1: 实现全局 Session 失效**
-- [ ] **Step 2: 子应用 Session 联动清除**
+- [x] **Step 1: 实现全局 Session 失效** — TokenBlacklistService (Redis+DB+memory) + Gateway cache invalidation on logout
+- [x] **Step 2: 子应用 Session 联动清除** — OrionBus event broadcast on logout
 
 ### Task 4.5: 子应用认证适配（1 周）
 
-- [ ] **Step 1: 各子应用后端从 header 获取用户信息**
-- [ ] **Step 2: 移除子应用独立登录逻辑**
+- [x] **Step 1: 各子应用后端从 header 获取用户信息** — subAppAuthAdapter.ts injects X-User-* headers
+- [x] **Step 2: 移除子应用独立登录逻辑** — verifySubAppUser/requireSubAppAuth helpers provided
 
 ---
 
