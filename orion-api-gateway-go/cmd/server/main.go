@@ -14,6 +14,7 @@ import (
 	"orion/api-gateway/internal/middleware"
 	"orion/api-gateway/internal/proxy"
 	"orion/api-gateway/internal/otel"
+	"orion/api-gateway/internal/routesync"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -47,6 +48,16 @@ func main() {
 	r.Use(middleware.CORS(cfg.AllowedOrigins))
 	r.Use(middleware.RateLimiter(rdb, cfg.RateLimitRPS))
 
+	// CSP middleware
+	if cfg.CSPEnabled {
+		cspCfg := middleware.DefaultCSPConfig()
+		if cfg.CSPDirectives != "" {
+			cspCfg.Enabled = true
+		}
+		r.Use(middleware.CSP(cspCfg))
+		r.POST("/api/v1/csp-report", middleware.CSPReportHandler())
+	}
+
 	// Health
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -69,10 +80,13 @@ func main() {
 		targets[prefix] = proxy.NewReverseProxy(u, logger)
 	}
 
-	// Register proxy routes
+	// Register proxy routes with auth + sub-app header injection
 	apiGroup := r.Group("/api")
 	apiGroup.Use(middleware.TenantPropagation())
 	apiGroup.Use(middleware.JWTAuth(rdb, cfg.JWTSecret))
+	apiGroup.Use(middleware.SubAppAuth(middleware.SubAppAuthConfig{
+		IncludeFullContext: cfg.Environment == "development",
+	}))
 
 	for prefix, target := range targets {
 		apiGroup.Any(prefix+"/*path", proxy.Handler(target, prefix, logger))
@@ -82,6 +96,17 @@ func main() {
 	if sseUpstream, ok := cfg.Upstreams["/v1/pipeline"]; ok {
 		sseCfg := &proxy.SSEHandlerConfig{UpstreamBaseURL: sseUpstream}
 		r.Any("/api/v1/pipelines/:id/logs/sse", proxy.SSEHandler(logger, sseCfg))
+	}
+
+	// Dynamic route sync from platform service
+	if platformURL, ok := cfg.Upstreams["/v1/platform"]; ok {
+		domainMap := routesync.DomainServiceMap{
+			"knowledge": cfg.Upstreams["/v1/knowledge"],
+		}
+		syncer := routesync.NewSyncer(platformURL, domainMap, logger)
+		stopSync := syncer.StartPeriodicSync(context.Background(), r, 60*time.Second)
+		defer stopSync()
+		logger.Info("dynamic route sync enabled", zap.String("platform", platformURL))
 	}
 
 	logger.Info("API Gateway starting",
@@ -112,4 +137,3 @@ func main() {
 	}
 	logger.Info("gateway stopped")
 }
-
