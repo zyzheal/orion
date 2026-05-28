@@ -54,7 +54,7 @@ const PLATFORM_OPTIONS = [
 /** Platform display config */
 const PLATFORM_CONFIG: Record<string, { color: string; label: string }> = {
   dingtalk: { color: colors.primary[500], label: '钉钉' },
-  wecom: { color: '#2BAE67', label: '企业微信' },
+  wecom: { color: colors.brand.wecom, label: '企业微信' },
   feishu: { color: colors.primary[500], label: '飞书' },
 };
 

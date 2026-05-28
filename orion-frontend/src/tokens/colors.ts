@@ -84,6 +84,23 @@ export const colors = {
     900: '#110358',
   },
 
+  // ============ 等级/勋章色 ============
+  tier: {
+    platinum: '#e5e4e2',
+    gold: '#FFD700',
+    silver: '#C0C0C0',
+    bronze: '#cd7f32',
+  },
+
+  // ============ 第三方品牌色 ============
+  brand: {
+    wecom: '#2BAE67',
+    dingtalk: '#0089FF',
+    feishu: '#3370FF',
+    wechat: '#07C160',
+    alipay: '#1677FF',
+  },
+
   // ============ 中性色 ============
   neutral: {
     0: '#ffffff',

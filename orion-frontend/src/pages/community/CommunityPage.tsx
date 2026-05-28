@@ -72,10 +72,10 @@ const statusLabelMap: Record<string, string> = {
 };
 
 const badgeLevelColor: Record<string, string> = {
-  bronze: '#cd7f32',
+  bronze: colors.tier.bronze,
   silver: colors.neutral[400],
   gold: colors.warning[400],
-  platinum: '#e5e4e2',
+  platinum: colors.tier.platinum,
 };
 
 const CommunityPage: React.FC = () => {
