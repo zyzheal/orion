@@ -12,11 +12,27 @@ const createMockDb = () => {
     query: jest.fn().mockImplementation((sql: string, params?: unknown[]) => {
       // Handle SELECT queries
       if (sql.includes('SELECT') && sql.includes('FROM tenant_quotas')) {
+        // findAll: SELECT * FROM tenant_quotas WHERE 1=1 ORDER BY ... LIMIT ... OFFSET ...
+        if (sql.includes('WHERE 1=1')) {
+          const rows = Array.from(mockQuotas.values());
+          return { rows, rowCount: rows.length };
+        }
+        // findByTenantId: SELECT * FROM tenant_quotas WHERE tenant_id = $1
         if (sql.includes('WHERE tenant_id =')) {
           const tenantId = params?.[0];
           const quota = mockQuotas.get(tenantId);
           if (quota) {
             return { rows: [quota], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }
+        // findById: SELECT * FROM tenant_quotas WHERE id = $1
+        if (sql.includes('WHERE id =')) {
+          const id = params?.[0];
+          for (const quota of mockQuotas.values()) {
+            if (quota.id === id) {
+              return { rows: [quota], rowCount: 1 };
+            }
           }
           return { rows: [], rowCount: 0 };
         }
@@ -58,12 +74,25 @@ const createMockDb = () => {
 
       // Handle UPDATE queries (with RETURNING *)
       if (sql.includes('UPDATE tenant_quotas')) {
-        // BaseRepository.update() flattens the data object
+        const values = params as unknown[];
+        const id = String(values[values.length - 1]);
+
+        // Usage-only update: SET usage = $1, updated_at = NOW() WHERE id = $2
+        // (from persistTenantUsage / resetTenantUsageInDb / cleanupExpiredUsageInDb)
+        if (sql.match(/SET\s+usage\s*=/) && !sql.includes('max_pipelines')) {
+          const existing = Array.from(mockQuotas.values()).find(q => q.id === id);
+          if (existing) {
+            const updated = { ...existing, usage: values[0], updated_at: new Date() };
+            mockQuotas.set(existing.tenant_id, updated);
+            return { rows: [updated], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }
+
+        // Full update from setQuota: BaseRepository.update() flattens the data object
         // Object keys: maxPipelines, maxApiCallsPerHour, maxConcurrentBuilds, maxProjects,
         // maxStorageMb, maxCpuCores, maxMemoryGb, maxTasksPerPipeline, maxRunners,
         // apiRateLimit, apiRateLimitWindowSeconds, maxPipelineRunsPerDay, usage
-        const values = params as unknown[];
-        const id = String(values[values.length - 1]);
         const tenantId = id.replace('quota_', '');
 
         const existing = mockQuotas.get(tenantId);

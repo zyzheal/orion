@@ -5,13 +5,18 @@
  * - Runner 配额检查
  * - 资源使用量统计
  * - 配额超限告警
+ *
+ * PostgreSQL Repository 持久化：
+ * - 配额配置通过 TenantQuotaRepository 持久化到 tenant_quotas 表
+ * - 使用量数据持久化到 tenant_quotas.usage (JSONB) 列
+ * - 内存 Map 作为写透缓存，无 DB 时降级为纯内存模式
  */
 
 import { EventEmitter } from 'events';
 import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
 import pino from 'pino';
 
-const logger = pino({ name: 'LTenant-LQuota-LService' });
+const logger = pino({ name: 'TenantQuotaService' });
 
 export interface TenantQuota {
   tenantId: number;
@@ -73,14 +78,22 @@ const ALERT_THRESHOLD_PERCENT = 80;
 
 /**
  * TenantQuotaService - 租户配额服务
+ *
+ * 当 repository 可用时，配额配置和使用量数据均通过 PostgreSQL 持久化。
+ * 使用量存储在 tenant_quotas.usage (JSONB) 列中。
+ * 内存 Map 作为写透缓存，保证读写性能。
+ * 无 DB 时自动降级为纯内存模式（向后兼容测试和无 DB 环境）。
  */
 export class TenantQuotaService extends EventEmitter {
   private repository: TenantQuotaRepository | null = null;
-  // in-memory fallback for tests and environments without DB
+  // 配额配置内存缓存（无 DB 降级模式使用）
   private quotas: Map<number, TenantQuota> = new Map();
-  // usage map kept for rate limiting (in-memory by design)
+  // 使用量写透缓存：同步方法写入此处，异步方法从此处读取
+  // 有 DB 时也会持久化到 tenant_quotas.usage JSONB 列
   private usage: Map<string, TenantUsage> = new Map();
   private alertThreshold: number = ALERT_THRESHOLD_PERCENT;
+  // 标记是否已从 DB 加载过使用量数据（仅加载一次）
+  private usageLoadedFromDb: boolean = false;
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
@@ -88,6 +101,110 @@ export class TenantQuotaService extends EventEmitter {
       this.repository = new TenantQuotaRepository(db);
     }
   }
+
+  // ─── DB 持久化辅助方法 ───────────────────────────────────────────────
+
+  /**
+   * 从 DB 加载所有租户的使用量数据到内存 Map（冷启动恢复）
+   * 仅在首次异步读取时执行一次，后续读取直接使用内存缓存
+   */
+  private async loadUsageFromDb(): Promise<void> {
+    if (!this.repository || this.usageLoadedFromDb) return;
+    try {
+      const { entities } = await this.repository.findAll({ limit: 10000 });
+      for (const entity of entities) {
+        if (entity.usage && typeof entity.usage === 'object') {
+          for (const [key, raw] of Object.entries(entity.usage)) {
+            // JSONB 反序列化：windowStart/windowEnd 可能是 ISO 字符串，需转为 Date
+            const entry = raw as Record<string, unknown>;
+            this.usage.set(key, {
+              tenantId: Number(entry.tenantId),
+              resourceType: String(entry.resourceType),
+              resourceKey: String(entry.resourceKey),
+              currentValue: Number(entry.currentValue) || 0,
+              windowStart: new Date(entry.windowStart as string),
+              windowEnd: new Date(entry.windowEnd as string),
+            });
+          }
+        }
+      }
+      this.usageLoadedFromDb = true;
+    } catch (err) {
+      // DB 不可用时不阻塞，降级为纯内存模式
+      logger.warn({ err }, '[TenantQuotaService] Failed to load usage from DB, using in-memory only');
+      this.usageLoadedFromDb = true; // 避免重复尝试
+    }
+  }
+
+  /**
+   * 将指定租户的使用量数据持久化到 tenant_quotas.usage JSONB 列
+   * 作为 fire-and-forget 调用，不阻塞主流程
+   */
+  private async persistTenantUsage(tenantId: number): Promise<void> {
+    if (!this.repository) return;
+    try {
+      // 收集该租户的所有使用量条目
+      const tenantUsage: Record<string, TenantUsage> = {};
+      const prefix = `${tenantId}:`;
+      for (const [key, value] of this.usage.entries()) {
+        if (key.startsWith(prefix)) {
+          tenantUsage[key] = value;
+        }
+      }
+
+      // 查找该租户的配额实体
+      const entity = await this.repository.findByTenantId(String(tenantId));
+      if (entity) {
+        await this.repository.update(entity.id, { usage: tenantUsage as Record<string, unknown> });
+      }
+      // 若实体不存在（未调用 setQuota），跳过持久化，使用量仅保留在内存中
+    } catch (err) {
+      logger.warn({ err, tenantId }, '[TenantQuotaService] Failed to persist usage to DB');
+    }
+  }
+
+  /**
+   * 重置 DB 中指定租户的使用量数据
+   */
+  private async resetTenantUsageInDb(tenantId: number): Promise<void> {
+    if (!this.repository) return;
+    try {
+      const entity = await this.repository.findByTenantId(String(tenantId));
+      if (entity) {
+        await this.repository.update(entity.id, { usage: {} });
+      }
+    } catch (err) {
+      logger.warn({ err, tenantId }, '[TenantQuotaService] Failed to reset usage in DB');
+    }
+  }
+
+  /**
+   * 清理 DB 中过期的使用量条目
+   */
+  private async cleanupExpiredUsageInDb(affectedTenants: Set<number>): Promise<void> {
+    if (!this.repository) return;
+    try {
+      for (const tenantId of affectedTenants) {
+        const entity = await this.repository.findByTenantId(String(tenantId));
+        if (entity?.usage && typeof entity.usage === 'object') {
+          const now = new Date();
+          const cleaned: Record<string, unknown> = {};
+          for (const [key, raw] of Object.entries(entity.usage)) {
+            const entry = raw as Record<string, unknown>;
+            const windowEnd = new Date(entry.windowEnd as string);
+            if (windowEnd >= now) {
+              cleaned[key] = entry;
+            }
+          }
+          await this.repository.update(entity.id, { usage: cleaned });
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, '[TenantQuotaService] Failed to cleanup expired usage in DB');
+    }
+  }
+
+  // ─── 配额配置方法 ────────────────────────────────────────────────────
 
   /**
    * 获取租户配额配置
@@ -178,6 +295,8 @@ export class TenantQuotaService extends EventEmitter {
     this.emit('quota:updated', quota);
   }
 
+  // ─── 配额检查方法 ────────────────────────────────────────────────────
+
   /**
    * 检查配额限制
    */
@@ -246,6 +365,9 @@ export class TenantQuotaService extends EventEmitter {
    * 检查 API 速率限制
    */
   async checkApiRateLimit(tenantId: number): Promise<QuotaCheckResult> {
+    // 从 DB 恢复使用量（冷启动场景）
+    await this.loadUsageFromDb();
+
     const quota = await this.getQuota(tenantId);
     const windowIndex = Math.floor(Date.now() / (quota.apiRateLimitWindowSeconds * 1000));
     const key = `${tenantId}:api_rate:${windowIndex}`;
@@ -262,8 +384,10 @@ export class TenantQuotaService extends EventEmitter {
     };
   }
 
+  // ─── 使用量记录方法 ──────────────────────────────────────────────────
+
   /**
-   * 记录资源使用
+   * 记录资源使用（同步方法，写入内存缓存 + fire-and-forget DB 持久化）
    */
   recordUsage(
     tenantId: number,
@@ -283,10 +407,13 @@ export class TenantQuotaService extends EventEmitter {
       windowEnd,
     });
     this.emit('usage:recorded', { tenantId, resourceType, resourceKey, value });
+
+    // 异步持久化到 DB（fire-and-forget，不阻塞调用方）
+    this.persistTenantUsage(tenantId).catch(() => {});
   }
 
   /**
-   * 增加资源使用计数
+   * 增加资源使用计数（同步方法，写入内存缓存 + fire-and-forget DB 持久化）
    */
   incrementUsage(tenantId: number, resourceType: string, resourceKey: string): number {
     const key = `${tenantId}:${resourceType}:${resourceKey}`;
@@ -306,9 +433,12 @@ export class TenantQuotaService extends EventEmitter {
   }
 
   /**
-   * 获取当前使用量
+   * 获取当前使用量（异步方法，优先从 DB 加载冷启动数据）
    */
   async getCurrentUsage(tenantId: number, resourceType: string): Promise<number> {
+    // 从 DB 恢复使用量（冷启动场景，仅首次执行）
+    await this.loadUsageFromDb();
+
     switch (resourceType) {
       case 'pipelines':
         return this.countResource(tenantId, 'pipelines');
@@ -324,7 +454,7 @@ export class TenantQuotaService extends EventEmitter {
   }
 
   /**
-   * 统计资源数量
+   * 统计资源数量（从内存缓存读取）
    */
   private countResource(tenantId: number, resourceType: string): number {
     let count = 0;
@@ -384,17 +514,21 @@ export class TenantQuotaService extends EventEmitter {
     };
 
     this.emit('quota:alert', alert);
-    logger.warn(`[TenantQuotaService] Quota alert: Tenant ${tenantId} ${resourceType} usage at ${thresholdPercent.toFixed(1)}% (${currentUsage}/${quotaLimit})`);
+    logger.warn({ tenantId, resourceType, currentUsage, quotaLimit, thresholdPercent: thresholdPercent.toFixed(1) },
+      '[TenantQuotaService] Quota alert');
   }
 
   /**
-   * 获取租户资源使用报告
+   * 获取租户资源使用报告（异步方法，优先从 DB 加载冷启动数据）
    */
   async getUsageReport(tenantId: number): Promise<{
     quota: TenantQuota;
     usage: Record<string, number>;
     alerts: QuotaAlert[];
   }> {
+    // 从 DB 恢复使用量（冷启动场景）
+    await this.loadUsageFromDb();
+
     const quota = await this.getQuota(tenantId);
     const usage: Record<string, number> = {};
 
@@ -431,25 +565,33 @@ export class TenantQuotaService extends EventEmitter {
   }
 
   /**
-   * 清理过期使用记录
+   * 清理过期使用记录（同步清理内存 + fire-and-forget 清理 DB）
    */
   cleanupExpiredUsage(): number {
     const now = new Date();
     let cleaned = 0;
+    const affectedTenants = new Set<number>();
 
     for (const [key, usage] of this.usage.entries()) {
       if (usage.windowEnd < now) {
         this.usage.delete(key);
+        affectedTenants.add(usage.tenantId);
         cleaned++;
       }
     }
 
     this.emit('usage:cleanup', cleaned);
+
+    // 异步清理 DB 中的过期条目（fire-and-forget）
+    if (affectedTenants.size > 0) {
+      this.cleanupExpiredUsageInDb(affectedTenants).catch(() => {});
+    }
+
     return cleaned;
   }
 
   /**
-   * 重置租户使用量
+   * 重置租户使用量（同步清理内存 + fire-and-forget 清理 DB）
    */
   resetTenantUsage(tenantId: number): void {
     for (const [key] of this.usage.entries()) {
@@ -458,6 +600,9 @@ export class TenantQuotaService extends EventEmitter {
       }
     }
     this.emit('usage:reset', tenantId);
+
+    // 异步清理 DB 中的使用量（fire-and-forget）
+    this.resetTenantUsageInDb(tenantId).catch(() => {});
   }
 }
 

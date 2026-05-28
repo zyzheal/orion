@@ -1,4 +1,4 @@
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 // Valid SQL identifier pattern (alphanumeric + underscore, not starting with digit)
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
