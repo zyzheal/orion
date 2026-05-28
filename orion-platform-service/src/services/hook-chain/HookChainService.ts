@@ -13,6 +13,7 @@
  */
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -111,7 +112,7 @@ class WebhookExecutor implements HookExecutor {
     });
 
     if (!response.ok) {
-      throw new Error(`Webhook call failed: ${response.status} ${response.statusText}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Webhook call failed: ${response.status} ${response.statusText}`);
     }
 
     return response.json() as Promise<Record<string, any>>;
@@ -559,12 +560,12 @@ export class HookChainService extends EventEmitter {
   // ==================== Helpers ====================
 
   private validateChainDefinition(definition: HookChainDefinition): void {
-    if (!definition.id) throw new Error('Chain id is required');
+    if (!definition.id) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Chain id is required');
     if (!definition.hooks || definition.hooks.length === 0) throw new Error('Chain must have at least one hook');
 
     for (const hook of definition.hooks) {
-      if (!hook.id) throw new Error('Hook id is required');
-      if (!hook.type) throw new Error('Hook type is required');
+      if (!hook.id) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Hook id is required');
+      if (!hook.type) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Hook type is required');
       if (!this.executors.has(hook.type)) {
         logger.warn({ hookType: hook.type }, 'Unknown hook type, execution may fail');
       }

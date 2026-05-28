@@ -13,6 +13,7 @@ import {
   RecoveryStatus,
   BackupRecord,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * Recovery Service - Disaster recovery and RTO/RPO tracking
@@ -128,11 +129,11 @@ export class RecoveryService extends EventEmitter {
   ): Promise<RecoveryExecution> {
     const plan = this.recoveryPlans.get(planId);
     if (!plan) {
-      throw new Error(`Recovery plan ${planId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery plan ${planId} not found`);
     }
 
     if (!plan.enabled) {
-      throw new Error(`Recovery plan ${planId} is disabled`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery plan ${planId} is disabled`);
     }
 
     // Create recovery execution record
@@ -172,7 +173,7 @@ export class RecoveryService extends EventEmitter {
     }
 
     if (execution.status !== 'initiated') {
-      throw new Error(`Recovery execution ${executionId} is not in initiated state`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery execution ${executionId} is not in initiated state`);
     }
 
     const plan = this.recoveryPlans.get(execution.planId);

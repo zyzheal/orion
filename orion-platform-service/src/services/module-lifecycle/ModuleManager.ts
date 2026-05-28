@@ -9,6 +9,7 @@ import {
   ModuleManagerConfig,
   DomainConfig,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -162,7 +163,7 @@ export class ModuleManager {
   async startModule(id: string): Promise<void> {
     const mod = this.registry.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
     }
 
     if (!mod.config.enabled) {
@@ -174,7 +175,7 @@ export class ModuleManager {
     for (const dep of deps) {
       const depMod = this.registry.get(dep);
       if (!depMod) {
-        throw new Error(`Dependency ${dep} not found for module ${id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Dependency ${dep} not found for module ${id}`);
       }
       // Skip disabled dependencies
       if (!depMod.config.enabled) {
@@ -182,7 +183,7 @@ export class ModuleManager {
         continue;
       }
       if (depMod.state !== 'active') {
-        throw new Error(`Dependency ${dep} is not active for module ${id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Dependency ${dep} is not active for module ${id}`);
       }
     }
 
@@ -209,7 +210,7 @@ export class ModuleManager {
       m.config.dependencies?.includes(id)
     );
     if (dependents.length > 0) {
-      throw new Error(`Cannot stop ${id}: ${dependents.map(d => d.id).join(', ')} depend on it`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot stop ${id}: ${dependents.map(d => d.id).join(', ')} depend on it`);
     }
 
     this.registry.setState(id, 'stopping');

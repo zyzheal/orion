@@ -26,6 +26,7 @@ import {
 } from './types';
 import { ConfigApprovalRepository } from '../../repositories/ConfigApprovalRepository';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LConfig-LApproval-LService' });
 
@@ -69,7 +70,7 @@ export class ConfigApprovalService {
   ): Promise<ConfigChangeRequest> {
     const config = await this.configService.getConfigById(input.configId);
     if (!config) {
-      throw new Error(`Config '${input.configId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${input.configId}' not found`);
     }
 
     const now = new Date();
@@ -129,7 +130,7 @@ export class ConfigApprovalService {
   ): Promise<ConfigChangeRequest> {
     const changeRequest = this.changeRequests.get(changeRequestId);
     if (!changeRequest) {
-      throw new Error(`Change request '${changeRequestId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${changeRequestId}' not found`);
     }
 
     if (changeRequest.status !== 'pending') {
@@ -196,7 +197,7 @@ export class ConfigApprovalService {
   ): Promise<ConfigChangeRequest> {
     const changeRequest = this.changeRequests.get(changeRequestId);
     if (!changeRequest) {
-      throw new Error(`Change request '${changeRequestId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${changeRequestId}' not found`);
     }
 
     if (changeRequest.status !== 'pending') {
@@ -292,7 +293,7 @@ export class ConfigApprovalService {
   async cancelChangeRequest(changeRequestId: string): Promise<ConfigChangeRequest> {
     const changeRequest = this.changeRequests.get(changeRequestId);
     if (!changeRequest) {
-      throw new Error(`Change request '${changeRequestId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${changeRequestId}' not found`);
     }
 
     if (changeRequest.status !== 'pending') {

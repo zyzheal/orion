@@ -9,6 +9,7 @@
 import pino from 'pino';
 import { EnvironmentRepository, EnvironmentEntity } from '../../repositories/EnvironmentRepository';
 import { createEnvironment, mergeVariables, type EnvironmentCreateInput, type EnvironmentUpdateInput } from '../../models/Environment';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -46,7 +47,7 @@ export class EnvironmentService {
     // Check for duplicate name within tenant
     const existing = await this.repository.findByTenantAndName(input.tenantId, input.name);
     if (existing) {
-      throw new Error(`Environment '${input.name}' already exists for tenant '${input.tenantId}'`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment '${input.name}' already exists for tenant '${input.tenantId}'`);
     }
 
     // Validate approval count
@@ -256,7 +257,7 @@ export class EnvironmentService {
    */
   private validateName(name: string): void {
     if (!name || name.trim().length === 0) {
-      throw new Error('Environment name cannot be empty');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Environment name cannot be empty');
     }
     const namePattern = /^[a-z][a-z0-9_]*$/;
     if (!namePattern.test(name)) {

@@ -18,6 +18,7 @@ import {
   HealingActionType,
   HealingActionResult,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'healing-action-executor' });
 
@@ -399,7 +400,7 @@ export class HealingActionExecutor {
       // Wait for restart to take effect
       const restartPromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new Error(`Restart timed out after ${timeoutMs}ms`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Restart timed out after ${timeoutMs}ms`);
       });
 
       await Promise.race([restartPromise, timeoutPromise]);

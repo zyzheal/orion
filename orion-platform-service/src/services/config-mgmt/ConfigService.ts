@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfigRepository, ConfigEntry, ConfigHistory } from './ConfigRepository';
 import { ConfigItem, ConfigStatus, ConfigEnvironment } from './types';
 import { CacheService } from '../cache/CacheService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class ConfigServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'ConfigServiceError'; }
@@ -91,7 +92,7 @@ export class ConfigService {
       const input = tenantIdOrInput as CreateConfigInput;
       const existing = await this.repository.findByKey('default', input.key);
       if (existing && existing.environment === input.environment) {
-        throw new Error(`Config '${input.key}' already exists in environment '${input.environment}'`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Config '${input.key}' already exists in environment '${input.environment}'`);
       }
       const entry = await this.repository.set('default', input.key, buildValueObject(input), input.createdBy);
       // Ensure createdBy is set since repository may not persist it
@@ -166,7 +167,7 @@ export class ConfigService {
   async deleteConfig(configId: string, changedBy?: string): Promise<boolean> {
     const existing = await this.repository.findById(configId);
     if (!existing) {
-      throw new Error(`Config '${configId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${configId}' not found`);
     }
     // Invalidate cache on delete
     await this.cache.del(`config:${configId}`);
@@ -258,15 +259,15 @@ export class ConfigService {
   async rollbackConfig(configId: string, targetVersion: number, changedBy: string): Promise<ConfigItem> {
     const existing = await this.repository.findById(configId);
     if (!existing) {
-      throw new Error(`Config '${configId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${configId}' not found`);
     }
     const versions = await this.getConfigVersions(configId);
     const target = versions.find(v => v.version === targetVersion);
     if (!target) {
-      throw new Error(`Version ${targetVersion} not found for config '${configId}'`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Version ${targetVersion} not found for config '${configId}'`);
     }
     if (targetVersion >= existing.version) {
-      throw new Error(`Target version ${targetVersion} must be less than current version ${existing.version}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Target version ${targetVersion} must be less than current version ${existing.version}`);
     }
     const targetValue = typeof target.value === 'string' ? target.value : ((target as any).newValue?.value || (target as any).new_value?.value || JSON.stringify(target.value));
     const oldValueStr = typeof (existing.value as any)?.value === 'string' ? (existing.value as any).value : JSON.stringify(existing.value);

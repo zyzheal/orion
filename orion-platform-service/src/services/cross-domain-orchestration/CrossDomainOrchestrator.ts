@@ -25,6 +25,7 @@ import {
 } from '../../saga/types';
 import { DomainConnector } from './DomainConnector';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
 
@@ -462,7 +463,7 @@ export class CrossDomainOrchestrator {
   async executeOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Orchestration '${orchestrationId}' not found`);
     }
 
     if (orchestration.status !== 'pending' && orchestration.status !== 'paused') {
@@ -515,11 +516,11 @@ export class CrossDomainOrchestrator {
   async pauseOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Orchestration '${orchestrationId}' not found`);
     }
 
     if (orchestration.status !== 'running') {
-      throw new Error(`Only running orchestrations can be paused (current: ${orchestration.status})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Only running orchestrations can be paused (current: ${orchestration.status})`);
     }
 
     orchestration.status = 'paused';
@@ -539,7 +540,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (orchestration.status !== 'paused') {
-      throw new Error(`Only paused orchestrations can be resumed (current: ${orchestration.status})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Only paused orchestrations can be resumed (current: ${orchestration.status})`);
     }
 
     // Resume execution
@@ -556,7 +557,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (orchestration.status === 'completed' || orchestration.status === 'aborted') {
-      throw new Error(`Cannot abort orchestrations in '${orchestration.status}' state`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot abort orchestrations in '${orchestration.status}' state`);
     }
 
     orchestration.status = 'aborted';

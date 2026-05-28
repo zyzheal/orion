@@ -14,6 +14,7 @@ import {
 } from '../../repositories/Phase3Repository';
 import { UnifiedTriggerService } from './UnifiedTriggerService';
 import crypto from 'crypto';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export interface WebhookConfig {
   triggerId?: string;
@@ -63,7 +64,7 @@ export class WebhookTriggerHandler {
   // ==================== Webhook Registration ====================
 
   async registerWebhook(tenantId: string, config: WebhookConfig): Promise<WebhookEndpointEntity> {
-    if (!this.webhookRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const id = `webhook-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -89,29 +90,29 @@ export class WebhookTriggerHandler {
   }
 
   async getWebhook(endpointId: string): Promise<WebhookEndpointEntity | undefined> {
-    if (!this.webhookRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.webhookRepo.findById(endpointId);
   }
 
   async getWebhookByPath(path: string): Promise<WebhookEndpointEntity | undefined> {
-    if (!this.webhookRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.webhookRepo.findByPath(path);
   }
 
   async listWebhooks(tenantId: string): Promise<WebhookEndpointEntity[]> {
-    if (!this.webhookRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.webhookRepo.findByTenant(tenantId);
   }
 
   async deleteWebhook(endpointId: string): Promise<boolean> {
-    if (!this.webhookRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
     return this.webhookRepo.delete(endpointId);
   }
 
   // ==================== Webhook Processing ====================
 
   async processWebhookEvent(payload: WebhookPayload): Promise<WebhookProcessResult> {
-    if (!this.webhookRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     // Extract path from payload (usually from URL)
     const path = this.extractPath(payload);
@@ -189,7 +190,7 @@ export class WebhookTriggerHandler {
   // ==================== Webhook History ====================
 
   async getWebhookHistory(tenantId: string): Promise<WebhookHistoryEntry[]> {
-    if (!this.webhookRepo || !this.eventRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo || !this.eventRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const endpoints = await this.webhookRepo.findByTenant(tenantId);
     const history: WebhookHistoryEntry[] = [];
@@ -209,10 +210,10 @@ export class WebhookTriggerHandler {
   }
 
   async getWebhookEvents(endpointId: string, limit: number = 50): Promise<TriggerEventEntity[]> {
-    if (!this.webhookRepo || !this.eventRepo) throw new Error('Database not configured');
+    if (!this.webhookRepo || !this.eventRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const endpoint = await this.webhookRepo.findById(endpointId);
-    if (!endpoint) throw new Error(`Webhook endpoint not found: ${endpointId}`);
+    if (!endpoint) throw new OrionError(ErrorCode.NOT_FOUND, `Webhook endpoint not found: ${endpointId}`);
 
     if (!endpoint.trigger_id) return [];
 

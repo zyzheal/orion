@@ -25,6 +25,7 @@ import { K8sProvisionerService } from './k8s-provisioner-service';
 import { EventBusService } from './event-bus-service';
 import { DatabasePool } from './database';
 import { EphemeralEnvRepository } from './ephemeral-env/EphemeralEnvRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -127,7 +128,7 @@ export class EphemeralEnvService {
   async getById(id: string): Promise<EphemeralEnvironment> {
     const env = await this.repository.findById(id);
     if (!env) {
-      throw new Error(`Ephemeral environment "${id}" not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Ephemeral environment "${id}" not found`);
     }
     return env;
   }
@@ -138,7 +139,7 @@ export class EphemeralEnvService {
   async wake(id: string): Promise<EphemeralEnvironment> {
     const env = await this.getById(id);
     if (env.status !== 'idle') {
-      throw new Error(`Environment is not idle (status: ${env.status})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment is not idle (status: ${env.status})`);
     }
 
     wakeEnvironment(env);

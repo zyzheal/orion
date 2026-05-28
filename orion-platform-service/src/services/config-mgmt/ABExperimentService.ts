@@ -10,6 +10,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export type ExperimentStatus = 'draft' | 'running' | 'completed' | 'cancelled';
 
@@ -168,7 +169,7 @@ export class ABExperimentService {
   ): Promise<ABExperiment> {
     const totalTraffic = input.variants.reduce((sum, v) => sum + v.trafficPercentage, 0);
     if (totalTraffic !== 100) {
-      throw new Error(`Total traffic percentage must be 100 (got ${totalTraffic})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Total traffic percentage must be 100 (got ${totalTraffic})`);
     }
 
     const now = new Date();
@@ -203,7 +204,7 @@ export class ABExperimentService {
   async startExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
     if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status !== 'draft') throw new Error(`Experiment cannot be started from '${exp.status}' state`);
+    if (exp.status !== 'draft') throw new OrionError(ErrorCode.NOT_FOUND, `Experiment cannot be started from '${exp.status}' state`);
 
     exp.status = 'running';
     exp.startDate = new Date();
@@ -215,7 +216,7 @@ export class ABExperimentService {
   async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
     if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status !== 'running') throw new Error(`Experiment is not running`);
+    if (exp.status !== 'running') throw new OrionError(ErrorCode.NOT_FOUND, `Experiment is not running`);
 
     exp.status = 'completed';
     exp.endDate = new Date();
@@ -249,7 +250,7 @@ export class ABExperimentService {
 
   async deleteExperiment(id: string): Promise<boolean> {
     const exp = await this.repository.findById(id);
-    if (exp && exp.status === 'running') throw new Error('Cannot delete running experiment');
+    if (exp && exp.status === 'running') throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot delete running experiment');
     return this.repository.deleteById(id);
   }
 

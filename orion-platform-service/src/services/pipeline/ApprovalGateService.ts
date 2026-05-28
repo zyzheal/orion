@@ -6,6 +6,7 @@
  */
 import { Pool } from 'pg';
 import { ApprovalGateRepository, ApprovalGateEntity } from '../../repositories/ApprovalGateRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // ==================== Types ====================
 
@@ -205,14 +206,14 @@ export class ApprovalGateService {
       });
 
       if (!updated) {
-        throw new Error('Failed to update approval gate');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to update approval gate');
       }
 
       return this.mapEntityToGate(updated);
     }
 
     // Fallback to in-memory (should not reach here in normal operation)
-    throw new Error('Repository required for approval operation');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Repository required for approval operation');
   }
 
   /**
@@ -245,14 +246,14 @@ export class ApprovalGateService {
       });
 
       if (!updated) {
-        throw new Error('Failed to update approval gate');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to update approval gate');
       }
 
       return this.mapEntityToGate(updated);
     }
 
     // Fallback to in-memory (should not reach here in normal operation)
-    throw new Error('Repository required for reject operation');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Repository required for reject operation');
   }
 
   /**

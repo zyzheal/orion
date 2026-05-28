@@ -32,6 +32,7 @@ import {
   CommitType,
   ReleaseNotesAgentConfig,
 } from './types';
+import { OrionError, ErrorCode } from '../../../../errors';
 
 const execFileAsync = promisify(execFile);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -52,12 +53,12 @@ const ALLOWED_REPO_ROOTS = [
  */
 function validateRepoPath(repoPath: string): string {
   if (!repoPath || repoPath.trim().length === 0) {
-    throw new Error('Invalid repository path: must not be empty');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid repository path: must not be empty');
   }
 
   // 路径长度限制
   if (repoPath.length > 1024) {
-    throw new Error('Invalid repository path: too long');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid repository path: too long');
   }
 
   const resolved = resolve(repoPath);
@@ -85,19 +86,19 @@ function validateRepoPath(repoPath: string): string {
  */
 function validateGitRef(ref: string): string {
   if (!ref || ref.trim().length === 0) {
-    throw new Error('Invalid git ref: must not be empty');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: must not be empty');
   }
   if (ref.length > 256) {
-    throw new Error('Invalid git ref: too long (max 256 chars)');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: too long (max 256 chars)');
   }
   // ref 不能以 - 开头，防止被解析为命令行参数
   if (ref.startsWith('-')) {
-    throw new Error('Invalid git ref: must not start with "-"');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: must not start with "-"');
   }
   // 只允许安全的字符
   const safeRefPattern = /^[a-zA-Z0-9_./-]+$/;
   if (!safeRefPattern.test(ref)) {
-    throw new Error('Invalid git ref: contains disallowed characters');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: contains disallowed characters');
   }
   return ref;
 }

@@ -6,6 +6,7 @@
 
 import { MaintenanceWindowRepository, MaintenanceWindowEntity } from '../repositories/MaintenanceWindowRepository';
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface MaintenanceWindow {
   id: string;
@@ -37,13 +38,13 @@ export class MaintenanceWindowService {
   }): Promise<MaintenanceWindow> {
     // Validate inputs
     if (!input.name || input.name.trim().length === 0) {
-      throw new Error('Window name is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Window name is required');
     }
     if (!input.startTime) {
-      throw new Error('Start time is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Start time is required');
     }
     if (!input.endTime) {
-      throw new Error('End time is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'End time is required');
     }
     if (input.endTime <= input.startTime) {
       throw new Error('End time must be after start time');
@@ -72,7 +73,7 @@ export class MaintenanceWindowService {
    */
   async getWindowsByTenant(tenantId: string): Promise<MaintenanceWindow[]> {
     if (!tenantId) {
-      throw new Error('Tenant ID is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Tenant ID is required');
     }
     const windows = await this.repository.findByTenantId(tenantId);
     return windows.map(w => this.toDto(w));
@@ -99,7 +100,7 @@ export class MaintenanceWindowService {
    */
   async deleteWindow(id: string): Promise<boolean> {
     if (!id) {
-      throw new Error('Window ID is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Window ID is required');
     }
     return this.repository.delete(id);
   }
@@ -109,7 +110,7 @@ export class MaintenanceWindowService {
    */
   async isServiceInMaintenanceWindow(serviceName: string): Promise<boolean> {
     if (!serviceName || serviceName.trim().length === 0) {
-      throw new Error('Service name is required');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Service name is required');
     }
     const activeWindows = await this.repository.findActive(new Date());
     return activeWindows.some(w => w.affectedServices.includes(serviceName));

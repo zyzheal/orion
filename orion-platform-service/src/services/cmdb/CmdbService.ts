@@ -23,6 +23,7 @@ import {
   CiStatus,
   CiType,
 } from './CmdbTypes';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * 内存存储（开发环境使用，生产环境应使用数据库）
@@ -59,14 +60,14 @@ export class CmdbService {
   async createCI(input: CreateCIInput): Promise<CI> {
     // 验证必填字段
     if (!input.ciId || !input.name || !input.ciType) {
-      throw new Error('Missing required fields: ciId, name, ciType');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required fields: ciId, name, ciType');
     }
 
     // 检查是否已存在（使用数据库或内存）
     if (this.ciRepository) {
       const exists = await this.ciRepository.ciExists(input.ciId, input.tenantId);
       if (exists) {
-        throw new Error(`CI '${input.ciId}' already exists`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `CI '${input.ciId}' already exists`);
       }
     } else {
       // 内存存储检查
@@ -451,7 +452,7 @@ export class CmdbService {
       throw new Error(`Source CI '${input.fromCiId}' not found`);
     }
     if (!toCI) {
-      throw new Error(`Target CI '${input.toCiId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Target CI '${input.toCiId}' not found`);
     }
 
     // 检查是否已存在相同关系
@@ -462,7 +463,7 @@ export class CmdbService {
         input.relationType
       );
       if (exists) {
-        throw new Error(`Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`);
       }
     } else {
       const existing = Array.from(relations.values()).find(
@@ -586,7 +587,7 @@ export class CmdbService {
 
     const ci = await this.getCIByCiId(ciId);
     if (!ci) {
-      throw new Error(`CI '${ciId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `CI '${ciId}' not found`);
     }
 
     // 恢复数据
