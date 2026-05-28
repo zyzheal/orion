@@ -673,7 +673,7 @@ const VisorPage: React.FC = () => {
                 <Text strong type="danger">标准错误:</Text>
                 <pre
                   style={{
-                    background: '#fff2f0',
+                    background: colors.error[50],
                     padding: 12,
                     borderRadius: 4,
                     fontSize: 12,

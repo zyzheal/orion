@@ -39,7 +39,7 @@ const iconMap: Record<string, React.ReactNode> = {
 const colorMap: Record<string, string> = {
   dba: colors.primary[500],
   knowledge: colors.success[500],
-  visor: '#722ed1',
+  visor: colors.purple[500],
 };
 
 // 触发器按钮组件

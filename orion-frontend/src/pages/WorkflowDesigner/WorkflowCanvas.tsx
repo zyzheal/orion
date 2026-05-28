@@ -60,7 +60,7 @@ const nodeTypeColors: Record<string, string> = {
   task: colors.primary[600],
   'sub-workflow': colors.purple[600],
   delay: colors.info[400],
-  timer: '#EB2F96',
+  timer: colors.purple[500],
   end: colors.neutral[500],
 };
 

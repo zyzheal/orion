@@ -205,7 +205,7 @@ const ApkUploadHistoryPage: React.FC = () => {
             <Statistic
               title="成功发布"
               value={displayStats.published}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: colors.success[600] }}
             />
           </Card>
         </Col>

@@ -116,9 +116,9 @@ interface FeishuNavItemProps {
 const FeishuNavItem: React.FC<FeishuNavItemProps> = ({ item, isActive, theme, onNavigate, onMegaMenuToggle }) => {
   const isDark = theme === 'dark';
   const hasChildren = item.children && item.children.length > 0;
-  const txtColor = isDark ? 'rgba(255,255,255,0.65)' : 'colors.neutral[600]';
-  const activeTxtColor = isDark ? 'rgba(255,255,255,0.95)' : 'colors.neutral[800]';
-  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : '#f2f3f5';
+  const txtColor = isDark ? 'rgba(255,255,255,0.65)' : colors.neutral[600];
+  const activeTxtColor = isDark ? 'rgba(255,255,255,0.95)' : colors.neutral[800];
+  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[100];
 
   const navTrigger = (
     <div
@@ -397,7 +397,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           left: 0,
           right: 0,
           zIndex: 1000,
-          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'colors.neutral[200]'}`,
+          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
           height: 60,
           lineHeight: '60px',
           overflow: 'visible',
@@ -655,7 +655,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   width: 32,
                                   height: 32,
                                   borderRadius: 8,
-                                  background: isDark ? 'rgba(255,255,255,0.08)' : '#f0f1f3',
+                                  background: isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100],
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -669,7 +669,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   <div style={{
                                     fontSize: 14,
                                     fontWeight: 500,
-                                    color: isDark ? 'rgba(255,255,255,0.9)' : 'colors.neutral[800]',
+                                    color: isDark ? 'rgba(255,255,255,0.9)' : colors.neutral[800],
                                     lineHeight: '22px',
                                   }}>
                                     {child.label}
@@ -722,7 +722,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             },
             ...((breadcrumbs || []).map(b => ({
               title: (
-                <span style={{ fontSize: 13, color: theme === 'dark' ? 'rgba(255,255,255,0.65)' : 'colors.neutral[600]' }}>
+                <span style={{ fontSize: 13, color: theme === 'dark' ? 'rgba(255,255,255,0.65)' : colors.neutral[600] }}>
                   {b.title}
                 </span>
               ),

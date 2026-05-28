@@ -280,7 +280,7 @@ const AIAgentsManagement: React.FC = () => {
               marginTop: 16,
               backgroundColor: executionResult.success
                 ? colors.light.bg.secondary
-                : '#fff2f0',
+                : colors.error[50],
               borderColor: executionResult.success ? colors.success[500] : colors.error[500],
             }}
           >

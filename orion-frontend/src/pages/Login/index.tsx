@@ -135,7 +135,7 @@ const Login: React.FC = () => {
       <div
         style={{
           flex: '0 0 480px',
-          background: `linear-gradient(160deg, ${colors.primary[700]} 0%, ${colors.primary[900]} 40%, #0C1B3A 100%)`,
+          background: `linear-gradient(160deg, ${colors.primary[700]} 0%, ${colors.primary[900]} 40%, ${colors.primary[1000]} 100%)`,
           position: 'relative',
           overflow: 'hidden',
           display: 'flex',

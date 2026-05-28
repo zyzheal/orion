@@ -452,7 +452,7 @@ const CommandExecTab: React.FC = () => {
             {selectedRecord.errorOutput && (
               <div>
                 <Text strong type="danger">标准错误:</Text>
-                <pre style={{ background: '#fff2f0', padding: 12, borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: 8 }}>
+                <pre style={{ background: colors.error[50], padding: 12, borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: 8 }}>
                   {selectedRecord.errorOutput}
                 </pre>
               </div>

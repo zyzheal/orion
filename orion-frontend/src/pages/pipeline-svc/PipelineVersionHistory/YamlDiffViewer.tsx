@@ -109,7 +109,7 @@ const YamlDiffViewer: React.FC<YamlDiffViewerProps> = ({
               key={`removed-${idx}-${i}`}
               style={{
                 display: 'flex',
-                background: colors.error[50] || '#fff2f0',
+                background: colors.error[50],
                 padding: `0 ${spacing.sm}`,
                 borderLeft: `3px solid ${colors.error[500]}`,
               }}

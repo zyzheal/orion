@@ -289,13 +289,13 @@ const Alert: React.FC<{
   showIcon?: boolean;
   children: React.ReactNode;
 }> = ({ type, children }) => {
-  const colors = {
-    info: { bg: '#e6f7ff', border: '#91d5ff', text: colors.info[600] },
+  const alertColors = {
+    info: { bg: colors.info[50], border: colors.info[200], text: colors.info[600] },
     warning: { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[600] },
     error: { bg: colors.error[50], border: colors.error[200], text: colors.error[600] },
     success: { bg: colors.success[50], border: colors.success[200], text: colors.success[600] },
   };
-  const style = colors[type];
+  const style = alertColors[type];
 
   return (
     <div

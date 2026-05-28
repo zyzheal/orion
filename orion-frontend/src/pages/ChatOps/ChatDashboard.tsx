@@ -53,7 +53,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, suffix, trend, co
   <Card>
     <Tooltip title={tooltip}>
       <Statistic
-        title={<span>{title} <InfoCircleOutlined style={{ fontSize: 12, color: '#bbb', cursor: 'help' }} /></span>}
+        title={<span>{title} <InfoCircleOutlined style={{ fontSize: 12, color: colors.neutral[400], cursor: 'help' }} /></span>}
         value={value}
         suffix={suffix}
         valueStyle={{ color }}
@@ -130,7 +130,7 @@ export default function ChatDashboard() {
     xAxis: {
       type: 'category' as const,
       data: stats?.trends.map(t => dayjs(t.date).format('MM-DD')) || [],
-      axisLine: { lineStyle: { color: '#eee' } },
+      axisLine: { lineStyle: { color: colors.neutral[200] } },
       axisLabel: { color: colors.neutral[500] },
     },
     yAxis: [
