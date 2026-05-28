@@ -20,6 +20,7 @@ import { BuildxBuilderService, BuildOptions } from '../services/build/BuildxBuil
 import { ContainerSpec, DockerExecutor, LocalSpawnExecutor, ContainerExecutorStrategy } from './ContainerExecutor';
 import { SkillService } from '../services/skill/SkillService';
 import { SkillPackage, SkillVersion } from '../services/skill/SkillRepository';
+import { OrionError, ErrorCode } from '../errors';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -207,7 +208,7 @@ function spawnCommand(
 
     child.on('error', (err) => {
       cleanup();
-      reject(new Error(`Failed to spawn ${command}: ${err.message}`));
+      reject(new OrionError(`Failed to spawn ${command}: ${err.message}`, ErrorCode.OPERATION_FAILED));
     });
 
     child.on('close', (code) => {
@@ -563,7 +564,7 @@ export class TaskRunner {
     }
 
     if (result.exitCode !== 0) {
-      throw new Error(`git ${action} failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`git ${action} failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -598,7 +599,7 @@ export class TaskRunner {
       case 'buildx':
         return this.executeDockerBuildx(task);
       default:
-        throw new Error(`Unknown docker action: ${action}`);
+        throw new OrionError(`Unknown docker action: ${action}`, ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -624,7 +625,7 @@ export class TaskRunner {
     };
 
     if (!options.imageName) {
-      throw new Error('Docker build requires "image" or "imageName" parameter');
+      throw new OrionError('Docker build requires "image" or "imageName" parameter', ErrorCode.VALIDATION_ERROR);
     }
 
     task = appendTaskLog(task, `[DOCKER] Building ${options.imageName}:${options.tag}`);
@@ -632,7 +633,7 @@ export class TaskRunner {
     const result = await dockerService.build(options);
 
     if (!result.success) {
-      throw new Error(result.error || 'Docker build failed');
+      throw new OrionError(result.error || 'Docker build failed', ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -658,7 +659,7 @@ export class TaskRunner {
     };
 
     if (!options.imageName) {
-      throw new Error('Docker push requires "image" or "imageName" parameter');
+      throw new OrionError('Docker push requires "image" or "imageName" parameter', ErrorCode.VALIDATION_ERROR);
     }
 
     task = appendTaskLog(task, `[DOCKER] Pushing ${options.imageName}:${options.tag}`);
@@ -666,7 +667,7 @@ export class TaskRunner {
     const result = await dockerService.push(options);
 
     if (!result.success) {
-      throw new Error(result.error || 'Docker push failed');
+      throw new OrionError(result.error || 'Docker push failed', ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -691,7 +692,7 @@ export class TaskRunner {
     };
 
     if (!options.imageName) {
-      throw new Error('Docker scan requires "image" or "imageName" parameter');
+      throw new OrionError('Docker scan requires "image" or "imageName" parameter', ErrorCode.VALIDATION_ERROR);
     }
 
     task = appendTaskLog(task, `[DOCKER] Scanning ${options.imageName}:${options.tag}`);
@@ -699,7 +700,7 @@ export class TaskRunner {
     const result = await dockerService.scan(options);
 
     if (result.blocked) {
-      throw new Error(`Security scan blocked: ${result.vulnerabilities.critical} critical, ${result.vulnerabilities.high} high vulnerabilities found`);
+      throw new OrionError(`Security scan blocked: ${result.vulnerabilities.critical} critical, ${result.vulnerabilities.high} high vulnerabilities found`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -724,7 +725,7 @@ export class TaskRunner {
 
     const platforms = (params.platforms as string[]) || [];
     if (platforms.length === 0) {
-      throw new Error('docker/buildx requires "platforms" parameter (e.g., ["linux/amd64", "linux/arm64"])');
+      throw new OrionError('docker/buildx requires "platforms" parameter (e.g., ["linux/amd64", "linux/arm64"])', ErrorCode.VALIDATION_ERROR);
     }
 
     const options: BuildOptions = {
@@ -744,7 +745,7 @@ export class TaskRunner {
     };
 
     if (!options.imageName) {
-      throw new Error('docker/buildx requires "image" or "imageName" parameter');
+      throw new OrionError('docker/buildx requires "image" or "imageName" parameter', ErrorCode.VALIDATION_ERROR);
     }
 
     task = appendTaskLog(task, `[DOCKER] Buildx multi-arch build: ${options.imageName} for ${platforms.join(', ')}`);
@@ -752,7 +753,7 @@ export class TaskRunner {
     const result = await buildxService.buildMultiArchNative(options);
 
     if (!result.success) {
-      throw new Error(`Buildx build failed: ${result.errors.join(', ')}`);
+      throw new OrionError(`Buildx build failed: ${result.errors.join(', ')}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -808,7 +809,7 @@ export class TaskRunner {
     const durationMs = Date.now() - startTime;
 
     if (result.exitCode !== 0) {
-      throw new Error(`Container execution failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`Container execution failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -857,7 +858,7 @@ export class TaskRunner {
     const result = await spawnCommand(executable, args, { cwd, timeoutMs, signal, env, sanitizer });
 
     if (result.exitCode !== 0) {
-      throw new Error(`${executable} ${command} failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`${executable} ${command} failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -929,7 +930,7 @@ export class TaskRunner {
     }
 
     if (result.exitCode !== 0) {
-      throw new Error(`kubectl ${action} failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`kubectl ${action} failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -1021,12 +1022,12 @@ export class TaskRunner {
 
     // Input validation: ensure script is a non-empty string
     if (typeof script !== 'string' || script.trim().length === 0) {
-      throw new Error('Shell script must be a non-empty string');
+      throw new OrionError('Shell script must be a non-empty string', ErrorCode.VALIDATION_ERROR);
     }
 
     // Reject scripts containing null bytes (can truncate strings in some contexts)
     if (script.includes('\0')) {
-      throw new Error('Shell script contains null bytes');
+      throw new OrionError('Shell script contains null bytes', ErrorCode.VALIDATION_ERROR);
     }
 
     const cwd = (task.parameters.cwd as string) || this.getTaskWorkspace(task, 'shell');
@@ -1036,7 +1037,7 @@ export class TaskRunner {
 
     // Security scan for dangerous patterns
     if (!isScriptSafe(script)) {
-      throw new Error('Script contains potentially dangerous commands');
+      throw new OrionError('Script contains potentially dangerous commands', ErrorCode.VALIDATION_ERROR);
     }
 
     // 检查 sh 是否可用
@@ -1049,7 +1050,7 @@ export class TaskRunner {
     const result = await spawnCommand('sh', ['-c', script], { cwd, timeoutMs, signal, sanitizer });
 
     if (result.exitCode !== 0) {
-      throw new Error(`Shell script failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`Shell script failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -1103,7 +1104,7 @@ export class TaskRunner {
       // Check if the plugin execution failed - throw to propagate correct FAILED status
       const statusStr = String(result.status);
       if (statusStr === 'FAILED' || statusStr === 'TIMEOUT' || statusStr === 'QUOTA_EXCEEDED' || statusStr === 'VALIDATION_FAILED') {
-        throw new Error(`Plugin execution failed: ${result.errorMessage || 'unknown error'}`);
+        throw new OrionError(`Plugin execution failed: ${result.errorMessage || 'unknown error'}`, ErrorCode.OPERATION_FAILED);
       }
 
       return {
@@ -1164,7 +1165,7 @@ export class TaskRunner {
 
       // Check if execution failed - throw to propagate correct FAILED status
       if (result.status === 'failed' || result.status === 'timeout') {
-        throw new Error(`Inline script execution failed: ${result.errorMessage || 'unknown error'}`);
+        throw new OrionError(`Inline script execution failed: ${result.errorMessage || 'unknown error'}`, ErrorCode.OPERATION_FAILED);
       }
 
       return {
@@ -1218,10 +1219,10 @@ export class TaskRunner {
     const input = (params.input as Record<string, any>) || {};
 
     if (!skillId) {
-      throw new Error('Skill task requires "skillId" parameter');
+      throw new OrionError('Skill task requires "skillId" parameter', ErrorCode.VALIDATION_ERROR);
     }
     if (!capability) {
-      throw new Error('Skill task requires "capability" parameter');
+      throw new OrionError('Skill task requires "capability" parameter', ErrorCode.VALIDATION_ERROR);
     }
 
     task = appendTaskLog(task, `[SKILL] Executing skill: ${skillId}`);
@@ -1276,7 +1277,7 @@ export class TaskRunner {
       const versions = await this.skillService.getVersions(skillId);
       const versionExists = versions.some(v => v.version === skillVersion);
       if (!versionExists) {
-        throw new Error(`Skill version ${skillVersion} not found for ${skill.name}`);
+        throw new OrionError(`Skill version ${skillVersion} not found for ${skill.name}`, ErrorCode.NOT_FOUND);
       }
       task = appendTaskLog(task, `[SKILL] Warning: Current skill version is ${skill.version}, requested ${skillVersion}`);
       // Note: In a full implementation, we would load the specific version's schema
@@ -1297,7 +1298,7 @@ export class TaskRunner {
     // 或者 schema.runtime = SkillRuntimeConfig（单运行时）
     const runtime = this.extractRuntimeConfig(skill, capability);
     if (!runtime) {
-      throw new Error(`Skill "${skill.name}" not configured for capability "${capability}"`);
+      throw new OrionError(`Skill "${skill.name}" not configured for capability "${capability}"`, ErrorCode.VALIDATION_ERROR);
     }
 
     task = appendTaskLog(task, `[SKILL] Runtime type: ${runtime.taskType}`);
@@ -1384,7 +1385,7 @@ export class TaskRunner {
       return this.executeSkillBuiltinTask(runtime.builtin, input, task);
     }
 
-    throw new Error('No runtime configured for skill task');
+    throw new OrionError('No runtime configured for skill task', ErrorCode.VALIDATION_ERROR);
   }
 
   /**
@@ -1435,13 +1436,13 @@ export class TaskRunner {
     const executor: ContainerExecutorStrategy = new DockerExecutor();
     if (!(await executor.isAvailable())) {
       task = appendTaskLog(task, `[SKILL-DOCKER] Docker not available, falling back to local`);
-      throw new Error('Docker runtime not available');
+      throw new OrionError('Docker runtime not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const result = await executor.execute(spec, cmd[0], cmd.slice(1), timeoutMs);
 
     if (result.exitCode !== 0) {
-      throw new Error(`Docker skill failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`Docker skill failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -1471,7 +1472,7 @@ export class TaskRunner {
     const { interpreter, content } = scriptConfig;
 
     if (!content) {
-      throw new Error('Script runtime requires "content" field');
+      throw new OrionError('Script runtime requires "content" field', ErrorCode.VALIDATION_ERROR);
     }
 
     const timeoutMs = timeout ? timeout * 1000 : (task.timeoutSeconds || 60) * 1000;
@@ -1483,12 +1484,12 @@ export class TaskRunner {
     const interpreterAvailable = await isCommandAvailable(interpreter);
     if (!interpreterAvailable) {
       task = appendTaskLog(task, `[SKILL-SCRIPT] ${interpreter} not available`);
-      throw new Error(`Script interpreter "${interpreter}" not available`);
+      throw new OrionError(`Script interpreter "${interpreter}" not available`, ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 安全检查
     if (!isScriptSafe(content)) {
-      throw new Error('Skill script contains potentially dangerous commands');
+      throw new OrionError('Skill script contains potentially dangerous commands', ErrorCode.VALIDATION_ERROR);
     }
 
     // 将 input 序列化为环境变量
@@ -1506,7 +1507,7 @@ export class TaskRunner {
     });
 
     if (result.exitCode !== 0) {
-      throw new Error(`Script skill failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new OrionError(`Script skill failed (exit code ${result.exitCode}): ${result.stderr}`, ErrorCode.OPERATION_FAILED);
     }
 
     return {
@@ -1557,7 +1558,7 @@ export class TaskRunner {
       }
 
       if (!response.ok) {
-        throw new Error(`API skill returned ${statusCode}: ${responseText.substring(0, 200)}`);
+        throw new OrionError(`API skill returned ${statusCode}: ${responseText.substring(0, 200)}`, ErrorCode.OPERATION_FAILED);
       }
 
       return {
@@ -1568,7 +1569,7 @@ export class TaskRunner {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`API skill call failed: ${message}`);
+      throw new OrionError(`API skill call failed: ${message}`, ErrorCode.OPERATION_FAILED);
     }
   }
 

@@ -8,6 +8,7 @@
 
 import { readFile } from 'fs/promises';
 import { createHmac, createSign } from 'crypto';
+import { OrionError, ErrorCode } from '../../errors';
 import { MarketUploader, UploadRequest, UploadResult, MarketCredentials } from './ApkMarketUploadService';
 
 /**
@@ -88,7 +89,7 @@ export class HuaweiUploader implements MarketUploader {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to get auth token: ${response.statusText}`);
+        throw new OrionError(`Failed to get auth token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
       }
 
       const data = await response.json() as any;
@@ -96,7 +97,7 @@ export class HuaweiUploader implements MarketUploader {
     } else if (creds.serviceAccount) {
       return this.getServiceAccountToken(creds);
     } else {
-      throw new Error('Invalid Huawei credentials: need either clientId/clientSecret or serviceAccount');
+      throw new OrionError('Invalid Huawei credentials: need either clientId/clientSecret or serviceAccount', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -105,7 +106,7 @@ export class HuaweiUploader implements MarketUploader {
     // 实际实现需要构建JWT assertion并签名
     const assertion = creds.serviceAccount?.assertion as string | undefined;
     if (!assertion) {
-      throw new Error('Service Account assertion is required');
+      throw new OrionError('Service Account assertion is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await fetch('https://oauth-login.cloud.huawei.com/oauth2/v3/token', {
@@ -118,7 +119,7 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get service account token: ${response.statusText}`);
+      throw new OrionError(`Failed to get service account token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -132,12 +133,12 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get app ID: ${response.statusText}`);
+      throw new OrionError(`Failed to get app ID: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
     if (!data.result || data.result.length === 0) {
-      throw new Error(`App not found for package: ${packageName}`);
+      throw new OrionError(`App not found for package: ${packageName}`, ErrorCode.NOT_FOUND);
     }
 
     return data.result[0].appId;
@@ -149,7 +150,7 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get upload URL: ${response.statusText}`);
+      throw new OrionError(`Failed to get upload URL: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -171,7 +172,7 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -192,7 +193,7 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to bind file info: ${response.statusText}`);
+      throw new OrionError(`Failed to bind file info: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -207,7 +208,7 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to update changelog: ${response.statusText}`);
+      throw new OrionError(`Failed to update changelog: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -222,7 +223,7 @@ export class HuaweiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to submit app: ${response.statusText}`);
+      throw new OrionError(`Failed to submit app: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -297,7 +298,7 @@ export class XiaomiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to query app: ${response.statusText}`);
+      throw new OrionError(`Failed to query app: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -323,7 +324,7 @@ export class XiaomiUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     return { uploadId: 'xiaomi-upload-' + Date.now() };
@@ -417,7 +418,7 @@ export class OppoUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get token: ${response.statusText}`);
+      throw new OrionError(`Failed to get token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -430,7 +431,7 @@ export class OppoUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get app info: ${response.statusText}`);
+      throw new OrionError(`Failed to get app info: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -443,7 +444,7 @@ export class OppoUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get upload URL: ${response.statusText}`);
+      throw new OrionError(`Failed to get upload URL: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -461,7 +462,7 @@ export class OppoUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -479,7 +480,7 @@ export class OppoUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to submit app: ${response.statusText}`);
+      throw new OrionError(`Failed to submit app: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -579,7 +580,7 @@ export class VivoUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     return { uploadId: 'vivo-upload-' + Date.now() };
@@ -666,7 +667,7 @@ export class HonorUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get auth token: ${response.statusText}`);
+      throw new OrionError(`Failed to get auth token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -675,7 +676,7 @@ export class HonorUploader implements MarketUploader {
 
   private async getAppId(packageName: string, _token: string): Promise<string> {
     // 通过包名查询应用ID
-    throw new Error(`App not found for package: ${packageName}. Please provide appId in credentials.`);
+    throw new OrionError(`App not found for package: ${packageName}. Please provide appId in credentials.`, ErrorCode.NOT_FOUND);
   }
 
   private async uploadApk(appId: string, apkPath: string, token: string): Promise<{ uploadId: string; fileId: string }> {
@@ -691,7 +692,7 @@ export class HonorUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -709,7 +710,7 @@ export class HonorUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to submit app: ${response.statusText}`);
+      throw new OrionError(`Failed to submit app: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -784,7 +785,7 @@ export class TencentUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get auth token: ${response.statusText}`);
+      throw new OrionError(`Failed to get auth token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -813,7 +814,7 @@ export class TencentUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -831,7 +832,7 @@ export class TencentUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to submit app: ${response.statusText}`);
+      throw new OrionError(`Failed to submit app: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -901,18 +902,18 @@ export class GooglePlayUploader implements MarketUploader {
     // 使用 Service Account JSON Key 文件获取 OAuth2 token
     // 实际实现需要读取 JSON Key 文件并构建 JWT assertion
     if (!creds.jsonKeyFile) {
-      throw new Error('Google Play requires jsonKeyFile');
+      throw new OrionError('Google Play requires jsonKeyFile', ErrorCode.VALIDATION_ERROR);
     }
 
     // 简化实现：假设已获取 access_token
     // 生产环境需要实现 OAuth2 service account flow
-    throw new Error('Google Play OAuth2 flow not yet implemented. Use a valid service account JSON key.');
+    throw new OrionError('Google Play OAuth2 flow not yet implemented. Use a valid service account JSON key.', ErrorCode.VALIDATION_ERROR);
   }
 
   private async createEdit(_token: string, packageName: string): Promise<string> {
     // 创建编辑会话
     // POST https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{packageName}/edits
-    throw new Error(`Google Play edit creation not implemented for ${packageName}`);
+    throw new OrionError(`Google Play edit creation not implemented for ${packageName}`, ErrorCode.VALIDATION_ERROR);
   }
 
   private async uploadApk(editId: string, apkPath: string, token: string, packageName: string): Promise<{ uploadId: string; versionCode: number }> {
@@ -928,7 +929,7 @@ export class GooglePlayUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -954,7 +955,7 @@ export class GooglePlayUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to assign track: ${response.statusText}`);
+      throw new OrionError(`Failed to assign track: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -965,7 +966,7 @@ export class GooglePlayUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to commit edit: ${response.statusText}`);
+      throw new OrionError(`Failed to commit edit: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -1040,7 +1041,7 @@ export class SamsungUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get auth token: ${response.statusText}`);
+      throw new OrionError(`Failed to get auth token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -1069,7 +1070,7 @@ export class SamsungUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     const data = await response.json() as any;
@@ -1087,7 +1088,7 @@ export class SamsungUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to submit app: ${response.statusText}`);
+      throw new OrionError(`Failed to submit app: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -1154,7 +1155,7 @@ export class PgyerUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get upload token: ${response.statusText}`);
+      throw new OrionError(`Failed to get upload token: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     return response.json();
@@ -1166,7 +1167,7 @@ export class PgyerUploader implements MarketUploader {
     const key = token.data?.key || token.key;
 
     if (!uploadUrl || !key) {
-      throw new Error('Invalid COS upload token: missing endpoint or key');
+      throw new OrionError('Invalid COS upload token: missing endpoint or key', ErrorCode.VALIDATION_ERROR);
     }
 
     const formData = new FormData();
@@ -1179,7 +1180,7 @@ export class PgyerUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload to COS: ${response.statusText}`);
+      throw new OrionError(`Failed to upload to COS: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     return { uploadId: 'pgyer-upload-' + Date.now() };
@@ -1274,7 +1275,7 @@ export class FirUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get upload info: ${response.statusText}`);
+      throw new OrionError(`Failed to get upload info: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     return response.json();
@@ -1291,7 +1292,7 @@ export class FirUploader implements MarketUploader {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload APK: ${response.statusText}`);
+      throw new OrionError(`Failed to upload APK: ${response.statusText}`, ErrorCode.OPERATION_FAILED);
     }
 
     return { uploadId: 'fir-upload-' + Date.now() };
