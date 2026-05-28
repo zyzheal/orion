@@ -30,11 +30,11 @@ const tooltipTheme = {
 // CSS 样式覆盖 - 确保 Tooltip 背景为白色
 const tooltipStyles = `
   .dag-tooltip .ant-tooltip-inner {
-    background-color: #ffffff !important;
-    color: #1f1f1f !important;
+    background-color: colors.neutral[0] !important;
+    color: colors.neutral[900] !important;
   }
   .dag-tooltip .ant-tooltip-arrow::before {
-    background-color: #ffffff !important;
+    background-color: colors.neutral[0] !important;
   }
 `;
 import dayjs from 'dayjs';
@@ -120,7 +120,7 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
       color={colors.neutral[0]}
       title={
         <div style={{ minWidth: 160 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid #f0f0f0` }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid colors.neutral[200]` }}>
             <Space size={6}>
               <Badge
                 count={data.index + 1}

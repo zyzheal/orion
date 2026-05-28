@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Space, Button, Modal, message, Tag } from 'antd';
 import { CheckOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
 import { batchUpdatePipelines } from '@/api/pipelines';
+import { colors } from '@/tokens';
 
 interface BatchActionsProps {
   selectedIds: string[];
@@ -49,7 +50,7 @@ const BatchActions: React.FC<BatchActionsProps> = ({ selectedIds, onRefresh, onC
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '8px 16px',
-      background: '#f0f5ff',
+      background: colors.primary[50],
       borderRadius: 6,
       marginBottom: 12,
     }}>

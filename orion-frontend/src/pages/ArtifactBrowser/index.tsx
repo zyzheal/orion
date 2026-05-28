@@ -326,7 +326,7 @@ const ArtifactBrowser: React.FC = () => {
                 alignItems: 'center',
                 gap: 4,
                 padding: '4px 12px',
-                border: '1px solid #d9d9d9',
+                border: '1px solid colors.neutral[300]',
                 borderRadius: 4,
                 background: colors.neutral[0],
                 cursor: 'pointer',

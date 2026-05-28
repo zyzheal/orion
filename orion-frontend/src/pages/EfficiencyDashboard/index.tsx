@@ -607,7 +607,7 @@ const EfficiencyDashboard: React.FC = () => {
               key={index}
               style={{
                 padding: '16px 0',
-                borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid #f0f0f0' : 'none',
+                borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid colors.neutral[200]' : 'none',
               }}
             >
               <Title level={5} style={{ marginBottom: 8 }}>

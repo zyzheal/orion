@@ -213,7 +213,7 @@ const ModuleEditor: React.FC<{
   return (
     <div
       style={{
-        background: isDark ? 'rgba(255,255,255,0.03)' : '#fafbfc',
+        background: isDark ? 'rgba(255,255,255,0.03)' : 'colors.neutral[50]',
         borderRadius: 10,
         padding: 16,
         marginBottom: 12,
@@ -285,7 +285,7 @@ const ModuleEditor: React.FC<{
                     ? colors.primary
                     : child.enabled
                       ? isDark ? 'rgba(51,112,230,0.2)' : 'rgba(51,112,230,0.15)'
-                      : isDark ? 'rgba(255,255,255,0.05)' : '#e8e8e8'}`,
+                      : isDark ? 'rgba(255,255,255,0.05)' : 'colors.neutral[200]'}`,
                   transition: 'all 0.2s',
                   opacity: child.enabled ? 1 : 0.5,
                   cursor: 'grab',

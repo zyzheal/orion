@@ -126,7 +126,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
       hoverable
       onClick={() => handleSelect(plugin)}
       style={{
-        border: selectedPlugin?.id === plugin.id ? '2px solid #1890ff' : undefined,
+        border: selectedPlugin?.id === plugin.id ? '2px solid colors.primary[500]' : undefined,
         cursor: 'pointer',
       }}
     >

@@ -83,7 +83,7 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
                   style={{
                     padding: '8px 12px',
                     marginBottom: 8,
-                    background: color === 'green' ? colors.success[50] : color === 'red' ? '#fff2f0' : '#f0f5ff',
+                    background: color === 'green' ? colors.success[50] : color === 'red' ? '#fff2f0' : 'colors.primary[50]',
                     borderRadius: 4,
                     borderLeft: `3px solid ${color === 'green' ? colors.success[500] : color === 'red' ? colors.error[500] : colors.primary[500]}`,
                   }}

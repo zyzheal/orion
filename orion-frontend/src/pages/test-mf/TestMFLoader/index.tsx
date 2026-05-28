@@ -267,7 +267,7 @@ const TestMFLoader: React.FC = () => {
           style={{
             marginTop: 16,
             minHeight: 200,
-            border: '1px dashed #d9d9d9',
+            border: '1px dashed colors.neutral[300]',
             borderRadius: 8,
             padding: 16,
             display: 'flex',
@@ -290,10 +290,10 @@ const Alert: React.FC<{
   children: React.ReactNode;
 }> = ({ type, children }) => {
   const colors = {
-    info: { bg: '#e6f7ff', border: '#91d5ff', text: '#096dd9' },
-    warning: { bg: '#fffbe6', border: '#ffe58f', text: '#d48806' },
-    error: { bg: '#fff1f0', border: '#ffa39e', text: '#cf1322' },
-    success: { bg: '#f6ffed', border: '#b7eb8f', text: '#389e0d' },
+    info: { bg: '#e6f7ff', border: '#91d5ff', text: colors.info[600] },
+    warning: { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[600] },
+    error: { bg: colors.error[50], border: colors.error[200], text: colors.error[600] },
+    success: { bg: colors.success[50], border: colors.success[200], text: colors.success[600] },
   };
   const style = colors[type];
 

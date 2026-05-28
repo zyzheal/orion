@@ -121,7 +121,7 @@ function CardPanel({
       }}
       styles={{
         header: {
-          borderBottom: '1px solid var(--border-light, #f0f0f0)',
+          borderBottom: '1px solid var(--border-light, colors.neutral[200])',
           ...headerStyle,
         },
         body: {

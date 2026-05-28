@@ -125,7 +125,7 @@ function OrionTimeline({
               style={{
                 fontWeight: 500,
                 fontSize: 14,
-                color: 'var(--text-primary, #1f1f1f)',
+                color: 'var(--text-primary, colors.neutral[900])',
               }}
             >
               {event.title}
@@ -139,7 +139,7 @@ function OrionTimeline({
           <div
             style={{
               fontSize: 12,
-              color: 'var(--text-tertiary, #8c8c8c)',
+              color: 'var(--text-tertiary, colors.neutral[500])',
               marginBottom: event.description ? 4 : 0,
             }}
           >
@@ -151,7 +151,7 @@ function OrionTimeline({
             <div
               style={{
                 fontSize: 13,
-                color: 'var(--text-secondary, #434343)',
+                color: 'var(--text-secondary, colors.neutral[700])',
                 lineHeight: 1.5,
               }}
             >

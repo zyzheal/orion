@@ -147,10 +147,10 @@ function MetricCard({
       data-testid="metric-card"
       onClick={onClick}
       style={{
-        background: 'var(--bg-elevated, #ffffff)',
+        background: 'var(--bg-elevated, colors.neutral[0])',
         borderRadius: 'var(--radius-lg, 8px)',
         padding: sizeConfig.padding,
-        border: '1px solid var(--border-light, #f0f0f0)',
+        border: '1px solid var(--border-light, colors.neutral[200])',
         boxShadow: 'var(--shadow-card, 0 1px 2px rgba(0,0,0,0.03))',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.2s ease',
@@ -187,7 +187,7 @@ function MetricCard({
             style={{
               width: 24,
               height: 24,
-              border: '3px solid #f0f0f0',
+              border: '3px solid colors.neutral[200]',
               borderTopColor: colors.primary[500],
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
@@ -208,7 +208,7 @@ function MetricCard({
         <span
           style={{
             fontSize: sizeConfig.titleSize,
-            color: 'var(--text-secondary, #595959)',
+            color: 'var(--text-secondary, colors.neutral[600])',
             fontWeight: 500,
             display: 'flex',
             alignItems: 'center',
@@ -219,7 +219,7 @@ function MetricCard({
           {title}
           {tooltip && (
             <Tooltip title={tooltip} placement="top">
-              <InfoCircleOutlined style={{ fontSize: 12, color: 'var(--text-tertiary, #8c8c8c)', cursor: 'help' }} />
+              <InfoCircleOutlined style={{ fontSize: 12, color: 'var(--text-tertiary, colors.neutral[500])', cursor: 'help' }} />
             </Tooltip>
           )}
         </span>
@@ -239,7 +239,7 @@ function MetricCard({
           style={{
             fontSize: sizeConfig.valueSize,
             fontWeight: 700,
-            color: 'var(--text-primary, #1f1f1f)',
+            color: 'var(--text-primary, colors.neutral[900])',
             lineHeight: 1.2,
           }}
           data-testid="metric-value"
@@ -250,7 +250,7 @@ function MetricCard({
           <span
             style={{
               fontSize: sizeConfig.titleSize,
-              color: 'var(--text-tertiary, #8c8c8c)',
+              color: 'var(--text-tertiary, colors.neutral[500])',
               fontWeight: 400,
             }}
             data-testid="metric-unit"
@@ -286,9 +286,9 @@ function MetricCard({
           style={{
             marginTop: 12,
             paddingTop: 12,
-            borderTop: '1px solid var(--border-light, #f0f0f0)',
+            borderTop: '1px solid var(--border-light, colors.neutral[200])',
             fontSize: 12,
-            color: 'var(--text-tertiary, #8c8c8c)',
+            color: 'var(--text-tertiary, colors.neutral[500])',
           }}
         >
           {footer}

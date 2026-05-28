@@ -95,7 +95,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
           color: getStatusColor(step.status),
           children: (
             <div
-              style={{ cursor: 'pointer', padding: '4px 8px', background: selectedStep?.id === step.id ? '#f0f5ff' : 'transparent' }}
+              style={{ cursor: 'pointer', padding: '4px 8px', background: selectedStep?.id === step.id ? 'colors.primary[50]' : 'transparent' }}
               onClick={() => setSelectedStep(step)}
             >
               <strong>{step.stepName}</strong>
@@ -114,7 +114,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
           {selectedStep.durationMs && <p><strong>Duration:</strong> {formatDuration(selectedStep.durationMs)}</p>}
           {selectedStep.errorMessage && <p><strong>Error:</strong> {selectedStep.errorMessage}</p>}
           {diagnosis && (
-            <div style={{ marginTop: 8, padding: 8, background: '#f0f5ff', borderRadius: 4 }}>
+            <div style={{ marginTop: 8, padding: 8, background: colors.primary[50], borderRadius: 4 }}>
               <h5>AI Diagnosis</h5>
               <p><strong>Root Cause:</strong> {diagnosis.rootCause}</p>
               <p><strong>Suggested Fix:</strong> {diagnosis.suggestedFix}</p>

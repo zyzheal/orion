@@ -45,7 +45,7 @@ const riskLevelMap: Record<RiskLevel, { label: string; color: string }> = {
   1: { label: '低风险', color: colors.primary[500] },
   2: { label: '中风险', color: colors.warning[500] },
   3: { label: '高风险', color: colors.error[400] },
-  4: { label: '极高风险', color: '#b50a0a' },
+  4: { label: '极高风险', color: colors.error[700] },
 };
 
 // ---- 审批模式映射 ----

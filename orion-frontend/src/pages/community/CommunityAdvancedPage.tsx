@@ -84,8 +84,8 @@ const CommunityAdvancedPage: React.FC = () => {
   const getBadgeColor = (level: string) => {
     switch (level) {
       case 'platinum': return '#e5e4e2';
-      case 'gold': return '#ffd700';
-      case 'silver': return '#c0c0c0';
+      case 'gold': return 'colors.warning[400]';
+      case 'silver': return 'colors.neutral[400]';
       case 'bronze': return '#cd7f32';
       default: return colors.neutral[300];
     }

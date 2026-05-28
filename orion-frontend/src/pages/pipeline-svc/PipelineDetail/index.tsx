@@ -516,7 +516,7 @@ const PipelineDetail: React.FC = () => {
                       color: stageStatusColors[stage.status],
                       fontWeight: 600,
                       marginBottom: 8,
-                      borderBottom: '1px solid #333',
+                      borderBottom: '1px solid colors.neutral[800]',
                       paddingBottom: 4,
                     }}
                   >

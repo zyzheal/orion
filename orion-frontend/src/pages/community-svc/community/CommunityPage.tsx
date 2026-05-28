@@ -73,8 +73,8 @@ const statusLabelMap: Record<string, string> = {
 
 const badgeLevelColor: Record<string, string> = {
   bronze: '#cd7f32',
-  silver: '#c0c0c0',
-  gold: '#ffd700',
+  silver: colors.neutral[400],
+  gold: colors.warning[400],
   platinum: '#e5e4e2',
 };
 

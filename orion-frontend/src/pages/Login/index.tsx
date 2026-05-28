@@ -252,7 +252,7 @@ const Login: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#fafbfc',
+          background: colors.neutral[50],
           position: 'relative',
         }}
       >

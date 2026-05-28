@@ -757,7 +757,7 @@ const NotificationCenter: React.FC = () => {
 
       {/* Pagination - Bottom */}
       {total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24, marginBottom: 16, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24, marginBottom: 16, padding: '16px 0', borderTop: '1px solid colors.neutral[200]' }}>
           <Pagination
             current={currentPage}
             total={total}
