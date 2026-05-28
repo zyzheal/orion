@@ -7,7 +7,15 @@
  * - 构建依赖图
  * - 检测循环依赖
  * - 获取拓扑排序顺序
+ *
+ * GAP-11: Added PostgreSQL persistence via PipelineDependencyRepository.
+ * Graceful degradation: works with or without a repository.
  */
+
+import { PipelineDependencyRepository } from '../../repositories/PipelineDependencyRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'dependency-coordination-service' });
 
 export interface PipelineDependency {
   pipelineId: string;
@@ -35,7 +43,15 @@ export interface PipelineResult {
 }
 
 export class DependencyCoordinationService {
+  private repository: PipelineDependencyRepository | null = null;
+  // In-memory fallback for tests and environments without DB
   private dependencies: Map<string, PipelineDependency> = new Map();
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new PipelineDependencyRepository(db);
+    }
+  }
 
   /**
    * 注册pipeline依赖关系
@@ -46,18 +62,42 @@ export class DependencyCoordinationService {
     requiredInputs?: Record<string, unknown>,
     blockingStatus?: ('success' | 'failed' | 'any')[]
   ): Promise<void> {
-    this.dependencies.set(pipelineId, {
+    const dep: PipelineDependency = {
       pipelineId,
       dependsOn,
       requiredInputs: requiredInputs || {},
       blockingStatus: blockingStatus || ['success'],
-    });
+    };
+
+    // Persist to database if repository available
+    if (this.repository) {
+      try {
+        await this.repository.upsertDependency(
+          pipelineId,
+          dependsOn,
+          'sequential',
+          'default'
+        );
+      } catch (err) {
+        logger.warn({ err, pipelineId }, 'Failed to persist dependency to database');
+      }
+    }
+
+    // Always keep in-memory for fast access
+    this.dependencies.set(pipelineId, dep);
   }
 
   /**
    * 注销pipeline依赖关系
    */
   async unregisterDependency(pipelineId: string): Promise<boolean> {
+    if (this.repository) {
+      try {
+        await this.repository.deleteByPipelineId(pipelineId);
+      } catch (err) {
+        logger.warn({ err, pipelineId }, 'Failed to delete dependency from database');
+      }
+    }
     return this.dependencies.delete(pipelineId);
   }
 
@@ -65,13 +105,55 @@ export class DependencyCoordinationService {
    * 获取指定pipeline的依赖信息
    */
   async getDependency(pipelineId: string): Promise<PipelineDependency | undefined> {
-    return this.dependencies.get(pipelineId);
+    // Try in-memory first
+    const cached = this.dependencies.get(pipelineId);
+    if (cached) return cached;
+
+    // Fallback to database
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findByPipelineId(pipelineId);
+        if (entity) {
+          const dep: PipelineDependency = {
+            pipelineId: entity.pipelineId,
+            dependsOn: entity.dependsOn,
+            requiredInputs: {},
+            blockingStatus: ['success'],
+          };
+          // Cache in memory
+          this.dependencies.set(pipelineId, dep);
+          return dep;
+        }
+      } catch (err) {
+        logger.warn({ err, pipelineId }, 'Failed to load dependency from database');
+      }
+    }
+
+    return undefined;
   }
 
   /**
    * 获取所有已注册的依赖
    */
   async getAllDependencies(): Promise<PipelineDependency[]> {
+    // If we have a repository, try to load all from DB
+    if (this.repository) {
+      try {
+        const entities = await this.repository.findByTenantId('default');
+        for (const entity of entities) {
+          if (!this.dependencies.has(entity.pipelineId)) {
+            this.dependencies.set(entity.pipelineId, {
+              pipelineId: entity.pipelineId,
+              dependsOn: entity.dependsOn,
+              requiredInputs: {},
+              blockingStatus: ['success'],
+            });
+          }
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Failed to load dependencies from database');
+      }
+    }
     return Array.from(this.dependencies.values());
   }
 
