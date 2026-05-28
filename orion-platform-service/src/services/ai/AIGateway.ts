@@ -187,7 +187,7 @@ export class AIGateway {
       if (request.options?.fallbackEnabled !== false) {
         return this.handleDegradation<T>(request, dualCircuitState.degradationReason || 'dual_circuit_triggered');
       }
-      throw new Error(`Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`);
+      throw new OrionError('OPERATION_FAILED', `Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`)
     }
 
     // 如果有建议的 Provider（Provider 级熔断后自动降级）

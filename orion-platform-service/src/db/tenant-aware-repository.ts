@@ -135,7 +135,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     // 验证标识符
     const validIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
     if (!validIdentifier.test(orderBy)) {
-      throw new Error(`Invalid order by column: ${orderBy}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid order by column: ${orderBy}`)
     }
     const validatedOrderDir = orderDir === 'ASC' ? 'ASC' : 'DESC';
 
@@ -146,7 +146,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     // 添加其他 WHERE 条件
     for (const [key, value] of Object.entries(where)) {
       if (!validIdentifier.test(key)) {
-        throw new Error(`Invalid where column: ${key}`);
+        throw new OrionError('VALIDATION_ERROR', `Invalid where column: ${key}`)
       }
       if (value !== undefined && value !== null) {
         query += ` AND ${key} = $${paramIndex}`;
@@ -209,7 +209,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     const validIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
     for (const col of columns) {
       if (!validIdentifier.test(col)) {
-        throw new Error(`Invalid column name: ${col}`);
+        throw new OrionError('VALIDATION_ERROR', `Invalid column name: ${col}`)
       }
     }
 
@@ -218,7 +218,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     const result = await this.db.query(query, [...values, id, tenantId]);
 
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on ${this.tableName} affected no rows (id: ${id}, tenant_id: ${tenantId}) - possible tenant mismatch`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on ${this.tableName} affected no rows (id: ${id}, tenant_id: ${tenantId}) - possible tenant mismatch`)
     }
 
     return this.mapRowToEntity(result.rows[0]);

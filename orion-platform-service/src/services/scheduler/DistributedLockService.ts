@@ -91,7 +91,7 @@ export class DistributedLockService {
       }
     }
 
-    throw new Error(`Failed to acquire lock after ${retryCount} attempts: ${lastError?.message || 'Unknown error'}`);
+    throw new OrionError('NOT_FOUND', `Failed to acquire lock after ${retryCount} attempts: ${lastError?.message || 'Unknown error'}`)
   }
 
   /**

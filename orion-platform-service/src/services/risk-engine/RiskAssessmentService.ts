@@ -8,6 +8,7 @@
 
 import pino from 'pino';
 import { RiskPredictionRepository, RiskPredictionEntity, CreatePredictionInput } from '../../repositories/RiskPredictionRepository';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -409,7 +410,7 @@ export class RiskAssessmentService {
 
     for (const feature of requiredFeatures) {
       if (features[feature] === undefined || features[feature] === null) {
-        throw new Error(`Missing required feature: ${feature}`);
+        throw new OrionError('NOT_FOUND', `Missing required feature: ${feature}`)
       }
     }
   }

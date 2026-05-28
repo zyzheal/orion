@@ -402,7 +402,7 @@ export class ConfigDriftDetector {
     }
 
     if (report.driftStatus !== 'drift_detected') {
-      throw new Error(`Can only remediate drift in 'drift_detected' state (current: ${report.driftStatus})`);
+      throw new OrionError('OPERATION_FAILED', `Can only remediate drift in 'drift_detected' state (current: ${report.driftStatus})`)
     }
 
     report.driftStatus = 'remediating';

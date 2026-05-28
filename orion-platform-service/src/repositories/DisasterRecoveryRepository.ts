@@ -173,7 +173,7 @@ export class DisasterRecoveryRepository {
     const query = `UPDATE disaster_recovery_plans SET ${setClauses.join(', ')} WHERE id = $${idParam} AND tenant_id = $${tenantParam} RETURNING *`;
     const result = await this.db.query(query, params);
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on disaster_recovery_plans affected no rows (id: ${id})`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on disaster_recovery_plans affected no rows (id: ${id})`)
     }
     return result.rows[0];
   }
@@ -272,7 +272,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on dr_failover_tests affected no rows (id: ${input.id})`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on dr_failover_tests affected no rows (id: ${input.id})`)
     }
     return result.rows[0];
   }
@@ -385,7 +385,7 @@ export class DisasterRecoveryRepository {
     const query = `UPDATE backup_configs SET ${setClauses.join(', ')} WHERE id = $${idParam} AND tenant_id = $${tenantParam} RETURNING *`;
     const result = await this.db.query(query, params);
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on backup_configs affected no rows (id: ${id})`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on backup_configs affected no rows (id: ${id})`)
     }
     return result.rows[0];
   }

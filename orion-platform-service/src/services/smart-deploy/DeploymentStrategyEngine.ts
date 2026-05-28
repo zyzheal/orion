@@ -10,6 +10,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import {
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'LDeployment-LStrategy-LEngine' });
   DeploymentStrategyConfig,
@@ -91,7 +92,7 @@ export class DeploymentStrategyEngine {
           healthCheckConfig
         );
       default:
-        throw new Error(`Unknown deployment strategy: ${strategyType}`);
+        throw new OrionError('NOT_FOUND', `Unknown deployment strategy: ${strategyType}`)
     }
   }
 

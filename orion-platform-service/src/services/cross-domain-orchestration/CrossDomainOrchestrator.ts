@@ -467,9 +467,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (orchestration.status !== 'pending' && orchestration.status !== 'paused') {
-      throw new Error(
-        `Orchestration cannot be executed in '${orchestration.status}' state. Must be 'pending' or 'paused'.`
-      );
+      throw new OrionError('VALIDATION_ERROR', `Orchestration cannot be executed in '${orchestration.status}' state. Must be 'pending' or 'paused'.`);
     }
 
     orchestration.status = 'running';

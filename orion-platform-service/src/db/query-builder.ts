@@ -1,9 +1,10 @@
+import { OrionError } from '../errors';
 // Valid SQL identifier pattern (alphanumeric + underscore, not starting with digit)
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 function validateIdentifier(name: string, label: string): void {
   if (!VALID_IDENTIFIER.test(name)) {
-    throw new Error(`Invalid ${label}: ${name}`);
+    throw new OrionError('VALIDATION_ERROR', `Invalid ${label}: ${name}`)
   }
 }
 

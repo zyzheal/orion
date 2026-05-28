@@ -98,7 +98,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     case 'run_command': {
       const command = (input.command as string) || 'echo hello';
       if (isCommandBlocked(command)) {
-        throw new Error(`Command "${command}" is forbidden`);
+        throw new OrionError('VALIDATION_ERROR', `Command "${command}" is forbidden`)
       }
       output = {
         success: true,
@@ -115,7 +115,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     case 'write_code': {
       const filePath = (input.filePath as string) || '/tmp/agent-output.ts';
       if (isPathBlocked(filePath)) {
-        throw new Error(`Write to "${filePath}" is blocked`);
+        throw new OrionError('OPERATION_FAILED', `Write to "${filePath}" is blocked`)
       }
       const content = (input.content as string) || '// Agent generated code';
       output = {
@@ -148,7 +148,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     }
 
     default:
-      throw new Error(`Unknown action: ${action}`);
+      throw new OrionError('NOT_FOUND', `Unknown action: ${action}`)
   }
 
   return { output, durationMs: Date.now() - startTime };

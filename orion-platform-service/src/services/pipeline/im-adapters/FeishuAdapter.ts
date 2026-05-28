@@ -6,6 +6,7 @@
  */
 
 import { IMAdapter, IMNotificationConfig, IMNotificationPayload } from '../IMNotifier';
+import { OrionError } from '../../../errors';
 
 export class FeishuAdapter implements IMAdapter {
   readonly platformType = 'feishu' as const;
@@ -56,12 +57,12 @@ export class FeishuAdapter implements IMAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(`Feishu webhook returned status ${response.status}: ${response.statusText}`);
+      throw new OrionError('OPERATION_FAILED', `Feishu webhook returned status ${response.status}: ${response.statusText}`)
     }
 
     const result = await response.json() as Record<string, unknown>;
     if (result.code !== undefined && result.code !== 0) {
-      throw new Error(`Feishu API error: ${JSON.stringify(result)}`);
+      throw new OrionError('OPERATION_FAILED', `Feishu API error: ${JSON.stringify(result)}`)
     }
   }
 

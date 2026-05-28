@@ -235,15 +235,13 @@ export class HealingDecisionMaker {
     }
 
     if (request.status !== 'pending') {
-      throw new Error(
-        `Approval request '${requestId}' is already ${request.status}`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Approval request is not pending');
     }
 
     // Check expiration
     if (request.expiresAt && new Date() > request.expiresAt) {
       request.status = 'expired';
-      throw new Error(`Approval request '${requestId}' has expired`);
+      throw new OrionError('OPERATION_FAILED', `Approval request '${requestId}' has expired`)
     }
 
     request.status = response.approved ? 'approved' : 'rejected';

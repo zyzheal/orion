@@ -1111,7 +1111,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (workflow.status !== 'active') {
-      throw new Error(`Cannot pause workflow with status: ${workflow.status}`);
+      throw new OrionError('OPERATION_FAILED', `Cannot pause workflow with status: ${workflow.status}`)
     }
 
     workflow.status = 'paused';
@@ -1136,7 +1136,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (workflow.status !== 'paused') {
-      throw new Error(`Cannot resume workflow with status: ${workflow.status}`);
+      throw new OrionError('OPERATION_FAILED', `Cannot resume workflow with status: ${workflow.status}`)
     }
 
     workflow.status = 'active';

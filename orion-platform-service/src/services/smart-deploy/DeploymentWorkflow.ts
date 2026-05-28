@@ -260,9 +260,7 @@ export class DeploymentWorkflow {
     }
 
     if (stageIndex < 0 || stageIndex >= deployment.stages.length) {
-      throw new Error(
-        `Stage index ${stageIndex} out of range. Valid range: 0-${deployment.stages.length - 1}`
-      );
+      throw new OrionError('OPERATION_FAILED', `Stage index ${stageIndex} out of range. Valid range: 0-${deployment.stages.length - 1}`);
     }
 
     const stage = deployment.stages[stageIndex];

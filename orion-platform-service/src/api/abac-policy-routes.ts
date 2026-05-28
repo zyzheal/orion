@@ -49,31 +49,31 @@ function validateConditionRule(rule: ConditionRule, path = 'root'): void {
   // 如果是叶子节点，必须有 condition
   if (!rule.and && !rule.or && !rule.not) {
     if (!rule.condition) {
-      throw new Error(`Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`);
+      throw new OrionError('OPERATION_FAILED', `Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`)
     }
     const cond = rule.condition;
     if (!cond.attribute || typeof cond.attribute !== 'string') {
-      throw new Error(`Condition at ${path}: attribute must be a non-empty string`);
+      throw new OrionError('VALIDATION_ERROR', `Condition at ${path}: attribute must be a non-empty string`)
     }
     const validOperators = ['equals', 'not_equals', 'in', 'not_in', 'contains', 'gt', 'lt', 'gte', 'lte', 'regex', 'match'];
     if (!cond.operator || !validOperators.includes(cond.operator)) {
-      throw new Error(`Condition at ${path}: operator must be one of ${validOperators.join(', ')}`);
+      throw new OrionError('VALIDATION_ERROR', `Condition at ${path}: operator must be one of ${validOperators.join(', ')}`)
     }
     if (cond.value === undefined) {
-      throw new Error(`Condition at ${path}: value is required`);
+      throw new OrionError('VALIDATION_ERROR', `Condition at ${path}: value is required`)
     }
   }
 
   // 递归验证组合规则
   if (rule.and) {
     if (!Array.isArray(rule.and) || rule.and.length === 0) {
-      throw new Error(`'and' at ${path} must be a non-empty array`);
+      throw new OrionError('VALIDATION_ERROR', `'and' at ${path} must be a non-empty array`)
     }
     rule.and.forEach((sub, i) => validateConditionRule(sub, `${path}.and[${i}]`));
   }
   if (rule.or) {
     if (!Array.isArray(rule.or) || rule.or.length === 0) {
-      throw new Error(`'or' at ${path} must be a non-empty array`);
+      throw new OrionError('VALIDATION_ERROR', `'or' at ${path} must be a non-empty array`)
     }
     rule.or.forEach((sub, i) => validateConditionRule(sub, `${path}.or[${i}]`));
   }

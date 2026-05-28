@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuditLogChain } from './AuditLogChain';
 import { ImmutableAuditStorage } from './ImmutableAuditStorage';
 import {
+import { OrionError } from '../../errors';
   IntegrityReport,
   IntegrityIssue,
   ChainVerificationResult,
@@ -379,7 +380,7 @@ export class AuditIntegrityVerifier extends EventEmitter {
       });
 
       if (!response.ok) {
-        throw new Error(`Webhook returned ${response.status}`);
+        throw new OrionError('OPERATION_FAILED', `Webhook returned ${response.status}`)
       }
 
       logger.info({ alertId: alert.id }, 'Webhook alert sent successfully');

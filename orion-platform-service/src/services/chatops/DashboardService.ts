@@ -98,7 +98,7 @@ export class DashboardService {
         return { start, end };
       }
       default:
-        throw new Error(`invalid time range: ${(params as any).range}`);
+        throw new OrionError('VALIDATION_ERROR', `invalid time range: ${(params as any).range}`)
     }
   }
 

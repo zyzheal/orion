@@ -14,6 +14,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabasePool } from '../database';
 import { BaseRepository } from '../../db/base-repository';
+import { OrionError } from '../../errors';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ export class DRPolicyRepository extends BaseRepository<DRPolicy> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error(`INSERT into disaster_recovery_policies returned no rows`);
+      throw new OrionError('OPERATION_FAILED', `INSERT into disaster_recovery_policies returned no rows`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

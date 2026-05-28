@@ -7,6 +7,7 @@ import pino from 'pino';
 import { GitLabAdapter } from './GitLabAdapter';
 import { GitLabClient } from '../../clients/GitLabClient';
 import { GitHubClient } from '../../clients/GitHubClient';
+import { OrionError } from '../../errors';
 
 // Local type definitions (not yet in types.ts)
 export enum CommitStatus {
@@ -92,7 +93,7 @@ export class CommitStatusService {
           await this.createGitHubStatus(input);
           break;
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
       }
       
       logger.info({
@@ -123,7 +124,7 @@ export class CommitStatusService {
         case GitProvider.GITHUB:
           return await this.getGitHubStatus(query);
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
       }
     } catch (error) {
       logger.error({
@@ -147,7 +148,7 @@ export class CommitStatusService {
         case GitProvider.GITHUB:
           return await this.getGitHubStatusDetail(query);
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
       }
     } catch (error) {
       logger.error({
@@ -195,7 +196,7 @@ export class CommitStatusService {
           await this.deleteGitHubStatus(query);
           break;
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
       }
       
       logger.info({
@@ -290,7 +291,7 @@ export class CommitStatusService {
 
     const state = gitlabStateMap[input.state];
     if (!state) {
-      throw new Error(`Unsupported state for GitLab: ${input.state}`);
+      throw new OrionError('VALIDATION_ERROR', `Unsupported state for GitLab: ${input.state}`)
     }
 
     await this.gitLabClient.createCommitStatus({
@@ -316,7 +317,7 @@ export class CommitStatusService {
 
     const state = githubStateMap[input.state];
     if (!state) {
-      throw new Error(`Unsupported state for GitHub: ${input.state}`);
+      throw new OrionError('VALIDATION_ERROR', `Unsupported state for GitHub: ${input.state}`)
     }
 
     await this.githubClient.createCommitStatus({
@@ -548,7 +549,7 @@ export class CommitStatusService {
           await this.postGitLabComment(repositoryId, prNumber, comment);
           break;
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
       }
 
       logger.info(
@@ -585,7 +586,7 @@ export class CommitStatusService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+      throw new OrionError('OPERATION_FAILED', `GitHub API error: ${response.status} - ${errorText}`)
     }
   }
 
@@ -608,7 +609,7 @@ export class CommitStatusService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+      throw new OrionError('OPERATION_FAILED', `GitLab API error: ${response.status} - ${errorText}`)
     }
   }
 
@@ -669,7 +670,7 @@ export class CommitStatusService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub Check Run API error: ${response.status} - ${errorText}`);
+        throw new OrionError('OPERATION_FAILED', `GitHub Check Run API error: ${response.status} - ${errorText}`)
       }
 
       const result = (await response.json()) as { id: number };
@@ -742,7 +743,7 @@ export class CommitStatusService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub Check Run API error: ${response.status} - ${errorText}`);
+        throw new OrionError('OPERATION_FAILED', `GitHub Check Run API error: ${response.status} - ${errorText}`)
       }
 
       logger.info(

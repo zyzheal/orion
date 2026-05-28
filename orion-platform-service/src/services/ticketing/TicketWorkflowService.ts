@@ -140,7 +140,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist ticket to repository: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
 
     // Update cache
@@ -194,7 +194,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository list failed: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
   }
 
@@ -240,7 +240,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist update: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
 
     const updated = { ...existing, ...updates, updatedAt: new Date() };
@@ -305,7 +305,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist workflow history: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
 
     // Update SLA tracking on resolution
@@ -315,7 +315,7 @@ export class TicketWorkflowService {
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to update SLA: ${err}`;
         logger.error(message);
-        throw new Error(message);
+        throw new OrionError('OPERATION_FAILED', message);
       }
     }
 
@@ -329,7 +329,7 @@ export class TicketWorkflowService {
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to reset SLA: ${err}`;
         logger.error(message);
-        throw new Error(message);
+        throw new OrionError('OPERATION_FAILED', message);
       }
     }
 
@@ -388,7 +388,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist assignment: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
 
     this.ticketsCache.set(ticketId, ticket);
@@ -503,7 +503,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist escalation: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
 
     return { ticket };
@@ -589,7 +589,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
   }
 
@@ -602,7 +602,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
   }
 
@@ -636,7 +636,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getTicketSLA failed: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
   }
 
@@ -649,7 +649,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
   }
 
@@ -707,7 +707,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository count failed: ${err}`;
       logger.error(message);
-      throw new Error(message);
+      throw new OrionError('OPERATION_FAILED', message);
     }
   }
 

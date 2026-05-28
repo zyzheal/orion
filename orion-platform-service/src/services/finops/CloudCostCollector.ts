@@ -8,6 +8,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import {
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'LCloud-LCost-LCollector' });
   CloudResource,
@@ -243,7 +244,7 @@ export class CloudCostCollector {
   ): Promise<CloudResource[]> {
     const adapter = this.getAdapter(provider);
     if (!adapter) {
-      throw new Error(`No adapter registered for provider: ${provider}`);
+      throw new OrionError('OPERATION_FAILED', `No adapter registered for provider: ${provider}`)
     }
 
     const resources = await adapter.collectCosts(startDate, endDate);

@@ -202,7 +202,7 @@ export class SecretsService {
       return this.toSecretValue({ ...entity, decryptedValue: value } as any);
     } catch (error) {
       logger.error({ tenantId, name, error }, 'Failed to decrypt secret');
-      throw new Error(`Failed to decrypt secret "${name}": ${(error as Error).message}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to decrypt secret "${name}": ${(error as Error).message}`)
     }
   }
 
@@ -466,9 +466,7 @@ export class SecretsService {
       throw new OrionError(ErrorCode.OPERATION_FAILED, 'Secret name must be a non-empty string');
     }
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
-      throw new Error(
-        `Invalid secret name "${name}": must match [a-zA-Z_][a-zA-Z0-9_]*`,
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid secret name format');
     }
     if (name.length > 255) {
       throw new OrionError(ErrorCode.OPERATION_FAILED, 'Secret name must be 255 characters or less');

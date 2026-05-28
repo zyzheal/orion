@@ -42,9 +42,7 @@ export class ArtifactVersionService {
     // 检查是否已存在同名同版本
     const existing = await this.repository.findByVersion(input.pipelineId, input.version);
     if (existing) {
-      throw new Error(
-        `Version ${input.version} already exists for pipeline ${input.pipelineId}`
-      );
+      throw new OrionError('VALIDATION_ERROR', `Version ${input.version} already exists for pipeline ${input.pipelineId}`);
     }
 
     const version = await this.repository.createVersion(input);
@@ -78,9 +76,7 @@ export class ArtifactVersionService {
       currentVersion.version
     );
     if (existing && existing.metadata?.promotedTo === targetEnvironment) {
-      throw new Error(
-        `Version ${currentVersion.version} is already promoted to ${targetEnvironment}`
-      );
+      throw new OrionError('OPERATION_FAILED', `Version ${currentVersion.version} is already promoted to ${targetEnvironment}`);
     }
 
     // 创建新版本（继承原版本信息，设置 promoted_from 追溯链）

@@ -7,6 +7,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError } from '../errors';
 
 export type SecretScope = 'org' | 'project' | 'environment';
 
@@ -101,7 +102,7 @@ export class SecretRepository extends BaseRepository<SecretEntity> {
       data.createdBy || null,
     ]);
     if (result.rows.length === 0) {
-      throw new Error(`UPSERT on ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', `UPSERT on ${this.tableName} returned no rows`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

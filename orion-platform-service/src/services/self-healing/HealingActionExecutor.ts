@@ -749,7 +749,7 @@ export class HealingActionExecutor {
       // Wait for rollback to take effect
       const rollbackPromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new Error(`Rollback timed out after ${timeoutMs}ms`);
+        throw new OrionError('OPERATION_FAILED', `Rollback timed out after ${timeoutMs}ms`)
       });
 
       await Promise.race([rollbackPromise, timeoutPromise]);

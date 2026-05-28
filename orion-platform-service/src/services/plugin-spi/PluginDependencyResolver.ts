@@ -13,6 +13,7 @@
 
 import pino from 'pino';
 import {
+import { OrionError } from '../../errors';
   PluginManifest,
   DependencyResolutionResult,
 } from './types';
@@ -123,9 +124,7 @@ export class PluginDependencyResolver {
     const cycles = this.detectCycles(graph);
 
     if (cycles.length > 0) {
-      throw new Error(
-        `Cannot determine install order: circular dependency detected: ${cycles[0].join(' -> ')}`
-      );
+      throw new OrionError('OPERATION_FAILED', `Cannot determine install order: circular dependency detected: ${cycles[0].join(' -> ')}`);
     }
 
     return this.topologicalSort(graph);

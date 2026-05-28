@@ -169,7 +169,7 @@ export class SubAppService {
     if ('key' in input && input.key) {
       // Key format: lowercase, alphanumeric, hyphens only
       if (!/^[a-z][a-z0-9-]*$/.test(input.key)) {
-        throw new Error('Key must start with lowercase letter and contain only lowercase letters, numbers, and hyphens');
+        throw new OrionError('OPERATION_FAILED', 'Key must start with lowercase letter and contain only lowercase letters, numbers, and hyphens')
       }
     }
 

@@ -6,6 +6,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
+import { OrionError } from '../../errors';
 
 interface CloudAccount {
   id: string;
@@ -86,7 +87,7 @@ export class MultiCloudController extends BaseController {
         aliyun: { name: 'Alibaba Cloud', regions: ['cn-hangzhou', 'cn-beijing', 'cn-shanghai'], services: ['ECS', 'OSS', 'ACK', 'RDS'] },
       };
       const info = providers[params.provider.toLowerCase()];
-      if (!info) throw new Error(`Provider '${params.provider}' not supported`);
+      if (!info) throw new OrionError('VALIDATION_ERROR', `Provider '${params.provider}' not supported`);
       return info;
     }, (info) => this.sendSuccess(reply, info));
   }

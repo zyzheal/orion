@@ -2,6 +2,7 @@
 // AI Script Generation Service - generate inline scripts from natural language prompts
 
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -200,7 +201,7 @@ export class AIGenerateService {
     });
 
     if (!response.ok) {
-      throw new Error(`AI service returned ${response.status}`);
+      throw new OrionError('OPERATION_FAILED', `AI service returned ${response.status}`)
     }
 
     const data: Record<string, any> = (await response.json()) as Record<string, any>;

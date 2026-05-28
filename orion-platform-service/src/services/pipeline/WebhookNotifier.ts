@@ -19,6 +19,7 @@
 import crypto from 'crypto';
 import pino from 'pino';
 import { pipelineCircuitBreaker } from '../circuit-breaker/pipeline-circuit-breaker';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -214,7 +215,7 @@ export class WebhookNotifier {
       });
 
       if (!response.ok) {
-        throw new Error(`Webhook returned ${response.status} ${response.statusText}`);
+        throw new OrionError('OPERATION_FAILED', `Webhook returned ${response.status} ${response.statusText}`)
       }
 
       try {

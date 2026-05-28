@@ -168,7 +168,7 @@ export class BuilderImageService {
       img => img.name === input.name && img.status !== BuilderImageStatus.DISABLED
     );
     if (existing) {
-      throw new Error(`Builder image '${input.name}' already exists`);
+      throw new OrionError('VALIDATION_ERROR', `Builder image '${input.name}' already exists`)
     }
 
     const image = createBuilderImage(input);

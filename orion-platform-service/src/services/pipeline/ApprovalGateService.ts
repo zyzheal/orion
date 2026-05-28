@@ -191,7 +191,7 @@ export class ApprovalGateService {
         throw new OrionError(ErrorCode.OPERATION_FAILED, 'No pending approval request found for this stage');
       }
       if (entity.status !== 'pending') {
-        throw new Error(`Approval is ${entity.status}, not pending`);
+        throw new OrionError('OPERATION_FAILED', `Approval is ${entity.status}, not pending`)
       }
       if (!entity.approverIds.includes(userId)) {
         throw new OrionError(ErrorCode.OPERATION_FAILED, 'Not authorized to approve');
@@ -231,7 +231,7 @@ export class ApprovalGateService {
         throw new OrionError(ErrorCode.OPERATION_FAILED, 'No pending approval request found for this stage');
       }
       if (entity.status !== 'pending') {
-        throw new Error(`Approval is ${entity.status}, not pending`);
+        throw new OrionError('OPERATION_FAILED', `Approval is ${entity.status}, not pending`)
       }
       if (!entity.approverIds.includes(userId)) {
         throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Not authorized to reject');

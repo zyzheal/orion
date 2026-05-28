@@ -182,7 +182,7 @@ export class DataQualityService {
   ): Promise<ValidationResult> {
     const rule = await this.repository.findById(ruleId);
     if (!rule) throw new OrionError(ErrorCode.NOT_FOUND, `Quality rule '${ruleId}' not found`);
-    if (!rule.enabled) throw new Error(`Rule is disabled`);
+    if (!rule.enabled) throw new OrionError('VALIDATION_ERROR', `Rule is disabled`);
 
     const startTime = Date.now();
     let passedCount = 0;

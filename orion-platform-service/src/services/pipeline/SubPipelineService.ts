@@ -267,10 +267,8 @@ export class SubPipelineService {
     }
 
     if (invocation.status !== 'completed') {
-      throw new Error(
-        `Sub-pipeline is not completed (status: ${invocation.status}). ` +
-        'Cannot retrieve results.'
-      );
+      throw new OrionError('NOT_FOUND', `Sub-pipeline is not completed (status: ${invocation.status}). ` +
+        'Cannot retrieve results.')
     }
 
     // Apply output mapping: map child results to parent variable names

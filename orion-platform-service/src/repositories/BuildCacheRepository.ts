@@ -311,7 +311,7 @@ export class BuildCacheEntryRepository extends BaseRepository<CacheEntry> {
       [id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Cache entry '${id}' not found`);
+      throw new OrionError('NOT_FOUND', `Cache entry '${id}' not found`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

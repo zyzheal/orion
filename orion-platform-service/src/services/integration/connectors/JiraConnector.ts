@@ -495,7 +495,7 @@ export class JiraConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Jira API error: ${response.status} - ${error}`);
+      throw new OrionError('OPERATION_FAILED', `Jira API error: ${response.status} - ${error}`)
     }
 
     return response.json();
@@ -522,7 +522,7 @@ export class JiraConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Jira API error: ${response.status} - ${error}`);
+      throw new OrionError('OPERATION_FAILED', `Jira API error: ${response.status} - ${error}`)
     }
 
     return response.json();
@@ -549,7 +549,7 @@ export class JiraConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Jira API error: ${response.status} - ${error}`);
+      throw new OrionError('OPERATION_FAILED', `Jira API error: ${response.status} - ${error}`)
     }
 
     return response.json();

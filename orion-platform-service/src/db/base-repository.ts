@@ -4,7 +4,7 @@ const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 function validateIdentifier(name: string, label: string): void {
   if (!VALID_IDENTIFIER.test(name)) {
-    throw new Error(`Invalid ${label}: ${name}`);
+    throw new OrionError('VALIDATION_ERROR', `Invalid ${label}: ${name}`)
   }
 }
 
@@ -87,7 +87,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error(`INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -109,7 +109,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const result = await this.db.query(query, [...values, id]);
 
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on ${this.tableName} affected no rows (id: ${id})`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on ${this.tableName} affected no rows (id: ${id})`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

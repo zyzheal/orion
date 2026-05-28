@@ -559,7 +559,7 @@ export class ConfigChangeService {
   ): Promise<ChangeRequest> {
     const changeRequest = await this.repository.findById(requestId);
     if (!changeRequest) {
-      throw new Error(`Change request '${requestId}' not found`);
+      throw new OrionError('NOT_FOUND', `Change request '${requestId}' not found`)
     }
 
     if (changeRequest.status !== 'approved') {
@@ -620,7 +620,7 @@ export class ConfigChangeService {
     }
 
     if (changeRequest.status !== 'executed' && changeRequest.status !== 'failed') {
-      throw new Error(`Can only rollback executed or failed changes (current: ${changeRequest.status})`);
+      throw new OrionError('OPERATION_FAILED', `Can only rollback executed or failed changes (current: ${changeRequest.status})`)
     }
 
     changeRequest.status = 'rolled_back';

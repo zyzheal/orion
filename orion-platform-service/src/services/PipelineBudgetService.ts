@@ -9,6 +9,7 @@
  */
 
 import { PipelineBudgetRepository, PipelineBudgetEntity } from '../repositories/PipelineBudgetRepository';
+import { OrionError } from '../errors';
 
 export interface PipelineBudget {
   id: string;
@@ -118,13 +119,13 @@ export class PipelineBudgetService {
   async updateUsage(pipelineId: string, costDelta: number): Promise<PipelineBudget> {
     const entity = await this.repository.findByPipelineId(pipelineId);
     if (!entity) {
-      throw new Error(`No budget set for pipeline ${pipelineId}`);
+      throw new OrionError('OPERATION_FAILED', `No budget set for pipeline ${pipelineId}`)
     }
 
     const newCost = entity.currentCost + costDelta;
     const updated = await this.repository.updateCost(pipelineId, newCost);
     if (!updated) {
-      throw new Error(`Failed to update budget cost for pipeline ${pipelineId}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to update budget cost for pipeline ${pipelineId}`)
     }
 
     // Auto-block when cost reaches or exceeds max

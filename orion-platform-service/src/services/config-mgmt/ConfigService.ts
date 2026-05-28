@@ -287,7 +287,7 @@ export class ConfigService {
     const allConfigs = await this.repository.findAll(source.tenant_id);
     const existingInTarget = allConfigs.find(c => c.key === source.key && c.environment === targetEnvironment);
     if (existingInTarget) {
-      throw new Error(`Config '${source.key}' already exists in environment '${targetEnvironment}'`);
+      throw new OrionError('VALIDATION_ERROR', `Config '${source.key}' already exists in environment '${targetEnvironment}'`)
     }
     const clonedValue = { ...(source.value as any), environment: targetEnvironment };
     const entry = await this.repository.set('default', source.key, clonedValue, changedBy);

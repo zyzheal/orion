@@ -4,6 +4,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError } from '../errors';
 
 export interface NamespaceAllocationEntity {
   id: string;
@@ -57,7 +58,7 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
       [tenantIdValue, purpose, JSON.stringify(labels), id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Failed to allocate namespace: ${id}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to allocate namespace: ${id}`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -68,7 +69,7 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
       [id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Failed to release namespace: ${id}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to release namespace: ${id}`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

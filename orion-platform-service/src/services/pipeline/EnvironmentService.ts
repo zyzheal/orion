@@ -261,10 +261,10 @@ export class EnvironmentService {
     }
     const namePattern = /^[a-z][a-z0-9_]*$/;
     if (!namePattern.test(name)) {
-      throw new Error(`Environment name '${name}' is invalid. Must be lowercase alphanumeric with underscores, starting with a letter.`);
+      throw new OrionError('VALIDATION_ERROR', `Environment name '${name}' is invalid. Must be lowercase alphanumeric with underscores, starting with a letter.`)
     }
     if (name.length > 64) {
-      throw new Error(`Environment name '${name}' is too long (max 64 characters)`);
+      throw new OrionError('OPERATION_FAILED', `Environment name '${name}' is too long (max 64 characters)`)
     }
   }
 }

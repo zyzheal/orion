@@ -218,10 +218,7 @@ export function createPipelineSagaDefinition(
 
         // 资源预留 — ResourceService 尚未实现，显式失败而非静默成功
         // TODO: 注入 ResourceService 后替换为真实调用
-        throw new Error(
-          'ResourceService not implemented — cannot reserve resources for pipeline run. ' +
-          'Implement ResourceService and inject it into PipelineSaga.'
-        );
+        throw new OrionError('OPERATION_FAILED', 'ResourceService not implemented — cannot reserve resources for pipeline run. Implement ResourceService and inject it into PipelineSaga.');
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const typedOutput = output as ReserveResourcesOutput;

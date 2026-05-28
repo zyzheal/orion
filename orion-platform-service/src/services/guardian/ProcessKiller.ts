@@ -1,5 +1,6 @@
 import pino from 'pino';
 import { spawn } from 'child_process';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -102,12 +103,12 @@ export class ProcessKiller {
   private dockerCommand(containerId: string, command: string, timeoutMs: number = 10000): Promise<void> {
     // Validate containerId to prevent injection via malformed IDs
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(containerId)) {
-      throw new Error(`Invalid container ID: ${containerId}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid container ID: ${containerId}`)
     }
     // Validate command to prevent arbitrary docker subcommand execution
     const allowedCommands = new Set(['pause', 'unpause', 'kill', 'stop', 'rm']);
     if (!allowedCommands.has(command)) {
-      throw new Error(`Invalid docker command: ${command}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid docker command: ${command}`)
     }
     return new Promise((resolve, reject) => {
       const child = spawn('docker', [command, containerId], {

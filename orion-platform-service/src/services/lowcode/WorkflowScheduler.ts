@@ -13,6 +13,7 @@ import { WorkflowTimerRepository } from '../../repositories/WorkflowTimerReposit
 import { WorkflowEngine } from './WorkflowEngine';
 import { WorkflowInstanceManager } from './WorkflowInstance';
 import { WorkflowDefinitionRepository } from './WorkflowRepository';
+import { OrionError } from '../../errors';
 
 const logger = require('pino')({ name: 'WorkflowScheduler' });
 
@@ -261,9 +262,7 @@ export class WorkflowScheduler {
       return module;
     } catch (error) {
       logger.error({ error }, 'Failed to import node-cron module');
-      throw new Error(
-        'node-cron module is not installed. Please run: npm install node-cron'
-      );
+      throw new OrionError('OPERATION_FAILED', 'node-cron module is not installed. Please run: npm install node-cron');
     }
   }
 

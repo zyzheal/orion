@@ -206,7 +206,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     const result = await this.db.query(query, params);
 
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on portal_documents affected no rows (id: ${id})`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on portal_documents affected no rows (id: ${id})`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

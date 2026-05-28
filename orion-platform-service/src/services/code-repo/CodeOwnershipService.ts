@@ -19,6 +19,7 @@ import {
   OwnerRecommendation,
 } from './types';
 import { CodeOwnershipRepository } from '../../repositories/CodeOwnershipRepository';
+import { OrionError } from '../../errors';
 
 /** 解析 CODEOWNERS 文件的结果 */
 export interface ParseResult {
@@ -59,9 +60,7 @@ export class CodeOwnershipService {
     const parseResult = this.parseCodeOwnersContent(rawContent);
 
     if (!parseResult.success || parseResult.rules.length === 0) {
-      throw new Error(
-        `Failed to parse CODEOWNERS file: ${parseResult.errors.length > 0 ? parseResult.errors.join(', ') : 'No valid rules found'}`
-      );
+      throw new OrionError('OPERATION_FAILED', `Failed to parse CODEOWNERS file: ${parseResult.errors.length > 0 ? parseResult.errors.join(', ') : 'No valid rules found'}`);
     }
 
     const file: CodeOwnersFile = {

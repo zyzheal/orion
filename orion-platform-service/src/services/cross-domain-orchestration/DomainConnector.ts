@@ -14,6 +14,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'LDomain-LConnector' });
 
@@ -239,7 +240,7 @@ export class DomainConnector {
 
     // Check health
     if (domain.healthStatus === 'unhealthy') {
-      throw new Error(`Domain '${domainName}' is unhealthy`);
+      throw new OrionError('OPERATION_FAILED', `Domain '${domainName}' is unhealthy`)
     }
 
     // Invoke via HTTP (simulated — in production, make actual HTTP call)
@@ -252,9 +253,7 @@ export class DomainConnector {
       domain.updatedAt = new Date();
       this.domains.set(`${domain.tenantId}:${domain.domainName}`, domain);
 
-      throw new Error(
-        `Domain invocation failed: ${domainName}/${action} - ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid domain configuration');
     }
   }
 

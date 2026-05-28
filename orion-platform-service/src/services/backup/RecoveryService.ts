@@ -311,7 +311,7 @@ export class RecoveryService extends EventEmitter {
     const backupResult = this.findBackupForPointInTime(targetTime, backups);
 
     if (!backupResult) {
-      throw new Error(`No suitable backup found for point-in-time recovery at ${targetTime.toISOString()}`);
+      throw new OrionError('OPERATION_FAILED', `No suitable backup found for point-in-time recovery at ${targetTime.toISOString()}`)
     }
 
     const execution = await this.initiateRecovery(planId, {

@@ -869,7 +869,7 @@ export class RuleEngine {
       throw new OrionError(ErrorCode.NOT_FOUND, `RuleSet not found for scenario: ${scenario}`);
     }
     if (ruleSet.rules.length >= this.config.maxRulesPerScenario) {
-      throw new Error(`Max rules reached for scenario: ${scenario}`);
+      throw new OrionError('OPERATION_FAILED', `Max rules reached for scenario: ${scenario}`)
     }
     ruleSet.rules.push(rule);
     ruleSet.rules.sort((a, b) => a.priority - b.priority);

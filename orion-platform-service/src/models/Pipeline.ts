@@ -158,7 +158,7 @@ export function parsePipelineYaml(yaml: string): { spec: PipelineSpec; metadata:
   }
 
   if (parsed.kind !== 'Pipeline') {
-    throw new Error(`Expected kind 'Pipeline', got '${parsed.kind}'`);
+    throw new OrionError('OPERATION_FAILED', `Expected kind 'Pipeline', got '${parsed.kind}'`)
   }
 
   return {

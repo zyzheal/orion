@@ -93,10 +93,10 @@ export class SharedActionService {
     if (!fs.existsSync(resolvedPath)) {
       const altPath = path.resolve(this.workspaceRoot, ref, 'action.yaml');
       if (!altPath.startsWith(path.resolve(this.workspaceRoot))) {
-        throw new Error(`Path traversal detected: action path must be within workspace root`);
+        throw new OrionError('VALIDATION_ERROR', `Path traversal detected: action path must be within workspace root`)
       }
       if (!fs.existsSync(altPath)) {
-        throw new Error(`Local action not found: ${ref}`);
+        throw new OrionError('NOT_FOUND', `Local action not found: ${ref}`)
       }
       return fs.readFileSync(altPath, 'utf-8');
     }
@@ -112,9 +112,7 @@ export class SharedActionService {
     }
 
     if (!version || /^(main|master|HEAD)$/i.test(version)) {
-      throw new Error(
-        `Remote actions must use SHA or version tag, not branch names: ${ref}`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Version must not be a default branch');
     }
 
     if (this.registryWhitelist.length > 0) {

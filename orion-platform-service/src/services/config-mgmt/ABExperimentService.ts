@@ -231,7 +231,7 @@ export class ABExperimentService {
   async cancelExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
     if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
-    if (exp.status === 'completed') throw new Error(`Cannot cancel completed experiment`);
+    if (exp.status === 'completed') throw new OrionError('OPERATION_FAILED', `Cannot cancel completed experiment`);
 
     exp.status = 'cancelled';
     exp.endDate = new Date();

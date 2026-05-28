@@ -2,6 +2,7 @@
 // AI Diagnosis Service - error root cause analysis with rule-based fallback
 
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -181,7 +182,7 @@ export class AIDiagnosisService {
     });
 
     if (!response.ok) {
-      throw new Error(`AI service returned ${response.status}: ${response.statusText}`);
+      throw new OrionError('OPERATION_FAILED', `AI service returned ${response.status}: ${response.statusText}`)
     }
 
     const data: Record<string, any> = (await response.json()) as Record<string, any>;

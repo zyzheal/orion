@@ -129,9 +129,7 @@ export class ModelVersionService {
     // 检查是否已存在相同名称+版本的模型
     const existing = await this.modelRepo.findByNameAndVersion(input.name, input.version);
     if (existing) {
-      throw new Error(
-        `Model version already exists: ${input.name}@${input.version} (id: ${existing.id})`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid model version');
     }
 
     const now = new Date();
@@ -577,7 +575,7 @@ export class ModelVersionService {
         throw new OrionError(ErrorCode.NOT_FOUND, `Target version ${targetVersion} not found for model ${entity.name}`);
       }
       if (target.status === 'deprecated' || target.status === 'archived') {
-        throw new Error(`Cannot rollback to ${target.status} version: ${targetVersion}`);
+        throw new OrionError('OPERATION_FAILED', `Cannot rollback to ${target.status} version: ${targetVersion}`)
       }
       return this.activateModel(target.id);
     }
@@ -589,7 +587,7 @@ export class ModelVersionService {
       .sort((a, b) => (b.activated_at?.getTime() || 0) - (a.activated_at?.getTime() || 0));
 
     if (previousVersions.length === 0) {
-      throw new Error(`No previous version available for rollback: ${entity.name}`);
+      throw new OrionError('OPERATION_FAILED', `No previous version available for rollback: ${entity.name}`)
     }
 
     logger.info({

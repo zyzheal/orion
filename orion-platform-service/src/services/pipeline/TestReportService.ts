@@ -20,6 +20,7 @@ import {
 } from '../../models/TestReport';
 import { JUnitXmlParser, JUnitTestResult } from './test-parsers/JUnitXmlParser';
 import { JestJsonParser, JestTestResult } from './test-parsers/JestJsonParser';
+import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'test-report-service' });
 
@@ -93,7 +94,7 @@ export class TestReportService {
         result = this.jestParser.parse(content);
         break;
       default:
-        throw new Error(`Unsupported report format: ${format}`);
+        throw new OrionError('VALIDATION_ERROR', `Unsupported report format: ${format}`)
     }
 
     const report: TestReportCreateInput = {

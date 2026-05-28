@@ -226,7 +226,7 @@ export class RunnerPoolService {
         // Mark job as failed
         await this.jobRepo.markFailed(job.id, errorMsg);
 
-        throw new Error(`Runner HTTP ${response.status}: ${response.statusText}`);
+        throw new OrionError('OPERATION_FAILED', `Runner HTTP ${response.status}: ${response.statusText}`)
       }
 
       const result = await response.json() as Record<string, unknown> | undefined;

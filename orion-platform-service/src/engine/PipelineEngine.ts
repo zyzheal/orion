@@ -1371,10 +1371,7 @@ export class PipelineEngine {
     tasks: Array<{ id: string; name: string; type: string; parameters: Record<string, unknown>; [key: string]: unknown }>
   ): Promise<void> {
     if (!this.subPipelineService) {
-      throw new Error(
-        `SubPipelineService not configured. ` +
-        `Stage '${stage.name}' uses sub-pipeline type but SubPipelineService is not available.`
-      );
+      throw new OrionError('SERVICE_UNAVAILABLE', `SubPipelineService not configured. Stage '${stage.name}' uses sub-pipeline type but SubPipelineService is not available.`);
     }
 
     const subPipelineTask = tasks[0];
@@ -1382,9 +1379,7 @@ export class PipelineEngine {
     const childPipelineId = params.pipelineId as string;
 
     if (!childPipelineId) {
-      throw new Error(
-        `Sub-pipeline stage '${stage.name}' missing required parameter: pipelineId`
-      );
+      throw new OrionError('NOT_FOUND', `Sub-pipeline stage '${stage.name}' missing required parameter: pipelineId`);
     }
 
     // Extract input parameters (params other than 'pipelineId' and 'outputMapping')

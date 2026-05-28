@@ -301,7 +301,7 @@ export class CodeEmbeddingService {
       case 'hash':
         return this.hashEmbedding(text);
       default:
-        throw new Error(`Unknown embedding provider: ${this.providerConfig.type}`);
+        throw new OrionError('NOT_FOUND', `Unknown embedding provider: ${this.providerConfig.type}`)
     }
   }
 
@@ -327,7 +327,7 @@ export class CodeEmbeddingService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`OpenAI embedding API error (${response.status}): ${error}`);
+      throw new OrionError('OPERATION_FAILED', `OpenAI embedding API error (${response.status}): ${error}`)
     }
 
     const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
@@ -356,7 +356,7 @@ export class CodeEmbeddingService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Voyage embedding API error (${response.status}): ${error}`);
+      throw new OrionError('OPERATION_FAILED', `Voyage embedding API error (${response.status}): ${error}`)
     }
 
     const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };

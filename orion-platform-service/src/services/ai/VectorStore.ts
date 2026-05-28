@@ -7,6 +7,7 @@
 import pino from 'pino';
 import { VectorDocument, SearchQuery, SearchResult, VectorStoreConfig } from './types';
 import { VectorRepository } from '../../repositories/VectorRepository';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -123,7 +124,7 @@ export class VectorStore {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`OpenAI embedding API error (${response.status}): ${error}`);
+        throw new OrionError('OPERATION_FAILED', `OpenAI embedding API error (${response.status}): ${error}`)
       }
 
       const data = await response.json() as { data?: Array<{ embedding: number[] }> };

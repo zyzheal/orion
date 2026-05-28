@@ -134,9 +134,7 @@ export class ConfigApprovalService {
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new Error(
-        `Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`
-      );
+      throw new OrionError('OPERATION_FAILED', `Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`);
     }
 
     // Check if this approver has already approved
@@ -144,9 +142,7 @@ export class ConfigApprovalService {
       (a) => a.approver === input.approver
     );
     if (existingApproval) {
-      throw new Error(
-        `Approver '${input.approver}' has already voted on this change request`
-      );
+      throw new OrionError('OPERATION_FAILED', `Approver '${input.approver}' has already voted on this change request`);
     }
 
     const now = new Date();
@@ -201,9 +197,7 @@ export class ConfigApprovalService {
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new Error(
-        `Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`
-      );
+      throw new OrionError('OPERATION_FAILED', `Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`);
     }
 
     // Check if this approver has already voted
@@ -211,9 +205,7 @@ export class ConfigApprovalService {
       (a) => a.approver === input.approver
     );
     if (existingApproval) {
-      throw new Error(
-        `Approver '${input.approver}' has already voted on this change request`
-      );
+      throw new OrionError('OPERATION_FAILED', `Approver '${input.approver}' has already voted on this change request`);
     }
 
     const now = new Date();
@@ -297,9 +289,7 @@ export class ConfigApprovalService {
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new Error(
-        `Only pending change requests can be cancelled (current: ${changeRequest.status})`
-      );
+      throw new OrionError('OPERATION_FAILED', `Only pending change requests can be cancelled (current: ${changeRequest.status})`);
     }
 
     changeRequest.status = 'rejected';
@@ -337,9 +327,7 @@ export class ConfigApprovalService {
       changeRequest.status = 'approved'; // Keep as approved even if auto-apply failed
       changeRequest.updatedAt = new Date();
       this.changeRequests.set(changeRequest.id, changeRequest);
-      throw new Error(
-        `Change request approved but auto-apply failed: ${error.message}`
-      );
+      throw new OrionError('OPERATION_FAILED', `Change request approved but auto-apply failed: ${error.message}`);
     }
   }
 

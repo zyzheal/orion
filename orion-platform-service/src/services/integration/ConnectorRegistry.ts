@@ -1,3 +1,4 @@
+import { OrionError } from '../../errors';
 /**
  * Connector Registry - Unified connector system for external integrations
  *
@@ -63,7 +64,7 @@ export class ConnectorRegistry {
    */
   register(connector: Connector): void {
     if (this.connectors.has(connector.name)) {
-      throw new Error(`Connector with name '${connector.name}' is already registered`);
+      throw new OrionError('VALIDATION_ERROR', `Connector with name '${connector.name}' is already registered`)
     }
     this.connectors.set(connector.name, connector);
   }

@@ -120,7 +120,7 @@ export class QualityGateRepository extends BaseRepository<QualityGate> {
       params
     );
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on quality_gates affected no rows (id: ${id})`);
+      throw new OrionError('OPERATION_FAILED', `UPDATE on quality_gates affected no rows (id: ${id})`)
     }
     return this.mapRowToEntity(result.rows[0]);
   }

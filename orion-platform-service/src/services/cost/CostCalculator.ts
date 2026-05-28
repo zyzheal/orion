@@ -6,6 +6,7 @@
 
 import { BudgetService } from './BudgetService';
 import { ModelPricing, CostRecord } from '../../models/CostRecord';
+import { OrionError } from '../../errors';
 
 export interface CostEstimate {
   model: string;
@@ -55,9 +56,7 @@ export class CostCalculator {
     );
 
     if (!pricing) {
-      throw new Error(
-        `No pricing found for ${params.provider}/${params.model}`
-      );
+      throw new OrionError('OPERATION_FAILED', `No pricing found for ${params.provider}/${params.model}`);
     }
 
     return this._estimateFromPricing(pricing, params.inputTokens, params.outputTokens);

@@ -66,7 +66,7 @@ export class PerformanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { profileId: string };
       const result = await this.profileSvc.analyzeBottlenecks(params.profileId);
-      if (!result) throw new Error(`Profile not found or not completed: ${params.profileId}`);
+      if (!result) throw new OrionError('NOT_FOUND', `Profile not found or not completed: ${params.profileId}`);
       return result;
     }, (data) => this.sendSuccess(reply, data));
   }
@@ -146,7 +146,7 @@ export class PerformanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = this.getParams<{ id: string }>(request);
       const baseline = await this.baselineService.getBaselineById(params.id);
-      if (!baseline) throw new Error(`Baseline '${params.id}' not found`);
+      if (!baseline) throw new OrionError('NOT_FOUND', `Baseline '${params.id}' not found`);
       return baseline;
     }, (baseline) => this.sendSuccess(reply, baseline));
   }

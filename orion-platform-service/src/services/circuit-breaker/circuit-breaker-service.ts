@@ -284,7 +284,7 @@ export class CircuitBreakerService {
   async enable(targetKey: string): Promise<void> {
     const dbConfig = await this.configRepo.findByTargetKey(targetKey);
     if (!dbConfig) {
-      throw new Error(`No configuration found for key: ${targetKey}`);
+      throw new OrionError('OPERATION_FAILED', `No configuration found for key: ${targetKey}`)
     }
     await this.register(targetKey, {
       failureThreshold: dbConfig.failureThreshold,

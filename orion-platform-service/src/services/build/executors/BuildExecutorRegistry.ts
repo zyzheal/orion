@@ -6,6 +6,7 @@
  */
 
 import { BuildExecutor, BuildType } from './BaseBuildExecutor';
+import { OrionError } from '../../../errors';
 
 export class BuildExecutorRegistry {
   private executors = new Map<BuildType, BuildExecutor>();
@@ -17,7 +18,7 @@ export class BuildExecutorRegistry {
    */
   register(executor: BuildExecutor): void {
     if (this.executors.has(executor.type)) {
-      throw new Error(`Executor ${executor.type} already registered`);
+      throw new OrionError('VALIDATION_ERROR', `Executor ${executor.type} already registered`)
     }
     this.executors.set(executor.type, executor);
   }

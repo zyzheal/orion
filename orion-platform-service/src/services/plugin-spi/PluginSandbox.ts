@@ -14,6 +14,7 @@
 
 import pino from 'pino';
 import { PluginSandboxConfig, PluginExecutionResult } from './types';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -298,17 +299,13 @@ export class PluginSandboxSPI {
     // Check active execution count for this plugin
     const activeCount = this.getActiveExecutionCount(pluginId);
     if (activeCount >= this.config.maxConcurrent) {
-      throw new Error(
-        `Plugin "${pluginId}" has reached maximum concurrent executions (${this.config.maxConcurrent})`
-      );
+      throw new OrionError('OPERATION_FAILED', `Plugin "${pluginId}" has reached maximum concurrent executions (${this.config.maxConcurrent})`);
     }
 
     // Check memory (simulated - in production would check actual memory usage)
     const estimatedMemory = this.config.memoryLimit;
     if (estimatedMemory > this.config.memoryLimit) {
-      throw new Error(
-        `Plugin "${pluginId}" memory limit exceeded: ${estimatedMemory} > ${this.config.memoryLimit}`
-      );
+      throw new OrionError('VALIDATION_ERROR', `Plugin "${pluginId}" memory limit exceeded: ${estimatedMemory} > ${this.config.memoryLimit}`);
     }
   }
 
@@ -318,9 +315,7 @@ export class PluginSandboxSPI {
   private enforceConcurrencyLimit(): void {
     if (this.activeExecutions.size >= this.config.maxConcurrent * 5) {
       // Global limit: 5x per-plugin limit
-      throw new Error(
-        `Global execution limit reached (${this.activeExecutions.size} active executions)`
-      );
+      throw new OrionError('VALIDATION_ERROR', `Global execution limit reached (${this.activeExecutions.size} active executions)`);
     }
   }
 

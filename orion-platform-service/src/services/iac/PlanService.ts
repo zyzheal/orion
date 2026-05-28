@@ -11,6 +11,7 @@ import {
 } from '../../models/IacWorkspace';
 import { WorkspaceService } from './WorkspaceService';
 import { IaCPlanRepository, IaCPlanEntity } from '../../repositories/IaCPlanRepository';
+import { OrionError } from '../../errors';
 
 export interface IaCPlanListFilter {
   workspaceId?: string;
@@ -134,7 +135,7 @@ export class PlanService {
     const entity = await this.planRepository.findById(planId);
     if (!entity) return undefined;
     if (entity.applied) {
-      throw new Error(`Plan already applied`);
+      throw new OrionError('OPERATION_FAILED', `Plan already applied`)
     }
 
     await this.planRepository.markApplied(planId, 'system');

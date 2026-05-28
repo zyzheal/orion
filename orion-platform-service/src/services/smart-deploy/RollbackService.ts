@@ -64,16 +64,12 @@ export class RollbackService {
   ): Promise<RollbackEntity> {
     // Check if deployment is in a rollbackable state
     if (!this.isRollbackable(deployment.status)) {
-      throw new Error(
-        `Cannot rollback deployment in '${deployment.status}' state. Only completed, failed, or verifying deployments can be rolled back.`
-      );
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Deployment not found');
     }
 
     // Check if already rolled back
     if (deployment.status === 'rolled_back') {
-      throw new Error(
-        `Deployment '${deployment.id}' has already been rolled back`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Deployment is not in failed state');
     }
 
     const rollbackId = uuidv4();
@@ -164,9 +160,7 @@ export class RollbackService {
         this.findPreviousVersion(deployment);
 
       if (!targetVersion && deployment.status !== 'failed') {
-        throw new Error(
-          'No previous version found for rollback. Specify a target version.'
-        );
+        throw new OrionError(ErrorCode.NOT_FOUND, 'Rollback snapshot not found');
       }
 
       // Execute rollback with retry logic
@@ -262,7 +256,7 @@ export class RollbackService {
     if (this.healthCheckFn) {
       const healthy = await this.healthCheckFn(deployment.appName, targetVersion, deployment.environment);
       if (!healthy) {
-        throw new Error(`Health check failed after traffic switch for ${deployment.appName}:${targetVersion}`);
+        throw new OrionError('OPERATION_FAILED', `Health check failed after traffic switch for ${deployment.appName}:${targetVersion}`)
       }
     }
   }
@@ -292,7 +286,7 @@ export class RollbackService {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          throw new Error(`Traffic switch API returned ${response.status}: ${response.statusText}`);
+          throw new OrionError('OPERATION_FAILED', `Traffic switch API returned ${response.status}: ${response.statusText}`)
         }
         return;
       } catch (err) {

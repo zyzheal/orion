@@ -8,6 +8,7 @@
  */
 
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'pull-request-service' });
 
@@ -110,7 +111,7 @@ export class GitHubPRClient implements PRApiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      throw new OrionError('OPERATION_FAILED', `GitHub API error: ${response.status} ${response.statusText}`)
     }
 
     return response.json() as Promise<T>;
@@ -192,7 +193,7 @@ export class GitLabPRClient implements PRApiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+      throw new OrionError('OPERATION_FAILED', `GitLab API error: ${response.status} ${response.statusText}`)
     }
 
     return response.json() as Promise<T>;

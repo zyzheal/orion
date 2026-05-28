@@ -14,6 +14,7 @@
 
 import pino from 'pino';
 import {
+import { OrionError } from '../../errors';
   ApprovalAgentPlugin,
   ApprovalContext,
   ApprovalDecision,
@@ -449,7 +450,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
     });
 
     if (!response.ok) {
-      throw new Error(`LLM API error: ${response.status}`);
+      throw new OrionError('OPERATION_FAILED', `LLM API error: ${response.status}`)
     }
 
     const result = await response.json() as any;

@@ -465,7 +465,7 @@ export class HookChainService extends EventEmitter {
 
     const executor = this.executors.get(hook.type);
     if (!executor) {
-      throw new Error(`No executor registered for hook type "${hook.type}"`);
+      throw new OrionError('OPERATION_FAILED', `No executor registered for hook type "${hook.type}"`)
     }
 
     const maxRetries = hook.retryPolicy?.maxRetries || 0;

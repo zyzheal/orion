@@ -473,7 +473,7 @@ export class BuildxBuilderService {
       await execAsync(`docker buildx create --name ${name} --use`);
       logger.info({ name }, 'Buildx builder created');
     } catch (error) {
-      throw new Error(`Failed to create buildx builder: ${error}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to create buildx builder: ${error}`)
     }
   }
 

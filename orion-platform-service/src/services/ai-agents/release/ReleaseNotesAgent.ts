@@ -68,14 +68,14 @@ function validateRepoPath(repoPath: string): string {
   try {
     realPath = realpathSync(resolved);
   } catch {
-    throw new Error(`Invalid repository path: path does not exist or is not accessible`);
+    throw new OrionError('NOT_FOUND', `Invalid repository path: path does not exist or is not accessible`)
   }
 
   // 白名单校验：真实路径必须在允许的根目录下
   const isAllowed = ALLOWED_REPO_ROOTS.some(root => realPath.startsWith(root));
   if (!isAllowed) {
     logger.warn({ realPath, allowedRoots: ALLOWED_REPO_ROOTS }, 'Repository path not in allowed roots');
-    throw new Error(`Invalid repository path: not within allowed directories`);
+    throw new OrionError('VALIDATION_ERROR', `Invalid repository path: not within allowed directories`)
   }
 
   return realPath;
@@ -346,7 +346,7 @@ export class ReleaseNotesAgent extends BaseAgent {
         from,
         to,
       });
-      throw new Error(`Failed to get commits: ${error instanceof Error ? error.message : String(error)}`);
+      throw new OrionError('OPERATION_FAILED', `Failed to get commits: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 

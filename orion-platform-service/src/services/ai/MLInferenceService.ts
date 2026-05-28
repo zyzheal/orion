@@ -474,7 +474,7 @@ export class MLInferenceService {
   predict(features: Record<string, number>, modelId: string): PredictionResult {
     const model = this.models.get(modelId);
     if (!model || model.status !== 'loaded') {
-      throw new Error(`Model ${modelId} is not loaded`);
+      throw new OrionError('OPERATION_FAILED', `Model ${modelId} is not loaded`)
     }
 
     // 验证特征

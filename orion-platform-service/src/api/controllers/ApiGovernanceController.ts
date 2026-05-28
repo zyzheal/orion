@@ -283,7 +283,7 @@ export class ApiGovernanceController extends BaseController {
       const version = this.versions.get(params.id);
       if (!version) throw new OrionError(ErrorCode.NOT_FOUND, `Version '${params.id}' not found`);
       if (version.status !== 'deprecated') {
-        throw new Error(`Version must be deprecated before retirement`);
+        throw new OrionError('VALIDATION_ERROR', `Version must be deprecated before retirement`)
       }
 
       version.status = 'retired';

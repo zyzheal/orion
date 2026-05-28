@@ -66,9 +66,7 @@ export class EphemeralEnvService {
     // Check for duplicate PR
     const existing = await this.repository.findByPrAndRepo(input.prId, input.repoId, ['destroyed']);
     if (existing) {
-      throw new Error(
-        `Ephemeral environment already exists for PR ${input.prId} in ${input.repoId} (status: ${existing.status})`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid environment configuration');
     }
 
     const env = createEphemeralEnvironment(input);
@@ -280,7 +278,7 @@ export class EphemeralEnvService {
     const env = await this.getById(id);
 
     if (env.status !== 'running') {
-      throw new Error(`Environment must be running to set idle (status: ${env.status})`);
+      throw new OrionError('VALIDATION_ERROR', `Environment must be running to set idle (status: ${env.status})`)
     }
 
     markIdle(env);

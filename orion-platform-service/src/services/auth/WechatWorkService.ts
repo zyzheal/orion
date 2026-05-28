@@ -150,7 +150,7 @@ export class WechatWorkService {
 
       if (data.errcode !== 0) {
         logger.error(`[WechatWorkService] Failed to get access_token: ${data.errmsg}`);
-        throw new Error(`WECHAT_TOKEN_ERROR: ${data.errmsg}`);
+        throw new OrionError('OPERATION_FAILED', `WECHAT_TOKEN_ERROR: ${data.errmsg}`)
       }
 
       // Cache token with TTL (expires_in - 5 minute buffer)
@@ -187,7 +187,7 @@ export class WechatWorkService {
 
       if (userIdData.errcode !== 0) {
         logger.error(`[WechatWorkService] Failed to get user info: ${userIdData.errmsg}`);
-        throw new Error(`WECHAT_USERINFO_ERROR: ${userIdData.errmsg}`);
+        throw new OrionError('OPERATION_FAILED', `WECHAT_USERINFO_ERROR: ${userIdData.errmsg}`)
       }
 
       const userId = userIdData.UserId || userIdData.OpenId;
@@ -202,7 +202,7 @@ export class WechatWorkService {
 
       if (userData.errcode !== 0) {
         logger.error(`[WechatWorkService] Failed to get user details: ${userData.errmsg}`);
-        throw new Error(`WECHAT_USERDETAIL_ERROR: ${userData.errmsg}`);
+        throw new OrionError('OPERATION_FAILED', `WECHAT_USERDETAIL_ERROR: ${userData.errmsg}`)
       }
 
       return {

@@ -9,6 +9,7 @@
  */
 
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -273,7 +274,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+        throw new OrionError('VALIDATION_ERROR', `Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`)
       }
 
       // 启用 RLS
@@ -328,7 +329,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+        throw new OrionError('VALIDATION_ERROR', `Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`)
       }
 
       await this.db.query(`ALTER TABLE ${tableName} DISABLE ROW LEVEL SECURITY`);
@@ -347,7 +348,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL/DML statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+        throw new OrionError('VALIDATION_ERROR', `Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`)
       }
 
       // 设置 session 变量

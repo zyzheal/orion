@@ -905,7 +905,7 @@ export class CmdbIntegrationService {
 
     const host = ci.attributes?.ip || ci.attributes?.hostname;
     if (!host) {
-      throw new Error(`CI ${ciId} has no IP or hostname for SSH connection`);
+      throw new OrionError('SERVICE_UNAVAILABLE', `CI ${ciId} has no IP or hostname for SSH connection`)
     }
 
     // 替换脚本中的参数
@@ -925,7 +925,7 @@ export class CmdbIntegrationService {
     // 构建 SSH 配置
     const sshConfig = this.buildSSHConfig(ci);
     if (!sshConfig) {
-      throw new Error(`CI ${ciId} has no SSH credentials configured`);
+      throw new OrionError('OPERATION_FAILED', `CI ${ciId} has no SSH credentials configured`)
     }
 
     // 执行 SSH 命令

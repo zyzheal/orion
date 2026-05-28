@@ -25,6 +25,7 @@ import { CommandRouter } from './CommandRouter';
 import { InputValidator, ParsedCommand } from './InputValidator';
 import {
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'LExecution-LService' });
   ChatOpsExecutionRepository,
@@ -137,7 +138,7 @@ export class ExecutionService {
 
       const validation = this.inputValidator.validate(rawInput, parsed);
       if (!validation.valid) {
-        throw new Error(`输入校验失败: ${validation.error}`);
+        throw new OrionError('OPERATION_FAILED', `输入校验失败: ${validation.error}`)
       }
     }
 

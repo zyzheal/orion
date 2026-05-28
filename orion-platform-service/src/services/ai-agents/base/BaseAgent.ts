@@ -231,7 +231,7 @@ export abstract class BaseAgent {
     });
 
     if (!result.success) {
-      throw new Error(result.error || result.degradationReason || 'AI call failed');
+      throw new OrionError('OPERATION_FAILED', result.error || result.degradationReason || 'AI call failed');
     }
 
     return result.data as string;
@@ -253,7 +253,7 @@ export abstract class BaseAgent {
     const result = await this.toolAdapter.executeTool(toolName, params, context);
 
     if (!result.success) {
-      throw new Error(`Tool '${toolName}' execution failed: ${result.error}`);
+      throw new OrionError('OPERATION_FAILED', `Tool '${toolName}' execution failed: ${result.error}`)
     }
 
     return result.data;

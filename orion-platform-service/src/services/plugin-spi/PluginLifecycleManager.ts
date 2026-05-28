@@ -98,9 +98,7 @@ export class PluginLifecycleManager extends EventEmitter {
     // Check if already installed and enabled
     const existing = this.registry.getPlugin(manifest.name);
     if (existing && existing.status === 'enabled') {
-      throw new Error(
-        `Plugin "${manifest.name}" is already installed and enabled. Disable it first to reinstall.`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Plugin is already installed and enabled');
     }
 
     // Resolve and validate dependencies
@@ -145,9 +143,7 @@ export class PluginLifecycleManager extends EventEmitter {
         await activationHook(pluginId, plugin.config);
       } catch (error) {
         this.handleError(pluginId, error);
-        throw new Error(
-          `Activation hook failed for plugin "${pluginId}": ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version below minimum required');
       }
     }
 
@@ -318,9 +314,7 @@ export class PluginLifecycleManager extends EventEmitter {
   private validateTransition(pluginId: string, from: PluginStatus, to: PluginStatus): void {
     const allowed = VALID_TRANSITIONS[from];
     if (!allowed.includes(to)) {
-      throw new Error(
-        `Invalid state transition for plugin "${pluginId}": ${from} -> ${to}. Allowed: ${allowed.join(', ')}`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version above maximum supported');
     }
   }
 
@@ -351,7 +345,7 @@ export class PluginLifecycleManager extends EventEmitter {
         issues.push(`Circular dependency detected: ${cycle.join(' -> ')}`);
       }
 
-      throw new Error(`Dependency resolution failed for "${manifest.name}": ${issues.join('; ')}`);
+      throw new OrionError('OPERATION_FAILED', `Dependency resolution failed for "${manifest.name}": ${issues.join('; ')}`)
     }
   }
 
@@ -369,17 +363,13 @@ export class PluginLifecycleManager extends EventEmitter {
 
       const depPlugin = this.registry.getPlugin(dep.name);
       if (!depPlugin) {
-        throw new Error(
-          `Required dependency "${dep.name}" is not installed for plugin "${pluginId}"`
-        );
-      }
+        throw new OrionError('VALIDATION_ERROR', }
 
       // Enable dependency if not already enabled
       if (depPlugin.status !== 'enabled') {
         logger.info(
           { pluginId, dependency: dep.name },
-          'Enabling plugin dependency'
-        );
+          'Enabling plugin dependency')
         await this.enablePlugin(dep.name);
       }
     }
@@ -405,9 +395,7 @@ export class PluginLifecycleManager extends EventEmitter {
     }
 
     if (dependents.length > 0) {
-      throw new Error(
-        `Cannot modify plugin "${pluginId}": the following enabled plugins depend on it: ${dependents.join(', ')}`
-      );
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Plugin is already enabled');
     }
   }
 

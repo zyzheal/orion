@@ -640,7 +640,7 @@ export class SmartDeployService {
     }
 
     if (deployment.status !== 'running') {
-      throw new Error(`Cannot cancel deployment with status '${deployment.status}'`);
+      throw new OrionError('OPERATION_FAILED', `Cannot cancel deployment with status '${deployment.status}'`)
     }
 
     deployment.status = 'cancelled';

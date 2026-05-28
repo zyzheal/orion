@@ -634,7 +634,7 @@ export class WorkflowEngine {
     }
 
     if (lastError && !result) {
-      throw new Error(`Webhook failed after ${config.retry.maxRetries + 1} attempts: ${lastError.message}`);
+      throw new OrionError('OPERATION_FAILED', `Webhook failed after ${config.retry.maxRetries + 1} attempts: ${lastError.message}`)
     }
 
     return {
@@ -1416,7 +1416,7 @@ export class WorkflowEngine {
 
           if (!result.success) {
             logger.error({ error: result.message }, 'Failed to start approval flow');
-            throw new Error(`Failed to start approval: ${result.message}`);
+            throw new OrionError('OPERATION_FAILED', `Failed to start approval: ${result.message}`)
           }
 
           const approvalId = `approval_${result.ticketId}`;
@@ -1659,7 +1659,7 @@ export class WorkflowEngine {
           clearTimeout(timeoutId);
 
           if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new OrionError('OPERATION_FAILED', `HTTP ${response.status}: ${response.statusText}`)
           }
 
           // 尝试解析 JSON 响应

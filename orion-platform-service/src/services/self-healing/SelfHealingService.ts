@@ -508,7 +508,7 @@ export class SelfHealingService {
     // Update associated incident
     const incident = await this.repository.findIncidentById(approvalRow.incident_id);
     if (!incident) {
-      throw new Error(`Associated incident not found`);
+      throw new OrionError('NOT_FOUND', `Associated incident not found`)
     }
 
     // Publish approval_responded event

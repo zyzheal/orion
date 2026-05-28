@@ -183,8 +183,8 @@ export class UnifiedTriggerService {
     const trigger = await this.triggerRepo.findById(triggerId);
     if (!trigger) throw new OrionError(ErrorCode.NOT_FOUND, `Trigger not found: ${triggerId}`);
     if (trigger.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Trigger does not belong to this tenant');
-    if (!trigger.enabled) throw new Error(`Trigger is disabled: ${triggerId}`);
-    if (!trigger.pipeline_id) throw new Error(`Trigger has no associated pipeline: ${triggerId}`);
+    if (!trigger.enabled) throw new OrionError('VALIDATION_ERROR', `Trigger is disabled: ${triggerId}`);
+    if (!trigger.pipeline_id) throw new OrionError('NOT_FOUND', `Trigger has no associated pipeline: ${triggerId}`);
 
     // In production, this would call the pipeline engine to execute
     // For now, record the event and return success

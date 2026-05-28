@@ -5,6 +5,7 @@
  */
 
 import pino from 'pino';
+import { OrionError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -114,7 +115,7 @@ export class EfficiencyDashboardService {
         scenario = await this.buildOverviewScenario(timeRange);
         break;
       default:
-        throw new Error(`Unknown scenario: ${scenarioId}`);
+        throw new OrionError('NOT_FOUND', `Unknown scenario: ${scenarioId}`)
     }
 
     this.scenarioCache.set(cacheKey, scenario);

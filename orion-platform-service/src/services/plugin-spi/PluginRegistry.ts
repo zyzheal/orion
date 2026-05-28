@@ -13,6 +13,7 @@ import pino from 'pino';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
+import { OrionError } from '../../errors';
   PluginManifest,
   PluginInfo,
   PluginStatus,
@@ -283,7 +284,7 @@ export class PluginRegistry {
     }
 
     if (errors.length > 0) {
-      throw new Error(`Invalid plugin manifest: ${errors.join(', ')}`);
+      throw new OrionError('VALIDATION_ERROR', `Invalid plugin manifest: ${errors.join(', ')}`)
     }
   }
 
@@ -293,17 +294,13 @@ export class PluginRegistry {
   private checkPlatformCompatibility(manifest: PluginManifest): void {
     if (manifest.minPlatformVersion) {
       if (!this.isVersionGte(PLATFORM_VERSION, manifest.minPlatformVersion)) {
-        throw new Error(
-          `Plugin "${manifest.name}" requires platform version >= ${manifest.minPlatformVersion}, current: ${PLATFORM_VERSION}`
-        );
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version below minimum required');
       }
     }
 
     if (manifest.maxPlatformVersion) {
       if (!this.isVersionLte(PLATFORM_VERSION, manifest.maxPlatformVersion)) {
-        throw new Error(
-          `Plugin "${manifest.name}" requires platform version <= ${manifest.maxPlatformVersion}, current: ${PLATFORM_VERSION}`
-        );
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version above maximum supported');
       }
     }
   }

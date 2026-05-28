@@ -249,7 +249,7 @@ export class ModuleManager {
       throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
     }
     if (mod.level === 'core' && !enabled) {
-      throw new Error(`Core module ${id} cannot be disabled`);
+      throw new OrionError('VALIDATION_ERROR', `Core module ${id} cannot be disabled`)
     }
     mod.config.enabled = enabled;
     if (enabled && mod.state !== 'active') {

@@ -878,7 +878,7 @@ export class ApprovalFlowEngine {
     } catch (error: any) {
       logger.error({ error: error.message }, 'Failed to ensure approval tables — this is a critical initialization failure');
       // 不吞异常：表创建失败意味着后续所有操作都会失败
-      throw new Error(`ApprovalFlowEngine initialization failed: ${error.message}`);
+      throw new OrionError('OPERATION_FAILED', `ApprovalFlowEngine initialization failed: ${error.message}`)
     }
   }
 
