@@ -21,6 +21,9 @@ import type {
 import { JobPriority } from '../../models/Job';
 import type { JobRepository, PostgresJobRepository } from '../../repositories/JobRepository';
 import { PostgresJobRepository as PostgresJobRepoClass } from '../../repositories/JobRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LQueue-LService' });
 
 export class QueueServiceError extends Error {
   constructor(message: string, public code: string) {
@@ -85,7 +88,7 @@ export class QueueService {
         return await this.repository.create(job);
       }
     } catch (error) {
-      console.error('[QueueService] Failed to persist job to database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to persist job to database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -135,7 +138,7 @@ export class QueueService {
         return updated;
       }
     } catch (error) {
-      console.error('[QueueService] Failed to dequeue from database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to dequeue from database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -181,7 +184,7 @@ export class QueueService {
         return await this.repository.findById(id);
       }
     } catch (error) {
-      console.error('[QueueService] Failed to get job from database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to get job from database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -249,7 +252,7 @@ export class QueueService {
         };
       }
     } catch (error) {
-      console.error('[QueueService] Failed to list jobs from database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to list jobs from database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -308,7 +311,7 @@ export class QueueService {
         });
       }
     } catch (error) {
-      console.error('[QueueService] Failed to complete job in database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to complete job in database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -353,7 +356,7 @@ export class QueueService {
         return await this.repository.update(id, updates);
       }
     } catch (error) {
-      console.error('[QueueService] Failed to fail job in database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to fail job in database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -395,7 +398,7 @@ export class QueueService {
         };
       }
     } catch (error) {
-      console.error('[QueueService] Failed to get stats from database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to get stats from database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -459,7 +462,7 @@ export class QueueService {
         });
       }
     } catch (error) {
-      console.error('[QueueService] Failed to cancel job in database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to cancel job in database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory
@@ -496,7 +499,7 @@ export class QueueService {
         });
       }
     } catch (error) {
-      console.error('[QueueService] Failed to requeue job in database, using in-memory fallback:', error);
+      logger.error('[QueueService] Failed to requeue job in database, using in-memory fallback:', error);
     }
 
     // Fallback to in-memory

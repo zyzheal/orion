@@ -8,6 +8,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { SubAppService } from '../services/subapp';
 import { DatabasePool } from '../services/database';
+import pino from 'pino';
+
+const logger = pino({ name: 'subapp-routes' });
 
 export interface SubAppRouteOptions {
   database?: DatabasePool;
@@ -84,7 +87,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         total: apps.length,
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to get subapps:', error);
+      logger.error('[SubAppRoutes] Failed to get subapps:', error);
       return reply.status(500).send({
         success: false,
         error: 'INTERNAL_ERROR',
@@ -106,7 +109,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         data: apps,
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to get enabled subapps:', error);
+      logger.error('[SubAppRoutes] Failed to get enabled subapps:', error);
       return reply.status(500).send({
         success: false,
         error: 'INTERNAL_ERROR',
@@ -137,7 +140,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         data: app,
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to get subapp:', error);
+      logger.error('[SubAppRoutes] Failed to get subapp:', error);
       return reply.status(500).send({
         success: false,
         error: 'INTERNAL_ERROR',
@@ -185,7 +188,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         message: 'Sub-app created successfully',
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to create subapp:', error);
+      logger.error('[SubAppRoutes] Failed to create subapp:', error);
 
       if (error.message.includes('already exists')) {
         return reply.status(409).send({
@@ -235,7 +238,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         message: 'Sub-app updated successfully',
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to update subapp:', error);
+      logger.error('[SubAppRoutes] Failed to update subapp:', error);
 
       if (error.message.includes('not found')) {
         return reply.status(404).send({
@@ -278,7 +281,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         message: `Sub-app ${app.status === 'enabled' ? 'enabled' : 'disabled'} successfully`,
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to toggle status:', error);
+      logger.error('[SubAppRoutes] Failed to toggle status:', error);
 
       if (error.message.includes('not found')) {
         return reply.status(404).send({
@@ -312,7 +315,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         message: 'Sub-app deleted successfully',
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to delete subapp:', error);
+      logger.error('[SubAppRoutes] Failed to delete subapp:', error);
 
       if (error.message.includes('not found')) {
         return reply.status(404).send({
@@ -345,7 +348,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
         total: history.length,
       });
     } catch (error: any) {
-      console.error('[SubAppRoutes] Failed to get history:', error);
+      logger.error('[SubAppRoutes] Failed to get history:', error);
       return reply.status(500).send({
         success: false,
         error: 'INTERNAL_ERROR',

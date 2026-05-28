@@ -16,6 +16,9 @@ import {
 } from '../../repositories/CanaryAnalysisRepository';
 
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LCanary-LAnalysis-LService' });
   CanaryAnalysisRun,
   CanaryAnalysisRunCreateInput,
   createCanaryAnalysisRun,
@@ -153,7 +156,7 @@ export class CanaryAnalysisService {
       }
       return entities.map(entityToRun);
     } catch (error) {
-      console.error('[CanaryAnalysisService] listRuns failed:', error);
+      logger.error('[CanaryAnalysisService] listRuns failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to list runs: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'LIST_RUNS_FAILED'
@@ -169,7 +172,7 @@ export class CanaryAnalysisService {
       const run = await this.runRepository.findById(id);
       return run ? run as unknown as CanaryAnalysisRun : null;
     } catch (error) {
-      console.error('[CanaryAnalysisService] getRunById failed:', error);
+      logger.error('[CanaryAnalysisService] getRunById failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to get run: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GET_RUN_FAILED'
@@ -257,7 +260,7 @@ export class CanaryAnalysisService {
         mlResults,
       };
     } catch (error) {
-      console.error('[CanaryAnalysisService] simulateAnalysisRun failed:', error);
+      logger.error('[CanaryAnalysisService] simulateAnalysisRun failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to simulate analysis run: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'SIMULATE_RUN_FAILED'
@@ -275,7 +278,7 @@ export class CanaryAnalysisService {
       const entities = await this.metricRepository.findByRun(runId);
       return entities.map(entityToMetric);
     } catch (error) {
-      console.error('[CanaryAnalysisService] getMetrics failed:', error);
+      logger.error('[CanaryAnalysisService] getMetrics failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to get metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GET_METRICS_FAILED'
@@ -291,7 +294,7 @@ export class CanaryAnalysisService {
       const entities = await this.mlRepository.findByRun(runId);
       return entities.map(entityToMLResult);
     } catch (error) {
-      console.error('[CanaryAnalysisService] getMLResults failed:', error);
+      logger.error('[CanaryAnalysisService] getMLResults failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to get ML results: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GET_ML_RESULTS_FAILED'
@@ -309,7 +312,7 @@ export class CanaryAnalysisService {
       const result = await this.configRepository.findAll();
       return result.entities as unknown as CanaryAnalysisConfig[];
     } catch (error) {
-      console.error('[CanaryAnalysisService] listConfigs failed:', error);
+      logger.error('[CanaryAnalysisService] listConfigs failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to list configs: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'LIST_CONFIGS_FAILED'
@@ -341,7 +344,7 @@ export class CanaryAnalysisService {
       });
       return created as unknown as CanaryAnalysisConfig;
     } catch (error) {
-      console.error('[CanaryAnalysisService] createConfig failed:', error);
+      logger.error('[CanaryAnalysisService] createConfig failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to create config: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'CREATE_CONFIG_FAILED'
@@ -357,7 +360,7 @@ export class CanaryAnalysisService {
       const config = await this.configRepository.findByServiceEnv(serviceName, environment);
       return config ? config as unknown as CanaryAnalysisConfig : null;
     } catch (error) {
-      console.error('[CanaryAnalysisService] getConfigByServiceEnv failed:', error);
+      logger.error('[CanaryAnalysisService] getConfigByServiceEnv failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GET_CONFIG_FAILED'
@@ -389,7 +392,7 @@ export class CanaryAnalysisService {
       const updated = await this.configRepository.updateConfig(id, translatedUpdates as any);
       return updated as unknown as CanaryAnalysisConfig | null;
     } catch (error) {
-      console.error('[CanaryAnalysisService] updateConfig failed:', error);
+      logger.error('[CanaryAnalysisService] updateConfig failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to update config: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'UPDATE_CONFIG_FAILED'
@@ -404,7 +407,7 @@ export class CanaryAnalysisService {
     try {
       return await this.configRepository.delete(id);
     } catch (error) {
-      console.error('[CanaryAnalysisService] deleteConfig failed:', error);
+      logger.error('[CanaryAnalysisService] deleteConfig failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to delete config: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'DELETE_CONFIG_FAILED'
@@ -454,7 +457,7 @@ export class CanaryAnalysisService {
       } as unknown as CanaryAnalysisRun;
     } catch (error) {
       if (error instanceof CanaryAnalysisServiceError) throw error;
-      console.error('[CanaryAnalysisService] forcePromote failed:', error);
+      logger.error('[CanaryAnalysisService] forcePromote failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to force promote: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'FORCE_PROMOTE_FAILED'
@@ -502,7 +505,7 @@ export class CanaryAnalysisService {
       } as unknown as CanaryAnalysisRun;
     } catch (error) {
       if (error instanceof CanaryAnalysisServiceError) throw error;
-      console.error('[CanaryAnalysisService] forceRollback failed:', error);
+      logger.error('[CanaryAnalysisService] forceRollback failed:', error);
       throw new CanaryAnalysisServiceError(
         `Failed to force rollback: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'FORCE_ROLLBACK_FAILED'
@@ -551,7 +554,7 @@ export class CanaryAnalysisService {
         passRate,
       };
     } catch (error) {
-      console.error('[CanaryAnalysisService] getMetricsSummary failed:', error);
+      logger.error('[CanaryAnalysisService] getMetricsSummary failed:', error);
       // Return default on error (for DB unavailability)
       return {
         totalRuns: 0,

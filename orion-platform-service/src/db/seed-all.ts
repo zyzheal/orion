@@ -4,6 +4,9 @@
  */
 
 import { Pool } from 'pg';
+import pino from 'pino';
+
+const logger = pino({ name: 'seed-all' });
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -17,7 +20,7 @@ const DEFAULT_TENANT_ID = 'b9cc68a4-f373-448f-b2b2-07f2b3336d46';
 const ADMIN_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 async function seed() {
-  console.log('Starting comprehensive seed...\n');
+  logger.info('Starting comprehensive seed...\n');
 
   // 1. 插入产品线数据
   await seedProductLines();
@@ -29,18 +32,18 @@ async function seed() {
   await seedProjects();
 
   // 4-8. 跳过可能不存在或不兼容的表
-  console.log('⏭️  Skipping Pipelines, Environments, Alerts, Knowledge (table schema mismatch)');
+  logger.info('⏭️  Skipping Pipelines, Environments, Alerts, Knowledge (table schema mismatch)');
 
   // 8. 插入用户和角色数据
-  await seedUsersAndRoles().catch(() => console.log('  ⚠️  Roles table skipped'));
+  await seedUsersAndRoles().catch(() => logger.info('  ⚠️  Roles table skipped'));
 
-  console.log('\n✅ Core seed data inserted successfully!');
-  console.log('ℹ️  Note: Some tables were skipped due to schema differences');
+  logger.info('\n✅ Core seed data inserted successfully!');
+  logger.info('ℹ️  Note: Some tables were skipped due to schema differences');
   await pool.end();
 }
 
 async function seedProductLines() {
-  console.log('📦 Seeding ProductLines...');
+  logger.info('📦 Seeding ProductLines...');
 
   const productLines = [
     {
@@ -122,11 +125,11 @@ async function seedProductLines() {
       [DEFAULT_TENANT_ID, pl.name, pl.display_name, pl.description, pl.git_url, pl.git_provider, pl.branch_mode, pl.phase, pl.environments]
     ).catch(() => {}); // Ignore conflicts
   }
-  console.log(`  ✅ Inserted ${productLines.length} product lines`);
+  logger.info(`  ✅ Inserted ${productLines.length} product lines`);
 }
 
 async function seedTickets() {
-  console.log('🎫 Seeding Tickets...');
+  logger.info('🎫 Seeding Tickets...');
 
   const tickets = [
     { title: '生产数据库 CPU 使用率过高 (95%)', type: 'incident', priority: 'critical', status: 'open', assignee_id: ADMIN_USER_ID },
@@ -148,11 +151,11 @@ async function seedTickets() {
       [DEFAULT_TENANT_ID, t.title, t.type, t.priority, t.status, t.assignee_id, ADMIN_USER_ID]
     );
   }
-  console.log(`  ✅ Inserted ${tickets.length} tickets`);
+  logger.info(`  ✅ Inserted ${tickets.length} tickets`);
 }
 
 async function seedProjects() {
-  console.log('📁 Seeding Projects...');
+  logger.info('📁 Seeding Projects...');
 
   const projects = [
     { tenant_id: DEFAULT_TENANT_ID, name: 'orion-platform', slug: 'orion-platform', description: 'Orion 平台核心服务', status: 'active' },
@@ -170,11 +173,11 @@ async function seedProjects() {
       [p.tenant_id, p.name, p.slug, p.description, p.status]
     );
   }
-  console.log(`  ✅ Inserted ${projects.length} projects`);
+  logger.info(`  ✅ Inserted ${projects.length} projects`);
 }
 
 async function seedPipelines() {
-  console.log('🔄 Seeding Pipelines...');
+  logger.info('🔄 Seeding Pipelines...');
 
   // 检查 pipelines 表是否存在
   const tableExists = await pool.query(
@@ -182,7 +185,7 @@ async function seedPipelines() {
   );
 
   if (!tableExists.rows[0].exists) {
-    console.log('  ⚠️  Pipelines table does not exist, skipping...');
+    logger.info('  ⚠️  Pipelines table does not exist, skipping...');
     return;
   }
 
@@ -203,18 +206,18 @@ async function seedPipelines() {
       [p.tenant_id, p.name, p.status, p.branch]
     );
   }
-  console.log(`  ✅ Inserted ${pipelines.length} pipelines`);
+  logger.info(`  ✅ Inserted ${pipelines.length} pipelines`);
 }
 
 async function seedEnvironments() {
-  console.log('🌍 Seeding Environments...');
+  logger.info('🌍 Seeding Environments...');
 
   const tableExists = await pool.query(
     `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'environments')`
   );
 
   if (!tableExists.rows[0].exists) {
-    console.log('  ⚠️  Environments table does not exist, skipping...');
+    logger.info('  ⚠️  Environments table does not exist, skipping...');
     return;
   }
 
@@ -231,18 +234,18 @@ async function seedEnvironments() {
       [e.tenant_id, e.name, e.type, e.cluster, e.status]
     );
   }
-  console.log(`  ✅ Inserted ${environments.length} environments`);
+  logger.info(`  ✅ Inserted ${environments.length} environments`);
 }
 
 async function seedAlerts() {
-  console.log('🔔 Seeding Alerts...');
+  logger.info('🔔 Seeding Alerts...');
 
   const tableExists = await pool.query(
     `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alerts')`
   );
 
   if (!tableExists.rows[0].exists) {
-    console.log('  ⚠️  Alerts table does not exist, skipping...');
+    logger.info('  ⚠️  Alerts table does not exist, skipping...');
     return;
   }
 
@@ -261,18 +264,18 @@ async function seedAlerts() {
       [a.tenant_id, a.name, a.severity, a.status, a.source]
     );
   }
-  console.log(`  ✅ Inserted ${alerts.length} alerts`);
+  logger.info(`  ✅ Inserted ${alerts.length} alerts`);
 }
 
 async function seedKnowledge() {
-  console.log('📚 Seeding Knowledge Base...');
+  logger.info('📚 Seeding Knowledge Base...');
 
   const tableExists = await pool.query(
     `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'knowledge_documents')`
   );
 
   if (!tableExists.rows[0].exists) {
-    console.log('  ⚠️  Knowledge documents table does not exist, skipping...');
+    logger.info('  ⚠️  Knowledge documents table does not exist, skipping...');
     return;
   }
 
@@ -291,11 +294,11 @@ async function seedKnowledge() {
       [d.tenant_id, d.title, d.category, d.status]
     );
   }
-  console.log(`  ✅ Inserted ${docs.length} knowledge documents`);
+  logger.info(`  ✅ Inserted ${docs.length} knowledge documents`);
 }
 
 async function seedUsersAndRoles() {
-  console.log('👥 Seeding Users and Roles...');
+  logger.info('👥 Seeding Users and Roles...');
 
   // Check if users table has data
   const { rows } = await pool.query('SELECT COUNT(*) as count FROM users');
@@ -308,9 +311,9 @@ async function seedUsersAndRoles() {
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [ADMIN_USER_ID, DEFAULT_TENANT_ID, 'admin', 'admin@orion.local', 'System Admin', 'admin', 'active']
     );
-    console.log(`  ✅ Inserted default admin user`);
+    logger.info(`  ✅ Inserted default admin user`);
   } else {
-    console.log(`  ℹ️  Users already exist (${userCount}), skipping...`);
+    logger.info(`  ℹ️  Users already exist (${userCount}), skipping...`);
   }
 
   // Check if roles table exists
@@ -319,7 +322,7 @@ async function seedUsersAndRoles() {
   );
 
   if (!rolesTableExists.rows[0].exists) {
-    console.log('  ⚠️  Roles table does not exist, skipping...');
+    logger.info('  ⚠️  Roles table does not exist, skipping...');
     return;
   }
 
@@ -338,8 +341,8 @@ async function seedUsersAndRoles() {
       [r.tenant_id, r.name, r.permissions]
     );
   }
-  console.log(`  ✅ Inserted ${roles.length} roles`);
+  logger.info(`  ✅ Inserted ${roles.length} roles`);
 }
 
 // Run the seed
-seed().catch(console.error);
+seed().catch((err) => logger.error({ err }, 'Seed failed'));

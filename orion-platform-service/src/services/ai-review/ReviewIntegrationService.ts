@@ -9,6 +9,9 @@
  */
 
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LReview-LIntegration-LService' });
   ReviewResult,
   ReviewComment,
   ReviewSummary,
@@ -142,7 +145,7 @@ export class ReviewIntegrationService {
 
     // 在实际实现中，这里会调用 GitLab/Gerrit/GitHub API 更新标签
     // 当前作为抽象实现，记录标签信息
-    console.log(
+    logger.info(
       `[ReviewIntegration] Updating labels for ${repoType} PR ${prId}:`,
       labels
     );
@@ -163,7 +166,7 @@ export class ReviewIntegrationService {
       return false;
     }
 
-    console.log(`[ReviewIntegration] Auto-approving ${repoType} PR ${prId}`);
+    logger.info(`[ReviewIntegration] Auto-approving ${repoType} PR ${prId}`);
 
     // 在实际实现中，这里会调用 API 批准 PR
     // GitLab: POST /projects/:id/merge_requests/:iid/merge
@@ -276,7 +279,7 @@ export class ReviewIntegrationService {
 
     // 1. 发布总体审查报告
     const report = this.generateReviewReport(result);
-    console.log(
+    logger.info(
       `[GitLab] Posting review report to MR ${prId} in repo ${repoId}`
     );
 
@@ -294,7 +297,7 @@ export class ReviewIntegrationService {
         },
       };
 
-      console.log(
+      logger.info(
         `[GitLab] Posting comment on ${comment.filePath}:${comment.lineNumber}`
       );
       postedCount++;
@@ -338,7 +341,7 @@ export class ReviewIntegrationService {
       });
     }
 
-    console.log(
+    logger.info(
       `[Gerrit] Posting review to Change ${prId} in repo ${repoId}`
     );
 
@@ -358,13 +361,13 @@ export class ReviewIntegrationService {
     // POST /repos/:owner/:repo/pulls/:number/comments (行级评论)
 
     const report = this.generateReviewReport(result);
-    console.log(
+    logger.info(
       `[GitHub] Posting review report to PR ${prId} in repo ${repoId}`
     );
 
     let postedCount = 0;
     for (const comment of result.comments) {
-      console.log(
+      logger.info(
         `[GitHub] Posting comment on ${comment.filePath}:${comment.lineNumber}`
       );
       postedCount++;

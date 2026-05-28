@@ -31,6 +31,9 @@ import {
   RiskLevel,
 } from './types';
 import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
+import pino from 'pino';
+
+const logger = pino({ name: 'LSelf-LHealing-LService' });
 
 // ==================== Options ====================
 
@@ -119,7 +122,7 @@ export class SelfHealingService {
     });
 
     if (shouldSuppress) {
-      console.log(
+      logger.info(
         `[SelfHealingService] Storm suppressed alert: ${alert.metric} in ${alert.tags.app} (${alert.tags.env})`
       );
       // Still create the incident but mark as suppressed
@@ -149,7 +152,7 @@ export class SelfHealingService {
           type: this.mapMetricToIncidentType(alert.metric) as any,
           status: 'escalated',
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish incident_escalated event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish incident_escalated event:', err));
       }
 
       return this.mapRowToIncident(row);
@@ -184,7 +187,7 @@ export class SelfHealingService {
         severity: alert.severity as any,
         tags: alert.tags,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[SelfHealingService] Failed to publish incident_detected event:', err));
+      }).catch(err => logger.warn('[SelfHealingService] Failed to publish incident_detected event:', err));
     }
 
     // Match to a strategy (include severity in context for condition matching)
@@ -252,7 +255,7 @@ export class SelfHealingService {
           recommendedActions: strategy.actions.map(a => ({ type: a.type as any, description: a.description })),
           expiresAt: new Date(now.getTime() + this.options.approvalExpirationMs).toISOString(),
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish approval_requested event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish approval_requested event:', err));
       }
 
       const final = await this.repository.findIncidentById(row.id);
@@ -271,7 +274,7 @@ export class SelfHealingService {
         requiresApproval: false,
         confidence: strategy.confidence,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_started event:', err));
+      }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_started event:', err));
     }
 
     // Auto-heal: execute actions
@@ -516,7 +519,7 @@ export class SelfHealingService {
         respondedBy: response.respondedBy,
         reason: response.reason,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[SelfHealingService] Failed to publish approval_responded event:', err));
+      }).catch(err => logger.warn('[SelfHealingService] Failed to publish approval_responded event:', err));
     }
 
     if (response.approved) {
@@ -533,7 +536,7 @@ export class SelfHealingService {
           requiresApproval: true,
           confidence: strategy.confidence,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_started event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_started event:', err));
       }
 
       // Execute healing actions with approver info
@@ -614,7 +617,7 @@ export class SelfHealingService {
           rollbackNeeded: result.rollbackNeeded,
           rollbackSuccess: result.rollbackSuccess,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish action_executed event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish action_executed event:', err));
       }
 
       // Update audit entry with result
@@ -672,7 +675,7 @@ export class SelfHealingService {
           actionsExecuted: actionResults.length,
           effectiveness: healingResult.effectiveness,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_completed event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_completed event:', err));
       } else {
         await this.eventPublisher.publishHealingFailed({
           incidentId: incidentRow.id,
@@ -682,7 +685,7 @@ export class SelfHealingService {
           attempts: incidentRow.attempts,
           lastAction: actionResults[actionResults.length - 1]?.type as any,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_failed event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_failed event:', err));
       }
     }
 

@@ -46,6 +46,9 @@ import circuitBreakerRoutes from './api/circuit-breaker-routes';
 import { MessageQueueService } from './services/message-queue/message-queue-service';
 import messageQueueRoutes from './api/message-queue-routes';
 import cacheRoutes from './api/cache-routes';
+import pino from 'pino';
+
+const logger = pino({ name: 'app' });
 
 export interface PlatformAppOptions {
   redis?: RedisCache;
@@ -262,25 +265,25 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     // Seed permissions and roles asynchronously (non-blocking)
     const permService = new PermissionService(permRepo);
     permService.seedCommonPermissions().then((result) => {
-      console.log(`[AuthZ] Seeded ${result.created} permissions (${result.skipped} existing)`);
+      logger.info(`[AuthZ] Seeded ${result.created} permissions (${result.skipped} existing)`);
     }).catch((err) => {
-      console.error('[AuthZ] Failed to seed common permissions:', err);
+      logger.error('[AuthZ] Failed to seed common permissions:', err);
     });
 
     // Seed system-level default roles and bind permissions
     // Use system tenant for initial seeding; per-tenant seeding happens on tenant creation
     const SYSTEM_TENANT = '00000000-0000-0000-0000-000000000001';
     roleService.seedDefaultRoles(SYSTEM_TENANT).then((result) => {
-      console.log(`[AuthZ] Seeded ${result.created} roles (${result.skipped} existing)`);
+      logger.info(`[AuthZ] Seeded ${result.created} roles (${result.skipped} existing)`);
       // After roles are created, bind permissions to them
       return roleService.seedRolePermissions();
     }).then(() => {
-      console.log('[AuthZ] Role permissions seeded successfully');
+      logger.info('[AuthZ] Role permissions seeded successfully');
     }).catch((err) => {
-      console.error('[AuthZ] Failed to seed roles/permissions:', err);
+      logger.error('[AuthZ] Failed to seed roles/permissions:', err);
     });
 
-    console.log('[AuthZ] Authorization engine initialized (RBAC + ABAC + Relationship + Audit)');
+    logger.info('[AuthZ] Authorization engine initialized (RBAC + ABAC + Relationship + Audit)');
   }
 
   // 注册 EventBus 健康检查
@@ -482,9 +485,9 @@ function setupPermissionCleanupJob(database: DatabasePool): void {
   const cleanup = async () => {
     try {
       const result = await capabilityService.cleanupExpiredTemporaryPermissions();
-      console.log(`[PermissionCleanup] Cleaned ${result.cleaned} expired permissions, wrote ${result.auditLogs} audit logs`);
+      logger.info(`[PermissionCleanup] Cleaned ${result.cleaned} expired permissions, wrote ${result.auditLogs} audit logs`);
     } catch (error) {
-      console.error('[PermissionCleanup] Failed:', error);
+      logger.error('[PermissionCleanup] Failed:', error);
     }
   };
 
@@ -494,5 +497,5 @@ function setupPermissionCleanupJob(database: DatabasePool): void {
   // 立即执行一次
   cleanup();
 
-  console.log('[PermissionCleanup] Cron job registered (every 10 minutes)');
+  logger.info('[PermissionCleanup] Cron job registered (every 10 minutes)');
 }

@@ -10,6 +10,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmationRepository, ConfirmationEntity, ConfirmationAuditEntity, NotificationSettingsEntity } from '../../repositories/ConfirmationRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LConfirmation-LService' });
 
 export interface ConfirmationRequest {
   id: string;
@@ -125,7 +128,7 @@ export class ConfirmationService {
           tenantId: request.tenantId,
         });
       } catch (err) {
-        console.warn('[ConfirmationService] Failed to persist to DB, keeping in-memory:', err);
+        logger.warn('[ConfirmationService] Failed to persist to DB, keeping in-memory:', err);
         confirmations.set(request.id, request);
         auditLogs.set(request.id, []);
         return request;
@@ -171,7 +174,7 @@ export class ConfirmationService {
         });
         return result.entities.map((e) => this.entityToRequest(e));
       } catch (err) {
-        console.warn('[ConfirmationService] DB query failed, falling back to memory:', err);
+        logger.warn('[ConfirmationService] DB query failed, falling back to memory:', err);
       }
     }
 
@@ -242,7 +245,7 @@ export class ConfirmationService {
           details: input.comment || input.reason,
         });
       } catch (err) {
-        console.warn('[ConfirmationService] Failed to persist approval to DB:', err);
+        logger.warn('[ConfirmationService] Failed to persist approval to DB:', err);
       }
     }
 
@@ -293,7 +296,7 @@ export class ConfirmationService {
           details: input.comment || input.reason,
         });
       } catch (err) {
-        console.warn('[ConfirmationService] Failed to persist rejection to DB:', err);
+        logger.warn('[ConfirmationService] Failed to persist rejection to DB:', err);
       }
     }
 
@@ -350,7 +353,7 @@ export class ConfirmationService {
         });
         return result.entities.map((a) => this.entityToAudit(a));
       } catch (err) {
-        console.warn('[ConfirmationService] DB audit query failed, falling back to memory:', err);
+        logger.warn('[ConfirmationService] DB audit query failed, falling back to memory:', err);
       }
     }
 
@@ -401,7 +404,7 @@ export class ConfirmationService {
           return result;
         }
       } catch (err) {
-        console.warn('[ConfirmationService] DB notification settings query failed, falling back to memory:', err);
+        logger.warn('[ConfirmationService] DB notification settings query failed, falling back to memory:', err);
       }
     }
 
@@ -443,7 +446,7 @@ export class ConfirmationService {
           autoApproveAfterMinutes: updated.autoApproveAfterMinutes,
         });
       } catch (err) {
-        console.warn('[ConfirmationService] Failed to persist notification settings to DB:', err);
+        logger.warn('[ConfirmationService] Failed to persist notification settings to DB:', err);
       }
     }
 
@@ -465,7 +468,7 @@ export class ConfirmationService {
       try {
         return await this.repository.getStats(tenantId);
       } catch (err) {
-        console.warn('[ConfirmationService] DB stats query failed, falling back to memory:', err);
+        logger.warn('[ConfirmationService] DB stats query failed, falling back to memory:', err);
       }
     }
 

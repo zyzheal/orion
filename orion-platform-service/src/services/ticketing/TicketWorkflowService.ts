@@ -23,6 +23,9 @@ import {
 } from './types';
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LTicket-LWorkflow-LService' });
 
 /**
  * Valid workflow transitions matrix
@@ -135,7 +138,7 @@ export class TicketWorkflowService {
       }
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist ticket to repository: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
 
@@ -189,7 +192,7 @@ export class TicketWorkflowService {
       return tickets;
     } catch (err) {
       const message = `[TicketWorkflowService] Repository list failed: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
   }
@@ -235,7 +238,7 @@ export class TicketWorkflowService {
       await this.ticketingRepository.update(ticketId, dbUpdates);
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist update: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
 
@@ -300,7 +303,7 @@ export class TicketWorkflowService {
       );
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist workflow history: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
 
@@ -310,7 +313,7 @@ export class TicketWorkflowService {
         await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() });
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to update SLA: ${err}`;
-        console.error(message);
+        logger.error(message);
         throw new Error(message);
       }
     }
@@ -324,7 +327,7 @@ export class TicketWorkflowService {
         });
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to reset SLA: ${err}`;
-        console.error(message);
+        logger.error(message);
         throw new Error(message);
       }
     }
@@ -383,7 +386,7 @@ export class TicketWorkflowService {
       }
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist assignment: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
 
@@ -498,7 +501,7 @@ export class TicketWorkflowService {
       );
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist escalation: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
 
@@ -549,7 +552,7 @@ export class TicketWorkflowService {
     this.escalationTimer = setInterval(async () => {
       const escalated = await this.checkAndEscalateOverdue();
       if (escalated.length > 0) {
-        console.log(`[TicketWorkflowService] Auto-escalated ${escalated.length} overdue tickets`);
+        logger.info(`[TicketWorkflowService] Auto-escalated ${escalated.length} overdue tickets`);
       }
     }, intervalMs);
   }
@@ -584,7 +587,7 @@ export class TicketWorkflowService {
       return await this.ticketingRepository.getWorkflowHistory(ticketId);
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
   }
@@ -597,7 +600,7 @@ export class TicketWorkflowService {
       return await this.ticketingRepository.getAssignmentsByTicket(ticketId);
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
   }
@@ -631,7 +634,7 @@ export class TicketWorkflowService {
       return sla || undefined;
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getTicketSLA failed: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
   }
@@ -644,7 +647,7 @@ export class TicketWorkflowService {
       return await this.ticketingRepository.getAllSLA();
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
   }
@@ -702,7 +705,7 @@ export class TicketWorkflowService {
       return await this.ticketingRepository.count();
     } catch (err) {
       const message = `[TicketWorkflowService] Repository count failed: ${err}`;
-      console.error(message);
+      logger.error(message);
       throw new Error(message);
     }
   }

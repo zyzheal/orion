@@ -12,6 +12,9 @@
  */
 
 import { EventEmitter } from 'events';
+import pino from 'pino';
+
+const logger = pino({ name: 'LFault-LInjector' });
 
 // ==================== Types ====================
 
@@ -345,7 +348,7 @@ export class FaultInjector extends EventEmitter {
         try {
           await this.recover(faultId);
         } catch (err) {
-          console.error(`[FaultInjector] Auto-recovery failed for ${faultId}:`, err);
+          logger.error(`[FaultInjector] Auto-recovery failed for ${faultId}:`, err);
         }
       }
     }, durationMs);
@@ -361,7 +364,7 @@ export class FaultInjector extends EventEmitter {
     target: string,
     config: NetworkLatencyConfig
   ): Promise<void> {
-    console.log(`[FaultInjector] Injecting network latency ${config.latency_ms}ms on ${target}`);
+    logger.info(`[FaultInjector] Injecting network latency ${config.latency_ms}ms on ${target}`);
 
     // In real implementation, would use tc (traffic control) or similar
     // Simulated: just log and emit event
@@ -377,7 +380,7 @@ export class FaultInjector extends EventEmitter {
   }
 
   private async recoverNetworkLatency(faultId: string, target: string): Promise<void> {
-    console.log(`[FaultInjector] Recovering network latency on ${target}`);
+    logger.info(`[FaultInjector] Recovering network latency on ${target}`);
     this.emit('fault:network_latency:recovered', { fault_id: faultId, target });
     await new Promise(resolve => setTimeout(resolve, 50));
   }
@@ -390,7 +393,7 @@ export class FaultInjector extends EventEmitter {
     target: string,
     config: ServiceDownConfig
   ): Promise<void> {
-    console.log(`[FaultInjector] Injecting service down on ${target}`);
+    logger.info(`[FaultInjector] Injecting service down on ${target}`);
 
     this.emit('fault:service_down', {
       fault_id: faultId,
@@ -402,7 +405,7 @@ export class FaultInjector extends EventEmitter {
   }
 
   private async recoverServiceDown(faultId: string, target: string): Promise<void> {
-    console.log(`[FaultInjector] Recovering service down on ${target}`);
+    logger.info(`[FaultInjector] Recovering service down on ${target}`);
     this.emit('fault:service_down:recovered', { fault_id: faultId, target });
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
@@ -415,7 +418,7 @@ export class FaultInjector extends EventEmitter {
     target: string,
     config: CPUStressConfig
   ): Promise<void> {
-    console.log(`[FaultInjector] Injecting CPU stress ${config.stress_percent}% on ${target}`);
+    logger.info(`[FaultInjector] Injecting CPU stress ${config.stress_percent}% on ${target}`);
 
     this.emit('fault:cpu_stress', {
       fault_id: faultId,
@@ -428,7 +431,7 @@ export class FaultInjector extends EventEmitter {
   }
 
   private async recoverCPUStress(faultId: string, target: string): Promise<void> {
-    console.log(`[FaultInjector] Recovering CPU stress on ${target}`);
+    logger.info(`[FaultInjector] Recovering CPU stress on ${target}`);
     this.emit('fault:cpu_stress:recovered', { fault_id: faultId, target });
     await new Promise(resolve => setTimeout(resolve, 50));
   }
@@ -441,7 +444,7 @@ export class FaultInjector extends EventEmitter {
     target: string,
     config: MemoryStressConfig
   ): Promise<void> {
-    console.log(`[FaultInjector] Injecting memory stress on ${target}`);
+    logger.info(`[FaultInjector] Injecting memory stress on ${target}`);
 
     this.emit('fault:memory_stress', {
       fault_id: faultId,
@@ -454,7 +457,7 @@ export class FaultInjector extends EventEmitter {
   }
 
   private async recoverMemoryStress(faultId: string, target: string): Promise<void> {
-    console.log(`[FaultInjector] Recovering memory stress on ${target}`);
+    logger.info(`[FaultInjector] Recovering memory stress on ${target}`);
     this.emit('fault:memory_stress:recovered', { fault_id: faultId, target });
     await new Promise(resolve => setTimeout(resolve, 50));
   }
@@ -467,7 +470,7 @@ export class FaultInjector extends EventEmitter {
     target: string,
     config: DiskFullConfig
   ): Promise<void> {
-    console.log(`[FaultInjector] Injecting disk full ${config.fill_percent}% on ${target}`);
+    logger.info(`[FaultInjector] Injecting disk full ${config.fill_percent}% on ${target}`);
 
     this.emit('fault:disk_full', {
       fault_id: faultId,
@@ -479,7 +482,7 @@ export class FaultInjector extends EventEmitter {
   }
 
   private async recoverDiskFull(faultId: string, target: string): Promise<void> {
-    console.log(`[FaultInjector] Recovering disk full on ${target}`);
+    logger.info(`[FaultInjector] Recovering disk full on ${target}`);
     this.emit('fault:disk_full:recovered', { fault_id: faultId, target });
     await new Promise(resolve => setTimeout(resolve, 50));
   }

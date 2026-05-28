@@ -18,6 +18,9 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { success, created, noContent, badRequest, notFound, internalError, conflict, serviceUnavailable, unauthorized, forbidden } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
+import pino from 'pino';
+
+const logger = pino({ name: 'tenant-routes' });
 
 interface TenantQuotaUpdate {
   maxPipelines?: number;
@@ -60,9 +63,9 @@ export default async function tenantRoutes(
   if (options.database) {
     const tenantRepository = new TenantRepository(options.database);
     tenantService = new TenantService(tenantRepository);
-    console.log('[TenantRoutes] Database-backed TenantService and TenantQuotaService initialized');
+    logger.info('[TenantRoutes] Database-backed TenantService and TenantQuotaService initialized');
   } else {
-    console.warn('[TenantRoutes] Database not available, tenant CRUD routes will not be functional');
+    logger.warn('[TenantRoutes] Database not available, tenant CRUD routes will not be functional');
   }
 
   // ==================== Tenant Context ====================
@@ -105,7 +108,7 @@ export default async function tenantRoutes(
         currentTenant,
       });
     } catch (error: any) {
-      console.error('[tenant/my-tenants] Error:', error);
+      logger.error('[tenant/my-tenants] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -572,7 +575,7 @@ export default async function tenantRoutes(
             );
             migratedPipelines.push(pipelineId);
           } catch (e) {
-            console.warn('[tenant/split] Pipeline migration skipped:', pipelineId, e);
+            logger.warn('[tenant/split] Pipeline migration skipped:', pipelineId, e);
           }
         }
       }
@@ -607,7 +610,7 @@ export default async function tenantRoutes(
         message,
       });
     } catch (error: any) {
-      console.error('[tenant/split] Error:', error);
+      logger.error('[tenant/split] Error:', error);
       return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, error.message || '租户拆分失败');
     }
   });
@@ -753,7 +756,7 @@ export default async function tenantRoutes(
         totals,
       });
     } catch (error: any) {
-      console.error('[tenant/namespace/usage] Error:', error);
+      logger.error('[tenant/namespace/usage] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -783,7 +786,7 @@ export default async function tenantRoutes(
 
       return success(reply, request, result.rows, { total: result.rows.length });
     } catch (error: any) {
-      console.error('[tenant/users] Error:', error);
+      logger.error('[tenant/users] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -843,7 +846,7 @@ export default async function tenantRoutes(
         message: 'User removed from tenant successfully',
       });
     } catch (error: any) {
-      console.error('[tenant/users/delete] Error:', error);
+      logger.error('[tenant/users/delete] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -933,7 +936,7 @@ export default async function tenantRoutes(
       const invite = inviteResult.rows[0];
 
       // TODO: 发送邀请邮件（集成邮件服务）
-      console.log(`[tenant/invite] Invitation created: ${invite.invite_code} for ${body.email} to tenant ${tenant.name}`);
+      logger.info(`[tenant/invite] Invitation created: ${invite.invite_code} for ${body.email} to tenant ${tenant.name}`);
 
       return created(reply, request, {
         invite: {
@@ -952,7 +955,7 @@ export default async function tenantRoutes(
         hint: 'In production, the invite code will be sent via email',
       });
     } catch (error: any) {
-      console.error('[tenant/invite] Error:', error);
+      logger.error('[tenant/invite] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -1051,7 +1054,7 @@ export default async function tenantRoutes(
         ['accepted', currentUserId, invite.id]
       );
 
-      console.log(`[tenant/invite/accept] User ${currentUserId} accepted invitation to tenant ${invite.tenant_name}`);
+      logger.info(`[tenant/invite/accept] User ${currentUserId} accepted invitation to tenant ${invite.tenant_name}`);
 
       return success(reply, request, {
         message: 'Invitation accepted successfully',
@@ -1063,7 +1066,7 @@ export default async function tenantRoutes(
         },
       });
     } catch (error: any) {
-      console.error('[tenant/invite/accept] Error:', error);
+      logger.error('[tenant/invite/accept] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -1115,7 +1118,7 @@ export default async function tenantRoutes(
         },
       });
     } catch (error: any) {
-      console.error('[tenant/invite/get] Error:', error);
+      logger.error('[tenant/invite/get] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -1196,7 +1199,7 @@ export default async function tenantRoutes(
         totalPages: Math.ceil(total / limitNum),
       });
     } catch (error: any) {
-      console.error('[tenant/alerts] Error:', error);
+      logger.error('[tenant/alerts] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -1268,7 +1271,7 @@ export default async function tenantRoutes(
         },
       });
     } catch (error: any) {
-      console.error('[tenant/current] Error:', error);
+      logger.error('[tenant/current] Error:', error);
       return internalError(reply, request, error.message);
     }
   });
@@ -1344,7 +1347,7 @@ export default async function tenantRoutes(
         totalActive: activeAlerts.length,
       });
     } catch (error: any) {
-      console.error('[tenant/alerts/stats] Error:', error);
+      logger.error('[tenant/alerts/stats] Error:', error);
       return internalError(reply, request, error.message);
     }
   });

@@ -31,6 +31,9 @@ import { DiagnosticReporter } from './DiagnosticReporter';
 import { DiagnosticKnowledgeBase } from './DiagnosticKnowledgeBase';
 import { DiagnosticRepository } from './DiagnosticRepository';
 import { DiagnosticService } from './DiagnosticService';
+import pino from 'pino';
+
+const logger = pino({ name: 'LDiagnostic-LAgent-LService' });
 
 /**
  * 诊断 Agent 服务配置
@@ -112,7 +115,7 @@ export class DiagnosticAgentService {
       try {
         await this.pgService.createSession(session);
       } catch (err) {
-        console.error('[DiagnosticAgentService] Failed to persist session to PostgreSQL:', err);
+        logger.error('[DiagnosticAgentService] Failed to persist session to PostgreSQL:', err);
       }
     }
 
@@ -139,7 +142,7 @@ export class DiagnosticAgentService {
           completedSession.findings
         );
       } catch (err) {
-        console.error('[DiagnosticAgentService] Failed to complete session in PostgreSQL:', err);
+        logger.error('[DiagnosticAgentService] Failed to complete session in PostgreSQL:', err);
       }
     }
 
@@ -195,7 +198,7 @@ export class DiagnosticAgentService {
       try {
         return await this.pgService.getHistory(params.tenantId, params.limit);
       } catch (err) {
-        console.error('[DiagnosticAgentService] Failed to get history from PostgreSQL, falling back to memory:', err);
+        logger.error('[DiagnosticAgentService] Failed to get history from PostgreSQL, falling back to memory:', err);
       }
     }
     return this.engine.getDiagnosticHistory(params);
@@ -349,11 +352,11 @@ export class DiagnosticAgentService {
    */
   async startEventSubscriptions(): Promise<void> {
     if (!this.eventBus || !this.autoDiagnosticEnabled) {
-      console.log('[DiagnosticAgentService] Auto-diagnostic disabled or event bus not available');
+      logger.info('[DiagnosticAgentService] Auto-diagnostic disabled or event bus not available');
       return;
     }
 
-    console.log('[DiagnosticAgentService] Subscribing to failure events...');
+    logger.info('[DiagnosticAgentService] Subscribing to failure events...');
 
     try {
       // 订阅部署失败事件
@@ -375,9 +378,9 @@ export class DiagnosticAgentService {
       );
 
       this.isRunning = true;
-      console.log('[DiagnosticAgentService] Event subscriptions active');
+      logger.info('[DiagnosticAgentService] Event subscriptions active');
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to subscribe to events:', error);
+      logger.error('[DiagnosticAgentService] Failed to subscribe to events:', error);
     }
   }
 
@@ -394,12 +397,12 @@ export class DiagnosticAgentService {
           await subscription.drain();
         }
       } catch (error) {
-        console.error('[DiagnosticAgentService] Error unsubscribing:', error);
+        logger.error('[DiagnosticAgentService] Error unsubscribing:', error);
       }
     }
     this.subscriptions = [];
     this.isRunning = false;
-    console.log('[DiagnosticAgentService] Event subscriptions removed');
+    logger.info('[DiagnosticAgentService] Event subscriptions removed');
   }
 
   /**
@@ -569,9 +572,9 @@ export class DiagnosticAgentService {
         autoAck: true,
       });
       this.subscriptions.push(unsubscribe);
-      console.log(`[DiagnosticAgentService] Subscribed to ${eventType}`);
+      logger.info(`[DiagnosticAgentService] Subscribed to ${eventType}`);
     } catch (error) {
-      console.error(`[DiagnosticAgentService] Failed to subscribe to ${eventType}:`, error);
+      logger.error(`[DiagnosticAgentService] Failed to subscribe to ${eventType}:`, error);
     }
   }
 
@@ -579,7 +582,7 @@ export class DiagnosticAgentService {
    * 处理部署失败事件
    */
   private async handleDeploymentFailure(event: any): Promise<void> {
-    console.log('[DiagnosticAgentService] Processing deployment.failed event');
+    logger.info('[DiagnosticAgentService] Processing deployment.failed event');
 
     try {
       const deploymentId = event.data?.deploymentId || event.data?.id || 'unknown';
@@ -619,7 +622,7 @@ export class DiagnosticAgentService {
         });
       }
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to process deployment failure:', error);
+      logger.error('[DiagnosticAgentService] Failed to process deployment failure:', error);
     }
   }
 
@@ -627,7 +630,7 @@ export class DiagnosticAgentService {
    * 处理 Pipeline 失败事件
    */
   private async handlePipelineFailure(event: any): Promise<void> {
-    console.log('[DiagnosticAgentService] Processing pipeline.run.failed event');
+    logger.info('[DiagnosticAgentService] Processing pipeline.run.failed event');
 
     try {
       const runId = event.data?.runId || event.data?.id || 'unknown';
@@ -675,7 +678,7 @@ export class DiagnosticAgentService {
         });
       }
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to process pipeline failure:', error);
+      logger.error('[DiagnosticAgentService] Failed to process pipeline failure:', error);
     }
   }
 
@@ -683,7 +686,7 @@ export class DiagnosticAgentService {
    * 处理事故创建事件
    */
   private async handleIncidentCreated(event: any): Promise<void> {
-    console.log('[DiagnosticAgentService] Processing incident.created event');
+    logger.info('[DiagnosticAgentService] Processing incident.created event');
 
     try {
       const incidentId = event.data?.incidentId || event.data?.id || 'unknown';
@@ -724,7 +727,7 @@ export class DiagnosticAgentService {
         });
       }
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to process incident:', error);
+      logger.error('[DiagnosticAgentService] Failed to process incident:', error);
     }
   }
 }

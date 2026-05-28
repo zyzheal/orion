@@ -19,6 +19,9 @@ import type { CreateNotificationInput } from './notification/NotificationReposit
 import { AISecurityService, sanitizeInput, validateOutput } from './ai-security';
 import type { DatabasePool } from './database';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
   CrossDomainWorkflowRepository,
   CrossDomainExecutionRepository,
   WorkflowDefinitionEntity,
@@ -190,9 +193,9 @@ export class CrossDomainOrchestrator {
         const workflow = this.mapEntityToWorkflow(entity, steps);
         this.workflows.set(workflow.id, workflow);
       }
-      console.log(`[CrossDomainOrchestrator] Loaded ${allWorkflows.entities.length} workflows from DB`);
+      logger.info(`[CrossDomainOrchestrator] Loaded ${allWorkflows.entities.length} workflows from DB`);
     } catch (err) {
-      console.warn('[CrossDomainOrchestrator] Failed to load workflows from DB:', err);
+      logger.warn('[CrossDomainOrchestrator] Failed to load workflows from DB:', err);
     }
   }
 
@@ -354,7 +357,7 @@ export class CrossDomainOrchestrator {
           await this.executionRepository.createStep(stepEntity);
         }
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] Failed to persist execution:', err);
+        logger.warn('[CrossDomainOrchestrator] Failed to persist execution:', err);
       }
     }
 
@@ -366,7 +369,7 @@ export class CrossDomainOrchestrator {
       try {
         await this.workflowRepository.updateLastRun(workflowId, now);
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] Failed to update workflow lastRun:', err);
+        logger.warn('[CrossDomainOrchestrator] Failed to update workflow lastRun:', err);
       }
     }
 
@@ -399,7 +402,7 @@ export class CrossDomainOrchestrator {
           }
         }
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] Failed to persist execution final status:', err);
+        logger.warn('[CrossDomainOrchestrator] Failed to persist execution final status:', err);
       }
     }
 
@@ -469,7 +472,7 @@ export class CrossDomainOrchestrator {
                 new Date(),
               );
             } catch (err) {
-              console.warn('[CrossDomainOrchestrator] Failed to persist step result:', err);
+              logger.warn('[CrossDomainOrchestrator] Failed to persist step result:', err);
             }
           }
 
@@ -584,7 +587,7 @@ export class CrossDomainOrchestrator {
 
       default:
         // Unknown domain — fall back to simulation
-        console.warn(
+        logger.warn(
           `[CrossDomainOrchestrator] Unknown domain '${domain}', simulating execution`
         );
         return this.simulateStep(domain, action, parameters, context);
@@ -623,7 +626,7 @@ export class CrossDomainOrchestrator {
     }
 
     // Fallback: simulate
-    console.warn('[CrossDomainOrchestrator] PipelineEngine not available, simulating pipeline execution');
+    logger.warn('[CrossDomainOrchestrator] PipelineEngine not available, simulating pipeline execution');
     return this.simulateStep('pipeline', action, parameters, context);
   }
 
@@ -712,7 +715,7 @@ export class CrossDomainOrchestrator {
     }
 
     // Fallback: simulate
-    console.warn('[CrossDomainOrchestrator] DeployService not available, simulating deploy execution');
+    logger.warn('[CrossDomainOrchestrator] DeployService not available, simulating deploy execution');
     return this.simulateStep('deploy', action, parameters, context);
   }
 
@@ -788,7 +791,7 @@ export class CrossDomainOrchestrator {
     }
 
     // Fallback: simulate
-    console.warn('[CrossDomainOrchestrator] MonitoringService not available, simulating monitor execution');
+    logger.warn('[CrossDomainOrchestrator] MonitoringService not available, simulating monitor execution');
     return this.simulateStep('monitor', action, parameters, context);
   }
 
@@ -857,7 +860,7 @@ export class CrossDomainOrchestrator {
     }
 
     // Fallback: simulate
-    console.warn('[CrossDomainOrchestrator] AISecurityService not available, simulating security execution');
+    logger.warn('[CrossDomainOrchestrator] AISecurityService not available, simulating security execution');
     return this.simulateStep('security', action, parameters, context);
   }
 
@@ -964,7 +967,7 @@ export class CrossDomainOrchestrator {
     }
 
     // Fallback: simulate
-    console.warn('[CrossDomainOrchestrator] NotificationService not available, simulating notify execution');
+    logger.warn('[CrossDomainOrchestrator] NotificationService not available, simulating notify execution');
     return this.simulateStep('notify', action, parameters, context);
   }
 
@@ -1022,7 +1025,7 @@ export class CrossDomainOrchestrator {
 
         return workflows;
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] DB listWorkflows failed, falling back to in-memory:', err);
+        logger.warn('[CrossDomainOrchestrator] DB listWorkflows failed, falling back to in-memory:', err);
       }
     }
 
@@ -1087,7 +1090,7 @@ export class CrossDomainOrchestrator {
 
         return records;
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] DB listExecutions failed, falling back to in-memory:', err);
+        logger.warn('[CrossDomainOrchestrator] DB listExecutions failed, falling back to in-memory:', err);
       }
     }
 
@@ -1116,7 +1119,7 @@ export class CrossDomainOrchestrator {
       try {
         await this.workflowRepository.updateStatus(workflowId, 'paused');
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] Failed to persist pause status:', err);
+        logger.warn('[CrossDomainOrchestrator] Failed to persist pause status:', err);
       }
     }
     return true;
@@ -1141,7 +1144,7 @@ export class CrossDomainOrchestrator {
       try {
         await this.workflowRepository.updateStatus(workflowId, 'active');
       } catch (err) {
-        console.warn('[CrossDomainOrchestrator] Failed to persist resume status:', err);
+        logger.warn('[CrossDomainOrchestrator] Failed to persist resume status:', err);
       }
     }
     return true;

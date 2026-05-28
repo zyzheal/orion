@@ -11,6 +11,9 @@
 import { EventEmitter } from 'events';
 import * as pg from 'pg';
 import { tenantContextStorage } from '../db/tenant-context-storage';
+import pino from 'pino';
+
+const logger = pino({ name: 'database' });
 
 const { Pool } = pg;
 
@@ -51,7 +54,7 @@ export class DatabasePool extends EventEmitter {
     }
 
     this.isInitializing = true;
-    console.log('[] Initializing connection pool...');
+    logger.info('[] Initializing connection pool...');
 
     try {
       this.pool = new Pool({
@@ -67,7 +70,7 @@ export class DatabasePool extends EventEmitter {
       });
 
       this.pool.on('error', (err) => {
-        console.error('[] Unexpected pool error:', err);
+        logger.error('[] Unexpected pool error:', err);
         this.emit('error', err);
       });
 
@@ -81,7 +84,7 @@ export class DatabasePool extends EventEmitter {
 
       this.isConnected = true;
       this.emit('connect');
-      console.log(`[] Connected to database ${this.config.database} at ${this.config.host}:${this.config.port}`);
+      logger.info(`[] Connected to database ${this.config.database} at ${this.config.host}:${this.config.port}`);
     } catch (error) {
       this.emit('error', error);
       throw error;
@@ -155,7 +158,7 @@ export class DatabasePool extends EventEmitter {
         try {
           await store.dbClient.query('ROLLBACK');
         } catch (rollbackError) {
-          console.error('[Database] Transaction rollback failed:', rollbackError);
+          logger.error('[Database] Transaction rollback failed:', rollbackError);
         }
         throw error;
       }
@@ -176,7 +179,7 @@ export class DatabasePool extends EventEmitter {
         try {
           await client.query('ROLLBACK');
         } catch (rollbackError) {
-          console.error('[Database] Transaction rollback failed:', rollbackError);
+          logger.error('[Database] Transaction rollback failed:', rollbackError);
         }
       }
       throw error;
@@ -216,13 +219,13 @@ export class DatabasePool extends EventEmitter {
       return;
     }
 
-    console.log('[] Closing connection pool...');
+    logger.info('[] Closing connection pool...');
 
     await this.pool.end();
     this.isConnected = false;
 
     this.emit('close');
-    console.log('[] Connection pool closed');
+    logger.info('[] Connection pool closed');
   }
 
   /**

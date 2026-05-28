@@ -14,6 +14,9 @@
 
 import { EventEmitter } from 'events';
 import { EventBusService, EventBusError, ConnectionState } from '../event-bus-service';
+import pino from 'pino';
+
+const logger = pino({ name: 'LEvent-LSubscriber' });
 
 export interface ChatOpsRecommendation {
   id: string;
@@ -69,12 +72,12 @@ export class ChatOpsEventSubscriber {
 
     // ARCH-003: 监听 EventBus 状态变化，自动切换 fallback 模式
     this.eventBus.on('fallback', () => {
-      console.log('[ChatOpsEventSubscriber] EventBus in fallback mode, starting fallback polling');
+      logger.info('[ChatOpsEventSubscriber] EventBus in fallback mode, starting fallback polling');
       this.startFallbackPolling();
     });
 
     this.eventBus.on('connect', () => {
-      console.log('[ChatOpsEventSubscriber] EventBus connected, stopping fallback polling');
+      logger.info('[ChatOpsEventSubscriber] EventBus connected, stopping fallback polling');
       this.stopFallbackPolling();
       // ARCH-003: 重连后重试失败的订阅
       this.retryFailedSubscriptions();
@@ -120,13 +123,13 @@ export class ChatOpsEventSubscriber {
           retryCount: existing ? existing.retryCount + 1 : 1,
         });
 
-        console.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, errorMsg);
+        logger.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, errorMsg);
 
         // ARCH-003: 根据错误类型决定策略
         if (err instanceof EventBusError) {
           if (err.code === 'DISABLED') {
             // EventBus 禁用，无需 fallback
-            console.log(`[ChatOpsEventSubscriber] EventBus disabled, skipping subscription to ${event}`);
+            logger.info(`[ChatOpsEventSubscriber] EventBus disabled, skipping subscription to ${event}`);
           } else if (err.code === 'NOT_CONNECTED' && err.recoverable) {
             // NATS 未连接但可恢复，启动 fallback 轮询
             this.startFallbackPolling();
@@ -147,7 +150,7 @@ export class ChatOpsEventSubscriber {
   private startFallbackPolling(): void {
     if (this.fallbackPollTimer) return;  // 已启动
 
-    console.log('[ChatOpsEventSubscriber] Starting fallback polling for events');
+    logger.info('[ChatOpsEventSubscriber] Starting fallback polling for events');
     this.fallbackPollTimer = setInterval(async () => {
       await this.pollEventsFromDB();
     }, this.FALLBACK_POLL_INTERVAL_MS);
@@ -164,7 +167,7 @@ export class ChatOpsEventSubscriber {
     if (this.fallbackPollTimer) {
       clearInterval(this.fallbackPollTimer);
       this.fallbackPollTimer = null;
-      console.log('[ChatOpsEventSubscriber] Stopped fallback polling');
+      logger.info('[ChatOpsEventSubscriber] Stopped fallback polling');
     }
   }
 
@@ -188,11 +191,11 @@ export class ChatOpsEventSubscriber {
           // 更新状态为 delivered
           await repos.eventRepo.updateStatus(event.id, 'delivered');
         } catch (err) {
-          console.warn('[ChatOpsEventSubscriber] Failed to process fallback event:', err);
+          logger.warn('[ChatOpsEventSubscriber] Failed to process fallback event:', err);
         }
       }
     } catch (err) {
-      console.warn('[ChatOpsEventSubscriber] Fallback poll failed:', err);
+      logger.warn('[ChatOpsEventSubscriber] Fallback poll failed:', err);
     }
   }
 
@@ -218,12 +221,12 @@ export class ChatOpsEventSubscriber {
   private async retryFailedSubscriptions(): Promise<void> {
     if (this.subscriptionFailures.size === 0) return;
 
-    console.log('[ChatOpsEventSubscriber] Retrying failed subscriptions after reconnect');
+    logger.info('[ChatOpsEventSubscriber] Retrying failed subscriptions after reconnect');
     const failures = Array.from(this.subscriptionFailures.values());
 
     for (const failure of failures) {
       if (failure.retryCount >= 3) {
-        console.warn(`[ChatOpsEventSubscriber] Subscription ${failure.event} has exceeded max retries, skipping`);
+        logger.warn(`[ChatOpsEventSubscriber] Subscription ${failure.event} has exceeded max retries, skipping`);
         continue;
       }
 
@@ -237,7 +240,7 @@ export class ChatOpsEventSubscriber {
         });
         this.unsubscribeFns.push(unsub);
         this.subscriptionFailures.delete(failure.event);
-        console.log(`[ChatOpsEventSubscriber] Successfully re-subscribed to ${failure.event}`);
+        logger.info(`[ChatOpsEventSubscriber] Successfully re-subscribed to ${failure.event}`);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         this.subscriptionFailures.set(failure.event, {
@@ -246,7 +249,7 @@ export class ChatOpsEventSubscriber {
           timestamp: new Date(),
           retryCount: failure.retryCount + 1,
         });
-        console.warn(`[ChatOpsEventSubscriber] Re-subscription attempt ${failure.retryCount + 1} failed for ${failure.event}:`, errorMsg);
+        logger.warn(`[ChatOpsEventSubscriber] Re-subscription attempt ${failure.retryCount + 1} failed for ${failure.event}:`, errorMsg);
       }
     }
   }

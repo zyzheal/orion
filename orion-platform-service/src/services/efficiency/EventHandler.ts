@@ -20,6 +20,9 @@ import {
 } from './types';
 import { PipelineRunEventData } from '../../events/types';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LEvent-LHandler' });
   DeploymentCompletedEventData,
   DeploymentFailedEventData,
 } from '../../events/types/deployment';
@@ -182,12 +185,12 @@ export class EfficiencyEventHandler {
     if (this.autoSyncInterval && this.autoSyncInterval > 0) {
       this.syncTimer = setInterval(() => {
         this.flushToClickHouse().catch((err) => {
-          console.error('[EfficiencyEventHandler] Auto sync failed:', err);
+          logger.error('[EfficiencyEventHandler] Auto sync failed:', err);
         });
       }, this.autoSyncInterval);
     }
 
-    console.log('[EfficiencyEventHandler] Event listeners started');
+    logger.info('[EfficiencyEventHandler] Event listeners started');
   }
 
   /**
@@ -203,12 +206,12 @@ export class EfficiencyEventHandler {
       try {
         await unsubscribe();
       } catch (error) {
-        console.error('[EfficiencyEventHandler] Error unsubscribing:', error);
+        logger.error('[EfficiencyEventHandler] Error unsubscribing:', error);
       }
     }
 
     this.subscriptions = [];
-    console.log('[EfficiencyEventHandler] Event listeners stopped');
+    logger.info('[EfficiencyEventHandler] Event listeners stopped');
   }
 
   /**
@@ -218,7 +221,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<PipelineRunEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing pipeline.run.completed:', event.data.runId);
+    logger.info('[EfficiencyEventHandler] Processing pipeline.run.completed:', event.data.runId);
 
     const record: PipelineCompletionRecord = {
       id: uuidv4(),
@@ -251,7 +254,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<PipelineRunEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing pipeline.run.failed:', event.data.runId);
+    logger.info('[EfficiencyEventHandler] Processing pipeline.run.failed:', event.data.runId);
 
     const record: PipelineCompletionRecord = {
       id: uuidv4(),
@@ -278,7 +281,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<DeploymentCompletedEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing deployment.completed:', event.data.deploymentId);
+    logger.info('[EfficiencyEventHandler] Processing deployment.completed:', event.data.deploymentId);
 
     const record: DeploymentRecord = {
       id: uuidv4(),
@@ -305,7 +308,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<DeploymentFailedEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing deployment.failed:', event.data.deploymentId);
+    logger.info('[EfficiencyEventHandler] Processing deployment.failed:', event.data.deploymentId);
 
     const record: DeploymentRecord = {
       id: uuidv4(),
@@ -329,7 +332,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<any>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing deployment.rolled_back:', event.data.deploymentId);
+    logger.info('[EfficiencyEventHandler] Processing deployment.rolled_back:', event.data.deploymentId);
 
     const record: DeploymentRecord = {
       id: uuidv4(),
@@ -391,7 +394,7 @@ export class EfficiencyEventHandler {
         }
       }
     } catch (error) {
-      console.error('[EfficiencyEventHandler] Failed to sync to ClickHouse:', error);
+      logger.error('[EfficiencyEventHandler] Failed to sync to ClickHouse:', error);
       // 降级到本地存储，不抛出错误
     }
   }
@@ -429,7 +432,7 @@ export class EfficiencyEventHandler {
 
       await this.eventBus.publish(event);
     } catch (error) {
-      console.error('[EfficiencyEventHandler] Failed to publish efficiency update:', error);
+      logger.error('[EfficiencyEventHandler] Failed to publish efficiency update:', error);
     }
   }
 
@@ -438,7 +441,7 @@ export class EfficiencyEventHandler {
    */
   private async subscribeToPipelineEvents(): Promise<void> {
     if (!this.eventBus) {
-      console.warn('[EfficiencyEventHandler] EventBus not configured, skipping pipeline subscription');
+      logger.warn('[EfficiencyEventHandler] EventBus not configured, skipping pipeline subscription');
       return;
     }
 
@@ -464,7 +467,7 @@ export class EfficiencyEventHandler {
     );
     this.subscriptions.push(async () => { await subFailed.unsubscribe(); });
 
-    console.log('[EfficiencyEventHandler] Subscribed to pipeline events');
+    logger.info('[EfficiencyEventHandler] Subscribed to pipeline events');
   }
 
   /**
@@ -472,7 +475,7 @@ export class EfficiencyEventHandler {
    */
   private async subscribeToDeploymentEvents(): Promise<void> {
     if (!this.eventBus) {
-      console.warn('[EfficiencyEventHandler] EventBus not configured, skipping deployment subscription');
+      logger.warn('[EfficiencyEventHandler] EventBus not configured, skipping deployment subscription');
       return;
     }
 
@@ -509,6 +512,6 @@ export class EfficiencyEventHandler {
     );
     this.subscriptions.push(async () => { await subRolledBack.unsubscribe(); });
 
-    console.log('[EfficiencyEventHandler] Subscribed to deployment events');
+    logger.info('[EfficiencyEventHandler] Subscribed to deployment events');
   }
 }

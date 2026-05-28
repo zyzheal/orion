@@ -8,6 +8,9 @@
 
 import { EventEmitter } from 'events';
 import {
+import pino from 'pino';
+
+const logger = pino({ name: 'LBackup-LScheduler' });
   BackupPlan,
   BackupRecord,
   BackupStatus,
@@ -146,7 +149,7 @@ export class BackupScheduler extends EventEmitter {
         const nextTime = getNextCronTime(fullPlan.schedule.cronExpression);
         this.nextExecutions.set(fullPlan.id, nextTime);
       } catch (error) {
-        console.warn(`[BackupScheduler] Invalid cron expression for plan ${fullPlan.id}:`, error);
+        logger.warn(`[BackupScheduler] Invalid cron expression for plan ${fullPlan.id}:`, error);
       }
     }
 
@@ -197,7 +200,7 @@ export class BackupScheduler extends EventEmitter {
           const nextTime = getNextCronTime(updated.schedule.cronExpression);
           this.nextExecutions.set(planId, nextTime);
         } catch (error) {
-          console.warn(`[BackupScheduler] Invalid cron expression for plan ${planId}:`, error);
+          logger.warn(`[BackupScheduler] Invalid cron expression for plan ${planId}:`, error);
         }
       } else {
         this.nextExecutions.delete(planId);
@@ -237,7 +240,7 @@ export class BackupScheduler extends EventEmitter {
     this.isRunning = true;
 
     this.runScheduleCheck();
-    console.log('[BackupScheduler] Started');
+    logger.info('[BackupScheduler] Started');
     this.emit('started');
   }
 
@@ -250,7 +253,7 @@ export class BackupScheduler extends EventEmitter {
       clearTimeout(this.scheduleTimer);
       this.scheduleTimer = undefined;
     }
-    console.log('[BackupScheduler] Stopped');
+    logger.info('[BackupScheduler] Stopped');
     this.emit('stopped');
   }
 
@@ -270,7 +273,7 @@ export class BackupScheduler extends EventEmitter {
     try {
       this.checkSchedules();
     } catch (error) {
-      console.error('[BackupScheduler] Schedule check error:', error);
+      logger.error('[BackupScheduler] Schedule check error:', error);
     }
 
     this.scheduleTimer = setTimeout(
@@ -301,17 +304,17 @@ export class BackupScheduler extends EventEmitter {
   async triggerBackup(planId: string): Promise<BackupRecord | null> {
     const plan = this.plans.get(planId);
     if (!plan) {
-      console.warn(`[BackupScheduler] Plan ${planId} not found`);
+      logger.warn(`[BackupScheduler] Plan ${planId} not found`);
       return null;
     }
 
     if (!plan.enabled) {
-      console.warn(`[BackupScheduler] Plan ${planId} is disabled`);
+      logger.warn(`[BackupScheduler] Plan ${planId} is disabled`);
       return null;
     }
 
     if (!this.onExecuteBackup) {
-      console.warn('[BackupScheduler] No backup executor configured');
+      logger.warn('[BackupScheduler] No backup executor configured');
       return null;
     }
 
@@ -325,13 +328,13 @@ export class BackupScheduler extends EventEmitter {
         const nextTime = getNextCronTime(plan.schedule.cronExpression, new Date());
         this.nextExecutions.set(planId, nextTime);
       } catch (error) {
-        console.warn(`[BackupScheduler] Failed to calculate next time for plan ${planId}:`, error);
+        logger.warn(`[BackupScheduler] Failed to calculate next time for plan ${planId}:`, error);
       }
 
       this.emit('backup:completed', record);
       return record;
     } catch (error) {
-      console.error(`[BackupScheduler] Backup execution failed for plan ${planId}:`, error);
+      logger.error(`[BackupScheduler] Backup execution failed for plan ${planId}:`, error);
       this.emit('backup:failed', { planId, error });
 
       // Still calculate next execution even on failure
