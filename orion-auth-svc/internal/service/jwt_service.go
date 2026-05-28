@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"time"
@@ -10,25 +11,25 @@ import (
 
 // JWTService handles JWT token generation and validation.
 type JWTService struct {
-	secret           []byte
-	expiration       time.Duration
+	secret            []byte
+	expiration        time.Duration
 	refreshExpiration time.Duration
 }
 
 func NewJWTService(secret string, expiration, refreshExpiration time.Duration) *JWTService {
 	return &JWTService{
-		secret:           []byte(secret),
-		expiration:       expiration,
+		secret:            []byte(secret),
+		expiration:        expiration,
 		refreshExpiration: refreshExpiration,
 	}
 }
 
 type TokenPair struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresIn    int       `json:"expires_in"`
-	TokenType    string    `json:"token_type"`
-	JTI          string    `json:"-"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	TokenType    string `json:"token_type"`
+	JTI          string `json:"-"`
 }
 
 type Claims struct {
@@ -112,10 +113,12 @@ func (s *JWTService) ValidateRefreshToken(tokenString string) (*Claims, error) {
 	return s.ValidateToken(tokenString)
 }
 
+// generateUUID generates a cryptographically random UUID v4.
 func generateUUID() string {
 	b := make([]byte, 16)
-	for i := range b {
-		b[i] = byte(i)
-	}
+	_, _ = rand.Read(b)
+	// Set version 4 and variant 10xx
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
