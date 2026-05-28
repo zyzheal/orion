@@ -7,6 +7,7 @@ import {
   DecisionExplanationService,
   DecisionFeature,
 } from '../../services/ai/DecisionExplanationService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class DecisionExplanationController {
   private service: DecisionExplanationService;
@@ -89,7 +90,7 @@ export class DecisionExplanationController {
     try {
       const features: DecisionFeature[] = JSON.parse(featuresJson);
       if (!Array.isArray(features)) {
-        throw new Error('features must be an array');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'features must be an array');
       }
 
       const importance = this.service.calculateFeatureImportance(features);

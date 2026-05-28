@@ -1,3 +1,4 @@
+import { OrionError, ErrorCode } from '../../errors';
 /**
  * BlacklistedTokenRepository - PostgreSQL data access for revoked tokens
  *
@@ -139,7 +140,7 @@ export class BlacklistedTokenRepository {
       [userId],
     );
     if (result.rows.length === 0) {
-      throw new Error('No count data returned from database');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No count data returned from database');
     }
     return parseInt(result.rows[0]?.count || '0', 10);
   }
@@ -162,7 +163,7 @@ export class BlacklistedTokenRepository {
 
     const row = result.rows[0];
     if (!row) {
-      throw new Error('No stats data returned from database');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No stats data returned from database');
     }
 
     return {

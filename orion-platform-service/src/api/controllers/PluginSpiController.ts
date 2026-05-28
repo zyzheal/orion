@@ -11,6 +11,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { PluginService } from '../../services/plugin-spi/PluginService';
 import { PluginManifest } from '../../services/plugin-spi/types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 let pluginService: PluginService | null = null;
 
@@ -372,7 +373,7 @@ export class PluginSpiController {
         async (signal) => {
           // Simulated execution - in production this would load and run the plugin's entry point
           if (signal.aborted) {
-            throw new Error('Execution aborted');
+            throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
           }
 
           // Simulate some work

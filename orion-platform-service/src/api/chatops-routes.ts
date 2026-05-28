@@ -50,6 +50,7 @@ import { CommandVersionService } from '../services/chatops/CommandVersionService
 import { RateLimitService } from '../services/chatops/RateLimitService';
 import { WebhookService } from '../services/chatops/WebhookService';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'chatops-routes' });
 
@@ -105,7 +106,7 @@ export default async function chatopsRoutes(
   if (options.pipelineService) {
     commandRouter.registerHandler('pipeline', async (params: Record<string, unknown>) => {
       const pipelineId = params.pipelineId as string;
-      if (!pipelineId) throw new Error('pipelineId 必填');
+      if (!pipelineId) throw new OrionError(ErrorCode.OPERATION_FAILED, 'pipelineId 必填');
       try {
         const pipeline = await options.pipelineService.getById(pipelineId);
         return {

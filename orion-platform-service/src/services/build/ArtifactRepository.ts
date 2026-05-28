@@ -7,6 +7,7 @@
 
 import { DatabasePool } from '../database';
 import { BaseRepository } from '../../db/base-repository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // ==================== Entity Interfaces ====================
 
@@ -176,7 +177,7 @@ export class ArtifactRepository extends BaseRepository<ArtifactRecord> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into artifacts returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into artifacts returned no rows');
     }
     return this.mapRowToEntity(result.rows[0]);
   }

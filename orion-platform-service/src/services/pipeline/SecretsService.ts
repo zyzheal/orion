@@ -463,7 +463,7 @@ export class SecretsService {
    */
   private validateSecretName(name: string): void {
     if (!name || typeof name !== 'string') {
-      throw new Error('Secret name must be a non-empty string');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Secret name must be a non-empty string');
     }
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
       throw new Error(
@@ -471,7 +471,7 @@ export class SecretsService {
       );
     }
     if (name.length > 255) {
-      throw new Error('Secret name must be 255 characters or less');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Secret name must be 255 characters or less');
     }
   }
 

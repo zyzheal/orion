@@ -6,6 +6,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
+import { OrionError, ErrorCode } from '../../../errors';
 
 interface FederatedCluster {
   id: string;
@@ -64,7 +65,7 @@ export class FederationController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const cluster = this.clusters.get(params.id);
-      if (!cluster) throw new Error(`Cluster '${params.id}' not found`);
+      if (!cluster) throw new OrionError(ErrorCode.NOT_FOUND, `Cluster '${params.id}' not found`);
       return {
         clusterId: cluster.id,
         name: cluster.name,
@@ -104,7 +105,7 @@ export class FederationController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const job = this.jobs.get(params.id);
-      if (!job) throw new Error(`Job '${params.id}' not found`);
+      if (!job) throw new OrionError(ErrorCode.NOT_FOUND, `Job '${params.id}' not found`);
       return job;
     }, (job) => this.sendSuccess(reply, job));
   }

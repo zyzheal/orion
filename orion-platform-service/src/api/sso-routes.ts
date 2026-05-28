@@ -23,6 +23,7 @@ import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -196,7 +197,7 @@ export async function registerSsoRoutes(
         }
 
         if (!user) {
-          throw new Error('Failed to auto-provision user');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to auto-provision user');
         }
 
         fastify.log.info(`[SsoRoutes] Auto-provisioned user: ${user.email} (role: ${platformRole})`);

@@ -10,6 +10,7 @@ import {
   PortalDocumentService,
   PortalDocumentServiceError,
 } from '../../services/developer-portal/PortalDocumentService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class PortalDocumentController {
   private service: PortalDocumentService;
@@ -24,7 +25,7 @@ export class PortalDocumentController {
   private getTenantId(request: FastifyRequest): string {
     const tenant = tenantContext.getCurrentTenant();
     if (!tenant) {
-      throw new Error('No tenant context available');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No tenant context available');
     }
     return String(tenant.tenantId);
   }

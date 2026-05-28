@@ -4,6 +4,7 @@
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface CronJobEntity {
   id: string;
@@ -50,7 +51,7 @@ export class CronJobRepository extends BaseRepository<CronJobEntity> {
       [lastRunAt, status, nextRunAt, id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`CronJob with id ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `CronJob with id ${id} not found`);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

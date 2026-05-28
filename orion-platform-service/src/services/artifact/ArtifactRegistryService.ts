@@ -79,7 +79,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(id);
       
       if (!artifact) {
-        throw new Error(`Artifact not found: ${id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
       }
 
       return artifact;
@@ -268,7 +268,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(id);
       
       if (!artifact) {
-        throw new Error(`Artifact not found: ${id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
       }
 
       // 创建新的制品记录

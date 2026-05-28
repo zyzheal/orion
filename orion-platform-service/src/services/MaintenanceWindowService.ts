@@ -47,7 +47,7 @@ export class MaintenanceWindowService {
       throw new OrionError(ErrorCode.VALIDATION_ERROR, 'End time is required');
     }
     if (input.endTime <= input.startTime) {
-      throw new Error('End time must be after start time');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'End time must be after start time');
     }
 
     const entity = {

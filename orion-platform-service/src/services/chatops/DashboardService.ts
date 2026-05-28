@@ -87,7 +87,7 @@ export class DashboardService {
       }
       case 'custom': {
         if (!params.startDate || !params.endDate) {
-          throw new Error('custom range requires startDate and endDate');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'custom range requires startDate and endDate');
         }
         const start = new Date(params.startDate);
         const end = new Date(params.endDate);

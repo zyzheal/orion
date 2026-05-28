@@ -5,6 +5,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== Entity Interfaces ====================
 
@@ -90,7 +91,7 @@ export class DigitalTwinSnapshotRepository extends BaseRepository<DigitalTwinSna
         input.created_by ?? null,
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
     return this.mapRowToEntity(result.rows[0]);
   }
 

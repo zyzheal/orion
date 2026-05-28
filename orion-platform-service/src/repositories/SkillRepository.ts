@@ -4,6 +4,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface SkillEntity {
   id: string;
@@ -51,7 +52,7 @@ export class SkillRepository extends BaseRepository<SkillEntity> {
       [enabled, id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Skill with id ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Skill with id ${id} not found`);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

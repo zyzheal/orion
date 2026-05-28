@@ -8,6 +8,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
 import { CommunityAdvancedService } from '../../services/community/CommunityAdvancedService';
 import { CommunityService, BestPracticeInput, BestPracticeFilters } from '../../services/community/CommunityService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class CommunityAdvancedController extends BaseController {
   private service: CommunityAdvancedService;
@@ -126,7 +127,7 @@ export class CommunityAdvancedController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = this.getParams<{ id: string }>(request);
       const practice = await this.communityService.getBestPractice(params.id);
-      if (!practice) throw new Error(`Best practice '${params.id}' not found`);
+      if (!practice) throw new OrionError(ErrorCode.NOT_FOUND, `Best practice '${params.id}' not found`);
       return practice;
     }, (practice) => this.sendSuccess(reply, practice));
   }
@@ -139,7 +140,7 @@ export class CommunityAdvancedController extends BaseController {
       const params = this.getParams<{ id: string }>(request);
       const body = this.getBody<{ direction?: 'up' | 'down' }>(request);
       const practice = await this.communityService.voteBestPractice(params.id, body.direction || 'up');
-      if (!practice) throw new Error(`Best practice '${params.id}' not found`);
+      if (!practice) throw new OrionError(ErrorCode.NOT_FOUND, `Best practice '${params.id}' not found`);
       return practice;
     }, (practice) => this.sendSuccess(reply, practice));
   }

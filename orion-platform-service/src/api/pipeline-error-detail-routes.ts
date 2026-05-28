@@ -13,6 +13,7 @@ import { DatabasePool } from '../services/database';
 import { PipelineErrorDetailController } from './controllers/PipelineErrorDetailController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ErrorCode } from '../../errors';
 
 interface PipelineErrorRoutesOptions {
   database?: DatabasePool;
@@ -23,7 +24,7 @@ export default async function registerPipelineErrorDetailRoutes(
   opts: PipelineErrorRoutesOptions
 ): Promise<void> {
   if (!opts.database) {
-    throw new Error('Pipeline error detail routes require a database connection');
+    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Pipeline error detail routes require a database connection');
   }
 
   const controller = new PipelineErrorDetailController(opts.database);

@@ -12,7 +12,7 @@ import { parentPort } from 'worker_threads';
 import { OrionError, ErrorCode } from '../../../errors';
 
 if (!parentPort) {
-  throw new Error('This file must be run as a Worker Thread');
+  throw new OrionError(ErrorCode.OPERATION_FAILED, 'This file must be run as a Worker Thread');
 }
 
 // ==================== Security: Blocklists ====================
@@ -83,7 +83,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     case 'read_file': {
       const filePath = (input.filePath as string) || '/dev/null';
       if (isPathBlocked(filePath)) {
-        throw new Error(`Access to "${filePath}" is blocked`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Access to "${filePath}" is blocked`);
       }
       output = {
         success: true,

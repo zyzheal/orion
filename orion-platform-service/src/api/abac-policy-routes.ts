@@ -96,7 +96,7 @@ function validatePolicyBody(body: CreatePolicyBody): void {
     throw new OrionError(ErrorCode.VALIDATION_ERROR, 'actionType is required and must be a string or array');
   }
   if (!body.effect || !['allow', 'deny'].includes(body.effect)) {
-    throw new Error('effect must be "allow" or "deny"');
+    throw new OrionError(ErrorCode.OPERATION_FAILED, 'effect must be "allow" or "deny"');
   }
   // 验证条件结构
   validateConditionRule(body.conditions);

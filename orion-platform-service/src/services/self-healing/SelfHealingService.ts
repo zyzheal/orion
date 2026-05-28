@@ -492,7 +492,7 @@ export class SelfHealingService {
     // Check expiration
     if (approvalRow.expires_at && new Date() > approvalRow.expires_at) {
       await this.repository.updateApprovalRequest(id, { status: 'expired' });
-      throw new Error(`Approval request '${id}' has expired`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${id}' has expired`);
     }
 
     const now = new Date();

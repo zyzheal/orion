@@ -22,6 +22,7 @@ import {
   JwtKeyRotationService,
   type JwtKey,
 } from './JwtKeyRotationService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -150,7 +151,7 @@ class JwtKeyManager extends EventEmitter {
    */
   async rotateKey(reason?: string): Promise<JwtKey | null> {
     if (!this.rotationService) {
-      throw new Error('JwtKeyManager not initialized');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'JwtKeyManager not initialized');
     }
 
     const newKey = await this.rotationService.generateNewKey();

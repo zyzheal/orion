@@ -155,7 +155,7 @@ export class IntegrationService {
   ): Promise<Integration> {
     const integration = this.integrations.get(id);
     if (!integration) {
-      throw new Error(`Integration not found: ${id}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Integration not found: ${id}`);
     }
 
     // If updating config, validate and test

@@ -449,7 +449,7 @@ export class CmdbService {
     }
 
     if (!fromCI) {
-      throw new Error(`Source CI '${input.fromCiId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Source CI '${input.fromCiId}' not found`);
     }
     if (!toCI) {
       throw new OrionError(ErrorCode.NOT_FOUND, `Target CI '${input.toCiId}' not found`);
@@ -582,7 +582,7 @@ export class CmdbService {
     }
 
     if (!targetVersion) {
-      throw new Error(`Version ${version} not found for CI '${ciId}'`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Version ${version} not found for CI '${ciId}'`);
     }
 
     const ci = await this.getCIByCiId(ciId);

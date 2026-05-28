@@ -14,6 +14,7 @@ import {
   DeploymentHistory,
   VersionDiff,
 } from '../models/ArtifactVersion';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 数据库行映射（snake_case -> camelCase 转换中间层）
@@ -64,7 +65,7 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into artifact_version_tracking returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into artifact_version_tracking returned no rows');
     }
     return this.mapRowToEntity(result.rows[0]);
   }

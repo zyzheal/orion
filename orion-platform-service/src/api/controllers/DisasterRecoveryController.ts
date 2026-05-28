@@ -6,6 +6,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
+import { OrionError, ErrorCode } from '../../../errors';
 
 interface DRPlan {
   id: string;
@@ -77,7 +78,7 @@ export class DisasterRecoveryController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const plan = this.drPlans.get(params.id);
-      if (!plan) throw new Error(`DR plan '${params.id}' not found`);
+      if (!plan) throw new OrionError(ErrorCode.NOT_FOUND, `DR plan '${params.id}' not found`);
       const id = `failover-test-${Date.now()}`;
       const record = {
         id,
@@ -113,7 +114,7 @@ export class DisasterRecoveryController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const plan = this.drPlans.get(params.id);
-      if (!plan) throw new Error(`DR plan '${params.id}' not found`);
+      if (!plan) throw new OrionError(ErrorCode.NOT_FOUND, `DR plan '${params.id}' not found`);
       const id = `failover-${Date.now()}`;
       const record = {
         id,

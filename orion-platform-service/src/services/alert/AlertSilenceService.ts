@@ -9,6 +9,7 @@
 
 import pino from 'pino';
 import { BaseRepository } from '../../db/base-repository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -142,7 +143,7 @@ export class AlertSilenceService {
     createdBy?: string,
   ): Promise<AlertSilence> {
     if (!input.matchers || input.matchers.length === 0) {
-      throw new Error('Silence requires at least one matcher');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Silence requires at least one matcher');
     }
 
     const now = new Date();
@@ -163,7 +164,7 @@ export class AlertSilenceService {
 
     // Validate time range
     if (silence.endsAt <= silence.startsAt) {
-      throw new Error('endsAt must be after startsAt');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'endsAt must be after startsAt');
     }
 
     if (this.repository) {
@@ -189,7 +190,7 @@ export class AlertSilenceService {
     }
 
     // Should not reach here — repository is always initialized
-    throw new Error('AlertSilenceRepository not initialized');
+    throw new OrionError(ErrorCode.OPERATION_FAILED, 'AlertSilenceRepository not initialized');
   }
 
   /**

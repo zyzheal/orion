@@ -118,11 +118,11 @@ export class SubPipelineService {
     }
 
     if (!this.pipelineEngine) {
-      throw new Error('PipelineEngine not available for sub-pipeline invocation');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'PipelineEngine not available for sub-pipeline invocation');
     }
 
     if (!this.pipelineService) {
-      throw new Error('PipelineService not available for sub-pipeline invocation');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'PipelineService not available for sub-pipeline invocation');
     }
 
     // 2. Verify child pipeline exists and is active
@@ -236,7 +236,7 @@ export class SubPipelineService {
       }
 
       if (invocation.status === 'cancelled') {
-        throw new Error('Sub-pipeline was cancelled');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Sub-pipeline was cancelled');
       }
 
       // Still running, poll again
@@ -263,7 +263,7 @@ export class SubPipelineService {
     }
 
     if (!invocation) {
-      throw new Error(`Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
     }
 
     if (invocation.status !== 'completed') {

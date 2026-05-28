@@ -8,6 +8,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
 import { PerformanceBaselineService } from '../../services/performance/PerformanceBaselineService';
 import { PerformanceProfileService } from '../../services/performance/PerformanceProfileService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class PerformanceController extends BaseController {
   private baselineService: PerformanceBaselineService;
@@ -46,7 +47,7 @@ export class PerformanceController extends BaseController {
         metrics: Record<string, number>;
       };
       const result = await this.baselineService.evaluatePerformance(tenantId, body.service, body.metrics);
-      if (!result) throw new Error(`No baseline found for service: ${body.service}`);
+      if (!result) throw new OrionError(ErrorCode.NOT_FOUND, `No baseline found for service: ${body.service}`);
       return result;
     }, (result) => this.sendSuccess(reply, result));
   }
@@ -87,7 +88,7 @@ export class PerformanceController extends BaseController {
       const tenantId = this.getTenantId(request);
       const body = this.getBody<{ service: string; currentMetrics: Record<string, number> }>(request);
       const result = await this.baselineService.detectRegression(tenantId, body.service, body.currentMetrics);
-      if (!result) throw new Error(`No baseline found for service: ${body.service}`);
+      if (!result) throw new OrionError(ErrorCode.NOT_FOUND, `No baseline found for service: ${body.service}`);
       return result;
     }, (result) => this.sendSuccess(reply, result));
   }

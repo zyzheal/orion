@@ -4,6 +4,7 @@
  */
 
 import { ArtifactStorage as IArtifactStorage, CreateArtifactInput } from '../models/Artifact';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface ArtifactStorage extends IArtifactStorage {}
 
@@ -44,7 +45,7 @@ export class LocalArtifactStorage implements ArtifactStorage {
     // 从数据库获取存储路径
     const artifact = await this.getArtifactMetadata(id);
     if (!artifact) {
-      throw new Error(`Artifact not found: ${id}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
     }
     
     const filePath = path.join(this.storageDir, artifact.storagePath);
@@ -63,7 +64,7 @@ export class LocalArtifactStorage implements ArtifactStorage {
     // 从数据库获取存储路径
     const artifact = await this.getArtifactMetadata(id);
     if (!artifact) {
-      throw new Error(`Artifact not found: ${id}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
     }
     
     const filePath = path.join(this.storageDir, artifact.storagePath);

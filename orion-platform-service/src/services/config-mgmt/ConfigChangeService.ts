@@ -503,7 +503,7 @@ export class ConfigChangeService {
     // Check if reviewer already voted
     const existingApproval = changeRequest.approvals.find((a) => a.approver === reviewerId);
     if (existingApproval) {
-      throw new Error(`Reviewer '${reviewerId}' has already voted on this change request`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Reviewer '${reviewerId}' has already voted on this change request`);
     }
 
     const now = new Date();
@@ -616,7 +616,7 @@ export class ConfigChangeService {
   ): Promise<ChangeRequest> {
     const changeRequest = await this.repository.findById(requestId);
     if (!changeRequest) {
-      throw new Error(`Change request '${requestId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${requestId}' not found`);
     }
 
     if (changeRequest.status !== 'executed' && changeRequest.status !== 'failed') {

@@ -13,6 +13,7 @@ import {
   PullRequestStatus,
   MergeStrategy,
 } from '../../../services/code-repo';
+import { OrionError, ErrorCode } from '../../../../errors';
 
 /** 已注册的代码仓库适配器 */
 const adapters = new Map<string, ICodeRepoAdapter>();
@@ -52,7 +53,7 @@ export function registerGerritInstance(id: string, config: {
 function getAdapter(adapterId: string): ICodeRepoAdapter {
   const adapter = adapters.get(adapterId);
   if (!adapter) {
-    throw new Error(`Adapter '${adapterId}' not found`);
+    throw new OrionError(ErrorCode.NOT_FOUND, `Adapter '${adapterId}' not found`);
   }
   return adapter;
 }

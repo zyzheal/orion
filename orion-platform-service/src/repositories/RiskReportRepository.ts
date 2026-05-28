@@ -5,6 +5,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== Entity Interfaces ====================
 
@@ -126,7 +127,7 @@ export class RiskReportRepository extends BaseRepository<RiskReportEntity> {
         input.generated_at ?? new Date(),
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
     return this.mapRowToEntity(result.rows[0]);
   }
 

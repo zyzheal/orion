@@ -1,3 +1,4 @@
+import { OrionError, ErrorCode } from '../../errors';
 // Valid SQL identifier pattern (alphanumeric + underscore, not starting with digit)
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -96,7 +97,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const values = Object.values(data);
 
     if (columns.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
     }
 
     for (const col of columns) {

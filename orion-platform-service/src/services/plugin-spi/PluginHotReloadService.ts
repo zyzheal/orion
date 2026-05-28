@@ -246,7 +246,7 @@ export class PluginHotReloadService extends EventEmitter {
       // 获取当前插件信息
       const currentPlugin = this.registry.getPlugin(pluginId);
       if (!currentPlugin) {
-        throw new Error(`Plugin "${pluginId}" not found`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found`);
       }
 
       const oldVersion = currentPlugin.version;
@@ -379,7 +379,7 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     if (!targetSnapshot) {
-      throw new Error(`Snapshot not found for version "${targetVersion || 'previous'}"`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Snapshot not found for version "${targetVersion || 'previous'}"`);
     }
 
     logger.info({ pluginId, targetVersion: targetSnapshot.version }, 'Rolling back plugin');

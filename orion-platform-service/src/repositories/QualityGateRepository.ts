@@ -15,6 +15,7 @@ import {
   QualityGateCreateInput,
   QualityGateUpdateInput,
 } from '../models/QualityGate';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ============================================================================
 // Repository
@@ -108,7 +109,7 @@ export class QualityGateRepository extends BaseRepository<QualityGate> {
     }
 
     if (updates.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
     }
 
     updates.push(`updated_at = NOW()`);

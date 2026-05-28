@@ -178,7 +178,7 @@ export class SubAppService {
       try {
         const url = new URL(input.entry_dev);
         if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new Error('Development entry must use HTTP or HTTPS');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Development entry must use HTTP or HTTPS');
         }
       } catch {
         throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid development entry URL');
@@ -188,17 +188,17 @@ export class SubAppService {
     if ('entry_prod' in input && input.entry_prod) {
       // Production entry should be a path or relative URL
       if (!input.entry_prod.startsWith('/') && !input.entry_prod.startsWith('http')) {
-        throw new Error('Production entry must be a path starting with / or a full URL');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Production entry must be a path starting with / or a full URL');
       }
     }
 
     if ('routes' in input && input.routes) {
       if (!Array.isArray(input.routes)) {
-        throw new Error('Routes must be an array');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Routes must be an array');
       }
       for (const route of input.routes) {
         if (!route.startsWith('/')) {
-          throw new Error('Each route must start with /');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Each route must start with /');
         }
       }
     }

@@ -38,7 +38,7 @@ export class WorkflowInstanceManager {
     // 找到开始节点
     const startNode = definition.nodes.find(n => n.type === 'start');
     if (!startNode) {
-      throw new Error('Workflow definition must have a start node');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Workflow definition must have a start node');
     }
 
     // 获取开始节点的输出变量

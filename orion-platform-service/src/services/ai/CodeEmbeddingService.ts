@@ -22,6 +22,7 @@ import {
   EmbeddingCacheConfig,
   EmbeddingCacheEntry,
 } from './vector-types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -309,7 +310,7 @@ export class CodeEmbeddingService {
    */
   private async callOpenAI(text: string): Promise<number[]> {
     if (!this.providerConfig.apiKey) {
-      throw new Error('OpenAI API key not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'OpenAI API key not configured');
     }
 
     const model = this.providerConfig.model || 'text-embedding-ada-002';
@@ -338,7 +339,7 @@ export class CodeEmbeddingService {
    */
   private async callVoyage(text: string): Promise<number[]> {
     if (!this.providerConfig.apiKey) {
-      throw new Error('Voyage API key not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Voyage API key not configured');
     }
 
     const model = this.providerConfig.model || 'voyage-2';

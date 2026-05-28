@@ -19,6 +19,7 @@
 
 import crypto from 'crypto';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -108,7 +109,7 @@ export class WechatWorkService {
    */
   getAuthorizationUrl(redirectUri: string, state: string): string {
     if (!this.isEnabled()) {
-      throw new Error('WECHAT_WORK_SSO_DISABLED');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_WORK_SSO_DISABLED');
     }
 
     const params = new URLSearchParams({
@@ -134,7 +135,7 @@ export class WechatWorkService {
    */
   private async getAccessToken(): Promise<string> {
     if (!this.isEnabled()) {
-      throw new Error('WECHAT_WORK_SSO_DISABLED');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_WORK_SSO_DISABLED');
     }
 
     // Check cache
@@ -173,7 +174,7 @@ export class WechatWorkService {
    */
   async getUserInfo(code: string): Promise<WechatWorkUserProfile> {
     if (!this.isEnabled()) {
-      throw new Error('WECHAT_WORK_SSO_DISABLED');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_WORK_SSO_DISABLED');
     }
 
     try {
@@ -191,7 +192,7 @@ export class WechatWorkService {
 
       const userId = userIdData.UserId || userIdData.OpenId;
       if (!userId) {
-        throw new Error('WECHAT_NO_USERID: No UserId or OpenId in response');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_NO_USERID: No UserId or OpenId in response');
       }
 
       // Step 2: Get detailed user information

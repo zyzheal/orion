@@ -49,7 +49,7 @@ export class EphemeralEnvService {
     this.k8sProvisioner = options.k8sProvisioner;
     this.eventBus = options.eventBus;
     if (!options.database) {
-      throw new Error('EphemeralEnvService requires a database connection');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'EphemeralEnvService requires a database connection');
     }
     this.repository = new EphemeralEnvRepository(options.database);
   }
@@ -170,7 +170,7 @@ export class EphemeralEnvService {
       const message = error instanceof Error ? error.message : 'Unknown K8s teardown error';
       logger.error({ envId: env.id, error: message }, 'K8s teardown failed, resetting status');
       await this.repository.update(id, { status: 'idle' });
-      throw new Error(`Failed to teardown K8s resources: ${message}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Failed to teardown K8s resources: ${message}`);
     }
 
     markDestroyed(env, reason);
@@ -216,7 +216,7 @@ export class EphemeralEnvService {
   async getPreviewUrl(id: string): Promise<string> {
     const env = await this.getById(id);
     if (!env.previewUrl) {
-      throw new Error('Preview URL not available');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Preview URL not available');
     }
     return env.previewUrl;
   }

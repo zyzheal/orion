@@ -8,6 +8,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ApiKeyService } from '../services/api-key/ApiKeyService';
 import { ApiKeyRepository } from '../services/api-key/ApiKeyRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 let apiKeyService: ApiKeyService | null = null;
 
@@ -21,7 +22,7 @@ export async function authenticateApiKey(
   reply: FastifyReply
 ): Promise<void> {
   if (!apiKeyService) {
-    throw new Error('API key auth not initialized. Call initApiKeyAuth() first.');
+    throw new OrionError(ErrorCode.OPERATION_FAILED, 'API key auth not initialized. Call initApiKeyAuth() first.');
   }
 
   const apiKey = request.headers['x-api-key'] as string | undefined;

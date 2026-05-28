@@ -26,6 +26,7 @@ import {
   type TokenEndpointResponseHelpers,
 } from 'openid-client';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -141,7 +142,7 @@ export class SsoService {
    */
   async getAuthorizationUrl(): Promise<{ url: string; stateKey: string }> {
     if (!this.oidcConfig || !this.config) {
-      throw new Error('SSO_NOT_CONFIGURED');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_NOT_CONFIGURED');
     }
 
     const nonce = randomNonce();
@@ -168,12 +169,12 @@ export class SsoService {
    */
   async handleCallback(currentUrl: URL, stateKey: string): Promise<SsoUserProfile> {
     if (!this.oidcConfig || !this.config) {
-      throw new Error('SSO_NOT_CONFIGURED');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_NOT_CONFIGURED');
     }
 
     const storedStateRaw = await this.stateStore.get(`sso:state:${stateKey}`);
     if (!storedStateRaw) {
-      throw new Error('SSO_STATE_MISMATCH: No matching state found');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_STATE_MISMATCH: No matching state found');
     }
 
     // Clean up the state entry
@@ -196,7 +197,7 @@ export class SsoService {
       const claims = tokens.claims();
 
       if (!claims || !claims.sub) {
-        throw new Error('SSO_NO_CLAIMS: No subject claim found in ID token');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_NO_CLAIMS: No subject claim found in ID token');
       }
 
       return {

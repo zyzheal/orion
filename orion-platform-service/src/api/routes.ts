@@ -161,6 +161,7 @@ import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -347,7 +348,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
             client.release();
           } catch {}
           reply.code(403).send({ error: 'Tenant isolation setup failed' });
-          throw new Error('Failed to set tenant context');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to set tenant context');
         }
       });
 

@@ -255,7 +255,7 @@ export class BackupStorage extends EventEmitter {
     // Simulate encryption by XOR with key bytes
     // In production, use crypto.createCipheriv('aes-256-gcm', ...)
     if (!this.encryptionKey) {
-      throw new Error('No encryption key configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No encryption key configured');
     }
 
     const key = Buffer.from(this.encryptionKey);
@@ -278,7 +278,7 @@ export class BackupStorage extends EventEmitter {
    */
   decrypt(data: Buffer): Buffer {
     if (!this.encryptionKey) {
-      throw new Error('No encryption key configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No encryption key configured');
     }
 
     const key = Buffer.from(this.encryptionKey);

@@ -319,7 +319,7 @@ export class FeatureFlagService {
     updatedBy: string
   ): Promise<FeatureFlag> {
     const flag = await this.repository.findById(id);
-    if (!flag) throw new Error(`Feature flag '${id}' not found`);
+    if (!flag) throw new OrionError(ErrorCode.NOT_FOUND, `Feature flag '${id}' not found`);
 
     if (updates.name !== undefined) flag.name = updates.name;
     if (updates.description !== undefined) flag.description = updates.description;
@@ -344,7 +344,7 @@ export class FeatureFlagService {
 
   async setRolloutPercentage(id: string, percentage: number, updatedBy: string): Promise<FeatureFlag> {
     if (percentage < 0 || percentage > 100) {
-      throw new Error('Rollout percentage must be between 0 and 100');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Rollout percentage must be between 0 and 100');
     }
     return this.updateFlag(id, { rolloutPercentage: percentage }, updatedBy);
   }

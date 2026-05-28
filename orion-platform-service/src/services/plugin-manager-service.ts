@@ -234,7 +234,7 @@ export class PluginManagerService extends EventEmitter {
     const plugin = availablePlugins.find((p) => p.id === pluginId);
 
     if (!plugin) {
-      throw new Error(`Plugin ${pluginId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin ${pluginId} not found`);
     }
 
     // 创建插件实例

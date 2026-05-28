@@ -10,6 +10,7 @@ import { EscalationConfigService, EscalationPolicy } from './EscalationConfigSer
 import { TicketingRepository } from '../ticketing/TicketingRepository';
 import { EventBusService } from '../event-bus-service';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -327,7 +328,7 @@ export const escalationScheduler = {
     targetLevel?: number
   ): Promise<{ success: boolean; message: string }> {
     if (!this._scheduler) {
-      throw new Error('EscalationScheduler not initialized');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'EscalationScheduler not initialized');
     }
     return this._scheduler.manualEscalate(entityType, entityId, targetLevel);
   },

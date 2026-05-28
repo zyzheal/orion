@@ -87,7 +87,7 @@ export class SharedActionService {
 
     // Path traversal protection
     if (!resolvedPath.startsWith(path.resolve(this.workspaceRoot))) {
-      throw new Error(`Path traversal detected: action path must be within workspace root`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Path traversal detected: action path must be within workspace root`);
     }
 
     if (!fs.existsSync(resolvedPath)) {
@@ -131,7 +131,7 @@ export class SharedActionService {
     const path = require('path');
     const actionPath = path.join(tmpDir, 'action.yml');
     if (!fs.existsSync(actionPath)) {
-      throw new Error(`action.yml not found in remote: ${ref}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `action.yml not found in remote: ${ref}`);
     }
     return fs.readFileSync(actionPath, 'utf-8');
   }

@@ -169,7 +169,7 @@ export class JiraConnector implements Connector {
 
   async execute(action: string, params: Record<string, unknown>): Promise<unknown> {
     if (!this.config) {
-      throw new Error('Connector not initialized. Call initialize() first.');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Connector not initialized. Call initialize() first.');
     }
 
     switch (action) {
@@ -479,7 +479,7 @@ export class JiraConnector implements Connector {
 
   private async apiGet(endpoint: string): Promise<unknown> {
     if (!this.config?.token && !(this.config?.username && this.config?.password)) {
-      throw new Error('Jira credentials not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Jira credentials not configured');
     }
 
     const auth = this.config.token
@@ -503,7 +503,7 @@ export class JiraConnector implements Connector {
 
   private async apiPost(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
     if (!this.config?.token && !(this.config?.username && this.config?.password)) {
-      throw new Error('Jira credentials not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Jira credentials not configured');
     }
 
     const auth = this.config.token
@@ -530,7 +530,7 @@ export class JiraConnector implements Connector {
 
   private async apiPut(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
     if (!this.config?.token && !(this.config?.username && this.config?.password)) {
-      throw new Error('Jira credentials not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Jira credentials not configured');
     }
 
     const auth = this.config.token

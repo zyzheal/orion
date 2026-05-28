@@ -30,6 +30,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CapabilityService } from '../services/capability';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'require-LCapability' });
 
@@ -124,7 +125,7 @@ let capabilityService: CapabilityService | null = null;
  */
 export function setCapabilityService(service: CapabilityService): void {
   if (!service) {
-    throw new Error('setCapabilityService: service must not be null');
+    throw new OrionError(ErrorCode.OPERATION_FAILED, 'setCapabilityService: service must not be null');
   }
   capabilityService = service;
   // 启动时校验：验证服务可用

@@ -1,3 +1,4 @@
+import { OrionError, ErrorCode } from '../../errors';
 /**
  * DisasterRecoveryRepository - Database layer for Disaster Recovery operations
  *
@@ -117,7 +118,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into disaster_recovery_plans returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into disaster_recovery_plans returned no rows');
     }
     return result.rows[0];
   }
@@ -161,7 +162,7 @@ export class DisasterRecoveryRepository {
     }
 
     if (setClauses.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
     }
 
     setClauses.push(`updated_at = NOW()`);
@@ -241,7 +242,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into dr_failover_tests returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into dr_failover_tests returned no rows');
     }
     return result.rows[0];
   }
@@ -333,7 +334,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into backup_configs returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into backup_configs returned no rows');
     }
     return result.rows[0];
   }
@@ -373,7 +374,7 @@ export class DisasterRecoveryRepository {
     }
 
     if (setClauses.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
     }
 
     setClauses.push(`updated_at = NOW()`);

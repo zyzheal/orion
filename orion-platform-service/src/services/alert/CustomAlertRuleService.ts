@@ -353,7 +353,7 @@ export class CustomAlertRuleService {
     }
 
     // Should not reach here — repository is always initialized
-    throw new Error('CustomAlertRuleRepository not initialized');
+    throw new OrionError(ErrorCode.OPERATION_FAILED, 'CustomAlertRuleRepository not initialized');
   }
 
   /**
@@ -568,21 +568,21 @@ export class CustomAlertRuleService {
       case 'threshold': {
         const cond = condition as ThresholdCondition;
         if (!cond.metric || !cond.operator || cond.threshold === undefined) {
-          throw new Error('Threshold condition requires metric, operator, and threshold');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Threshold condition requires metric, operator, and threshold');
         }
         break;
       }
       case 'trend': {
         const cond = condition as TrendCondition;
         if (!cond.metric || !cond.direction || cond.rateOfChange === undefined || !cond.windowSec) {
-          throw new Error('Trend condition requires metric, direction, rateOfChange, and windowSec');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Trend condition requires metric, direction, rateOfChange, and windowSec');
         }
         break;
       }
       case 'composite': {
         const cond = condition as CompositeCondition;
         if (!cond.expression || !cond.subConditions || cond.subConditions.length === 0) {
-          throw new Error('Composite condition requires expression and subConditions');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Composite condition requires expression and subConditions');
         }
         break;
       }

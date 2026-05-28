@@ -28,6 +28,7 @@ import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjecti
 import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
 import { CircuitBreakerManager, DualCircuitState } from './CircuitBreakerManager';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -213,7 +214,7 @@ export class AIGateway {
         if (request.options?.fallbackEnabled !== false) {
           return this.handleDegradation<T>(request, 'no_available_provider');
         }
-        throw new Error('No available provider');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'No available provider');
       }
     }
 
@@ -295,7 +296,7 @@ export class AIGateway {
       if (request.options?.fallbackEnabled !== false) {
         return this.handleDegradation<T>(request, 'circuit_breaker_open');
       }
-      throw new Error('Circuit breaker open, degradation disabled');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Circuit breaker open, degradation disabled');
     }
 
     // 检查健康状态
@@ -307,7 +308,7 @@ export class AIGateway {
         return this.handleDegradation<T>(request, 'health_check_failed');
       }
       // 如果降级禁用，抛出错误
-      throw new Error('AI service unavailable, degradation disabled');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'AI service unavailable, degradation disabled');
     }
 
     // 尝试调用 LLM
@@ -365,7 +366,7 @@ export class AIGateway {
    */
   private async callLLM<T>(request: AIRequest): Promise<AIResponse<T>> {
     if (!this.llmCaller) {
-      throw new Error('LLM caller not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'LLM caller not configured');
     }
 
     const timeout = request.options?.timeout || this.getTimeoutThreshold(request.scenario);

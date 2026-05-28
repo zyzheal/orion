@@ -336,7 +336,7 @@ export function createSelfHealingSagaDefinition(
         const session = healingSessions.get(healingId);
 
         if (!session || !session.diagnosisResult) {
-          throw new Error(`Self-healing session '${healingId}' not found or diagnosis missing`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Self-healing session '${healingId}' not found or diagnosis missing`);
         }
 
         session.status = SelfHealingSagaStatus.REMEDIATING;
@@ -442,7 +442,7 @@ export function createSelfHealingSagaDefinition(
         const session = healingSessions.get(healingId);
 
         if (!session) {
-          throw new Error(`Self-healing session '${healingId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Self-healing session '${healingId}' not found`);
         }
 
         session.status = SelfHealingSagaStatus.VERIFYING;

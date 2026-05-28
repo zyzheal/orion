@@ -114,17 +114,17 @@ class K8sClientManager {
   }
 
   getAppsApi(): k8s.AppsV1Api {
-    if (!this.appsApi) throw new Error('K8s AppsV1Api not initialized');
+    if (!this.appsApi) throw new OrionError(ErrorCode.OPERATION_FAILED, 'K8s AppsV1Api not initialized');
     return this.appsApi;
   }
 
   getCoreApi(): k8s.CoreV1Api {
-    if (!this.coreApi) throw new Error('K8s CoreV1Api not initialized');
+    if (!this.coreApi) throw new OrionError(ErrorCode.OPERATION_FAILED, 'K8s CoreV1Api not initialized');
     return this.coreApi;
   }
 
   getAutoscalingApi(): k8s.AutoscalingV2Api {
-    if (!this.autoscalingApi) throw new Error('K8s AutoscalingV2Api not initialized');
+    if (!this.autoscalingApi) throw new OrionError(ErrorCode.OPERATION_FAILED, 'K8s AutoscalingV2Api not initialized');
     return this.autoscalingApi;
   }
 }
@@ -601,7 +601,7 @@ export class HealingActionExecutor {
       // Wait for failover to take effect
       const failoverPromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new Error(`Failover timed out after ${timeoutMs}ms`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Failover timed out after ${timeoutMs}ms`);
       });
 
       await Promise.race([failoverPromise, timeoutPromise]);

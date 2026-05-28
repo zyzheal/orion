@@ -392,7 +392,7 @@ export class WorkspaceService {
 
   async listStateVersions(workspaceId: string): Promise<Array<{ version: number; createdAt: string | undefined; serial: number; lineage: string }>> {
     const workspace = await this.getById(workspaceId);
-    if (!workspace) throw new Error(`Workspace ${workspaceId} not found`);
+    if (!workspace) throw new OrionError(ErrorCode.NOT_FOUND, `Workspace ${workspaceId} not found`);
 
     const history = await this.getStateHistory(workspaceId);
     return history.map((sv, index) => ({

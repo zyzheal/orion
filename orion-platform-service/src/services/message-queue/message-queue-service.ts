@@ -381,7 +381,7 @@ export class MessageQueueService {
   async replayDeadLetter(deadLetterId: string, options?: { maxRetries?: number }): Promise<string> {
     const dlqEntry = this.deadLetters.get(deadLetterId);
     if (!dlqEntry) {
-      throw new Error(`Dead letter not found: ${deadLetterId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Dead letter not found: ${deadLetterId}`);
     }
 
     dlqEntry.replayStatus = 'replaying';

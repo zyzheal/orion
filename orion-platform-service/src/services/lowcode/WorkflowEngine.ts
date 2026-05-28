@@ -408,7 +408,7 @@ export class WorkflowEngine {
           return await this.executeTimerNode(node.config as TimerNodeConfig, instance, context);
 
         default:
-          throw new Error(`Unknown node type: ${node.type}`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Unknown node type: ${node.type}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

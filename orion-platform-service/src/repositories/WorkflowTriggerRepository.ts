@@ -3,6 +3,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export type WorkflowTriggerType = 'event' | 'cron' | 'manual' | 'webhook';
 
@@ -93,7 +94,7 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
     );
 
     if ((result as any).rows.length === 0) {
-      throw new Error('INSERT into workflow_triggers returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into workflow_triggers returned no rows');
     }
     return this.mapRowToEntity((result as any).rows[0]);
   }

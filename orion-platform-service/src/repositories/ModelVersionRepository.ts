@@ -4,6 +4,7 @@
  * PostgreSQL persistence for model versions and A/B tests.
  */
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== Model Version ====================
 
@@ -98,7 +99,7 @@ export class ModelVersionRepository extends BaseRepository<ModelVersionEntity> {
       `UPDATE model_versions SET metrics = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [JSON.stringify(metrics), id],
     );
-    if (result.rows.length === 0) throw new Error(`Model version ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `Model version ${id} not found`);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -163,7 +164,7 @@ export class ABTestRepository extends BaseRepository<ABTestEntity> {
       `UPDATE ab_tests SET status = $1 WHERE id = $2 RETURNING *`,
       [status, id],
     );
-    if (result.rows.length === 0) throw new Error(`AB test ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `AB test ${id} not found`);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -218,7 +219,7 @@ export class ABTestMetricRepository extends BaseRepository<ABTestMetricEntity> {
       `UPDATE ab_test_metrics SET request_count = request_count + 1 WHERE id = $1 RETURNING *`,
       [id],
     );
-    if (result.rows.length === 0) throw new Error(`AB test metric ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `AB test metric ${id} not found`);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -227,7 +228,7 @@ export class ABTestMetricRepository extends BaseRepository<ABTestMetricEntity> {
       `UPDATE ab_test_metrics SET metrics = $1 WHERE id = $2 RETURNING *`,
       [JSON.stringify(metrics), id],
     );
-    if (result.rows.length === 0) throw new Error(`AB test metric ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `AB test metric ${id} not found`);
     return this.mapRowToEntity(result.rows[0]);
   }
 

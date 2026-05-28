@@ -22,6 +22,7 @@ export { TypedEnvelope } from './types/event-types';
 import { JetStreamConfig, ConsumerConfig, TypedEnvelope } from './types/event-types';
 import type { JetStreamClient, JetStreamManager } from 'nats';
 import { JetStreamManagerService } from './jetstream-manager';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 连接状态枚举 - 明确区分各种状态
@@ -781,7 +782,7 @@ export class EventBusService extends EventEmitter {
    */
   async getEventHistory(options?: { eventType?: string; status?: string; limit?: number }) {
     if (!this.repos.eventRepo) {
-      throw new Error('Event repository not available');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Event repository not available');
     }
     if (options?.eventType) {
       return this.repos.eventRepo.findByType(options.eventType, { limit: options.limit });
@@ -797,7 +798,7 @@ export class EventBusService extends EventEmitter {
    */
   async getSubscriptions(tenantId?: string) {
     if (!this.repos.subscriptionRepo) {
-      throw new Error('Subscription repository not available');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Subscription repository not available');
     }
     if (tenantId) {
       return this.repos.subscriptionRepo.findByTenant(tenantId);
@@ -810,7 +811,7 @@ export class EventBusService extends EventEmitter {
    */
   async getEventStats() {
     if (!this.repos.eventRepo) {
-      throw new Error('Event repository not available');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Event repository not available');
     }
     const [published, pendingFallback, delivered, failed, deadLetter] = await Promise.all([
       this.repos.eventRepo.countByStatus('published'),
@@ -836,7 +837,7 @@ export class EventBusService extends EventEmitter {
     onProgress?: (eventId: string, success: boolean) => void;
   }): Promise<{ retried: number; succeeded: number; failed: number }> {
     if (!this.repos.eventRepo) {
-      throw new Error('Event repository not available');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Event repository not available');
     }
     if (this.connectionState !== 'connected' || !this.natsConnection) {
       throw new EventBusError('NATS not connected, cannot retry events', 'NOT_CONNECTED', true);

@@ -133,7 +133,7 @@ export class AutoProgressionEngine {
   }> {
     const canary = await this.getCanaryDeployment(canaryId);
     if (!canary) {
-      throw new Error(`Canary deployment ${canaryId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Canary deployment ${canaryId} not found`);
     }
 
     const baselineMetrics = await this.collectMetrics(canary.baseline_version, canary.service_name, 'baseline');

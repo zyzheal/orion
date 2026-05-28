@@ -12,6 +12,7 @@ import {
   Artifact,
   ArtifactCreateInput,
 } from '../models/BuildArtifact';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface BuildArtifactRow {
   id: string;
@@ -63,7 +64,7 @@ export class BuildArtifactRepository extends BaseRepository<Artifact> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into artifacts returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into artifacts returned no rows');
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -16,6 +16,7 @@ import { AgentRunController } from './api/controllers/AgentRunController';
 import { EventBusService } from './services/event-bus-service';
 import { AgentRunRepository } from './repositories/AgentRunRepository';
 import { DatabasePool } from './services/database';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface AgentRoutesOptions {
   eventBus?: EventBusService;
@@ -43,7 +44,7 @@ export default async function registerAgentRoutes(
       runRepository,
     });
   } else {
-    throw new Error('Agent routes require a database connection');
+    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Agent routes require a database connection');
   }
 
   // 初始化控制器

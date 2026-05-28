@@ -387,7 +387,7 @@ export class PluginMarketplaceService {
   async reviewPlugin(input: ReviewPluginInput): Promise<PluginReview> {
     const listing = pluginListings.get(input.plugin_id);
     if (!listing) {
-      throw new Error(`Plugin '${input.plugin_id}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${input.plugin_id}' not found`);
     }
 
     const reviews = pluginReviews.get(input.plugin_id) ?? [];

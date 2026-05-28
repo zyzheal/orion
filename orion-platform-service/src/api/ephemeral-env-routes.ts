@@ -12,6 +12,7 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ErrorCode } from '../../errors';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Internal server error';
@@ -26,7 +27,7 @@ export default async function ephemeralEnvRoutes(
   app: FastifyInstance,
   options?: EphemeralEnvRoutesOptions
 ): Promise<void> {
-  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new Error('Database not configured'); } });
+  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured'); } });
   const service = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options?.eventBus,

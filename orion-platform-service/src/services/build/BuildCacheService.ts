@@ -239,7 +239,7 @@ export class BuildCacheService {
   ): Promise<CacheEntry> {
     const config = await this.getConfig(configId);
     if (!config) {
-      throw new Error(`Cache config '${configId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cache config '${configId}' not found`);
     }
 
     const cacheKey = generateCacheKey(config.cacheKeyPattern, hash);

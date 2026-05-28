@@ -112,7 +112,7 @@ export function createPipelineSagaDefinition(
         let spec: { stages: PipelineYamlStage[] };
         try {
           if (!pipeline.yamlDefinition) {
-            throw new Error('Pipeline has no YAML definition');
+            throw new OrionError(ErrorCode.OPERATION_FAILED, 'Pipeline has no YAML definition');
           }
           const result = parsePipelineYaml(pipeline.yamlDefinition);
           spec = result.spec;
@@ -175,7 +175,7 @@ export function createPipelineSagaDefinition(
         const previousOutput = context.stepExecutions[0]?.output as CreateRunOutput;
 
         if (!runId || !previousOutput) {
-          throw new Error('Missing runId or previous step output');
+          throw new OrionError(ErrorCode.NOT_FOUND, 'Missing runId or previous step output');
         }
 
         const spec = previousOutput.spec;
@@ -361,7 +361,7 @@ export function createPipelineSagaDefinition(
         const run = pipelineRuns.get(runId);
 
         if (!run) {
-          throw new Error(`PipelineRun '${runId}' not found`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `PipelineRun '${runId}' not found`);
         }
 
         const previousStatus = run.status;

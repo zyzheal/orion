@@ -128,7 +128,7 @@ export class EmergencyApprovalService {
 
     const result = entity.result;
     if (!result?.isEmergency) {
-      throw new Error('This is not an emergency approval request');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'This is not an emergency approval request');
     }
 
     const timeoutMs = result.autoApproveTimeoutMs ?? this.autoApproveTimeoutMs;
@@ -174,17 +174,17 @@ export class EmergencyApprovalService {
     comment?: string,
   ): Promise<EmergencyApprovalResult> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new Error(`Approval request not found: ${requestId}`);
-    if (entity.status !== 'pending') throw new Error('Approval request is not pending');
+    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval request not found: ${requestId}`);
+    if (entity.status !== 'pending') throw new OrionError(ErrorCode.OPERATION_FAILED, 'Approval request is not pending');
 
     const result = entity.result;
     if (!result?.isEmergency) {
-      throw new Error('This is not an emergency approval request');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'This is not an emergency approval request');
     }
 
     const steps = await this.repository.findStepsByApproval(requestId);
     const matchingStep = steps.find(s => s.approverId === reviewerId);
-    if (!matchingStep) throw new Error('Not authorized to approve');
+    if (!matchingStep) throw new OrionError(ErrorCode.OPERATION_FAILED, 'Not authorized to approve');
 
     await this.repository.updateStepStatus(matchingStep.id, 'approved', comment, new Date());
     await this.repository.updateStatus(requestId, 'approved', new Date());

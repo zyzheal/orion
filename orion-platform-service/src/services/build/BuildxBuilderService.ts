@@ -9,6 +9,7 @@ import { promisify } from 'util';
 import { ArtifactRegistryServiceImpl } from '../artifact/ArtifactRegistryService';
 import { ArtifactRegistryService } from '../../models/Artifact';
 import { ArtifactType } from '../../models/Artifact';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const execAsync = promisify(exec);
@@ -460,7 +461,7 @@ export class BuildxBuilderService {
     try {
       await execAsync('docker buildx version');
     } catch (error) {
-      throw new Error('Docker buildx is not available. Please install Docker buildx.');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Docker buildx is not available. Please install Docker buildx.');
     }
   }
 

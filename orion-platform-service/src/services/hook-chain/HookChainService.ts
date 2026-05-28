@@ -155,7 +155,7 @@ class PipelineTriggerExecutor implements HookExecutor {
     const { pipelineId, parameters = {} } = config;
 
     if (!this.pipelineService) {
-      throw new Error('Pipeline service not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Pipeline service not configured');
     }
 
     // 触发 Pipeline
@@ -184,7 +184,7 @@ class ApprovalExecutor implements HookExecutor {
     const { approvalType, approvers, timeoutMinutes = 30 } = config;
 
     if (!this.approvalService) {
-      throw new Error('Approval service not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Approval service not configured');
     }
 
     // 创建审批请求
@@ -561,7 +561,7 @@ export class HookChainService extends EventEmitter {
 
   private validateChainDefinition(definition: HookChainDefinition): void {
     if (!definition.id) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Chain id is required');
-    if (!definition.hooks || definition.hooks.length === 0) throw new Error('Chain must have at least one hook');
+    if (!definition.hooks || definition.hooks.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'Chain must have at least one hook');
 
     for (const hook of definition.hooks) {
       if (!hook.id) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Hook id is required');

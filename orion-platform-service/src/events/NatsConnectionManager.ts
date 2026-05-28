@@ -12,6 +12,7 @@
 
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'nats-connection-manager' });
 
@@ -98,7 +99,7 @@ export class NatsConnectionManager extends EventEmitter {
       const { connect } = await import('nats').catch(() => ({ connect: null }));
 
       if (!connect) {
-        throw new Error('NATS module not available. Run: npm install nats');
+        throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'NATS module not available. Run: npm install nats');
       }
 
       this.rawConnection = await connect({

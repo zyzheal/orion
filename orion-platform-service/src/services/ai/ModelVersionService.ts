@@ -401,7 +401,7 @@ export class ModelVersionService {
       throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found for model: ${modelName}`);
     }
     if (abTest.status === 'completed') {
-      throw new Error('AB test is already completed');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'AB test is already completed');
     }
 
     const updated = await this.abTestRepo.updateStatus(abTest.id, 'paused');

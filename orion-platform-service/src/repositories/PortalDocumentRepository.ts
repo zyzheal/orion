@@ -6,6 +6,7 @@
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface PortalDocumentEntity {
   id: string;
@@ -133,7 +134,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error('INSERT into portal_documents returned no rows');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into portal_documents returned no rows');
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -195,7 +196,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     if (updates.length === 0) {
       const existing = await this.findById(id);
       if (!existing) {
-        throw new Error(`Document not found: ${id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Document not found: ${id}`);
       }
       return existing;
     }

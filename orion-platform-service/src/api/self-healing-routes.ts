@@ -23,13 +23,14 @@ import { requirePermission } from '../middleware/requirePermission';
 import { SelfHealingController } from '../api/controllers/SelfHealingController';
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
 import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export default async function selfHealingRoutes(
   app: FastifyInstance,
   opts?: { database?: any }
 ): Promise<void> {
   if (!opts?.database) {
-    throw new Error('Self-healing routes require database connection');
+    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Self-healing routes require database connection');
   }
 
   const repository = new SelfHealingRepository(opts.database);

@@ -15,6 +15,7 @@ import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-reposi
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
 import { tenantContext } from '../services/tenant/TenantContext';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -201,7 +202,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     const values = Object.values(data);
 
     if (columns.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
     }
 
     // 验证列名

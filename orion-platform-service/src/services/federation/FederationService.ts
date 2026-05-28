@@ -17,6 +17,7 @@ import {
   HealthCheckResultEntity,
 } from '../../repositories/FederationRepository';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -457,7 +458,7 @@ export class FederationService {
     }
 
     if (!selectedExecutor) {
-      throw new Error('No suitable executor found for job dispatch');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No suitable executor found for job dispatch');
     }
 
     const jobId = this.generateId();

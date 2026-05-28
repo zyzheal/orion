@@ -503,14 +503,14 @@ export class PluginExecutorService {
     signal?: AbortSignal
   ): Promise<SandboxExecutionResult> {
     if (!this.sandbox) {
-      throw new Error('Sandbox not initialized');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Sandbox not initialized');
     }
 
     // 根据安全等级选择执行函数
     const executor = async (signal: AbortSignal) => {
       // 检查是否已取消
       if (signal.aborted) {
-        throw new Error('Execution aborted');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
       }
 
       switch (plugin.securityLevel) {
@@ -566,7 +566,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing WASM plugin via QuickJS');
 
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
     }
 
     // Extract code from plugin config
@@ -719,7 +719,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing container plugin via Docker');
 
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
     }
 
     const containerImage = this.sanitizeDockerImage(request.config.image as string);
@@ -903,7 +903,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing process plugin via child_process');
 
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
     }
 
     // Parse command into executable + args (no shell injection)
@@ -1095,7 +1095,7 @@ export class PluginExecutorService {
 
     // 检查是否已取消
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
     }
 
     // 模拟执行延迟

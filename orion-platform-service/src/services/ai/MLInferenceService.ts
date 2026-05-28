@@ -315,7 +315,7 @@ export class MLInferenceService {
     }
 
     if (Math.abs(config.variantA.trafficPercent + config.variantB.trafficPercent - 100) > 0.01) {
-      throw new Error('Traffic split must sum to 100');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Traffic split must sum to 100');
     }
 
     const abTest: ABTestConfig = {
@@ -372,7 +372,7 @@ export class MLInferenceService {
       throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found: ${testId}`);
     }
     if (abTest.status === 'completed') {
-      throw new Error('AB test is already completed');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'AB test is already completed');
     }
 
     abTest.status = 'paused';

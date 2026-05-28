@@ -144,7 +144,7 @@ export class GitLabConnector implements Connector {
 
   async execute(action: string, params: Record<string, unknown>): Promise<unknown> {
     if (!this.config) {
-      throw new Error('Connector not initialized. Call initialize() first.');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Connector not initialized. Call initialize() first.');
     }
 
     switch (action) {
@@ -379,7 +379,7 @@ export class GitLabConnector implements Connector {
 
   private async apiGet(endpoint: string): Promise<unknown> {
     if (!this.config?.token) {
-      throw new Error('GitLab token not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'GitLab token not configured');
     }
 
     const response = await fetch(`${this.baseUrl}/api/v4${endpoint}`, {
@@ -398,7 +398,7 @@ export class GitLabConnector implements Connector {
 
   private async apiPost(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
     if (!this.config?.token) {
-      throw new Error('GitLab token not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'GitLab token not configured');
     }
 
     const response = await fetch(`${this.baseUrl}/api/v4${endpoint}`, {

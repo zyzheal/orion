@@ -17,6 +17,7 @@ import { KnowledgeService, KnowledgeServiceError } from '../services/knowledge/K
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'knowledge-routes' });
 
@@ -33,7 +34,7 @@ function getTenantId(request: FastifyRequest, reply: FastifyReply): string {
   const tenantId = (request.headers as any)['x-tenant-id'];
   if (!tenantId) {
     reply.status(400).send({ error: 'MISSING_TENANT', message: 'x-tenant-id header is required' });
-    throw new Error('Tenant missing'); // to satisfy return type
+    throw new OrionError(ErrorCode.NOT_FOUND, 'Tenant missing'); // to satisfy return type
   }
   return tenantId;
 }

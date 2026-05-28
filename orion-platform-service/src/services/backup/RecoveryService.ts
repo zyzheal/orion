@@ -47,10 +47,10 @@ export class RecoveryService extends EventEmitter {
 
     // Validate RTO and RPO are positive
     if (fullPlan.rto <= 0) {
-      throw new Error('RTO must be a positive number (milliseconds)');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'RTO must be a positive number (milliseconds)');
     }
     if (fullPlan.rpo <= 0) {
-      throw new Error('RPO must be a positive number (milliseconds)');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'RPO must be a positive number (milliseconds)');
     }
 
     // Sort steps by order

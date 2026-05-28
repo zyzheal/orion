@@ -3,6 +3,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 
 export enum PipelineStatus {
   ACTIVE = 'active',
@@ -153,7 +154,7 @@ export function parsePipelineYaml(yaml: string): { spec: PipelineSpec; metadata:
   };
 
   if (!parsed.apiVersion || !parsed.kind || !parsed.metadata || !parsed.spec) {
-    throw new Error('Invalid Pipeline YAML format');
+    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid Pipeline YAML format');
   }
 
   if (parsed.kind !== 'Pipeline') {

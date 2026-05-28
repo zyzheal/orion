@@ -52,7 +52,7 @@ export class EnvironmentService {
 
     // Validate approval count
     if ((input.approvalCount ?? 1) < 1) {
-      throw new Error('approvalCount must be at least 1');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'approvalCount must be at least 1');
     }
 
     const env = createEnvironment(input);
@@ -104,7 +104,7 @@ export class EnvironmentService {
 
     // Validate name if being changed
     if (input.approvalCount !== undefined && input.approvalCount < 1) {
-      throw new Error('approvalCount must be at least 1');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'approvalCount must be at least 1');
     }
 
     const updates: Partial<EnvironmentEntity> = {};

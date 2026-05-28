@@ -18,6 +18,7 @@ import {
   ChainBreak,
   DEFAULT_CHAIN_CONFIG,
 } from './AuditTypes';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'audit-chain' });
 
@@ -62,7 +63,7 @@ export class AuditLogChain {
    */
   async loadFromRepository(): Promise<void> {
     if (!this.repository) {
-      throw new Error('Repository not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Repository not configured');
     }
 
     const entries = await this.repository.getEntries();
@@ -343,7 +344,7 @@ export class AuditLogChain {
     endSequence?: number;
   }): Promise<ChainVerificationResult> {
     if (!this.repository) {
-      throw new Error('Repository not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Repository not configured');
     }
     return this.repository.verifyChain(options);
   }
@@ -361,7 +362,7 @@ export class AuditLogChain {
     // 如果使用 Repository
     if (this.useRepository && (options?.useRepository || !this.entries.size)) {
       if (!this.repository) {
-        throw new Error('Repository not configured');
+        throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Repository not configured');
       }
       return this.repository.getEntries(options);
     }
@@ -462,7 +463,7 @@ export class AuditLogChain {
    */
   private sign(data: string): string {
     if (!this.config.signingKey) {
-      throw new Error('Signing key not configured');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Signing key not configured');
     }
     return crypto
       .createHmac('sha256', this.config.signingKey)

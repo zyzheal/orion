@@ -64,7 +64,7 @@ export function getNextCronTime(cronExpression: string, fromDate: Date = new Dat
     iterations++;
   }
 
-  throw new Error(`Could not find next cron time for: ${cronExpression}`);
+  throw new OrionError(ErrorCode.NOT_FOUND, `Could not find next cron time for: ${cronExpression}`);
 }
 
 /**

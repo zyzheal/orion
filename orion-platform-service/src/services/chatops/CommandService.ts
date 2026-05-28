@@ -16,6 +16,7 @@ import {
 } from '../../models/ChatOps';
 import { ChatOpsCommandRepository } from '../../repositories/ChatOpsRepository';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LCommand-LService' });
 
@@ -165,7 +166,7 @@ export class CommandService {
 
   async insert(input: ChatOpsCommandCreateInput): Promise<ChatOpsCommand> {
     if (!this.commandRepository) {
-      throw new Error('CommandService: no database repository configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
     }
 
     const entity = await this.commandRepository.insert({
@@ -195,7 +196,7 @@ export class CommandService {
 
   async getByName(name: string): Promise<ChatOpsCommand | undefined> {
     if (!this.commandRepository) {
-      throw new Error('CommandService: no database repository configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
     }
 
     // Try direct name match
@@ -211,7 +212,7 @@ export class CommandService {
 
   async list(filter: ChatOpsCommandListFilter = {}): Promise<{ commands: ChatOpsCommand[]; total: number }> {
     if (!this.commandRepository) {
-      throw new Error('CommandService: no database repository configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
     }
 
     let entities;
@@ -244,7 +245,7 @@ export class CommandService {
 
   async delete(name: string): Promise<boolean> {
     if (!this.commandRepository) {
-      throw new Error('CommandService: no database repository configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
     }
 
     const entity = await this.commandRepository.findByName(name);
@@ -303,7 +304,7 @@ export class CommandService {
 
   async getAllCommands(): Promise<ChatOpsCommand[]> {
     if (!this.commandRepository) {
-      throw new Error('CommandService: no database repository configured');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
     }
 
     const result = await this.commandRepository.findAll({ limit: 1000 });

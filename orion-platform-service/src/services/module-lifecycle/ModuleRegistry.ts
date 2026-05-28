@@ -32,7 +32,7 @@ export class ModuleRegistry {
   setState(id: string, state: ModuleState): void {
     const mod = this.modules.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
     }
     mod.state = state;
     logger.debug(`[ModuleRegistry] ${id} -> ${state}`);

@@ -9,6 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { SubAppService } from '../services/subapp';
 import { DatabasePool } from '../services/database';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'subapp-routes' });
 
@@ -59,7 +60,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
    */
   function getService(): SubAppService {
     if (!database) {
-      throw new Error('Database not available');
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not available');
     }
     return new SubAppService(database);
   }
