@@ -9,11 +9,14 @@
  * 公开路径包含两类：
  * 1. 静态白名单（系统路径）
  * 2. 动态白名单（子应用路由，从平台服务动态获取）
+ *
+ * Phase 4.1/4.2: Integrated token blacklist checking via shared Redis
  */
 
 import { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
 import { getConfig } from '../config';
 import { getSubAppRoutePrefixes } from '../services/gateway-route-sync';
+import { tokenBlacklistChecker, TokenBlacklistChecker } from '../services/token-blacklist-checker';
 
 export interface JwtPayload {
   sub: string;
@@ -46,8 +49,21 @@ export class AuthMiddleware {
     '/swagger',
     '/favicon.ico',
   ];
+  private blacklistChecker: TokenBlacklistChecker;
 
-  constructor(private app: FastifyInstance) {}
+  constructor(private app: FastifyInstance) {
+    this.blacklistChecker = tokenBlacklistChecker;
+  }
+
+  /**
+   * Set Redis client for token blacklist checking
+   * Must be called during app initialization after Redis is connected
+   */
+  setRedisClient(redisClient: any): void {
+    if (redisClient) {
+      this.blacklistChecker.setRedisClient(redisClient);
+    }
+  }
 
   /**
    * 添加公开路径（不需要认证）
@@ -135,6 +151,22 @@ export class AuthMiddleware {
         message: 'Authentication required',
       });
       return;
+    }
+
+    // Phase 4.2: Check token blacklist before JWT verification
+    // This rejects revoked tokens early, before expensive crypto verification
+    try {
+      const isRevoked = await this.blacklistChecker.isRevoked(token);
+      if (isRevoked) {
+        reply.code(401).send({
+          error: 'TOKEN_REVOKED',
+          message: 'Token has been revoked',
+        });
+        return;
+      }
+    } catch {
+      // Blacklist check failure should not block authentication
+      // Fail-open: continue with JWT verification
     }
 
     // 验证 token

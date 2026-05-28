@@ -148,6 +148,10 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   // 认证中间件
   const authMiddleware = new AuthMiddleware(app);
+  // Phase 4.2: Wire Redis client to token blacklist checker
+  if (redisClientInstance) {
+    authMiddleware.setRedisClient(redisClientInstance);
+  }
   app.addHook('onRequest', authMiddleware.handler.bind(authMiddleware));
 
   // 子应用认证适配：JWT 验证通过后注入用户信息到 header
