@@ -198,7 +198,7 @@ const TicketDetail: React.FC = () => {
     const loadEngineers = async () => {
       try {
         const res = await listUsers({ limit: 200 });
-        setEngineers(res.data?.data?.data || []);
+        setEngineers(res.data?.data || []);
       } catch {
         setEngineers([]);
       }
@@ -227,15 +227,15 @@ const TicketDetail: React.FC = () => {
     }
   };
 
-  const history = useMemo(() => [] as Array<{ id: string; status: string; timestamp: string }>, [id]);
+  const history = useMemo(() => [] as Array<{ id: string; action: string; status: string; timestamp: string; fromStatus?: string; toStatus?: string; reason?: string; performedBy?: string }>, [id]);
 
   const relations = useMemo(
-    () => [] as Array<{ id: string; type: string; target: string }>,
+    () => [] as Array<{ relationId: string; relationType: string; relatedTicketId: string; relatedTicketTitle: string }>,
     [id]
   );
 
   const transfers = useMemo(
-    () => [] as Array<{ from: string; to: string; timestamp: string }>,
+    () => [] as Array<{ id: string; from: string; to: string; fromEngineer: string; toEngineer: string; timestamp: string; reason?: string }>,
     [id]
   );
 

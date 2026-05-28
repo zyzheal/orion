@@ -127,11 +127,10 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       try {
         // Load open/assigned tickets for queue
         const ticketsRes = await getTickets({ page: 1, pageSize: 50, status: 'open' });
-        const apiData = ticketsRes.data?.data;
-        const tickets = Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? [];
+        const tickets = ticketsRes.data?.items ?? [];
         const queueEntries: TicketEntry[] = tickets
-          .filter((t: { status?: string }) => t.status === 'open' || t.status === 'assigned')
-          .map((t: { id?: string; title?: string; priority?: string; dueDate?: string; createdAt?: string; assignee?: string | null }) => ({
+          .filter((t) => t.status === 'open' || t.status === 'assigned')
+          .map((t) => ({
             id: t.id,
             title: t.title,
             priority: t.priority || 'medium',
@@ -157,7 +156,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
 
         // Load engineers from users API
         const usersRes = await listUsers({ limit: 200 });
-        const users: User[] = usersRes.data?.data?.data || [];
+        const users: User[] = usersRes.data?.data || [];
         const engineerEntries: EngineerEntry[] = users.map((u) => ({
           id: u.id,
           name: u.name || u.username,

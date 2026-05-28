@@ -10,6 +10,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
 import { WarningOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { createTicket, type CreateTicketPayload } from '@/api/ticketing';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -120,16 +121,18 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
     try {
       await form.validateFields();
       setSubmitting(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const values = form.getFieldsValue() as unknown as CreateTicketPayload;
+      await createTicket(values);
       message.success('工单创建成功');
       form.resetFields();
       setTitleValue('');
-      setSubmitting(false);
       onSuccess();
     } catch (error: unknown) {
+      if (error instanceof Error && error.message !== 'Validation failed') {
+        message.error(`创建失败：${error.message}`);
+      }
+    } finally {
       setSubmitting(false);
-      // Form validation error - no need to show additional message
     }
   }, [form, onSuccess]);
 

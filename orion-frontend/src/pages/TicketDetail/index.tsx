@@ -198,7 +198,7 @@ const TicketDetail: React.FC = () => {
     const loadEngineers = async () => {
       try {
         const res = await listUsers({ limit: 200 });
-        setEngineers(res.data?.data?.data || []);
+        setEngineers(res.data?.data || []);
       } catch {
         setEngineers([]);
       }
@@ -230,7 +230,7 @@ const TicketDetail: React.FC = () => {
   // Load relations and transfer history
   const [relations, setRelations] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, _setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const loadRelatedData = async () => {
@@ -240,8 +240,8 @@ const TicketDetail: React.FC = () => {
           getTicketRelations(id),
           getTransferHistory(id),
         ]);
-        setRelations(relationsRes.data?.data || []);
-        setTransfers(transfersRes.data?.data || []);
+        setRelations(relationsRes.data?.items || []);
+        setTransfers(transfersRes.data?.items || []);
       } catch (error) {
         console.warn('Failed to load related data:', error);
       }

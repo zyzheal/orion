@@ -126,7 +126,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
     const loadEngineers = async () => {
       try {
         const res = await listUsers({ limit: 200 });
-        setEngineers(res.data?.data?.data || []);
+        setEngineers(res.data?.data || []);
       } catch {
         setEngineers([]);
       }
@@ -142,10 +142,10 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           getComments(ticketId),
           getAttachments(ticketId),
         ]);
-        const commentsData = commentsRes.data?.data;
-        const attachmentsData = attachmentsRes.data?.data;
-        setComments(Array.isArray(commentsData) ? commentsData : []);
-        setAttachments(Array.isArray(attachmentsData) ? attachmentsData : []);
+        const commentsData = commentsRes.data?.items;
+        const attachmentsData = attachmentsRes.data?.items;
+        setComments(Array.isArray(commentsData) ? commentsData as TicketComment[] : []);
+        setAttachments(Array.isArray(attachmentsData) ? attachmentsData as TicketAttachment[] : []);
       } catch {
         setComments([]);
         setAttachments([]);

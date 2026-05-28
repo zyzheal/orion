@@ -150,7 +150,7 @@ const TicketList: React.FC = () => {
       setEngineersLoading(true);
       try {
         const res = await listUsers({ limit: 200 });
-        const users: User[] = res.data?.data?.data || [];
+        const users: User[] = res.data?.data || [];
         setEngineers(users.map((u) => u.name || u.username).filter(Boolean));
       } catch {
         setEngineers([]);
@@ -167,8 +167,7 @@ const TicketList: React.FC = () => {
     try {
       const params = { page: 1, pageSize: 50, ...filters };
       const response = await getTickets(params);
-      const apiData = response.data;
-      setTickets(Array.isArray(apiData) ? apiData : (apiData as { items?: Ticket[] })?.items || []);
+      setTickets((response.data?.items ?? []) as unknown as Ticket[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载工单列表失败：${error.message}`);
@@ -358,7 +357,7 @@ const TicketList: React.FC = () => {
       width: 100,
       render: (value: unknown) => {
         const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
-        return <Badge status={config.color} text={config.label} />;
+        return <Badge status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'} text={config.label} />;
       },
     },
     {

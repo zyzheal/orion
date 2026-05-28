@@ -32,6 +32,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { autoDispatch } from '@/api/ticketing';
 import { getTickets } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import { colors, spacing } from '@/tokens';
@@ -127,8 +128,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       try {
         // Load open/assigned tickets for queue
         const ticketsRes = await getTickets({ page: 1, pageSize: 50, status: 'open' });
-        const apiData = ticketsRes.data?.data;
-        const tickets = Array.isArray(apiData) ? apiData as Ticket[] : (apiData as { items?: Ticket[] })?.items ?? [];
+        const tickets = ticketsRes.data?.items ?? [];
         const queueEntries: TicketEntry[] = tickets
           .filter((t) => t.status === 'open' || t.status === 'assigned')
           .map((t) => ({
@@ -157,7 +157,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
 
         // Load engineers from users API
         const usersRes = await listUsers({ limit: 200 });
-        const users: User[] = usersRes.data?.data?.data || [];
+        const users: User[] = usersRes.data?.data || [];
         const engineerEntries: EngineerEntry[] = users.map((u) => ({
           id: u.id,
           name: u.name || u.username,
@@ -260,20 +260,30 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
     },
   ];
 
-  const handleSingleDispatch = (ticket: TicketEntry) => {
+  const handleSingleDispatch = async (ticket: TicketEntry) => {
     message.loading({ content: `正在为 ${ticket.id} 自动分派...`, key: 'dispatch' });
-    setTimeout(() => {
+    try {
+      await autoDispatch(ticket.id);
       message.success({ content: `${ticket.id} 分派成功`, key: 'dispatch', duration: 2 });
-    }, 1000);
+    } catch (error: unknown) {
+      message.error({ content: `${ticket.id} 分派失败：${error instanceof Error ? error.message : '未知错误'}`, key: 'dispatch' });
+    }
   };
 
-  const handleAutoDispatchAll = () => {
+  const handleAutoDispatchAll = async () => {
     setDispatching(true);
     message.loading({ content: '正在执行自动分派...', key: 'autoDispatch', duration: 0 });
-    setTimeout(() => {
+    try {
+      // Dispatch all queued tickets sequentially
+      for (const entry of queueTickets) {
+        await autoDispatch(entry.id);
+      }
       message.success({ content: '自动分派完成', key: 'autoDispatch', duration: 2 });
+    } catch (error: unknown) {
+      message.error({ content: `自动分派失败：${error instanceof Error ? error.message : '未知错误'}`, key: 'autoDispatch' });
+    } finally {
       setDispatching(false);
-    }, 2000);
+    }
   };
 
   return (
