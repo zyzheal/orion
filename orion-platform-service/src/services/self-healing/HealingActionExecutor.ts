@@ -12,11 +12,14 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import * as k8s from '@kubernetes/client-node';
+import pino from 'pino';
 import {
   HealingAction,
   HealingActionType,
   HealingActionResult,
 } from './types';
+
+const logger = pino({ name: 'healing-action-executor' });
 
 /**
  * K8s client singleton with connection pooling and health check
@@ -66,11 +69,11 @@ class K8sClientManager {
       this.autoscalingApi = this.kc.makeApiClient(k8s.AutoscalingV2Api);
 
       await this.healthCheck();
-      console.log('[K8sClientManager] K8s client initialized successfully');
+      logger.info('K8s client initialized successfully');
     } catch (error: any) {
-      console.warn(
-        '[K8sClientManager] Failed to initialize K8s client, falling back to simulated mode:',
-        error.message
+      logger.warn(
+        { err: error.message },
+        'Failed to initialize K8s client, falling back to simulated mode'
       );
       this.isHealthy = false;
     }
@@ -95,7 +98,7 @@ class K8sClientManager {
       this.lastHealthCheck = now;
       return true;
     } catch (error: any) {
-      console.warn('[K8sClientManager] K8s health check failed:', error.message);
+      logger.warn({ err: error.message }, 'K8s health check failed');
       this.isHealthy = false;
       this.lastHealthCheck = now;
       return false;
@@ -221,9 +224,9 @@ export class HealingActionExecutor {
           return false;
       }
     } catch (error) {
-      console.warn(
-        `[HealingActionExecutor] Verification failed for ${actionType}:`,
-        error
+      logger.warn(
+        { actionType, err: error },
+        'Verification failed'
       );
       return false;
     }
@@ -334,8 +337,9 @@ export class HealingActionExecutor {
     const namespace = action.params.namespace || 'default';
     const resourceType = action.params.resourceType || 'deployment';
 
-    console.log(
-      `[HealingActionExecutor] Restarting: ${target} (graceful: ${action.params.graceful}, type: ${resourceType})`
+    logger.info(
+      { target, graceful: action.params.graceful, resourceType },
+      'Restarting'
     );
 
     try {
@@ -388,7 +392,7 @@ export class HealingActionExecutor {
         }
       } else {
         // Simulated mode
-        console.log('[HealingActionExecutor] Using simulated mode for restart');
+        logger.info('Using simulated mode for restart');
         await this.delay(Math.min(10, timeoutMs));
       }
 
@@ -440,7 +444,7 @@ export class HealingActionExecutor {
     const increment = action.params.increment ?? 1;
     const targetReplicas = action.params.targetReplicas;
 
-    console.log(
+    logger.info(
       `[HealingActionExecutor] Scaling ${direction}: ${target} by ${increment} (type: ${resourceType})`
     );
 
@@ -503,7 +507,7 @@ export class HealingActionExecutor {
         }
       } else {
         // Simulated mode
-        console.log('[HealingActionExecutor] Using simulated mode for scale');
+        logger.info('Using simulated mode for scale');
         await this.delay(Math.min(10, timeoutMs));
       }
 
@@ -553,7 +557,7 @@ export class HealingActionExecutor {
     const isFailback = action.params.failback ?? false;
     const targetNode = action.params.targetNode;
 
-    console.log(
+    logger.info(
       `[HealingActionExecutor] Failover ${isFailback ? 'back' : ''}: ${target}`
     );
 
@@ -589,7 +593,7 @@ export class HealingActionExecutor {
         }
       } else {
         // Simulated mode
-        console.log('[HealingActionExecutor] Using simulated mode for failover');
+        logger.info('Using simulated mode for failover');
         await this.delay(Math.min(10, timeoutMs));
       }
 
@@ -638,7 +642,7 @@ export class HealingActionExecutor {
     const namespace = action.params.namespace || 'default';
     const targetVersion = action.params.targetVersion || 'previous';
 
-    console.log(
+    logger.info(
       `[HealingActionExecutor] Rollback: ${target} to version ${targetVersion}`
     );
 
@@ -729,14 +733,15 @@ export class HealingActionExecutor {
               },
             });
           } else {
-            console.warn(
-              `[HealingActionExecutor] ReplicaSet for revision ${targetVersion} not found`
+            logger.warn(
+              { targetVersion },
+              'ReplicaSet for revision not found'
             );
           }
         }
       } else {
         // Simulated mode
-        console.log('[HealingActionExecutor] Using simulated mode for rollback');
+        logger.info('Using simulated mode for rollback');
         await this.delay(Math.min(10, timeoutMs));
       }
 
@@ -784,10 +789,10 @@ export class HealingActionExecutor {
     const namespace = params.namespace || 'default';
     const resourceType = params.resourceType || 'deployment';
 
-    console.log(`[HealingActionExecutor] Verifying restart of ${target} (${resourceType})`);
+    logger.info(`[HealingActionExecutor] Verifying restart of ${target} (${resourceType})`);
 
     if (isSimulateMode() || !k8sManager.isAvailable()) {
-      console.log('[HealingActionExecutor] Using simulated mode for restart verification');
+      logger.info('Using simulated mode for restart verification');
       await this.delay(10);
       return true;
     }
@@ -820,9 +825,9 @@ export class HealingActionExecutor {
       // Fallback for unknown resource types
       return true;
     } catch (error: any) {
-      console.warn(
-        `[HealingActionExecutor] Restart verification failed for ${target}:`,
-        error.message
+      logger.warn(
+        { target, err: error.message },
+        'Restart verification failed'
       );
       return false;
     }
@@ -838,10 +843,10 @@ export class HealingActionExecutor {
     const resourceType = params.resourceType || 'deployment';
     const expectedReplicas = params.expectedReplicas;
 
-    console.log(`[HealingActionExecutor] Verifying scale of ${target} (${resourceType})`);
+    logger.info(`[HealingActionExecutor] Verifying scale of ${target} (${resourceType})`);
 
     if (isSimulateMode() || !k8sManager.isAvailable()) {
-      console.log('[HealingActionExecutor] Using simulated mode for scale verification');
+      logger.info('Using simulated mode for scale verification');
       await this.delay(10);
       return true;
     }
@@ -879,9 +884,9 @@ export class HealingActionExecutor {
 
       return true;
     } catch (error: any) {
-      console.warn(
-        `[HealingActionExecutor] Scale verification failed for ${target}:`,
-        error.message
+      logger.warn(
+        { target, err: error.message },
+        'Scale verification failed'
       );
       return false;
     }
@@ -896,10 +901,10 @@ export class HealingActionExecutor {
     const namespace = params.namespace || 'default';
     const failback = params.failback ?? false;
 
-    console.log(`[HealingActionExecutor] Verifying failover${failback ? ' back' : ''} of ${target}`);
+    logger.info(`[HealingActionExecutor] Verifying failover${failback ? ' back' : ''} of ${target}`);
 
     if (isSimulateMode() || !k8sManager.isAvailable()) {
-      console.log('[HealingActionExecutor] Using simulated mode for failover verification');
+      logger.info('Using simulated mode for failover verification');
       await this.delay(10);
       return true;
     }
@@ -914,8 +919,9 @@ export class HealingActionExecutor {
       });
 
       if (podList.items.length === 0) {
-        console.warn(
-          `[HealingActionExecutor] No pods found for app=${target} in namespace ${namespace}`
+        logger.warn(
+          { target, namespace },
+          'No pods found for app'
         );
         return false;
       }
@@ -929,9 +935,9 @@ export class HealingActionExecutor {
 
       return runningPods.length > 0;
     } catch (error: any) {
-      console.warn(
-        `[HealingActionExecutor] Failover verification failed for ${target}:`,
-        error.message
+      logger.warn(
+        { target, err: error.message },
+        'Failover verification failed'
       );
       return false;
     }
@@ -946,10 +952,10 @@ export class HealingActionExecutor {
     const namespace = params.namespace || 'default';
     const targetVersion = params.targetVersion;
 
-    console.log(`[HealingActionExecutor] Verifying rollback of ${target} to version ${targetVersion || 'previous'}`);
+    logger.info(`[HealingActionExecutor] Verifying rollback of ${target} to version ${targetVersion || 'previous'}`);
 
     if (isSimulateMode() || !k8sManager.isAvailable()) {
-      console.log('[HealingActionExecutor] Using simulated mode for rollback verification');
+      logger.info('Using simulated mode for rollback verification');
       await this.delay(10);
       return true;
     }
@@ -992,8 +998,9 @@ export class HealingActionExecutor {
           );
 
           if (!matchingRS) {
-            console.warn(
-              `[HealingActionExecutor] No matching ReplicaSet found for revision ${targetVersion}`
+            logger.warn(
+              { targetVersion },
+              'No matching ReplicaSet found for revision'
             );
             return false;
           }
@@ -1004,9 +1011,9 @@ export class HealingActionExecutor {
 
       return isStable;
     } catch (error: any) {
-      console.warn(
-        `[HealingActionExecutor] Rollback verification failed for ${target}:`,
-        error.message
+      logger.warn(
+        { target, err: error.message },
+        'Rollback verification failed'
       );
       return false;
     }
