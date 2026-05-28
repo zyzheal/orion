@@ -4,6 +4,7 @@
  */
 
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -213,7 +214,7 @@ export class DistributedLockService {
           newTtl
         }, 'Lock renewed successfully');
       } else {
-        throw new Error('Failed to renew lock - lock may have expired');
+        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to renew lock - lock may have expired');
       }
     } catch (error) {
       logger.error({

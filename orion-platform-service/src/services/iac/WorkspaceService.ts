@@ -23,6 +23,7 @@ import {
 import { IaCWorkspaceRepository, IaCWorkspaceEntity } from '../../repositories/IaCWorkspaceRepository';
 import { IaCStateVersionRepository, IaCStateVersionEntity } from '../../repositories/IaCStateVersionRepository';
 import { IaCModuleRepository, IaCModuleEntity } from '../../repositories/IaCModuleRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export interface IaCWorkspaceListFilter {
   projectId?: string;
@@ -200,7 +201,7 @@ export class WorkspaceService {
       const entity = await this.workspaceRepository.findById(workspaceId);
       if (!entity) return undefined;
       if (entity.lockedBy) {
-        throw new Error(`Workspace is already locked by ${entity.lockedBy}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Workspace is already locked by ${entity.lockedBy}`);
       }
 
       const updated = await this.workspaceRepository.update(workspaceId, {
@@ -319,7 +320,7 @@ export class WorkspaceService {
   async importResource(workspaceId: string, resource: Record<string, unknown>): Promise<Record<string, unknown>> {
     const workspace = await this.getById(workspaceId);
     if (!workspace) {
-      throw new Error('Workspace not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Workspace not found');
     }
 
     // Store imported resource in variables for tracking

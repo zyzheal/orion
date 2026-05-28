@@ -1,4 +1,5 @@
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 /**
  * Canary Traffic Manager Service - Phase 3
  *
@@ -56,7 +57,7 @@ export class CanaryTrafficManagerService {
 
   async analyzeCanary(canaryId: string): Promise<CanaryAnalysis> {
     const canary = await this.getCanary(canaryId);
-    if (!canary) throw new Error('Canary not found');
+    if (!canary) throw new OrionError(ErrorCode.NOT_FOUND, 'Canary not found');
 
     // Simulated analysis - would get real metrics
     const stableSuccessRate = 0.99;
@@ -83,7 +84,7 @@ export class CanaryTrafficManagerService {
 
   async incrementTraffic(canaryId: string): Promise<CanaryConfig> {
     const canary = await this.getCanary(canaryId);
-    if (!canary) throw new Error('Canary not found');
+    if (!canary) throw new OrionError(ErrorCode.NOT_FOUND, 'Canary not found');
 
     const newPercent = Math.min(canary.current_percent + canary.increment_percent, canary.max_percent);
 

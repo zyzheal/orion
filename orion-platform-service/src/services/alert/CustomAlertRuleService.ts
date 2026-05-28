@@ -10,6 +10,7 @@
 
 import pino from 'pino';
 import { BaseRepository, FindAllOptions, FindAllResult } from '../../db/base-repository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -429,7 +430,7 @@ export class CustomAlertRuleService {
   async evaluateRule(ruleId: string, metricValue?: number): Promise<EvaluationResult> {
     const rule = await this.getRuleById(ruleId);
     if (!rule) {
-      throw new Error(`Rule '${ruleId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Rule '${ruleId}' not found`);
     }
 
     if (!rule.enabled) {
@@ -535,7 +536,7 @@ export class CustomAlertRuleService {
   ): Promise<CustomAlertRule> {
     const template = ALERT_RULE_TEMPLATES.find((t) => t.id === templateId);
     if (!template) {
-      throw new Error(`Rule template '${templateId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Rule template '${templateId}' not found`);
     }
 
     const input: CreateRuleInput = {

@@ -15,6 +15,7 @@
 import { DatabasePool } from '../../services/database';
 import { TokenBlacklistService } from '../auth/TokenBlacklistService';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -72,13 +73,13 @@ export class UserStatusService {
     const user = userResult.rows[0];
 
     if (!user) {
-      throw new Error(`User not found: ${userId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `User not found: ${userId}`);
     }
 
     const oldStatus = user.status as UserStatus;
 
     if (oldStatus === newStatus) {
-      throw new Error(`User ${userId} already has status ${newStatus}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `User ${userId} already has status ${newStatus}`);
     }
 
     // Update user status

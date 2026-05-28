@@ -13,6 +13,7 @@ import pino from 'pino';
 import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 import { CronExecutionRepository, CronExecutionEntity } from '../../repositories/CronExecutionRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -227,7 +228,7 @@ export class CronSchedulerService {
   async executeJob(id: string): Promise<CronJobExecution> {
     const job = this.jobs.get(id);
     if (!job) {
-      throw new Error(`Cron job not found: ${id}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cron job not found: ${id}`);
     }
     return this.runJob(job);
   }

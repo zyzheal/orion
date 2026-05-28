@@ -133,7 +133,7 @@ export class UnifiedTriggerService {
     if (!this.triggerRepo || !this.eventRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const trigger = await this.triggerRepo.findById(triggerId);
-    if (!trigger) throw new Error(`Trigger not found: ${triggerId}`);
+    if (!trigger) throw new OrionError(ErrorCode.NOT_FOUND, `Trigger not found: ${triggerId}`);
     if (trigger.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Trigger does not belong to this tenant');
     if (!trigger.enabled) throw new OrionError(ErrorCode.NOT_FOUND, `Trigger is disabled: ${triggerId}`);
 
@@ -181,7 +181,7 @@ export class UnifiedTriggerService {
     if (!this.triggerRepo || !this.eventRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
 
     const trigger = await this.triggerRepo.findById(triggerId);
-    if (!trigger) throw new Error(`Trigger not found: ${triggerId}`);
+    if (!trigger) throw new OrionError(ErrorCode.NOT_FOUND, `Trigger not found: ${triggerId}`);
     if (trigger.tenant_id !== tenantId) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Trigger does not belong to this tenant');
     if (!trigger.enabled) throw new Error(`Trigger is disabled: ${triggerId}`);
     if (!trigger.pipeline_id) throw new Error(`Trigger has no associated pipeline: ${triggerId}`);

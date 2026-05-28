@@ -239,7 +239,7 @@ export class ModelVersionService {
   async deprecateModel(modelId: string): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new Error(`Model not found: ${modelId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
     }
 
     if (entity.status === 'archived') {
@@ -279,7 +279,7 @@ export class ModelVersionService {
   async updateModelMetrics(modelId: string, metrics: Partial<ModelMetrics>): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new Error(`Model not found: ${modelId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
     }
 
     const updatedMetrics = { ...entity.metrics, ...metrics };
@@ -398,7 +398,7 @@ export class ModelVersionService {
   async pauseABTest(modelName: string): Promise<ABTestConfig> {
     const abTest = await this.abTestRepo.findByName(modelName);
     if (!abTest) {
-      throw new Error(`AB test not found for model: ${modelName}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found for model: ${modelName}`);
     }
     if (abTest.status === 'completed') {
       throw new Error('AB test is already completed');
@@ -552,7 +552,7 @@ export class ModelVersionService {
     }
 
     if (entity.status === 'active') {
-      throw new Error('Cannot archive an active model. Deactivate it first.');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot archive an active model. Deactivate it first.');
     }
 
     const updated = await this.modelRepo.update(modelId, { status: 'archived' });

@@ -75,7 +75,7 @@ export class CmdbService {
         ci => ci.ciId === input.ciId && !ci.deletedAt && ci.tenantId === input.tenantId
       );
       if (existing) {
-        throw new Error(`CI '${input.ciId}' already exists`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `CI '${input.ciId}' already exists`);
       }
     }
 
@@ -474,7 +474,7 @@ export class CmdbService {
           !r.deletedAt
       );
       if (existing) {
-        throw new Error(`Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`);
       }
     }
 

@@ -9,6 +9,7 @@
 import { EventEmitter } from 'events';
 import {
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LBackup-LScheduler' });
   BackupPlan,
@@ -28,7 +29,7 @@ const logger = pino({ name: 'LBackup-LScheduler' });
 export function getNextCronTime(cronExpression: string, fromDate: Date = new Date()): Date {
   const parts = cronExpression.trim().split(/\s+/);
   if (parts.length !== 5) {
-    throw new Error(`Invalid cron expression: ${cronExpression}. Expected 5 fields.`);
+    throw new OrionError(ErrorCode.NOT_FOUND, `Invalid cron expression: ${cronExpression}. Expected 5 fields.`);
   }
 
   const [minuteStr, hourStr, dayOfMonthStr, monthStr, dayOfWeekStr] = parts;

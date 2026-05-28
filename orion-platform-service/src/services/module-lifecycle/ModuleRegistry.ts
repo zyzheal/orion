@@ -4,6 +4,7 @@ import {
   ModuleState,
   DependencyValidationResult,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -14,7 +15,7 @@ export class ModuleRegistry {
 
   register(descriptor: ModuleDescriptor): void {
     if (this.modules.has(descriptor.id)) {
-      throw new Error(`Module ${descriptor.id} is already registered`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${descriptor.id} is already registered`);
     }
     this.modules.set(descriptor.id, descriptor);
     logger.debug(`[ModuleRegistry] Registered module: ${descriptor.id}`);
@@ -40,7 +41,7 @@ export class ModuleRegistry {
   setFailed(id: string, error: Error): void {
     const mod = this.modules.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
     }
     mod.state = 'failed';
     mod.error = error.message;

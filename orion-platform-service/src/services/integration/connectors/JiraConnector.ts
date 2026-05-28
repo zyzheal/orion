@@ -404,7 +404,7 @@ export class JiraConnector implements Connector {
         (t) => t.name.toLowerCase() === String(transitionName).toLowerCase()
       );
       if (!found) {
-        throw new Error(`Transition '${transitionName}' not found`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Transition '${transitionName}' not found`);
       }
       transition = { id: found.id };
     }

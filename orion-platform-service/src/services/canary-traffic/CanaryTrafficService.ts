@@ -13,6 +13,7 @@ import {
   TrafficHistoryEntity,
 } from '../../repositories/TrafficManagerRepository';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -279,7 +280,7 @@ export class CanaryTrafficService {
   async promoteCanary(canaryId: string): Promise<any> {
     const deployment = await this.getCanaryDeployment(canaryId);
     if (!deployment) {
-      throw new Error(`Canary deployment ${canaryId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Canary deployment ${canaryId} not found`);
     }
 
     // Update traffic to 100% canary
@@ -309,7 +310,7 @@ export class CanaryTrafficService {
   async rollbackCanary(canaryId: string): Promise<any> {
     const deployment = await this.getCanaryDeployment(canaryId);
     if (!deployment) {
-      throw new Error(`Canary deployment ${canaryId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Canary deployment ${canaryId} not found`);
     }
 
     // Update traffic to 100% baseline

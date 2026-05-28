@@ -11,6 +11,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export type FeatureFlagStatus = 'active' | 'inactive' | 'archived';
 export type RolloutStrategy = 'percentage' | 'targeted' | 'gradual';
@@ -274,7 +275,7 @@ export class FeatureFlagService {
   ): Promise<FeatureFlag> {
     const existing = await this.repository.findByKey(tenantId, input.key);
     if (existing) {
-      throw new Error(`Feature flag with key '${input.key}' already exists`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Feature flag with key '${input.key}' already exists`);
     }
 
     const now = new Date();

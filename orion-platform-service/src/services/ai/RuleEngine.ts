@@ -17,6 +17,7 @@ import {
   DegradationResult,
   AI_SCENARIO_PRIORITY,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // 默认配置
 const DEFAULT_CONFIG: RuleEngineConfig = {
@@ -865,7 +866,7 @@ export class RuleEngine {
   addRule(scenario: AIScenario, rule: Rule): void {
     const ruleSet = this.ruleSets.get(scenario);
     if (!ruleSet) {
-      throw new Error(`RuleSet not found for scenario: ${scenario}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `RuleSet not found for scenario: ${scenario}`);
     }
     if (ruleSet.rules.length >= this.config.maxRulesPerScenario) {
       throw new Error(`Max rules reached for scenario: ${scenario}`);

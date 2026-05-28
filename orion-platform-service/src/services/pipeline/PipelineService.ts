@@ -23,6 +23,7 @@ import {
 } from './PipelineRepository';
 import type { DatabasePool } from '../database';
 import { CacheService } from '../cache/CacheService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export { PipelineEntity as Pipeline };
 
@@ -313,7 +314,7 @@ export class PipelineService {
       // Fallback to in-memory mode
       const pipeline = await this.getById(pipelineId);
       if (!pipeline) {
-        throw new Error(`Pipeline '${pipelineId}' not found`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${pipelineId}' not found`);
       }
       const runId = `run-${Date.now()}-${Math.random().toString(36).substring(7)}`;
       return {
@@ -327,7 +328,7 @@ export class PipelineService {
     // Verify pipeline exists
     const pipeline = await this.repository.findById(pipelineId);
     if (!pipeline) {
-      throw new Error(`Pipeline not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline not found`);
     }
 
     if (!this.runRepository) {
@@ -392,14 +393,14 @@ export class PipelineService {
    */
   async getRun(runId: string): Promise<any> {
     if (!this.runRepository) {
-      throw new Error('Pipeline run not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Pipeline run not found');
     }
     // Handle both repository (findById) and mock (findRunById) patterns
     const run = 'findRunById' in this.runRepository
       ? await (this.runRepository as any).findRunById(runId)
       : await this.runRepository.findById(runId);
     if (!run) {
-      throw new Error('Pipeline run not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Pipeline run not found');
     }
     return run;
   }
@@ -409,14 +410,14 @@ export class PipelineService {
    */
   async cancelRun(runId: string): Promise<any> {
     if (!this.runRepository) {
-      throw new Error('Pipeline run not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Pipeline run not found');
     }
     // Check if run exists first
     const run = 'findRunById' in this.runRepository
       ? await (this.runRepository as any).findRunById(runId)
       : await this.runRepository.findById(runId);
     if (!run) {
-      throw new Error('Pipeline run not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Pipeline run not found');
     }
     // Handle both repository and mock patterns
     if ('updateRunStatus' in this.runRepository) {

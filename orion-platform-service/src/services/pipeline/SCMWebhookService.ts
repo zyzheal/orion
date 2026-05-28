@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import pino from 'pino';
 import { PipelineEngine } from '../../engine/PipelineEngine';
 import { TriggerType } from '../../models/PipelineRun';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -132,7 +133,7 @@ export class SCMWebhookService {
     if (signature) {
       const rawPayload = JSON.stringify(payload);
       if (!this.validateGitHubSignature(rawPayload, signature)) {
-        throw new Error('Invalid GitHub webhook signature');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitHub webhook signature');
       }
     }
 
@@ -161,7 +162,7 @@ export class SCMWebhookService {
     if (signature) {
       const rawPayload = JSON.stringify(payload);
       if (!this.validateGitHubSignature(rawPayload, signature)) {
-        throw new Error('Invalid GitHub webhook signature');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitHub webhook signature');
       }
     }
 
@@ -208,7 +209,7 @@ export class SCMWebhookService {
     // Validate token if provided
     if (token) {
       if (!this.validateGitLabToken(token)) {
-        throw new Error('Invalid GitLab webhook token');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitLab webhook token');
       }
     }
 
@@ -236,7 +237,7 @@ export class SCMWebhookService {
     // Validate token if provided
     if (token) {
       if (!this.validateGitLabToken(token)) {
-        throw new Error('Invalid GitLab webhook token');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitLab webhook token');
       }
     }
 

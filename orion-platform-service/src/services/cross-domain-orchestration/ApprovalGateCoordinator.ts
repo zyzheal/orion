@@ -7,6 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export type GateStatus = 'pending' | 'approved' | 'rejected' | 'skipped';
 export type GateType = 'manual' | 'auto' | 'policy';
@@ -125,8 +126,8 @@ export class ApprovalGateCoordinator {
 
   async approveGate(gateId: string, approver: string, comment?: string): Promise<ApprovalGate> {
     const gate = await this.repository.findById(gateId);
-    if (!gate) throw new Error(`Approval gate '${gateId}' not found`);
-    if (gate.status !== 'pending') throw new Error(`Gate is already ${gate.status}`);
+    if (!gate) throw new OrionError(ErrorCode.NOT_FOUND, `Approval gate '${gateId}' not found`);
+    if (gate.status !== 'pending') throw new OrionError(ErrorCode.NOT_FOUND, `Gate is already ${gate.status}`);
 
     gate.actualApprovers.push({ approver, decision: 'approved', comment, decidedAt: new Date() });
     gate.updatedAt = new Date();
@@ -142,7 +143,7 @@ export class ApprovalGateCoordinator {
   async rejectGate(gateId: string, approver: string, comment?: string): Promise<ApprovalGate> {
     const gate = await this.repository.findById(gateId);
     if (!gate) throw new Error(`Approval gate '${gateId}' not found`);
-    if (gate.status !== 'pending') throw new Error(`Gate is already ${gate.status}`);
+    if (gate.status !== 'pending') throw new OrionError(ErrorCode.NOT_FOUND, `Gate is already ${gate.status}`);
 
     gate.actualApprovers.push({ approver, decision: 'rejected', comment, decidedAt: new Date() });
     gate.status = 'rejected';

@@ -50,7 +50,7 @@ export class SharedActionService {
     }
 
     if (depth > MAX_DEPTH) {
-      throw new Error(`Action nesting depth exceeds maximum (${MAX_DEPTH}): ${ref}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Action nesting depth exceeds maximum (${MAX_DEPTH}): ${ref}`);
     }
 
     visited.add(ref);
@@ -65,7 +65,7 @@ export class SharedActionService {
       if (builtin) {
         return this.expandAction(builtin, inputs);
       }
-      throw new Error(`Unknown builtin action: ${ref}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Unknown builtin action: ${ref}`);
     } else if (ref.includes('/')) {
       actionYaml = await this.loadRemoteAction(ref);
     } else {
@@ -73,7 +73,7 @@ export class SharedActionService {
       if (builtin) {
         return this.expandAction(builtin, inputs);
       }
-      throw new Error(`Unknown action: ${ref}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Unknown action: ${ref}`);
     }
 
     const action = yaml.load(actionYaml) as ActionDefinition;
@@ -120,7 +120,7 @@ export class SharedActionService {
     if (this.registryWhitelist.length > 0) {
       const org = repo.split('/')[0];
       if (!this.registryWhitelist.includes(org)) {
-        throw new Error(`Registry not in whitelist: ${org}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Registry not in whitelist: ${org}`);
       }
     }
 

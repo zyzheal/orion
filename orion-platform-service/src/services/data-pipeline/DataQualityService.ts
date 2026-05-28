@@ -7,6 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export type RuleType = 'not_null' | 'unique' | 'range' | 'pattern' | 'custom' | 'referential' | 'completeness';
 export type RuleSeverity = 'critical' | 'warning' | 'info';
@@ -155,7 +156,7 @@ export class DataQualityService {
 
   async updateRule(id: string, updates: Partial<DataQualityRule>, updatedBy: string): Promise<DataQualityRule> {
     const rule = await this.repository.findById(id);
-    if (!rule) throw new Error(`Quality rule '${id}' not found`);
+    if (!rule) throw new OrionError(ErrorCode.NOT_FOUND, `Quality rule '${id}' not found`);
     Object.assign(rule, updates, { updatedAt: new Date() });
     await this.repository.save(rule);
     return rule;
@@ -163,7 +164,7 @@ export class DataQualityService {
 
   async toggleRule(id: string): Promise<DataQualityRule> {
     const rule = await this.repository.findById(id);
-    if (!rule) throw new Error(`Quality rule '${id}' not found`);
+    if (!rule) throw new OrionError(ErrorCode.NOT_FOUND, `Quality rule '${id}' not found`);
     rule.enabled = !rule.enabled;
     rule.updatedAt = new Date();
     await this.repository.save(rule);
@@ -180,7 +181,7 @@ export class DataQualityService {
     executionId?: string
   ): Promise<ValidationResult> {
     const rule = await this.repository.findById(ruleId);
-    if (!rule) throw new Error(`Quality rule '${ruleId}' not found`);
+    if (!rule) throw new OrionError(ErrorCode.NOT_FOUND, `Quality rule '${ruleId}' not found`);
     if (!rule.enabled) throw new Error(`Rule is disabled`);
 
     const startTime = Date.now();

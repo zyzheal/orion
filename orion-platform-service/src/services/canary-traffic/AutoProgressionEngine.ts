@@ -1,4 +1,5 @@
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 /**
  * AutoProgressionEngine - Canary traffic auto-progression engine
  *
@@ -76,11 +77,11 @@ export class AutoProgressionEngine {
   async analyzeAndProgress(canaryId: string): Promise<CanaryProgressionResult> {
     const canary = await this.getCanaryDeployment(canaryId);
     if (!canary) {
-      throw new Error(`Canary deployment ${canaryId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Canary deployment ${canaryId} not found`);
     }
 
     if (canary.status !== 'running') {
-      throw new Error(`Canary ${canaryId} is not in running state (current: ${canary.status})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Canary ${canaryId} is not in running state (current: ${canary.status})`);
     }
 
     // Collect metrics

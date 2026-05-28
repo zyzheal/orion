@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import { LLMTraceRepository } from '../../repositories/LLMTraceRepository.js';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -142,7 +143,7 @@ export class LLMTraceService extends EventEmitter {
   async completeTrace(traceId: string, params: TraceCompleteParams): Promise<LLMTrace> {
     const trace = this.traces.get(traceId);
     if (!trace) {
-      throw new Error(`Trace not found: ${traceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Trace not found: ${traceId}`);
     }
 
     const cost = this.calculateCost({

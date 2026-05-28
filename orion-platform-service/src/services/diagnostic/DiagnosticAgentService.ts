@@ -32,6 +32,7 @@ import { DiagnosticKnowledgeBase } from './DiagnosticKnowledgeBase';
 import { DiagnosticRepository } from './DiagnosticRepository';
 import { DiagnosticService } from './DiagnosticService';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LDiagnostic-LAgent-LService' });
 
@@ -340,7 +341,7 @@ export class DiagnosticAgentService {
   estimateFixComplexity(sessionId: string) {
     const session = this.engine.getSession(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Diagnostic session ${sessionId} not found`);
     }
     return this.reporter.estimateFixComplexity(session);
   }

@@ -23,6 +23,7 @@ import {
   DeploymentHealthCheckEntity,
 } from '../../repositories/DeploymentStepTrackerRepository';
 import type { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -565,7 +566,7 @@ export class SmartDeployService {
   ): Promise<{ deployment: DeploymentRecord; rollback: RollbackRecord }> {
     const deployment = activeDeployments.get(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
     }
 
     const rollbackId = uuidv4();
@@ -635,7 +636,7 @@ export class SmartDeployService {
   ): Promise<DeploymentRecord> {
     const deployment = activeDeployments.get(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
     }
 
     if (deployment.status !== 'running') {

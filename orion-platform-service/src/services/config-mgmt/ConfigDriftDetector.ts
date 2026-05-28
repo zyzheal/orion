@@ -13,6 +13,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import { ConfigService } from './ConfigService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // ============================================================
 // Types
@@ -397,7 +398,7 @@ export class ConfigDriftDetector {
   async autoRemediateDrift(driftId: string): Promise<DriftReport> {
     const report = await this.repository.findById(driftId);
     if (!report) {
-      throw new Error(`Drift report '${driftId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Drift report '${driftId}' not found`);
     }
 
     if (report.driftStatus !== 'drift_detected') {

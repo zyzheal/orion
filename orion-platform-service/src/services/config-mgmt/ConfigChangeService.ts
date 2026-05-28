@@ -16,6 +16,7 @@ import { DatabasePool } from '../database';
 import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LConfig-LChange-LService' });
 
@@ -492,11 +493,11 @@ export class ConfigChangeService {
   ): Promise<ChangeRequest> {
     const changeRequest = await this.repository.findById(requestId);
     if (!changeRequest) {
-      throw new Error(`Change request '${requestId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${requestId}' not found`);
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new Error(`Change request is not pending (current: ${changeRequest.status})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request is not pending (current: ${changeRequest.status})`);
     }
 
     // Check if reviewer already voted
@@ -562,7 +563,7 @@ export class ConfigChangeService {
     }
 
     if (changeRequest.status !== 'approved') {
-      throw new Error(`Change request must be approved before execution (current: ${changeRequest.status})`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Change request must be approved before execution (current: ${changeRequest.status})`);
     }
 
     changeRequest.status = 'executing';

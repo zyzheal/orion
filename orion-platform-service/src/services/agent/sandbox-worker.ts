@@ -9,6 +9,7 @@
  */
 
 import { parentPort } from 'worker_threads';
+import { OrionError, ErrorCode } from '../../../errors';
 
 if (!parentPort) {
   throw new Error('This file must be run as a Worker Thread');
@@ -74,7 +75,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
 
   // Check tool permission
   if (!profile.allowedTools.includes(action)) {
-    throw new Error(`Tool "${action}" is not allowed`);
+    throw new OrionError(ErrorCode.NOT_FOUND, `Tool "${action}" is not allowed`);
   }
 
   let output: Record<string, unknown>;

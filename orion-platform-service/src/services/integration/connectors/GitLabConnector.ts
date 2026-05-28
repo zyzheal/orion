@@ -171,7 +171,7 @@ export class GitLabConnector implements Connector {
       case 'getPipelineJobs':
         return this.getPipelineJobs(params);
       default:
-        throw new Error(`Unknown action: ${action}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Unknown action: ${action}`);
     }
   }
 

@@ -20,6 +20,7 @@ import {
   updateBuilderImage,
   isImageAvailable,
 } from '../../models/BuilderImage';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * 预置镜像定义
@@ -244,7 +245,7 @@ export class BuilderImageService {
 
     // 预置镜像不能禁用，只能标记为 deprecated
     if (image.isPreset) {
-      throw new Error('Cannot disable preset images. Use deprecate instead.');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot disable preset images. Use deprecate instead.');
     }
 
     const updated = updateBuilderImage(image, {
@@ -328,7 +329,7 @@ export class BuilderImageService {
     }
 
     if (image.isPreset) {
-      throw new Error('Cannot delete preset images');
+      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot delete preset images');
     }
 
     images.delete(id);

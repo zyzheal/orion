@@ -15,6 +15,7 @@
 import * as crypto from 'crypto';
 import { SecretRepository, SecretEntity, SecretScope, SecretCreateInput } from '../../repositories/SecretRepository';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'secrets-service' });
 
@@ -146,7 +147,7 @@ export class SecretsService {
    */
   decrypt(encryptedData: Buffer): string {
     if (encryptedData.length < 33) {
-      throw new Error('Invalid encrypted data: too short (need IV + authTag + ciphertext)');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid encrypted data: too short (need IV + authTag + ciphertext)');
     }
 
     const iv = encryptedData.subarray(0, 16);
@@ -485,7 +486,7 @@ export class SecretsService {
   private deriveEncryptionKey(key?: string): Buffer {
     if (!key) {
       if (process.env.NODE_ENV === 'production') {
-        throw new Error('ORION_SECRET_ENCRYPTION_KEY is required in production');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'ORION_SECRET_ENCRYPTION_KEY is required in production');
       }
       logger.warn('No encryption key provided, using fallback (development only)');
       return crypto.createHash('sha256').update('orion-dev-fallback-key-do-not-use-in-production').digest();

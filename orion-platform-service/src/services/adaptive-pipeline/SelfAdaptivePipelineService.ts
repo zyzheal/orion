@@ -1,4 +1,5 @@
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 /**
  * Self Adaptive Pipeline Service - Phase 2 + Phase 3.4
  *
@@ -185,7 +186,7 @@ export class SelfAdaptivePipelineService {
     }
 
     if (!updateResult?.rows?.length) {
-      throw new Error(`Pipeline ${pipelineId} not found or update failed`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline ${pipelineId} not found or update failed`);
     }
 
     // Record the adaptation

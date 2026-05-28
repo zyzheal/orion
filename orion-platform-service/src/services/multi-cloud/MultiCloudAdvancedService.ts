@@ -1,3 +1,4 @@
+import { OrionError, ErrorCode } from '../../../errors';
 /**
  * Multi-Cloud Advanced Service - Phase 4
  *
@@ -112,7 +113,7 @@ export class MultiCloudAdvancedService {
   async testCrossZoneDR(drId: string): Promise<DRTestResult> {
     const dr = this.crossZoneDRs.get(drId);
     if (!dr) {
-      throw new Error(`Cross-zone DR not found: ${drId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cross-zone DR not found: ${drId}`);
     }
 
     dr.status = 'testing';

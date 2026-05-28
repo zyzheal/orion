@@ -19,6 +19,7 @@ import {
 } from './types';
 import { ToolAdapter } from './ToolAdapter';
 import { AIGateway } from '../../ai/AIGateway';
+import { OrionError, ErrorCode } from '../../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -266,13 +267,13 @@ export abstract class BaseAgent {
    */
   protected validateContext(context: AgentExecutionContext): void {
     if (!context.traceId) {
-      throw new Error('Missing required field: traceId');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required field: traceId');
     }
     if (!context.userId) {
-      throw new Error('Missing required field: userId');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required field: userId');
     }
     if (!context.tenantId) {
-      throw new Error('Missing required field: tenantId');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required field: tenantId');
     }
   }
 

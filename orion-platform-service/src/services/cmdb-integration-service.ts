@@ -15,6 +15,7 @@ import { K8sWatchClient, SyncStatus, WatchEvent, K8sResourceKind } from './cmdb/
 import { K8sReconciliationService, ReconciliationResult } from './cmdb/K8sReconciliationService';
 import type { CI, CiType, CreateCIInput } from './cmdb/CmdbTypes';
 import { Client as SSHClient, ConnectConfig } from 'ssh2';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -899,7 +900,7 @@ export class CmdbIntegrationService {
     // 获取目标主机信息
     const ci = await this.cmdbService.getCIByCiId(ciId);
     if (!ci) {
-      throw new Error(`CI ${ciId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `CI ${ciId} not found`);
     }
 
     const host = ci.attributes?.ip || ci.attributes?.hostname;

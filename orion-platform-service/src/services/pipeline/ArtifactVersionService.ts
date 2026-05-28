@@ -12,6 +12,7 @@
 import pino from 'pino';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactVersion, ArtifactVersionCreateInput } from '../../models/ArtifactVersion';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'artifact-version-service' });
 
@@ -68,7 +69,7 @@ export class ArtifactVersionService {
     // 获取当前版本
     const currentVersion = await this.repository.findById(fromVersionId);
     if (!currentVersion) {
-      throw new Error(`Version not found: ${fromVersionId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Version not found: ${fromVersionId}`);
     }
 
     // 防重复晋升：检查是否已在目标环境中存在相同版本
@@ -127,7 +128,7 @@ export class ArtifactVersionService {
   async getVersionLineage(versionId: string): Promise<VersionLineageResult> {
     const version = await this.repository.findById(versionId);
     if (!version) {
-      throw new Error(`Version not found: ${versionId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Version not found: ${versionId}`);
     }
 
     const ancestors = await this.repository.getAncestors(versionId, this.maxLineageDepth);
@@ -142,7 +143,7 @@ export class ArtifactVersionService {
   async addTag(versionId: string, tag: string): Promise<ArtifactVersion> {
     const version = await this.repository.findById(versionId);
     if (!version) {
-      throw new Error(`Version not found: ${versionId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Version not found: ${versionId}`);
     }
 
     await this.repository.addTag(versionId, tag);

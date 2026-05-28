@@ -15,6 +15,7 @@ import { PluginLifecycleManager, ActivationHook, DeactivationHook } from './Plug
 import { PluginRegistry } from './PluginRegistry';
 import { PluginManifest, PluginInfo } from './types';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -236,7 +237,7 @@ export class PluginHotReloadService extends EventEmitter {
   async hotReload(pluginId: string, newManifest?: PluginManifest): Promise<PluginInfo> {
     // 防止重复加载
     if (this.reloadingPlugins.has(pluginId)) {
-      throw new Error(`Plugin "${pluginId}" is already being reloaded`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" is already being reloaded`);
     }
 
     this.reloadingPlugins.add(pluginId);
@@ -327,7 +328,7 @@ export class PluginHotReloadService extends EventEmitter {
     // 浏览器环境不支持
     const isBrowser = typeof (globalThis as any).window !== 'undefined';
     if (isBrowser) {
-      throw new Error('File loading not supported in browser');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'File loading not supported in browser');
     }
 
     const fs = (global as any).require('fs');
@@ -356,7 +357,7 @@ export class PluginHotReloadService extends EventEmitter {
       }
     }
 
-    throw new Error(`Manifest not found for plugin "${pluginId}"`);
+    throw new OrionError(ErrorCode.NOT_FOUND, `Manifest not found for plugin "${pluginId}"`);
   }
 
   /**
@@ -365,7 +366,7 @@ export class PluginHotReloadService extends EventEmitter {
   async rollback(pluginId: string, targetVersion?: string): Promise<PluginInfo> {
     const snapshots = this.versionSnapshots.get(pluginId);
     if (!snapshots || snapshots.length === 0) {
-      throw new Error(`No snapshots available for plugin "${pluginId}"`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `No snapshots available for plugin "${pluginId}"`);
     }
 
     // 找到目标版本快照

@@ -515,7 +515,7 @@ export class HealingActionExecutor {
       // Wait for scale to take effect
       const scalePromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new Error(`Scale timed out after ${timeoutMs}ms`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Scale timed out after ${timeoutMs}ms`);
       });
 
       await Promise.race([scalePromise, timeoutPromise]);

@@ -150,7 +150,7 @@ export class WorkflowEngine {
     // 获取实例和定义
     const instance = await this.instanceManager.getInstance(instanceId);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${instanceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
     }
 
     const definition = await this.definitionRepository.findById(instance.workflowDefinitionId);
@@ -182,7 +182,7 @@ export class WorkflowEngine {
         // 获取当前节点
         const currentNode = definition.nodes.find(n => n.id === currentInstance.currentNodeId);
         if (!currentNode) {
-          throw new Error(`Node not found: ${currentInstance.currentNodeId}`);
+          throw new OrionError(ErrorCode.NOT_FOUND, `Node not found: ${currentInstance.currentNodeId}`);
         }
 
         executedNodes.push(currentNode.id);
@@ -312,7 +312,7 @@ export class WorkflowEngine {
     }
 
     if (instance.status !== 'suspended') {
-      throw new Error(`Cannot resume workflow instance with status: ${instance.status}. Expected 'suspended'.`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot resume workflow instance with status: ${instance.status}. Expected 'suspended'.`);
     }
 
     // 合并任务结果到实例变量

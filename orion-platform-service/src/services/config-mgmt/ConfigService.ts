@@ -129,7 +129,7 @@ export class ConfigService {
       const input = keyOrInput as UpdateConfigInput;
       const existing = await this.repository.findById(tenantIdOrId);
       if (!existing) {
-        throw new Error(`Config '${tenantIdOrId}' not found`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Config '${tenantIdOrId}' not found`);
       }
       const rawValue = existing.value as any;
       const oldValue = rawValue?.value !== undefined ? rawValue.value : rawValue;
@@ -281,7 +281,7 @@ export class ConfigService {
   async cloneConfig(sourceId: string, targetEnvironment: string, changedBy: string): Promise<ConfigItem> {
     const source = await this.repository.findById(sourceId);
     if (!source) {
-      throw new Error(`Config '${sourceId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${sourceId}' not found`);
     }
     // Check if target already exists in the target environment
     const allConfigs = await this.repository.findAll(source.tenant_id);

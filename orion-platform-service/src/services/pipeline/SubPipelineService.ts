@@ -223,7 +223,7 @@ export class SubPipelineService {
       }
 
       if (!invocation) {
-        throw new Error(`Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
       }
 
       // Check if child has reached a terminal state
@@ -243,7 +243,7 @@ export class SubPipelineService {
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
 
-    throw new Error(`Sub-pipeline timed out after ${timeoutMs}ms`);
+    throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline timed out after ${timeoutMs}ms`);
   }
 
   /**
@@ -352,7 +352,7 @@ export class SubPipelineService {
     }
 
     if (!invocation) {
-      throw new Error(`Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
     }
 
     invocation = completeSubPipeline(invocation, results);

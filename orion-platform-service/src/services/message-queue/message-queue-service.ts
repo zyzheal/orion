@@ -21,6 +21,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'message-queue' });
 
@@ -201,7 +202,7 @@ export class MessageQueueService {
   async ack(messageId: string): Promise<void> {
     const message = this.findMessageById(messageId);
     if (!message) {
-      throw new Error(`Message not found: ${messageId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Message not found: ${messageId}`);
     }
 
     message.status = 'completed';
@@ -237,7 +238,7 @@ export class MessageQueueService {
   async nack(messageId: string, error?: string): Promise<void> {
     const message = this.findMessageById(messageId);
     if (!message) {
-      throw new Error(`Message not found: ${messageId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Message not found: ${messageId}`);
     }
 
     message.retryCount++;
@@ -265,11 +266,11 @@ export class MessageQueueService {
   async retry(messageId: string): Promise<void> {
     const message = this.findMessageById(messageId);
     if (!message) {
-      throw new Error(`Message not found: ${messageId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Message not found: ${messageId}`);
     }
 
     if (message.status === 'completed') {
-      throw new Error(`Cannot retry completed message: ${messageId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot retry completed message: ${messageId}`);
     }
 
     message.status = 'pending';
@@ -455,7 +456,7 @@ export class MessageQueueService {
   heartbeat(consumerId: string): void {
     const consumer = this.consumers.get(consumerId);
     if (!consumer) {
-      throw new Error(`Consumer not found: ${consumerId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Consumer not found: ${consumerId}`);
     }
     consumer.lastHeartbeat = new Date();
     consumer.status = 'active';

@@ -202,7 +202,7 @@ export class ModuleManager {
   async stopModule(id: string): Promise<void> {
     const mod = this.registry.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
     }
 
     const dependents = this.registry.getAll().filter(m =>
@@ -246,7 +246,7 @@ export class ModuleManager {
   async toggleModule(id: string, enabled: boolean): Promise<void> {
     const mod = this.registry.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
     }
     if (mod.level === 'core' && !enabled) {
       throw new Error(`Core module ${id} cannot be disabled`);

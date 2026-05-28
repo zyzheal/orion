@@ -21,6 +21,7 @@ import {
 import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 import { DeploymentVerifier } from './DeploymentVerifier';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LRollback-LService' });
 
@@ -196,7 +197,7 @@ export class RollbackService {
         );
         const healthPassed = healthResults.every(h => h.passed);
         if (!healthPassed) {
-          throw new Error('Rollback health verification failed');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Rollback health verification failed');
         }
       }
 

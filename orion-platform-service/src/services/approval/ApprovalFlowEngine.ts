@@ -19,6 +19,7 @@ import {
   ApprovalLevel,
   ApprovalRequestDetail,
 } from './MultiLevelApprovalService';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -379,7 +380,7 @@ export class ApprovalFlowEngine {
   ): Promise<ExternalApprovalResponse> {
     const client = this.externalApprovalClients.get(serviceName);
     if (!client) {
-      throw new Error(`External approval service not found: ${serviceName}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `External approval service not found: ${serviceName}`);
     }
 
     try {

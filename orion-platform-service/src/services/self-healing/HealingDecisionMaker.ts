@@ -11,6 +11,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import {
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LHealing-LDecision-LMaker' });
   HealingStrategy,
@@ -230,7 +231,7 @@ export class HealingDecisionMaker {
   ): ApprovalRequest {
     const request = this.approvalRequests.get(requestId);
     if (!request) {
-      throw new Error(`Approval request '${requestId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${requestId}' not found`);
     }
 
     if (request.status !== 'pending') {

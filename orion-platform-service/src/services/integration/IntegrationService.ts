@@ -96,13 +96,13 @@ export class IntegrationService {
     // Validate config
     const isValid = await connector.validateConfig(config);
     if (!isValid) {
-      throw new Error(`Invalid configuration for ${provider}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Invalid configuration for ${provider}`);
     }
 
     // Test connection
     const connected = await connector.testConnection(config);
     if (!connected) {
-      throw new Error(`Failed to connect to ${provider}. Please check your credentials.`);
+      throw new OrionError(ErrorCode.OPERATION_FAILED, `Failed to connect to ${provider}. Please check your credentials.`);
     }
 
     const integration: Integration = {
@@ -216,7 +216,7 @@ export class IntegrationService {
 
     const connector = globalConnectorRegistry.get(integration.provider);
     if (!connector) {
-      throw new Error(`Connector not found: ${integration.provider}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Connector not found: ${integration.provider}`);
     }
 
     // Initialize connector with stored config

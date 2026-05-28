@@ -14,6 +14,7 @@ import pino from 'pino';
 import { DatabasePool } from '../database';
 import { DigitalTwinSnapshotRepository } from '../../repositories/DigitalTwinSnapshotRepository';
 import { TwinConfigRepository, TwinConfigEntity, SandboxEntity, SandboxRepository, RecordingSessionEntity, RecordingSessionRepository, ReplaySessionEntity, ReplaySessionRepository } from '../../repositories/DigitalTwinEnhancedRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -206,7 +207,7 @@ export class DigitalTwinService {
   }> {
     const twin = await this.getTwin(twinId);
     if (!twin) {
-      throw new Error(`Twin not found: ${twinId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Twin not found: ${twinId}`);
     }
 
     let sandboxCount = 0;
@@ -238,7 +239,7 @@ export class DigitalTwinService {
   async syncTwin(twinId: string): Promise<{ success: boolean; syncedAt: string }> {
     const twin = await this.getTwin(twinId);
     if (!twin) {
-      throw new Error(`Twin not found: ${twinId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Twin not found: ${twinId}`);
     }
 
     if (this.twinConfigRepository) {

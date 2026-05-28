@@ -27,6 +27,7 @@ import {
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LEngineer-LSuspend-LService' });
 
@@ -177,7 +178,7 @@ export class EngineerSuspendService {
   async analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
     const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) {
-      throw new Error(`Suspend ${suspendId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Suspend ${suspendId} not found`);
     }
 
     // Find tickets assigned to this engineer

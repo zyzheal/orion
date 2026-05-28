@@ -557,7 +557,7 @@ export class ComplianceFrameworkService {
   }> {
     const framework = await this.getFramework(frameworkId);
     if (!framework) {
-      throw new Error(`Framework not found: ${frameworkId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Framework not found: ${frameworkId}`);
     }
 
     // Collect automated evidence for each category

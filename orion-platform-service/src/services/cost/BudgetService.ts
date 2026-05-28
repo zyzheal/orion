@@ -28,6 +28,7 @@ import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetReposit
 import { DatabasePool } from '../database';
 import {
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LBudget-LService' });
   CostRecordRepository,
@@ -338,7 +339,7 @@ export class BudgetService {
   }> {
     const budget = await this.getBudgetById(budgetId);
     if (!budget) {
-      throw new Error(`Budget ${budgetId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Budget ${budgetId} not found`);
     }
 
     const usagePercent = budget.amount > 0 ? budget.spent / budget.amount : 0;

@@ -109,6 +109,7 @@ import {
   CostRecommendationEntity,
   SavingsTrackingEntity,
 } from '../../repositories/CostOptimizationRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * AI 成本优化服务
@@ -246,7 +247,7 @@ export class CostOptimizerService {
     }
 
     if (!recommendation) {
-      throw new Error(`Recommendation ${recommendationId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Recommendation ${recommendationId} not found`);
     }
 
     if (recommendation.status === 'applied') {

@@ -28,6 +28,7 @@ import {
   BuildCacheConfigRepository,
   BuildCacheEntryRepository,
 } from '../../repositories/BuildCacheRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export class BuildCacheService {
   private configRepo: BuildCacheConfigRepository;
@@ -51,7 +52,7 @@ export class BuildCacheService {
       input.targetId,
     );
     if (existing) {
-      throw new Error(`Cache config already exists for level=${input.level}, target=${input.targetId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Cache config already exists for level=${input.level}, target=${input.targetId}`);
     }
 
     const config = createBuildCacheConfig(input);

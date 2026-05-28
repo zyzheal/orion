@@ -17,6 +17,7 @@ import {
   CircuitBreakerEventRepository,
   type CircuitBreakerEventType,
 } from './circuit-breaker-repositories';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -195,7 +196,7 @@ export class CircuitBreakerService {
   async reset(targetKey: string): Promise<void> {
     const entry = this.registry.get(targetKey);
     if (!entry) {
-      throw new Error(`Circuit breaker not found for key: ${targetKey}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Circuit breaker not found for key: ${targetKey}`);
     }
 
     const previousState = entry.breaker.currentState;
@@ -218,7 +219,7 @@ export class CircuitBreakerService {
   async trip(targetKey: string): Promise<void> {
     const entry = this.registry.get(targetKey);
     if (!entry) {
-      throw new Error(`Circuit breaker not found for key: ${targetKey}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Circuit breaker not found for key: ${targetKey}`);
     }
 
     const previousState = entry.breaker.currentState;
@@ -250,7 +251,7 @@ export class CircuitBreakerService {
     // Update in-memory instance
     const entry = this.registry.get(targetKey);
     if (!entry) {
-      throw new Error(`Circuit breaker not found for key: ${targetKey}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Circuit breaker not found for key: ${targetKey}`);
     }
 
     // Merge config

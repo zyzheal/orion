@@ -11,6 +11,7 @@ import {
   WorkflowInstanceStatus,
   WorkflowHistory,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = require('pino')({ name: 'WorkflowRepository' });
 
@@ -407,7 +408,7 @@ export class WorkflowInstanceRepository {
   async addHistory(id: string, historyItem: WorkflowHistory): Promise<void> {
     const instance = await this.findById(id);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${id}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${id}`);
     }
 
     const history = [...instance.history, historyItem];

@@ -75,7 +75,7 @@ export class SubAppService {
     // Get current config
     const current = await this.repository.findByKey(key);
     if (!current) {
-      throw new Error(`Sub-app with key '${key}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${key}' not found`);
     }
 
     // Validate input if provided

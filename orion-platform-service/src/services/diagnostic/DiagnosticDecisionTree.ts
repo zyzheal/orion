@@ -6,6 +6,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { Symptom, SymptomSeverity, DiagnosticCategory, RootCause, RootCauseCategory, RecommendedAction, FixComplexity } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // ==================== 决策树节点类型 ====================
 
@@ -125,7 +126,7 @@ export class DiagnosticDecisionTree {
   ): string {
     const parent = this.nodes.get(parentId);
     if (!parent) {
-      throw new Error(`Parent node ${parentId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Parent node ${parentId} not found`);
     }
 
     const childId = uuidv4();
@@ -184,7 +185,7 @@ export class DiagnosticDecisionTree {
   ): string {
     const parent = this.nodes.get(parentId);
     if (!parent) {
-      throw new Error(`Parent node ${parentId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Parent node ${parentId} not found`);
     }
 
     const childId = uuidv4();

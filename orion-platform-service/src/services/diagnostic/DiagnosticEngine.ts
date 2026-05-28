@@ -26,6 +26,7 @@ import {
   DecisionTreeResult,
 } from './DiagnosticDecisionTree';
 import { DiagnosticKnowledgeBase, KnowledgeBaseSearchResult } from './DiagnosticKnowledgeBase';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * 症状聚类结果
@@ -104,7 +105,7 @@ export class DiagnosticEngine {
   addSymptom(sessionId: string, symptom: Symptom): DiagnosticSession {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Diagnostic session ${sessionId} not found`);
     }
 
     const newSymptom: Symptom = {
@@ -128,7 +129,7 @@ export class DiagnosticEngine {
   } {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Diagnostic session ${sessionId} not found`);
     }
 
     const symptoms = session.symptoms;
@@ -150,7 +151,7 @@ export class DiagnosticEngine {
   identifyRootCause(sessionId: string): DiagnosticSession {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Diagnostic session ${sessionId} not found`);
     }
 
     if (session.symptoms.length === 0) {
@@ -189,7 +190,7 @@ export class DiagnosticEngine {
   completeDiagnostic(sessionId: string): DiagnosticSession {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Diagnostic session ${sessionId} not found`);
     }
 
     // 如果还未识别根因，先执行

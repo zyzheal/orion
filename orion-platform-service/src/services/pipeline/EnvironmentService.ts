@@ -99,7 +99,7 @@ export class EnvironmentService {
   async updateEnvironment(id: string, input: EnvironmentUpdateInput): Promise<EnvironmentEntity> {
     const existing = await this.repository.findById(id);
     if (!existing) {
-      throw new Error(`Environment '${id}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment '${id}' not found`);
     }
 
     // Validate name if being changed

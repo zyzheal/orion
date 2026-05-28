@@ -157,7 +157,7 @@ export class EphemeralEnvService {
     const env = await this.getById(id);
 
     if (env.status === 'destroyed') {
-      throw new Error(`Environment already destroyed`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment already destroyed`);
     }
 
     markTearingDown(env, reason);

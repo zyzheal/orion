@@ -9,6 +9,7 @@
  */
 
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export interface LockInfo {
   locked: boolean;
@@ -43,7 +44,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new Error(`Environment not found: ${envId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
     }
 
     const row = result.rows[0];
@@ -68,7 +69,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new Error(`Environment not found: ${envId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
     }
   }
 
@@ -82,7 +83,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new Error(`Environment not found: ${envId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
     }
 
     return result.rows[0].locked;
@@ -98,7 +99,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new Error(`Environment not found: ${envId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
     }
 
     const row = result.rows[0];

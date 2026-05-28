@@ -11,6 +11,7 @@
 
 import { ResilienceScoreCalculator, ResilienceScoreRepository } from './ResilienceScoreCalculator';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // ==================== Types ====================
 
@@ -148,7 +149,7 @@ export class ResilienceScoringService {
       [scheduleId, enabled]
     );
     if (!result.rows[0]) {
-      throw new Error('Schedule not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Schedule not found');
     }
     return this.mapScheduleRow(result.rows[0]);
   }

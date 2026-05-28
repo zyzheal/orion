@@ -4,6 +4,7 @@ import {
   PipelineExecution,
   DataLineage,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * DataPipelineService — manages data pipeline CRUD, execution, scheduling, and lineage.
@@ -69,7 +70,7 @@ export class DataPipelineService {
   async executePipeline(pipelineId: string): Promise<PipelineExecution> {
     const pipeline = this.pipelines.get(pipelineId);
     if (!pipeline) {
-      throw new Error(`Pipeline ${pipelineId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline ${pipelineId} not found`);
     }
 
     const execId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

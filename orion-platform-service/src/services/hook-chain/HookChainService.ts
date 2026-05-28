@@ -303,7 +303,7 @@ export class HookChainService extends EventEmitter {
   ): Promise<ChainExecutionResult> {
     const chain = this.chains.get(chainId);
     if (!chain) {
-      throw new Error(`Hook chain "${chainId}" not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Hook chain "${chainId}" not found`);
     }
 
     const executionId = `exec-${chainId}-${Date.now()}`;

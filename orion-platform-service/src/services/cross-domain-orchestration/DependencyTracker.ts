@@ -7,6 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export type DependencyType = 'hard' | 'soft' | 'optional';
 export type DependencyStatus = 'active' | 'resolved' | 'violated';
@@ -183,7 +184,7 @@ export class DependencyTracker {
 
   async resolveDependency(id: string): Promise<CrossDomainDependency> {
     const dep = await this.repository.findById(id);
-    if (!dep) throw new Error(`Dependency '${id}' not found`);
+    if (!dep) throw new OrionError(ErrorCode.NOT_FOUND, `Dependency '${id}' not found`);
     dep.status = 'resolved';
     dep.resolvedAt = new Date();
     dep.updatedAt = new Date();

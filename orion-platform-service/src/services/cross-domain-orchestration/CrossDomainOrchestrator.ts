@@ -536,7 +536,7 @@ export class CrossDomainOrchestrator {
   async resumeOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Orchestration '${orchestrationId}' not found`);
     }
 
     if (orchestration.status !== 'paused') {
@@ -553,7 +553,7 @@ export class CrossDomainOrchestrator {
   async abortOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Orchestration '${orchestrationId}' not found`);
     }
 
     if (orchestration.status === 'completed' || orchestration.status === 'aborted') {
@@ -575,7 +575,7 @@ export class CrossDomainOrchestrator {
   async getOrchestrationStatus(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Orchestration '${orchestrationId}' not found`);
     }
 
     // Reload steps

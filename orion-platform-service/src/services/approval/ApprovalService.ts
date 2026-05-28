@@ -7,6 +7,7 @@
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -91,7 +92,7 @@ export class ApprovalService {
    */
   async approve(approvalId: string, userId: string): Promise<ApprovalRequest> {
     const entity = await this.repository.findById(approvalId);
-    if (!entity) throw new Error(`Approval not found: ${approvalId}`);
+    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval not found: ${approvalId}`);
     if (entity.status !== 'pending') throw new Error('Approval not pending');
 
     const steps = await this.repository.findStepsByApproval(approvalId);
@@ -121,7 +122,7 @@ export class ApprovalService {
    */
   async reject(approvalId: string, userId: string): Promise<ApprovalRequest> {
     const entity = await this.repository.findById(approvalId);
-    if (!entity) throw new Error(`Approval not found: ${approvalId}`);
+    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval not found: ${approvalId}`);
     if (entity.status !== 'pending') throw new Error('Approval not pending');
 
     const steps = await this.repository.findStepsByApproval(approvalId);

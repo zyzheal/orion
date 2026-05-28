@@ -17,6 +17,7 @@ import {
   RecoveryPlan,
 } from './types';
 import { BackupStorage } from './BackupStorage';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * Backup Verifier - Verifies backup integrity and tests restores
@@ -73,7 +74,7 @@ export class BackupVerifier extends EventEmitter {
   async verifyIntegrity(backupId: string): Promise<BackupVerification> {
     const backup = this.backups.get(backupId);
     if (!backup) {
-      throw new Error(`Backup ${backupId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Backup ${backupId} not found`);
     }
 
     const verificationId = `verify-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -150,7 +151,7 @@ export class BackupVerifier extends EventEmitter {
   async testRestore(backupId: string): Promise<BackupVerification> {
     const backup = this.backups.get(backupId);
     if (!backup) {
-      throw new Error(`Backup ${backupId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Backup ${backupId} not found`);
     }
 
     const verificationId = `verify-restore-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;

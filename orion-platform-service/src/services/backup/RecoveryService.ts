@@ -169,7 +169,7 @@ export class RecoveryService extends EventEmitter {
   async executeRecoveryPlan(executionId: string): Promise<RecoveryExecution> {
     const execution = this.executions.get(executionId);
     if (!execution) {
-      throw new Error(`Recovery execution ${executionId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery execution ${executionId} not found`);
     }
 
     if (execution.status !== 'initiated') {
@@ -178,7 +178,7 @@ export class RecoveryService extends EventEmitter {
 
     const plan = this.recoveryPlans.get(execution.planId);
     if (!plan) {
-      throw new Error(`Recovery plan ${execution.planId} not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery plan ${execution.planId} not found`);
     }
 
     execution.status = 'in_progress';

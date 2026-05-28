@@ -221,7 +221,7 @@ export class MLInferenceService {
   activateModelVersion(modelId: string, version: string): ModelRegistryEntry {
     const registry = this.modelRegistry.get(modelId);
     if (!registry) {
-      throw new Error(`Model not found in registry: ${modelId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${modelId}`);
     }
 
     const versionEntry = registry.versions.find((v) => v.version === version);
@@ -304,7 +304,7 @@ export class MLInferenceService {
   }): ABTestConfig {
     const registry = this.modelRegistry.get(config.modelId);
     if (!registry) {
-      throw new Error(`Model not found in registry: ${config.modelId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${config.modelId}`);
     }
 
     // 验证版本存在

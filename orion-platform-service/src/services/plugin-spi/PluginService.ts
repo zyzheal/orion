@@ -25,6 +25,7 @@ import {
   PluginHealthStatus,
   PluginSandboxConfig,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -300,7 +301,7 @@ export class PluginService extends EventEmitter {
   } {
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found`);
     }
 
     const deps = plugin.manifest.dependencies?.map((d) => d.name) || [];

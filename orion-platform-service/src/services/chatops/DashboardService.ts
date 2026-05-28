@@ -1,4 +1,5 @@
 import { ChatOpsExecutionRepository } from '../../repositories/ChatOpsRepository';
+import { OrionError, ErrorCode } from '../../../errors';
 
 export interface DashboardMetrics {
   totalExecutions: number;
@@ -92,7 +93,7 @@ export class DashboardService {
         const end = new Date(params.endDate);
         const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
         if (diffDays > 90) {
-          throw new Error('custom range cannot exceed 90 days');
+          throw new OrionError(ErrorCode.OPERATION_FAILED, 'custom range cannot exceed 90 days');
         }
         return { start, end };
       }

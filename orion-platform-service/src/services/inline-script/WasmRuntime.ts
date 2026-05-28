@@ -2,6 +2,7 @@
 
 import pino from 'pino';
 import { getQuickJS, QuickJSWASMModule, QuickJSContext, QuickJSHandle } from 'quickjs-emscripten';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -60,7 +61,7 @@ export class WasmRuntime {
     const deadline = Date.now() + request.timeout;
     rt.setInterruptHandler(() => {
       if (Date.now() > deadline) {
-        throw new Error('Execution timeout: exceeded CPU time limit');
+        throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Execution timeout: exceeded CPU time limit');
       }
     });
 

@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { StorageUsage } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /**
  * Simulated in-memory storage for backup records.
@@ -96,7 +97,7 @@ export class BackupStorage extends EventEmitter {
     if (this.maxStorageBytes > 0) {
       const currentUsage = this.getStorageUsage();
       if (currentUsage.usedSpace + processedData.length > this.maxStorageBytes) {
-        throw new Error('Storage limit exceeded');
+        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Storage limit exceeded');
       }
     }
 
@@ -284,7 +285,7 @@ export class BackupStorage extends EventEmitter {
 
     // Check IV header
     if (data.toString('utf8', 0, 5) !== 'ENCIV') {
-      throw new Error('Invalid encrypted data format');
+      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid encrypted data format');
     }
 
     const decrypted = Buffer.alloc(data.length - 8); // -5 IV, -3 END

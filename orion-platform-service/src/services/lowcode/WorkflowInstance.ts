@@ -98,7 +98,7 @@ export class WorkflowInstanceManager {
   async suspend(instanceId: string): Promise<WorkflowInstance> {
     const instance = await this.repository.findById(instanceId);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${instanceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
     }
 
     if (instance.status !== 'running') {
@@ -115,7 +115,7 @@ export class WorkflowInstanceManager {
   async resume(instanceId: string): Promise<WorkflowInstance> {
     const instance = await this.repository.findById(instanceId);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${instanceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
     }
 
     if (instance.status !== 'suspended') {
@@ -132,7 +132,7 @@ export class WorkflowInstanceManager {
   async terminate(instanceId: string, reason?: string): Promise<WorkflowInstance> {
     const instance = await this.repository.findById(instanceId);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${instanceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
     }
 
     if (instance.status === 'completed' || instance.status === 'failed' || instance.status === 'terminated') {
@@ -150,7 +150,7 @@ export class WorkflowInstanceManager {
   async complete(instanceId: string, output?: Record<string, any>): Promise<WorkflowInstance> {
     const instance = await this.repository.findById(instanceId);
     if (!instance) {
-      throw new Error(`Workflow instance not found: ${instanceId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
     }
 
     logger.info({ instanceId, output }, 'Workflow instance completed');

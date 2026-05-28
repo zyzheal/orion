@@ -26,6 +26,7 @@ import {
   IEventPublisher,
   ConfigEvents,
 } from './types';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /** Parsed config file from Git */
 interface ParsedGitConfig {
@@ -72,7 +73,7 @@ export class MockGitClient implements IGitClient {
     const fullPath = `${repoDir}/${filePath}`.replace(/\/+/g, '/');
     const content = this.fileContents.get(fullPath) || this.fileContents.get(filePath);
     if (content === undefined) {
-      throw new Error(`File not found: ${filePath}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `File not found: ${filePath}`);
     }
     return content;
   }
@@ -165,7 +166,7 @@ export class GitOpsService {
     }
 
     if (!config) {
-      throw new Error(`GitOps config '${gitOpsConfigId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `GitOps config '${gitOpsConfigId}' not found`);
     }
 
     config.status = 'disabled';

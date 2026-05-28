@@ -32,6 +32,7 @@ import {
 } from './types';
 import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LSelf-LHealing-LService' });
 
@@ -481,11 +482,11 @@ export class SelfHealingService {
 
     const approvalRow = await this.repository.findApprovalById(id);
     if (!approvalRow) {
-      throw new Error(`Approval request '${id}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${id}' not found`);
     }
 
     if (approvalRow.status !== 'pending') {
-      throw new Error(`Approval request '${id}' is already ${approvalRow.status}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${id}' is already ${approvalRow.status}`);
     }
 
     // Check expiration

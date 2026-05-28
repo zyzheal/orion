@@ -25,6 +25,7 @@ import { DeploymentHistoryService } from './DeploymentHistoryService';
 import { RollbackService } from './RollbackService';
 import { EnvironmentLockService } from '../environment/EnvironmentLockService';
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ name: 'LDeployment-LWorkflow' });
 
@@ -255,7 +256,7 @@ export class DeploymentWorkflow {
   ): Promise<{ success: boolean; stage?: DeploymentStage }> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
     }
 
     if (stageIndex < 0 || stageIndex >= deployment.stages.length) {
@@ -325,7 +326,7 @@ export class DeploymentWorkflow {
   ): Promise<{ success: boolean; report?: VerificationReport }> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
     }
 
     const report = await this.verifier.generateVerificationReport(deployment);
@@ -375,7 +376,7 @@ export class DeploymentWorkflow {
   async completeDeployment(deploymentId: string): Promise<Deployment> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
     }
 
     deployment.status = 'completed';

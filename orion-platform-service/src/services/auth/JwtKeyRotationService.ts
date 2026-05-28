@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 import pino from 'pino';
 import { DatabasePool } from '../database';
 import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -119,7 +120,7 @@ export class JwtKeyRotationService extends EventEmitter {
   async activateKey(keyId: string): Promise<void> {
     const key = this.keys.get(keyId);
     if (!key) {
-      throw new Error(`Key not found: ${keyId}`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Key not found: ${keyId}`);
     }
 
     // Mark previous key as expiring (overlap period)

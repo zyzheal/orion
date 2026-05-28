@@ -17,6 +17,7 @@ import {
   ArtifactDownloadOptions,
   ArtifactRegistryService
 } from '../../models/Artifact';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -39,7 +40,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       );
 
       if (existing) {
-        throw new Error(`Artifact already exists: ${input.namespace}/${input.name}:${input.version}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact already exists: ${input.namespace}/${input.name}:${input.version}`);
       }
 
       // 创建制品记录
@@ -109,7 +110,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const existing = await this.artifactRepository.findById(input.id);
       
       if (!existing) {
-        throw new Error(`Artifact not found: ${input.id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${input.id}`);
       }
 
       // 更新状态
@@ -142,7 +143,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(id);
       
       if (!artifact) {
-        throw new Error(`Artifact not found: ${id}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
       }
 
       // 软删除
@@ -208,11 +209,11 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(options.artifactId);
       
       if (!artifact) {
-        throw new Error(`Artifact not found: ${options.artifactId}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${options.artifactId}`);
       }
 
       if (artifact.status !== ArtifactStatus.AVAILABLE) {
-        throw new Error(`Artifact not available: ${artifact.status}`);
+        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not available: ${artifact.status}`);
       }
 
       // 记录下载

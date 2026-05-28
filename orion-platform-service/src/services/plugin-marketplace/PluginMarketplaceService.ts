@@ -23,6 +23,7 @@ import {
 } from '../../repositories/PluginAuditLogRepository';
 import type { DatabasePool } from '../database';
 import { PluginInfo, PluginType, PluginState } from '../plugin-manager-service';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -324,7 +325,7 @@ export class PluginMarketplaceService {
   async installPlugin(input: InstallPluginInput, userId: string): Promise<PluginInstallResult> {
     const listing = pluginListings.get(input.plugin_id);
     if (!listing) {
-      throw new Error(`Plugin '${input.plugin_id}' not found`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${input.plugin_id}' not found`);
     }
 
     const installs = pluginInstalls.get(input.tenant_id) ?? [];
@@ -332,7 +333,7 @@ export class PluginMarketplaceService {
     // Check if already installed
     const existing = installs.find((i) => i.plugin_id === input.plugin_id && i.status === 'active');
     if (existing) {
-      throw new Error(`Plugin '${input.plugin_id}' is already installed`);
+      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${input.plugin_id}' is already installed`);
     }
 
     const now = new Date();
@@ -433,7 +434,7 @@ export class PluginMarketplaceService {
   async getPluginQualityScore(pluginId: string): Promise<QualityScore> {
     const listing = pluginListings.get(pluginId);
     if (!listing) {
-      throw new Error('Plugin not found');
+      throw new OrionError(ErrorCode.NOT_FOUND, 'Plugin not found');
     }
 
     const reviews = pluginReviews.get(pluginId) ?? [];

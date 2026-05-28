@@ -203,7 +203,7 @@ export class ABExperimentService {
 
   async startExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
+    if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
     if (exp.status !== 'draft') throw new OrionError(ErrorCode.NOT_FOUND, `Experiment cannot be started from '${exp.status}' state`);
 
     exp.status = 'running';
@@ -215,7 +215,7 @@ export class ABExperimentService {
 
   async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
+    if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
     if (exp.status !== 'running') throw new OrionError(ErrorCode.NOT_FOUND, `Experiment is not running`);
 
     exp.status = 'completed';
@@ -230,7 +230,7 @@ export class ABExperimentService {
 
   async cancelExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
+    if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
     if (exp.status === 'completed') throw new Error(`Cannot cancel completed experiment`);
 
     exp.status = 'cancelled';
