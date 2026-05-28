@@ -10,6 +10,7 @@
  */
 
 import { Pipeline, parsePipelineYaml, PipelineStage as PipelineYamlStage } from '../models/Pipeline';
+import { OrionError, ErrorCode } from '../errors';
 import { PipelineRun, PipelineRunStatus, TriggerType } from '../models/PipelineRun';
 import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
@@ -174,14 +175,14 @@ export class PipelineEngine {
     // 1. 获取 Pipeline 定义
     const pipeline = await this.pipelineService.getById(pipelineId);
     if (!pipeline) {
-      throw new Error(`Pipeline '${pipelineId}' not found`);
+      throw new OrionError(`Pipeline '${pipelineId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     // 2. 解析 YAML
     let spec: { stages: PipelineYamlStage[] };
     try {
       if (!pipeline.yamlDefinition) {
-        throw new Error('Pipeline has no YAML definition');
+        throw new OrionError('Pipeline has no YAML definition', ErrorCode.VALIDATION_ERROR);
       }
       let yamlDefinition = pipeline.yamlDefinition;
       if (this.yamlPreprocessor) {
@@ -198,7 +199,7 @@ export class PipelineEngine {
       const result = parsePipelineYaml(yamlDefinition);
       spec = result.spec;
     } catch (error) {
-      throw new Error(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new OrionError(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`, ErrorCode.VALIDATION_ERROR);
     }
 
     // 2.5. Expand matrix stages (GAP-02)
@@ -602,7 +603,7 @@ export class PipelineEngine {
               }
               // If there are unresolved references, fail the task instead of silently passing through
               if (secretResult.unresolved.length > 0) {
-                throw new Error(`Unresolved secret references: ${secretResult.unresolved.join(', ')}`);
+                throw new OrionError(`Unresolved secret references: ${secretResult.unresolved.join(', ')}`, ErrorCode.VALIDATION_ERROR);
               }
               // Update task parameters with resolved values (merge env into parameters)
               resolvedTask = { ...task, parameters: { ...task.parameters, ...secretResult.env } };
@@ -637,7 +638,7 @@ export class PipelineEngine {
         await this.saveCheckpoint(execution, stage.name, task.name);
 
         if (result.status === 'failed') {
-          throw new Error(result.error || `Task '${task.name}' failed`);
+          throw new OrionError(result.error || `Task '${task.name}' failed`, ErrorCode.OPERATION_FAILED);
         }
       }
 
@@ -647,7 +648,7 @@ export class PipelineEngine {
       // GAP-CN-04: Evaluate quality gate if configured
       const gateCheckResult = await this.checkStageQualityGate(execution, stage);
       if (gateCheckResult) {
-        throw new Error(gateCheckResult.reason);
+        throw new OrionError(gateCheckResult.reason, ErrorCode.OPERATION_FAILED);
       }
 
       // Stage 成功完成
@@ -1467,7 +1468,7 @@ export class PipelineEngine {
       }
 
       // Sub-pipeline failure propagates to parent stage failure
-      throw new Error(`Sub-pipeline '${stage.name}' failed: ${errorMessage}`);
+      throw new OrionError(`Sub-pipeline '${stage.name}' failed: ${errorMessage}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -1693,7 +1694,7 @@ export class PipelineEngine {
       // Use referenced strategy
       const strategy = await this.deploymentStrategyService.getStrategy(strategyId || '');
       if (!strategy) {
-        throw new Error(`Deployment strategy not found: ${strategyId || strategyName}`);
+        throw new OrionError(`Deployment strategy not found: ${strategyId || strategyName}`, ErrorCode.NOT_FOUND);
       }
 
       return await this.executeReferencedStrategy(execution, stage, strategy, healthCheckEndpoint);
@@ -1768,7 +1769,7 @@ export class PipelineEngine {
         return status.status === 'completed' ? 'success' : 'failed';
       }
       default:
-        throw new Error(`Unknown deployment strategy type: ${inline.type}`);
+        throw new OrionError(`Unknown deployment strategy type: ${inline.type}`, ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -1814,7 +1815,7 @@ export class PipelineEngine {
         return status.status === 'completed' ? 'success' : 'failed';
       }
       default:
-        throw new Error(`Unknown deployment strategy type: ${strategy.type}`);
+        throw new OrionError(`Unknown deployment strategy type: ${strategy.type}`, ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -2050,7 +2051,7 @@ export class PipelineEngine {
     comment?: string
   ): Promise<void> {
     if (!this.approvalGateService) {
-      throw new Error('Approval gate service not configured');
+      throw new OrionError('Approval gate service not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 更新审批状态
@@ -2070,7 +2071,7 @@ export class PipelineEngine {
     comment?: string
   ): Promise<void> {
     if (!this.approvalGateService) {
-      throw new Error('Approval gate service not configured');
+      throw new OrionError('Approval gate service not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     await this.approvalGateService.reject(runId, stageId, userId, comment);
