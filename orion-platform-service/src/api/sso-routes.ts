@@ -102,9 +102,8 @@ export async function registerSsoRoutes(
    * GET /api/v1/auth/sso/login
    * Redirect the browser to the SSO provider's authorization page.
    */
-  fastify.get('/sso/login', {
-    onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  // Public endpoint — no auth required (user is not yet authenticated)
+  fastify.get('/sso/login', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!ssoService.isConfigured()) {
       return reply.status(400).send({
         success: false,
@@ -133,9 +132,8 @@ export async function registerSsoRoutes(
    * Phase 3.8.3: 检查用户状态，terminated 用户拒绝登录
    * Phase 3.8.1: 使用 JwtKeyManager 统一密钥
    */
-  fastify.get('/sso/callback', {
-    onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  // Public endpoint — OIDC callback, no auth required
+  fastify.get('/sso/callback', async (request: FastifyRequest, reply: FastifyReply) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const query = request.query as Record<string, string> | undefined;
     const stateKey = query?.state;

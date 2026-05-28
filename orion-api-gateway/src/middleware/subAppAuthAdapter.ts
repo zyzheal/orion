@@ -69,6 +69,12 @@ export function createSubAppAuthHook(
       request.headers['x-user-permissions'] = user.permissions.join(',');
     }
 
+    // Phase 4.3: Inject tenant ID from tenant context (set by TenantMiddleware)
+    const tenantContext = (request as any).tenantContext;
+    if (tenantContext?.tenantId) {
+      request.headers['x-tenant-id'] = tenantContext.tenantId;
+    }
+
     // Optional: include full auth context for debugging
     if (config.includeFullContext) {
       request.headers['x-auth-context'] = JSON.stringify({
