@@ -22,7 +22,7 @@ import { Typography, Tooltip, Badge, Space, ConfigProvider } from 'antd';
 // Tooltip 白色主题 token
 const tooltipTheme = {
   token: {
-    colorBgSpotlight: '#ffffff',
+    colorBgSpotlight: colors.neutral[0],
     colorTextLightSolid: colors.neutral[900],
   },
 };
@@ -117,7 +117,7 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
 
   return (
     <Tooltip
-      color='#ffffff'
+      color={colors.neutral[0]}
       title={
         <div style={{ minWidth: 160 }}>
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid #f0f0f0` }}>
@@ -125,8 +125,8 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
               <Badge
                 count={data.index + 1}
                 style={{
-                  backgroundColor: statusColors[data.status] || '#d9d9d9',
-                  color: '#ffffff',
+                  backgroundColor: statusColors[data.status] || colors.neutral[300],
+                  color: colors.neutral[0],
                   fontSize: 10,
                   minWidth: 16,
                   height: 16,

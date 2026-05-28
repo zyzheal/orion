@@ -16,6 +16,7 @@ import {
   Form,
 } from 'antd';
 import {
+import { colors } from '@/tokens';
   GitlabOutlined,
   GithubOutlined,
   FilterOutlined,
@@ -209,7 +210,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 return (
                   <Space direction="vertical" size={0}>
                     <span>{option.label}</span>
-                    <span style={{ fontSize: 12, color: '#999' }}>{data.description}</span>
+                    <span style={{ fontSize: 12, color: colors.neutral[500] }}>{data.description}</span>
                   </Space>
                 );
               }}
@@ -277,7 +278,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.branchFilter.targetBranches.length === 0 && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，将匹配所有分支</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有分支</span>
               )}
             </div>
           </Form.Item>
@@ -307,7 +308,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {(!config.branchFilter.sourceBranches || config.branchFilter.sourceBranches.length === 0) && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，将匹配所有来源分支</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有来源分支</span>
               )}
             </div>
           </Form.Item>
@@ -350,7 +351,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.pathFilter.includePaths.length === 0 && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，将匹配所有文件变更</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有文件变更</span>
               )}
             </div>
           </Form.Item>
@@ -412,7 +413,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.labelFilter.requiredLabels.length === 0 && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，不限制标签</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，不限制标签</span>
               )}
             </div>
           </Form.Item>

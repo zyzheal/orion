@@ -388,7 +388,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Header
         style={{
           padding: '0 24px',
-          background: theme === 'dark' ? colors.dark.bg.primary : '#ffffff',
+          background: theme === 'dark' ? colors.dark.bg.primary : colors.neutral[0],
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -704,11 +704,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         style={{
           background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.tertiary,
           padding: '8px 32px',
-          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#f0f0f0'}`,
+          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.neutral[200]}`,
         }}
       >
         <Breadcrumb
-          separator={<span style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.25)' : '#d9d9d9', margin: '0 8px' }}>/</span>}
+          separator={<span style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.25)' : colors.neutral[300], margin: '0 8px' }}>/</span>}
           items={[
             {
               title: (

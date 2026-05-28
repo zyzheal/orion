@@ -217,7 +217,7 @@ const ModuleEditor: React.FC<{
         borderRadius: 10,
         padding: 16,
         marginBottom: 12,
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f0f0f0'}`,
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
       }}
     >
       {/* 模块头部 */}
@@ -406,9 +406,9 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
       width={560}
       placement="right"
       styles={{
-        body: { padding: '20px 24px', background: isDark ? colors.neutral[900] : '#ffffff' },
+        body: { padding: '20px 24px', background: isDark ? colors.neutral[900] : colors.neutral[0] },
         header: {
-          borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f0f0f0'}`,
+          borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
           paddingBottom: 16,
         },
       }}

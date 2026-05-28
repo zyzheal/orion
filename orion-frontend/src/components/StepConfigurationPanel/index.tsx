@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Form, Input, InputNumber, Select, Button, Space, message } from 'antd';
+import { colors } from '@/tokens';
 
 export interface StepConfigurationPanelProps {
   plugin: { name: string; version: string; tier: string; trust: string } | null;
@@ -17,7 +18,7 @@ export const StepConfigurationPanel: React.FC<StepConfigurationPanelProps> = ({
   const [form] = Form.useForm();
 
   if (!plugin) {
-    return <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>Select a plugin to configure</div>;
+    return <div style={{ padding: 24, textAlign: 'center', color: colors.neutral[500] }}>Select a plugin to configure</div>;
   }
 
   const handleSave = () => {

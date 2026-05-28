@@ -27,7 +27,7 @@ const ChatTrigger: React.FC = () => {
           height: 48,
           borderRadius: '50%',
           background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
-          color: '#ffffff',
+          color: colors.neutral[0],
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

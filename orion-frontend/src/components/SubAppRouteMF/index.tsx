@@ -250,7 +250,7 @@ const SubAppRouteMF: React.FC = () => {
               }}
               style={{
                 padding: '8px 24px',
-                background: '#3370E6',
+                background: colors.primary[500],
                 color: 'white',
                 border: 'none',
                 borderRadius: 6,

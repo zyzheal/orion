@@ -73,11 +73,11 @@ function getStatusColor(status?: StatusType): string {
     case 'running':
       return colors.primary[500];
     case 'pending':
-      return '#d9d9d9';
+      return colors.neutral[300];
     case 'cancelled':
       return colors.neutral[500];
     default:
-      return '#d9d9d9';
+      return colors.neutral[300];
   }
 }
 

@@ -1,3 +1,4 @@
+import { colors } from '@/tokens';
 /**
  * Lowcode Components - Types
  * 低代码平台组件类型定义
@@ -200,7 +201,7 @@ export const nodeTypeConfig: Record<WorkflowNodeType, NodeTypeInfo> = {
   approval: {
     type: 'approval',
     label: '审批',
-    color: '#7C5CFC',
+    color: colors.purple[500],
     icon: 'UserCheck',
     description: '人工审批节点',
   },
@@ -214,7 +215,7 @@ export const nodeTypeConfig: Record<WorkflowNodeType, NodeTypeInfo> = {
   notification: {
     type: 'notification',
     label: '通知',
-    color: '#3a98f4',
+    color: colors.info[500],
     icon: 'Bell',
     description: '发送通知消息',
   },

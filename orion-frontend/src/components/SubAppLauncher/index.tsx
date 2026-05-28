@@ -74,7 +74,7 @@ const SubAppTrigger: React.FC<SubAppTriggerProps> = ({ onClick }) => (
       e.currentTarget.style.boxShadow = `0 2px 8px ${colors.primary[400]}30`;
     }}
   >
-    <AppstoreOutlined style={{ fontSize: 15, color: '#ffffff' }} />
+    <AppstoreOutlined style={{ fontSize: 15, color: colors.neutral[0] }} />
   </div>
 );
 
@@ -119,7 +119,7 @@ const SubAppCard: React.FC<SubAppCardProps> = ({ app, onClick }) => (
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: 20,
-        color: '#ffffff',
+        color: colors.neutral[0],
         flexShrink: 0,
         boxShadow: `0 3px 8px ${app.color}40`,
       }}
@@ -217,7 +217,7 @@ export const SubAppLauncher: React.FC & { Trigger: React.FC<SubAppTriggerProps> 
                 justifyContent: 'center',
               }}
             >
-              <AppstoreOutlined style={{ fontSize: 15, color: '#ffffff' }} />
+              <AppstoreOutlined style={{ fontSize: 15, color: colors.neutral[0] }} />
             </div>
             <Text strong style={{ fontSize: 15 }}>子系统应用</Text>
           </div>

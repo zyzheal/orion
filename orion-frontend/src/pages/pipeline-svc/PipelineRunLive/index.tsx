@@ -135,7 +135,7 @@ function highlightSearch(text: string, search: string): React.ReactNode {
   const matchRegex = new RegExp(escaped, 'i');
   return parts.map((part, i) =>
     matchRegex.test(part) ? (
-      <span key={i} style={{ background: '#fff566', color: '#000', borderRadius: 2, padding: '0 2px' }}>
+      <span key={i} style={{ background: '#fff566', color: colors.neutral[1000], borderRadius: 2, padding: '0 2px' }}>
         {part}
       </span>
     ) : (

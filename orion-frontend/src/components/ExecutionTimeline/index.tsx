@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Timeline as AntTimeline, Tag, Button, Space, Spin } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 export interface TimelineStep {
   id: string;
@@ -99,7 +100,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
             >
               <strong>{step.stepName}</strong>
               <Tag color={getStatusColor(step.status)} style={{ marginLeft: 8 }}>{step.status}</Tag>
-              <span style={{ marginLeft: 8, color: '#999' }}>{formatDuration(step.durationMs)}</span>
+              <span style={{ marginLeft: 8, color: colors.neutral[500] }}>{formatDuration(step.durationMs)}</span>
             </div>
           ),
         }))}

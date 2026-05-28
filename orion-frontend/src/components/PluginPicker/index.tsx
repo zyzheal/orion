@@ -143,7 +143,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
   const renderPluginGrid = (plugins: PluginItem[]) => {
     const filtered = filterPlugins(plugins);
     if (filtered.length === 0) {
-      return <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>No plugins found</div>;
+      return <div style={{ color: colors.neutral[500], textAlign: 'center', padding: 24 }}>No plugins found</div>;
     }
     const grouped = groupByCategory(filtered);
     return Object.entries(grouped).map(([category, items]) => (
@@ -170,12 +170,12 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
     {
       key: 'remote',
       label: 'Remote',
-      children: <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>Remote plugin installation by URL (coming soon)</div>,
+      children: <div style={{ padding: 24, textAlign: 'center', color: colors.neutral[500] }}>Remote plugin installation by URL (coming soon)</div>,
     },
     {
       key: 'custom',
       label: 'Custom Script',
-      children: <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>Use Inline Script Editor to write custom scripts</div>,
+      children: <div style={{ padding: 24, textAlign: 'center', color: colors.neutral[500] }}>Use Inline Script Editor to write custom scripts</div>,
     },
   ];
 

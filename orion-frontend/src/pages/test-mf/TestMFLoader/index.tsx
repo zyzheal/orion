@@ -170,7 +170,7 @@ const TestMFLoader: React.FC = () => {
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
       <Title level={2}>
-        <RocketOutlined style={{ marginRight: 12, color: '#3370E6' }} />
+        <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
         Orion-MF 微前端框架测试
       </Title>
 

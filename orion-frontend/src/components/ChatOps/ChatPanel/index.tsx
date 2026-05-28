@@ -175,7 +175,7 @@ export const ChatPanel: React.FC = () => {
               justifyContent: 'center',
             }}
           >
-            <MessageOutlined style={{ fontSize: 15, color: '#ffffff' }} />
+            <MessageOutlined style={{ fontSize: 15, color: colors.neutral[0] }} />
           </div>
           <Text strong style={{ fontSize: 15 }}>ChatOps 助手</Text>
         </div>
@@ -230,7 +230,7 @@ export const ChatPanel: React.FC = () => {
                 boxShadow: `0 4px 12px ${colors.primary[400]}30`,
               }}
             >
-              <MessageOutlined style={{ fontSize: 22, color: '#ffffff' }} />
+              <MessageOutlined style={{ fontSize: 22, color: colors.neutral[0] }} />
             </div>
             <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
               你好，我是 ChatOps 助手
