@@ -30,6 +30,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		approvals.POST("/:id/reject", h.Reject)
 		approvals.POST("/:id/cancel", h.Cancel)
 		approvals.GET("/:id/steps", h.GetSteps)
+		approvals.DELETE("/:id", h.DeleteApproval)
+		approvals.GET("/count", h.CountApprovals)
 	}
 }
 
@@ -148,4 +150,43 @@ func (h *Handler) GetSteps(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": steps})
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) Count(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
+
+func (h *Handler) DeleteApproval(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) CountApprovals(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
 }

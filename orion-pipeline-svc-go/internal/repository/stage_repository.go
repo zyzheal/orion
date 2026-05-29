@@ -43,3 +43,14 @@ func (r *StageRepository) UpdateStatus(ctx context.Context, id, status string) e
 	_, err := r.db.ExecContext(ctx, query, status, id)
 	return err
 }
+
+func (r *StageRepository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM pipeline_stages WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *StageRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM pipeline_stages WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

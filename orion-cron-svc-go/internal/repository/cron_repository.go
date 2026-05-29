@@ -25,3 +25,14 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &j, `SELECT * FROM cron_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil { return nil, err }; return &j, nil
 }
+
+func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM cron_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM cron_jobs WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

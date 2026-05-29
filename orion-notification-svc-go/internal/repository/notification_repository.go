@@ -49,3 +49,19 @@ func (r *Repository) ListChannels(ctx context.Context, tenantID string) ([]model
 	err := r.db.SelectContext(ctx, &items, `SELECT * FROM notification_channels WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
+
+func (r *Repository) UpdateNotification(ctx context.Context, n *models.Notification) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE notifications SET channel=$1, recipient=$2, subject=$3, body=$4, status=$5, metadata=$6 WHERE id=$7 AND tenant_id=$8`, n.Channel, n.Recipient, n.Subject, n.Body, n.Status, n.Metadata, n.ID, n.TenantID)
+	return err
+}
+
+func (r *Repository) DeleteNotification(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM notifications WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) CountNotifications(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM notifications WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

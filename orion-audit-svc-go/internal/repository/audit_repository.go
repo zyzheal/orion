@@ -19,3 +19,14 @@ func (r *Repository) List(ctx context.Context, tenantID string, offset, limit in
 	err := r.db.SelectContext(ctx, &items, `SELECT * FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3`, tenantID, offset, limit)
 	return items, err
 }
+
+func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM audit_logs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM audit_logs WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

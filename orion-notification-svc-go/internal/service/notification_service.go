@@ -50,3 +50,11 @@ func (s *Service) CreateChannel(ctx context.Context, tenantID string, c *models.
 func (s *Service) ListChannels(ctx context.Context, tenantID string) ([]models.NotificationChannel, error) {
 	return s.repo.ListChannels(ctx, tenantID)
 }
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.DeleteNotification(ctx, tenantID, id)
+}
+
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.CountNotifications(ctx, tenantID)
+}

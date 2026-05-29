@@ -110,6 +110,7 @@ func main() {
 			builds.PUT("/:id", h.UpdateBuild)
 			builds.DELETE("/:id", h.DeleteBuild)
 			builds.GET("/:id/logs", h.GetBuildLogs)
+			builds.GET("/count", h.Count)
 		}
 	}
 

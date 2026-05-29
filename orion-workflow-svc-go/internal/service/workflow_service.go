@@ -36,3 +36,11 @@ func (s *Service) StartRun(ctx context.Context, tenantID, wfID string) (*models.
 func (s *Service) GetRun(ctx context.Context, id string) (*models.WorkflowRun, error) {
 	return s.repo.GetRun(ctx, id)
 }
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

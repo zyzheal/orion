@@ -25,3 +25,11 @@ func (s *Service) List(ctx context.Context, tenantID string, offset, limit int) 
 func (s *Service) GetByID(ctx context.Context, tenantID, id string) (*models.Plugin, error) {
 	return s.repo.GetByID(ctx, tenantID, id)
 }
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

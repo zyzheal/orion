@@ -96,3 +96,7 @@ func newTimestamp() *time.Time {
 	t := time.Now()
 	return &t
 }
+
+func (s *DeployService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

@@ -116,3 +116,11 @@ func (s *FinOpsService) UpdateBudgetAlert(ctx context.Context, tenantID, id stri
 	}
 	return alert, nil
 }
+
+func (s *FinOpsService) Delete(ctx context.Context, tenantID, id string) error {
+	return s.costRepo.Delete(ctx, tenantID, id)
+}
+
+func (s *FinOpsService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.costRepo.Count(ctx, tenantID)
+}

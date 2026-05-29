@@ -27,6 +27,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		pipelines.GET("", h.ListPipelines)
 		pipelines.GET("/:id", h.GetPipeline)
 		pipelines.POST("/:id/runs", h.TriggerRun)
+		pipelines.DELETE("/:id", h.Delete)
+		pipelines.GET("/count", h.Count)
 	}
 
 	runs := rg.Group("/runs")
@@ -133,4 +135,23 @@ func (h *Handler) GetRunStages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": stages})
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) Count(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
 }

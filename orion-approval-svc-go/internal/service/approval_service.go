@@ -93,3 +93,11 @@ func (s *ApprovalService) Cancel(ctx context.Context, tenantID, id string) error
 func (s *ApprovalService) GetSteps(ctx context.Context, approvalID string) ([]models.ApprovalStep, error) {
 	return s.repo.GetStepsByApprovalID(ctx, approvalID)
 }
+
+func (s *ApprovalService) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *ApprovalService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

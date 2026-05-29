@@ -90,3 +90,16 @@ func (r *ApprovalRepository) UpdateStepStatus(ctx context.Context, id string, st
 	_, err := r.db.ExecContext(ctx, query, status, comment, id)
 	return err
 }
+
+func (r *ApprovalRepository) Delete(ctx context.Context, tenantID, id string) error {
+	query := `DELETE FROM approvals WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, tenantID, id)
+	return err
+}
+
+func (r *ApprovalRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM approvals WHERE tenant_id = $1`
+	err := r.db.GetContext(ctx, &count, query, tenantID)
+	return count, err
+}

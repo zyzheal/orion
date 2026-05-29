@@ -82,3 +82,14 @@ func (r *CanaryRepository) GetMetrics(ctx context.Context, canaryID string) ([]m
 	}
 	return metrics, nil
 }
+
+func (r *CanaryRepository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM canaries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *CanaryRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM canaries WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

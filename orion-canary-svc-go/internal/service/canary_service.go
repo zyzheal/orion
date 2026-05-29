@@ -70,3 +70,11 @@ func (s *CanaryService) AddMetric(ctx context.Context, m *models.CanaryMetric) e
 func (s *CanaryService) GetMetrics(ctx context.Context, canaryID string) ([]models.CanaryMetric, error) {
 	return s.repo.GetMetrics(ctx, canaryID)
 }
+
+func (s *CanaryService) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *CanaryService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

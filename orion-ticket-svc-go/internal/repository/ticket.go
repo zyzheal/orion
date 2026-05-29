@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
 	"orion-ticket-svc-go/internal/models"
@@ -107,4 +108,10 @@ func (r *TicketRepository) UpdateStatus(id, tenantID, status string) error {
 func (r *TicketRepository) UpdateAssignee(id, tenantID, assignedTo string) error {
 	_, err := r.db.Exec("UPDATE tickets SET assigned_to=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3", assignedTo, id, tenantID)
 	return err
+}
+
+func (r *TicketRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM tickets WHERE tenant_id=$1`, tenantID)
+	return count, err
 }

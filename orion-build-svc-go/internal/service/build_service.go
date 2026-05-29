@@ -42,3 +42,7 @@ func (s *BuildService) Update(ctx context.Context, b *models.Build) error {
 func (s *BuildService) Delete(ctx context.Context, tenantID, id string) error {
 	return s.repo.Delete(ctx, tenantID, id)
 }
+
+func (s *BuildService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

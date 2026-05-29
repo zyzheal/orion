@@ -29,3 +29,11 @@ func (s *Service) Update(ctx context.Context, tenantID, id, value string) (*mode
 	c.Value = value
 	return c, s.repo.Update(ctx, c)
 }
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

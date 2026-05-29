@@ -210,3 +210,7 @@ func (s *CIService) DeleteRelation(ctx context.Context, tenantID, id string, act
 
 	return s.relRepo.Delete(id, tenantID)
 }
+
+func (s *CIService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.ciRepo.Count(ctx, tenantID)
+}

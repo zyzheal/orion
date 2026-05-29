@@ -26,3 +26,14 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	if err != nil { return nil, err }
 	return &d, nil
 }
+
+func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM posts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM posts WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

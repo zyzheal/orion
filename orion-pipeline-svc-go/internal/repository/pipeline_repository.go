@@ -62,3 +62,9 @@ func (r *PipelineRepository) Delete(ctx context.Context, tenantID, id string) er
 	_, err := r.db.ExecContext(ctx, query, id, tenantID)
 	return err
 }
+
+func (r *PipelineRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM pipelines WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

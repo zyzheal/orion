@@ -184,3 +184,13 @@ func (h *CIHandler) DeleteRelation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "relation deleted"})
 }
+
+func (h *CIHandler) Count(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
+}

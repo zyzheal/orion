@@ -74,3 +74,9 @@ func (r *DeploymentRepository) Delete(ctx context.Context, tenantID, id string) 
 	_, err := r.db.ExecContext(ctx, query, id, tenantID)
 	return err
 }
+
+func (r *DeploymentRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM deployments WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

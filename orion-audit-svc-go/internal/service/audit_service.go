@@ -23,3 +23,11 @@ func (s *Service) CreateLog(ctx context.Context, tenantID string, req *models.Cr
 func (s *Service) ListLogs(ctx context.Context, tenantID string, offset, limit int) ([]models.AuditLog, error) {
 	return s.repo.List(ctx, tenantID, offset, limit)
 }
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

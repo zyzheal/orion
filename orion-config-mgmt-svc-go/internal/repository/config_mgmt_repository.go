@@ -31,3 +31,14 @@ func (r *Repository) Update(ctx context.Context, c *models.ConfigItem) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE config_items SET value=$1, version=version+1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, c.Value, c.ID, c.TenantID)
 	return err
 }
+
+func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM config_items WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM config_items WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

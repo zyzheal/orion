@@ -154,6 +154,7 @@ func main() {
 		v1.GET("/alert-rules/:id", h.GetAlertRule)
 		v1.PUT("/alert-rules/:id", h.UpdateAlertRule)
 		v1.DELETE("/alert-rules/:id", h.DeleteAlertRule)
+	v1.GET("/count", h.Count)
 	}
 
 	// Start HTTP server

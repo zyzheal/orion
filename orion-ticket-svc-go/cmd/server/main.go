@@ -125,6 +125,7 @@ func main() {
 		v1.GET("/tickets/:id", ticketHandler.GetTicket)
 		v1.PUT("/tickets/:id", ticketHandler.UpdateTicket)
 		v1.DELETE("/tickets/:id", ticketHandler.DeleteTicket)
+		v1.GET("/tickets/count", ticketHandler.Count)
 		v1.POST("/tickets/:id/assign", ticketHandler.AssignTicket)
 		v1.POST("/tickets/:id/resolve", ticketHandler.ResolveTicket)
 		v1.GET("/tickets/:id/comments", ticketHandler.ListComments)

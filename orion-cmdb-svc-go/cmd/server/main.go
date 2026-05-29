@@ -122,6 +122,7 @@ func main() {
 		v1.GET("/ci-relations", ciHandler.ListCIRelations)
 		v1.POST("/ci-relations", ciHandler.CreateRelation)
 		v1.DELETE("/ci-relations/:id", ciHandler.DeleteRelation)
+		v1.GET("/ci-items/count", ciHandler.Count)
 	}
 
 	r.GET("/healthz", func(c *gin.Context) {

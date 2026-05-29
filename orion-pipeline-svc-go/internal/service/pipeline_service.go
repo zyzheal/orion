@@ -101,3 +101,7 @@ func parseStagesFromYAML(yamlConfig string) []string {
 	}
 	return []string{"build", "test", "deploy"}
 }
+
+func (s *PipelineService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.pipelineRepo.Count(ctx, tenantID)
+}

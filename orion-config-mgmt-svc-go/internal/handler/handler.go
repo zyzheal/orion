@@ -14,6 +14,8 @@ func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	c := rg.Group("/configs")
 	c.POST("", h.Create); c.GET("", h.List); c.PUT("/:id", h.Update)
+	c.DELETE("/:id", h.Delete)
+	c.GET("/count", h.Count)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -40,4 +42,23 @@ func (h *Handler) Update(c *gin.Context) {
 	item, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), body.Value)
 	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
 	c.JSON(http.StatusOK, item)
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) Count(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
 }

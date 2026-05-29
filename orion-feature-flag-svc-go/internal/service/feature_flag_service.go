@@ -37,3 +37,11 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.C
 	f.Name = req.Name; f.Description = req.Description; f.Enabled = req.Enabled; f.RolloutPct = req.RolloutPct
 	return f, s.repo.Update(ctx, f)
 }
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

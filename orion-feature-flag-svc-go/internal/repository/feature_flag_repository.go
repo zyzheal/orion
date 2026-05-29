@@ -31,3 +31,23 @@ func (r *Repository) Update(ctx context.Context, f *models.FeatureFlag) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE feature_flags SET name=$1, description=$2, enabled=$3, rollout_pct=$4, rules=$5, updated_at=NOW() WHERE id=$6 AND tenant_id=$7`, f.Name, f.Description, f.Enabled, f.RolloutPct, f.Rules, f.ID, f.TenantID)
 	return err
 }
+
+func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM feature_flags WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM feature_flags WHERE tenant_id=$1`, tenantID)
+	return count, err
+}
+
+func (r *Repository) GetByKey(ctx context.Context, tenantID, key string) (*models.FeatureFlag, error) {
+	var f models.FeatureFlag
+	err := r.db.GetContext(ctx, &f, `SELECT * FROM feature_flags WHERE key=$1 AND tenant_id=$2`, key, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
+}

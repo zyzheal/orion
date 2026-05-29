@@ -15,6 +15,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	w := rg.Group("/workflows")
 	w.POST("", h.Create); w.GET("", h.List); w.GET("/:id", h.Get); w.POST("/:id/runs", h.StartRun)
 	rg.GET("/runs/:id", h.GetRun)
+	w.DELETE("/:id", h.Delete)
+	w.GET("/count", h.Count)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -52,4 +54,23 @@ func (h *Handler) GetRun(c *gin.Context) {
 	run, err := h.svc.GetRun(c.Request.Context(), c.Param("id"))
 	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
 	c.JSON(http.StatusOK, run)
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) Count(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
 }

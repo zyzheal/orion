@@ -85,3 +85,11 @@ func (s *SchedulerService) RecordRun(ctx context.Context, jobID, status string, 
 func (s *SchedulerService) GetJobRuns(ctx context.Context, jobID string, limit int) ([]models.JobRun, error) {
 	return s.repo.GetJobRuns(ctx, jobID, limit)
 }
+
+func (s *SchedulerService) Delete(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *SchedulerService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

@@ -123,3 +123,7 @@ func (s *TicketService) ListComments(ctx context.Context, ticketID, tenantID str
 
 	return s.comment.ListByTicket(ticketID)
 }
+
+func (s *TicketService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.repo.Count(ctx, tenantID)
+}

@@ -89,3 +89,14 @@ func (r *CostRepository) GetBudgetAlertByID(ctx context.Context, tenantID, id st
 	}
 	return &a, nil
 }
+
+func (r *CostRepository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM cloud_costs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *CostRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM cloud_costs WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

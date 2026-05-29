@@ -218,3 +218,14 @@ func (r *AlertRepository) DeleteAlertRule(ctx context.Context, tenantID, id uuid
 	}
 	return nil
 }
+
+func (r *AlertRepository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM alerts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *AlertRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM alerts WHERE tenant_id=$1`, tenantID)
+	return count, err
+}

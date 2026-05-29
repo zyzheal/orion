@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -92,4 +93,10 @@ func (r *CIRepository) Update(item *models.CIItem) error {
 func (r *CIRepository) Delete(id, tenantID string) error {
 	_, err := r.db.Exec("DELETE FROM ci_items WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
+}
+
+func (r *CIRepository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM ci_items WHERE tenant_id=$1`, tenantID)
+	return count, err
 }

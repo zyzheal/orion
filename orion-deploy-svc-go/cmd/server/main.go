@@ -110,6 +110,7 @@ func main() {
 			deployments.PUT("/:id", h.UpdateDeployment)
 			deployments.DELETE("/:id", h.DeleteDeployment)
 			deployments.POST("/:id/rollback", h.Rollback)
+			deployments.GET("/count", h.Count)
 		}
 	}
 

@@ -31,6 +31,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		canaries.POST("/:id/metrics", h.AddMetric)
 		canaries.GET("/:id/metrics", h.GetMetrics)
 	}
+	canaries.DELETE("/:id", h.Delete)
+	canaries.GET("/count", h.Count)
 }
 
 func (h *Handler) CreateCanary(c *gin.Context) {
@@ -134,4 +136,23 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": metrics})
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) Count(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
 }
