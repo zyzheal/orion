@@ -13,4 +13,5 @@ use (
 	./orion-cmdb-svc-go
 	./orion-monitor-svc-go
 	./orion-approval-svc-go
+	./orion-canary-svc-go
 )
