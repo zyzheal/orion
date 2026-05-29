@@ -51,7 +51,7 @@ func (r *BackupRepository) ListByInstance(ctx context.Context, tenantID, instanc
 	return items, err
 }
 
-func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+func (r *InstanceRepository) Count(ctx context.Context, tenantID string) (int, error) {
 	var count int
 	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM middleware_resources WHERE tenant_id=$1`, tenantID)
 	return count, err

@@ -107,6 +107,6 @@ func (s *AlertService) DeleteAlertRule(ctx context.Context, tenantID, id uuid.UU
 	return s.alertRepo.DeleteAlertRule(ctx, tenantID, id)
 }
 
-func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
-	return s.repo.Count(ctx, tenantID)
+func (s *AlertService) Count(ctx context.Context, tenantID string) (int, error) {
+	return s.alertRepo.Count(ctx, tenantID)
 }

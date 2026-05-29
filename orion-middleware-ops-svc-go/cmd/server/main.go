@@ -15,7 +15,7 @@ import (
 	"orion/middleware-ops-svc-go/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"orion-go-common/database"
+	"orion/go-common/pkg/database"
 )
 
 func main() {
@@ -35,8 +35,8 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	instanceRepo := repository.NewInstanceRepository(db)
-	backupRepo := repository.NewBackupRepository(db)
+	instanceRepo := repository.NewInstanceRepository(db.DB)
+	backupRepo := repository.NewBackupRepository(db.DB)
 
 	svc := service.NewService(instanceRepo, backupRepo)
 	h := handler.NewHandler(svc)

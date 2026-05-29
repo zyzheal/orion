@@ -86,9 +86,9 @@ func (s *Service) ListPolicies(ctx context.Context, tenantID string) ([]models.S
 }
 
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
-	return s.repo.Delete(ctx, tenantID, id)
+	return s.poolRepo.Delete(ctx, tenantID, id)
 }
 
 func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
-	return s.repo.Count(ctx, tenantID)
+	return s.poolRepo.Count(ctx, tenantID)
 }

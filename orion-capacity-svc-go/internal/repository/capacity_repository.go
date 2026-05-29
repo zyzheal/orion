@@ -60,12 +60,12 @@ func (r *PolicyRepository) List(ctx context.Context, tenantID string) ([]models.
 	return items, err
 }
 
-func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+func (r *PoolRepository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM resource_pools WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
-func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+func (r *PoolRepository) Count(ctx context.Context, tenantID string) (int, error) {
 	var count int
 	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM resource_pools WHERE tenant_id=$1`, tenantID)
 	return count, err

@@ -318,7 +318,7 @@ func (h *Handler) DeleteAlertRule(c *gin.Context) {
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.alertSvc.Count(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

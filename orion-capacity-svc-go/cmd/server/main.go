@@ -15,7 +15,7 @@ import (
 	"orion/capacity-svc-go/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"orion-go-common/database"
+	"orion/go-common/pkg/database"
 )
 
 func main() {
@@ -35,9 +35,9 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	poolRepo := repository.NewPoolRepository(db)
-	forecastRepo := repository.NewForecastRepository(db)
-	policyRepo := repository.NewPolicyRepository(db)
+	poolRepo := repository.NewPoolRepository(db.DB)
+	forecastRepo := repository.NewForecastRepository(db.DB)
+	policyRepo := repository.NewPolicyRepository(db.DB)
 
 	svc := service.NewService(poolRepo, forecastRepo, policyRepo)
 	h := handler.NewHandler(svc)

@@ -20,8 +20,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	c.GET("/forecasts", h.ListForecasts)
 	c.POST("/policies", h.CreatePolicy)
 	c.GET("/policies", h.ListPolicies)
-	r.DELETE("/:id", h.Delete)
-	r.GET("/count", h.Count)
+	c.DELETE("/:id", h.Delete)
+	c.GET("/count", h.Count)
 }
 
 func (h *Handler) CreatePool(c *gin.Context) {

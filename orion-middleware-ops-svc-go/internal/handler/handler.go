@@ -20,8 +20,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	m.DELETE("/instances/:id", h.DeleteInstance)
 	m.POST("/backups", h.CreateBackup)
 	m.GET("/instances/:id/backups", h.ListBackups)
-	r.DELETE("/:id", h.Delete)
-	r.GET("/count", h.Count)
+	m.GET("/count", h.Count)
+
 }
 
 func (h *Handler) CreateInstance(c *gin.Context) {

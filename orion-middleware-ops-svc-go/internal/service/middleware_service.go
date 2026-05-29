@@ -83,5 +83,5 @@ func (s *Service) ListBackupsByInstance(ctx context.Context, tenantID, instanceI
 }
 
 func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
-	return s.repo.Count(ctx, tenantID)
+	return s.instanceRepo.Count(ctx, tenantID)
 }
