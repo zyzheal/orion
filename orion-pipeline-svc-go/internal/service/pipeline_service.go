@@ -2,8 +2,15 @@ package service
 
 import (
 	"context"
+	"errors"
 	"orion/pipeline-svc-go/internal/models"
 	"orion/pipeline-svc-go/internal/repository"
+)
+
+var (
+	ErrPipelineNotFound = errors.New("pipeline not found")
+	ErrRunNotFound      = errors.New("pipeline run not found")
+	ErrInvalidStatus    = errors.New("invalid status transition")
 )
 
 type PipelineService struct {
@@ -49,16 +56,15 @@ func (s *PipelineService) TriggerRun(ctx context.Context, tenantID, pipelineID, 
 
 	run := &models.PipelineRun{
 		PipelineID:  pipeline.ID,
-		TriggerType: triggerType,
+		TriggerType: models.TriggerType(triggerType),
 		TriggerBy:   triggerBy,
-		Status:      "pending",
+		Status:      models.StatusPending,
 	}
 	if err := s.runRepo.Create(ctx, run); err != nil {
 		return nil, err
 	}
 
-	ctxJSON := "{}"
-	run.Context = &ctxJSON
+	run.Context = "{}"
 
 	if err := s.runRepo.MarkStarted(ctx, run.ID); err != nil {
 		return nil, err
@@ -66,10 +72,10 @@ func (s *PipelineService) TriggerRun(ctx context.Context, tenantID, pipelineID, 
 
 	stages := parseStagesFromYAML(pipeline.YAMLConfig)
 	for _, name := range stages {
-		stage := &models.PipelineStage{
+		stage := &models.Stage{
 			RunID:  run.ID,
 			Name:   name,
-			Status: "pending",
+			Status: models.StagePending,
 		}
 		_ = s.stageRepo.Create(ctx, stage)
 	}
@@ -85,7 +91,7 @@ func (s *PipelineService) ListRuns(ctx context.Context, pipelineID string, offse
 	return s.runRepo.ListByPipeline(ctx, pipelineID, offset, limit)
 }
 
-func (s *PipelineService) GetStages(ctx context.Context, runID string) ([]models.PipelineStage, error) {
+func (s *PipelineService) GetStages(ctx context.Context, runID string) ([]models.Stage, error) {
 	return s.stageRepo.GetByRunID(ctx, runID)
 }
 

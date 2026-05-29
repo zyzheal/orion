@@ -1,21 +1,19 @@
 package config
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	ServiceName   string
-	Environment   string
-	HTTPAddr      string
-	DatabaseURL   string
-	RedisAddr     string
-	RedisDB       int
-	OTelEndpoint  string
-	JWTSecret     string
+	ServiceName  string
+	Environment  string
+	HTTPAddr     string
+	DatabaseURL  string
+	RedisAddr    string
+	RedisDB      int
+	OTelEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -27,12 +25,11 @@ func Load() (*Config, error) {
 
 	v.SetDefault("service_name", "orion-pipeline-svc")
 	v.SetDefault("environment", "development")
-	v.SetDefault("http_addr", ":8083")
+	v.SetDefault("http_addr", ":8084")
 	v.SetDefault("database_url", "postgres://orion:orion@localhost:5432/orion_pipeline?sslmode=disable")
 	v.SetDefault("redis_addr", "localhost:6379")
 	v.SetDefault("redis_db", 0)
 	v.SetDefault("otel_endpoint", "")
-	v.SetDefault("jwt_secret", "")
 
 	_ = v.ReadInConfig()
 	v.AutomaticEnv()
@@ -45,17 +42,12 @@ func Load() (*Config, error) {
 		RedisAddr:    getEnvOrConfig("REDIS_ADDR", v.GetString("redis_addr")),
 		RedisDB:      v.GetInt("redis_db"),
 		OTelEndpoint: getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
-		JWTSecret:    getEnvOrConfig("JWT_SECRET", v.GetString("jwt_secret")),
-	}
-
-	if cfg.JWTSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET is required")
 	}
 
 	return cfg, nil
 }
 
-func getEnvOrConfig(envKey string, fallback string) string {
+func getEnvOrConfig(envKey, fallback string) string {
 	if val := os.Getenv(envKey); val != "" {
 		return val
 	}

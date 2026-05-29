@@ -16,7 +16,7 @@ func NewStageRepository(db *sqlx.DB) *StageRepository {
 	return &StageRepository{db: db}
 }
 
-func (r *StageRepository) Create(ctx context.Context, stage *models.PipelineStage) error {
+func (r *StageRepository) Create(ctx context.Context, stage *models.Stage) error {
 	query := `
 		INSERT INTO pipeline_stages (run_id, name, status, logs)
 		VALUES ($1, $2, $3, $4)
@@ -28,8 +28,8 @@ func (r *StageRepository) Create(ctx context.Context, stage *models.PipelineStag
 	return err
 }
 
-func (r *StageRepository) GetByRunID(ctx context.Context, runID string) ([]models.PipelineStage, error) {
-	var stages []models.PipelineStage
+func (r *StageRepository) GetByRunID(ctx context.Context, runID string) ([]models.Stage, error) {
+	var stages []models.Stage
 	query := `SELECT id, run_id, name, status, started_at, completed_at, logs FROM pipeline_stages WHERE run_id = $1 ORDER BY id`
 	err := r.db.SelectContext(ctx, &stages, query, runID)
 	if err != nil {

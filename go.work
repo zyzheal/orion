@@ -6,4 +6,5 @@ use (
 	./orion-tenant-svc
 	./orion-user-svc
 	./orion-api-gateway-go
+	./orion-pipeline-svc-go
 )
