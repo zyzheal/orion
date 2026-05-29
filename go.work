@@ -1,0 +1,9 @@
+go 1.25.0
+
+use (
+	./orion-go-common
+	./orion-auth-svc
+	./orion-tenant-svc
+	./orion-user-svc
+	./orion-api-gateway-go
+)
