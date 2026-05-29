@@ -12,4 +12,5 @@ use (
 	./orion-ticket-svc-go
 	./orion-cmdb-svc-go
 	./orion-monitor-svc-go
+	./orion-approval-svc-go
 )
