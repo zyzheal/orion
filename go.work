@@ -9,4 +9,5 @@ use (
 	./orion-pipeline-svc-go
 	./orion-build-svc-go
 	./orion-deploy-svc-go
+	./orion-ticket-svc-go
 )
