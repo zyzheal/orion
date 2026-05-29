@@ -11,4 +11,5 @@ use (
 	./orion-deploy-svc-go
 	./orion-ticket-svc-go
 	./orion-cmdb-svc-go
+	./orion-monitor-svc-go
 )
