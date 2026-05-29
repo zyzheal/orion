@@ -1,0 +1,27 @@
+package service
+
+import (
+	"context"
+	errors "errors"
+	"orion/community-svc-go/internal/models"
+	"orion/community-svc-go/internal/repository"
+	"github.com/google/uuid"
+)
+
+var ErrContributionNotFound = errors.New("contribution not found")
+
+type Service struct { repo *repository.Repository }
+func NewService(repo *repository.Repository) *Service { return &Service{repo: repo} }
+
+func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateContributionRequest) (*models.Contribution, error) {
+	d := &models.Contribution{ID: uuid.New().String(), TenantID: tenantID, Name: req.Name}
+	return d, s.repo.Create(ctx, d)
+}
+
+func (s *Service) List(ctx context.Context, tenantID string, offset, limit int) ([]models.Contribution, error) {
+	return s.repo.List(ctx, tenantID, offset, limit)
+}
+
+func (s *Service) GetByID(ctx context.Context, tenantID, id string) (*models.Contribution, error) {
+	return s.repo.GetByID(ctx, tenantID, id)
+}

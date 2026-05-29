@@ -15,4 +15,38 @@ use (
 	./orion-approval-svc-go
 	./orion-canary-svc-go
 	./orion-scheduler-svc-go
+	./orion-finops-svc-go
+	./orion-notification-svc-go
+	./orion-feature-flag-svc-go
+	./orion-secret-svc-go
+	./orion-workflow-svc-go
+	./orion-audit-svc-go
+	./orion-config-mgmt-svc-go
+	./orion-artifact-svc-go
+	./orion-code-svc-go
+	./orion-runner-svc-go
+	./orion-plugin-svc-go
+	./orion-pipeline-template-svc-go
+	./orion-event-bus-svc-go
+	./orion-governance-svc-go
+	./orion-risk-svc-go
+	./orion-security-svc-go
+	./orion-selfhealing-svc-go
+	./orion-efficiency-svc-go
+	./orion-dr-svc-go
+	./orion-llm-svc-go
+	./orion-intelligence-svc-go
+	./orion-graph-svc-go
+	./orion-inception-svc-go
+	./orion-digital-twin-svc-go
+	./orion-lowcode-svc-go
+	./orion-chatops-svc-go
+	./orion-community-svc-go
+	./orion-pandawiki-svc-go
+	./orion-federation-svc-go
+	./orion-visor-svc-go
+	./orion-skill-svc-go
+	./orion-skill-config-svc-go
+	./orion-notify-svc-go
+	./orion-cron-svc-go
 )
