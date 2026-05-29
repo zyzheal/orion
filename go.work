@@ -10,4 +10,5 @@ use (
 	./orion-build-svc-go
 	./orion-deploy-svc-go
 	./orion-ticket-svc-go
+	./orion-cmdb-svc-go
 )
