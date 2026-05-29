@@ -7,4 +7,6 @@ use (
 	./orion-user-svc
 	./orion-api-gateway-go
 	./orion-pipeline-svc-go
+	./orion-build-svc-go
+	./orion-deploy-svc-go
 )

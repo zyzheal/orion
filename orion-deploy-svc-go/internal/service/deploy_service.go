@@ -2,10 +2,16 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"orion/deploy-svc-go/internal/models"
 	"orion/deploy-svc-go/internal/repository"
 	"time"
+)
+
+var (
+	ErrDeploymentNotFound = errors.New("deployment not found")
+	ErrInvalidStatus      = errors.New("invalid status transition")
+	ErrNoRollbackTarget   = errors.New("no previous deployment found for rollback")
 )
 
 type DeployService struct {
@@ -42,7 +48,7 @@ func (s *DeployService) Delete(ctx context.Context, tenantID, id string) error {
 func (s *DeployService) Rollback(ctx context.Context, tenantID, id string) (*models.Deployment, error) {
 	current, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("deployment not found: %w", err)
+		return nil, ErrDeploymentNotFound
 	}
 
 	rollbackVersion := current.RollbackTo
@@ -50,7 +56,7 @@ func (s *DeployService) Rollback(ctx context.Context, tenantID, id string) (*mod
 		// Find the previous successful deployment
 		deployments, err := s.repo.List(ctx, tenantID, 0, 10)
 		if err != nil {
-			return nil, fmt.Errorf("failed to find rollback target: %w", err)
+			return nil, err
 		}
 
 		for _, dep := range deployments {
@@ -62,7 +68,7 @@ func (s *DeployService) Rollback(ctx context.Context, tenantID, id string) (*mod
 		}
 
 		if rollbackVersion == nil {
-			return nil, fmt.Errorf("no previous deployment found for rollback")
+			return nil, ErrNoRollbackTarget
 		}
 	}
 

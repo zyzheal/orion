@@ -2,8 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"orion/build-svc-go/internal/models"
 	"orion/build-svc-go/internal/repository"
+)
+
+var (
+	ErrBuildNotFound  = errors.New("build not found")
+	ErrInvalidStatus  = errors.New("invalid status transition")
 )
 
 type BuildService struct {
