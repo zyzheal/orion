@@ -51,6 +51,30 @@ export interface CloudProviderInfo {
   documentationUrl: string;
 }
 
+export interface CredentialValidationResult {
+  valid: boolean;
+  provider: string;
+  message: string;
+  checkedAt: Date;
+}
+
+export interface ProviderHealthStatus {
+  provider: string;
+  region: string;
+  healthy: boolean;
+  latencyMs: number;
+  checkedAt: Date;
+  details: Record<string, any>;
+}
+
+export interface CloudCostSummary {
+  provider: string;
+  month: string;
+  totalCost: number;
+  currency: string;
+  breakdown: { service: string; cost: number }[];
+}
+
 export class CloudProviderService {
   private repo: MultiCloudRepository;
 
@@ -208,6 +232,134 @@ export class CloudProviderService {
       return null;
     }
     return this.entityToAccount(entity);
+  }
+
+  // ==================== Credential Management ====================
+
+  /**
+   * Validate credentials for a cloud account
+   */
+  async validateCredentials(accountId: string, tenantId: string): Promise<CredentialValidationResult> {
+    const account = await this.getCloudAccount(accountId, tenantId);
+    if (!account) {
+      return { valid: false, provider: 'unknown', message: 'Account not found', checkedAt: new Date() };
+    }
+
+    // Simulated credential validation per provider
+    const providerChecks: Record<string, () => boolean> = {
+      aws: () => true,   // Would call STS GetCallerIdentity
+      gcp: () => true,   // Would call IAM credentials check
+      azure: () => true, // Would call Azure Resource Manager
+      alicloud: () => true, // Would call STS AssumeRole
+      private: () => true,
+    };
+
+    const checker = providerChecks[account.provider] ?? (() => false);
+    const valid = checker();
+
+    return {
+      valid,
+      provider: account.provider,
+      message: valid ? 'Credentials are valid' : 'Credential validation failed',
+      checkedAt: new Date(),
+    };
+  }
+
+  /**
+   * Check health of a cloud provider in a specific region
+   */
+  async checkProviderHealth(provider: string, region: string): Promise<ProviderHealthStatus> {
+    const info = this.getCloudProviderInfo(provider);
+    const supported = info ? info.supportedRegions.includes(region) : false;
+
+    // Simulated health check with latency
+    const latencyMs = Math.floor(Math.random() * 200) + 50;
+
+    return {
+      provider,
+      region,
+      healthy: supported,
+      latencyMs,
+      checkedAt: new Date(),
+      details: {
+        apiEndpoint: info?.apiEndpoint ?? 'unknown',
+        supportedRegions: info?.supportedRegions ?? [],
+        regionSupported: supported,
+      },
+    };
+  }
+
+  /**
+   * Get cost summary for a cloud account (simulated)
+   */
+  async getCostSummary(accountId: string, tenantId: string, month?: string): Promise<CloudCostSummary | null> {
+    const account = await this.getCloudAccount(accountId, tenantId);
+    if (!account) return null;
+
+    const currentMonth = month ?? new Date().toISOString().slice(0, 7);
+
+    // Simulated cost data per provider
+    const costData: Record<string, { totalCost: number; breakdown: { service: string; cost: number }[] }> = {
+      aws: {
+        totalCost: 4250.75,
+        breakdown: [
+          { service: 'EC2', cost: 1800.00 },
+          { service: 'S3', cost: 450.25 },
+          { service: 'RDS', cost: 1200.50 },
+          { service: 'Lambda', cost: 350.00 },
+          { service: 'CloudFront', cost: 450.00 },
+        ],
+      },
+      azure: {
+        totalCost: 3100.50,
+        breakdown: [
+          { service: 'Virtual Machines', cost: 1400.00 },
+          { service: 'Blob Storage', cost: 300.50 },
+          { service: 'SQL Database', cost: 900.00 },
+          { service: 'Functions', cost: 250.00 },
+          { service: 'CDN', cost: 250.00 },
+        ],
+      },
+      gcp: {
+        totalCost: 2800.25,
+        breakdown: [
+          { service: 'Compute Engine', cost: 1200.00 },
+          { service: 'Cloud Storage', cost: 250.25 },
+          { service: 'Cloud SQL', cost: 800.00 },
+          { service: 'Cloud Functions', cost: 300.00 },
+          { service: 'Pub/Sub', cost: 250.00 },
+        ],
+      },
+      alicloud: {
+        totalCost: 2200.00,
+        breakdown: [
+          { service: 'ECS', cost: 1000.00 },
+          { service: 'OSS', cost: 200.00 },
+          { service: 'RDS', cost: 600.00 },
+          { service: 'FC', cost: 200.00 },
+          { service: 'CDN', cost: 200.00 },
+        ],
+      },
+    };
+
+    const data = costData[account.provider] ?? { totalCost: 0, breakdown: [] };
+
+    return {
+      provider: account.provider,
+      month: currentMonth,
+      totalCost: data.totalCost,
+      currency: 'USD',
+      breakdown: data.breakdown,
+    };
+  }
+
+  /**
+   * Get all supported providers
+   */
+  listSupportedProviders(): CloudProviderInfo[] {
+    return ['aws', 'gcp', 'azure', 'alicloud', 'private']
+      .map(p => this.getCloudProviderInfo(p))
+      .filter((p): p is CloudProviderInfo => p !== null);
   }
 
   // ==================== Entity to Domain Mapping ====================

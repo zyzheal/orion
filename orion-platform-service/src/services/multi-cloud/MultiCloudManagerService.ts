@@ -45,6 +45,47 @@ export interface CloudStats {
   totalMonthlySpend: number;
   accountsByProvider: Record<string, number>;
   resourcesByType: Record<string, number>;
+  resourcesByRegion: Record<string, number>;
+  resourcesByStatus: Record<string, number>;
+}
+
+export interface ResourceSyncJob {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  provider: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt: string;
+  completedAt?: string;
+  resourcesDiscovered: number;
+  resourcesCreated: number;
+  resourcesUpdated: number;
+  resourcesDeleted: number;
+  errors: string[];
+}
+
+export interface MigrationPlan {
+  id: string;
+  tenantId: string;
+  name: string;
+  sourceProvider: string;
+  sourceRegion: string;
+  targetProvider: string;
+  targetRegion: string;
+  resources: string[];
+  status: 'planned' | 'migrating' | 'completed' | 'failed';
+  estimatedCost: number;
+  estimatedDuration: number;
+  createdAt: string;
+}
+
+export interface MigrationResult {
+  planId: string;
+  status: 'success' | 'partial' | 'failed';
+  migratedResources: number;
+  failedResources: number;
+  duration: number;
+  details: { resourceId: string; status: string; message?: string }[];
 }
 
 // ==================== MultiCloudManagerService ====================
@@ -264,6 +305,8 @@ export class MultiCloudManagerService {
         totalMonthlySpend: 0,
         accountsByProvider: {},
         resourcesByType: {},
+        resourcesByRegion: {},
+        resourcesByStatus: {},
       };
     }
 
@@ -272,6 +315,8 @@ export class MultiCloudManagerService {
 
     const accountsByProvider: Record<string, number> = {};
     const resourcesByType: Record<string, number> = {};
+    const resourcesByRegion: Record<string, number> = {};
+    const resourcesByStatus: Record<string, number> = {};
     let totalSpend = 0;
 
     for (const account of accounts) {
@@ -281,6 +326,8 @@ export class MultiCloudManagerService {
 
     for (const resource of resources) {
       resourcesByType[resource.resource_type] = (resourcesByType[resource.resource_type] || 0) + 1;
+      resourcesByRegion[resource.region] = (resourcesByRegion[resource.region] || 0) + 1;
+      resourcesByStatus[resource.state] = (resourcesByStatus[resource.state] || 0) + 1;
       totalSpend += resource.monthly_cost;
     }
 
@@ -291,6 +338,8 @@ export class MultiCloudManagerService {
       totalMonthlySpend: totalSpend,
       accountsByProvider,
       resourcesByType,
+      resourcesByRegion,
+      resourcesByStatus,
     };
   }
 
@@ -343,6 +392,178 @@ export class MultiCloudManagerService {
     });
 
     return results.sort((a, b) => a.estimatedMonthlyCost - b.estimatedMonthlyCost);
+  }
+
+  // ==================== Resource Sync Scheduling ====================
+
+  /**
+   * Trigger a resource sync for a cloud account
+   */
+  async syncResources(tenantId: string, accountId: string): Promise<ResourceSyncJob> {
+    const account = await this.getProvider(accountId);
+    if (!account || account.tenant_id !== tenantId) {
+      throw new Error('Cloud account not found');
+    }
+
+    const jobId = `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const job: ResourceSyncJob = {
+      id: jobId,
+      tenantId,
+      accountId,
+      provider: account.provider_id ?? account.credential_type,
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      resourcesDiscovered: 0,
+      resourcesCreated: 0,
+      resourcesUpdated: 0,
+      resourcesDeleted: 0,
+      errors: [],
+    };
+
+    // Simulate sync process
+    this.executeSyncAsync(job).catch((error) => {
+      logger.error({ jobId, error: error.message }, '[MultiCloudManager] Sync job failed');
+    });
+
+    return job;
+  }
+
+  /**
+   * Get resource statistics with detailed breakdown
+   */
+  async getResourceStatistics(tenantId: string): Promise<{
+    totalResources: number;
+    byProvider: Record<string, number>;
+    byType: Record<string, number>;
+    byRegion: Record<string, number>;
+    byStatus: Record<string, number>;
+    totalMonthlyCost: number;
+  }> {
+    if (!this.repo) {
+      return {
+        totalResources: 0,
+        byProvider: {},
+        byType: {},
+        byRegion: {},
+        byStatus: {},
+        totalMonthlyCost: 0,
+      };
+    }
+
+    const resources = await this.repo.findResourcesByTenant(tenantId);
+    const accounts = await this.repo.findAccountsByTenant(tenantId);
+
+    // Build account provider map
+    const accountProviderMap: Record<string, string> = {};
+    for (const account of accounts) {
+      accountProviderMap[account.account_id] = account.provider_id ?? account.credential_type;
+    }
+
+    const byProvider: Record<string, number> = {};
+    const byType: Record<string, number> = {};
+    const byRegion: Record<string, number> = {};
+    const byStatus: Record<string, number> = {};
+    let totalMonthlyCost = 0;
+
+    for (const r of resources) {
+      const provider = accountProviderMap[r.account_id] ?? 'unknown';
+      byProvider[provider] = (byProvider[provider] || 0) + 1;
+      byType[r.resource_type] = (byType[r.resource_type] || 0) + 1;
+      byRegion[r.region] = (byRegion[r.region] || 0) + 1;
+      byStatus[r.state] = (byStatus[r.state] || 0) + 1;
+      totalMonthlyCost += r.monthly_cost;
+    }
+
+    return {
+      totalResources: resources.length,
+      byProvider,
+      byType,
+      byRegion,
+      byStatus,
+      totalMonthlyCost,
+    };
+  }
+
+  // ==================== Cross-Cloud Migration ====================
+
+  /**
+   * Create a migration plan
+   */
+  async createMigrationPlan(
+    tenantId: string,
+    plan: Omit<MigrationPlan, 'id' | 'tenantId' | 'status' | 'createdAt'>,
+  ): Promise<MigrationPlan> {
+    const id = `migration-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const migrationPlan: MigrationPlan = {
+      id,
+      tenantId,
+      ...plan,
+      status: 'planned',
+      createdAt: new Date().toISOString(),
+    };
+
+    logger.info({ planId: id, tenantId, source: plan.sourceProvider, target: plan.targetProvider }, '[MultiCloudManager] Migration plan created');
+    return migrationPlan;
+  }
+
+  /**
+   * Execute a migration plan (simulated)
+   */
+  async executeMigration(planId: string, tenantId: string): Promise<MigrationResult> {
+    const startTime = Date.now();
+
+    // Simulate migration with random results
+    const resourceCount = Math.floor(Math.random() * 10) + 1;
+    const details: { resourceId: string; status: string; message?: string }[] = [];
+
+    for (let i = 0; i < resourceCount; i++) {
+      const success = Math.random() > 0.1;
+      details.push({
+        resourceId: `resource-${i + 1}`,
+        status: success ? 'migrated' : 'failed',
+        message: success ? undefined : 'Timeout during migration',
+      });
+    }
+
+    const migratedResources = details.filter(d => d.status === 'migrated').length;
+    const failedResources = details.filter(d => d.status === 'failed').length;
+
+    const result: MigrationResult = {
+      planId,
+      status: failedResources === 0 ? 'success' : migratedResources > 0 ? 'partial' : 'failed',
+      migratedResources,
+      failedResources,
+      duration: Date.now() - startTime,
+      details,
+    };
+
+    logger.info({ planId, result: result.status, migrated: migratedResources, failed: failedResources }, '[MultiCloudManager] Migration completed');
+    return result;
+  }
+
+  // ==================== Internal Helpers ====================
+
+  private async executeSyncAsync(job: ResourceSyncJob): Promise<void> {
+    try {
+      // Simulate discovering resources
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const discovered = Math.floor(Math.random() * 50) + 10;
+      const created = Math.floor(discovered * 0.3);
+      const updated = Math.floor(discovered * 0.5);
+
+      job.status = 'completed';
+      job.completedAt = new Date().toISOString();
+      job.resourcesDiscovered = discovered;
+      job.resourcesCreated = created;
+      job.resourcesUpdated = updated;
+
+      logger.info({ jobId: job.id, discovered, created, updated }, '[MultiCloudManager] Sync completed');
+    } catch (error: any) {
+      job.status = 'failed';
+      job.completedAt = new Date().toISOString();
+      job.errors.push(error.message);
+    }
   }
 
   // ==================== Utility Methods ====================

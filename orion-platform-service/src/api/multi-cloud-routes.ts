@@ -3,6 +3,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { MultiCloudManagerService } from '../services/multi-cloud/MultiCloudManagerService';
+import { MultiCloudAdvancedService } from '../services/multi-cloud/MultiCloudAdvancedService';
 import { MultiCloudRepository } from '../repositories/MultiCloudRepository';
 import pino from 'pino';
 
@@ -30,6 +31,7 @@ export default async function multiCloudRoutes(
     : undefined;
 
   const multiCloudService = new MultiCloudManagerService(options.database);
+  const advancedService = new MultiCloudAdvancedService();
   if (repository) {
     multiCloudService.setRepository(repository);
   }
@@ -417,6 +419,242 @@ export default async function multiCloudRoutes(
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       return reply.status(500).send({ error: 'HEALTH_CHECK_FAILED', message });
+    }
+  });
+
+  // ============================================================================
+  // Resource Statistics
+  // ============================================================================
+
+  /**
+   * GET /v1/multi-cloud/statistics - 资源统计概览
+   */
+  app.get('/statistics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+
+    try {
+      const stats = await multiCloudService.getResourceStatistics(tenantId);
+      return reply.send({ success: true, data: stats });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(500).send({ error: 'STATISTICS_FAILED', message });
+    }
+  });
+
+  // ============================================================================
+  // Resource Sync
+  // ============================================================================
+
+  /**
+   * POST /v1/multi-cloud/sync/:accountId - 触发资源同步
+   */
+  app.post('/sync/:accountId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+    const params = request.params as { accountId: string };
+
+    try {
+      const job = await multiCloudService.syncResources(tenantId, params.accountId);
+      return reply.send({ success: true, data: job });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(400).send({ error: 'SYNC_FAILED', message });
+    }
+  });
+
+  // ============================================================================
+  // Compliance Check
+  // ============================================================================
+
+  /**
+   * POST /v1/multi-cloud/compliance/check - 执行合规检查
+   */
+  app.post('/compliance/check', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+    const body = request.body as { categories?: string[] };
+
+    try {
+      const report = await advancedService.runComplianceCheck(tenantId, body.categories);
+      return reply.send({ success: true, data: report });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(500).send({ error: 'COMPLIANCE_CHECK_FAILED', message });
+    }
+  });
+
+  /**
+   * GET /v1/multi-cloud/compliance/rules - 获取合规规则列表
+   */
+  app.get('/compliance/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const rules = advancedService.getComplianceRules();
+      return reply.send({ success: true, data: rules });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+    }
+  });
+
+  // ============================================================================
+  // Resource Scheduling
+  // ============================================================================
+
+  /**
+   * POST /v1/multi-cloud/scheduling/policies - 创建调度策略
+   */
+  app.post('/scheduling/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+    const body = request.body as {
+      name: string;
+      strategy: string;
+      constraints?: Record<string, any>;
+      priority?: number;
+      enabled?: boolean;
+    };
+
+    try {
+      const policy = await advancedService.createSchedulingPolicy(tenantId, {
+        name: body.name,
+        strategy: (body.strategy as any) ?? 'balanced',
+        constraints: body.constraints ?? {},
+        priority: body.priority ?? 1,
+        enabled: body.enabled ?? true,
+      });
+      return reply.status(201).send({ success: true, data: policy });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(400).send({ error: 'CREATE_POLICY_FAILED', message });
+    }
+  });
+
+  /**
+   * GET /v1/multi-cloud/scheduling/policies - 获取调度策略列表
+   */
+  app.get('/scheduling/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+
+    try {
+      const policies = await advancedService.listSchedulingPolicies(tenantId);
+      return reply.send({ success: true, data: policies });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+    }
+  });
+
+  /**
+   * POST /v1/multi-cloud/scheduling/schedule - 资源调度决策
+   */
+  app.post('/scheduling/schedule', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+    const body = request.body as {
+      resourceType: string;
+      spec?: { cpu?: number; memoryMb?: number; storageGb?: number };
+      policyId?: string;
+      preferredProvider?: string;
+      preferredRegion?: string;
+    };
+
+    try {
+      const decision = await advancedService.scheduleResource(tenantId, {
+        resourceType: body.resourceType,
+        spec: body.spec ?? {},
+        policyId: body.policyId,
+        preferredProvider: body.preferredProvider,
+        preferredRegion: body.preferredRegion,
+      });
+      return reply.send({ success: true, data: decision });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(400).send({ error: 'SCHEDULING_FAILED', message });
+    }
+  });
+
+  /**
+   * GET /v1/multi-cloud/scheduling/history - 调度历史
+   */
+  app.get('/scheduling/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+
+    try {
+      const history = await advancedService.getSchedulingHistory(tenantId);
+      return reply.send({ success: true, data: history });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+    }
+  });
+
+  // ============================================================================
+  // Cross-Cloud Migration
+  // ============================================================================
+
+  /**
+   * POST /v1/multi-cloud/migration/plan - 创建迁移计划
+   */
+  app.post('/migration/plan', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+    const body = request.body as {
+      name: string;
+      sourceProvider: string;
+      sourceRegion: string;
+      targetProvider: string;
+      targetRegion: string;
+      resources?: string[];
+      estimatedCost?: number;
+      estimatedDuration?: number;
+    };
+
+    try {
+      const plan = await multiCloudService.createMigrationPlan(tenantId, {
+        name: body.name,
+        sourceProvider: body.sourceProvider,
+        sourceRegion: body.sourceRegion,
+        targetProvider: body.targetProvider,
+        targetRegion: body.targetRegion,
+        resources: body.resources ?? [],
+        estimatedCost: body.estimatedCost ?? 0,
+        estimatedDuration: body.estimatedDuration ?? 0,
+      });
+      return reply.status(201).send({ success: true, data: plan });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(400).send({ error: 'CREATE_MIGRATION_FAILED', message });
+    }
+  });
+
+  /**
+   * POST /v1/multi-cloud/migration/:planId/execute - 执行迁移
+   */
+  app.post('/migration/:planId/execute', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
+    const params = request.params as { planId: string };
+
+    try {
+      const result = await multiCloudService.executeMigration(params.planId, tenantId);
+      return reply.send({ success: true, data: result });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(400).send({ error: 'MIGRATION_FAILED', message });
     }
   });
 }

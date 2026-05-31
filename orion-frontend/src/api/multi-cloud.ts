@@ -76,6 +76,109 @@ export interface ResourceHealth {
   checkedAt: string;
 }
 
+export interface ResourceStatistics {
+  totalResources: number;
+  byProvider: Record<string, number>;
+  byType: Record<string, number>;
+  byRegion: Record<string, number>;
+  byStatus: Record<string, number>;
+  totalMonthlyCost: number;
+}
+
+export interface ComplianceCheckResult {
+  ruleId: string;
+  ruleName: string;
+  category: string;
+  severity: string;
+  passed: boolean;
+  resource?: string;
+  details: string;
+  remediation?: string;
+  checkedAt: string;
+}
+
+export interface ComplianceReport {
+  id: string;
+  tenantId: string;
+  totalRules: number;
+  passedRules: number;
+  failedRules: number;
+  score: number;
+  results: ComplianceCheckResult[];
+  generatedAt: string;
+}
+
+export interface ComplianceRule {
+  id: string;
+  category: string;
+  name: string;
+  description: string;
+  severity: string;
+  checkFn: string;
+}
+
+export interface SchedulingPolicy {
+  id: string;
+  tenantId: string;
+  name: string;
+  strategy: string;
+  constraints: Record<string, any>;
+  priority: number;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface SchedulingDecision {
+  id: string;
+  policyId: string;
+  resourceType: string;
+  selectedProvider: string;
+  selectedRegion: string;
+  estimatedCost: number;
+  reason: string;
+  alternatives: { provider: string; region: string; cost: number }[];
+  decidedAt: string;
+}
+
+export interface ResourceSyncJob {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  provider: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+  resourcesDiscovered: number;
+  resourcesCreated: number;
+  resourcesUpdated: number;
+  resourcesDeleted: number;
+  errors: string[];
+}
+
+export interface MigrationPlan {
+  id: string;
+  tenantId: string;
+  name: string;
+  sourceProvider: string;
+  sourceRegion: string;
+  targetProvider: string;
+  targetRegion: string;
+  resources: string[];
+  status: string;
+  estimatedCost: number;
+  estimatedDuration: number;
+  createdAt: string;
+}
+
+export interface MigrationResult {
+  planId: string;
+  status: string;
+  migratedResources: number;
+  failedResources: number;
+  duration: number;
+  details: { resourceId: string; status: string; message?: string }[];
+}
+
 export const multiCloudApi = {
   /**
    * 云账号管理
@@ -215,6 +318,107 @@ export const multiCloudApi = {
   getCloudProviderInfo: async (provider: string) => {
     const response = await apiClient.get(`/v1/multi-cloud/providers/${provider}`);
     return response.data as { success: boolean; data: CloudProviderInfo };
+  },
+
+  /**
+   * 资源统计概览
+   */
+  getResourceStatistics: async () => {
+    const response = await apiClient.get('/v1/multi-cloud/statistics');
+    return response.data as { success: boolean; data: ResourceStatistics };
+  },
+
+  /**
+   * 触发资源同步
+   */
+  syncAccountResources: async (accountId: string) => {
+    const response = await apiClient.post(`/v1/multi-cloud/sync/${accountId}`);
+    return response.data as { success: boolean; data: ResourceSyncJob };
+  },
+
+  /**
+   * 合规检查
+   */
+  runComplianceCheck: async (categories?: string[]) => {
+    const response = await apiClient.post('/v1/multi-cloud/compliance/check', { categories });
+    return response.data as { success: boolean; data: ComplianceReport };
+  },
+
+  /**
+   * 获取合规规则列表
+   */
+  getComplianceRules: async () => {
+    const response = await apiClient.get('/v1/multi-cloud/compliance/rules');
+    return response.data as { success: boolean; data: ComplianceRule[] };
+  },
+
+  /**
+   * 创建调度策略
+   */
+  createSchedulingPolicy: async (data: {
+    name: string;
+    strategy: string;
+    constraints?: Record<string, any>;
+    priority?: number;
+    enabled?: boolean;
+  }) => {
+    const response = await apiClient.post('/v1/multi-cloud/scheduling/policies', data);
+    return response.data as { success: boolean; data: SchedulingPolicy };
+  },
+
+  /**
+   * 获取调度策略列表
+   */
+  listSchedulingPolicies: async () => {
+    const response = await apiClient.get('/v1/multi-cloud/scheduling/policies');
+    return response.data as { success: boolean; data: SchedulingPolicy[] };
+  },
+
+  /**
+   * 资源调度决策
+   */
+  scheduleResource: async (data: {
+    resourceType: string;
+    spec?: { cpu?: number; memoryMb?: number; storageGb?: number };
+    policyId?: string;
+    preferredProvider?: string;
+    preferredRegion?: string;
+  }) => {
+    const response = await apiClient.post('/v1/multi-cloud/scheduling/schedule', data);
+    return response.data as { success: boolean; data: SchedulingDecision };
+  },
+
+  /**
+   * 获取调度历史
+   */
+  getSchedulingHistory: async () => {
+    const response = await apiClient.get('/v1/multi-cloud/scheduling/history');
+    return response.data as { success: boolean; data: SchedulingDecision[] };
+  },
+
+  /**
+   * 创建迁移计划
+   */
+  createMigrationPlan: async (data: {
+    name: string;
+    sourceProvider: string;
+    sourceRegion: string;
+    targetProvider: string;
+    targetRegion: string;
+    resources?: string[];
+    estimatedCost?: number;
+    estimatedDuration?: number;
+  }) => {
+    const response = await apiClient.post('/v1/multi-cloud/migration/plan', data);
+    return response.data as { success: boolean; data: MigrationPlan };
+  },
+
+  /**
+   * 执行迁移
+   */
+  executeMigration: async (planId: string) => {
+    const response = await apiClient.post(`/v1/multi-cloud/migration/${planId}/execute`);
+    return response.data as { success: boolean; data: MigrationResult };
   },
 };
 

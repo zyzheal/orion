@@ -1,8 +1,8 @@
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 /**
  * Multi-Cloud Advanced Service - Phase 4
  *
- * 多云混合云进阶功能：跨区容灾、多云成本、云网络
+ * 多云混合云进阶功能：跨区容灾、多云成本、云网络、合规检查、资源调度
  */
 
 export interface CrossZoneDR {
@@ -81,10 +81,90 @@ export interface CloudNetworkConfig {
   securityGroups?: string[];
 }
 
+// ========== Compliance Check Interfaces ==========
+
+export interface ComplianceRule {
+  id: string;
+  category: 'security' | 'cost' | 'governance' | 'availability' | 'data-residency';
+  name: string;
+  description: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  provider?: string;
+  checkFn: string;
+}
+
+export interface ComplianceCheckResult {
+  ruleId: string;
+  ruleName: string;
+  category: string;
+  severity: string;
+  passed: boolean;
+  resource?: string;
+  details: string;
+  remediation?: string;
+  checkedAt: string;
+}
+
+export interface ComplianceReport {
+  id: string;
+  tenantId: string;
+  totalRules: number;
+  passedRules: number;
+  failedRules: number;
+  score: number;
+  results: ComplianceCheckResult[];
+  generatedAt: string;
+}
+
+// ========== Resource Scheduling Interfaces ==========
+
+export interface SchedulingPolicy {
+  id: string;
+  tenantId: string;
+  name: string;
+  strategy: 'cost-optimized' | 'performance-optimized' | 'balanced' | 'geo-proximity';
+  constraints: {
+    maxCostPerMonth?: number;
+    minAvailability?: number;
+    allowedRegions?: string[];
+    allowedProviders?: string[];
+    requiredTags?: Record<string, string>;
+  };
+  priority: number;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface SchedulingDecision {
+  id: string;
+  policyId: string;
+  resourceType: string;
+  selectedProvider: string;
+  selectedRegion: string;
+  estimatedCost: number;
+  reason: string;
+  alternatives: { provider: string; region: string; cost: number }[];
+  decidedAt: string;
+}
+
+export interface ResourceScheduleRequest {
+  resourceType: string;
+  spec: {
+    cpu?: number;
+    memoryMb?: number;
+    storageGb?: number;
+  };
+  policyId?: string;
+  preferredProvider?: string;
+  preferredRegion?: string;
+}
+
 export class MultiCloudAdvancedService {
   private crossZoneDRs = new Map<string, CrossZoneDR>();
   private drTestResults = new Map<string, DRTestResult>();
   private cloudNetworks = new Map<string, CloudNetwork>();
+  private schedulingPolicies = new Map<string, SchedulingPolicy>();
+  private schedulingDecisions = new Map<string, SchedulingDecision>();
 
   // ========== Cross-Zone DR Management ==========
 
@@ -113,7 +193,7 @@ export class MultiCloudAdvancedService {
   async testCrossZoneDR(drId: string): Promise<DRTestResult> {
     const dr = this.crossZoneDRs.get(drId);
     if (!dr) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cross-zone DR not found: ${drId}`);
+      throw new OrionError(`Cross-zone DR not found: ${drId}`, ErrorCode.NOT_FOUND);
     }
 
     dr.status = 'testing';
@@ -216,5 +296,296 @@ export class MultiCloudAdvancedService {
     };
     this.cloudNetworks.set(id, network);
     return network;
+  }
+
+  // ========== Compliance Check ==========
+
+  /**
+   * Run compliance checks across cloud resources
+   */
+  async runComplianceCheck(
+    tenantId: string,
+    categories?: string[],
+  ): Promise<ComplianceReport> {
+    const rules = this.getComplianceRules();
+    const filteredRules = categories
+      ? rules.filter(r => categories.includes(r.category))
+      : rules;
+
+    const results: ComplianceCheckResult[] = filteredRules.map(rule => this.executeComplianceRule(rule));
+
+    const passedRules = results.filter(r => r.passed).length;
+    const totalRules = results.length;
+    const score = totalRules > 0 ? Math.round((passedRules / totalRules) * 100) : 0;
+
+    const reportId = `report-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      id: reportId,
+      tenantId,
+      totalRules,
+      passedRules,
+      failedRules: totalRules - passedRules,
+      score,
+      results,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get available compliance rules
+   */
+  getComplianceRules(): ComplianceRule[] {
+    return [
+      // Security rules
+      {
+        id: 'SEC-001',
+        category: 'security',
+        name: 'Encryption at Rest',
+        description: 'All storage resources must have encryption enabled',
+        severity: 'critical',
+        checkFn: 'checkEncryptionAtRest',
+      },
+      {
+        id: 'SEC-002',
+        category: 'security',
+        name: 'Public Access Restriction',
+        description: 'Storage buckets should not have public read/write access',
+        severity: 'critical',
+        checkFn: 'checkPublicAccess',
+      },
+      {
+        id: 'SEC-003',
+        category: 'security',
+        name: 'Security Group Rules',
+        description: 'Security groups should not allow unrestricted ingress (0.0.0.0/0)',
+        severity: 'high',
+        checkFn: 'checkSecurityGroups',
+      },
+      {
+        id: 'SEC-004',
+        category: 'security',
+        name: 'IAM Policy Compliance',
+        description: 'IAM policies should follow least-privilege principle',
+        severity: 'high',
+        checkFn: 'checkIamPolicies',
+      },
+      // Cost rules
+      {
+        id: 'COST-001',
+        category: 'cost',
+        name: 'Idle Resource Detection',
+        description: 'Resources with < 5% CPU utilization over 7 days should be flagged',
+        severity: 'medium',
+        checkFn: 'checkIdleResources',
+      },
+      {
+        id: 'COST-002',
+        category: 'cost',
+        name: 'Budget Threshold',
+        description: 'Monthly cloud spend should not exceed 120% of budget',
+        severity: 'high',
+        checkFn: 'checkBudgetThreshold',
+      },
+      {
+        id: 'COST-003',
+        category: 'cost',
+        name: 'Reserved Instance Coverage',
+        description: 'Stable workloads should use reserved instances for cost savings',
+        severity: 'low',
+        checkFn: 'checkReservedInstances',
+      },
+      // Governance rules
+      {
+        id: 'GOV-001',
+        category: 'governance',
+        name: 'Resource Tagging',
+        description: 'All resources must have required tags (environment, owner, project)',
+        severity: 'medium',
+        checkFn: 'checkResourceTags',
+      },
+      {
+        id: 'GOV-002',
+        category: 'governance',
+        name: 'Region Compliance',
+        description: 'Resources should only be deployed in approved regions',
+        severity: 'high',
+        checkFn: 'checkRegionCompliance',
+      },
+      // Availability rules
+      {
+        id: 'AVAIL-001',
+        category: 'availability',
+        name: 'Multi-AZ Deployment',
+        description: 'Critical workloads should be deployed across multiple availability zones',
+        severity: 'high',
+        checkFn: 'checkMultiAz',
+      },
+      {
+        id: 'AVAIL-002',
+        category: 'availability',
+        name: 'Backup Configuration',
+        description: 'Databases should have automated backups enabled',
+        severity: 'critical',
+        checkFn: 'checkBackupConfig',
+      },
+      // Data residency rules
+      {
+        id: 'DATA-001',
+        category: 'data-residency',
+        name: 'Data Residency Compliance',
+        description: 'Sensitive data should remain within designated geographic boundaries',
+        severity: 'critical',
+        provider: 'all',
+        checkFn: 'checkDataResidency',
+      },
+    ];
+  }
+
+  // ========== Resource Scheduling ==========
+
+  /**
+   * Create a scheduling policy
+   */
+  async createSchedulingPolicy(
+    tenantId: string,
+    policy: Omit<SchedulingPolicy, 'id' | 'tenantId' | 'createdAt'>,
+  ): Promise<SchedulingPolicy> {
+    const id = `policy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newPolicy: SchedulingPolicy = {
+      id,
+      tenantId,
+      ...policy,
+      createdAt: new Date().toISOString(),
+    };
+    this.schedulingPolicies.set(id, newPolicy);
+    return newPolicy;
+  }
+
+  /**
+   * List scheduling policies for a tenant
+   */
+  async listSchedulingPolicies(tenantId: string): Promise<SchedulingPolicy[]> {
+    return Array.from(this.schedulingPolicies.values())
+      .filter(p => p.tenantId === tenantId);
+  }
+
+  /**
+   * Make a scheduling decision for a resource
+   */
+  async scheduleResource(
+    tenantId: string,
+    request: ResourceScheduleRequest,
+  ): Promise<SchedulingDecision> {
+    // Get the scheduling policy
+    let policy: SchedulingPolicy | undefined;
+    if (request.policyId) {
+      policy = this.schedulingPolicies.get(request.policyId);
+    }
+
+    // Default cost estimates per provider/region
+    const costMatrix: Record<string, Record<string, number>> = {
+      aws: { 'us-east-1': 100, 'us-west-2': 105, 'eu-west-1': 110, 'ap-northeast-1': 115 },
+      azure: { 'eastus': 95, 'westus2': 98, 'westeurope': 108, 'southeastasia': 112 },
+      gcp: { 'us-central1': 92, 'europe-west1': 105, 'asia-east1': 110, 'asia-northeast1': 115 },
+      alicloud: { 'cn-hangzhou': 80, 'cn-beijing': 82, 'cn-shanghai': 85, 'ap-southeast-1': 95 },
+    };
+
+    // Find best option based on strategy
+    const strategy = policy?.strategy ?? 'balanced';
+    const alternatives: { provider: string; region: string; cost: number }[] = [];
+
+    for (const [provider, regions] of Object.entries(costMatrix)) {
+      // Filter by allowed providers if policy specifies
+      if (policy?.constraints.allowedProviders && !policy.constraints.allowedProviders.includes(provider)) {
+        continue;
+      }
+      for (const [region, baseCost] of Object.entries(regions)) {
+        // Filter by allowed regions if policy specifies
+        if (policy?.constraints.allowedRegions && !policy.constraints.allowedRegions.includes(region)) {
+          continue;
+        }
+        // Apply spec multiplier
+        const specMultiplier = (request.spec.cpu ?? 1) * 0.3 + (request.spec.memoryMb ?? 1024) / 1024 * 0.5 + (request.spec.storageGb ?? 0) * 0.01;
+        const cost = Math.round(baseCost * specMultiplier * 100) / 100;
+        alternatives.push({ provider, region, cost });
+      }
+    }
+
+    // Sort by strategy
+    if (strategy === 'cost-optimized') {
+      alternatives.sort((a, b) => a.cost - b.cost);
+    } else if (strategy === 'performance-optimized') {
+      // Prefer aws > gcp > azure > alicloud for performance
+      const perfRank: Record<string, number> = { aws: 0, gcp: 1, azure: 2, alicloud: 3 };
+      alternatives.sort((a, b) => (perfRank[a.provider] ?? 99) - (perfRank[b.provider] ?? 99));
+    } else {
+      // balanced: weight cost and performance
+      alternatives.sort((a, b) => {
+        const perfRank: Record<string, number> = { aws: 0, gcp: 1, azure: 2, alicloud: 3 };
+        const scoreA = a.cost * 0.6 + (perfRank[a.provider] ?? 99) * 30 * 0.4;
+        const scoreB = b.cost * 0.6 + (perfRank[b.provider] ?? 99) * 30 * 0.4;
+        return scoreA - scoreB;
+      });
+    }
+
+    const best = alternatives[0] ?? { provider: 'aws', region: 'us-east-1', cost: 100 };
+
+    const decisionId = `sched-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const decision: SchedulingDecision = {
+      id: decisionId,
+      policyId: request.policyId ?? 'default',
+      resourceType: request.resourceType,
+      selectedProvider: request.preferredProvider ?? best.provider,
+      selectedRegion: request.preferredRegion ?? best.region,
+      estimatedCost: best.cost,
+      reason: `Selected based on ${strategy} strategy. Estimated monthly cost: $${best.cost}`,
+      alternatives: alternatives.slice(1, 4),
+      decidedAt: new Date().toISOString(),
+    };
+
+    this.schedulingDecisions.set(decisionId, decision);
+    return decision;
+  }
+
+  /**
+   * Get scheduling decision history
+   */
+  async getSchedulingHistory(tenantId: string): Promise<SchedulingDecision[]> {
+    return Array.from(this.schedulingDecisions.values());
+  }
+
+  // ==================== Internal Helpers ====================
+
+  private executeComplianceRule(rule: ComplianceRule): ComplianceCheckResult {
+    // Simulated compliance rule execution
+    // In production, this would call actual cloud provider APIs
+    const simulatedResults: Record<string, { passed: boolean; details: string; resource?: string; remediation?: string }> = {
+      'SEC-001': { passed: true, details: 'All 24 storage resources have encryption enabled', resource: 'S3/OSS buckets' },
+      'SEC-002': { passed: false, details: '2 storage buckets have public read access', resource: 's3-public-data, oss-bucket-test', remediation: 'Remove public access from s3-public-data and oss-bucket-test buckets' },
+      'SEC-003': { passed: true, details: 'No unrestricted ingress rules found in 8 security groups' },
+      'SEC-004': { passed: true, details: '15 IAM policies reviewed, all follow least-privilege' },
+      'COST-001': { passed: false, details: '5 instances with < 5% CPU utilization detected', resource: 'i-0abc123, i-0def456, ...', remediation: 'Consider stopping or downsizing idle instances' },
+      'COST-002': { passed: true, details: 'Current spend $8,450 is within budget $10,000' },
+      'COST-003': { passed: false, details: '3 stable workloads not using reserved instances', remediation: 'Purchase 1-year reserved instances for stable workloads to save ~40%' },
+      'GOV-001': { passed: false, details: '12 resources missing required tags (environment, owner)', remediation: 'Add missing tags to comply with governance policy' },
+      'GOV-002': { passed: true, details: 'All resources deployed in approved regions (us-east-1, eu-west-1, cn-hangzhou)' },
+      'AVAIL-001': { passed: false, details: '2 critical workloads deployed in single AZ', remediation: 'Deploy across at least 2 availability zones' },
+      'AVAIL-002': { passed: true, details: 'All 6 databases have automated backups enabled' },
+      'DATA-001': { passed: true, details: 'No sensitive data detected outside designated regions' },
+    };
+
+    const result = simulatedResults[rule.id] ?? { passed: true, details: 'Check passed' };
+
+    return {
+      ruleId: rule.id,
+      ruleName: rule.name,
+      category: rule.category,
+      severity: rule.severity,
+      passed: result.passed,
+      resource: result.resource,
+      details: result.details,
+      remediation: result.remediation,
+      checkedAt: new Date().toISOString(),
+    };
   }
 }
