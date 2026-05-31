@@ -47,3 +47,8 @@ temp/
 
 # Rust build artifacts
 target/
+
+# Large binaries (use Git LFS if needed)
+orion-knowledge/backend/bin/api
+orion-knowledge/pandawiki-api
+orion-cmdb-service/bin/cmdbd
