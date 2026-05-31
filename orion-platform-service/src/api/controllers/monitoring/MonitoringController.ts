@@ -1017,7 +1017,7 @@ export class MonitoringController {
    * GET /api/v1/monitoring/dashboard
    */
   async getDashboard(request: FastifyRequest, reply: FastifyReply) {
-    const dashboard = this.monitoringService.getDashboardData();
+    const dashboard = await this.monitoringService.getDashboardData();
     await reply.status(200).send({
       success: true,
       data: { dashboard },

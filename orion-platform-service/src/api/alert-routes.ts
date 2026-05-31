@@ -64,7 +64,7 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Process deduplication
-      const processResult = deduplication.processAlert(alert);
+      const processResult = await deduplication.processAlert(alert);
       return created(reply, request, {
         status: processResult.action === 'create' ? 'created' : 'updated',
         alert,
@@ -98,7 +98,7 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /alert/topology - 获取告警拓扑图
   app.get('/topology', async (request: FastifyRequest, reply: FastifyReply) => {
-    const topology = correlationService.getTopology();
+    const topology = await correlationService.getTopology();
     return success(reply, request, { topology });
   });
 
@@ -106,7 +106,7 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
   app.post('/topology', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
-      correlationService.setTopology(body as any);
+      await correlationService.setTopology(body as any);
       return success(reply, request, {
         status: 'updated',
         nodeCount: (body.nodes as any[])?.length || 0,
@@ -120,20 +120,20 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
   // ==================== Alert Deduplication ====================
   // GET /alert/deduplication/stats - 获取去重统计
   app.get('/deduplication/stats', async (request: FastifyRequest, reply: FastifyReply) => {
-    const stats = deduplication.getStats();
+    const stats = await deduplication.getStats();
     return success(reply, request, { stats });
   });
 
   // GET /alert/groups - 获取告警分组
   app.get('/groups', async (request: FastifyRequest, reply: FastifyReply) => {
-    const groups = deduplication.getActiveGroups();
+    const groups = await deduplication.getActiveGroups();
     return success(reply, request, { groups });
   });
 
   // ==================== Alert Suppression ====================
   // GET /alert/suppression/stats - 获取抑制统计
   app.get('/suppression/stats', async (request: FastifyRequest, reply: FastifyReply) => {
-    const stats = suppressionService.getStats();
+    const stats = await suppressionService.getStats();
     return success(reply, request, { stats });
   });
 
@@ -191,7 +191,7 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
   // GET /alert/suppression/alerts - 获取活跃告警
   // P0-6 Fix: Return active alerts instead of stats
   app.get('/suppression/alerts', async (request: FastifyRequest, reply: FastifyReply) => {
-    const groups = deduplication.getActiveGroups();
+    const groups = await deduplication.getActiveGroups();
     const allAlerts = groups.flatMap(g => g.alerts);
     return success(reply, request, { alerts: allAlerts, total: allAlerts.length });
   });
@@ -202,7 +202,7 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
     const query = request.query as Record<string, unknown>;
 
     // Get active groups from deduplication service
-    const groups = deduplication.getActiveGroups();
+    const groups = await deduplication.getActiveGroups();
     const allAlerts = groups.flatMap(g => g.alerts);
 
     // Filter by severity
@@ -229,7 +229,7 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
   // GET /alert/:id - 获取告警详情
   app.get('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
-    const groups = deduplication.getActiveGroups();
+    const groups = await deduplication.getActiveGroups();
     const allAlerts = groups.flatMap(g => g.alerts);
     const alert = allAlerts.find((a) => a.id === id);
 

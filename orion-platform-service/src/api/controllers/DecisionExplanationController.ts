@@ -45,7 +45,7 @@ export class DecisionExplanationController {
     }
 
     try {
-      const explanation = this.service.explainDecision({
+      const explanation = await this.service.explainDecision({
         decisionId,
         decisionType,
         decision,
@@ -197,7 +197,7 @@ export class DecisionExplanationController {
     const { id } = request.params;
 
     try {
-      const explanation = this.service.getExplanationById(id);
+      const explanation = await this.service.getExplanationById(id);
 
       if (!explanation) {
         return reply.status(404).send({
@@ -232,7 +232,7 @@ export class DecisionExplanationController {
     const limitNum = limit ? parseInt(limit, 10) : 50;
 
     try {
-      const history = this.service.getExplanationHistory(limitNum, decisionType);
+      const history = await this.service.getExplanationHistory(limitNum, decisionType);
 
       return reply.send({
         data: history,
