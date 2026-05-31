@@ -74,7 +74,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     };
   }
 
-  async create(data: Omit<T, 'id' | 'created_at' | 'updated_at'> & Partial<Pick<T, 'id'>>): Promise<T> {
+  async create(data: any): Promise<T> {
     const columns = Object.keys(data);
     const values = Object.values(data);
 
@@ -92,7 +92,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async update(id: string, data: Partial<Omit<T, 'id' | 'created_at'>>): Promise<T> {
+  async update(id: string, data: any): Promise<T> {
     const columns = Object.keys(data);
     const values = Object.values(data);
 
