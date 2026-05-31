@@ -1,0 +1,11 @@
+/Users/heal/orion-design/orion-security-svc-rust/target/debug/deps/url-aa0b398da3534ab4.d: /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/lib.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/host.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/origin.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/parser.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/path_segments.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/slicing.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/quirks.rs
+
+/Users/heal/orion-design/orion-security-svc-rust/target/debug/deps/liburl-aa0b398da3534ab4.rmeta: /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/lib.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/host.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/origin.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/parser.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/path_segments.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/slicing.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/quirks.rs
+
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/lib.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/host.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/origin.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/parser.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/path_segments.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/slicing.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/url-2.5.8/src/quirks.rs:

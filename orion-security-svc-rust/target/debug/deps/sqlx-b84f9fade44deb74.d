@@ -1,0 +1,12 @@
+/Users/heal/orion-design/orion-security-svc-rust/target/debug/deps/sqlx-b84f9fade44deb74.d: /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/lib.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/any/mod.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/macros/mod.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/ty_match.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/spec_error.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/lib.md /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/macros/test.md /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/any/install_drivers_note.md
+
+/Users/heal/orion-design/orion-security-svc-rust/target/debug/deps/libsqlx-b84f9fade44deb74.rmeta: /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/lib.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/any/mod.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/macros/mod.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/ty_match.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/spec_error.rs /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/lib.md /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/macros/test.md /Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/any/install_drivers_note.md
+
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/lib.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/any/mod.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/macros/mod.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/ty_match.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/spec_error.rs:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/lib.md:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/macros/test.md:
+/Users/heal/.cargo/registry/src/mirrors.ustc.edu.cn-38d0e5eb5da2abae/sqlx-0.8.6/src/any/install_drivers_note.md:
