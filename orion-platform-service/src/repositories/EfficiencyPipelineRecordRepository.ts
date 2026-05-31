@@ -5,7 +5,7 @@
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
-import { OrionError } from '../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface EfficiencyPipelineRecordEntity {
   id: string;

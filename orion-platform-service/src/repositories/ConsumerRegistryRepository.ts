@@ -1,6 +1,7 @@
 import { BaseRepository } from '../db/base-repository';
 
 export interface ConsumerRegistryEntity {
+  id: string;
   consumerId: string;
   groupName: string;
   queueName: string;
