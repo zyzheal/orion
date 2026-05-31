@@ -9,6 +9,258 @@ import {
   ProgressiveDeploymentServiceError,
 } from '../ProgressiveDeploymentService';
 
+// Mock database for testing - uses a shared store that gets cleared between tests
+let mockStore = new Map<string, any>();
+let mockIdCounter = 0;
+
+function createMockDb() {
+  return {
+    query: async (text: string, params?: unknown[]) => {
+      const sql = text.trim().toUpperCase();
+
+      if (sql.startsWith('INSERT')) {
+        const values: any = {};
+        const colMatch = text.match(/\(([^)]+)\)\s*VALUES/i);
+        if (colMatch && params) {
+          const cols = colMatch[1].split(',').map(c => c.trim());
+          cols.forEach((col, i) => { values[col] = params[i]; });
+        }
+        const id = values.id || `auto-${++mockIdCounter}`;
+        values.id = id;
+        values.created_at = values.created_at || new Date();
+        values.updated_at = values.updated_at || new Date();
+        mockStore.set(id, values);
+        return { rows: [values], rowCount: 1 };
+      }
+
+      if (sql.startsWith('SELECT')) {
+        let results = Array.from(mockStore.values());
+        if (text.includes('WHERE')) {
+          // Extract WHERE clause (everything between WHERE and ORDER/LIMIT/GROUP/end)
+          const whereStart = text.indexOf('WHERE');
+          const afterWhere = text.substring(whereStart + 5);
+          // Find the end of WHERE clause
+          const orderIdx = afterWhere.search(/\s+ORDER\s+/i);
+          const limitIdx = afterWhere.search(/\s+LIMIT\s+/i);
+          const groupIdx = afterWhere.search(/\s+GROUP\s+/i);
+          let endIdx = afterWhere.length;
+          if (orderIdx > 0) endIdx = Math.min(endIdx, orderIdx);
+          if (limitIdx > 0) endIdx = Math.min(endIdx, limitIdx);
+          if (groupIdx > 0) endIdx = Math.min(endIdx, groupIdx);
+          const whereClause = afterWhere.substring(0, endIdx).trim();
+
+          // Parse conditions - split by AND but respect parentheses
+          const conditions: string[] = [];
+          let depth = 0;
+          let current = '';
+          for (let i = 0; i < whereClause.length; i++) {
+            const ch = whereClause[i];
+            if (ch === '(') depth++;
+            if (ch === ')') depth--;
+            if (depth === 0 && whereClause.substring(i).match(/^\s+AND\s+/i)) {
+              conditions.push(current.trim());
+              current = '';
+              i += whereClause.substring(i).match(/^\s+AND\s+/i)![0].length - 1;
+            } else {
+              current += ch;
+            }
+          }
+          if (current.trim()) conditions.push(current.trim());
+
+          for (const cond of conditions) {
+            // Handle column = $N
+            const eqMatch = cond.match(/^(\w+)\s*=\s*\$(\d+)$/);
+            if (eqMatch) {
+              const col = eqMatch[1];
+              const idx = parseInt(eqMatch[2]) - 1;
+              if (idx < params!.length) {
+                results = results.filter(r => r[col] === params![idx]);
+              }
+              continue;
+            }
+            // Handle column NOT IN ('a', 'b')
+            const notInMatch = cond.match(/^(\w+)\s+NOT\s+IN\s*\(([^)]+)\)/i);
+            if (notInMatch) {
+              const col = notInMatch[1];
+              const excluded = notInMatch[2].split(',').map(s => s.replace(/'/g, '').trim());
+              results = results.filter(r => !excluded.includes(r[col]));
+              continue;
+            }
+            // Handle (expr1 OR expr2)
+            if (cond.startsWith('(') && cond.includes(' OR ')) {
+              const inner = cond.slice(1, -1);
+              const orConds = inner.split(/\s+OR\s+/i);
+              results = results.filter(r => {
+                return orConds.some(orCond => {
+                  const ltMatch = orCond.match(/(\w+)\s*<\s*\$(\d+)/);
+                  if (ltMatch) {
+                    const col = ltMatch[1];
+                    const idx = parseInt(ltMatch[2]) - 1;
+                    if (r[col] && params && params[idx]) {
+                      return new Date(r[col]).getTime() < new Date(params[idx] as any).getTime();
+                    }
+                  }
+                  const nullMatch = orCond.match(/(\w+)\s+IS\s+NULL/i);
+                  if (nullMatch) {
+                    return r[nullMatch[1]] === null || r[nullMatch[1]] === undefined;
+                  }
+                  return false;
+                });
+              });
+              continue;
+            }
+            // Handle column IS NULL
+            const nullMatch = cond.match(/^(\w+)\s+IS\s+NULL$/i);
+            if (nullMatch) {
+              results = results.filter(r => r[nullMatch[1]] === null || r[nullMatch[1]] === undefined);
+              continue;
+            }
+          }
+        }
+        // LIMIT
+        const limitMatch = text.match(/LIMIT\s*\$(\d+)/i);
+        if (limitMatch && params) {
+          const idx = parseInt(limitMatch[1]) - 1;
+          results = results.slice(0, params[idx] as number);
+        }
+        return { rows: results, rowCount: results.length };
+      }
+
+      if (sql.startsWith('UPDATE')) {
+        const whereMatch = text.match(/WHERE\s+(.+?)(?:RETURNING|$)/is);
+        if (whereMatch && params) {
+          // Find the target row
+          let target: any = null;
+          const whereClause = whereMatch[1].trim();
+          const eqMatch = whereClause.match(/(\w+)\s*=\s*\$(\d+)/);
+          if (eqMatch) {
+            const col = eqMatch[1];
+            const idx = parseInt(eqMatch[2]) - 1;
+            const key = params[idx] as string;
+            target = mockStore.get(key) || Array.from(mockStore.values()).find(r => r[col] === key);
+          }
+
+          if (target) {
+            const setMatch = text.match(/SET\s+(.+?)\s+WHERE/is);
+            if (setMatch) {
+              const assignments = setMatch[1].split(',');
+              for (const assignment of assignments) {
+                const colMatch = assignment.trim().match(/(\w+)\s*=\s*\$(\d+)/);
+                if (colMatch) {
+                  const col = colMatch[1];
+                  const pIdx = parseInt(colMatch[2]) - 1;
+                  if (col !== 'updated_at' && pIdx < params.length) {
+                    target[col] = params[pIdx];
+                  }
+                }
+              }
+              target.updated_at = new Date();
+              mockStore.set(target.id, target);
+            }
+            return { rows: [target], rowCount: 1 };
+          }
+        }
+        return { rows: [], rowCount: 0 };
+      }
+
+      if (sql.startsWith('DELETE')) {
+        const whereStart = text.indexOf('WHERE');
+        if (whereStart > 0) {
+          const whereClause = text.substring(whereStart + 5).trim();
+
+          // Simple id/deployment_id match
+          const simpleMatch = whereClause.match(/^(\w+)\s*=\s*\$(\d+)$/);
+          if (simpleMatch && params) {
+            const col = simpleMatch[1];
+            const idx = parseInt(simpleMatch[2]) - 1;
+            const key = params[idx] as string;
+            if (col === 'id' && mockStore.has(key)) {
+              mockStore.delete(key);
+              return { rows: [], rowCount: 1 };
+            }
+            const entry = Array.from(mockStore.entries()).find(([, v]) => v[col] === key);
+            if (entry) {
+              mockStore.delete(entry[0]);
+              return { rows: [], rowCount: 1 };
+            }
+            return { rows: [], rowCount: 0 };
+          }
+
+          // Complex WHERE with multiple conditions - parse respecting parentheses
+          const conditions: string[] = [];
+          let depth = 0;
+          let current = '';
+          for (let i = 0; i < whereClause.length; i++) {
+            const ch = whereClause[i];
+            if (ch === '(') depth++;
+            if (ch === ')') depth--;
+            if (depth === 0 && whereClause.substring(i).match(/^\s+AND\s+/i)) {
+              conditions.push(current.trim());
+              current = '';
+              i += whereClause.substring(i).match(/^\s+AND\s+/i)![0].length - 1;
+            } else {
+              current += ch;
+            }
+          }
+          if (current.trim()) conditions.push(current.trim());
+
+          const matches = Array.from(mockStore.entries()).filter(([, v]) => {
+            return conditions.every(cond => {
+              // Simple equality
+              const eqMatch = cond.match(/^(\w+)\s*=\s*\$(\d+)$/);
+              if (eqMatch && params) {
+                const col = eqMatch[1];
+                const idx = parseInt(eqMatch[2]) - 1;
+                return v[col] === params[idx];
+              }
+              // IN clause with string literals
+              const inMatch = cond.match(/^(\w+)\s+IN\s*\(([^)]+)\)/i);
+              if (inMatch) {
+                const col = inMatch[1];
+                const vals = inMatch[2].split(',').map(s => s.replace(/'/g, '').trim());
+                return vals.includes(v[col]);
+              }
+              // OR group
+              if (cond.startsWith('(') && cond.includes(' OR ')) {
+                const inner = cond.slice(1, -1);
+                const orConds = inner.split(/\s+OR\s+/i);
+                return orConds.some(orCond => {
+                  // Handle nested AND
+                  const andConds = orCond.split(/\s+AND\s+/i);
+                  return andConds.every(ac => {
+                    const ltMatch = ac.match(/(\w+)\s*<\s*\$(\d+)/);
+                    if (ltMatch && params) {
+                      const col = ltMatch[1];
+                      const idx = parseInt(ltMatch[2]) - 1;
+                      if (v[col] && params[idx]) {
+                        return new Date(v[col]).getTime() < new Date(params[idx] as any).getTime();
+                      }
+                    }
+                    const nullMatch = ac.match(/(\w+)\s+IS\s+NULL/i);
+                    if (nullMatch) {
+                      return v[nullMatch[1]] === null || v[nullMatch[1]] === undefined;
+                    }
+                    return false;
+                  });
+                });
+              }
+              return true;
+            });
+          });
+
+          for (const [k] of matches) {
+            mockStore.delete(k);
+          }
+          return { rows: [], rowCount: matches.length };
+        }
+        return { rows: [], rowCount: 0 };
+      }
+
+      return { rows: [], rowCount: 0 };
+    },
+  };
+}
+
 const DEFAULT_CONFIG: ProgressiveDeployConfig = {
   strategy: 'canary',
   initialTrafficPercent: 10,
@@ -23,7 +275,9 @@ describe('ProgressiveDeploymentService', () => {
   let service: ProgressiveDeploymentService;
 
   beforeEach(() => {
-    service = new ProgressiveDeploymentService();
+    mockStore = new Map();
+    mockIdCounter = 0;
+    service = new ProgressiveDeploymentService(createMockDb() as any);
   });
 
   describe('startProgressiveDeploy', () => {
@@ -403,11 +657,10 @@ describe('ProgressiveDeploymentService', () => {
         incrementPercent: 10,
       }); // complete
 
-      // Mock time by manually manipulating - set completedAt to past
-      const deployment = await service.getStatus('deploy-001');
-      if (deployment && deployment.completedAt) {
-        // Override completedAt to be in the past
-        (deployment as any).completedAt = new Date(Date.now() - 60000);
+      // Update the completed_at in the mock DB to be in the past
+      const entry = Array.from(mockStore.values()).find(r => r.deployment_id === 'deploy-001');
+      if (entry) {
+        entry.completed_at = new Date(Date.now() - 60000);
       }
 
       // Clean only deployments older than 1 hour - should not delete

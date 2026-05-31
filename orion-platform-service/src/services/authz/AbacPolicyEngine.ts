@@ -5,7 +5,15 @@
  * - 属性条件定义和评估
  * - 政策组合规则（AND, OR, NOT）
  * - 动态权限计算
+ *
+ * Persistence: Uses AbacPolicyRepository backed by abac_policies table (migration 050).
+ * In-memory Map is used as a read-through cache; writes go to PostgreSQL.
  */
+
+import pino from 'pino';
+import { AbacPolicyRepository, AbacPolicyEntity } from '../../repositories/AbacPolicyRepository';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
  * ABAC 属性上下文
@@ -346,6 +354,67 @@ export const SYSTEM_ABAC_POLICIES: AbacPolicy[] = [
   },
 ];
 
+/** Convert a DB entity to the service-level AbacPolicy interface */
+function entityToPolicy(entity: AbacPolicyEntity): AbacPolicy {
+  // Parse resourceType from DB (stored as string; may be JSON array or '*' or single value)
+  let resourceType: string | string[];
+  try {
+    const parsed = JSON.parse(entity.resourceType);
+    resourceType = Array.isArray(parsed) ? parsed : entity.resourceType;
+  } catch {
+    resourceType = entity.resourceType;
+  }
+
+  // Parse actionType similarly
+  let actionType: string | string[];
+  try {
+    const parsed = JSON.parse(entity.actionType);
+    actionType = Array.isArray(parsed) ? parsed : entity.actionType;
+  } catch {
+    actionType = entity.actionType;
+  }
+
+  // Reconstruct conditions from the three JSONB columns
+  // The full ConditionRule is stored in resourceConditions for custom policies
+  // System policies use subject/resource/environment conditions separately
+  let conditions: ConditionRule;
+  const hasDetailedConditions =
+    Object.keys(entity.subjectConditions).length > 0 ||
+    Object.keys(entity.environmentConditions).length > 0;
+
+  if (hasDetailedConditions) {
+    // Reconstruct AND rule from the three condition groups
+    const parts: ConditionRule[] = [];
+    if (Object.keys(entity.subjectConditions).length > 0) {
+      parts.push(entity.subjectConditions as unknown as ConditionRule);
+    }
+    if (Object.keys(entity.resourceConditions).length > 0) {
+      parts.push(entity.resourceConditions as unknown as ConditionRule);
+    }
+    if (Object.keys(entity.environmentConditions).length > 0) {
+      parts.push(entity.environmentConditions as unknown as ConditionRule);
+    }
+    conditions = parts.length === 1 ? parts[0] : { and: parts };
+  } else {
+    // Fallback: try to parse resourceConditions as the full ConditionRule
+    conditions = (entity.resourceConditions as unknown as ConditionRule) || { condition: { attribute: 'user.id', operator: 'exists' } };
+  }
+
+  return {
+    id: entity.id,
+    name: entity.name,
+    description: entity.description ?? undefined,
+    resourceType,
+    actionType,
+    conditions,
+    effect: entity.effect,
+    priority: entity.priority,
+    enabled: entity.enabled,
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+  };
+}
+
 /**
  * ABAC Policy Engine
  */
@@ -354,8 +423,11 @@ export class AbacPolicyEngine {
   private policyCache: Map<string, PolicyEvaluationResult> = new Map();
   private cacheEnabled: boolean = true;
   private cacheTTL: number = 60000; // 1 分钟
+  private repository: AbacPolicyRepository | null;
+  private initialized = false;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = db ? new AbacPolicyRepository(db) : null;
     this.initSystemPolicies();
   }
 
@@ -373,21 +445,82 @@ export class AbacPolicyEngine {
   }
 
   /**
+   * Load policies from PostgreSQL database.
+   * Merges with system policies (system policies take precedence on ID conflicts).
+   */
+  async loadFromDatabase(): Promise<void> {
+    if (!this.repository) {
+      logger.warn('[AbacPolicyEngine] No database connection, using in-memory policies only');
+      return;
+    }
+
+    try {
+      const entities = await this.repository.findAll();
+      const dbPolicies = entities.map(entityToPolicy);
+
+      // Add DB policies that don't conflict with system policies
+      for (const policy of dbPolicies) {
+        if (!this.policies.has(policy.id)) {
+          this.policies.set(policy.id, policy);
+        }
+      }
+
+      this.initialized = true;
+      logger.info(`[AbacPolicyEngine] Loaded ${dbPolicies.length} policies from database (${this.policies.size} total)`);
+    } catch (error) {
+      logger.error('[AbacPolicyEngine] Failed to load policies from database:', error);
+    }
+  }
+
+  /**
    * 注册自定义政策
    */
-  registerPolicy(policy: AbacPolicy): void {
-    this.policies.set(policy.id, {
+  async registerPolicy(policy: AbacPolicy): Promise<void> {
+    const now = new Date();
+    const fullPolicy = {
       ...policy,
-      createdAt: policy.createdAt || new Date(),
-      updatedAt: new Date(),
-    });
+      createdAt: policy.createdAt || now,
+      updatedAt: now,
+    };
+
+    // Persist to database
+    if (this.repository) {
+      try {
+        const resourceType = Array.isArray(policy.resourceType) ? JSON.stringify(policy.resourceType) : policy.resourceType;
+        const actionType = Array.isArray(policy.actionType) ? JSON.stringify(policy.actionType) : policy.actionType;
+
+        await this.repository.create({
+          name: policy.name,
+          description: policy.description,
+          effect: policy.effect,
+          resourceType,
+          actionType,
+          resourceConditions: policy.conditions as unknown as Record<string, unknown>,
+          priority: policy.priority ?? 0,
+          enabled: policy.enabled ?? true,
+        });
+      } catch (error) {
+        logger.error('[AbacPolicyEngine] Failed to persist policy to database:', error);
+      }
+    }
+
+    this.policies.set(policy.id, fullPolicy);
     this.invalidateCache();
   }
 
   /**
    * 注销政策
    */
-  unregisterPolicy(policyId: string): void {
+  async unregisterPolicy(policyId: string): Promise<void> {
+    // Delete from database
+    if (this.repository) {
+      try {
+        await this.repository.delete(policyId);
+      } catch (error) {
+        logger.error('[AbacPolicyEngine] Failed to delete policy from database:', error);
+      }
+    }
+
     this.policies.delete(policyId);
     this.invalidateCache();
   }
@@ -395,14 +528,41 @@ export class AbacPolicyEngine {
   /**
    * 更新政策
    */
-  updatePolicy(policyId: string, updates: Partial<AbacPolicy>): void {
+  async updatePolicy(policyId: string, updates: Partial<AbacPolicy>): Promise<void> {
     const existing = this.policies.get(policyId);
     if (existing) {
-      this.policies.set(policyId, {
+      const updated = {
         ...existing,
         ...updates,
         updatedAt: new Date(),
-      });
+      };
+
+      // Update in database
+      if (this.repository) {
+        try {
+          const resourceType = updates.resourceType !== undefined
+            ? (Array.isArray(updates.resourceType) ? JSON.stringify(updates.resourceType) : updates.resourceType)
+            : undefined;
+          const actionType = updates.actionType !== undefined
+            ? (Array.isArray(updates.actionType) ? JSON.stringify(updates.actionType) : updates.actionType)
+            : undefined;
+
+          await this.repository.update(policyId, {
+            name: updates.name,
+            description: updates.description,
+            effect: updates.effect,
+            resourceType,
+            actionType,
+            resourceConditions: updates.conditions as unknown as Record<string, unknown>,
+            priority: updates.priority,
+            enabled: updates.enabled,
+          });
+        } catch (error) {
+          logger.error('[AbacPolicyEngine] Failed to update policy in database:', error);
+        }
+      }
+
+      this.policies.set(policyId, updated);
       this.invalidateCache();
     }
   }
@@ -809,12 +969,12 @@ export class AbacPolicyEngine {
   /**
    * 导入政策配置
    */
-  importPolicies(policies: AbacPolicy[]): void {
-    policies.forEach((policy) => {
-      this.registerPolicy(policy);
-    });
+  async importPolicies(policies: AbacPolicy[]): Promise<void> {
+    for (const policy of policies) {
+      await this.registerPolicy(policy);
+    }
   }
 }
 
-// 导出单例
+// 导出单例（不带数据库连接，使用纯内存模式）
 export const abacPolicyEngine = new AbacPolicyEngine();

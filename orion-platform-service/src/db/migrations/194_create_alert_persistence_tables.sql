@@ -108,7 +108,7 @@ CREATE INDEX IF NOT EXISTS idx_rca_results_completed ON rca_results(completed_at
 
 -- 6. Service dependency graph (RootCauseAnalysisService.dependencyGraph)
 CREATE TABLE IF NOT EXISTS service_dependencies (
-  service TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   tenant_id TEXT NOT NULL DEFAULT 'default',
   depends_on TEXT[] NOT NULL DEFAULT '{}',
   dependency_type TEXT NOT NULL DEFAULT 'sync',
@@ -138,7 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_rca_timeline_events_time ON rca_timeline_events(e
 
 -- 8. Deduplication groups (AlertDeduplication.alertGroups)
 CREATE TABLE IF NOT EXISTS alert_deduplication_groups (
-  fingerprint TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   tenant_id TEXT NOT NULL DEFAULT 'default',
   alerts JSONB NOT NULL DEFAULT '[]',
   count INTEGER NOT NULL DEFAULT 0,
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS alert_deduplication_groups (
 );
 
 CREATE INDEX IF NOT EXISTS idx_alert_dedup_groups_tenant ON alert_deduplication_groups(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_alert_dedup_groups_fingerprint ON alert_deduplication_groups(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_alert_dedup_groups_fingerprint ON alert_deduplication_groups(id);
 CREATE INDEX IF NOT EXISTS idx_alert_dedup_groups_last ON alert_deduplication_groups(last_occurrence DESC);
 
 -- 9. Monitoring dashboard widget configs (MonitoringDashboard.widgetConfigs)

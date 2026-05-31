@@ -18,6 +18,11 @@ import {
   AI_SCENARIO_PRIORITY,
 } from './types';
 import { OrionError, ErrorCode } from '../../errors';
+import { RuleEngineRuleSetRepository } from '../../repositories/RuleEngineRuleSetRepository';
+import { RuleEngineAuditLogRepository } from '../../repositories/RuleEngineAuditLogRepository';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 // 默认配置
 const DEFAULT_CONFIG: RuleEngineConfig = {
@@ -42,9 +47,49 @@ export class RuleEngine {
     result: DegradationResult;
   }> = [];
 
-  constructor(config: Partial<RuleEngineConfig> = {}) {
+  // Repositories (optional, for PostgreSQL persistence)
+  private ruleSetRepo: RuleEngineRuleSetRepository | null = null;
+  private auditLogRepo: RuleEngineAuditLogRepository | null = null;
+
+  constructor(
+    config: Partial<RuleEngineConfig> = {},
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+
+    // Initialize repositories if db is provided
+    if (db) {
+      this.ruleSetRepo = new RuleEngineRuleSetRepository(db);
+      this.auditLogRepo = new RuleEngineAuditLogRepository(db);
+    }
+
     this.initializeBuiltInRules();
+  }
+
+  /**
+   * 从数据库恢复规则集状态（启动时调用）
+   */
+  async restoreState(): Promise<void> {
+    if (!this.ruleSetRepo) return;
+
+    try {
+      const entities = await this.ruleSetRepo.listAll();
+      for (const entity of entities) {
+        const ruleSet: RuleSet = {
+          id: entity.id,
+          name: entity.name,
+          scenario: entity.scenario as AIScenario,
+          description: entity.description || '',
+          rules: (entity.rules_json as unknown as Rule[]) ?? [],
+          defaultAction: entity.default_action as unknown as RuleAction | undefined,
+          enabled: entity.enabled,
+        };
+        this.ruleSets.set(entity.scenario, ruleSet);
+      }
+      logger.info({ msg: 'RuleEngine state restored from DB', ruleSetCount: entities.length });
+    } catch (error) {
+      logger.error({ msg: 'Failed to restore RuleEngine state from DB', error });
+    }
   }
 
   /**
@@ -851,6 +896,19 @@ export class RuleEngine {
    */
   addRuleSet(ruleSet: RuleSet): void {
     this.ruleSets.set(ruleSet.scenario, ruleSet);
+
+    // Persist to DB if available
+    if (this.ruleSetRepo) {
+      this.ruleSetRepo.upsertByScenario({
+        id: ruleSet.id,
+        scenario: ruleSet.scenario,
+        name: ruleSet.name,
+        description: ruleSet.description,
+        rulesJson: ruleSet.rules as unknown as unknown[],
+        defaultAction: ruleSet.defaultAction as unknown as Record<string, unknown>,
+        enabled: ruleSet.enabled,
+      }).catch(err => logger.error({ msg: 'Failed to persist rule set', error: err }));
+    }
   }
 
   /**
@@ -873,6 +931,19 @@ export class RuleEngine {
     }
     ruleSet.rules.push(rule);
     ruleSet.rules.sort((a, b) => a.priority - b.priority);
+
+    // Persist to DB if available
+    if (this.ruleSetRepo) {
+      this.ruleSetRepo.upsertByScenario({
+        id: ruleSet.id,
+        scenario: ruleSet.scenario,
+        name: ruleSet.name,
+        description: ruleSet.description,
+        rulesJson: ruleSet.rules as unknown as unknown[],
+        defaultAction: ruleSet.defaultAction as unknown as Record<string, unknown>,
+        enabled: ruleSet.enabled,
+      }).catch(err => logger.error({ msg: 'Failed to persist rule set', error: err }));
+    }
   }
 
   /**
@@ -911,6 +982,18 @@ export class RuleEngine {
         input,
         result,
       });
+
+      // Persist audit log to DB
+      if (this.auditLogRepo) {
+        this.auditLogRepo.create({
+          id: `${scenario}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          scenario,
+          rule_id: matchedRule?.id || null,
+          input_json: input,
+          result_json: result as unknown as Record<string, unknown>,
+          event_time: new Date(),
+        }).catch(err => logger.error({ msg: 'Failed to persist audit log', error: err }));
+      }
     }
 
     // 缓存结果

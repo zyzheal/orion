@@ -225,7 +225,8 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     const permRepo = new PermissionRepository(options.database);
     const roleRepo = new RoleRepository(options.database);
     const roleService = new RoleService(roleRepo);
-    const abacEngine = new AbacPolicyEngine();
+    const abacEngine = new AbacPolicyEngine(options.database);
+    await abacEngine.loadFromDatabase();
     const relationshipService = new RelationshipService(options.database);
     const auditRepo = new PermissionAuditRepository(options.database);
 

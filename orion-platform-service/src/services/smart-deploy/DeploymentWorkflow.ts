@@ -47,15 +47,16 @@ export class DeploymentWorkflow {
     historyService?: DeploymentHistoryService;
     rollbackService?: RollbackService;
     lockService?: EnvironmentLockService;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.strategyEngine =
-      options?.strategyEngine || new DeploymentStrategyEngine({ eventPublisher: options?.eventPublisher });
+      options?.strategyEngine || new DeploymentStrategyEngine({ eventPublisher: options?.eventPublisher, db: options?.db });
     this.verifier = options?.verifier || new DeploymentVerifier();
     this.historyService =
-      options?.historyService || new DeploymentHistoryService();
+      options?.historyService || (options?.db ? new DeploymentHistoryService(options.db) : undefined as any);
     this.rollbackService =
-      options?.rollbackService || new RollbackService({ eventPublisher: options?.eventPublisher });
+      options?.rollbackService || (options?.db ? new RollbackService({ db: options.db, eventPublisher: options?.eventPublisher }) : undefined as any);
     this.lockService = options?.lockService;
   }
 

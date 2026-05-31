@@ -158,7 +158,7 @@ export default async function chatopsRoutes(
   const deployService = options.deployService || (new DeployService(new DeployRepository(db)));
   const monitoringService = options.monitoringService || (new MonitoringService(new MonitoringRepository(db)));
   const diagnosticService = options.diagnosticService || (new DiagnosticService(new DiagnosticRepository(db)));
-  const selfHealingService = options.selfHealingService || (new SelfHealingService(new SelfHealingRepository(db)));
+  const selfHealingService = options.selfHealingService || (new SelfHealingService(new SelfHealingRepository(db), undefined, db));
 
   // 统一注册服务 handler (本地初始化或注入的服务)
   // Deploy handlers - S-2: tenantId 从 params 获取, R-2: try-catch 错误处理

@@ -6,9 +6,12 @@
  * strategies for common failure scenarios.
  *
  * TASK-702: Self-Healing Engine (自愈引擎)
+ *
+ * Migrated to PostgreSQL Repository pattern with in-memory cache fallback.
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import pino from 'pino';
 import {
   HealingStrategy,
   HealingAction,
@@ -18,73 +21,193 @@ import {
   HealingActionType,
   BuiltInStrategyId,
 } from './types';
+import { HealingStrategyRepository, HealingStrategyEntity } from '../../repositories/HealingStrategyRepository';
+
+const logger = pino({ name: 'healing-strategy-engine' });
 
 export class HealingStrategyEngine {
   private strategies: Map<string, HealingStrategy> = new Map();
+  private repository?: HealingStrategyRepository;
+  private initialized = false;
 
-  constructor() {
-    this.registerBuiltInStrategies();
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new HealingStrategyRepository(db);
+    }
+    // Register built-in strategies (non-blocking, seeds DB if available)
+    this.registerBuiltInStrategies().catch(err => {
+      logger.warn({ err }, 'Failed to register built-in strategies');
+    });
   }
 
   /**
    * Register a new healing strategy
    */
-  registerStrategy(strategy: HealingStrategy): void {
+  async registerStrategy(strategy: HealingStrategy): Promise<void> {
+    // Update in-memory cache
     this.strategies.set(strategy.id, strategy);
+
+    // Persist to DB
+    if (this.repository) {
+      try {
+        const existing = await this.repository.findById(strategy.id);
+        if (existing) {
+          await this.repository.update(strategy.id, {
+            name: strategy.name,
+            trigger_type: strategy.triggerType,
+            actions: JSON.stringify(strategy.actions),
+            conditions: JSON.stringify(strategy.conditions || []),
+            confidence: strategy.confidence,
+            enabled: strategy.enabled,
+            description: strategy.description || null,
+            environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
+            max_retries: strategy.maxRetries ?? null,
+            retry_cooldown_ms: strategy.retryCooldownMs ?? null,
+          });
+        } else {
+          await this.repository.create({
+            id: strategy.id,
+            name: strategy.name,
+            trigger_type: strategy.triggerType,
+            actions: JSON.stringify(strategy.actions),
+            conditions: JSON.stringify(strategy.conditions || []),
+            confidence: strategy.confidence,
+            enabled: strategy.enabled,
+            description: strategy.description || null,
+            environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
+            max_retries: strategy.maxRetries ?? null,
+            retry_cooldown_ms: strategy.retryCooldownMs ?? null,
+          });
+        }
+      } catch (err) {
+        logger.warn({ err, strategyId: strategy.id }, 'Failed to persist strategy to DB');
+      }
+    }
   }
 
   /**
    * Unregister a strategy by ID
    */
-  unregisterStrategy(strategyId: string): boolean {
-    return this.strategies.delete(strategyId);
+  async unregisterStrategy(strategyId: string): Promise<boolean> {
+    const deleted = this.strategies.delete(strategyId);
+
+    if (this.repository) {
+      try {
+        return await this.repository.delete(strategyId);
+      } catch (err) {
+        logger.warn({ err, strategyId }, 'Failed to delete strategy from DB');
+      }
+    }
+
+    return deleted;
   }
 
   /**
    * Get a strategy by ID
    */
-  getStrategy(strategyId: string): HealingStrategy | undefined {
-    return this.strategies.get(strategyId);
+  async getStrategy(strategyId: string): Promise<HealingStrategy | undefined> {
+    // Check in-memory first
+    const cached = this.strategies.get(strategyId);
+    if (cached) return cached;
+
+    // Fallback to DB
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findById(strategyId);
+        if (entity) {
+          const strategy = this.entityToStrategy(entity);
+          this.strategies.set(strategyId, strategy);
+          return strategy;
+        }
+      } catch (err) {
+        logger.warn({ err, strategyId }, 'Failed to get strategy from DB');
+      }
+    }
+
+    return undefined;
   }
 
   /**
    * Get all registered strategies
    */
-  getAllStrategies(): HealingStrategy[] {
+  async getAllStrategies(): Promise<HealingStrategy[]> {
+    if (this.repository) {
+      try {
+        const { entities } = await this.repository.findAll({ limit: 1000 });
+        return entities.map(e => this.entityToStrategy(e));
+      } catch (err) {
+        logger.warn({ err }, 'Failed to get strategies from DB, falling back to memory');
+      }
+    }
     return Array.from(this.strategies.values());
   }
 
   /**
    * Enable a strategy
    */
-  enableStrategy(strategyId: string): boolean {
+  async enableStrategy(strategyId: string): Promise<boolean> {
+    // Update in-memory
     const strategy = this.strategies.get(strategyId);
-    if (!strategy) return false;
-    strategy.enabled = true;
-    return true;
+    if (strategy) {
+      strategy.enabled = true;
+    }
+
+    // Update DB
+    if (this.repository) {
+      try {
+        const result = await this.repository.enableStrategy(strategyId);
+        return !!result;
+      } catch (err) {
+        logger.warn({ err, strategyId }, 'Failed to enable strategy in DB');
+      }
+    }
+
+    return !!strategy;
   }
 
   /**
    * Disable a strategy
    */
-  disableStrategy(strategyId: string): boolean {
+  async disableStrategy(strategyId: string): Promise<boolean> {
+    // Update in-memory
     const strategy = this.strategies.get(strategyId);
-    if (!strategy) return false;
-    strategy.enabled = false;
-    return true;
+    if (strategy) {
+      strategy.enabled = false;
+    }
+
+    // Update DB
+    if (this.repository) {
+      try {
+        const result = await this.repository.disableStrategy(strategyId);
+        return !!result;
+      } catch (err) {
+        logger.warn({ err, strategyId }, 'Failed to disable strategy in DB');
+      }
+    }
+
+    return !!strategy;
   }
 
   /**
    * Match incident to applicable strategies
    * Returns all strategies that match the incident type and conditions
    */
-  matchStrategies(
+  async matchStrategies(
     incidentType: IncidentType,
     tags?: Record<string, string>
-  ): HealingStrategy[] {
-    const enabledStrategies = Array.from(this.strategies.values()).filter(
-      (s) => s.enabled
-    );
+  ): Promise<HealingStrategy[]> {
+    let enabledStrategies: HealingStrategy[];
+
+    // Try DB first
+    if (this.repository) {
+      try {
+        enabledStrategies = (await this.repository.findEnabled()).map(e => this.entityToStrategy(e));
+      } catch {
+        enabledStrategies = Array.from(this.strategies.values()).filter(s => s.enabled);
+      }
+    } else {
+      enabledStrategies = Array.from(this.strategies.values()).filter(s => s.enabled);
+    }
 
     return enabledStrategies.filter((strategy) => {
       // Check trigger type match
@@ -108,11 +231,11 @@ export class HealingStrategyEngine {
    * Select the best strategy for an incident
    * Chooses based on highest confidence among matching strategies
    */
-  selectBestStrategy(
+  async selectBestStrategy(
     incidentType: IncidentType,
     tags?: Record<string, string>
-  ): HealingStrategy | null {
-    const matching = this.matchStrategies(incidentType, tags);
+  ): Promise<HealingStrategy | null> {
+    const matching = await this.matchStrategies(incidentType, tags);
 
     if (matching.length === 0) {
       return null;
@@ -183,269 +306,282 @@ export class HealingStrategyEngine {
     }
   }
 
+  /**
+   * Convert DB entity to HealingStrategy
+   */
+  private entityToStrategy(entity: HealingStrategyEntity): HealingStrategy {
+    return {
+      id: entity.id,
+      name: entity.name,
+      triggerType: entity.triggerType as StrategyTriggerType,
+      actions: entity.actions,
+      conditions: entity.conditions?.length > 0 ? entity.conditions : undefined,
+      confidence: entity.confidence,
+      enabled: entity.enabled,
+      description: entity.description || undefined,
+      environments: entity.environments || undefined,
+      maxRetries: entity.maxRetries ?? undefined,
+      retryCooldownMs: entity.retryCooldownMs ?? undefined,
+    };
+  }
+
   // ==================== Built-in Strategies ====================
 
   /**
    * Register all built-in healing strategies
+   * Seeds DB with built-in strategies if they don't exist yet
    */
-  private registerBuiltInStrategies(): void {
-    this.registerRestartOnCrash();
-    this.registerScaleOnHighCpu();
-    this.registerScaleOnHighMemory();
-    this.registerFailoverOnNodeFailure();
-    this.registerRollbackOnDeploymentFailure();
-    this.registerRestartOnServiceDown();
-    this.registerScaleOnHighErrorRate();
-    this.registerRestartOnNetworkTimeout();
+  private async registerBuiltInStrategies(): Promise<void> {
+    const builtInStrategies = this.getBuiltInStrategies();
+
+    for (const strategy of builtInStrategies) {
+      // Always set in-memory
+      this.strategies.set(strategy.id, strategy);
+
+      // Seed DB if repository is available
+      if (this.repository) {
+        try {
+          const existing = await this.repository.findById(strategy.id);
+          if (!existing) {
+            await this.repository.create({
+              id: strategy.id,
+              name: strategy.name,
+              trigger_type: strategy.triggerType,
+              actions: JSON.stringify(strategy.actions),
+              conditions: JSON.stringify(strategy.conditions || []),
+              confidence: strategy.confidence,
+              enabled: strategy.enabled,
+              description: strategy.description || null,
+              environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
+              max_retries: strategy.maxRetries ?? null,
+              retry_cooldown_ms: strategy.retryCooldownMs ?? null,
+            });
+          }
+        } catch (err) {
+          logger.warn({ err, strategyId: strategy.id }, 'Failed to seed built-in strategy to DB');
+        }
+      }
+    }
+
+    this.initialized = true;
+    logger.info({ count: builtInStrategies.length }, 'Built-in strategies registered');
   }
 
   /**
-   * Restart strategy for pod/service crashes
+   * Get all built-in healing strategies
    */
-  private registerRestartOnCrash(): void {
-    this.registerStrategy({
-      id: 'restart-on-crash',
-      name: 'Auto Restart on Crash',
-      triggerType: 'pod_crash',
-      confidence: 90,
-      enabled: true,
-      description: 'Automatically restart crashed pods/services',
-      maxRetries: 3,
-      retryCooldownMs: 30000,
-      actions: [
-        {
-          type: 'restart',
-          params: {
-            target: '{{appName}}',
-            graceful: true,
-            timeoutMs: 60000,
+  private getBuiltInStrategies(): HealingStrategy[] {
+    return [
+      // Restart strategy for pod/service crashes
+      {
+        id: 'restart-on-crash',
+        name: 'Auto Restart on Crash',
+        triggerType: 'pod_crash',
+        confidence: 90,
+        enabled: true,
+        description: 'Automatically restart crashed pods/services',
+        maxRetries: 3,
+        retryCooldownMs: 30000,
+        actions: [
+          {
+            type: 'restart',
+            params: {
+              target: '{{appName}}',
+              graceful: true,
+              timeoutMs: 60000,
+            },
+            timeout: 120000,
+            rollback: true,
+            description: 'Restart the crashed application gracefully',
           },
-          timeout: 120000,
-          rollback: true,
-          description: 'Restart the crashed application gracefully',
-        },
-      ],
-      conditions: [
-        { field: 'severity', operator: 'in', value: ['critical', 'warning'] },
-      ],
-    });
-  }
-
-  /**
-   * Scale strategy for high CPU usage
-   */
-  private registerScaleOnHighCpu(): void {
-    this.registerStrategy({
-      id: 'scale-on-high-cpu',
-      name: 'Auto Scale on High CPU',
-      triggerType: 'high_cpu',
-      confidence: 75,
-      enabled: true,
-      description: 'Scale out instances when CPU usage exceeds threshold',
-      maxRetries: 2,
-      retryCooldownMs: 60000,
-      actions: [
-        {
-          type: 'scale',
-          params: {
-            target: '{{appName}}',
-            direction: 'up',
-            increment: 2,
-            maxReplicas: 10,
+        ],
+        conditions: [
+          { field: 'severity', operator: 'in', value: ['critical', 'warning'] },
+        ],
+      },
+      // Scale strategy for high CPU usage
+      {
+        id: 'scale-on-high-cpu',
+        name: 'Auto Scale on High CPU',
+        triggerType: 'high_cpu',
+        confidence: 75,
+        enabled: true,
+        description: 'Scale out instances when CPU usage exceeds threshold',
+        maxRetries: 2,
+        retryCooldownMs: 60000,
+        actions: [
+          {
+            type: 'scale',
+            params: {
+              target: '{{appName}}',
+              direction: 'up',
+              increment: 2,
+              maxReplicas: 10,
+            },
+            timeout: 180000,
+            rollback: true,
+            description: 'Scale up by 2 replicas (max 10)',
           },
-          timeout: 180000,
-          rollback: true,
-          description: 'Scale up by 2 replicas (max 10)',
-        },
-      ],
-    });
-  }
-
-  /**
-   * Scale strategy for high memory usage
-   */
-  private registerScaleOnHighMemory(): void {
-    this.registerStrategy({
-      id: 'scale-on-high-memory',
-      name: 'Auto Scale on High Memory',
-      triggerType: 'high_memory',
-      confidence: 70,
-      enabled: true,
-      description: 'Scale out instances when memory usage exceeds threshold',
-      maxRetries: 2,
-      retryCooldownMs: 60000,
-      actions: [
-        {
-          type: 'scale',
-          params: {
-            target: '{{appName}}',
-            direction: 'up',
-            increment: 1,
-            maxReplicas: 8,
+        ],
+      },
+      // Scale strategy for high memory usage
+      {
+        id: 'scale-on-high-memory',
+        name: 'Auto Scale on High Memory',
+        triggerType: 'high_memory',
+        confidence: 70,
+        enabled: true,
+        description: 'Scale out instances when memory usage exceeds threshold',
+        maxRetries: 2,
+        retryCooldownMs: 60000,
+        actions: [
+          {
+            type: 'scale',
+            params: {
+              target: '{{appName}}',
+              direction: 'up',
+              increment: 1,
+              maxReplicas: 8,
+            },
+            timeout: 180000,
+            rollback: true,
+            description: 'Scale up by 1 replica (max 8)',
           },
-          timeout: 180000,
-          rollback: true,
-          description: 'Scale up by 1 replica (max 8)',
-        },
-      ],
-    });
-  }
-
-  /**
-   * Failover strategy for node failures
-   */
-  private registerFailoverOnNodeFailure(): void {
-    this.registerStrategy({
-      id: 'failover-on-node-failure',
-      name: 'Failover on Node Failure',
-      triggerType: 'node_failure',
-      confidence: 85,
-      enabled: true,
-      description: 'Failover workloads to healthy nodes',
-      maxRetries: 1,
-      retryCooldownMs: 120000,
-      actions: [
-        {
-          type: 'failover',
-          params: {
-            target: '{{appName}}',
-            sourceNode: '{{failedNode}}',
-            targetNode: 'auto',
-            drainTimeoutMs: 30000,
+        ],
+      },
+      // Failover strategy for node failures
+      {
+        id: 'failover-on-node-failure',
+        name: 'Failover on Node Failure',
+        triggerType: 'node_failure',
+        confidence: 85,
+        enabled: true,
+        description: 'Failover workloads to healthy nodes',
+        maxRetries: 1,
+        retryCooldownMs: 120000,
+        actions: [
+          {
+            type: 'failover',
+            params: {
+              target: '{{appName}}',
+              sourceNode: '{{failedNode}}',
+              targetNode: 'auto',
+              drainTimeoutMs: 30000,
+            },
+            timeout: 300000,
+            rollback: true,
+            description: 'Migrate workloads from failed node to healthy node',
           },
-          timeout: 300000,
-          rollback: true,
-          description: 'Migrate workloads from failed node to healthy node',
-        },
-      ],
-    });
-  }
-
-  /**
-   * Rollback strategy for deployment failures
-   */
-  private registerRollbackOnDeploymentFailure(): void {
-    this.registerStrategy({
-      id: 'rollback-on-deployment-failure',
-      name: 'Auto Rollback on Deployment Failure',
-      triggerType: 'deployment_failure',
-      confidence: 95,
-      enabled: true,
-      description: 'Automatically rollback failed deployments to previous version',
-      maxRetries: 1,
-      retryCooldownMs: 0,
-      actions: [
-        {
-          type: 'rollback',
-          params: {
-            target: '{{appName}}',
-            environment: '{{environment}}',
-            targetVersion: 'previous',
+        ],
+      },
+      // Rollback strategy for deployment failures
+      {
+        id: 'rollback-on-deployment-failure',
+        name: 'Auto Rollback on Deployment Failure',
+        triggerType: 'deployment_failure',
+        confidence: 95,
+        enabled: true,
+        description: 'Automatically rollback failed deployments to previous version',
+        maxRetries: 1,
+        retryCooldownMs: 0,
+        actions: [
+          {
+            type: 'rollback',
+            params: {
+              target: '{{appName}}',
+              environment: '{{environment}}',
+              targetVersion: 'previous',
+            },
+            timeout: 300000,
+            rollback: false,
+            description: 'Rollback to the previous deployment version',
           },
-          timeout: 300000,
-          rollback: false,
-          description: 'Rollback to the previous deployment version',
-        },
-      ],
-    });
-  }
-
-  /**
-   * Restart strategy for service down
-   */
-  private registerRestartOnServiceDown(): void {
-    this.registerStrategy({
-      id: 'restart-on-service-down',
-      name: 'Auto Restart on Service Down',
-      triggerType: 'service_down',
-      confidence: 80,
-      enabled: true,
-      description: 'Restart services that are detected as down',
-      maxRetries: 3,
-      retryCooldownMs: 30000,
-      actions: [
-        {
-          type: 'restart',
-          params: {
-            target: '{{appName}}',
-            graceful: false,
-            timeoutMs: 30000,
+        ],
+      },
+      // Restart strategy for service down
+      {
+        id: 'restart-on-service-down',
+        name: 'Auto Restart on Service Down',
+        triggerType: 'service_down',
+        confidence: 80,
+        enabled: true,
+        description: 'Restart services that are detected as down',
+        maxRetries: 3,
+        retryCooldownMs: 30000,
+        actions: [
+          {
+            type: 'restart',
+            params: {
+              target: '{{appName}}',
+              graceful: false,
+              timeoutMs: 30000,
+            },
+            timeout: 90000,
+            rollback: true,
+            description: 'Force restart the downed service',
           },
-          timeout: 90000,
-          rollback: true,
-          description: 'Force restart the downed service',
-        },
-      ],
-    });
-  }
-
-  /**
-   * Scale strategy for high error rate
-   */
-  private registerScaleOnHighErrorRate(): void {
-    this.registerStrategy({
-      id: 'scale-on-high-error-rate',
-      name: 'Auto Scale on High Error Rate',
-      triggerType: 'high_error_rate',
-      confidence: 60,
-      enabled: true,
-      description: 'Scale out when error rate exceeds threshold (may help with load-related errors)',
-      maxRetries: 2,
-      retryCooldownMs: 60000,
-      actions: [
-        {
-          type: 'scale',
-          params: {
-            target: '{{appName}}',
-            direction: 'up',
-            increment: 2,
-            maxReplicas: 12,
+        ],
+      },
+      // Scale strategy for high error rate
+      {
+        id: 'scale-on-high-error-rate',
+        name: 'Auto Scale on High Error Rate',
+        triggerType: 'high_error_rate',
+        confidence: 60,
+        enabled: true,
+        description: 'Scale out when error rate exceeds threshold (may help with load-related errors)',
+        maxRetries: 2,
+        retryCooldownMs: 60000,
+        actions: [
+          {
+            type: 'scale',
+            params: {
+              target: '{{appName}}',
+              direction: 'up',
+              increment: 2,
+              maxReplicas: 12,
+            },
+            timeout: 180000,
+            rollback: true,
+            description: 'Scale up to distribute error load',
           },
-          timeout: 180000,
-          rollback: true,
-          description: 'Scale up to distribute error load',
-        },
-        {
-          type: 'restart',
-          params: {
-            target: '{{appName}}',
-            graceful: true,
-            timeoutMs: 60000,
+          {
+            type: 'restart',
+            params: {
+              target: '{{appName}}',
+              graceful: true,
+              timeoutMs: 60000,
+            },
+            timeout: 120000,
+            rollback: true,
+            description: 'Restart if scaling alone does not resolve errors',
           },
-          timeout: 120000,
-          rollback: true,
-          description: 'Restart if scaling alone does not resolve errors',
-        },
-      ],
-    });
-  }
-
-  /**
-   * Restart strategy for network timeouts
-   */
-  private registerRestartOnNetworkTimeout(): void {
-    this.registerStrategy({
-      id: 'restart-on-network-timeout',
-      name: 'Auto Restart on Network Timeout',
-      triggerType: 'network_timeout',
-      confidence: 55,
-      enabled: true,
-      description: 'Restart service experiencing network timeouts',
-      maxRetries: 2,
-      retryCooldownMs: 45000,
-      actions: [
-        {
-          type: 'restart',
-          params: {
-            target: '{{appName}}',
-            graceful: true,
-            timeoutMs: 90000,
+        ],
+      },
+      // Restart strategy for network timeouts
+      {
+        id: 'restart-on-network-timeout',
+        name: 'Auto Restart on Network Timeout',
+        triggerType: 'network_timeout',
+        confidence: 55,
+        enabled: true,
+        description: 'Restart service experiencing network timeouts',
+        maxRetries: 2,
+        retryCooldownMs: 45000,
+        actions: [
+          {
+            type: 'restart',
+            params: {
+              target: '{{appName}}',
+              graceful: true,
+              timeoutMs: 90000,
+            },
+            timeout: 180000,
+            rollback: true,
+            description: 'Restart service to reset network connections',
           },
-          timeout: 180000,
-          rollback: true,
-          description: 'Restart service to reset network connections',
-        },
-      ],
-    });
+        ],
+      },
+    ];
   }
 }

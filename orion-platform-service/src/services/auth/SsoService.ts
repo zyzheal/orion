@@ -27,6 +27,7 @@ import {
 } from 'openid-client';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { SsoStateRepository } from '../../repositories/SsoStateRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -60,7 +61,38 @@ export interface SsoUserProfile {
 }
 
 /**
- * In-memory fallback for when Redis is not available.
+ * PostgreSQL-backed state store for SSO flows.
+ * Uses sso_states table (migration 183 + 216) for persistent state storage.
+ */
+class PostgresSsoStateStore implements SsoStateStore {
+  private repository: SsoStateRepository;
+  private provider: string;
+
+  constructor(repository: SsoStateRepository, provider: string = 'oidc') {
+    this.repository = repository;
+    this.provider = provider;
+  }
+
+  async set(key: string, value: string, ttl: number): Promise<void> {
+    // Extract the raw state from the key (format: "sso:state:{state}")
+    const state = key.replace('sso:state:', '');
+    await this.repository.create(state, this.provider, value, ttl);
+  }
+
+  async get(key: string): Promise<string | null> {
+    const state = key.replace('sso:state:', '');
+    const entity = await this.repository.findByState(state);
+    return entity?.data ?? null;
+  }
+
+  async del(key: string): Promise<void> {
+    const state = key.replace('sso:state:', '');
+    await this.repository.deleteByState(state);
+  }
+}
+
+/**
+ * In-memory fallback for when Redis/DB is not available.
  * Not suitable for multi-instance deployments.
  */
 class InMemorySsoStateStore implements SsoStateStore {
@@ -93,10 +125,20 @@ export class SsoService {
 
   /**
    * @param stateStore — Redis-backed state store for multi-instance support.
-   *   If not provided, falls back to in-memory (not recommended for production).
+   *   If not provided, falls back to PostgreSQL-backed store or in-memory.
+   * @param db — Database pool for PostgreSQL-backed state storage.
    */
-  constructor(stateStore?: SsoStateStore) {
-    this.stateStore = stateStore || new InMemorySsoStateStore();
+  constructor(stateStore?: SsoStateStore, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (stateStore) {
+      this.stateStore = stateStore;
+    } else if (db) {
+      const repository = new SsoStateRepository(db);
+      this.stateStore = new PostgresSsoStateStore(repository);
+      logger.info('[SsoService] Using PostgreSQL-backed state store');
+    } else {
+      this.stateStore = new InMemorySsoStateStore();
+      logger.warn('[SsoService] Using in-memory state store (not suitable for production)');
+    }
   }
 
   /**
@@ -156,7 +198,7 @@ export class SsoService {
       redirect_uri: this.config.redirectUri,
     });
 
-    // Store state in Redis (or fallback) with TTL for callback validation
+    // Store state in PostgreSQL (or fallback) with TTL for callback validation
     const authState: AuthState = { nonce, state };
     await this.stateStore.set(`sso:state:${state}`, JSON.stringify(authState), STATE_TTL_SECONDS);
 

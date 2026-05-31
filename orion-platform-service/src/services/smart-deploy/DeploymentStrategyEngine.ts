@@ -4,12 +4,15 @@
  * Executes different deployment strategies (Blue-Green, Canary, Rolling, Recreate)
  * with traffic management and health verification support.
  *
+ * Persisted via PostgreSQL Repository pattern.
+ *
  * TASK-701: Smart Deployment (智能部署)
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 import { OrionError } from '../../errors';
+import { DeploymentTrafficStateRepository, DeploymentTrafficStateEntity } from '../../repositories/DeploymentTrafficStateRepository';
 
 const logger = pino({ name: 'LDeployment-LStrategy-LEngine' });
 import {
@@ -36,15 +39,32 @@ interface TrafficState {
   switched: boolean;
 }
 
+function entityToTrafficState(entity: DeploymentTrafficStateEntity): TrafficState {
+  return {
+    activePercentage: entity.activePercent,
+    newPercentage: entity.newPercent,
+    switched: entity.switched,
+  };
+}
+
 /**
  * Deployment strategy execution engine
  */
 export class DeploymentStrategyEngine {
   private eventPublisher?: IEventPublisher;
-  private trafficState: Map<string, TrafficState> = new Map();
+  private trafficRepo?: DeploymentTrafficStateRepository;
+  private defaultTenantId: string;
 
-  constructor(options?: { eventPublisher?: IEventPublisher }) {
+  constructor(options?: {
+    eventPublisher?: IEventPublisher;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+    tenantId?: string;
+  }) {
     this.eventPublisher = options?.eventPublisher;
+    this.defaultTenantId = options?.tenantId ?? 'default';
+    if (options?.db) {
+      this.trafficRepo = new DeploymentTrafficStateRepository(options.db);
+    }
   }
 
   /**
@@ -143,13 +163,12 @@ export class DeploymentStrategyEngine {
     ]);
     stages.push(switchStage);
 
-    // Initialize traffic state
-    const trafficId = `${appName}-${environment}`;
-    this.trafficState.set(trafficId, {
+    // Update traffic state
+    await this.saveTrafficState(appName, environment, {
       activePercentage: 0,
       newPercentage: 100,
       switched: true,
-    });
+    }, 'blue-green');
 
     await this.executeStageSteps(switchStage);
     if (switchStage.status === 'failed') {
@@ -192,7 +211,6 @@ export class DeploymentStrategyEngine {
   ): Promise<{ stages: DeploymentStage[]; success: boolean }> {
     const stages: DeploymentStage[] = [];
     const canarySteps = config.canarySteps || [10, 50, 100];
-    const trafficId = `${appName}-${environment}`;
 
     // Stage 1: Deploy canary instances
     const deployStage = this.createStage('deploy-canary', [
@@ -202,11 +220,11 @@ export class DeploymentStrategyEngine {
     stages.push(deployStage);
 
     // Initialize traffic state
-    this.trafficState.set(trafficId, {
+    await this.saveTrafficState(appName, environment, {
       activePercentage: 100 - canarySteps[0],
       newPercentage: canarySteps[0],
       switched: false,
-    });
+    }, 'canary');
 
     await this.executeStageSteps(deployStage);
     if (deployStage.status === 'failed') {
@@ -236,11 +254,11 @@ export class DeploymentStrategyEngine {
       stages.push(promotionStage);
 
       // Update traffic state
-      this.trafficState.set(trafficId, {
+      await this.saveTrafficState(appName, environment, {
         activePercentage: 100 - percentage,
         newPercentage: percentage,
         switched: percentage === 100,
-      });
+      }, 'canary');
 
       await this.executeStageSteps(promotionStage);
       if (promotionStage.status === 'failed') {
@@ -364,11 +382,11 @@ export class DeploymentStrategyEngine {
     await this.executeStageSteps(postStage);
 
     // Update traffic state to fully switched
-    this.trafficState.set(`${appName}-${environment}`, {
+    await this.saveTrafficState(appName, environment, {
       activePercentage: 0,
       newPercentage: 100,
       switched: true,
-    });
+    }, 'rolling');
 
     return { stages, success: postStage.status !== 'failed' };
   }
@@ -427,11 +445,11 @@ export class DeploymentStrategyEngine {
     }
 
     // Update traffic state
-    this.trafficState.set(`${appName}-${environment}`, {
+    await this.saveTrafficState(appName, environment, {
       activePercentage: 0,
       newPercentage: 100,
       switched: true,
-    });
+    }, 'recreate');
 
     return { stages, success: true };
   }
@@ -444,20 +462,13 @@ export class DeploymentStrategyEngine {
     environment: string,
     newPercentage: number = 100
   ): Promise<{ success: boolean; trafficState: TrafficState }> {
-    const trafficId = `${appName}-${environment}`;
-    const currentState = this.trafficState.get(trafficId) || {
-      activePercentage: 100,
-      newPercentage: 0,
-      switched: false,
-    };
-
     const newState: TrafficState = {
       activePercentage: 100 - newPercentage,
       newPercentage,
       switched: newPercentage === 100,
     };
 
-    this.trafficState.set(trafficId, newState);
+    await this.saveTrafficState(appName, environment, newState);
 
     return { success: true, trafficState: newState };
   }
@@ -489,7 +500,6 @@ export class DeploymentStrategyEngine {
     for (let i = 0; i < retries; i++) {
       try {
         // In production, this would make actual HTTP requests
-        // For now, simulate successful health checks
         checks.push({
           id: uuidv4(),
           endpoint,
@@ -524,8 +534,6 @@ export class DeploymentStrategyEngine {
     appName: string,
     environment: string
   ): Promise<{ success: boolean; trafficState: TrafficState }> {
-    const trafficId = `${appName}-${environment}`;
-
     // Revert traffic to 100% old version
     const revertedState: TrafficState = {
       activePercentage: 100,
@@ -533,7 +541,7 @@ export class DeploymentStrategyEngine {
       switched: false,
     };
 
-    this.trafficState.set(trafficId, revertedState);
+    await this.saveTrafficState(appName, environment, revertedState);
 
     return { success: true, trafficState: revertedState };
   }
@@ -541,14 +549,41 @@ export class DeploymentStrategyEngine {
   /**
    * Get current traffic state
    */
-  getTrafficState(
+  async getTrafficState(
     appName: string,
     environment: string
-  ): TrafficState | undefined {
-    return this.trafficState.get(`${appName}-${environment}`);
+  ): Promise<TrafficState | undefined> {
+    if (!this.trafficRepo) return undefined;
+    const entity = await this.trafficRepo.findByAppAndEnvironment(appName, environment, this.defaultTenantId);
+    return entity ? entityToTrafficState(entity) : undefined;
   }
 
   // ==================== Private Helper Methods ====================
+
+  /**
+   * Save traffic state to repository
+   */
+  private async saveTrafficState(
+    appName: string,
+    environment: string,
+    state: TrafficState,
+    strategy?: string
+  ): Promise<void> {
+    if (!this.trafficRepo) return;
+    const id = `${appName}-${environment}`;
+    await this.trafficRepo.upsertByAppEnvironment(
+      id,
+      this.defaultTenantId,
+      appName,
+      environment,
+      {
+        activePercent: state.activePercentage,
+        newPercent: state.newPercentage,
+        switched: state.switched,
+        strategy,
+      }
+    );
+  }
 
   /**
    * Create a deployment stage
@@ -610,13 +645,6 @@ export class DeploymentStrategyEngine {
     await new Promise((resolve) =>
       setTimeout(resolve, Math.floor(Math.random() * 50) + 10)
     );
-
-    // In production, this would execute actual deployment logic:
-    // - Provision infrastructure
-    // - Deploy containers/images
-    // - Configure load balancers
-    // - Run health checks
-    // etc.
   }
 
   /**

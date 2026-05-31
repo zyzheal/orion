@@ -2,8 +2,10 @@
  * ReleaseNotesService - Deployment release notes generation
  *
  * Generates, saves, and retrieves release notes for deployments.
- * Uses Map-based in-memory storage.
+ * Persisted via PostgreSQL Repository pattern.
  */
+
+import { ReleaseNotesRepository, ReleaseNotesEntity } from '../../repositories/ReleaseNotesRepository';
 
 export interface ChangeEntry {
   type: 'feature' | 'fix' | 'improvement' | 'breaking' | 'config';
@@ -40,17 +42,28 @@ export class ReleaseNotesServiceError extends Error {
   }
 }
 
-export class ReleaseNotesService {
-  private notes: Map<string, ReleaseNotes> = new Map();
-  private counter = 0;
-  private repository?: import('../../repositories/ReleaseNotesRepository').ReleaseNotesRepository;
+function entityToReleaseNotes(entity: ReleaseNotesEntity): ReleaseNotes {
+  return {
+    id: entity.id,
+    deploymentId: entity.deploymentId ?? '',
+    tenantId: entity.tenantId ?? '',
+    version: entity.version ?? '1.0.0',
+    environment: entity.environment ?? 'unknown',
+    generatedAt: entity.generatedAt,
+    summary: entity.summary ?? '',
+    changes: (entity.changes ?? []) as ChangeEntry[],
+    metrics: entity.metrics as ReleaseNotes['metrics'],
+    notes: entity.notes ?? undefined,
+    updatedAt: entity.updatedAt,
+  };
+}
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      // Lazy import to avoid circular dependency
-      const { ReleaseNotesRepository } = require('../../repositories/ReleaseNotesRepository');
-      this.repository = new ReleaseNotesRepository(db);
-    }
+export class ReleaseNotesService {
+  private repository: ReleaseNotesRepository;
+  private counter = 0;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = new ReleaseNotesRepository(db);
   }
 
   // ==================== Generate Release Notes ====================
@@ -88,9 +101,10 @@ export class ReleaseNotesService {
     };
 
     const summary = this.generateSummary(changes);
+    const id = this.generateId('release-notes');
 
-    const releaseNotes: ReleaseNotes = {
-      id: this.generateId('release-notes'),
+    const entity = await this.repository.create({
+      id,
       deploymentId,
       tenantId,
       version,
@@ -99,10 +113,13 @@ export class ReleaseNotesService {
       summary,
       changes,
       metrics,
-    };
+      notes: null,
+      content: null,
+      generatedBy: 'system',
+      status: 'published',
+    });
 
-    this.notes.set(deploymentId, releaseNotes);
-    return releaseNotes;
+    return entityToReleaseNotes(entity);
   }
 
   // ==================== Get Release Notes ====================
@@ -111,20 +128,16 @@ export class ReleaseNotesService {
    * Get release notes for a deployment
    */
   async getReleaseNotes(deploymentId: string): Promise<ReleaseNotes | null> {
-    return this.notes.get(deploymentId) ?? null;
+    const entity = await this.repository.findByDeploymentId(deploymentId);
+    return entity ? entityToReleaseNotes(entity) : null;
   }
 
   /**
    * Get all release notes for a tenant
    */
   async getReleaseNotesByTenant(tenantId: string): Promise<ReleaseNotes[]> {
-    const results: ReleaseNotes[] = [];
-    for (const note of this.notes.values()) {
-      if (note.tenantId === tenantId) {
-        results.push(note);
-      }
-    }
-    return results.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
+    const entities = await this.repository.findByTenantId(tenantId);
+    return entities.map(entityToReleaseNotes);
   }
 
   // ==================== Save Release Notes ====================
@@ -133,29 +146,26 @@ export class ReleaseNotesService {
    * Save or update release notes for a deployment
    */
   async saveReleaseNotes(deploymentId: string, notes: ReleaseNotes): Promise<ReleaseNotes> {
-    const existing = this.notes.get(deploymentId);
-    if (existing) {
-      // Merge with existing, preserving id and generatedAt
-      const updated: ReleaseNotes = {
-        ...existing,
-        ...notes,
-        id: existing.id,
-        generatedAt: existing.generatedAt,
-        updatedAt: new Date(),
-      };
-      this.notes.set(deploymentId, updated);
-      return updated;
-    }
+    const entity = await this.repository.upsertByDeploymentId(deploymentId, {
+      id: notes.id,
+      tenantId: notes.tenantId,
+      version: notes.version,
+      environment: notes.environment,
+      summary: notes.summary,
+      changes: notes.changes,
+      metrics: notes.metrics ?? null,
+      notes: notes.notes ?? null,
+      generatedAt: notes.generatedAt,
+    });
 
-    this.notes.set(deploymentId, notes);
-    return notes;
+    return entityToReleaseNotes(entity);
   }
 
   /**
    * Delete release notes for a deployment
    */
   async deleteReleaseNotes(deploymentId: string): Promise<void> {
-    this.notes.delete(deploymentId);
+    await this.repository.deleteByDeploymentId(deploymentId);
   }
 
   // ==================== Internal Helpers ====================

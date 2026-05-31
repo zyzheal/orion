@@ -3,7 +3,11 @@
  *
  * Provides real-time traffic percentage control, automatic rollback based on error rates,
  * and support for different deployment strategies (canary, blue-green, rolling, shadow).
+ *
+ * Persisted via PostgreSQL Repository pattern.
  */
+
+import { ProgressiveDeploymentRepository, ProgressiveDeploymentEntity } from '../../repositories/ProgressiveDeploymentRepository';
 
 export type DeploymentStrategy = 'canary' | 'blue-green' | 'rolling' | 'shadow';
 export type DeploymentPhase = 'preparing' | 'initial' | 'progressing' | 'complete' | 'rolled_back';
@@ -43,18 +47,41 @@ export class ProgressiveDeploymentServiceError extends Error {
   }
 }
 
+function entityToStatus(entity: ProgressiveDeploymentEntity): ProgressiveDeployStatus {
+  return {
+    deploymentId: entity.deploymentId,
+    phase: entity.phase as DeploymentPhase,
+    currentTrafficPercent: entity.currentTrafficPercent,
+    targetTrafficPercent: entity.targetTrafficPercent,
+    errorRate: entity.errorRate,
+    startedAt: entity.startedAt,
+    lastIncrementAt: entity.lastIncrementAt ?? undefined,
+    completedAt: entity.completedAt ?? undefined,
+  };
+}
+
 /**
  * ProgressiveDeploymentService - handles real-time traffic shifting and auto-rollback
  */
 export class ProgressiveDeploymentService {
-  private activeDeployments: Map<string, ProgressiveDeployStatus> = new Map();
+  private repo: ProgressiveDeploymentRepository;
+  private defaultTenantId: string;
+
+  constructor(
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId: string = 'default'
+  ) {
+    this.repo = new ProgressiveDeploymentRepository(db);
+    this.defaultTenantId = tenantId;
+  }
 
   /**
    * Start a progressive deployment
    */
   async startProgressiveDeploy(
     deploymentId: string,
-    config: ProgressiveDeployConfig
+    config: ProgressiveDeployConfig,
+    tenantId?: string
   ): Promise<ProgressiveDeployResult> {
     // Validate config
     if (config.initialTrafficPercent < 0 || config.initialTrafficPercent > 100) {
@@ -79,28 +106,35 @@ export class ProgressiveDeploymentService {
     }
 
     // Check if deployment already exists
-    if (this.activeDeployments.has(deploymentId)) {
+    const existing = await this.repo.findByDeploymentId(deploymentId);
+    if (existing) {
       throw new ProgressiveDeploymentServiceError(
         `Deployment ${deploymentId} already has an active progressive deployment`,
         'DEPLOYMENT_ALREADY_EXISTS'
       );
     }
 
-    const status: ProgressiveDeployStatus = {
-      deploymentId,
+    const entity = await this.repo.create({
+      id: `pd-${deploymentId}`,
+      deployment_id: deploymentId,
+      tenant_id: tenantId ?? this.defaultTenantId,
       phase: 'initial',
-      currentTrafficPercent: config.initialTrafficPercent,
-      targetTrafficPercent: 100,
-      errorRate: 0,
-      startedAt: new Date(),
-    };
-
-    this.activeDeployments.set(deploymentId, status);
+      strategy: config.strategy,
+      current_traffic_percent: config.initialTrafficPercent,
+      target_traffic_percent: 100,
+      error_rate: 0,
+      started_at: new Date(),
+      last_increment_at: null,
+      completed_at: null,
+      config,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
 
     return {
       success: true,
       deploymentId,
-      status,
+      status: entityToStatus(entity),
     };
   }
 
@@ -111,17 +145,17 @@ export class ProgressiveDeploymentService {
     deploymentId: string,
     config: ProgressiveDeployConfig
   ): Promise<ProgressiveDeployStatus | null> {
-    const status = this.activeDeployments.get(deploymentId);
-    if (!status) return null;
+    const entity = await this.repo.findByDeploymentId(deploymentId);
+    if (!entity) return null;
 
     // Don't increment if already complete or rolled back
-    if (status.phase === 'complete' || status.phase === 'rolled_back') {
-      return status;
+    if (entity.phase === 'complete' || entity.phase === 'rolled_back') {
+      return entityToStatus(entity);
     }
 
     // Check minimum interval between increments
-    if (status.lastIncrementAt && config.incrementIntervalSeconds) {
-      const elapsed = (Date.now() - status.lastIncrementAt.getTime()) / 1000;
+    if (entity.lastIncrementAt && config.incrementIntervalSeconds) {
+      const elapsed = (Date.now() - entity.lastIncrementAt.getTime()) / 1000;
       if (elapsed < config.incrementIntervalSeconds) {
         const remaining = Math.ceil(config.incrementIntervalSeconds - elapsed);
         throw new ProgressiveDeploymentServiceError(
@@ -132,22 +166,37 @@ export class ProgressiveDeploymentService {
     }
 
     const newPercent = Math.min(
-      status.currentTrafficPercent + config.incrementPercent,
-      status.targetTrafficPercent
+      entity.currentTrafficPercent + config.incrementPercent,
+      entity.targetTrafficPercent
     );
 
-    status.currentTrafficPercent = newPercent;
-    status.lastIncrementAt = new Date();
+    const now = new Date();
+    let phase: string;
+    let completedAt: Date | null = null;
 
     if (newPercent >= 100) {
-      status.phase = 'complete';
-      status.completedAt = new Date();
+      phase = 'complete';
+      completedAt = now;
     } else {
-      status.phase = 'progressing';
+      phase = 'progressing';
     }
 
-    this.activeDeployments.set(deploymentId, status);
-    return status;
+    await this.repo.updatePhase(deploymentId, phase, {
+      currentTrafficPercent: newPercent,
+      lastIncrementAt: now,
+      completedAt: completedAt ?? undefined,
+    });
+
+    return {
+      deploymentId,
+      phase: phase as DeploymentPhase,
+      currentTrafficPercent: newPercent,
+      targetTrafficPercent: entity.targetTrafficPercent,
+      errorRate: entity.errorRate,
+      startedAt: entity.startedAt,
+      lastIncrementAt: now,
+      completedAt: completedAt ?? undefined,
+    };
   }
 
   /**
@@ -158,19 +207,20 @@ export class ProgressiveDeploymentService {
     config: ProgressiveDeployConfig,
     currentErrorRate: number
   ): Promise<boolean> {
-    const status = this.activeDeployments.get(deploymentId);
-    if (!status || !config.autoRollback) return false;
-
-    // Update error rate
-    status.errorRate = currentErrorRate;
+    const entity = await this.repo.findByDeploymentId(deploymentId);
+    if (!entity || !config.autoRollback) return false;
 
     if (currentErrorRate >= config.rollbackThreshold) {
-      status.phase = 'rolled_back';
-      this.activeDeployments.set(deploymentId, status);
+      await this.repo.updatePhase(deploymentId, 'rolled_back', {
+        errorRate: currentErrorRate,
+      });
       return true;
     }
 
-    this.activeDeployments.set(deploymentId, status);
+    // Update error rate even if not rolling back
+    await this.repo.updatePhase(deploymentId, entity.phase, {
+      errorRate: currentErrorRate,
+    });
     return false;
   }
 
@@ -178,28 +228,28 @@ export class ProgressiveDeploymentService {
    * Get status of a progressive deployment
    */
   async getStatus(deploymentId: string): Promise<ProgressiveDeployStatus | null> {
-    return this.activeDeployments.get(deploymentId) || null;
+    const entity = await this.repo.findByDeploymentId(deploymentId);
+    return entity ? entityToStatus(entity) : null;
   }
 
   /**
    * Abort a deployment and mark as rolled back
    */
   async abortDeployment(deploymentId: string): Promise<boolean> {
-    const status = this.activeDeployments.get(deploymentId);
-    if (!status) return false;
+    const entity = await this.repo.findByDeploymentId(deploymentId);
+    if (!entity) return false;
 
-    status.phase = 'rolled_back';
-    this.activeDeployments.set(deploymentId, status);
+    await this.repo.updatePhase(deploymentId, 'rolled_back');
     return true;
   }
 
   /**
    * List all active (not complete) deployments
    */
-  async listActiveDeployments(): Promise<ProgressiveDeployStatus[]> {
-    return Array.from(this.activeDeployments.values()).filter(
-      (s) => s.phase !== 'complete' && s.phase !== 'rolled_back'
-    );
+  async listActiveDeployments(tenantId?: string): Promise<ProgressiveDeployStatus[]> {
+    const tid = tenantId ?? this.defaultTenantId;
+    const entities = await this.repo.findActiveByTenant(tid);
+    return entities.map(entityToStatus);
   }
 
   /**
@@ -215,26 +265,21 @@ export class ProgressiveDeploymentService {
   /**
    * Clean up completed deployments
    */
-  async cleanupCompletedDeployments(olderThanMs?: number): Promise<number> {
-    const now = new Date();
-    let cleaned = 0;
-
-    for (const [deploymentId, status] of this.activeDeployments.entries()) {
-      if (status.phase === 'complete' || status.phase === 'rolled_back') {
-        if (olderThanMs) {
-          const statusTime = status.completedAt || status.startedAt;
-          const age = now.getTime() - statusTime.getTime();
-          if (age > olderThanMs) {
-            this.activeDeployments.delete(deploymentId);
-            cleaned++;
-          }
-        } else {
-          this.activeDeployments.delete(deploymentId);
-          cleaned++;
-        }
-      }
+  async cleanupCompletedDeployments(olderThanMs?: number, tenantId?: string): Promise<number> {
+    const tid = tenantId ?? this.defaultTenantId;
+    if (olderThanMs) {
+      const cutoffDate = new Date(Date.now() - olderThanMs);
+      return this.repo.deleteCompletedOlderThan(cutoffDate, tid);
     }
 
+    // If no age specified, clean all completed/rolled_back
+    const completed = await this.repo.findByPhase('complete', tid);
+    const rolledBack = await this.repo.findByPhase('rolled_back', tid);
+    let cleaned = 0;
+    for (const entity of [...completed, ...rolledBack]) {
+      await this.repo.delete(entity.id);
+      cleaned++;
+    }
     return cleaned;
   }
 }

@@ -34,7 +34,7 @@ export default async function selfHealingRoutes(
   }
 
   const repository = new SelfHealingRepository(opts.database);
-  const service = new SelfHealingService(repository);
+  const service = new SelfHealingService(repository, undefined, opts.database);
   const controller = new SelfHealingController(service);
 
   // Incidents
