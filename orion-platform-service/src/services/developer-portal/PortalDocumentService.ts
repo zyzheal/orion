@@ -1,7 +1,7 @@
 /**
  * PortalDocumentService - 开发者门户文档业务逻辑层
  *
- * Handles document CRUD, publishing, search, and analytics.
+ * Handles document CRUD, publishing, search, version management, and analytics.
  */
 
 import {
@@ -231,5 +231,148 @@ export class PortalDocumentService {
       throw new PortalDocumentServiceError(`Document not found: ${id}`, 'DOCUMENT_NOT_FOUND');
     }
     await this.repository.incrementHelpful(id, isHelpful);
+  }
+
+  // ==================== Version Management ====================
+
+  /**
+   * Create a new version of a document (snapshot the current and create new draft)
+   */
+  async createNewVersion(id: string, newVersion: string, editorId?: string): Promise<PortalDocumentEntity> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PortalDocumentServiceError(`Document not found: ${id}`, 'DOCUMENT_NOT_FOUND');
+    }
+
+    if (!newVersion || newVersion.trim().length === 0) {
+      throw new PortalDocumentServiceError('Version string is required', 'INVALID_INPUT');
+    }
+
+    // Create a new document as a new version
+    const newDoc = await this.repository.create({
+      tenantId: existing.tenantId,
+      title: existing.title,
+      slug: `${existing.slug}-v${newVersion.replace(/\./g, '-')}`,
+      content: existing.content,
+      contentFormat: existing.contentFormat,
+      documentType: existing.documentType,
+      category: existing.category ?? undefined,
+      tags: [...existing.tags],
+      version: newVersion.trim(),
+      authorId: editorId ?? existing.authorId,
+      metadata: { ...existing.metadata, previousVersionId: id, previousVersion: existing.version },
+    });
+
+    return newDoc;
+  }
+
+  /**
+   * Get all versions of a document (by matching slug pattern or metadata)
+   */
+  async getDocumentVersions(id: string): Promise<PortalDocumentEntity[]> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PortalDocumentServiceError(`Document not found: ${id}`, 'DOCUMENT_NOT_FOUND');
+    }
+
+    // Find all documents with the same base slug pattern
+    const baseSlug = existing.slug.replace(/-v[\d-]+$/, '');
+    const result = await this.repository.findAllFiltered({
+      tenantId: existing.tenantId,
+      limit: 100,
+    });
+
+    // Filter by base slug or metadata references
+    return result.entities.filter(
+      (doc) =>
+        doc.slug === existing.slug ||
+        doc.slug.startsWith(`${baseSlug}-v`) ||
+        (doc.metadata as Record<string, unknown>)?.previousVersionId === id ||
+        (existing.metadata as Record<string, unknown>)?.previousVersionId === doc.id
+    ).sort((a, b) => {
+      const vA = a.version || '0.0.0';
+      const vB = b.version || '0.0.0';
+      return vB.localeCompare(vA, undefined, { numeric: true });
+    });
+  }
+
+  // ==================== Publish Workflow ====================
+
+  /**
+   * Submit document for review (transition to review state via metadata)
+   */
+  async submitForReview(id: string, submitterId: string): Promise<PortalDocumentEntity> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PortalDocumentServiceError(`Document not found: ${id}`, 'DOCUMENT_NOT_FOUND');
+    }
+    if (existing.isPublished) {
+      throw new PortalDocumentServiceError('Published documents cannot be submitted for review', 'ALREADY_PUBLISHED');
+    }
+
+    const metadata = { ...(existing.metadata || {}) };
+    metadata.reviewStatus = 'pending_review';
+    metadata.submittedBy = submitterId;
+    metadata.submittedAt = new Date().toISOString();
+
+    return this.repository.update(id, { metadata });
+  }
+
+  /**
+   * Approve document review
+   */
+  async approveReview(id: string, reviewerId: string): Promise<PortalDocumentEntity> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PortalDocumentServiceError(`Document not found: ${id}`, 'DOCUMENT_NOT_FOUND');
+    }
+
+    const metadata = { ...(existing.metadata || {}) };
+    metadata.reviewStatus = 'approved';
+    metadata.reviewedBy = reviewerId;
+    metadata.reviewedAt = new Date().toISOString();
+
+    return this.repository.update(id, { metadata });
+  }
+
+  /**
+   * Reject document review
+   */
+  async rejectReview(id: string, reviewerId: string, reason: string): Promise<PortalDocumentEntity> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PortalDocumentServiceError(`Document not found: ${id}`, 'DOCUMENT_NOT_FOUND');
+    }
+
+    const metadata = { ...(existing.metadata || {}) };
+    metadata.reviewStatus = 'rejected';
+    metadata.reviewedBy = reviewerId;
+    metadata.reviewedAt = new Date().toISOString();
+    metadata.rejectReason = reason;
+
+    return this.repository.update(id, { metadata });
+  }
+
+  /**
+   * Get document statistics for a tenant
+   */
+  async getDocumentStats(tenantId: string): Promise<{
+    total: number;
+    published: number;
+    draft: number;
+    inReview: number;
+    totalViews: number;
+    totalHelpful: number;
+  }> {
+    const result = await this.repository.findAllFiltered({ tenantId, limit: 10000 });
+    const docs = result.entities;
+    return {
+      total: docs.length,
+      published: docs.filter((d) => d.isPublished).length,
+      draft: docs.filter((d) => !d.isPublished && (d.metadata as Record<string, string>)?.reviewStatus !== 'pending_review').length,
+      inReview: docs.filter((d) => (d.metadata as Record<string, string>)?.reviewStatus === 'pending_review').length,
+      totalViews: docs.reduce((sum, d) => sum + d.viewCount, 0),
+      totalHelpful: docs.reduce((sum, d) => sum + d.helpfulCount, 0),
+    };
   }
 }
