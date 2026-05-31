@@ -918,7 +918,7 @@ export class AlertSuppressionService {
       maintenanceWindows: activeMaintenanceWindows,
       knownIssues: openKnownIssues,
       suppressionLogSize,
-      deduplicationStats: await this.deduplication.getStats(),
+      deduplicationStats: await this.deduplication.getStats() as any,
       nodeHealthStats: {
         healthy: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'healthy').length,
         degraded: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'degraded').length,

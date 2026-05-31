@@ -15,8 +15,8 @@ import {
   Alert,
   Form,
 } from 'antd';
-import {
 import { colors } from '@/tokens';
+import {
   GitlabOutlined,
   GithubOutlined,
   FilterOutlined,
