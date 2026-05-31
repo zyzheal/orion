@@ -19,8 +19,8 @@ export interface TestSuiteDependencyEntity {
   passRate: number;
   lastRun: Date | null;
   sourceFiles: string[];
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDependencyEntity> {
@@ -28,7 +28,7 @@ export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDepen
     super(db, 'test_selector_suites');
   }
 
-  async create(data: Omit<TestSuiteDependencyEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<TestSuiteDependencyEntity, 'id'>>): Promise<TestSuiteDependencyEntity> {
+  async create(data: Omit<TestSuiteDependencyEntity, 'created_at' | 'updated_at'> & Partial<Pick<TestSuiteDependencyEntity, 'id'>>): Promise<TestSuiteDependencyEntity> {
     const columns = ['id', 'name', 'file_path', 'test_count', 'avg_duration', 'pass_rate', 'last_run', 'source_files'];
     const values = [data.id, data.name, data.filePath, data.testCount, data.avgDuration, data.passRate, data.lastRun, JSON.stringify(data.sourceFiles)];
 
@@ -52,8 +52,8 @@ export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDepen
       passRate: row.pass_rate,
       lastRun: row.last_run,
       sourceFiles: row.source_files ?? [],
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -69,8 +69,8 @@ export interface TestCaseDependencyEntity {
   avgDuration: number;
   flakyScore: number;
   history: unknown[];
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class TestCaseDependencyRepository extends BaseRepository<TestCaseDependencyEntity> {
@@ -78,7 +78,7 @@ export class TestCaseDependencyRepository extends BaseRepository<TestCaseDepende
     super(db, 'test_selector_cases');
   }
 
-  async create(data: Omit<TestCaseDependencyEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<TestCaseDependencyEntity, 'id'>>): Promise<TestCaseDependencyEntity> {
+  async create(data: Omit<TestCaseDependencyEntity, 'created_at' | 'updated_at'> & Partial<Pick<TestCaseDependencyEntity, 'id'>>): Promise<TestCaseDependencyEntity> {
     const columns = ['id', 'suite_id', 'name', 'file_path', 'dependencies', 'avg_duration', 'flaky_score', 'history'];
     const values = [data.id, data.suiteId, data.name, data.filePath, JSON.stringify(data.dependencies), data.avgDuration, data.flakyScore, JSON.stringify(data.history)];
 
@@ -110,8 +110,8 @@ export class TestCaseDependencyRepository extends BaseRepository<TestCaseDepende
       avgDuration: row.avg_duration,
       flakyScore: row.flaky_score,
       history: row.history ?? [],
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -123,8 +123,8 @@ export interface TestCodeMappingEntity {
   testPath: string;
   sourcePaths: string[];
   symbolMapping: Record<string, string[]>;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class TestCodeMappingDependencyRepository extends BaseRepository<TestCodeMappingEntity> {
@@ -132,7 +132,7 @@ export class TestCodeMappingDependencyRepository extends BaseRepository<TestCode
     super(db, 'test_selector_code_mappings');
   }
 
-  async create(data: Omit<TestCodeMappingEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<TestCodeMappingEntity, 'id'>>): Promise<TestCodeMappingEntity> {
+  async create(data: Omit<TestCodeMappingEntity, 'created_at' | 'updated_at'> & Partial<Pick<TestCodeMappingEntity, 'id'>>): Promise<TestCodeMappingEntity> {
     const columns = ['id', 'test_path', 'source_paths', 'symbol_mapping'];
     const values = [data.id, data.testPath, JSON.stringify(data.sourcePaths), JSON.stringify(data.symbolMapping)];
 
@@ -161,8 +161,8 @@ export class TestCodeMappingDependencyRepository extends BaseRepository<TestCode
       testPath: row.test_path,
       sourcePaths: row.source_paths ?? [],
       symbolMapping: row.symbol_mapping ?? {},
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -175,8 +175,8 @@ export interface PRTestResultEntity {
   planData: Record<string, unknown>;
   impactData: Record<string, unknown>;
   status: string;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class PRTestResultDependencyRepository extends BaseRepository<PRTestResultEntity> {
@@ -184,7 +184,7 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
     super(db, 'test_selector_pr_results');
   }
 
-  async create(data: Omit<PRTestResultEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<PRTestResultEntity, 'id'>>): Promise<PRTestResultEntity> {
+  async create(data: Omit<PRTestResultEntity, 'created_at' | 'updated_at'> & Partial<Pick<PRTestResultEntity, 'id'>>): Promise<PRTestResultEntity> {
     const columns = ['id', 'pr_id', 'plan_data', 'impact_data', 'status'];
     const values = [data.id, data.prId, JSON.stringify(data.planData), JSON.stringify(data.impactData), data.status];
 
@@ -221,8 +221,8 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
       planData: row.plan_data ?? {},
       impactData: row.impact_data ?? {},
       status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -238,7 +238,7 @@ export interface TestExecutionHistoryEntity {
   failureMessage: string | null;
   prId: string | null;
   executedAt: Date;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class TestExecutionHistoryDependencyRepository extends BaseRepository<TestExecutionHistoryEntity> {
@@ -285,7 +285,7 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
       failureMessage: row.failure_message,
       prId: row.pr_id,
       executedAt: row.executed_at,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }

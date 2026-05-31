@@ -21,7 +21,7 @@ export interface DevPortalPlaygroundRequestEntity {
   queryParams: Record<string, string>;
   body: string;
   bodyType: string;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class DevPortalPlaygroundRequestRepository extends BaseRepository<DevPortalPlaygroundRequestEntity> {
@@ -86,7 +86,7 @@ export class DevPortalPlaygroundRequestRepository extends BaseRepository<DevPort
       queryParams: row.query_params ?? {},
       body: row.body ?? '',
       bodyType: row.body_type,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }
@@ -102,7 +102,7 @@ export interface DevPortalPlaygroundResponseEntity {
   body: string;
   latencyMs: number;
   timestamp: Date;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class DevPortalPlaygroundResponseRepository extends BaseRepository<DevPortalPlaygroundResponseEntity> {
@@ -160,7 +160,7 @@ export class DevPortalPlaygroundResponseRepository extends BaseRepository<DevPor
       body: row.body ?? '',
       latencyMs: row.latency_ms,
       timestamp: row.timestamp,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }

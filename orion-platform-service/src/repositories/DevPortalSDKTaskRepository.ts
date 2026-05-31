@@ -20,8 +20,8 @@ export interface DevPortalSDKTaskEntity {
   output: string;
   error: string | null;
   completedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class DevPortalSDKTaskRepository extends BaseRepository<DevPortalSDKTaskEntity> {
@@ -29,7 +29,7 @@ export class DevPortalSDKTaskRepository extends BaseRepository<DevPortalSDKTaskE
     super(db, 'devportal_sdk_tasks');
   }
 
-  async create(data: Omit<DevPortalSDKTaskEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<DevPortalSDKTaskEntity, 'id'>>): Promise<DevPortalSDKTaskEntity> {
+  async create(data: Omit<DevPortalSDKTaskEntity, 'created_at' | 'updated_at'> & Partial<Pick<DevPortalSDKTaskEntity, 'id'>>): Promise<DevPortalSDKTaskEntity> {
     const columns = ['id', 'tenant_id', 'name', 'api_spec', 'language', 'package_name', 'version', 'status', 'output', 'error', 'completed_at'];
     const values = [data.id, data.tenantId, data.name, data.apiSpec, data.language, data.packageName, data.version, data.status, data.output, data.error, data.completedAt];
 
@@ -103,8 +103,8 @@ export class DevPortalSDKTaskRepository extends BaseRepository<DevPortalSDKTaskE
       output: row.output ?? '',
       error: row.error,
       completedAt: row.completed_at,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }

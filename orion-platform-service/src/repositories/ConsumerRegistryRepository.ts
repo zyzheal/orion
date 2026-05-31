@@ -9,8 +9,8 @@ export interface ConsumerRegistryEntity {
   messagesProcessed: number;
   status: string;
   tenantId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class ConsumerRegistryRepository extends BaseRepository<ConsumerRegistryEntity> {
@@ -42,6 +42,7 @@ export class ConsumerRegistryRepository extends BaseRepository<ConsumerRegistryE
 
   protected mapRowToEntity(row: any): ConsumerRegistryEntity {
     return {
+      id: row.id,
       consumerId: row.consumer_id,
       groupName: row.group_name,
       queueName: row.queue_name,
@@ -49,8 +50,8 @@ export class ConsumerRegistryRepository extends BaseRepository<ConsumerRegistryE
       messagesProcessed: row.messages_processed,
       status: row.status,
       tenantId: row.tenant_id,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }

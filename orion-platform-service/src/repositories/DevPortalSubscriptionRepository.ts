@@ -27,8 +27,8 @@ export interface DevPortalSubscriptionEntity {
   rejectReason: string | null;
   apiKey: string;
   expiresAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class DevPortalSubscriptionRepository extends BaseRepository<DevPortalSubscriptionEntity> {
@@ -36,7 +36,7 @@ export class DevPortalSubscriptionRepository extends BaseRepository<DevPortalSub
     super(db, 'devportal_api_subscriptions');
   }
 
-  async create(data: Omit<DevPortalSubscriptionEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<DevPortalSubscriptionEntity, 'id'>>): Promise<DevPortalSubscriptionEntity> {
+  async create(data: Omit<DevPortalSubscriptionEntity, 'created_at' | 'updated_at'> & Partial<Pick<DevPortalSubscriptionEntity, 'id'>>): Promise<DevPortalSubscriptionEntity> {
     const columns = ['id', 'tenant_id', 'user_id', 'api_name', 'plan_name', 'quota_per_day', 'quota_per_month', 'used_today', 'used_this_month', 'status', 'reason', 'approved_by', 'approved_at', 'reject_reason', 'api_key', 'expires_at'];
     const values = [data.id, data.tenantId, data.userId, data.apiName, data.planName, data.quotaPerDay, data.quotaPerMonth, data.usedToday, data.usedThisMonth, data.status, data.reason, data.approvedBy, data.approvedAt, data.rejectReason, data.apiKey, data.expiresAt];
 
@@ -133,8 +133,8 @@ export class DevPortalSubscriptionRepository extends BaseRepository<DevPortalSub
       rejectReason: row.reject_reason,
       apiKey: row.api_key,
       expiresAt: row.expires_at,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -149,7 +149,7 @@ export interface DevPortalUsageRecordEntity {
   method: string;
   statusCode: number;
   latencyMs: number;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class DevPortalUsageRecordRepository extends BaseRepository<DevPortalUsageRecordEntity> {
@@ -198,7 +198,7 @@ export class DevPortalUsageRecordRepository extends BaseRepository<DevPortalUsag
       method: row.method,
       statusCode: row.status_code,
       latencyMs: row.latency_ms,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }

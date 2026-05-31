@@ -18,8 +18,8 @@ export interface EfficiencyTeamDataEntity {
   members: number;
   pipelines: unknown[];
   deployments: unknown[];
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class EfficiencyTeamDataRepository extends BaseRepository<EfficiencyTeamDataEntity> {
@@ -27,7 +27,7 @@ export class EfficiencyTeamDataRepository extends BaseRepository<EfficiencyTeamD
     super(db, 'efficiency_team_data');
   }
 
-  async create(data: Omit<EfficiencyTeamDataEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<EfficiencyTeamDataEntity, 'id'>>): Promise<EfficiencyTeamDataEntity> {
+  async create(data: Omit<EfficiencyTeamDataEntity, 'created_at' | 'updated_at'> & Partial<Pick<EfficiencyTeamDataEntity, 'id'>>): Promise<EfficiencyTeamDataEntity> {
     const columns = ['id', 'tenant_id', 'name', 'members', 'pipelines', 'deployments'];
     const values = [data.id, data.tenantId, data.name, data.members, JSON.stringify(data.pipelines), JSON.stringify(data.deployments)];
 
@@ -57,8 +57,8 @@ export class EfficiencyTeamDataRepository extends BaseRepository<EfficiencyTeamD
       members: row.members,
       pipelines: row.pipelines ?? [],
       deployments: row.deployments ?? [],
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -72,8 +72,8 @@ export interface EfficiencyProjectDataEntity {
   pipelines: unknown[];
   deployments: unknown[];
   commits: number;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class EfficiencyProjectDataRepository extends BaseRepository<EfficiencyProjectDataEntity> {
@@ -81,7 +81,7 @@ export class EfficiencyProjectDataRepository extends BaseRepository<EfficiencyPr
     super(db, 'efficiency_project_data');
   }
 
-  async create(data: Omit<EfficiencyProjectDataEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<EfficiencyProjectDataEntity, 'id'>>): Promise<EfficiencyProjectDataEntity> {
+  async create(data: Omit<EfficiencyProjectDataEntity, 'created_at' | 'updated_at'> & Partial<Pick<EfficiencyProjectDataEntity, 'id'>>): Promise<EfficiencyProjectDataEntity> {
     const columns = ['id', 'tenant_id', 'name', 'pipelines', 'deployments', 'commits'];
     const values = [data.id, data.tenantId, data.name, JSON.stringify(data.pipelines), JSON.stringify(data.deployments), data.commits];
 
@@ -111,8 +111,8 @@ export class EfficiencyProjectDataRepository extends BaseRepository<EfficiencyPr
       pipelines: row.pipelines ?? [],
       deployments: row.deployments ?? [],
       commits: row.commits,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
@@ -124,7 +124,7 @@ export interface EfficiencyReportEntity {
   tenantId: string;
   reportData: Record<string, unknown>;
   generatedAt: Date;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class EfficiencyReportHistoryRepository extends BaseRepository<EfficiencyReportEntity> {
@@ -132,14 +132,9 @@ export class EfficiencyReportHistoryRepository extends BaseRepository<Efficiency
     super(db, 'efficiency_reports');
   }
 
-  async create(data: Omit<EfficiencyReportEntity, 'createdAt'> & Partial<Pick<EfficiencyReportEntity, 'id'>>): Promise<EfficiencyReportEntity> {
+  async create(data: Omit<EfficiencyReportEntity, 'created_at'> & Partial<Pick<EfficiencyReportEntity, 'id'>>): Promise<EfficiencyReportEntity> {
     const columns = ['id', 'tenant_id', 'report_data', 'generated_at'];
     const values = [data.id, data.tenantId, JSON.stringify(data.reportData), data.generatedAt];
-
-    if (data.id === undefined) {
-      columns.unshift('id');
-      values.unshift(undefined);
-    }
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
     const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -175,7 +170,7 @@ export class EfficiencyReportHistoryRepository extends BaseRepository<Efficiency
       tenantId: row.tenant_id,
       reportData: row.report_data ?? {},
       generatedAt: row.generated_at,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }
@@ -187,7 +182,7 @@ export interface EfficiencyGlobalDeploymentEntity {
   tenantId: string;
   deploymentData: Record<string, unknown>;
   deployedAt: Date;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class EfficiencyGlobalDeploymentRepository extends BaseRepository<EfficiencyGlobalDeploymentEntity> {
@@ -223,7 +218,7 @@ export class EfficiencyGlobalDeploymentRepository extends BaseRepository<Efficie
       tenantId: row.tenant_id,
       deploymentData: row.deployment_data ?? {},
       deployedAt: row.deployed_at,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }
@@ -235,7 +230,7 @@ export interface EfficiencyGlobalPipelineEntity {
   tenantId: string;
   pipelineData: Record<string, unknown>;
   completedAt: Date;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export class EfficiencyGlobalPipelineRepository extends BaseRepository<EfficiencyGlobalPipelineEntity> {
@@ -271,7 +266,7 @@ export class EfficiencyGlobalPipelineRepository extends BaseRepository<Efficienc
       tenantId: row.tenant_id,
       pipelineData: row.pipeline_data ?? {},
       completedAt: row.completed_at,
-      createdAt: row.created_at,
+      created_at: row.created_at,
     };
   }
 }

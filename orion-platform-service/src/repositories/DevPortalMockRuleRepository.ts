@@ -22,8 +22,8 @@ export interface DevPortalMockRuleEntity {
   enabled: boolean;
   priority: number;
   matchType: string;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class DevPortalMockRuleRepository extends BaseRepository<DevPortalMockRuleEntity> {
@@ -31,7 +31,7 @@ export class DevPortalMockRuleRepository extends BaseRepository<DevPortalMockRul
     super(db, 'devportal_mock_rules');
   }
 
-  async create(data: Omit<DevPortalMockRuleEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<DevPortalMockRuleEntity, 'id'>>): Promise<DevPortalMockRuleEntity> {
+  async create(data: Omit<DevPortalMockRuleEntity, 'created_at' | 'updated_at'> & Partial<Pick<DevPortalMockRuleEntity, 'id'>>): Promise<DevPortalMockRuleEntity> {
     const columns = ['id', 'tenant_id', 'name', 'description', 'method', 'path', 'status_code', 'headers', 'body', 'delay', 'enabled', 'priority', 'match_type'];
     const values = [data.id, data.tenantId, data.name, data.description, data.method, data.path, data.statusCode, JSON.stringify(data.headers), JSON.stringify(data.body), data.delay, data.enabled, data.priority, data.matchType];
 
@@ -98,8 +98,8 @@ export class DevPortalMockRuleRepository extends BaseRepository<DevPortalMockRul
       enabled: row.enabled,
       priority: row.priority,
       matchType: row.match_type,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }

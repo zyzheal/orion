@@ -27,8 +27,8 @@ export interface ApkUploadEntity {
   stderr: string | null;
   durationMs: number | null;
   progress: number | null;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export class ApkUploadRepository extends BaseRepository<ApkUploadEntity> {
@@ -36,7 +36,7 @@ export class ApkUploadRepository extends BaseRepository<ApkUploadEntity> {
     super(db, 'pipeline_apk_uploads');
   }
 
-  async create(data: Omit<ApkUploadEntity, 'createdAt' | 'updatedAt'> & Partial<Pick<ApkUploadEntity, 'id'>>): Promise<ApkUploadEntity> {
+  async create(data: Omit<ApkUploadEntity, 'created_at' | 'updated_at'> & Partial<Pick<ApkUploadEntity, 'id'>>): Promise<ApkUploadEntity> {
     const columns = ['id', 'tenant_id', 'pipeline_run_id', 'pipeline_id', 'pipeline_name', 'market', 'package_name', 'version_name', 'version_code', 'apk_path', 'status', 'upload_url', 'upload_id', 'error', 'stdout', 'stderr', 'duration_ms', 'progress'];
     const values = [data.id, data.tenantId, data.pipelineRunId, data.pipelineId, data.pipelineName, data.market, data.packageName, data.versionName, data.versionCode, data.apkPath, data.status, data.uploadUrl, data.uploadId, data.error, data.stdout, data.stderr, data.durationMs, data.progress];
 
@@ -154,8 +154,8 @@ export class ApkUploadRepository extends BaseRepository<ApkUploadEntity> {
       stderr: row.stderr,
       durationMs: row.duration_ms,
       progress: row.progress,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
