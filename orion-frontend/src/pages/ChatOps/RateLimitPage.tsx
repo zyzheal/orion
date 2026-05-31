@@ -177,7 +177,7 @@ const RateLimitPage: React.FC = () => {
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item name="enabled" label="启用" valuePropName="checked" value={true}>
+          <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         </Form>

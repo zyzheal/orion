@@ -5,7 +5,6 @@
  * - Used for master-detail views, resizable sidebars
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { colors } from '@/tokens';
 
 // ============================================================================
 // Types

@@ -83,7 +83,7 @@ const RoleManagementTab: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (editingRole) {
-        await chatopsAdminApi.updateRole(editingRole.id, values);
+        await chatopsAdminApi.updateRole(editingRole.id as string, values);
         message.success('角色已更新');
       } else {
         await chatopsAdminApi.createRole(values);
@@ -237,7 +237,7 @@ const CommandPermissionTab: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (editingPermission) {
-        await chatopsAdminApi.updateCommandPermission(editingPermission.id, {
+        await chatopsAdminApi.updateCommandPermission(editingPermission.id as string, {
           ...values,
           role_ids: values.role_ids || [],
         });
@@ -394,7 +394,7 @@ const EnvironmentPermissionTab: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (editingPermission) {
-        await chatopsAdminApi.updateEnvironmentPermission(editingPermission.id, {
+        await chatopsAdminApi.updateEnvironmentPermission(editingPermission.id as string, {
           ...values,
           role_ids: values.role_ids || [],
         });

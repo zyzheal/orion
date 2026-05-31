@@ -33,8 +33,7 @@ interface AdapterOption {
 }
 
 // API 响应包装接口
-interface ApiResponse<T> { data?: T; data?: T[] }
-interface NestedApiResponse<T> { data?: { data?: T } }
+interface ApiResponse<T> { data?: T | T[] }
 interface ListResponse<T> { data?: T[]; items?: T[] }
 
 const RepoList: React.FC = () => {

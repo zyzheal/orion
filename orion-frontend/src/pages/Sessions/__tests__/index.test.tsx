@@ -99,7 +99,7 @@ describe('Sessions Page', { timeout: 15000 }, () => {
     };
 
     vi.mocked(sessionApi.getSessions).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockSessions },
+      data: { code: 200, message: 'success', data: mockSessions } as any,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -107,7 +107,7 @@ describe('Sessions Page', { timeout: 15000 }, () => {
     });
 
     vi.mocked(sessionApi.getSessionStats).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockStats },
+      data: { code: 200, message: 'success', data: mockStats } as any,
       status: 200,
       statusText: 'OK',
       headers: {},

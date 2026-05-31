@@ -1,3 +1,6 @@
+import { SettingOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
+
 /**
  * ChatOps Settings - Platform config, notification preferences, DND settings
  */

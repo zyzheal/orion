@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Modal, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, InfoCircleOutlined, CodeOutlined } from '@ant-design/icons';
+import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getCommands, type ChatOpsCommand } from '@/api/chatops';
@@ -80,10 +80,9 @@ const CommandBrowser: React.FC = () => {
       dataIndex: 'name',
       width: 200,
       sortable: true,
-      render: (v: unknown, record: any) => (
+      render: (_v: unknown, record: any) => (
         <Space>
           <Text strong>
-            <CodeOutlined /> /{String(v)}
           </Text>
           {record.subcommand && <Tag>{record.subcommand}</Tag>}
         </Space>
@@ -155,7 +154,6 @@ const CommandBrowser: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <TerminalOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             命令浏览
           </Title>
           <Text type="secondary">ChatOps 命令目录与使用文档</Text>

@@ -13,9 +13,10 @@ import {
   Switch,
   Button,
   Card,
+  message,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
-import type { StageConfig, MatrixBuildConfig, PRTriggerConfig } from './types';
+import type { StageConfig, MatrixBuildConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
@@ -136,7 +137,7 @@ const StageModal: React.FC<StageModalProps> = ({
     if (visible) {
       getPipelines()
         .then((res) => {
-          const data = res.data?.data ?? res.data;
+          const data = res.data ?? res.data;
           const list = Array.isArray(data) ? data : [];
           const opts = list.map((p: { id: string; name: string }) => ({
             label: p.name,
@@ -224,7 +225,7 @@ const StageModal: React.FC<StageModalProps> = ({
             }
           : undefined,
         // PR/MR 触发配置
-        prTrigger: prTriggerConfig.enabled ? prTriggerConfig : undefined,
+        prTrigger: prTriggerConfig.enabled ? (prTriggerConfig as PRTriggerConfigType) : undefined,
       };
       onSave(stageConfig);
     } catch (error: unknown) {
@@ -320,7 +321,7 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ width: '100%' }}
             placeholder="默认 300 秒"
             formatter={(value) => `${value}s`}
-            parser={(value) => Number(value?.replace('s', '')) ?? 0}
+            parser={(value) => (Number(value?.replace('s', '')) || 0) as 0 | 7200}
           />
         </Form.Item>
 

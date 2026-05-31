@@ -64,7 +64,7 @@ const BillingSummaryCard: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBillingSummary();
-      setSummary((res.data as BillingSummaryResponse).data);
+      setSummary(((res.data as BillingSummaryResponse).data) ?? null);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载账单摘要失败';
       message.error(msg);
@@ -222,7 +222,7 @@ const UsageMeteringTab: React.FC = () => {
     try {
       const [usageRes, summaryRes] = await Promise.all([getUsage(), getUsageSummary()]);
       setUsage((usageRes.data as UsageResponse).data || []);
-      setSummary((summaryRes.data as UsageSummaryResponse).data);
+      setSummary(((summaryRes.data as UsageSummaryResponse).data) ?? null);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载用量数据失败';
       message.error(msg);

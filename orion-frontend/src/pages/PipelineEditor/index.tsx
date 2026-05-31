@@ -128,15 +128,15 @@ const PipelineEditor: React.FC = () => {
           const pipeline = rawBody?.data ?? rawBody;
           if (pipeline) {
             const info = {
-              name: pipeline.name,
-              version: String(pipeline.version || '1.0.0'),
-              description: pipeline.description || '',
+              name: (pipeline as any).name,
+              version: String((pipeline as any).version || '1.0.0'),
+              description: (pipeline as any).description || '',
             };
             setPipelineInfo(info);
             form.setFieldsValue(info);
             // 从 spec.stages 加载 Stage，支持后端格式和前端格式
-            if (pipeline.spec?.stages) {
-              const loadedStages: StageConfig[] = pipeline.spec.stages.map(
+            if ((pipeline as any).spec?.stages) {
+              const loadedStages: StageConfig[] = (pipeline as any).spec.stages.map(
                 (s: any, idx: number) => {
                   // 后端格式: { name, runsOn, steps: [{ name, uses, with }], timeout, retries, ... }
                   const stepType =

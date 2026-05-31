@@ -2,7 +2,7 @@
  * Audit Log Viewer - Filterable log table, export, statistics
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
 } from 'antd';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
-import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
+import { AuditOutlined, ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {

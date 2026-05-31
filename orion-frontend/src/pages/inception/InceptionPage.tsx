@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { inceptionApi, SqlAuditResult, SqlParseResult, SqlExecuteResult, AuditRecord } from '@/api/inception';
-import { Card, Input, Button, Space, Table, Tag, message, Spin, Row, Col, Badge, Descriptions } from 'antd';
+import { Card, Input, Button, Space, Table, Tag, message, Spin, Row, Col, Badge, Descriptions, Select } from 'antd';
 import {
   SearchOutlined,
   CodeOutlined,
@@ -261,12 +261,12 @@ const InceptionPage: React.FC = () => {
           <Card title="SQL 输入" extra={
             <Space>
               {databases.length > 0 && (
-                <Input.Select
+                <Select
                   allowClear
                   placeholder="选择数据库"
                   style={{ width: 160 }}
                   value={database}
-                  onChange={(v) => setDatabase(v || '')}
+                  onChange={(v: any) => setDatabase(v || '')}
                   options={databases.map((d) => ({ value: d, label: d }))}
                 />
               )}

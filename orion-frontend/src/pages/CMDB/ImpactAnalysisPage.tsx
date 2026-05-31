@@ -60,7 +60,7 @@ const ImpactAnalysisPage: React.FC = () => {
     setLoading(true);
     try {
       const result = await getImpactAnalysis(ciId);
-      setImpact(result.impact ?? null);
+      setImpact((result as any).impact ?? null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载影响分析失败：${error.message}`);

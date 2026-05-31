@@ -230,7 +230,7 @@ const MonitoringChannels: React.FC = () => {
       dataIndex: 'steps',
       render: (v: unknown) => (
         <Space>
-          {(v as Array<unknown>).map((step, idx) => (
+          {(v as Array<unknown>).map((step: any, idx) => (
             <Tag key={idx} color="blue">
               #{step.order} → {step.channel} ({step.delayMs}ms)
             </Tag>

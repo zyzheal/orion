@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTestCases, getTestStats, runTests, getTestSuites, getTestCoverage } from '../test-selector';
+import { getTestCases, getTestStats, runTests } from '../test-selector';
 import { api } from '../client';
 import type { InternalAxiosRequestConfig } from 'axios';
 

@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { UserInfo } from '@/api/types';
 import { refreshAuthTokenApi, logout as apiLogout } from '@/api/auth';
-import { injectAuthState, getDefaultChannel } from '@/microfront/config';
+import { injectAuthState } from '@/microfront/config';
+import { getDefaultChannel } from '@/microfront/eventBus';
 
 interface AuthState {
   user: UserInfo | null;
@@ -148,14 +149,14 @@ export const useAuthStore = create<AuthState>()(
 
       // Phase 3.8.4: 通知后端将 token 加入黑名单
       try {
-        await apiLogout(accessToken, rfToken);
+        await apiLogout(accessToken || undefined, rfToken || undefined);
       } catch (err) {
         console.warn('[Auth] Logout API call failed, continuing local cleanup:', err);
       }
 
       // Phase 3.8.4: 广播登出事件通知子应用
       try {
-        getDefaultChannel().emit('auth:logout', {
+        (getDefaultChannel() as any).emit('auth:logout', {
           timestamp: new Date().toISOString(),
           reason: 'user_logout',
         });

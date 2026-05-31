@@ -6,7 +6,7 @@
  * - Node hover shows call metrics
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Card, Button, Tag, Space, message, Spin, Empty, Statistic, Row, Col, Tooltip } from 'antd';
+import { Typography, Card, Button, Tag, Space, message, Spin, Empty, Statistic, Row, Col } from 'antd';
 import { DeploymentUnitOutlined, ReloadOutlined, ArrowRightOutlined, WarningOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import ReactFlow, {
   Background,
@@ -138,7 +138,7 @@ const ServiceTopologyPage: React.FC = () => {
     serviceNode: ({ data }: { data: ServiceNodeData }) => (
       <div style={{ padding: '8px 12px', minWidth: 160 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <DeploymentUnitOutlined style={{ color: data.isError ? colors.error[500] : colors.primary[500] }} />
+          <DeploymentUnitOutlined style={{ color: (data as any).isError ? colors.error[500] : colors.primary[500] }} />
           <Text strong style={{ fontSize: 13 }}>{data.name}</Text>
         </div>
         <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
@@ -223,7 +223,7 @@ const ServiceTopologyPage: React.FC = () => {
               <MiniMap
                 nodeColor={(node) => {
                   const d = node.data as ServiceNodeData;
-                  return d?.isError ? colors.error[500] : colors.primary[500];
+                  return (d as any).isError ? colors.error[500] : colors.primary[500];
                 }}
                 nodeStrokeColor={colors.neutral[300]}
                 nodeBorderRadius={12}

@@ -58,7 +58,7 @@ const ApkUploadHistoryPage: React.FC = () => {
     pageSize: 20,
   });
 
-  const tenantId = useAuthStore((state) => state.user?.tenantId) || 'default-tenant';
+  const tenantId = useAuthStore((state) => (state.user as any).tenantId) || 'default-tenant';
 
   useEffect(() => {
     loadHistory();
@@ -106,10 +106,10 @@ const ApkUploadHistoryPage: React.FC = () => {
       const resData = response.data as { data?: { data?: { total?: number; published?: number; failed?: number; uploading?: number } } };
       if (resData?.data?.data) {
         setStats({
-          total: resData.data.total,
-          published: resData.data.published,
-          failed: resData.data.failed,
-          uploading: resData.data.uploading,
+          total: (resData.data as any).total,
+          published: (resData.data as any).published,
+          failed: (resData.data as any).failed,
+          uploading: (resData.data as any).uploading,
         });
       }
     } catch (error) {

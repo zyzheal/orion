@@ -12,7 +12,7 @@ import { colors } from '@/tokens';
 
 const { Option } = Select;
 
-const { Search } = Input;
+const {} = Input;
 
 const UEBAPage: React.FC = () => {
   const [loading, setLoading] = useState(false);

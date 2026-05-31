@@ -24,7 +24,7 @@ import {
   HistoryOutlined,
   ApiOutlined,
 } from '@ant-design/icons';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import { DAGGraph } from '@/components/DAGGraph';
 import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
 import {
@@ -46,78 +46,6 @@ dayjs.extend(duration);
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
-
-// API 响应包装接口
-interface PipelineResponse { data?: Pipeline }
-interface RunDetailResponse { data?: { run?: PipelineRun; stages?: Stage[]; tasks?: Task[] } }
-interface StageResponse { data?: Stage[] }
-interface TaskResponse { data?: Task }
-
-// Pipeline interfaces
-interface Pipeline {
-  id?: string;
-  name?: string;
-  description?: string;
-  status?: string;
-  runNumber?: number;
-  branch?: string;
-  commit?: string;
-  author?: string;
-  trigger?: string;
-  triggerType?: string;
-  startTime?: string;
-  endTime?: string;
-  duration?: number;
-  stages?: Stage[];
-  [key: string]: unknown;
-}
-
-interface PipelineRun {
-  id?: string;
-  pipelineId?: string;
-  status?: string;
-  runNumber?: number;
-  branch?: string;
-  commit?: string;
-  author?: string;
-  trigger?: string;
-  triggerType?: string;
-  startTime?: string;
-  endTime?: string;
-  duration?: number;
-  stages?: Stage[];
-  [key: string]: unknown;
-}
-
-interface Stage {
-  id?: string;
-  name?: string;
-  status?: string;
-  type?: string;
-  durationMs?: string;
-  startTime?: string;
-  endTime?: string;
-  dependsOn?: string[];
-  tasks?: Task[];
-  [key: string]: unknown;
-}
-
-interface Task {
-  id?: string;
-  name?: string;
-  stageId?: string;
-  stageName?: string;
-  status?: string;
-  type?: string;
-  durationMs?: string;
-  startTime?: string;
-  endTime?: string;
-  logs?: string[];
-  [key: string]: unknown;
-}
-
-// StatusBadge status 类型
-type BadgeStatus = 'success' | 'running' | 'failed' | 'pending' | 'warning' | 'cancelled' | 'error' | 'default';
 
 // Status color map for stages
 const stageStatusColors: Record<string, string> = {
@@ -302,13 +230,13 @@ function extractData<T = unknown>(response: unknown): T | null {
   if (!res) return null;
 
   // 第一层：AxiosResponse.data → 后端实际响应
-  const backendResponse = 'data' in res ? (res as { data?: T }).data : res;
+  const backendResponse = (typeof res === 'object' && res !== null && 'data' in res) ? (res as { data?: T }).data : res;
 
   if (!backendResponse) return null;
 
   // 如果后端返回的是 { data: X } 格式（X 可能是对象或数组），返回 X
   if (backendResponse && typeof backendResponse === 'object' && 'data' in backendResponse) {
-    return (backendResponse as { data?: T }).data;
+    return (backendResponse as { data?: T }).data ?? null;
   }
 
   // 否则直接返回后端响应（详情接口直接返回对象，无 data 包装）
@@ -327,8 +255,8 @@ function extractList<T = unknown>(response: unknown): T[] {
 
   // 后端列表格式: { data: [...], total: N }
   if (Array.isArray(backendResponse)) return backendResponse;
-  if (Array.isArray(backendResponse?.runs)) return backendResponse.runs;
-  if (Array.isArray(backendResponse?.items)) return backendResponse.items;
+  if (Array.isArray((backendResponse as any)?.runs)) return (backendResponse as any).runs;
+  if (Array.isArray((backendResponse as any)?.items)) return (backendResponse as any).items;
   return [];
 }
 
@@ -361,8 +289,8 @@ const PipelineDetail: React.FC = () => {
       }
 
       // Fetch latest runs for this pipeline
-      let latestRun = null;
-      let runStages = [];
+      let latestRun: any = null;
+      let runStages: any[] = [];
       let runsCount = 0;
       try {
         const runsRes = await getPipelineRuns(pid);
@@ -379,9 +307,9 @@ const PipelineDetail: React.FC = () => {
             const runDetailRes = await getPipelineRunDetail(latestRun.id);
             const runDetail = extractData(runDetailRes);
 
-            const rawStagesArr = runDetail?.stages || [];
-            const rawTasks = runDetail?.tasks || [];
-            const runInfo = runDetail?.run || {};
+            const rawStagesArr = (runDetail as any)?.stages || [];
+            const rawTasks = (runDetail as any)?.tasks || [];
+            const runInfo = (runDetail as any)?.run || {};
 
             // Fallback: if stages are empty, try the dedicated stages endpoint
             let stagesToProcess = rawStagesArr;
@@ -389,7 +317,7 @@ const PipelineDetail: React.FC = () => {
               try {
                 const stagesRes = await getPipelineRunStages(latestRun.id);
                 const stagesData = extractData(stagesRes);
-                const fallbackStages = stagesData?.data ?? stagesData?.stages ?? stagesData ?? [];
+                const fallbackStages = (stagesData as any)?.data ?? (stagesData as any)?.stages ?? stagesData ?? [];
                 stagesToProcess = Array.isArray(fallbackStages) ? fallbackStages : [];
               } catch (stagesErr) {
                 console.error('[PipelineDetail] Dedicated stages endpoint failed:', stagesErr);
@@ -485,9 +413,9 @@ const PipelineDetail: React.FC = () => {
       const latestRun = runsData[0] || null;
       setPipeline((prev: any) => ({
         ...prev,
-        status: latestRun?.status || 'running',
-        runNumber: latestRun?.runNumber || prev.runNumber + 1,
-        stages: latestRun?.stages || [],
+        status: (latestRun as any)?.status || 'running',
+        runNumber: (latestRun as any)?.runNumber || (prev as any).runNumber + 1,
+        stages: (latestRun as any)?.stages || [],
       }));
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -508,8 +436,8 @@ const PipelineDetail: React.FC = () => {
       const latestRun = runsData[0] || null;
       setPipeline((prev: any) => ({
         ...prev,
-        status: latestRun?.status || prev.status,
-        stages: latestRun?.stages || prev.stages,
+        status: (latestRun as any)?.status || (prev as any).status,
+        stages: (latestRun as any)?.stages || (prev as any).stages,
       }));
     } catch {
       // Silent reload failure — the error detail component handles its own retry
@@ -1024,7 +952,7 @@ const PipelineDetail: React.FC = () => {
                   dataIndex: 'status',
                   key: 'status',
                   width: 100,
-                  render: (status: string) => <StatusBadge status={status as BadgeStatus} />,
+                  render: (status: string) => <StatusBadge status={status as StatusType} />,
                 },
                 {
                   title: '触发方式',

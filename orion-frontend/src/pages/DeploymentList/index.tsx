@@ -12,7 +12,7 @@ import { Typography, Button, Space, Tag, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getDeployments } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
@@ -198,7 +198,7 @@ const DeploymentList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value as StatusType} size="small" />,
     },
     {
       key: 'triggeredBy',

@@ -240,7 +240,7 @@ const DeployPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getDeployments({ page: 1, pageSize: 100 });
-      const raw = res.data?.data;
+      const raw = res.data;
       setDeployments(Array.isArray(raw) ? raw : []);
     } catch (error: unknown) {
       setDeployments([]);

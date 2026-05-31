@@ -2,7 +2,7 @@
  * Index Management Page
  * Configure and manage vector index parameters (HNSW, IVF, etc.)
  */
-import React, { useState, useEffect } from 'react';
+import _React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -11,13 +11,10 @@ import {
   Button,
   Modal,
   Form,
-  Input,
   Select,
   InputNumber,
   Typography,
   message,
-  Descriptions,
-  Progress,
   Tooltip,
 } from 'antd';
 import {
@@ -28,7 +25,7 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface VectorIndex {
   id: string;
@@ -56,13 +53,6 @@ const metricOptions = [
   { label: '内积 (Inner Product)', value: 'ip' },
 ];
 
-const defaultParams: Record<string, Record<string, unknown>> = {
-  hnsw: { m: 16, ef_construction: 200, ef_search: 64 },
-  ivf_flat: { nlist: 1024, nprobe: 32 },
-  ivf_pq: { nlist: 1024, nprobe: 32, m: 8, nbits: 8 },
-  flat: {},
-};
-
 export default function IndexManagementPage() {
   const [loading, setLoading] = useState(false);
   const [indexes, setIndexes] = useState<VectorIndex[]>([]);
@@ -85,7 +75,7 @@ export default function IndexManagementPage() {
 
   useEffect(() => { fetchIndexes(); }, []);
 
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (_values: any) => {
     try {
       // TODO: integrate with vector-store API
       message.success('索引创建成功');

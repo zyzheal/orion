@@ -5,15 +5,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Table, Button, Tag, Space, Tabs, message,
-  Modal, Form, Input, Select, Popconfirm, Card, Row, Col, Statistic, Progress,
+  Modal, Form, Input, Select, Popconfirm, Card, Progress,
 } from 'antd';
 import {
   BarChartOutlined,
   PlusOutlined,
   ReloadOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
-  TrendingUpOutlined,
+  RiseOutlined,
 } from '@ant-design/icons';
 import {
   recordCapacityMetric, listCapacityMetrics,
@@ -129,7 +127,7 @@ const OverviewTab: React.FC = () => {
           <Text type="secondary">资源使用瓶颈与容量预警</Text>
         </div>
         <Space>
-          <Button icon={<TrendingUpOutlined />} onClick={handleForecast}>生成预测</Button>
+          <Button icon={<RiseOutlined />} onClick={handleForecast}>生成预测</Button>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
         </Space>
       </div>
@@ -191,7 +189,7 @@ const ForecastTab: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <Title level={3} style={{ marginBottom: 8 }}>
-            <TrendingUpOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <RiseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             容量预测
           </Title>
           <Text type="secondary">资源使用趋势预测与耗尽时间估算</Text>

@@ -14,7 +14,6 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   MinusOutlined,
-  TeamOutlined,
   SwapOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';

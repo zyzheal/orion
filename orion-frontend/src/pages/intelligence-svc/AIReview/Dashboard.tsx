@@ -49,7 +49,7 @@ const AIReviewDashboard: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewHistory({ pageSize: 10 });
-      setRecentReviews(res.data?.items || []);
+      setRecentReviews((res.data as any)?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审历史失败：${error.message}`);

@@ -14,7 +14,7 @@ import {
   Table as AntTable,
   message,
 } from 'antd';
-import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined, BarChartOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import type { ColumnsType } from 'antd/es/table';
 import {

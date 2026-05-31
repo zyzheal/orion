@@ -68,7 +68,7 @@ export const getEnabledSsoProviders = async (): Promise<Array<{
   display_icon?: string;
 }>> => {
   const response = await api.get('/v1/auth/sso/providers-enabled');
-  return response.data || [];
+  return (response.data || []) as { name: string; type: string; display_name: string; display_icon?: string }[];
 };
 
 /**
@@ -80,7 +80,7 @@ export const getSsoStatus = async (): Promise<{
   ssoScopes: string[];
 }> => {
   const response = await api.get('/v1/auth/sso/status');
-  return response.data;
+  return response.data as { ssoEnabled: boolean; ssoIssuer: string | null; ssoScopes: string[] };
 };
 
 /**
@@ -95,5 +95,5 @@ export const getJwtKeyStatus = async (): Promise<{
   nextRotationDate?: string;
 }> => {
   const response = await api.get('/v1/auth/keys');
-  return response.data;
+  return response.data as { initialized: boolean; activeKeyId?: string; verificationKeyCount: number; nextRotationDate?: string };
 };

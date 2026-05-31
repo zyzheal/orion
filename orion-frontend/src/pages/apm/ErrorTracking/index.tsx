@@ -24,9 +24,9 @@ const ApmErrorTrackingPage: React.FC = () => {
     setLoading(true);
     try {
       const traces = await apmApi.listTraces({ limit: 200 });
-      const traceList = Array.isArray(traces) ? traces : (traces.data ?? []);
+      const traceList = Array.isArray(traces) ? traces : ((traces as any).data ?? []);
       setAllTraces(traceList);
-      const errorTraces = traceList.filter((t) => t.status === 'error');
+      const errorTraces = traceList.filter((t: any) => t.status === 'error');
       setErrors(errorTraces);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载错误数据失败');

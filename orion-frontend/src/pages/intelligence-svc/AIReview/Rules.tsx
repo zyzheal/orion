@@ -53,7 +53,7 @@ const AIReviewRules: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewRules();
-      setData(res.data?.items || []);
+      setData((res.data as any)?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审规则失败：${error.message}`);

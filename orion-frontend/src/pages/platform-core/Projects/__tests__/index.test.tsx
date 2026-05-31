@@ -20,7 +20,7 @@ const mockProjects = [
   },
 ];
 
-describe('Projects Page', { timeout: 15000 }, () => {
+describe('Projects Page', () => {
   it('loads projects from API on mount', async () => {
     server.use(
       http.get('/api/v1/projects', () => {

@@ -126,6 +126,7 @@ const mockTemplates: ScriptTemplate[] = [
     content: 'df -h',
     category: '系统检查',
     createdAt: '2026-05-15',
+    updatedAt: '2026-05-15',
   },
   {
     id: 'tpl-002',
@@ -134,6 +135,7 @@ const mockTemplates: ScriptTemplate[] = [
     content: 'systemctl status nginx',
     category: '服务检查',
     createdAt: '2026-05-15',
+    updatedAt: '2026-05-15',
   },
   {
     id: 'tpl-003',
@@ -142,6 +144,7 @@ const mockTemplates: ScriptTemplate[] = [
     content: 'find /var/log -name "*.log" -mtime +7 -delete',
     category: '系统维护',
     createdAt: '2026-05-16',
+    updatedAt: '2026-05-16',
   },
   {
     id: 'tpl-004',
@@ -150,6 +153,7 @@ const mockTemplates: ScriptTemplate[] = [
     content: 'free -h',
     category: '系统检查',
     createdAt: '2026-05-17',
+    updatedAt: '2026-05-17',
   },
 ];
 
@@ -483,6 +487,7 @@ const ScriptTemplateTab: React.FC = () => {
         content: values.content,
         category: values.category || '自定义',
         createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0],
       };
       setTemplates((prev) => [newTpl, ...prev]);
       message.success('模板创建成功');

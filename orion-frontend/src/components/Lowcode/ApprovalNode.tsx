@@ -3,14 +3,13 @@
  * 低代码平台工作流中的审批节点可视化
  */
 import React, { useMemo } from 'react';
-import { Badge, Tooltip, Space, Avatar, Tag, Typography } from 'antd';
+import { Badge, Tooltip, Space, Tag, Typography } from 'antd';
 import {
   UserOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
   TeamOutlined,
-  ArrowRightOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens';
 import { componentRadius } from '@/tokens/radius';
@@ -83,7 +82,7 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
 
   // 审批人显示逻辑
   const approverDisplay = useMemo(() => {
-    const { approvers, mode } = config;
+    const { approvers } = config;
 
     if (approvers.length === 0) {
       return { text: '未配置审批人', type: 'warning' };

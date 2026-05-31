@@ -8,9 +8,9 @@
  * - Detail link
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message, Modal, Input } from 'antd';
+import { Typography, Button, Space, Tag, message, Modal } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, RocketOutlined, RollbackOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -24,8 +24,6 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 
 // API 响应包装接口
-interface ApiResponse<T> { data?: T; data?: T[] }
-interface NestedApiResponse<T> { data?: { data?: T } }
 interface ListResponse<T> { data?: T[]; items?: T[] }
 
 interface DeploymentRecord {

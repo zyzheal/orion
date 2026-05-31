@@ -137,7 +137,7 @@ const DashboardCore: React.FC = () => {
 
         // Build KPI metrics from efficiency API response
         if (efficiencyRes.status === 'fulfilled') {
-          const efficiencyData = efficiencyRes.value.data?.data as EfficiencyDashboardResponse | undefined;
+          const efficiencyData = efficiencyRes.value.data as EfficiencyDashboardResponse | undefined;
           const dashboard = efficiencyData?.dashboard;
           if (dashboard?.dora) {
             const summary = dashboard.summary || {};
@@ -176,7 +176,7 @@ const DashboardCore: React.FC = () => {
 
         // Build active alerts KPI from alerts API response
         if (alertsRes.status === 'fulfilled') {
-          const alertsData = alertsRes.value.data?.data as AlertsResponse | undefined;
+          const alertsData = alertsRes.value.data as AlertsResponse | undefined;
           const activeCount = alertsData?.activeCount ?? (Array.isArray(alertsData?.data)
             ? alertsData.data.filter((a) => a.status === 'active').length
             : 0);

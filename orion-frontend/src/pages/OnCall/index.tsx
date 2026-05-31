@@ -133,7 +133,7 @@ const OnCallManagement: React.FC = () => {
     setUsersLoading(true);
     try {
       const res = await listUsers({ limit: 200 });
-      const users: User[] = res.data?.data?.data || [];
+      const users: User[] = res.data?.data || [];
       if (users.length > 0) {
         const map: Record<string, string> = {};
         for (const u of users) {
@@ -155,7 +155,7 @@ const OnCallManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSchedules();
-      const data = res.data?.data?.schedules;
+      const data = res.data?.schedules;
       setSchedules(Array.isArray(data) && data.length > 0 ? data : []);
     } catch (error: unknown) {
       setSchedules([]);
@@ -168,7 +168,7 @@ const OnCallManagement: React.FC = () => {
   const loadCurrentOnCall = async (scheduleId: string) => {
     try {
       const res = await getCurrentOnCall(scheduleId);
-      const result = res.data?.data;
+      const result = res.data;
       if (result) {
         setCurrentOnCall((prev) => ({ ...prev, [scheduleId]: result }));
       } else {

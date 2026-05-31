@@ -120,7 +120,7 @@ const PipelineRunList: React.FC = () => {
       if (pipelineId && items.length > 0) {
         const firstRun = items[0];
         if (firstRun && (firstRun as { pipelineName?: string }).pipelineName) {
-          setPipelineName((firstRun as { pipelineName?: string }).pipelineName);
+          setPipelineName((firstRun as { pipelineName?: string }).pipelineName ?? null);
         }
       }
 

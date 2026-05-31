@@ -17,7 +17,6 @@ import {
   Statistic,
   Empty,
   Spin,
-  Tooltip,
 } from 'antd';
 import {
   BranchesOutlined,
@@ -26,7 +25,6 @@ import {
   DatabaseOutlined,
   ApiOutlined,
   CloudServerOutlined,
-  RightOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 

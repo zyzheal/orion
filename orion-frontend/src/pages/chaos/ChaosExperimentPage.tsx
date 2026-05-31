@@ -20,7 +20,6 @@ import {
   message,
   Typography,
   Popconfirm,
-  Switch,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -29,14 +28,12 @@ import {
   ReloadOutlined,
   PlayCircleOutlined,
   StopOutlined,
-  ExperimentOutlined,
   EditOutlined,
   RollbackOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import { chaosApi, resilienceApi, type ChaosExperiment, type ChaosFault } from '@/api/chaos';
 import { colors } from '@/tokens/colors';
-import { componentRadius } from '@/tokens/radius';
 
 const { Title, Text } = Typography;
 
@@ -95,7 +92,7 @@ const ChaosExperimentPage: React.FC = () => {
     }
   };
 
-  const handleEdit = async (values: any) => {
+  const handleEdit = async (_values: any) => {
     if (!editingExperiment) return;
     try {
       // For now, just update name via API (full update endpoint may not exist)
@@ -207,7 +204,7 @@ const ChaosExperimentPage: React.FC = () => {
               Run
             </Button>
           )}
-          {record.status === 'active' || record.status === 'running' ? (
+          {(record.status as string) === 'active' || (record.status as string) === 'running' ? (
             <>
               <Popconfirm title="Stop this experiment?" onConfirm={() => handleStop(record.id)}>
                 <Button size="small" danger icon={<StopOutlined />}>

@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Pipeline Budget Page
  * Phase 1 - Budget configuration and monitoring UI

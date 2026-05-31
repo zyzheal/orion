@@ -16,7 +16,7 @@ import {
   Table,
   Alert,
 } from 'antd';
-import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DesktopOutlined, ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getSession, completeSession, getSessionComplexity } from '@/api/diagnostic';
 import type { DiagnosticSymptom } from '@/api/diagnostic';
 import dayjs from 'dayjs';

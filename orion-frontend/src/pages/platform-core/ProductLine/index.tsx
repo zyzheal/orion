@@ -133,8 +133,8 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
       ]);
       setResult({
         env: envRes?.data ? String(envRes.data) : undefined,
-        needsApproval: approvalRes?.data?.data?.requiresApproval,
-        isHotfixBranch: hotfixRes?.data?.data?.isHotfix,
+        needsApproval: approvalRes?.data?.requiresApproval,
+        isHotfixBranch: hotfixRes?.data?.isHotfix,
       });
     } catch (error: unknown) {
       // Try mock: find matching env mapping
@@ -446,8 +446,8 @@ const ProductLineManagement: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const [rtRes, hfRes] = await Promise.all([getReleaseTrains(pl.id), getHotfixChannels(pl.id)]);
-      setReleaseTrains(rtRes?.data?.data || []);
-      setHotfixChannels(hfRes?.data?.data || []);
+      setReleaseTrains(rtRes?.data || []);
+      setHotfixChannels(hfRes?.data || []);
     } catch (error: unknown) {
       setReleaseTrains([]);
       setHotfixChannels([]);
@@ -478,7 +478,7 @@ const ProductLineManagement: React.FC = () => {
       // Reload
       try {
         const res = await getReleaseTrains(selectedPL.id);
-        setReleaseTrains(res.data?.data || []);
+        setReleaseTrains(res.data || []);
       } catch {
         /* optional reload, ignore */
       }
@@ -518,7 +518,7 @@ const ProductLineManagement: React.FC = () => {
       hfForm.resetFields();
       try {
         const res = await getHotfixChannels(selectedPL.id);
-        setHotfixChannels(res.data?.data || []);
+        setHotfixChannels(res.data || []);
       } catch {
         /* optional reload, ignore */
       }

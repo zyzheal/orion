@@ -35,7 +35,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [accountModal, setAccountModal] = useState(false);
   const [drModal, setDrModal] = useState(false);
-  const [scheduleModal, setScheduleModal] = useState(false);
+  const [_scheduleModal, setScheduleModal] = useState(false);
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
   const [complianceLoading, setComplianceLoading] = useState(false);
   const [schedulingPolicies, setSchedulingPolicies] = useState<SchedulingPolicy[]>([]);
@@ -289,7 +289,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${colors.success[500]}` }}>
-            <Statistic title="活跃厂商" value={Array.from(new Set(accounts.map(a => a.provider_id || a.credential_type || a.provider))).length} prefix={<GlobalOutlined style={{ color: colors.success[500] }} />} />
+            <Statistic title="活跃厂商" value={Array.from(new Set(accounts.map(a => a.provider_id || a.credential_type || (a as any).provider))).length} prefix={<GlobalOutlined style={{ color: colors.success[500] }} />} />
           </Card>
         </Col>
         <Col span={6}>

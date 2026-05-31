@@ -4,11 +4,10 @@
  * 使用 orion-mf 微前端框架加载子应用
  * 支持 Shadow DOM 隔离、降级策略、错误边界
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { loadSubApp, getSubApp, destroySubApp } from '@orion-mf/core';
+import { loadSubApp, getSubApp } from '@orion-mf/core';
 import type { SubAppInstance } from '@orion-mf/core';
-import { useAppStore } from '@/stores/appStore';
 import { getSubAppConfig } from '@/microfront/apps';
 import { Loading } from '@/components/Loading';
 import { colors } from '@/tokens';
@@ -24,11 +23,11 @@ interface OrionMFConfig {
 const SubAppRouteMF: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const token = useAppStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
   const instanceRef = useRef<SubAppInstance | null>(null);
+  const user = { id: "", username: "", email: "" };
 
   // 根据路径确定子应用 key
   const getAppKeyFromPath = (): string | null => {
@@ -61,24 +60,6 @@ const SubAppRouteMF: React.FC = () => {
   }, [appKey]);
 
   const mfConfig = getMFConfig();
-
-  // 清理函数
-  const cleanup = useCallback(async () => {
-    if (instanceRef.current) {
-      try {
-        await destroySubApp(appKey!);
-        console.log(`[SubAppRouteMF] ${appKey} destroyed`);
-      } catch (err) {
-        console.warn(`[SubAppRouteMF] Failed to destroy ${appKey}:`, err);
-      }
-      instanceRef.current = null;
-    }
-
-    // 清理容器 DOM
-    if (containerRef.current) {
-      containerRef.current.innerHTML = '';
-    }
-  }, [appKey]);
 
   // 加载子应用
   useEffect(() => {
@@ -141,11 +122,12 @@ const SubAppRouteMF: React.FC = () => {
           // 注入认证状态
           const token = localStorage.getItem('access_token');
           const tenantId = localStorage.getItem('tenant_id');
+          const user = { id: '', username: '', email: '' };
 
           // 子应用可以通过 window.$orion 访问主应用状态
           (window as unknown as { $orion?: { token: string; tenantId: string; user: { id: string; username: string; email?: string }; getApiBase: () => string } }).$orion = {
-            token,
-            tenantId,
+            token: token || '',
+            tenantId: tenantId || '',
             user,
             getApiBase: () => '/api/v1',
           };
@@ -300,7 +282,7 @@ const SubAppRouteMF: React.FC = () => {
             zIndex: 10,
           }}
         >
-          <Loading>{`正在加载 ${mfConfig.name}...`}</Loading>
+          <Loading />
         </div>
       )}
     </div>

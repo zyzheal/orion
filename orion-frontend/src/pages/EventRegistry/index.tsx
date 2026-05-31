@@ -22,7 +22,6 @@ import {
 } from 'antd';
 import {
   ReloadOutlined,
-  ThunderboltOutlined,
   CalendarOutlined,
   PlayCircleOutlined,
   ExperimentOutlined,
@@ -31,7 +30,6 @@ import {
   CloseCircleOutlined,
   LinkOutlined,
   TagsOutlined,
-  EventOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
@@ -72,7 +70,6 @@ const categoryColorMap: Record<string, string> = {
 
 // Trigger type icon mapping
 const triggerTypeIconMap: Record<string, React.ReactNode> = {
-  event: <ThunderboltOutlined />,
   cron: <CalendarOutlined />,
   manual: <PlayCircleOutlined />,
   webhook: <LinkOutlined />,
@@ -219,7 +216,6 @@ const EventRegistryPage: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <EventOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Event Registry
           </Title>
           <Text type="secondary">事件触发器注册表 - 管理事件类型、订阅和触发规则</Text>
@@ -353,7 +349,6 @@ const EventRegistryPage: React.FC = () => {
             key: 'subscriptions',
             label: (
               <span>
-                <ThunderboltOutlined /> 订阅状态
               </span>
             ),
             children: (
@@ -459,7 +454,6 @@ const EventRegistryPage: React.FC = () => {
                     <MetricCard
                       title="总触发器"
                       value={statistics.totalTriggers}
-                      icon={<ThunderboltOutlined />}
                       color={colors.primary[500]}
                       size="medium"
                     />

@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Card, Form, Input, Select, Button, Space, message, Alert, Tag } from 'antd';
 import { colors } from '@/tokens';
-import { RocketOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ThunderboltOutlined, RocketOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { triggerDiagnostic } from '@/api/diagnostic';
 
 const { Title, Text } = Typography;

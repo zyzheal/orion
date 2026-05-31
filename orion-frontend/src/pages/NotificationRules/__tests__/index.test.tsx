@@ -66,7 +66,7 @@ describe('NotificationRules', () => {
   });
 
   it('shows IM notification rules when switching to IM tab', async () => {
-    vi.mocked(notificationRulesApi.getIMNotificationRules).mockResolvedValue(mockIMRules);
+    vi.mocked(notificationRulesApi.getIMNotificationRules).mockResolvedValue(mockIMRules as any);
 
     render(<NotificationRules />);
 

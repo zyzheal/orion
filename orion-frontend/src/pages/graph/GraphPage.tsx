@@ -82,12 +82,6 @@ const infraTypeLabelMap: Record<InfrastructureNode['type'], string> = {
   load_balancer: '负载均衡',
 };
 
-const infraStatusColorMap: Record<InfrastructureNode['status'], string> = {
-  online: 'green',
-  offline: 'red',
-  degraded: 'orange',
-};
-
 const impactLevelColorMap: Record<ImpactNode['impactLevel'], string> = {
   critical: 'red',
   high: 'orange',
@@ -113,7 +107,7 @@ const GraphPage: React.FC = () => {
   const [services, setServices] = useState<ServiceDependency[]>([]);
   const [svcLoading, setSvcLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<ServiceDetail | null>(null);
-  const [serviceDetailLoading, setServiceDetailLoading] = useState(false);
+  const [_serviceDetailLoading, setServiceDetailLoading] = useState(false);
 
   // Infrastructure Topology state
   const [infraTopology, setInfraTopology] = useState<InfrastructureTopology>({ nodes: [], edges: [] });
@@ -135,7 +129,7 @@ const GraphPage: React.FC = () => {
   const loadHealth = async () => {
     try {
       const res = await getHealth();
-      setHealth(res.data?.data ?? null);
+      setHealth(res.data ?? null);
     } catch {
       setHealth(null);
     }
@@ -145,7 +139,7 @@ const GraphPage: React.FC = () => {
     setSvcLoading(true);
     try {
       const res = await getServiceDependencies({ tenantId: 'default' });
-      const list = res.data?.data;
+      const list = res.data;
       setServices(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setServices([]);
@@ -159,7 +153,7 @@ const GraphPage: React.FC = () => {
     setInfraLoading(true);
     try {
       const res = await getInfrastructureTopology({ tenantId: 'default' });
-      const data = res.data?.data;
+      const data = res.data;
       setInfraTopology(data ?? { nodes: [], edges: [] });
     } catch (error: unknown) {
       setInfraTopology({ nodes: [], edges: [] });
@@ -182,7 +176,7 @@ const GraphPage: React.FC = () => {
     setServiceDetailLoading(true);
     try {
       const res = await getServiceDetail(id);
-      setSelectedService(res.data?.data ?? null);
+      setSelectedService(res.data ?? null);
     } catch (error: unknown) {
       setSelectedService(null);
       message.error(`加载服务详情失败: ${(error as Error).message}`);
@@ -201,7 +195,7 @@ const GraphPage: React.FC = () => {
     setImpactLoading(true);
     try {
       const res = await getImpactAnalysis(impactServiceId);
-      setImpactData(res.data?.data ?? null);
+      setImpactData(res.data ?? null);
     } catch (error: unknown) {
       setImpactData(null);
       message.error(`影响分析失败: ${(error as Error).message}`);
@@ -218,7 +212,7 @@ const GraphPage: React.FC = () => {
       setQueryLoading(true);
       setQueryError(null);
       const res = await executeQuery({ query: values.cypherQuery, parameters: {} });
-      const data = res.data?.data;
+      const data = res.data;
       setQueryResult({
         columns: data?.columns ?? [],
         rows: data?.rows ?? [],
@@ -419,7 +413,7 @@ const GraphPage: React.FC = () => {
     {
       key: 'status',
       title: '当前状态',
-      dataIndex: ['service', 'status'],
+      dataIndex: 'status' as any,
       width: 100,
       render: (v: unknown) => (
         <Tag color={serviceStatusColorMap[v as ServiceDependency['status']]}>

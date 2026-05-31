@@ -1,3 +1,6 @@
+import { BlockOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
+
 /**
  * Internal Library Management Page
  * M30 - 二方库管理：列表、创建、版本管理、依赖追踪
@@ -367,8 +370,8 @@ const InternalLibraryManagement: React.FC = () => {
     setActiveTab('info');
     try {
       const [verRes, depRes] = await Promise.all([getVersions(lib.id), getDependents(lib.id)]);
-      setVersions(verRes?.data?.data || []);
-      setDependents(depRes?.data?.data || []);
+      setVersions(verRes?.data || []);
+      setDependents(depRes?.data || []);
     } catch (error: unknown) {
       setVersions([]);
       setDependents([]);

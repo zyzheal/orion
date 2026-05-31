@@ -15,7 +15,7 @@ import {
   Table as AntTable,
   message,
 } from 'antd';
-import { ReloadOutlined, RiseOutlined, FundOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RiseOutlined, FundOutlined, LineChartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getROIReport } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';

@@ -15,7 +15,6 @@ import {
   Select,
   message,
   Tabs,
-  Spin,
   Popconfirm,
   Statistic,
   Row,
@@ -85,7 +84,7 @@ const PandawikiPage: React.FC = () => {
     setSpacesLoading(true);
     try {
       const res = await listSpaces();
-      const list = res.data?.data?.spaces;
+      const list = (res.data as any)?.spaces;
       setSpaces(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setSpaces([]);
@@ -100,7 +99,7 @@ const PandawikiPage: React.FC = () => {
     setDocsLoading(true);
     try {
       const res = await listDocuments(spaceId);
-      const list = res.data?.data?.documents;
+      const list = (res.data as any)?.documents;
       setDocuments(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setDocuments([]);
@@ -207,7 +206,7 @@ const PandawikiPage: React.FC = () => {
     setSearching(true);
     try {
       const res = await searchDocuments(searchQuery, searchSpaceId || undefined);
-      const list = res.data?.data?.results;
+      const list = (res.data as any)?.results;
       setSearchResults(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setSearchResults([]);

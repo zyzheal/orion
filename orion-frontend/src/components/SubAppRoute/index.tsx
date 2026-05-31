@@ -5,14 +5,12 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAppStore } from '@/stores/appStore';
 import { getSubAppConfig, injectGlobalState, startSubApp } from '@/microfront/config';
 import { Loading } from '@/components/Loading';
 
 const SubAppRoute: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const token = useAppStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);

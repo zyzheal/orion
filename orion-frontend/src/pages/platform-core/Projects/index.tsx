@@ -102,8 +102,8 @@ const ProjectManagement: React.FC = () => {
       const data = res.data?.data;
       if (Array.isArray(data)) {
         setProjects(data);
-      } else if (Array.isArray(data?.data)) {
-        setProjects(data.data);
+      } else if (Array.isArray((data as any).data)) {
+        setProjects((data as any).data);
       } else {
         setProjects([]);
       }

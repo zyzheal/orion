@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Supply Chain Security Page
  * Phase 3 - SBOM documents, vulnerability scanning, and compliance reports
@@ -59,9 +61,9 @@ const SupplyChainPage: React.FC = () => {
         getSbomVulnerabilityResults(),
         getSbomComplianceReport(),
       ]);
-      setDocuments((docRes.data as { data?: unknown })?.data ?? [] || []);
-      setVulnResults((vulnRes.data as { data?: unknown })?.data ?? [] || []);
-      setComplianceRate((complianceRes.data as { data?: { complianceRate?: number } })?.data?.complianceRate ?? 0);
+      setDocuments((((docRes.data as { data?: unknown })?.data) ?? []) as SbomDocument[]);
+      setVulnResults((((vulnRes.data as { data?: unknown })?.data) ?? []) as SbomVulnerabilityResult[]);
+      setComplianceRate(((complianceRes.data as { data?: { complianceRate?: number } })?.data?.complianceRate) ?? 0);
     } catch {
       message.error('Failed to load supply chain data');
     } finally {

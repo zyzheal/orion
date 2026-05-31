@@ -123,8 +123,8 @@ const EventBusMonitoring: React.FC = () => {
     setLoading(true);
     try {
       const [eventsRes, statsRes] = await Promise.all([getEvents({ limit: 100 }), getStats()]);
-      const eventsData = eventsRes.data?.data?.events || [];
-      const statsData = statsRes.data?.data?.stats || {};
+      const eventsData = (eventsRes.data as any)?.events || [];
+      const statsData = (statsRes.data as any)?.stats || {};
       setEvents(eventsData.map(mapApiEvent));
       setStats(mapApiStats(statsData));
     } catch (error: unknown) {

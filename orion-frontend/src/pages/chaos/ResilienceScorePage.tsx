@@ -7,21 +7,19 @@ import {
   Card,
   Table,
   Tag,
-  Space,
   Statistic,
   Row,
   Col,
   Select,
   Typography,
   Progress,
-  Tooltip,
 } from 'antd';
 import {
   SafetyOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  TrendingUpOutlined,
-  TrendingDownOutlined,
+  RiseOutlined,
+  FallOutlined,
   MinusOutlined,
 } from '@ant-design/icons';
 import { resilienceApi, ResilienceScore } from '@/api/chaos';
@@ -30,9 +28,9 @@ import { colors } from '@/tokens/colors';
 const { Title } = Typography;
 
 const trendConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  improving: { color: colors.success[500], icon: <TrendingUpOutlined />, label: '提升中' },
+  improving: { color: colors.success[500], icon: <RiseOutlined />, label: '提升中' },
   stable: { color: colors.info[500], icon: <MinusOutlined />, label: '稳定' },
-  degrading: { color: colors.error[500], icon: <TrendingDownOutlined />, label: '下降中' },
+  degrading: { color: colors.error[500], icon: <FallOutlined />, label: '下降中' },
 };
 
 export default function ResilienceScorePage() {
@@ -181,7 +179,7 @@ export default function ResilienceScorePage() {
         <Table
           dataSource={history}
           columns={historyColumns}
-          rowKey={(r, i) => i?.toString() ?? '0'}
+          rowKey={(_r, i) => i?.toString() ?? '0'}
           loading={loading}
           pagination={{ pageSize: 10 }}
         />

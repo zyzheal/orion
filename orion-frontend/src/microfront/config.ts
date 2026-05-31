@@ -22,13 +22,11 @@ declare global {
   }
 }
 
-import { getDefaultChannel, createSubAppChannel } from './eventBus';
+import { getDefaultChannel } from './eventBus';
 import type { EventBusPayload } from '@orion-mf/core';
 import {
   loadSubApp,
   destroySubApp,
-  PreloadStrategy,
-  getPreloadStrategy as getPreloadStrategyFromCore,
 } from '@orion-mf/core';
 import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
 
@@ -59,9 +57,6 @@ export const initMicroFrontend = (): void => {
 /**
  * 获取预加载策略实例
  */
-function getPreloadStrategy(): PreloadStrategy {
-  return getPreloadStrategyFromCore();
-}
 
 /**
  * 清理子应用资源（HMR 时调用，释放 Orion-MF 内部状态）
@@ -136,7 +131,7 @@ export const injectAuthState = (): void => {
   window.$orion = authState;
 
   // 通过 Orion-MF EventBus Channel 通知子应用
-  getDefaultChannel().emit('orionAuth', authState);
+  (getDefaultChannel() as any).emit('orionAuth', authState);
 
   console.log('[OrionMF] Auth state injected:', {
     hasToken: !!token,

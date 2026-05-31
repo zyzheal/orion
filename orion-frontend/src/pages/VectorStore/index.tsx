@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Vector Store Management Page
  * Collection management, document upload, similarity search, and collection details
@@ -88,7 +90,7 @@ const VectorStorePage: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getVectorStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }

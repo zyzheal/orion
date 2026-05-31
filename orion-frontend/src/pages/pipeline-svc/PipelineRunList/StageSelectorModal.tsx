@@ -52,7 +52,7 @@ const StageSelectorModal: React.FC<StageSelectorModalProps> = ({
     setLoading(true);
     try {
       const response = await getPipelineRunStages(runId);
-      const data = response.data;
+      const data = response.data as any;
       // Handle both array and object response formats
       const stageList = Array.isArray(data) ? data : (data.data || []);
       setStages(stageList as StageInfo[]);

@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * AI Review - Rules
  * Review rule management with CRUD operations
@@ -51,7 +53,7 @@ const AIReviewRules: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewRules();
-      setData(res.data?.items || []);
+      setData((res.data as any)?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审规则失败：${error.message}`);
@@ -306,7 +308,7 @@ const AIReviewRules: React.FC = () => {
             label="模式"
             rules={[{ required: true, message: '请输入匹配模式' }]}
           >
-            <Input placeholder="例如：console\\.log" />
+            <Input placeholder="例如：console\.log" />
           </Form.Item>
           <Form.Item
             name="description"

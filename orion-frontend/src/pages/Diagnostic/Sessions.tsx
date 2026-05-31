@@ -319,12 +319,15 @@ const DiagnosticSessions: React.FC = () => {
 
       {filteredSessions.length === 0 && !loading && (
         <Empty
-          description="暂无诊断会话"
-          extra={
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/diagnostic/trigger')}>
-              新诊断
-            </Button>
-          }
+          description={(
+            <span>
+              暂无诊断会话
+              <br />
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/diagnostic/trigger')} style={{ marginTop: 8 }}>
+                新诊断
+              </Button>
+            </span>
+          ) as any}
           style={{ marginTop: 48 }}
         />
       )}

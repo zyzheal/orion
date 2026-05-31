@@ -15,10 +15,11 @@ import {
   Row,
   Col,
 } from 'antd';
-import { SaveOutlined, HistoryOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { EditOutlined, SaveOutlined, HistoryOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import StatusBadge from '@/components/StatusBadge';
 import { getDocs, updateDoc, type Document } from '@/api/ai-docs';
+import { colors } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 

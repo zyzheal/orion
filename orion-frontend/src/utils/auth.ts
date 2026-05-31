@@ -13,7 +13,7 @@
  *   const api = createAuthApiClient({ baseURL: '/api' });
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // ==================== Token Storage ====================
 
@@ -86,7 +86,6 @@ export function createAuthApiClient(options: AuthApiClientOptions): AxiosInstanc
     baseURL,
     loginUrl = '/auth/login',
     notifyParent = true,
-    onRefreshToken,
   } = options;
 
   const client = axios.create({ baseURL });

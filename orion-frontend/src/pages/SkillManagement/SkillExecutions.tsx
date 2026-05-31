@@ -76,11 +76,11 @@ const SkillExecutions: React.FC = () => {
         getSkill(skillId),
       ]);
       const execData = execRes.data;
-      const items = execData.executions || [];
+      const items = (execData as any).executions || [];
       setExecutions(Array.isArray(items) ? items : []);
-      setTotal(execData.total || 0);
+      setTotal((execData as any).total || 0);
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
-      setSkill(skillData || null);
+      setSkill((skillData || null) as SkillPackage | null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);

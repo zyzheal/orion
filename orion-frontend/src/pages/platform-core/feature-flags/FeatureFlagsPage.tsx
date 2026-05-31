@@ -135,7 +135,7 @@ const FeatureFlagsPage: React.FC = () => {
     setApiError(null);
     try {
       const response = await getFeatureFlags();
-      setFlags(response.data?.data || []);
+      setFlags(response.data || []);
     } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
@@ -148,7 +148,7 @@ const FeatureFlagsPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await getFeatureFlagStats();
-      setStats(response.data?.data || null);
+      setStats(response.data || null);
     } catch {
       setStats(null);
     }
@@ -271,7 +271,7 @@ const FeatureFlagsPage: React.FC = () => {
           ? values.userGroups.split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined,
       });
-      setEvaluationResult(String(result.data?.data?.result ?? '未知'));
+      setEvaluationResult(String(result.data?.result ?? '未知'));
       message.success('评估完成');
     } catch (error: unknown) {
       if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {

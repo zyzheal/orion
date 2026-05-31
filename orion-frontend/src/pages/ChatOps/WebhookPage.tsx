@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, Switch, message, Popconfirm, Tooltip, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, LinkOutlined, PlayCircleOutlined, FileTextOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, LinkOutlined, FileTextOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { chatopsAdminApi } from '@/api/chatops-admin';
 import { colors } from '@/tokens';
 import dayjs from 'dayjs';
@@ -11,6 +11,30 @@ import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;
 
+interface LogEntry {
+  id: string;
+  webhook_id: string;
+  event: string;
+  status: string;
+  response_code?: number;
+  created_at: string;
+}
+interface LogEntry {
+  id: string;
+  webhook_id: string;
+  event: string;
+  status: string;
+  response_code?: number;
+  created_at: string;
+}
+interface LogEntry {
+  id: string;
+  webhook_id: string;
+  event: string;
+  status: string;
+  response_code?: number;
+  created_at: string;
+}
 interface Webhook {
   id: string;
   name: string;

@@ -21,7 +21,7 @@ import { animation } from '@/tokens/animation';
 import type { WorkflowNodeType } from './types';
 import { nodeTypeConfig } from './types';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 /**
  * 节点类型到 Ant Design 图标的映射

@@ -50,15 +50,10 @@ interface StageNodeData {
   timeout?: number;
   hasQualityGate?: boolean;
 }
-interface StageNodeExtraProps {
-  hasApproval?: boolean;
-  timeout?: number;
-  hasQualityGate?: boolean;
-  status?: 'success' | 'failed' | 'running' | 'pending';
-}
-
 // Stage Node Component
-const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
+const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
+  const data = (props as any).data as StageNodeData || {};
+  const selected = (props as any).selected as boolean;
   const label = data?.label || '';
   const stageType = data?.stageType || 'custom';
   const status = data?.status || 'pending';
@@ -69,7 +64,7 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
   const hasQualityGate = data?.hasQualityGate;
 
   const typeConfig = useMemo(
-    () => STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom,
+    () => (STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom) as { icon: string; color: string; label: string },
     [stageType]
   );
 
@@ -154,12 +149,11 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
               fontSize: 12,
             }}
           >
-            {index + 1}
+            {(index ?? 0) + 1}
           </div>
-          <span style={{ fontSize: 12, color: statusConfig.color }}>{statusConfig.icon}</span>
+          <span style={{ fontSize: 12, color: statusConfig.color }}>{statusConfig.icon as React.ReactNode}</span>
         </div>
 
-        {/* Node Label */}
         <div style={{
           display: 'block',
           fontSize: 13,
@@ -169,7 +163,7 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          <span>{typeConfig.icon}</span> {String(label)}
+          <span>{typeConfig.icon as React.ReactNode}</span> {String(label)}
         </div>
 
         {/* Type Tag */}
@@ -188,7 +182,7 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
         </div>
 
         {/* Config Info (if available) */}
-        {config && (config.imageName || config.containerImage) && (
+        {config && (config.imageName || config.containerImage) ? (
           <div
             style={{
               marginTop: spacing[1],
@@ -200,7 +194,7 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = ({ data, selected }) => {
               {String(config.imageName || config.containerImage || '')}
             </Text>
           </div>
-        )}
+        ) : null}
 
         {/* Indicator Badges (Approval, Timeout, Quality Gate) */}
         {(hasApproval || timeout || hasQualityGate) && (

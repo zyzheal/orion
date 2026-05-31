@@ -242,7 +242,7 @@ export default function DocTree({
                 : ['root']
           }
           expandedKeys={expandedKeys}
-          onExpand={setExpandedKeys}
+          onExpand={setExpandedKeys as any}
           onSelect={handleSelect}
           showLine={false}
           blockNode

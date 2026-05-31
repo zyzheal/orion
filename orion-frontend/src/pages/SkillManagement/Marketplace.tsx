@@ -293,7 +293,7 @@ const SkillMarketplace: React.FC = () => {
           <div>
             <Space style={{ marginBottom: 16 }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
-              <StatusBadge status={selectedSkill.status === 'active' ? 'success' : selectedSkill.status === 'inactive' ? 'cancelled' : selectedSkill.status === 'error' ? 'failed' : 'pending'} size="small" />
+              <StatusBadge status={(selectedSkill.status as string) === 'active' ? 'success' : (selectedSkill.status as string) === 'inactive' ? 'cancelled' : (selectedSkill.status as string) === 'error' ? 'failed' : 'pending'} size="small" />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>

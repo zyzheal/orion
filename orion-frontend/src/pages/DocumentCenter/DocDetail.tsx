@@ -4,11 +4,11 @@
  * 显示文档完整内容，使用 react-markdown 渲染 Markdown
  * 包含文档元信息、版本历史、目录导航
  */
-import React, { useState, useEffect } from 'react';
+import _React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
-  Typography, Tag, Space, Divider, Button, Tooltip, Spin, Card, Drawer,
+  Typography, Tag, Space, Divider, Button, Tooltip, Spin, Drawer,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -22,7 +22,7 @@ import { colors, spacing, radius, shadows } from '@/tokens';
 import type { KnowledgeDoc } from '@/api/knowledge';
 import dayjs from 'dayjs';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 // ============================================================================
 // Types
@@ -242,7 +242,8 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
               key={index}
               style={{
                 paddingLeft: (item.level - 1) * spacing[4],
-                paddingVertical: spacing[2],
+                paddingTop: spacing[2],
+                paddingBottom: spacing[2],
                 cursor: 'pointer',
                 color: colors.neutral[600],
                 fontSize: item.level === 1 ? 14 : 13,

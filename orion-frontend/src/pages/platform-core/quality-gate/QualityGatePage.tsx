@@ -125,7 +125,7 @@ const QualityGatePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getPolicies({ page: 1, pageSize: 100 });
-      const raw = res.data?.data;
+      const raw = res.data;
       setPolicies(Array.isArray(raw) ? raw : []);
     } catch (error: unknown) {
       setPolicies([]);
@@ -137,7 +137,7 @@ const QualityGatePage: React.FC = () => {
   const loadViolations = async () => {
     try {
       const res = await getPolicyViolations({ page: 1, pageSize: 100 });
-      const raw = res.data?.data;
+      const raw = res.data;
       setViolations(Array.isArray(raw) ? raw : []);
     } catch (error: unknown) {
       setViolations([]);
@@ -217,7 +217,7 @@ const QualityGatePage: React.FC = () => {
       const values = await gateForm.validateFields();
       setGateLoading(true);
       const res = await evaluateGate(values.gateId, {});
-      const data = res.data?.data;
+      const data = res.data;
       setGateResult((data && typeof data === 'object') ? data as Record<string, unknown> : null);
       message.success('门禁评估完成');
     } catch (error: unknown) {

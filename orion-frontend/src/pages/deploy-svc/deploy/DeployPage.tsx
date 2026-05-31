@@ -248,7 +248,7 @@ const DeployPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getDeployments({ page: 1, pageSize: 100 });
-      const raw = res.data?.data;
+      const raw = res.data;
       setDeployments(Array.isArray(raw) ? raw : []);
     } catch (error: unknown) {
       setDeployments([]);
@@ -326,7 +326,7 @@ const DeployPage: React.FC = () => {
     setVersionLoading(true);
     try {
       const res = await getArtifacts({ page: 1, perPage: 50 });
-      const raw = res.data?.data;
+      const raw = res.data;
       if (Array.isArray(raw)) {
         const versions = raw
           .filter((a: any) => a.status === 'available')

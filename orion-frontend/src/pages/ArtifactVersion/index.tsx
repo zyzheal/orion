@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeftOutlined,
-  VersionOutlined, ReloadOutlined, BranchesOutlined,
+  TagOutlined, ReloadOutlined, BranchesOutlined,
   EyeOutlined, RocketOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -171,7 +171,7 @@ const ArtifactVersionPage: React.FC = () => {
         </Button>
         <div style={{ flex: 1 }}>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <VersionOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <TagOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <BranchesOutlined /> Artifact 版本管理
           </Title>
           <Text type="secondary">共 {total} 个版本</Text>

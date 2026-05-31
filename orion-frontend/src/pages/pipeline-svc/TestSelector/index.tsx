@@ -172,7 +172,7 @@ const TestSelector: React.FC = () => {
     setLoading(true);
     try {
       const [testsRes, statsRes] = await Promise.all([getTestCases(), getTestStats()]);
-      setTestCases(testsRes.data.testCases.map(mapApiTestCase));
+      setTestCases((testsRes.data as any).testCases.map(mapApiTestCase));
       setTestStats(mapApiTestStats(statsRes.data.stats));
     } catch (error: unknown) {
       message.error(`Failed to load test data: ${(error as Error).message}`);

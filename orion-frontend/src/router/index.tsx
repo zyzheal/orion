@@ -44,7 +44,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
       if (isAuthenticated && user) {
         if (!cancelled) {
           // 检查角色权限（向后兼容）
-          if (route.requiredRole && !checkRoleAccess(user.role, route.requiredRole)) {
+          if ((route as any).requiredRole && !checkRoleAccess(user.role, (route as any).requiredRole)) {
             message.error('您没有权限访问此页面');
             navigate('/dashboard', { replace: true });
             return;
@@ -77,13 +77,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
             username: response.username,
             email: response.email,
             role: response.role,
-            roles: (response as { roles?: unknown })?.roles,  // 多角色支持
+            roles: (response as { roles?: unknown })?.roles as string[] | undefined,  // 多角色支持
             avatar: response.avatar,
           });
           useAuthStore.getState().setAuthenticated(true);
 
           // 检查角色权限（向后兼容）
-          if (route.requiredRole && !checkRoleAccess(response.role, route.requiredRole)) {
+          if ((route as any).requiredRole && !checkRoleAccess(response.role, (route as any).requiredRole)) {
             message.error('您没有权限访问此页面');
             navigate('/dashboard', { replace: true });
             return;
@@ -154,7 +154,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             username: response.username,
             email: response.email,
             role: response.role,
-            roles: (response as { roles?: unknown })?.roles,  // 多角色支持
+            roles: (response as { roles?: unknown })?.roles as string[] | undefined,  // 多角色支持
             avatar: response.avatar,
           });
           useAuthStore.getState().setAuthenticated(true);
@@ -177,10 +177,6 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, []);
 
   return <>{children}</>;
-};
-
-const isLazyComponent = (el: any): boolean => {
-  return React.isValidElement(el) === false && (typeof el === 'function' || (el && typeof el === 'object' && '$$typeof' in el));
 };
 
 const renderElement = (el: any) => {

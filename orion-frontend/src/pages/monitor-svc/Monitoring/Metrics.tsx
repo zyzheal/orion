@@ -285,12 +285,15 @@ const MonitoringMetrics: React.FC = () => {
 
       {filteredMetrics.length === 0 && !loading && (
         <Empty
-          description="暂无指标"
-          extra={
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)}>
-              注册指标
-            </Button>
-          }
+          description={(
+            <span>
+              暂无指标
+              <br />
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)} style={{ marginTop: 8 }}>
+                注册指标
+              </Button>
+            </span>
+          ) as any}
           style={{ marginTop: 48 }}
         />
       )}

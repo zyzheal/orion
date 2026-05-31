@@ -97,9 +97,9 @@ const CostOverviewTab: React.FC = () => {
         getCostTrend({ days: 30 }),
         getCostByService(),
       ]);
-      setOverview(overviewRes.data?.data || null);
-      setTrends(trendRes.data?.data?.trends || []);
-      setByService(serviceRes.data?.data?.services || []);
+      setOverview(overviewRes.data || null);
+      setTrends(trendRes.data?.trends || []);
+      setByService(serviceRes.data?.services || []);
     } catch (error: unknown) {
       message.error(`加载成本数据失败: ${(error as Error).message}`);
     } finally {
@@ -305,7 +305,7 @@ const AnomalyDetectionTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCostAnomalies({ days: 7 });
-      setAnomalies(res.data?.data?.anomalies || []);
+      setAnomalies(res.data?.anomalies || []);
     } catch (error: unknown) {
       message.error(`加载异常检测数据失败: ${(error as Error).message}`);
     } finally {
@@ -401,7 +401,7 @@ const OptimizationTab: React.FC = () => {
     try {
       const params = filter !== 'all' ? { category: filter } : undefined;
       const res = await getOptimizationSuggestions(params);
-      setSuggestions(res.data?.data?.suggestions || []);
+      setSuggestions(res.data?.suggestions || []);
     } catch (error: unknown) {
       message.error(`加载优化建议失败: ${(error as Error).message}`);
     } finally {
@@ -554,7 +554,7 @@ const BudgetTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBudgets();
-      setBudgets(res.data?.data?.budgets || []);
+      setBudgets(res.data?.budgets || []);
     } catch (error: unknown) {
       message.error(`加载预算失败: ${(error as Error).message}`);
     } finally {
@@ -613,7 +613,7 @@ const BudgetTab: React.FC = () => {
       const values = await gateForm.validateFields();
       setGateLoading(true);
       const res = await checkBudgetGate(values.pipelineId, values.estimatedCost);
-      const data = res.data?.data;
+      const data = res.data;
       setGateResult({
         passed: !data?.wouldExceed,
         reason: data?.reason || '预算检查通过',

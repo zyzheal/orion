@@ -3,7 +3,7 @@
  * SBOM document detail with package list, vulnerability scan results, attestation status
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
   Spin,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { SafetyCertificateOutlined, ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import type { TableColumn } from '@/components/Table';
 import {

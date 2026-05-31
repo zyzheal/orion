@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Checkbox, message, Select } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckCircleOutlined, BlockOutlined as BulkOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { getConfirmations, batchApprove, type ConfirmationRequest } from '@/api/confirmations';
 import dayjs from 'dayjs';

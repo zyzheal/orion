@@ -34,7 +34,7 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
-import { userApi, UserToken, type UserProfile, type NotificationPreferences } from '@/api/user';
+import { userApi, UserToken } from '@/api/user';
 import { colors } from '@/tokens/colors';
 import { radius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
@@ -105,10 +105,10 @@ export const UserSettingsPage: React.FC = () => {
     try {
       const response = await userApi.getProfile(user.id);
       // api.get 返回 AxiosResponse<ApiResponse<T>>，需要 .data.data 获取实际数据
-      const profile = (response as ApiResponse<UserProfile>)?.data?.data ?? (response as ApiResponse<UserProfile>)?.data ?? response;
+      const profile = (response as any)?.data ?? response;
       form.setFieldsValue({
-        displayName: profile?.username,
-        phone: profile?.phone,
+        displayName: (profile as any)?.username,
+        phone: (profile as any)?.phone,
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -120,13 +120,13 @@ export const UserSettingsPage: React.FC = () => {
     if (!user?.id) return;
     try {
       const response = await userApi.getNotificationPreferences(user.id);
-      const prefs = (response as ApiResponse<NotificationPreferences>)?.data?.data ?? (response as ApiResponse<NotificationPreferences>)?.data ?? response;
+      const prefs = (response as any)?.data ?? response;
       notificationForm.setFieldsValue({
-        emailEnabled: prefs?.emailEnabled,
-        inAppEnabled: prefs?.inAppEnabled,
-        webhookEnabled: prefs?.webhookEnabled,
-        webhookUrl: prefs?.webhookUrl,
-        notifyFrequency: prefs?.notifyFrequency,
+        emailEnabled: (prefs as any)?.emailEnabled,
+        inAppEnabled: (prefs as any)?.inAppEnabled,
+        webhookEnabled: (prefs as any)?.webhookEnabled,
+        webhookUrl: (prefs as any)?.webhookUrl,
+        notifyFrequency: (prefs as any)?.notifyFrequency,
       });
     } catch (error) {
       console.error('Failed to load notification preferences:', error);
@@ -138,8 +138,8 @@ export const UserSettingsPage: React.FC = () => {
     if (!user?.id) return;
     try {
       const response = await userApi.getTokens(user.id);
-      const tokenList = (response as ApiResponse<UserToken[]>)?.data?.data ?? (response as ApiResponse<UserToken[]>)?.data ?? response;
-      setTokens(tokenList || []);
+      const tokenList = (response as ApiResponse<UserToken[]>)?.data ?? (response as ApiResponse<UserToken[]>)?.data ?? response;
+      setTokens((tokenList || []) as UserToken[]);
     } catch (error) {
       console.error('Failed to load tokens:', error);
     }

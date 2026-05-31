@@ -86,8 +86,8 @@ const PendingReviews: React.FC = () => {
       }
       const res = await getPendingReviews(params);
       const data = res.data;
-      setReviews(Array.isArray(data.skills) ? data.skills : []);
-      setTotal(data.total || 0);
+      setReviews(Array.isArray((data as any).skills) ? (data as any).skills : []);
+      setTotal((data as any).total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);

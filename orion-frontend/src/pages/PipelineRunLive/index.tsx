@@ -34,6 +34,9 @@ import { getPipelineRun } from '@/api/pipelines';
 
 dayjs.extend(duration);
 
+type PipelineRun = { id: string; name: string; status: string; startTime?: string; endTime?: string };
+type Task = { id: string; name: string; status: string };
+type Step = { id: string; name: string; status: string };
 const { Title, Text } = Typography;
 
 // ============================================================================
@@ -443,23 +446,23 @@ const PipelineRunLive: React.FC = () => {
       try {
         const response = await getPipelineRun(runId!);
         // Backend returns { run, stages, tasks } directly, not wrapped in data
-        const apiData = response.data as { run?: PipelineRun; stages?: Stage[]; tasks?: Task[] };
+        const apiData = response.data as { run?: PipelineRun; stages?: StageState[]; tasks?: Task[] };
         if (apiData) {
           setPipeline(apiData);
           // Initialize stages from API data
           if (apiData.stages) {
             const initialized: StageState[] = apiData.stages.map((s: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string; steps?: Step[] }, idx: number) => ({
               id: s.id || `stage-${idx}`,
-              name: s.name,
-              status: s.status || 'pending',
-              startTime: s.startTime,
-              endTime: s.endTime,
+              name: s.name || '',
+              status: (s.status || 'pending') as StageState['status'],
+              startTime: s.startTime || '',
+              endTime: s.endTime || '',
               steps: (s.steps || []).map((st: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string }, stIdx: number) => ({
                 id: st.id || `step-${idx}-${stIdx}`,
-                name: st.name,
-                status: st.status || 'pending',
-                startTime: st.startTime,
-                endTime: st.endTime,
+                name: st.name || '',
+                status: (st.status || 'pending') as StepState['status'],
+                startTime: st.startTime || '',
+                endTime: st.endTime || '',
               })),
             }));
             setStages(initialized);

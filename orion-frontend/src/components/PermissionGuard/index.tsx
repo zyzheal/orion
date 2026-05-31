@@ -26,9 +26,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Spin, Button, Tooltip, message } from 'antd';
+import { Spin, Button, Tooltip } from 'antd';
 import { usePermission } from '@/hooks/usePermission';
-import { capabilityApi } from '@/api/capability';
 
 interface PermissionGuardProps {
   /** 能力标识 (如 "chatops:execute")，优先于 resource/action */
@@ -55,7 +54,6 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   capability,
   resource,
   action,
-  environment,
   fallback = null,
   loading = false,
   disabled = false,

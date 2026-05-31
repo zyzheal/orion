@@ -31,7 +31,7 @@ const PipelineVersionHistory: React.FC = () => {
     setLoading(true);
     try {
       const response = await pipelineVersionsApi.list(pipelineId);
-      setVersions((response.data as PipelineVersion[]) || []);
+      setVersions(((response as any).data as PipelineVersion[]) || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载版本历史失败';
       message.error(msg);

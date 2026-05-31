@@ -1,14 +1,14 @@
 /**
- * MicroFrontendEventBus 单元测试
+ * EventBus 单元测试
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MicroFrontendEventBus, eventBus } from '../eventBus';
+import { EventBus, eventBus } from '@orion-mf/core';
 
-describe('MicroFrontendEventBus', () => {
-  let bus: MicroFrontendEventBus;
+describe('EventBus', () => {
+  let bus: any;
 
   beforeEach(() => {
-    bus = new MicroFrontendEventBus();
+    bus = new (EventBus as any)();
   });
 
   describe('on / emit', () => {
@@ -142,12 +142,12 @@ describe('MicroFrontendEventBus', () => {
   describe('global eventBus instance', () => {
     it('should export a singleton eventBus instance', () => {
       expect(eventBus).toBeDefined();
-      expect(typeof eventBus.on).toBe('function');
-      expect(typeof eventBus.emit).toBe('function');
-      expect(typeof eventBus.off).toBe('function');
-      expect(typeof eventBus.once).toBe('function');
-      expect(typeof eventBus.clear).toBe('function');
-      expect(typeof eventBus.listenerCount).toBe('function');
+      expect(typeof (eventBus as any).on).toBe('function');
+      expect(typeof (eventBus as any).emit).toBe('function');
+      expect(typeof (eventBus as any).off).toBe('function');
+      expect(typeof (eventBus as any).once).toBe('function');
+      expect(typeof (eventBus as any).clear).toBe('function');
+      expect(typeof (eventBus as any).listenerCount).toBe('function');
     });
   });
 });

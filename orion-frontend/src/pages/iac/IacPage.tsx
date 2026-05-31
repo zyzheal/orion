@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Table, Button, Tag, Space, Tabs, message,
-  Modal, Form, Input, Select, Popconfirm, Descriptions, Card,
+  Modal, Form, Input, Select, Popconfirm,
 } from 'antd';
 import {
   CloudOutlined,
@@ -16,7 +16,7 @@ import {
   DeploymentUnitOutlined,
 } from '@ant-design/icons';
 import {
-  getWorkspaces, createWorkspace, updateWorkspace,
+  getWorkspaces, createWorkspace,
   planWorkspace, applyWorkspace,
   getWorkspacePlans, getWorkspaceResources,
   getModules, createModule,

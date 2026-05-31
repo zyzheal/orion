@@ -5,7 +5,7 @@
  * 支持: Slash 命令 (/deploy) + 自然语言 (部署 v1.2.3 到 staging)
  */
 
-import Ajv, { ErrorObject as AjvErrorObject } from 'ajv';
+import Ajv, { ErrorObject as _AjvErrorObject } from 'ajv';
 import type { ErrorObject } from 'ajv';
 
 // Ajv 的 ErrorObject 类型缺少 instancePath 属性，添加类型声明

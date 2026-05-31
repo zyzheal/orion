@@ -6,8 +6,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Card,
-  Row,
-  Col,
   Table,
   Tag,
   Space,

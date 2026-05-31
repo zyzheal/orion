@@ -24,7 +24,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getWorkspaces, getWorkspacePlans, type IaCPlan, type IaCResourceChange } from '@/api/iac';
 import dayjs from 'dayjs';
@@ -134,7 +134,7 @@ const PlanViewer: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={String(v) as 'pending' | 'applied' | 'discarded'} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'changes',
@@ -340,7 +340,7 @@ const PlanViewer: React.FC = () => {
           <Descriptions column={2} bordered>
             <Descriptions.Item label="计划 ID">{selectedPlan.id}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <StatusBadge status={selectedPlan.status as 'pending' | 'applied' | 'discarded'} />
+              <StatusBadge status={selectedPlan.status as StatusType} />
             </Descriptions.Item>
             <Descriptions.Item label="工作空间">
               {getWorkspaceName(selectedPlan.workspaceId)}

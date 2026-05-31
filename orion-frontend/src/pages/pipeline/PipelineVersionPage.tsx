@@ -138,7 +138,7 @@ const PipelineVersionPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await pipelineVersionsApi.list(selectedPipelineId, { page: 1, limit: 100 });
-      const raw = res.data?.data;
+      const raw = (res as any).data?.data;
       setVersions(Array.isArray(raw) ? raw : []);
     } catch (error: unknown) {
       setVersions([]);

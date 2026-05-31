@@ -88,7 +88,7 @@ const AlertRulesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAlertRules();
-      setRules(res.data?.data?.rules || []);
+      setRules(res.data?.rules || []);
     } catch (error: unknown) {
       message.error(`加载告警规则失败: ${(error as Error).message}`);
     } finally {
@@ -321,7 +321,7 @@ const SilenceRulesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSilenceRules();
-      setRules(res.data?.data?.rules || []);
+      setRules(res.data?.rules || []);
     } catch (error: unknown) {
       message.error(`加载静默规则失败: ${(error as Error).message}`);
     } finally {
@@ -459,7 +459,7 @@ const RootCauseAnalysisTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRootCauseAnalyses();
-      setAnalyses(res.data?.data?.analyses || []);
+      setAnalyses(res.data?.analyses || []);
     } catch (error: unknown) {
       message.error(`加载根因分析列表失败: ${(error as Error).message}`);
     } finally {
@@ -499,7 +499,7 @@ const RootCauseAnalysisTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getRootCauseAnalysis(analysis.id);
-      setSelectedAnalysis(res.data?.data || analysis);
+      setSelectedAnalysis(res.data || analysis);
     } catch {
       // fallback to existing data
     } finally {
@@ -679,7 +679,7 @@ const ServiceHealthTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getServiceHealth();
-      setServices(res.data?.data?.services || []);
+      setServices(res.data?.services || []);
     } catch (error: unknown) {
       message.error(`加载服务健康状态失败: ${(error as Error).message}`);
     } finally {

@@ -129,7 +129,7 @@ const ApkCredentialsManagement: React.FC = () => {
 
   // Form
   const [form] = Form.useForm();
-  const tenantId = useAuthStore((state) => state.user?.tenantId) || 'default-tenant';
+  const tenantId = useAuthStore((state) => (state.user as any).tenantId) || 'default-tenant';
 
   // Load credentials on mount
   useEffect(() => {
@@ -140,7 +140,7 @@ const ApkCredentialsManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getSecrets(tenantId);
-      const data = response.data?.data;
+      const data = response.data;
       const allSecrets: Secret[] = Array.isArray(data) ? data : [];
 
       // Filter secrets that start with 'apk-' and end with '-credentials'

@@ -51,8 +51,8 @@ const DependencyGraphTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getDependencyGraph();
-      const rawData = res.data?.data;
-      setDeps(Array.isArray(rawData) ? rawData : (rawData?.data as ServiceDependency[]) || []);
+      const rawData = (res.data as any)?.data;
+      setDeps(Array.isArray(rawData) ? rawData : ((rawData as any)?.data as ServiceDependency[]) || []);
     } catch (error: unknown) {
       message.error(`加载依赖图失败: ${(error as Error).message}`);
     } finally {
@@ -72,8 +72,8 @@ const DependencyGraphTab: React.FC = () => {
     try {
       const services = affectedServices.split(',').map((s) => s.trim()).filter(Boolean);
       const res = await analyzeDependencyRootCause(services);
-      const rawData = res.data?.data;
-      setAnalysisResult(Array.isArray(rawData) ? rawData : (rawData?.data as string[]) || []);
+      const rawData = (res.data as any)?.data;
+      setAnalysisResult(Array.isArray(rawData) ? rawData : ((rawData as any)?.data as string[]) || []);
       message.success('根因分析完成');
     } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
@@ -255,12 +255,12 @@ const TimelineTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRcaTimeline(deploymentId);
-      const t = (res.data as { timeline?: { events?: unknown[]; totalEvents?: number; criticalEvents?: number } })?.timeline ?? res.data?.data;
+      const t = ((res.data as any) as { timeline?: { events?: unknown[]; totalEvents?: number; criticalEvents?: number } })?.timeline ?? res.data;
       if (t) {
         setTimeline({
-          events: t.events || [],
-          totalEvents: t.totalEvents || 0,
-          criticalEvents: t.criticalEvents || 0,
+          events: (t as any).events || [],
+          totalEvents: (t as any).totalEvents || 0,
+          criticalEvents: (t as any).criticalEvents || 0,
         });
       }
     } catch (error: unknown) {
@@ -333,7 +333,7 @@ const RCAAnalysisTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRootCauseAnalyses();
-      setAnalyses(res.data?.data?.analyses || []);
+      setAnalyses(res.data?.analyses || []);
     } catch (error: unknown) {
       message.error(`加载根因分析列表失败: ${(error as Error).message}`);
     } finally {
@@ -373,7 +373,7 @@ const RCAAnalysisTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getRootCauseAnalysis(analysis.id);
-      setSelectedAnalysis(res.data?.data || analysis);
+      setSelectedAnalysis(res.data || analysis);
     } catch {
       // fallback to existing data
     } finally {

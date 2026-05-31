@@ -11,7 +11,7 @@
  * 3. 审计日志 - 审计日志查看与导出
  * 4. 管理配置 - 命令-Capability 映射、审批配置
  */
-import React, { useState } from 'react';
+import _React, { useState } from 'react';
 import { Tabs, Alert } from 'antd';
 import {
   DashboardOutlined,

@@ -53,7 +53,7 @@ const ScriptRunnerPage: React.FC = () => {
     setScanning(true);
     try {
       const res = await scanScript(values as ScriptConfig);
-      setScanResult(res.data?.data || null);
+      setScanResult(res.data || null);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '扫描失败');
     } finally {
@@ -73,7 +73,7 @@ const ScriptRunnerPage: React.FC = () => {
         'standalone',
         values as ScriptConfig,
       );
-      const data = res.data?.data;
+      const data = res.data;
       setExecResult(data || null);
       if (data?.success) {
         message.success('执行成功');

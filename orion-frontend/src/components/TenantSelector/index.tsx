@@ -8,7 +8,7 @@
  * - 支持切换租户
  */
 import React, { useState, useEffect } from 'react';
-import { Dropdown, Avatar, Menu, message, Spin } from 'antd';
+import { Dropdown, Avatar, message, Spin } from 'antd';
 import { TeamOutlined, SwapOutlined, CheckOutlined, DownOutlined } from '@ant-design/icons';
 import { api } from '@/api/client';
 import { colors } from '@/tokens/colors';
@@ -45,7 +45,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
       const current = body?.currentTenant || tenantList.find((t: MyTenant) => t.isCurrent);
 
       setTenants(tenantList);
-      setCurrentTenant(current);
+      setCurrentTenant(current ?? null);
 
       // 如果没有当前租户但有租户列表，取第一个
       if (!current && tenantList.length > 0) {
@@ -148,7 +148,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
   // 添加分隔和切换提示
   if (tenants.length > 1) {
     menuItems.push(
-      { type: 'divider' },
+      { type: 'divider' } as any,
       {
         key: 'hint',
         label: (
@@ -157,7 +157,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
           </div>
         ),
         disabled: true,
-      }
+      } as any
     );
   }
 

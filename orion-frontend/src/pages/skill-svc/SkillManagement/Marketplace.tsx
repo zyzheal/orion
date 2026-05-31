@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Rate, Modal, message } from 'antd';
 import { ReloadOutlined, DownloadOutlined, ShopOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getSkills, installSkill, type SkillPackage } from '@/api/skills';
 import { colors, spacing } from '@/tokens';
@@ -142,7 +142,7 @@ const SkillMarketplace: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={String(v) as 'published' | 'draft' | 'archived'} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'rating',
@@ -288,7 +288,7 @@ const SkillMarketplace: React.FC = () => {
           <div>
             <Space style={{ marginBottom: 16 }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
-              <StatusBadge status={selectedSkill.status as 'published' | 'draft' | 'archived'} size="small" />
+              <StatusBadge status={selectedSkill.status as StatusType} size="small" />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>

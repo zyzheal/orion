@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Plugin Marketplace Page
  * Phase 3 - Browse, install, and manage plugins from the marketplace

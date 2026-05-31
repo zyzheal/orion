@@ -8,7 +8,6 @@ import { colors } from '@/tokens';
 import {
   ScanOutlined,
   HistoryOutlined,
-  FileSearchOutlined,
   BulbOutlined,
   SettingOutlined,
 } from '@ant-design/icons';

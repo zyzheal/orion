@@ -72,7 +72,7 @@ const SkillInstances: React.FC = () => {
       ]);
       setInstances(Array.isArray(instRes.data) ? instRes.data : []);
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
-      setSkill(skillData || null);
+      setSkill((skillData || null) as SkillPackage | null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);

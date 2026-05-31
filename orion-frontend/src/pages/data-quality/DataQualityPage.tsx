@@ -13,7 +13,6 @@ import {
   Form,
   Input,
   Select,
-  InputNumber,
   Typography,
   message,
   Row,
@@ -112,7 +111,7 @@ export default function DataQualityPage() {
     fetchChecks();
   }, []);
 
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (_values: any) => {
     try {
       // TODO: integrate with data quality API
       message.success('规则创建成功');

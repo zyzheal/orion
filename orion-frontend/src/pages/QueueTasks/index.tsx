@@ -52,7 +52,7 @@ const QueueTasksPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await listJobs(filterStatus ? { status: filterStatus } : undefined);
-      setJobs(res.data?.data?.jobs || []);
+      setJobs(res.data?.jobs || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载失败');
     } finally {
@@ -63,7 +63,7 @@ const QueueTasksPage: React.FC = () => {
   const fetchStats = async () => {
     try {
       const res = await getQueueStats();
-      setStats(res.data?.data || { pending: 0, processing: 0, completed: 0, failed: 0 });
+      setStats(res.data || { pending: 0, processing: 0, completed: 0, failed: 0 });
     } catch {
       // Stats endpoint may not be available
     }
@@ -131,7 +131,7 @@ const QueueTasksPage: React.FC = () => {
       key: 'status',
       width: 100,
       render: (v: JobStatus) => (
-        <Badge status={statusColorMap[v]} text={v} />
+        <Badge status={statusColorMap[v] as any} text={v} />
       ),
     },
     {

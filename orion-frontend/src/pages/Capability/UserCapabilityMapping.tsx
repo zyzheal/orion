@@ -37,8 +37,8 @@ import {
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
-const { Text, Title } = Typography;
-const { Panel } = Collapse;
+const { Text } = Typography;
+const {} = Collapse;
 
 // ==================== 类型定义 ====================
 
@@ -607,7 +607,7 @@ const UserCapabilityMapping: React.FC = () => {
               </div>
             );
           },
-          rowExpandable: (record) => true,
+          rowExpandable: (_record) => true,
         }}
       />
 

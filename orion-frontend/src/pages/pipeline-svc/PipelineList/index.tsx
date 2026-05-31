@@ -13,7 +13,7 @@ import { Typography, Button, Space, Tag, message, Empty, Modal, Input } from 'an
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, ApiOutlined, PlayCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getPipelines, triggerPipeline, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
@@ -46,7 +46,7 @@ const PipelineList: React.FC = () => {
       const wrapperData = response.data as { data?: { data?: unknown[]; total?: number } };
       const payload = wrapperData?.data ?? wrapperData;
       const items = payload?.data ?? (Array.isArray(payload) ? payload : []);
-      setPipelines(items);
+      setPipelines(items as Pipeline[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
@@ -112,7 +112,7 @@ const PipelineList: React.FC = () => {
       const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch });
       const wrapperData = response.data as { data?: { id?: string } };
       const apiData = wrapperData?.data ?? wrapperData;
-      const runId = apiData?.id;
+      const runId = (apiData as any).id;
       message.success(`Pipeline "${selectedPipeline.name}" 已触发运行`);
       setRunModalVisible(false);
       if (runId) {
@@ -163,7 +163,7 @@ const PipelineList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: '12%',
-      render: (value: unknown) => <StatusBadge status={String(value) as 'active' | 'inactive' | 'deleted'} size="small" />,
+      render: (value: unknown) => <StatusBadge status={String(value) as StatusType} size="small" />,
     },
     {
       key: 'stages',

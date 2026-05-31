@@ -103,7 +103,7 @@ const QueueManagement: React.FC = () => {
       if (statusFilter !== 'all') params.status = statusFilter as JobStatus;
       if (queueFilter !== 'all') params.queue = queueFilter;
       const res = await listJobs(params);
-      const jobsData = res.data?.data?.jobs;
+      const jobsData = res.data?.jobs;
       setJobs(Array.isArray(jobsData) ? jobsData : []);
     } catch (error: unknown) {
       setJobs([]);
@@ -116,7 +116,7 @@ const QueueManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getQueueStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }
@@ -172,7 +172,7 @@ const QueueManagement: React.FC = () => {
       const res = await dequeueJob(values.queueName, {
         limit: values.limit ? parseInt(values.limit) : 1,
       });
-      const count = res.data?.data?.count || 0;
+      const count = res.data?.count || 0;
       message.success(`出队成功，获取 ${count} 个任务`);
       setDequeueModalVisible(false);
       dequeueForm.resetFields();

@@ -13,7 +13,6 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined,
   UserOutlined,
-  AuditOutlined,
 } from '@ant-design/icons';
 import CapabilityList from './CapabilityList';
 import RoleCapabilityMapping from './RoleCapabilityMapping';

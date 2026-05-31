@@ -36,7 +36,6 @@ import {
   CloudOutlined,
   DollarOutlined,
   SyncOutlined,
-  SafetyOutlined,
   GlobalOutlined,
   DatabaseOutlined,
   HddOutlined,
@@ -195,7 +194,7 @@ const MultiCloudPage: React.FC = () => {
     active: accounts.filter((a) => a.status === 'active').length,
     error: accounts.filter((a) => a.status === 'error').length,
     resources: resources.length,
-    providers: new Set(accounts.map(a => a.provider || a.credential_type)).size,
+    providers: new Set(accounts.map(a => (a as any).provider || a.credential_type)).size,
     regions: new Set(accounts.map(a => a.region)).size,
   }), [accounts, resources]);
 
@@ -208,7 +207,7 @@ const MultiCloudPage: React.FC = () => {
       // Fallback to accounts data
       const providerCounts: Record<string, number> = {};
       accounts.forEach(a => {
-        const p = a.provider || a.credential_type || 'unknown';
+        const p = (a as any).provider || a.credential_type || 'unknown';
         providerCounts[p] = (providerCounts[p] || 0) + 1;
       });
       const fallbackEntries = Object.entries(providerCounts);
@@ -282,7 +281,7 @@ const MultiCloudPage: React.FC = () => {
       width: 80,
       render: (_: unknown, record: any) => {
         const accountId = record.account_id || record.id;
-        return resources.filter((r) => r.account_id === accountId || r.accountId === accountId).length;
+        return resources.filter((r) => r.account_id === accountId || r.account_id === accountId).length;
       },
     },
     {

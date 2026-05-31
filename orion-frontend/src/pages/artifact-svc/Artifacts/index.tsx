@@ -98,7 +98,7 @@ const ArtifactManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArtifacts({ page: p, perPage: s });
-      const raw = res.data?.data;
+      const raw = res.data;
       if (Array.isArray(raw)) {
         setArtifacts(raw);
         const respTotal = (res.data as { total?: number })?.total ?? raw.length;
@@ -119,7 +119,7 @@ const ArtifactManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getArtifactStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }
@@ -128,7 +128,7 @@ const ArtifactManagement: React.FC = () => {
   const loadNamespaces = async () => {
     try {
       const res = await getNamespaces();
-      setNamespaces(res.data?.data || []);
+      setNamespaces(res.data || []);
     } catch (error: unknown) {
       setNamespaces([]);
     }
@@ -274,7 +274,7 @@ const ArtifactManagement: React.FC = () => {
   const handleDownload = async (record: Artifact) => {
     try {
       const res = await downloadArtifact(record.id);
-      const url = res.data?.data?.url;
+      const url = res.data?.url;
       if (url) {
         window.open(url, '_blank');
         message.success('下载链接已打开');

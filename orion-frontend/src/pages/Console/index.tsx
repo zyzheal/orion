@@ -21,7 +21,6 @@ import {
   Statistic,
   Progress,
   message,
-  Tooltip,
   Alert,
   Spin,
 } from 'antd';
@@ -31,8 +30,6 @@ import {
   SettingOutlined,
   UserOutlined,
   SafetyCertificateOutlined,
-  CloudServerOutlined,
-  CheckCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -81,8 +78,8 @@ const Console: React.FC = () => {
       const plugins = pluginsRes.data || [];
       const flags = flagsRes.data || [];
       setStats({
-        totalPlugins: plugins.length,
-        activePlugins: plugins.filter((p: any) => p.status === 'enabled').length,
+        totalPlugins: (plugins as any).length,
+        activePlugins: (plugins as any).filter((p: any) => p.status === 'enabled').length,
         totalFlags: flags.length,
         enabledFlags: flags.filter((f: any) => f.enabled).length,
       });

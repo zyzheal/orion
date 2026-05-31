@@ -90,7 +90,7 @@ const ExplainDecisionTab: React.FC = () => {
         features,
         confidence: values.confidence ? parseFloat(values.confidence) : undefined,
       });
-      setExplanation(res.data?.data || null);
+      setExplanation(res.data || null);
       message.success('决策解释已生成');
     } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
@@ -326,7 +326,7 @@ const ExplanationHistoryTab: React.FC = () => {
         limit: 50,
         decisionType: filterType,
       });
-      setHistory(res.data?.data || []);
+      setHistory(res.data || []);
     } catch (error: unknown) {
       message.error(`加载历史失败: ${(error as Error).message}`);
     } finally {
@@ -342,7 +342,7 @@ const ExplanationHistoryTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getExplanationById(id);
-      setDetail(res.data?.data || null);
+      setDetail(res.data || null);
     } catch {
       setDetail(null);
     } finally {
@@ -358,8 +358,8 @@ const ExplanationHistoryTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getExplanationById(searchId);
-      setDetail(res.data?.data || null);
-      if (!res.data?.data) {
+      setDetail(res.data || null);
+      if (!res.data) {
         message.info('未找到该解释');
       }
     } catch {

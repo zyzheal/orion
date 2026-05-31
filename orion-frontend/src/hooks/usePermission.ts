@@ -1,6 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { capabilityApi } from '@/api/capability';
 import type { User } from '@/types/api';
 
 // 角色权限映射（与后端同步，来源于 docs/architecture/rbac-abac-unified-implementation.md §4）
@@ -102,7 +101,7 @@ export function usePermission() {
 
   // 支持多角色（从 authStore 读取 roles 数组或单角色）
   const userRoles = useMemo(() => {
-    const userWithRoles = user as User;
+    const userWithRoles = user as unknown as User;
     if (user && 'roles' in userWithRoles && Array.isArray(userWithRoles.roles) && userWithRoles.roles.length > 0) {
       return userWithRoles.roles;
     }

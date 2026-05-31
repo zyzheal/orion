@@ -205,8 +205,8 @@ const AISecurityPage: React.FC = () => {
     setLoading(true);
     try {
       const [policiesRes, evaluationsRes] = await Promise.all([getPolicies(), getEvaluations()]);
-      setPolicies(policiesRes.data.policies.map(mapApiPolicyToUI));
-      setEvaluations(evaluationsRes.data.evaluations.map(mapApiEvalToUI));
+      setPolicies((policiesRes.data as any).policies.map(mapApiPolicyToUI));
+      setEvaluations((evaluationsRes.data as any).evaluations.map(mapApiEvalToUI));
     } catch (error: unknown) {
       message.error(`Failed to load security data: ${(error as Error).message}`);
     } finally {
@@ -217,7 +217,7 @@ const AISecurityPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSecurityStats();
-      const apiStats = response.data.stats;
+      const apiStats = (response.data as any).stats;
       setStats({
         policiesActive: apiStats.policiesActive,
         requestsBlocked: apiStats.requestsBlocked,
@@ -271,7 +271,7 @@ const AISecurityPage: React.FC = () => {
         rule: rules[0] || '',
         action: 'block',
         matchCount: 0,
-      });
+      } as any);
       message.success('安全策略创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();

@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Artifact Operations Page
  * Phase 3 - Artifact lifecycle management, promotion, and security scanning
@@ -23,6 +25,7 @@ import {
   BoxPlotOutlined,
   PlusOutlined,
   ReloadOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import {
   getArtifacts,
@@ -54,9 +57,9 @@ const ArtifactOpsPage: React.FC = () => {
         getArtifacts(),
         getArtifactStats(),
       ]);
-      const data = artifactRes.data?.data ?? artifactRes.data;
+      const data = artifactRes.data ?? artifactRes.data;
       setArtifacts(Array.isArray(data) ? data : []);
-      const statsData = statsRes.data?.data ?? statsRes.data;
+      const statsData = statsRes.data ?? statsRes.data;
       setStats(statsData || null);
     } catch {
       message.error('Failed to load artifact data');

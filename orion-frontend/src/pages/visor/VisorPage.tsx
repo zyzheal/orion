@@ -29,11 +29,10 @@ import {
   ReloadOutlined,
   CloudServerOutlined,
   CodeOutlined,
-  DashboardOutlined,
   DeleteOutlined,
   PlayCircleOutlined,
   EyeOutlined,
-  CpuOutlined,
+  DashboardOutlined,
   DesktopOutlined,
   HddOutlined,
   GlobalOutlined,
@@ -60,12 +59,6 @@ const { Title, Text } = Typography;
 
 // ---- Color Maps ----
 
-const hostStatusColorMap: Record<Host['status'], string> = {
-  online: 'green',
-  offline: 'default',
-  error: 'red',
-  maintenance: 'orange',
-};
 
 const hostStatusLabelMap: Record<Host['status'], string> = {
   online: '在线',
@@ -122,7 +115,7 @@ const VisorPage: React.FC = () => {
     setHostLoading(true);
     try {
       const res = await listHosts();
-      const list = res.data?.data?.hosts;
+      const list = (res.data as any)?.hosts;
       setHosts(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setHosts([]);
@@ -137,7 +130,7 @@ const VisorPage: React.FC = () => {
     try {
       // Reuse hosts list for script history display
       const res = await listHosts();
-      const list = res.data?.data?.scripts;
+      const list = (res.data as any)?.scripts;
       setScripts(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setScripts([]);
@@ -150,7 +143,7 @@ const VisorPage: React.FC = () => {
     setResourceLoading(true);
     try {
       const res = await listResources();
-      const list = res.data?.data?.resources;
+      const list = (res.data as any)?.resources;
       setResources(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setResources([]);
@@ -206,7 +199,7 @@ const VisorPage: React.FC = () => {
   const handleViewHostStatus = async (id: string) => {
     try {
       const res = await getHostStatus(id);
-      const data = res.data?.data;
+      const data = (res.data as any);
       message.info(`主机状态: ${data?.status || 'unknown'}`);
     } catch (error: unknown) {
       message.error(`获取状态失败: ${(error as Error).message}`);
@@ -239,7 +232,7 @@ const VisorPage: React.FC = () => {
   const handleViewScriptResult = async (id: string) => {
     try {
       const res = await getScriptResult(id);
-      const data = res.data?.data;
+      const data = (res.data as any);
       setScriptResult(data);
       setViewingResult(true);
     } catch (error: unknown) {
@@ -256,7 +249,7 @@ const VisorPage: React.FC = () => {
     } else {
       try {
         const res = await getResourcesByType(type);
-        const list = res.data?.data?.resources;
+        const list = (res.data as any)?.resources;
         setResources(Array.isArray(list) ? list : []);
       } catch (error: unknown) {
         setResources([]);
@@ -328,7 +321,7 @@ const VisorPage: React.FC = () => {
       render: (v: unknown) =>
         v != null ? (
           <Tag color={(v as number) > 80 ? 'red' : (v as number) > 50 ? 'orange' : 'green'}>
-            {v}%
+            {String(v)}%
           </Tag>
         ) : (
           <Text type="secondary">-</Text>
@@ -342,7 +335,7 @@ const VisorPage: React.FC = () => {
       render: (v: unknown) =>
         v != null ? (
           <Tag color={(v as number) > 80 ? 'red' : (v as number) > 50 ? 'orange' : 'green'}>
-            {v}%
+            {String(v)}%
           </Tag>
         ) : (
           <Text type="secondary">-</Text>
@@ -445,7 +438,7 @@ const VisorPage: React.FC = () => {
   // ---- Resource Type Icon Map ----
 
   const resourceTypeIconMap: Record<string, React.ReactNode> = {
-    cpu: <CpuOutlined style={{ fontSize: 24, color: colors.primary[500] }} />,
+    cpu: <DashboardOutlined style={{ fontSize: 24, color: colors.primary[500] }} />,
     memory: <DesktopOutlined style={{ fontSize: 24, color: colors.purple[500] }} />,
     disk: <HddOutlined style={{ fontSize: 24, color: colors.warning[500] }} />,
     network: <GlobalOutlined style={{ fontSize: 24, color: colors.success[500] }} />,

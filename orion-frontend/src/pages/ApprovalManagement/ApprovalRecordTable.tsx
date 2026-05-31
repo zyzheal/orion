@@ -16,7 +16,6 @@ import {
   Input,
   Select,
   Modal,
-  Form,
   message,
   Descriptions,
   Drawer,
@@ -285,9 +284,9 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
       title: '创建时间',
       dataIndex: 'createdAt',
       width: 140,
-      render: (v: string) => (
+      render: (v: unknown) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(v).fromNow()}
+          {dayjs(v as string).fromNow()}
         </Text>
       ),
     },

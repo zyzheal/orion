@@ -30,8 +30,8 @@ const EffectivenessDashboard: React.FC = () => {
         getEffectiveness(),
         getHealingHistory({ pageSize: 10 }),
       ]);
-      setEffectiveness(effRes.data || null);
-      setRecentHistory(histRes.data?.items || []);
+      setEffectiveness((effRes.data || null) as unknown as SelfHealingEffectiveness | null);
+      setRecentHistory((histRes.data as any).items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载效能数据失败：${error.message}`);

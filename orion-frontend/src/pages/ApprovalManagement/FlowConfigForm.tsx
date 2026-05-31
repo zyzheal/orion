@@ -25,7 +25,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
-  SaveOutlined,
 } from '@ant-design/icons';
 import {
   type ApprovalFlowConfig,
@@ -38,7 +37,7 @@ import {
 } from '@/api/approval';
 import { colors } from '@/tokens/colors';
 
-const { Panel } = Collapse;
+const {} = Collapse;
 
 // ---- 风险等级映射 ----
 const riskLevelMap: Record<RiskLevel, { label: string; color: string }> = {

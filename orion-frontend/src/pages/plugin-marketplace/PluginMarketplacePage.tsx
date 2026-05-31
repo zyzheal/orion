@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Plugin Marketplace Page
  * Phase 3 - Browse, install, and manage plugins from the marketplace
@@ -51,8 +53,8 @@ const PluginMarketplacePage: React.FC = () => {
         getAvailablePlugins(),
         getInstalledPlugins(),
       ]);
-      setAvailablePlugins((availRes.data as { data?: unknown })?.data ?? [] || []);
-      setInstalledPlugins((instRes.data as { data?: unknown })?.data ?? [] || []);
+      setAvailablePlugins(((availRes.data as { data?: unknown })?.data ?? []) as Plugin[]);
+      setInstalledPlugins(((instRes.data as { data?: unknown })?.data ?? []) as Plugin[]);
     } catch {
       message.error('Failed to load plugin data');
     } finally {

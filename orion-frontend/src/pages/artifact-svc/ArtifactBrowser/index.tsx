@@ -122,7 +122,7 @@ const ArtifactBrowser: React.FC = () => {
 
       try {
         const res = await getArtifactVersions(params);
-        const data = res.data?.data;
+        const data = res.data;
         if (data && Array.isArray(data.versions)) {
           setVersions(data.versions);
           setTotal(data.total || data.versions.length);
@@ -175,7 +175,7 @@ const ArtifactBrowser: React.FC = () => {
 
     try {
       const res = await getTraceabilityChain(record.id);
-      setTraceChain(res.data?.data || null);
+      setTraceChain(res.data || null);
     } catch {
       // Fall back to mock traceability data
       setTraceChain({
@@ -227,7 +227,7 @@ const ArtifactBrowser: React.FC = () => {
 
     try {
       const res = await getVersionDiff(a.pipelineId, a.version, b.version);
-      setDiff(res.data?.data || null);
+      setDiff(res.data || null);
     } catch {
       // Fall back to mock diff data
       setDiff({

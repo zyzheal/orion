@@ -1,9 +1,11 @@
+import { colors } from '@/tokens';
+
 /**
  * Notification Settings - Channel preferences, DND schedule, auto-approve rules
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Card, Form, Switch, Select, Input, TimePicker, message } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { SaveOutlined, SettingOutlined } from '@ant-design/icons';
 import {
   getNotificationSettings,
   updateNotificationSettings,

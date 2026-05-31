@@ -12,7 +12,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { ExtendedAction } from '@/components/ChatOps/types';
-import type { ChatOpsResponse, CommandListResponse, RecommendationListResponse, ExecData } from '@/types/api';
+import type { CommandListResponse, RecommendationListResponse } from '@/types/api';
 import {
   getCommands,
   executeCommand as executeCommandAPI,
@@ -195,13 +195,13 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = (response.data as ChatOpsResponse<{ data?: { result?: { output?: string; status?: string }; status?: string } }>)?.data?.data;
+        const execData = ((response.data as any)?.data ?? response.data) as any;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: execData?.result?.output || `命令 ${command} 执行完成`,
+          content: (execData as any).result?.output || `命令 ${command} 执行完成`,
           timestamp: new Date(),
-          status: execData?.status === 'completed' ? 'success' : 'failed',
+          status: (execData as any).status === 'completed' ? 'success' : 'failed',
           actions: extractActionsFromResult(execData),
         };
 
@@ -245,13 +245,13 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = (response.data as ChatOpsResponse<{ data?: { result?: { output?: string; status?: string }; status?: string } }>)?.data?.data;
+        const execData = ((response.data as any)?.data ?? response.data) as any;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: execData?.result?.output || `操作 ${command} 执行完成`,
+          content: (execData as any).result?.output || `操作 ${command} 执行完成`,
           timestamp: new Date(),
-          status: execData?.status === 'completed' ? 'success' : 'failed',
+          status: (execData as any).status === 'completed' ? 'success' : 'failed',
           actions: extractActionsFromResult(execData),
         };
 
@@ -291,7 +291,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
         const response = await fetchRecommendations({});
         const recs = (response.data as RecommendationListResponse)?.data?.recommendations || [];
         set({
-          recommendations: recs,
+          recommendations: recs as any,
           unreadAlerts: recs.filter(
             (r: { severity?: string }) => r.severity === 'critical' || r.severity === 'warning'
           ).length,
@@ -393,7 +393,7 @@ export async function initializeChatOpsStore(): Promise<void> {
       commands.forEach((cmd: { name: string; schema?: Record<string, unknown> }) => {
         parser.registerSchema(cmd.name, cmd.schema || {});
       });
-      useChatOpsStore.setState({ commands });
+      useChatOpsStore.setState({ commands: commands as any });
     }
     useChatOpsStore.getState().fetchRecommendations();
   } catch (err) {

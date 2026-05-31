@@ -55,7 +55,7 @@ interface ExecutionHistoryProps {
 const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [loading, setLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [_detailLoading, setDetailLoading] = useState(false);
   const [selectedExecution, setSelectedExecution] = useState<WorkflowExecution | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -67,7 +67,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
     setLoading(true);
     getExecutionHistory(workflowId)
       .then(setExecutions)
-      .catch((err) => {
+      .catch((_err) => {
         message.error('获取执行历史失败');
         setExecutions([]);
       })

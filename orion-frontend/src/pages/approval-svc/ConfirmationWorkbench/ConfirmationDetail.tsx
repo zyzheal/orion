@@ -18,7 +18,7 @@ import {
   Divider,
 } from 'antd';
 import { colors } from '@/tokens';
-import { CheckOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
 import {
   getConfirmation,
   approveConfirmation,

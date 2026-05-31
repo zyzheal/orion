@@ -2,7 +2,7 @@
  * NodeProperties - 节点属性编辑面板
  * 根据节点类型展示不同的属性编辑表单
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Card,
   Form,
@@ -18,16 +18,15 @@ import {
 import {
   SettingOutlined,
   DeleteOutlined,
-  SaveOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
 import { spacing } from '@/tokens/spacing';
-import type { WorkflowCanvasNode, WorkflowNodeType } from './types';
+import type { WorkflowCanvasNode } from './types';
 import { nodeTypeConfig } from './types';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const { TextArea } = Input;
 
@@ -370,7 +369,6 @@ const NodeProperties: React.FC<NodePropertiesProps> = ({
   node,
   onUpdate,
   onDelete,
-  onClose,
 }) => {
   if (!node) {
     return (

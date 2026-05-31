@@ -3,7 +3,7 @@
  * View and manage metrics, record new metrics, view metric series and summaries
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
   Tag,
   Drawer,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, LineChartOutlined } from '@ant-design/icons';
+import { BarChartOutlined, PlusOutlined, ReloadOutlined, LineChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {

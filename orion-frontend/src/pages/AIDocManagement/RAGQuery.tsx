@@ -17,7 +17,7 @@ import {
   message,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { SendOutlined, BookOutlined } from '@ant-design/icons';
+import { SendOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
 import { ragQuery, getSpaces, type RAGResult } from '@/api/ai-docs';
 import dayjs from 'dayjs';
 

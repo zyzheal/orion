@@ -16,8 +16,6 @@ import {
   message,
   Row,
   Col,
-  Statistic,
-  Divider,
   Empty,
   Spin,
 } from 'antd';
@@ -57,7 +55,7 @@ export default function ChaosExperimentDetailPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [experiment, setExperiment] = useState<ChaosExperiment | null>(null);
-  const [runs, setRuns] = useState<ChaosRun[]>([]);
+  const [runs, _setRuns] = useState<ChaosRun[]>([]);
   const [running, setRunning] = useState(false);
   const [selectedRun, setSelectedRun] = useState<ChaosRun | null>(null);
   const [timelineVisible, setTimelineVisible] = useState(false);
@@ -260,7 +258,7 @@ export default function ChaosExperimentDetailPage() {
         ) : (
           <Table
             dataSource={experiment.faults}
-            rowKey={(f, i) => i?.toString() ?? '0'}
+            rowKey={(_f, i) => i?.toString() ?? '0'}
             pagination={false}
             columns={[
               { title: '类型', dataIndex: 'type', key: 'type', render: (v: string) => <Tag>{v}</Tag> },

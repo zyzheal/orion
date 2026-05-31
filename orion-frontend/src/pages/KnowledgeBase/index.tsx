@@ -2,10 +2,10 @@
  * AI 知识库管理页面 (Phase 4)
  * 知识条目 CRUD、搜索、分类浏览
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import _React, { useState, useEffect } from 'react';
 import {
   Typography, Button, Space, Card, Modal, Form, Input, Select, message,
-  Table as AntTable, Tag, Row, Col, Input as AntInput, Popconfirm, Tooltip,
+  Table as _AntTable, Tag, Row, Col, Input as AntInput, Popconfirm, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,

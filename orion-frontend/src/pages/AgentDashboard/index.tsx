@@ -58,8 +58,8 @@ const AgentDashboard: React.FC = () => {
         getAgentProfiles(),
         getAgentRuns({ pageSize: 10 }),
       ]);
-      setAgents(agentsRes.data?.data || []);
-      setRuns(runsRes.data?.data || []);
+      setAgents(agentsRes.data || []);
+      setRuns(runsRes.data || []);
       // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
       const approvalsData = await getAgentApprovals({ status: 'pending' });
       setApprovals(approvalsData);

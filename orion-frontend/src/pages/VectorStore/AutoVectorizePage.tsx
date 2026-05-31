@@ -2,8 +2,8 @@
  * Auto-Vectorization Configuration Page
  * Configure automatic vectorization rules for uploaded documents
  */
-import React, { useState, useEffect } from 'react';
-import {
+import _React, { useState, useEffect } from 'react';
+import { InputNumber,
   Card,
   Table,
   Tag,
@@ -16,11 +16,9 @@ import {
   Switch,
   Typography,
   message,
-  Descriptions,
   Row,
   Col,
   Statistic,
-  Tooltip,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -93,7 +91,7 @@ export default function AutoVectorizePage() {
 
   useEffect(() => { fetchRules(); }, []);
 
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (_values: any) => {
     try {
       // TODO: integrate with knowledge/vectorize API
       message.success('规则创建成功');
@@ -105,7 +103,7 @@ export default function AutoVectorizePage() {
     }
   };
 
-  const handleToggle = async (id: string, enabled: boolean) => {
+  const handleToggle = async (_id: string, enabled: boolean) => {
     try {
       // TODO: integrate with knowledge/vectorize API
       message.success(enabled ? '已启用' : '已禁用');

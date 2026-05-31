@@ -18,7 +18,7 @@ import {
 import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon, AppstoreOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getMySkills, uninstallSkill, type SkillPackage } from '@/api/skills';
 import dayjs from 'dayjs';
@@ -122,7 +122,7 @@ const MySkills: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={String(v) as 'published' | 'draft' | 'archived'} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'rating',

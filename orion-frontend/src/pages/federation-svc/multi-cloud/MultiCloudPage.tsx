@@ -106,8 +106,8 @@ const MultiCloudPage: React.FC = () => {
         provider: values.provider,
         name: values.name,
         region: values.region,
-        credentials: {},
-      });
+        credentials_ref: '',
+      } as any);
       message.success('云账号注册成功');
       setCreateModalOpen(false);
       form.resetFields();
@@ -152,7 +152,7 @@ const MultiCloudPage: React.FC = () => {
       title: '资源数',
       key: 'resourceCount',
       width: 80,
-      render: (_: unknown, record: CloudAccount) => resources.filter((r) => r.accountId === record.id).length,
+      render: (_: unknown, record: CloudAccount) => resources.filter((r) => r.account_id === record.id).length,
     },
     {
       title: '创建时间',

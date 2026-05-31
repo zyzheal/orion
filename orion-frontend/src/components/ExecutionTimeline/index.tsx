@@ -20,7 +20,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
   const [loading, setLoading] = useState(true);
   const [steps, setSteps] = useState<TimelineStep[]>([]);
   const [selectedStep, setSelectedStep] = useState<TimelineStep | null>(null);
-  const [diagnosis, setDiagnosis] = useState<{ rootCause: string; suggestedFix: string; confidence: number } | null>(null);
+  const [diagnosis] = useState<{ rootCause: string; suggestedFix: string; confidence: number } | null>(null);
 
   useEffect(() => {
     loadTimeline();
@@ -44,20 +44,6 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
       ]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDiagnose = async (step: TimelineStep) => {
-    try {
-      // TODO: 对接 pluginApi.aiDiagnose
-      const result = {
-        rootCause: 'Simulated diagnosis result',
-        suggestedFix: 'Check logs manually',
-        confidence: 0.8,
-      };
-      setDiagnosis(result);
-    } catch {
-      setDiagnosis({ rootCause: 'Unable to diagnose', suggestedFix: 'Check logs manually', confidence: 0 });
     }
   };
 

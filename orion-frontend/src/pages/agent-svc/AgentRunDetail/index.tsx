@@ -101,7 +101,7 @@ const AgentRunDetail: React.FC = () => {
       const runResData = runRes as { data?: { data: unknown } };
       const decisionsResData = decisionsRes as { data?: { data: AgentDecision[] } };
       const approvalsResData = approvalsRes as { data?: { data: AgentApproval[] } };
-      setRun(runResData.data?.data ?? null);
+      setRun((runResData.data?.data ?? null) as AgentRun | null);
       setDecisions(decisionsResData.data?.data ?? []);
       setApprovals(
         ((approvalsResData.data?.data ?? []) as AgentApproval[]).filter(

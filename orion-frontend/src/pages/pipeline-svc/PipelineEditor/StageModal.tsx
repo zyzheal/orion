@@ -15,7 +15,6 @@ import {
   Card,
   message,
   Tag,
-  Collapse,
   Radio,
 } from 'antd';
 import {
@@ -228,7 +227,7 @@ const StageModal: React.FC<StageModalProps> = ({
     if (visible) {
       getPipelines()
         .then((res) => {
-          const data = res.data?.data ?? res.data;
+          const data = res.data ?? res.data;
           const list = Array.isArray(data) ? data : [];
           const opts = list.map((p: { id: string; name: string }) => ({
             label: p.name,
@@ -512,7 +511,7 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ width: '100%' }}
             placeholder="默认 300 秒"
             formatter={(value) => `${value}s`}
-            parser={(value) => Number(value?.replace('s', '')) ?? 0}
+            parser={(value) => (Number(value?.replace('s', '')) || 0) as 0 | 7200}
           />
         </Form.Item>
 

@@ -30,7 +30,6 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
-import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
 import { getEvents, getStats } from '@/api/eventbus';
 import type { EventBusEvent as ApiEventBusEvent } from '@/api/eventbus';
@@ -124,8 +123,8 @@ const EventBusMonitoring: React.FC = () => {
     setLoading(true);
     try {
       const [eventsRes, statsRes] = await Promise.all([getEvents({ limit: 100 }), getStats()]);
-      const eventsData = eventsRes.data?.data?.events || [];
-      const statsData = statsRes.data?.data?.stats || {};
+      const eventsData = (eventsRes.data as any)?.events || [];
+      const statsData = (statsRes.data as any)?.stats || {};
       setEvents(eventsData.map(mapApiEvent));
       setStats(mapApiStats(statsData));
     } catch (error: unknown) {

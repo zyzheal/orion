@@ -190,9 +190,9 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await listUsers({ page: 1, limit: 100 });
-      const data = res.data?.data?.data;
+      const data = res.data?.data;
       setUsers(Array.isArray(data) ? data : []);
-      setTotal(res.data?.data?.total ?? 0);
+      setTotal(res.data?.total ?? 0);
     } catch (error: unknown) {
       setUsers(MOCK_USERS);
       setTotal(MOCK_USERS.length);

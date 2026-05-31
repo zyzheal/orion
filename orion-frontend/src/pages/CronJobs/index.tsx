@@ -44,7 +44,7 @@ const CronJobsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCronJobs();
-      setJobs(res.data?.data?.jobs || []);
+      setJobs((res.data as any)?.jobs || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载失败');
     } finally {

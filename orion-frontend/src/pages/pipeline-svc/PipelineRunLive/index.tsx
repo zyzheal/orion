@@ -135,7 +135,7 @@ function highlightSearch(text: string, search: string): React.ReactNode {
   const matchRegex = new RegExp(escaped, 'i');
   return parts.map((part, i) =>
     matchRegex.test(part) ? (
-      <span key={i} style={{ background: colors.warning[200], color: colors.neutral[1000], borderRadius: 2, padding: '0 2px' }}>
+      <span key={i} style={{ background: colors.warning[200], color: colors.neutral[900], borderRadius: 2, padding: '0 2px' }}>
         {part}
       </span>
     ) : (
@@ -433,7 +433,7 @@ const PipelineRunLive: React.FC = () => {
   const [currentStageId, setCurrentStageId] = useState<string | undefined>();
 
   // SSE hook
-  const { logs: sseLogs, status: sseStatus, isConnected, error, connect, disconnect, clearLogs } =
+  const { logs: sseLogs, status: _sseStatus, isConnected, error, connect, disconnect, clearLogs } =
     usePipelineSSE({
       pipelineId: id || '',
       runId: runId || id || '',
@@ -476,14 +476,14 @@ const PipelineRunLive: React.FC = () => {
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
         const wrapperData = response.data as { data?: unknown; success?: boolean };
         const apiData = wrapperData?.data ?? wrapperData;
-        if (apiData && (apiData.run || apiData.stages)) {
-          const run = apiData.run || apiData;
+        if (apiData && ((apiData as any).run || (apiData as any).stages)) {
+          const run = (apiData as any).run || apiData;
           const flattened = {
             ...run,
             branch: run.context?.branch || run.branch || 'main',
             commit: run.context?.commitSha || run.commit || '-',
             version: run.context?.version || run.pipelineVersion,
-            stages: apiData.stages || [],
+            stages: (apiData as any).stages || [],
           };
           setPipeline(flattened);
           // Initialize stages from API data

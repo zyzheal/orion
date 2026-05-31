@@ -151,8 +151,8 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     try {
       const res = await listTenants(page, pageSize);
       const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
-      setTenants(body?.data || body || []);
-      setTotal(body?.total ?? body?.totalPages ? (body.page * body.limit) : 0);
+      setTenants((body?.data || body || []) as TenantEntity[]);
+      setTotal((body as any)?.total ?? (body as any)?.totalPages ? ((body as any).page * ((body as any).limit || 1)) : 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载租户列表失败：${error.message}`);
@@ -195,7 +195,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       const body = (res.data as { message?: string; allocatedNamespaces?: { id: string }[] }) ?? res.data;
       message.success(body.message || '租户创建成功');
 
-      if (body.allocatedNamespaces?.length > 0) {
+      if (body.allocatedNamespaces && body.allocatedNamespaces.length > 0) {
         message.success(`已分配 ${body.allocatedNamespaces.length} 个 Namespace`);
       }
 
@@ -371,7 +371,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     try {
       const res = await getUsersByTenant(tenant.id);
       const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
-      setUsers(Array.isArray(body) ? body : body?.users || []);
+      setUsers(Array.isArray(body) ? body : (body as any)?.users || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载用户列表失败：${error.message}`);

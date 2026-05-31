@@ -1651,7 +1651,7 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/CapabilityAdmin')),
     protected: true,
     roles: ['super_admin', 'platform_admin'],
-  },
+  } as any,
 
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
   // 通过 :subAppKey 通配符加载任意已配置的子应用

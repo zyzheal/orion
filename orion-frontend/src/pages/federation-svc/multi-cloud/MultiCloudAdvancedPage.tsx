@@ -38,8 +38,8 @@ const MultiCloudAdvancedPage: React.FC = () => {
         multiCloudApi.listCloudAccounts(),
         multiCloudApi.listCloudResources(),
       ]);
-      setAccounts(accountRes || []);
-      setResources(resourceRes || []);
+      setAccounts((accountRes || []) as unknown as CloudAccount[]);
+      setResources((resourceRes || []) as unknown as CloudResource[]);
     } catch {
       message.error('Failed to load data');
     }
@@ -127,7 +127,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="Active Providers" value={Array.from(new Set(accounts.map(a => a.provider))).length} prefix={<GlobalOutlined />} />
+            <Statistic title="Active Providers" value={Array.from(new Set(accounts.map(a => (a as any).provider))).length} prefix={<GlobalOutlined />} />
           </Card>
         </Col>
         <Col span={6}>

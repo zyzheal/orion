@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Configuration Management Page
  * Phase 3 - GitOps config management, environment diffs, and approval workflows
@@ -65,11 +67,11 @@ const ConfigMgmtPage: React.FC = () => {
         getGitOpsConfig(),
       ]);
       const configData = configRes.data as { configs?: unknown[]; data?: { configs?: unknown[] } };
-      setConfigs(configData?.configs ?? (configData?.data as { configs?: unknown[] })?.configs ?? []);
+      setConfigs((configData?.configs ?? (configData?.data as { configs?: unknown[] })?.configs ?? []) as ConfigItem[]);
       const statsData = statsRes.data as { data?: unknown };
-      setStats(statsData?.data ?? null);
+      setStats((statsData?.data ?? null) as any);
       const gitOpsData = gitOpsRes.data as { data?: unknown };
-      setGitOpsConfig(gitOpsData?.data ?? null);
+      setGitOpsConfig((gitOpsData?.data ?? null) as any);
     } catch {
       message.error('Failed to load configuration data');
     } finally {

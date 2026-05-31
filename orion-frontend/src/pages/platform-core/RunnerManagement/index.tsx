@@ -379,7 +379,7 @@ const RunnerManagement: React.FC = () => {
       const response = await getRunners();
       const apiData = response.data;
       const runnerList = Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? [];
-      setRunners(runnerList);
+      setRunners(runnerList as Runner[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Runner 列表失败：${error.message}`);

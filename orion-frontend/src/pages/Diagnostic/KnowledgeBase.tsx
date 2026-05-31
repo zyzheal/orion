@@ -3,7 +3,7 @@
  * Search and manage diagnostic patterns, view knowledge base stats
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -21,7 +21,7 @@ import {
   Card,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
+import { ReadOutlined, PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { searchPatterns, getPattern, addPattern, getKnowledgeStats } from '@/api/diagnostic';

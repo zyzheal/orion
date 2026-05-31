@@ -112,7 +112,7 @@ const BuildPodDetail: React.FC = () => {
             <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
-            {pod && <StatusBadge status={pod.status === 'running' ? 'running' : pod.status === 'success' ? 'success' : pod.status === 'failed' ? 'failed' : pod.status === 'pending' ? 'pending' : 'cancelled'} size="small" />}
+            {pod && <StatusBadge status={(pod.status as string) === 'running' ? 'running' : (pod.status as string) === 'success' ? 'success' : (pod.status as string) === 'failed' ? 'failed' : (pod.status as string) === 'pending' ? 'pending' : 'cancelled'} size="small" />}
           </div>
           <Space>
             <Button
@@ -140,7 +140,7 @@ const BuildPodDetail: React.FC = () => {
             <Descriptions.Item label="Run ID">{pod.runId}</Descriptions.Item>
             <Descriptions.Item label="Stage ID">{pod.stageId}</Descriptions.Item>
             <Descriptions.Item label="Status">
-              <StatusBadge status={pod.status === 'running' ? 'running' : pod.status === 'success' ? 'success' : pod.status === 'failed' ? 'failed' : pod.status === 'pending' ? 'pending' : 'cancelled'} size="small" />
+              <StatusBadge status={(pod.status as string) === 'running' ? 'running' : (pod.status as string) === 'success' ? 'success' : (pod.status as string) === 'failed' ? 'failed' : (pod.status as string) === 'pending' ? 'pending' : 'cancelled'} size="small" />
             </Descriptions.Item>
             <Descriptions.Item label="Created">
               {dayjs(pod.createdAt).format('YYYY-MM-DD HH:mm:ss')}

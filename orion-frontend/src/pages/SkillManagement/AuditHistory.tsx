@@ -85,9 +85,9 @@ const AuditHistory: React.FC = () => {
     try {
       const res = await getAllAuditHistory({ page, limit: 50 });
       const data = res.data;
-      const items = data.logs || [];
+      const items = (data as any).logs || [];
       setAuditLogs(Array.isArray(items) ? items : []);
-      setTotal(data.total || 0);
+      setTotal((data as any).total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);

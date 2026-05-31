@@ -23,11 +23,11 @@ import {
   WifiOutlined,
   CloudServerOutlined,
   HddOutlined,
-  MemoryOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 interface FaultTemplate {
   id: string;
@@ -79,7 +79,7 @@ const faultTemplates: FaultTemplate[] = [
     description: '对目标容器施加内存压力。可配置内存大小和填充速率。',
     severity: 'high',
     defaultConfig: { memory_mb: 512, duration_ms: 120000 },
-    icon: <MemoryOutlined />,
+    icon: <DatabaseOutlined />,
   },
   {
     id: 'disk-full',

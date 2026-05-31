@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Alert Config - Rule creation, severity levels, notification channels
  */

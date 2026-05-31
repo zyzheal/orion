@@ -320,7 +320,7 @@ const NotificationCenter: React.FC = () => {
     setUsersLoading(true);
     try {
       const res = await listUsers({ limit: 200 });
-      const users: User[] = res.data?.data?.data || [];
+      const users: User[] = res.data?.data || [];
       setAvailableUsers(users);
     } catch (error: unknown) {
       setAvailableUsers([]);

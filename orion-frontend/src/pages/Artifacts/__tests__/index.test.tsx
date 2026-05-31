@@ -184,7 +184,7 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
     });
 
     vi.mocked(artifactApi.getArtifactStats).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockStats },
+      data: { code: 200, message: 'success', data: mockStats } as any,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -192,7 +192,7 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
     });
 
     vi.mocked(artifactApi.getNamespaces).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockNamespaces },
+      data: { code: 200, message: 'success', data: mockNamespaces } as any,
       status: 200,
       statusText: 'OK',
       headers: {},

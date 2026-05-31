@@ -66,8 +66,8 @@ const DORAMetricsTab: React.FC = () => {
         getEfficiencyDashboard(),
         getDoraBenchmarks(),
       ]);
-      setDashboardData(dashboardRes.data?.data || null);
-      setBenchmarks(benchmarksRes.data?.data || null);
+      setDashboardData(dashboardRes.data || null);
+      setBenchmarks(benchmarksRes.data || null);
     } catch (error: unknown) {
       message.error(`加载 DORA 指标失败: ${(error as Error).message}`);
     } finally {
@@ -352,9 +352,9 @@ const BottleneckAnalysisTab: React.FC = () => {
         getTeams(),
         getTeamComparison({ interval: 'weekly' }),
       ]);
-      const teamIds = teamsRes.data?.data?.teams?.map((t: { teamId: string }) => t.teamId) || [];
+      const teamIds = teamsRes.data?.teams?.map((t: { teamId: string }) => t.teamId) || [];
       if (teamIds.length > 0) {
-        setTeamComparison(comparisonRes.data?.data?.teams || []);
+        setTeamComparison(comparisonRes.data?.teams || []);
       }
     } catch {
       setTeamComparison([]);

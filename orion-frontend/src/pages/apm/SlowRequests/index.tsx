@@ -3,8 +3,8 @@
  * Slow request ranking and query pattern analysis
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Button, Tag, Space, message, Spin, Select, InputNumber } from 'antd';
-import { SlowMotionOutlined, ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
+import { Typography, Card, Table, Button, Tag, Space, message, Spin, InputNumber } from 'antd';
+import { ScheduleOutlined, ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import { apmApi, type SlowQuery, type QueryPatternStats } from '@/api/apm';
 import { colors } from '@/tokens/colors';
 
@@ -15,7 +15,7 @@ const ApmSlowRequestsPage: React.FC = () => {
   const [patterns, setPatterns] = useState<QueryPatternStats[]>([]);
   const [loading, setLoading] = useState(false);
   const [threshold, setThreshold] = useState(1000);
-  const [limit, setLimit] = useState(20);
+  const [_limit, _setLimit] = useState(20);
 
   const loadData = async () => {
     setLoading(true);
@@ -102,7 +102,7 @@ const ApmSlowRequestsPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
             <Title level={2} style={{ marginBottom: 8 }}>
-              <SlowMotionOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <ScheduleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               慢请求分析
             </Title>
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>追踪慢请求与 SQL 查询模式分析</Text>

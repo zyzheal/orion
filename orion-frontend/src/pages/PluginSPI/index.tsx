@@ -29,10 +29,10 @@ import {
   getExtensionPoints,
   getPluginRegistrations,
   getSPIConfigs,
-  createSPIConfig,
-  updateSPIConfig,
-  deleteSPIConfig,
-  toggleRegistration,
+  createRegistration,
+  updatePluginConfig,
+  deleteRegistration,
+  toggleExtensionPoint,
   type SPIStats as APISPIStats,
   type SPIExtensionPoint as APISPIExtensionPoint,
   type PluginRegistration as APIPluginRegistration,
@@ -126,9 +126,9 @@ const PluginSPIPage: React.FC = () => {
         getPluginRegistrations(),
         getSPIConfigs(),
       ]);
-      const extPoints = extRes.data?.extensionPoints || extRes.data?.extensionPoints || [];
-      const regs = regRes.data?.registrations || regRes.data?.registrations || [];
-      const cfgs = cfgRes.data?.configs || cfgRes.data?.configs || [];
+      const extPoints = Array.isArray(extRes) ? extRes : ((extRes as any).data?.extensionPoints || []);
+      const regs = Array.isArray(regRes) ? regRes : ((regRes as any).data?.registrations || []);
+      const cfgs = Array.isArray(cfgRes) ? cfgRes : ((cfgRes as any).data?.configs || []);
       setExtensionPoints(extPoints.map(mapApiExtensionPoint));
       setPluginRegistrations(regs.map(mapApiRegistration));
       setSpiConfigs(cfgs.map(mapApiSPIConfig));
@@ -142,7 +142,7 @@ const PluginSPIPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSPIStats();
-      const statsData = response.data?.stats || response.data || {};
+      const statsData = (response as any).stats || response || {};
       setStats(mapApiStats(statsData));
     } catch (error: unknown) {
       message.error(`加载统计信息失败: ${(error as Error).message}`);
@@ -176,7 +176,7 @@ const PluginSPIPage: React.FC = () => {
       const values = await configForm.validateFields();
       setSubmitting(true);
       if (editingConfig) {
-        await updateSPIConfig(editingConfig.id, {
+        await updatePluginConfig(editingConfig.id, {
           key: values.spiType || editingConfig.id,
           value: String(values.maxPlugins || ''),
           description: `SPI config for ${values.spiType}`,
@@ -185,13 +185,13 @@ const PluginSPIPage: React.FC = () => {
         });
         message.success('SPI 配置已更新');
       } else {
-        await createSPIConfig({
+        await createRegistration({
           key: values.spiType || 'new-config',
           value: String(values.maxPlugins || ''),
           description: 'New SPI config',
           category: values.spiType || 'general',
           encrypted: false,
-        });
+        } as any);
         message.success('SPI 配置已添加');
       }
       setConfigModalVisible(false);
@@ -209,7 +209,7 @@ const PluginSPIPage: React.FC = () => {
 
   const handleDeleteConfig = async (id: string) => {
     try {
-      await deleteSPIConfig(id);
+      await deleteRegistration(id);
       message.success('配置已删除');
       loadData();
     } catch (error: unknown) {
@@ -220,7 +220,7 @@ const PluginSPIPage: React.FC = () => {
   const handleTogglePlugin = async (record: PluginRegistration) => {
     const newEnabled = record.status === 'enabled' ? 'disabled' : 'enabled';
     try {
-      await toggleRegistration(record.id, newEnabled === 'enabled');
+      await toggleExtensionPoint(record.id, newEnabled === 'enabled');
       setPluginRegistrations((prev) =>
         prev.map((p) => (p.id === record.id ? { ...p, status: newEnabled } : p))
       );

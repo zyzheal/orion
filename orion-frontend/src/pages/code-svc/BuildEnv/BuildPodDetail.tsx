@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Descriptions, Spin, message, Space } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, CloudServerOutlined,} from '@ant-design/icons';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -112,7 +112,7 @@ const BuildPodDetail: React.FC = () => {
             <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
-            {pod && <StatusBadge status={pod.status} size="small" />}
+            {pod && <StatusBadge status={pod.status as StatusType} size="small" />}
           </div>
           <Space>
             <Button

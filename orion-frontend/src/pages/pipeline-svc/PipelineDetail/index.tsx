@@ -72,14 +72,14 @@ const PipelineDetail: React.FC = () => {
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
         const wrapperData = response.data as { data?: unknown };
         const apiData = wrapperData?.data ?? wrapperData;
-        if (apiData && (apiData.run || apiData.stages)) {
-          const run = apiData.run || apiData;
+        if (apiData && ((apiData as any).run || (apiData as any).stages)) {
+          const run = (apiData as any).run || apiData;
           const flattened = {
             ...run,
             branch: run.context?.branch || run.branch || 'main',
             commit: run.context?.commitSha || run.commit || '-',
             version: run.context?.version || run.pipelineVersion,
-            stages: apiData.stages || [],
+            stages: (apiData as any).stages || [],
           };
           setPipeline(flattened);
         } else {
@@ -122,14 +122,14 @@ const PipelineDetail: React.FC = () => {
       const response = await getPipelineRun(id!);
       const wrapperData = response.data as { data?: unknown };
       const apiData = wrapperData?.data ?? wrapperData;
-      if (apiData && (apiData.run || apiData.stages)) {
-        const run = apiData.run || apiData;
+      if (apiData && ((apiData as any).run || (apiData as any).stages)) {
+        const run = (apiData as any).run || apiData;
         const flattened = {
           ...run,
           branch: run.context?.branch || run.branch || 'main',
           commit: run.context?.commitSha || run.commit || '-',
           version: run.context?.version || run.pipelineVersion,
-          stages: apiData.stages || [],
+          stages: (apiData as any).stages || [],
         };
         setPipeline(flattened);
       }
@@ -155,7 +155,7 @@ const PipelineDetail: React.FC = () => {
         try {
           setRetryingStageId(stageId);
           const response = await retryFromStage(id!, stageId);
-          const newRun = response.data?.data as { id?: string; run?: { id?: string } };
+          const newRun = response.data as { id?: string; run?: { id?: string } };
           message.success(`已从阶段「${stageName}」重新运行`);
           // Redirect to the new run's detail page
           if (newRun?.id || newRun?.run?.id) {

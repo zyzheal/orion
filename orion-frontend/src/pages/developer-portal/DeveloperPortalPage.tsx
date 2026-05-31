@@ -45,7 +45,6 @@ import {
 import {
   ApiOutlined,
   CodeOutlined,
-  SearchOutlined,
   PlusOutlined,
   ReloadOutlined,
   EyeOutlined,
@@ -58,14 +57,12 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   ExperimentOutlined,
-  BellOutlined,
   SendOutlined,
   CopyOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   SyncOutlined,
   ClockCircleOutlined,
-  StopOutlined,
   KeyOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';

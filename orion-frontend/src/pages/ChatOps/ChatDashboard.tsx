@@ -31,14 +31,14 @@ import {
   type TimeRangeType,
   type TopCommand,
 } from '@/api/chatops';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
 const { Text } = Typography;
-const { Option } = Select;
+const {} = Select;
 
 interface MetricCardProps {
   title: string;

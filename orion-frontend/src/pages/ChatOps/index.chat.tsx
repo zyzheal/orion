@@ -2,8 +2,8 @@
  * ChatOps 对话工作台 (Phase 3)
  * 用自然语言与 AI 助手交流，执行运维操作
  */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Input, Button, Avatar, Spin, Typography, Space, Tag, message, Empty } from 'antd';
+import _React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Card, Input, Button, Avatar, Spin, Typography, Space, Tag, Empty } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, ToolOutlined, ClearOutlined } from '@ant-design/icons';
 import { sendChatMessage, getAvailableTools, type ChatResponse, type ToolInfo } from '@/api/chatops';
 import { colors, spacing } from '@/tokens';
@@ -53,7 +53,7 @@ export default function ChatOpsChat() {
 
   useEffect(() => {
     getAvailableTools()
-      .then((res) => setTools(res.data.tools || []))
+      .then((res) => setTools((res.data as any).tools || []))
       .catch((err: unknown) => console.error('Failed to load tools:', err));
   }, []);
 

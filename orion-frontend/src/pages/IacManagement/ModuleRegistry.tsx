@@ -2,7 +2,7 @@
  * IaC Module Registry - Module browser, search, version management
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -17,7 +17,7 @@ import {
 } from 'antd';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { BlockOutlined, PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {

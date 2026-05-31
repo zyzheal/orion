@@ -3,7 +3,7 @@
  * Manage alert rules with CRUD operations, toggle enable/disable, suppress/unsuppress
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
   Switch,
   message,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, AlertOutlined } from '@ant-design/icons';
+import { OrderedListOutlined, PlusOutlined, ReloadOutlined, AlertOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {

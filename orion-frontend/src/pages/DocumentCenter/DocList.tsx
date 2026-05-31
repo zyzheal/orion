@@ -4,7 +4,7 @@
  * 右侧文档列表表格，支持搜索、筛选、分页
  * 文档类型使用 Tag 区分：design(蓝)、spec(紫)、runbook(绿)、policy(橙)
  */
-import React, { useMemo } from 'react';
+import _React, { useMemo } from 'react';
 import { Tag, Typography, Space, Badge } from 'antd';
 import { EyeOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -205,15 +205,15 @@ export default function DocList({
       striped
       pagination={
         pagination
-          ? {
+          ? ({
               current: pagination.current,
               pageSize: pagination.pageSize,
               total: pagination.total,
               onChange: onPageChange,
               showSizeChanger: true,
               pageSizeOptions: ['10', '20', '50', '100'],
-              showTotal: (total) => `共 ${total} 篇文档`,
-            }
+              showTotal: (total: number) => `共 ${total} 篇文档`,
+            } as any)
           : false
       }
     />

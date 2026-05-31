@@ -73,9 +73,9 @@ const SbomDashboard: React.FC = () => {
         getSbomWaivers(),
         getSbomComplianceReport(),
       ]);
-      setDocuments(Array.isArray(docRes?.data?.data) ? (docRes.data as SbomDocument[]) : []);
-      setWaivers(Array.isArray(waiverRes?.data?.data) ? (waiverRes.data as SbomWaiver[]) : []);
-      setCompliance((compRes?.data?.data as SbomComplianceReport) || null);
+      setDocuments(Array.isArray(docRes?.data) ? (docRes.data as SbomDocument[]) : []);
+      setWaivers(Array.isArray(waiverRes?.data) ? (waiverRes.data as SbomWaiver[]) : []);
+      setCompliance((compRes?.data as SbomComplianceReport) || null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load SBOM data：${error.message}`);

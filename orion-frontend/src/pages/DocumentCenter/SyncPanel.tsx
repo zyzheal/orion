@@ -21,7 +21,7 @@ import { colors, spacing, radius, shadows } from '@/tokens';
 import { triggerDocSync, getSyncLogs, type SyncLog } from '@/api/knowledge';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 // ============================================================================
 // Types

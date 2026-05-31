@@ -41,7 +41,7 @@ const TraceList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getTraces({ tenantId, scenarioId, limit });
-      const data = response.data as { data: LLMTrace[]; total: number };
+      const data = response.data as unknown as { data: LLMTrace[]; total: number };
       setTraces(data.data || []);
       setTotal(data.total || 0);
     } catch (error: unknown) {

@@ -3,7 +3,7 @@
  * Application performance overview with metrics and trace visualization
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Row, Col, Statistic, Button, Space, Tag, message, Spin } from 'antd';
+import { Typography, Card, Table, Row, Col, Statistic, Button, Tag, message, Spin } from 'antd';
 import { DashboardOutlined, ReloadOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { apmApi, type TraceSummary, type ServiceInfo } from '@/api/apm';
 import { colors } from '@/tokens/colors';

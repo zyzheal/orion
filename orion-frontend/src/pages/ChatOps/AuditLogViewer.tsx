@@ -14,7 +14,7 @@ import {
   DatePicker,
   Empty,
 } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -30,7 +30,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const AuditLogViewer: React.FC = () => {

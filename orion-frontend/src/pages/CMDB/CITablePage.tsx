@@ -38,7 +38,6 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
-import { componentRadius } from '@/tokens/radius';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   getCIs,

@@ -76,7 +76,7 @@ const ErrorClassificationTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getErrorStats({ days: 7 });
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       message.error(`加载错误统计失败: ${(error as Error).message}`);
     } finally {
@@ -99,7 +99,7 @@ const ErrorClassificationTab: React.FC = () => {
         errorMessage: values.errorMessage,
         errorCode: values.errorCode,
       });
-      setLastClassification(res.data?.data || null);
+      setLastClassification(res.data || null);
       message.success('错误分类完成');
       loadStats();
     } catch (error: unknown) {
@@ -282,7 +282,7 @@ const AdaptiveTimeoutTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getTimeoutForStage(stageName);
-      setTimeoutConfig(res.data?.data || null);
+      setTimeoutConfig(res.data || null);
     } catch (error: unknown) {
       message.error(`加载超时配置失败: ${(error as Error).message}`);
     } finally {
@@ -428,7 +428,7 @@ const AutoRetryTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRetryStats(pipelineId);
-      setRetryStats(res.data?.data || null);
+      setRetryStats(res.data || null);
     } catch (error: unknown) {
       message.error(`加载重试统计失败: ${(error as Error).message}`);
     } finally {

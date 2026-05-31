@@ -77,7 +77,7 @@ const ModelVersionsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listModels();
-      setModels(res.data?.data?.models || []);
+      setModels(res.data?.models || []);
     } catch (error: unknown) {
       message.error(`加载模型列表失败: ${(error as Error).message}`);
     } finally {
@@ -95,7 +95,7 @@ const ModelVersionsTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getModelPerformance(model.name);
-      setPerformance(res.data?.data || null);
+      setPerformance(res.data || null);
     } catch {
       setPerformance(null);
     } finally {
@@ -331,7 +331,7 @@ const ABTestingTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getABTestResults(modelName);
-      setResults(res.data?.data || null);
+      setResults(res.data || null);
     } catch (error: unknown) {
       message.error(`加载 A/B 测试结果失败: ${(error as Error).message}`);
     } finally {
@@ -446,7 +446,7 @@ const DecisionExplanationTab: React.FC = () => {
         features,
         confidence: values.confidence,
       });
-      setExplanation(res.data?.data || null);
+      setExplanation(res.data || null);
       message.success('决策解释已生成');
     } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {

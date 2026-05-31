@@ -250,7 +250,7 @@ const VersionTable: React.FC<VersionTableProps> = ({
         <RangePicker
           placeholder={['开始日期', '结束日期']}
           value={dateRange}
-          onChange={handleDateRangeChange}
+          onChange={handleDateRangeChange as any}
           style={{ width: 260 }}
         />
         {canCompare && (

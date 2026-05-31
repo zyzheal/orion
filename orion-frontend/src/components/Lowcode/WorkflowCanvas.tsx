@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Typography, Empty } from 'antd';
-import { colors } from '@/tokens';
+import { colors, animation } from '@/tokens';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
 import type { WorkflowNodeType, WorkflowCanvasNode, WorkflowCanvasEdge } from './types';
@@ -192,7 +192,7 @@ const WorkflowNodeCard: React.FC<{
         y={0}
         width={NODE_WIDTH}
         height={NODE_HEIGHT}
-        rx={componentRadius.lg}
+        rx={(componentRadius as any).lg}
         fill={colors.light.bg.primary}
         stroke={isSelected ? colors.primary[500] : colors.light.border.heavy}
         strokeWidth={1.5}
@@ -295,7 +295,6 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   onNodeSelect,
   onNodeAdd,
   onNodeMove,
-  onNodeDelete,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isDraggingNode, setIsDraggingNode] = useState(false);

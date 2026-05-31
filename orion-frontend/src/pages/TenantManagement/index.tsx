@@ -117,14 +117,14 @@ const TenantManagementPage: React.FC = () => {
       const quotaBody = (quotaRes.data as QuotaResponse)?.quota ?? quotaRes.data;
       const poolBody = (poolRes.data as PoolStatusResponse)?.status ?? poolRes.data;
       const nsBody = (namespacesRes.data as NamespaceResponse) ?? namespacesRes.data;
-      const usageBody = (usageRes.data as UsageResponse)?.usage ?? usageRes.data;
-      const detailsBody = (detailsRes.data as NamespaceResponse) ?? detailsRes.data;
+      const usageBody = (usageRes.data as unknown as UsageResponse)?.usage ?? usageRes.data;
+      const detailsBody = (detailsRes.data as unknown as NamespaceResponse) ?? detailsRes.data;
 
-      setQuota(quotaBody?.quota || quotaBody);
+      setQuota((quotaBody as any)?.quota || quotaBody);
       setPoolStatus(poolBody);
       setNamespaces(nsBody?.namespaces || []);
-      setUsage(usageBody?.usage ? usageBody : { usage: usageBody, quota: usageBody?.quota });
-      setNamespaceDetails(detailsBody?.namespaces || []);
+      setUsage((usageBody?.usage ? usageBody : { usage: usageBody, quota: usageBody?.quota }) as any);
+      setNamespaceDetails((detailsBody?.namespaces || []) as unknown as NamespaceUsageDetail[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载租户数据失败：${error.message}`);
@@ -379,7 +379,7 @@ const TenantManagementPage: React.FC = () => {
       key: 'actions',
       render: (_: unknown, record: NamespacePoolEntry) => (
         <Space>
-          {record.status === 'allocated' && record.runnerCount === 0 && (
+          {record.status === 'allocated' && (record as any).runnerCount === 0 && (
             <Popconfirm
               title="释放 Namespace"
               description={`确定释放 ${record.namespaceName} 回池吗？`}
@@ -618,7 +618,7 @@ const TenantManagementPage: React.FC = () => {
           {namespaceDetails.length > 0 ? (
             <Table
               columns={namespaceColumns}
-              dataSource={namespaceDetails.map((ns) => ({ ...ns, key: ns.id }))}
+              dataSource={namespaceDetails.map((ns) => ({ ...ns, key: ns.id })) as any}
               loading={loading}
               pagination={false}
               size="small"

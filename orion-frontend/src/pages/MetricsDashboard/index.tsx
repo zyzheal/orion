@@ -116,8 +116,8 @@ const MetricsDashboard: React.FC = () => {
         getDashboardData(),
       ]);
 
-      const metricsData = metricsRes?.data?.data || [];
-      const dashboardData = dashboardRes?.data?.data;
+      const metricsData = metricsRes?.data || [];
+      const dashboardData = dashboardRes?.data;
 
       if (dashboardData) {
         const metrics = dashboardData.metrics;

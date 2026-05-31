@@ -139,8 +139,8 @@ const SessionManagement: React.FC = () => {
     setLoading(true);
     try {
       const [sessionsRes, statsRes] = await Promise.all([getSessions(), getSessionStats()]);
-      const sessionsData = sessionsRes.data?.data?.sessions || sessionsRes.data?.data || [];
-      const statsData = statsRes.data?.data?.stats || statsRes.data?.data || {};
+      const sessionsData = (sessionsRes.data as any)?.sessions || sessionsRes.data || [];
+      const statsData = (statsRes.data as any)?.stats || statsRes.data || {};
       setSessions(Array.isArray(sessionsData) ? sessionsData.map(mapApiSession) : []);
       setStats(mapApiStats(statsData as ApiSessionStats));
     } catch (error: unknown) {

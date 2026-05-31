@@ -16,7 +16,7 @@ import {
   Col,
   Statistic,
 } from 'antd';
-import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, DownloadOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCosts, type CostRecord } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';

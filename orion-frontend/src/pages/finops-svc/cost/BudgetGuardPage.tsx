@@ -387,9 +387,9 @@ const BudgetGuardPage: React.FC = () => {
     setEvalResult(null);
     try {
       const res = await evaluateBudgetGuard(values.pipelineId, values.estimatedCost);
-      setEvalResult(res.data?.data?.data || null);
+      setEvalResult(res.data?.data || null);
       setEvaluationCount((prev) => prev + 1);
-      if (res.data?.data?.data?.passed === false) {
+      if (res.data?.data?.passed === false) {
         setBlockedCount((prev) => prev + 1);
       }
     } catch (error: unknown) {

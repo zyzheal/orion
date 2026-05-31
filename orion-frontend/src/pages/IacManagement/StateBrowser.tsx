@@ -2,7 +2,7 @@
  * IaC State Browser - State version history, resource list, state diff
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
   Modal,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, DiffOutlined, EyeOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, ReloadOutlined, DiffOutlined, EyeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getWorkspaces,
@@ -197,7 +197,7 @@ const StateBrowser: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <StorageOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             状态浏览
           </Title>
           <Text type="secondary">IaC 状态版本历史与资源查看</Text>

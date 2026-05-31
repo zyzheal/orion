@@ -65,7 +65,7 @@ const SecretsManagement: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Tenant ID from auth store
-  const tenantId = useAuthStore((state) => state.user?.tenantId) || 'default-tenant';
+  const tenantId = useAuthStore((state) => (state.user as any).tenantId) || 'default-tenant';
 
   // ---- Data Loading ----
 
@@ -73,7 +73,7 @@ const SecretsManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getSecrets(tenantId);
-      const data = response.data?.data;
+      const data = response.data;
       setSecrets(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       message.error(`加载 Secret 列表失败: ${(error as Error).message}`);
@@ -165,7 +165,7 @@ const SecretsManagement: React.FC = () => {
       setSubmitting(true);
 
       // Only update if value is provided
-      const payload: UpdateSecretInput = {};
+      const payload: UpdateSecretInput = { value: '' };
       if (values.value) {
         payload.value = values.value;
       }

@@ -30,7 +30,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ChatTrigger, ChatPanel } from '@/components/ChatOps';
 import { TenantSelector } from '@/components/TenantSelector';
 import { initializeChatOpsStore } from '@/stores/chatOpsStore';
-import { useMenuConfigStore, type MenuModuleConfig } from '@/stores/menuConfigStore';
+import { useMenuConfigStore, type MenuModuleConfig, type MenuChildConfig } from '@/stores/menuConfigStore';
 import { useSubAppStore } from '@/stores/subappStore';
 import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
@@ -80,7 +80,7 @@ function buildNavMenuItems(
             description: app.description || '',
             category: '子系统' as const,
           }));
-        children = [...children, ...subAppChildren];
+        children = [...children, ...subAppChildren] as MenuChildConfig[];
       }
 
       return {
@@ -251,7 +251,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // 直接传递 subApps 到 buildNavMenuItems，由函数内部处理动态子应用
   const navMenuItems = React.useMemo(
-    () => buildNavMenuItems(modules, subApps),
+    () => buildNavMenuItems(modules, subApps as { key: string; name: string; description: string; status: string }[]),
     [modules, subApps]
   );
 
@@ -719,14 +719,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               ),
               onClick: () => navigate('/dashboard'),
               style: { fontSize: 13 },
-            },
+            } as any,
             ...((breadcrumbs || []).map(b => ({
               title: (
                 <span style={{ fontSize: 13, color: theme === 'dark' ? 'rgba(255,255,255,0.65)' : colors.neutral[600] }}>
                   {b.title}
                 </span>
               ),
-              onClick: b.path ? () => navigate(b.path) : undefined,
+              onClick: b.path ? () => navigate(b.path as string) : undefined,
               style: {
                 fontSize: 13,
                 cursor: b.path ? 'pointer' : 'default',

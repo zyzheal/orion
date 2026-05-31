@@ -258,7 +258,7 @@ const PipelineRunList: React.FC = () => {
       width: 100,
       render: (_value: unknown, record) => (
         <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
-          {formatDuration(record.durationMs)}
+          {formatDuration(Number(record.durationMs) || undefined)}
         </Text>
       ),
     },

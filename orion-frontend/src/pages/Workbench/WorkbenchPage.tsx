@@ -40,7 +40,6 @@ import {
   CloudUploadOutlined,
   LinkOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -51,7 +50,6 @@ import {
   type PipelineRunSummary,
   type AlertSummary,
   type TicketSummary,
-  type DeploymentSummary,
   acknowledgeAlert,
 } from '@/api/workbench';
 import dayjs from 'dayjs';
@@ -267,7 +265,7 @@ const WorkbenchPage: React.FC = () => {
 
   if (error && !data) {
     return (
-      <DataState loading={false} error={error} retry={fetchData} />
+      <DataState loading={false} error={error} retry={fetchData}>{null}</DataState>
     );
   }
 

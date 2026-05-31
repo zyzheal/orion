@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import { Layout as AntLayout } from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
 
 // ============================================================================
 // Types

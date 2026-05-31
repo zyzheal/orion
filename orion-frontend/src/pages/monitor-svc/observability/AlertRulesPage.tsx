@@ -53,7 +53,7 @@ const TemplatesDrawer: React.FC<{
     setLoading(true);
     try {
       const res = await getAlertRuleTemplates(cat ? { category: cat } : undefined);
-      const rawData = res.data?.data;
+      const rawData = (res.data as any)?.data;
       setTemplates(Array.isArray(rawData) ? rawData : (rawData?.data as AlertRuleTemplate[]) || []);
     } catch (error: unknown) {
       message.error(`加载模板失败: ${(error as Error).message}`);
@@ -135,7 +135,7 @@ const AlertRulesPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAlertRules();
-      setRules(res.data?.data?.rules || []);
+      setRules(res.data?.rules || []);
     } catch (error: unknown) {
       message.error(`加载告警规则失败: ${(error as Error).message}`);
     } finally {

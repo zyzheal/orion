@@ -73,7 +73,7 @@ const EnvironmentLockBadge: React.FC<EnvironmentLockBadgeProps> = ({
   onLockChange,
 }) => {
   const [lockInfo, setLockInfo] = useState<EnvironmentLockInfo | undefined>(initialLockInfo);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
 
   const handleLock = async () => {
     try {

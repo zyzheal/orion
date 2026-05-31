@@ -21,7 +21,6 @@ import {
 import {
   SearchOutlined,
   ReloadOutlined,
-  InfoCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';

@@ -30,6 +30,7 @@ import {
   DatabaseOutlined,
   SafetyCertificateOutlined,
   GlobalOutlined,
+  ContainerOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -139,7 +140,7 @@ const ArtifactPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArtifacts({ page: p, perPage: s });
-      const raw = res.data?.data;
+      const raw = res.data;
       if (Array.isArray(raw)) {
         setArtifacts(raw);
         const respTotal = (res.data as { total?: number })?.total ?? raw.length;
@@ -160,7 +161,7 @@ const ArtifactPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getArtifactStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }
@@ -197,7 +198,7 @@ const ArtifactPage: React.FC = () => {
   const handleDownload = async (a: Artifact) => {
     try {
       const res = await downloadArtifact(a.id);
-      const url = res.data?.data?.url;
+      const url = res.data?.url;
       if (url) {
         window.open(url, '_blank');
         message.success(`开始下载: ${a.name}`);

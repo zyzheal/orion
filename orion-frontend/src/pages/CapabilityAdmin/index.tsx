@@ -6,7 +6,6 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Card,
   Table,
   Button,
   Modal,
@@ -18,19 +17,14 @@ import {
   Tag,
   Space,
   message,
-  Tree,
   Tabs,
-  Descriptions,
   Badge,
-  Timeline,
   Popconfirm,
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SettingOutlined,
-  LinkOutlined,
   SafetyCertificateOutlined,
   ClockCircleOutlined,
   AuditOutlined,
@@ -84,7 +78,7 @@ export const CapabilityAdmin: React.FC = () => {
     setLoading(true);
     try {
       const result = await capabilityApi.list();
-      setCapabilities(result.data || []);
+      setCapabilities((result.data || []) as any[]);
     } catch (error) {
       message.error('加载能力列表失败');
     } finally {
@@ -98,7 +92,7 @@ export const CapabilityAdmin: React.FC = () => {
     try {
       // 这里用当前用户ID，实际应从 auth store 获取
       const result = await capabilityApi.getUserTemporaryPermissions('current-user');
-      setTempPerms(result.data || []);
+      setTempPerms((result.data || []) as any[]);
     } catch (error) {
       // 静默失败，可能还没有临时权限
     } finally {
@@ -111,8 +105,8 @@ export const CapabilityAdmin: React.FC = () => {
     setAuditLoading(true);
     try {
       const result = await capabilityApi.getAuditLogs({ limit: 20, offset: (page - 1) * 20 });
-      setAuditLogs(result.data?.logs || []);
-      setAuditTotal(result.data?.total || 0);
+      setAuditLogs((result.data as any)?.logs || []);
+      setAuditTotal((result.data as any)?.total || 0);
       setAuditPage(page);
     } catch (error) {
       message.error('加载审计日志失败');
@@ -219,7 +213,7 @@ export const CapabilityAdmin: React.FC = () => {
   const handleCleanup = async () => {
     try {
       const result = await capabilityApi.cleanup();
-      message.success(`清理完成，共清理 ${result.data?.cleaned || 0} 条过期权限`);
+      message.success(`清理完成，共清理 ${(result.data as any)?.cleaned || 0} 条过期权限`);
       loadTempPerms();
       loadAuditLogs();
     } catch (error: any) {

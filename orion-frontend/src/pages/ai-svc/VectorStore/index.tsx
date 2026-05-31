@@ -89,7 +89,7 @@ const VectorStorePage: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getVectorStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }

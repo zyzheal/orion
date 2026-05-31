@@ -65,7 +65,7 @@ import type {
   OptimizationRecommendation,
   BudgetForecast,
 } from '@/types/finops';
-import { colors, radius, componentRadius, typography } from '@/tokens';
+import { colors, radius, componentRadius } from '@/tokens';
 
 const { Title, Text } = Typography;
 

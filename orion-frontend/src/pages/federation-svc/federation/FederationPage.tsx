@@ -40,7 +40,6 @@ import {
   type CrossClusterJob,
   type ResourcePool,
 } from '@/api/federation';
-import { colors } from '@/tokens/colors';
 import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;

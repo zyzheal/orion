@@ -3,7 +3,7 @@
  * Manage notification channels (email, webhook, slack) and escalation policies
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
   Tabs,
   message,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, MailOutlined } from '@ant-design/icons';
+import { NotificationOutlined, PlusOutlined, ReloadOutlined, MailOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -231,7 +231,7 @@ const MonitoringChannels: React.FC = () => {
       dataIndex: 'steps',
       render: (v: unknown) => (
         <Space>
-          {(v as Array<unknown>).map((step, idx) => (
+          {(v as Array<unknown>).map((step: any, idx) => (
             <Tag key={idx} color="blue">
               #{step.order} → {step.channel} ({step.delayMs}ms)
             </Tag>

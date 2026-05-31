@@ -98,8 +98,8 @@ const AgentRunDetail: React.FC = () => {
         getAgentRunDecisions(runId).catch(() => ({ data: { data: [] } })),
         getAgentApprovals({ status: 'pending' }).catch(() => ({ data: { data: [] } })),
       ]);
-      setRun((runRes as { data?: { data?: unknown } })?.data?.data ?? null);
-      setDecisions((decisionsRes as { data?: { data?: unknown[] } })?.data?.data ?? []);
+      setRun(((runRes as { data?: { data?: unknown } })?.data?.data ?? null) as AgentRun | null);
+      setDecisions(((decisionsRes as { data?: { data?: unknown[] } })?.data?.data ?? []) as AgentDecision[]);
       setApprovals(
         (((approvalsRes as { data?: { data?: unknown[] } })?.data?.data as AgentApproval[]) || []).filter(
           (a: AgentApproval) => a.runId === runId

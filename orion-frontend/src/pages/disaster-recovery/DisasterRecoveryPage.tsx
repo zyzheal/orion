@@ -60,8 +60,8 @@ const DisasterRecoveryPage: React.FC = () => {
         getBackups(),
         getBackupStats(),
       ]);
-      setBackups((backupRes.data as { backups?: unknown[] })?.backups ?? []);
-      setStats((statsRes.data as { stats?: unknown })?.stats ?? null);
+      setBackups(((backupRes.data as { backups?: unknown[] })?.backups ?? []) as BackupRecord[]);
+      setStats(((statsRes.data as { stats?: unknown })?.stats ?? null) as BackupStats | null);
     } catch {
       message.error('Failed to load backup data');
     } finally {

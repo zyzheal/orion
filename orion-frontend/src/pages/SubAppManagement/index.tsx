@@ -16,7 +16,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   message,
   Alert,
   Drawer,
@@ -24,17 +23,12 @@ import {
   Typography,
   Popconfirm,
   Tooltip,
-  Badge,
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   HistoryOutlined,
-  SyncOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  LinkOutlined,
   CopyOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
@@ -46,16 +40,6 @@ const { TextArea } = Input;
 
 // ==================== Icons Map ====================
 
-const iconOptions = [
-  { value: 'DatabaseOutlined', label: '数据库' },
-  { value: 'BookOutlined', label: '知识' },
-  { value: 'DashboardOutlined', label: '监控' },
-  { value: 'CloudServerOutlined', label: '云服务' },
-  { value: 'SecurityScanOutlined', label: '安全' },
-  { value: 'CodeOutlined', label: '开发' },
-  { value: 'SettingOutlined', label: '设置' },
-  { value: 'AppstoreOutlined', label: '应用' },
-];
 
 // ==================== Main Component ====================
 

@@ -112,7 +112,7 @@ const RateLimitingPage: React.FC = () => {
     setApiError(null);
     try {
       const response = await getRateLimits();
-      setRules(response.data?.data || []);
+      setRules(response.data || []);
     } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
@@ -125,7 +125,7 @@ const RateLimitingPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await getRateLimitStats();
-      setStats(response.data?.data || null);
+      setStats(response.data || null);
     } catch {
       setStats(null);
     }

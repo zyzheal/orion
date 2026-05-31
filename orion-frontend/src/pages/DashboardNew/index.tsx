@@ -35,7 +35,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getPipelines, getPipelineRuns, type PipelineRun } from '@/api/pipelines';
 import { getMonitoringHealth } from '@/api/monitoring';
-import { message, Empty } from 'antd';
+import { message } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
@@ -238,13 +238,13 @@ const DashboardNew: React.FC = () => {
     try {
       // Fetch pipelines
       const pipelinesRes = await getPipelines();
-      if (pipelinesRes.data?.data) {
+      if (pipelinesRes.data) {
         setPipelines(Array.isArray(pipelinesRes.data) ? pipelinesRes.data : []);
       }
 
       // Fetch recent runs
       const runsRes = await getPipelineRuns('all', { page: 1, pageSize: 5 });
-      if (runsRes.data?.data) {
+      if (runsRes.data) {
         setRecentRuns(Array.isArray(runsRes.data) ? runsRes.data : []);
       }
 

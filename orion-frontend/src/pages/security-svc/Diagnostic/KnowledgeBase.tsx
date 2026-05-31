@@ -21,7 +21,7 @@ import {
   Card,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { searchPatterns, getPattern, addPattern, getKnowledgeStats } from '@/api/diagnostic';
@@ -250,7 +250,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
-            <ReadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             <BookOutlined style={{ marginRight: 8 }} />
             知识库
           </Title>

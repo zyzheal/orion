@@ -15,7 +15,6 @@ import {
   PlusOutlined,
   MinusOutlined,
   ArrowRightOutlined,
-  CloseOutlined,
 } from '@ant-design/icons';
 import {
   getWorkflow,
@@ -192,31 +191,6 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       setEditMode(false);
     } else {
       setEditMode(true);
-    }
-  };
-
-  const handleSaveNode = async () => {
-    if (!workflowId || !selectedNode || !workflow) return;
-    try {
-      const values = await editForm.validateFields();
-      const { name, ...config } = values;
-      const updatedNodes = workflow.nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, name, config } : node
-      );
-      await updateWorkflow(workflowId, { nodes: updatedNodes });
-      message.success('节点配置已保存');
-      // 更新本地状态
-      const updatedNode = { ...selectedNode, name, config };
-      setSelectedNode(updatedNode);
-      setWorkflow({ ...workflow, nodes: updatedNodes });
-      setEditMode(false);
-      setOriginalConfig({ ...config });
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error('请检查表单填写');
-      } else {
-        message.error('保存失败');
-      }
     }
   };
 
@@ -1036,15 +1010,15 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           <div style={{ marginTop: 8, fontSize: 12 }}>
             <Text type="secondary">自动继承的上游变量：</Text>
             <div style={{ marginTop: 4 }}>
-              {workflow.edges
-                ?.filter((e) => e.target === selectedNode.id)
+              {workflow?.edges
+                ?.filter((e) => e.target === selectedNode?.id)
                 .map((e) => {
-                  const src = workflow.nodes?.find((n) => n.id === e.source);
+                  const src = workflow?.nodes?.find((n) => n.id === e.source);
                   return src ? (
                     <Tag key={e.id} style={{ marginBottom: 4 }}>{src.name}.output</Tag>
                   ) : null;
                 })}
-              {!workflow.edges?.some((e) => e.target === selectedNode.id) && (
+              {!workflow?.edges?.some((e) => e.target === selectedNode?.id) && (
                 <Text type="secondary">无（开始节点）</Text>
               )}
             </div>
@@ -1155,7 +1129,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         {!editMode && outputVariables.length === 0 && (
           <div style={{ marginTop: 8, fontSize: 12 }}>
             <Text type="secondary">默认输出：</Text>
-            <Tag>{selectedNode.name}.output</Tag>
+            <Tag>{selectedNode?.name}.output</Tag>
           </div>
         )}
       </div>
@@ -1407,7 +1381,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                   minWidth: 200,
                   maxWidth: 280,
                   minHeight: configured ? 100 : 80,
-                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[10] || colors.neutral[100] : colors.neutral[0],
+                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[50] : colors.neutral[0],
                   borderRadius: 12,
                   padding: '12px 16px',
                   boxShadow: isHovered

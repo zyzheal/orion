@@ -53,7 +53,7 @@ export type { SplitPaneProps, SplitDirection } from './SplitPane';
 export { default as PageSkeleton } from './PageSkeleton';
 export type { PageSkeletonProps } from './PageSkeleton';
 
-export { default as PluginPicker, PluginItem } from './PluginPicker';
+export { default as PluginPicker } from './PluginPicker';
 export type { PluginPickerProps } from './PluginPicker';
 
 export { InlineScriptEditor } from './InlineScriptEditor';

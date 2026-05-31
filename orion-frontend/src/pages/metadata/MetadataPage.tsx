@@ -37,7 +37,7 @@ const CatalogTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listCatalogItems();
-      setItems((res.data as { data?: unknown[] })?.data ?? []);
+      setItems(((res.data as { data?: unknown[] })?.data ?? []) as CatalogItem[]);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载目录失败');
     } finally { setLoading(false); }
@@ -153,8 +153,8 @@ const LineageTab: React.FC = () => {
     setLoading(true);
     try {
       const [relRes, itemRes] = await Promise.all([getLineage(), listCatalogItems()]);
-      setRelations((relRes.data as { data?: unknown[] })?.data ?? []);
-      setItems((itemRes.data as { data?: unknown[] })?.data ?? []);
+      setRelations(((relRes.data as { data?: unknown[] })?.data ?? []) as LineageRelation[]);
+      setItems(((itemRes.data as { data?: unknown[] })?.data ?? []) as CatalogItem[]);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载血缘关系失败');
     } finally { setLoading(false); }

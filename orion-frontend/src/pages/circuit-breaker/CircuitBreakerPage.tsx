@@ -113,7 +113,7 @@ const CircuitBreakerPage: React.FC = () => {
     setApiError(null);
     try {
       const response = await getCircuitBreakers();
-      setBreakers(response.data?.data || []);
+      setBreakers(response.data || []);
     } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
@@ -126,7 +126,7 @@ const CircuitBreakerPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await getCircuitBreakerStats();
-      setStats(response.data?.data || null);
+      setStats(response.data || null);
     } catch {
       setStats(null);
     }

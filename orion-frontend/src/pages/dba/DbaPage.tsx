@@ -167,7 +167,7 @@ const DbaPage: React.FC = () => {
     try {
       const res = await listAuditRules('default');
       const list = (res.data as { data?: DataSource[] })?.data ?? [];
-      setAuditRules(Array.isArray(list) ? list : []);
+      setAuditRules((Array.isArray(list) ? list : []) as unknown as AuditRule[]);
     } catch (error: unknown) {
       setAuditRules([]);
       message.error(`加载审计规则失败: ${(error as Error).message}`);

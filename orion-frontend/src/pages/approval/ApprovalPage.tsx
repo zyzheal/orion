@@ -154,7 +154,7 @@ const ApprovalPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getApprovals();
-      const list = res.data?.data?.approvals;
+      const list = res.data?.approvals;
       setApprovals(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setApprovals([]);
@@ -301,7 +301,7 @@ const ApprovalPage: React.FC = () => {
   const loadDetail = async (id: string) => {
     try {
       const res = await getApproval(id);
-      const detail = res.data?.data;
+      const detail = res.data;
       if (detail) setSelectedApproval(detail);
     } catch {
       // fallback

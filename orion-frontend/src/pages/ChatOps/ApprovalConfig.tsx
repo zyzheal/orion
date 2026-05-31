@@ -12,7 +12,6 @@ import {
   Tag,
   Modal,
   Form,
-  Input,
   Select,
   Switch,
   message,
@@ -22,21 +21,13 @@ import {
   Divider,
   Radio,
   InputNumber,
-  Popconfirm,
   Row,
   Col,
   Descriptions,
 } from 'antd';
-import { colors } from '@/tokens';
 import {
-  SettingOutlined,
-  PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   SaveOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   UserOutlined,
   SafetyOutlined,
   ClockCircleOutlined,
@@ -44,7 +35,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ============== Types ==============
 export interface ApprovalConfig {
@@ -202,7 +193,7 @@ const MOCK_APPROVERS: ApproverInfo[] = [
 ];
 
 // ============== Global Settings Tab ==============
-const GlobalSettingsTab: React.FC = () => {
+export const GlobalSettingsTab: React.FC = () => {
   const [settings, setSettings] = useState<GlobalApprovalSettings>({
     enabled: true,
     approvalMode: 'strict',

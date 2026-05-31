@@ -193,7 +193,7 @@ const DeploymentDetail: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <StatusBadge status={deployment.status === 'success' ? 'success' : deployment.status === 'running' ? 'running' : deployment.status === 'failed' ? 'failed' : deployment.status === 'pending' ? 'pending' : deployment.status === 'cancelled' ? 'cancelled' : 'unknown'} size="medium" />
+          <StatusBadge status={(deployment.status as string) === 'success' ? 'success' : (deployment.status as string) === 'running' ? 'running' : (deployment.status as string) === 'failed' ? 'failed' : (deployment.status as string) === 'pending' ? 'pending' : (deployment.status as string) === 'cancelled' ? 'cancelled' : 'unknown'} size="medium" />
           {canRollback && (
             <Button
               danger

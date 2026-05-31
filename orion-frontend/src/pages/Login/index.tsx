@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, message, Typography, Divider } from 'antd';
-import { colors } from '@/tokens/colors';
+import { Form, Input, Button, message, Typography } from 'antd';
 import {
   UserOutlined,
   LockOutlined,
@@ -8,9 +7,6 @@ import {
   CheckCircleOutlined,
   SafetyOutlined,
   ThunderboltOutlined,
-  WechatOutlined,
-  IdcardOutlined,
-  GlobalOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,22 +35,6 @@ const features = [
   { icon: <CheckCircleOutlined />, title: '自愈系统', desc: '自动化故障检测与恢复' },
 ];
 
-// SSO 提供商图标映射
-const ssoIconMap: Record<string, React.ReactNode> = {
-  wechat: <WechatOutlined />,
-  ldap: <IdcardOutlined />,
-  oidc: <GlobalOutlined />,
-  saml: <SafetyOutlined />,
-  cas: <LockOutlined />,
-};
-
-/**
- * 获取 SSO 提供商对应的图标
- */
-function getSsoIcon(provider: SsoProvider): React.ReactNode {
-  return ssoIconMap[provider.type] || ssoIconMap[provider.name] || <UserOutlined />;
-}
-
 // 左侧背景装饰图形
 const DecorativeCircles: React.FC = () => (
   <svg
@@ -78,8 +58,8 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, isLoading } = useAuth();
   const [form] = Form.useForm<LoginFormData>();
-  const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(false);
+  const [_ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
+  const [_loadingProviders, setLoadingProviders] = useState(false);
 
   // Phase 3.8.3: 动态获取可用 SSO 提供商
   useEffect(() => {
@@ -103,17 +83,6 @@ const Login: React.FC = () => {
       });
   }, []);
 
-  /**
-   * 处理 SSO 登录跳转
-   * Phase 3.8.3: 跳转到统一 SSO 登录端点
-   */
-  const handleSsoLogin = (provider: SsoProvider) => {
-    const redirectUri = encodeURIComponent(
-      `${window.location.origin}/auth/callback`,
-    );
-    window.location.href = `/api/v1/auth/sso/login/${provider.name}?redirect=${redirectUri}`;
-  };
-
   const handleSubmit = async (values: LoginFormData) => {
     const result = await login(values);
     if (result.success) {
@@ -135,7 +104,7 @@ const Login: React.FC = () => {
       <div
         style={{
           flex: '0 0 480px',
-          background: `linear-gradient(160deg, ${colors.primary[700]} 0%, ${colors.primary[900]} 40%, ${colors.primary[1000]} 100%)`,
+          background: `linear-gradient(160deg, ${colors.primary[700]} 0%, ${colors.primary[900]} 40%, ${colors.primary[900]} 100%)`,
           position: 'relative',
           overflow: 'hidden',
           display: 'flex',

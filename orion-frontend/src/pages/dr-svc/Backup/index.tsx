@@ -196,7 +196,7 @@ const BackupManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBackups();
-      setBackups(response.data.backups.map(mapApiBackup));
+      setBackups((response.data as any).backups.map(mapApiBackup));
     } catch (error: unknown) {
       message.error(`Failed to load backups: ${(error as Error).message}`);
     } finally {
@@ -207,7 +207,7 @@ const BackupManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getBackupStats();
-      setStats(mapApiStats(response.data.stats));
+      setStats(mapApiStats((response.data as any).stats));
     } catch (error: unknown) {
       message.error(`Failed to load backup stats: ${(error as Error).message}`);
     }
@@ -288,7 +288,7 @@ const BackupManagement: React.FC = () => {
   const handleDownload = async (record: BackupRecord) => {
     try {
       const res = await getBackupDownloadUrl(record.id);
-      const url = res.data?.data?.url;
+      const url = res.data?.url;
       if (url) {
         window.open(url, '_blank');
       } else {

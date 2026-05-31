@@ -2,7 +2,7 @@
  * 子系统启动器 - 侧边栏抽屉式菜单
  * 参考 ChatOps ChatPanel 的 Drawer 模式
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Drawer, Typography } from 'antd';
 import {
   DatabaseOutlined,

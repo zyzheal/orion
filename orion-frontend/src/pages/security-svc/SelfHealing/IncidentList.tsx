@@ -41,8 +41,8 @@ const IncidentList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getHealingHistory({ ...filters, page, pageSize });
-      setData(res.data?.items || []);
-      setTotal(res.data?.total || 0);
+      setData((res.data as any)?.items || []);
+      setTotal((res.data as any)?.total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载事件列表失败：${error.message}`);

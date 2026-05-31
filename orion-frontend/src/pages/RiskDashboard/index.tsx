@@ -5,7 +5,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography,
-  Card,
   Row,
   Col,
   Table,
@@ -70,9 +69,9 @@ const RiskDashboardPage: React.FC = () => {
         getRiskEvents('unacknowledged'),
         getRiskStatus(),
       ]);
-      setAssessments(assessmentsRes?.data?.data?.assessments || []);
-      setEvents(eventsRes?.data?.data?.events || []);
-      setStatus(statusRes?.data?.data ?? null);
+      setAssessments(assessmentsRes?.data?.assessments || []);
+      setEvents(eventsRes?.data?.events || []);
+      setStatus(statusRes?.data ?? null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载风险数据失败：${error.message}`);

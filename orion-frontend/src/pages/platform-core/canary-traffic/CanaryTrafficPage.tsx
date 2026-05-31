@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * Canary Traffic Page
  * Phase 3 - Gradual traffic shifting, canary analysis, and promotion/rollback decisions
@@ -56,8 +58,8 @@ const CanaryTrafficPage: React.FC = () => {
         getCanaryRuns(),
         getCanaryConfigs(),
       ]);
-      setRuns((runRes.data as { data?: unknown[] })?.data ?? []);
-      setConfigs((configRes.data as { data?: unknown[] })?.data ?? []);
+      setRuns(((runRes.data as { data?: unknown[] })?.data ?? []) as CanaryAnalysisRun[]);
+      setConfigs(((configRes.data as { data?: unknown[] })?.data ?? []) as CanaryAnalysisConfig[]);
     } catch {
       message.error('Failed to load canary data');
     } finally {

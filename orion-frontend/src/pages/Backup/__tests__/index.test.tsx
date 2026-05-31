@@ -101,7 +101,7 @@ describe('BackupManagement', () => {
     const result = await getBackupDownloadUrl('bak-001');
 
     expect(mockApi.getBackupDownloadUrl).toHaveBeenCalledWith('bak-001');
-    const url = result.data?.data?.url;
+    const url = result.data?.url;
     expect(url).toBe('https://example.com/download/backup.tar.gz');
     if (url) {
       window.open(url, '_blank');
@@ -119,7 +119,7 @@ describe('BackupManagement', () => {
 
     const { getBackupDownloadUrl } = await import('@/api/backup');
     const result = await getBackupDownloadUrl('bak-001');
-    const url = result.data?.data?.url;
+    const url = result.data?.url;
 
     if (!url) {
       mockMessage.warning('未获取到下载链接');

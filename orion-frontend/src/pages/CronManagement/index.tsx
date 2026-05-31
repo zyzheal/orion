@@ -53,7 +53,7 @@ const CronManagement: React.FC = () => {
     setError(null);
     try {
       const [jobsRes, statusRes] = await Promise.all([getCronJobs(), getCronStatus()]);
-      setJobs(jobsRes.data?.jobs ?? []);
+      setJobs((jobsRes.data as any)?.jobs ?? []);
       setStats(statusRes.data ?? null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('加载定时任务失败'));
