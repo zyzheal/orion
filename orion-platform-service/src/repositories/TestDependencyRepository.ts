@@ -246,7 +246,7 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
     super(db, 'test_selector_execution_history');
   }
 
-  async create(data: Omit<TestExecutionHistoryEntity, 'createdAt'> & Partial<Pick<TestExecutionHistoryEntity, 'id'>>): Promise<TestExecutionHistoryEntity> {
+  async create(data: any): Promise<TestExecutionHistoryEntity> {
     const columns = ['id', 'test_id', 'execution_id', 'passed', 'duration', 'failure_message', 'pr_id', 'executed_at'];
     const values = [data.id, data.testId, data.executionId, data.passed, data.duration, data.failureMessage, data.prId, data.executedAt];
 

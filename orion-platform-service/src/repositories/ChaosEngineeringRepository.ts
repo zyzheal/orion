@@ -4,8 +4,9 @@
  * Maps to the `chaos_experiments` and `chaos_runs` tables defined in migration 147.
  */
 
-import { DatabasePool } from '../services/database';
 import { BaseRepository } from '../db/base-repository';
+
+type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
 // ==================== Entity Interfaces ====================
 
@@ -66,7 +67,7 @@ export interface ChaosFault {
 // ==================== ChaosExperimentRepository ====================
 
 export class ChaosExperimentRepository extends BaseRepository<ChaosExperimentEntity> {
-  constructor(db: DatabasePool) {
+  constructor(db: DbConnection) {
     super(db, 'chaos_experiments');
   }
 
@@ -170,7 +171,7 @@ export class ChaosExperimentRepository extends BaseRepository<ChaosExperimentEnt
 // ==================== ChaosRunRepository ====================
 
 export class ChaosRunRepository extends BaseRepository<ChaosRunEntity> {
-  constructor(db: DatabasePool) {
+  constructor(db: DbConnection) {
     super(db, 'chaos_runs');
   }
 

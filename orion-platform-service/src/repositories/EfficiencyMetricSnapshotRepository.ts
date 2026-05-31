@@ -25,7 +25,7 @@ export class EfficiencyMetricSnapshotRepository extends BaseRepository<Efficienc
     super(db, 'efficiency_metric_snapshots');
   }
 
-  async create(data: Omit<EfficiencyMetricSnapshotEntity, 'id' | 'createdAt'> & Partial<Pick<EfficiencyMetricSnapshotEntity, 'id'>>): Promise<EfficiencyMetricSnapshotEntity> {
+  async create(data: any): Promise<EfficiencyMetricSnapshotEntity> {
     const columns = ['tenant_id', 'time_window', 'deployment_frequency', 'lead_time_ms', 'change_failure_rate', 'mttr_ms', 'captured_at'];
     const values = [data.tenantId, data.timeWindow, data.deploymentFrequency, data.leadTimeMs, data.changeFailureRate, data.mttrMs, data.capturedAt];
 

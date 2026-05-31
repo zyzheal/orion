@@ -157,7 +157,7 @@ export class DevPortalUsageRecordRepository extends BaseRepository<DevPortalUsag
     super(db, 'devportal_usage_records');
   }
 
-  async create(data: Omit<DevPortalUsageRecordEntity, 'createdAt'> & Partial<Pick<DevPortalUsageRecordEntity, 'id'>>): Promise<DevPortalUsageRecordEntity> {
+  async create(data: any): Promise<DevPortalUsageRecordEntity> {
     const columns = ['id', 'subscription_id', 'timestamp', 'endpoint', 'method', 'status_code', 'latency_ms'];
     const values = [data.id, data.subscriptionId, data.timestamp, data.endpoint, data.method, data.statusCode, data.latencyMs];
 

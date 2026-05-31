@@ -30,7 +30,7 @@ export class EfficiencyDeploymentRecordRepository extends BaseRepository<Efficie
     super(db, 'efficiency_deployment_records');
   }
 
-  async create(data: Omit<EfficiencyDeploymentRecordEntity, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<EfficiencyDeploymentRecordEntity, 'id'>>): Promise<EfficiencyDeploymentRecordEntity> {
+  async create(data: any): Promise<EfficiencyDeploymentRecordEntity> {
     const columns = ['tenant_id', 'deployment_id', 'service', 'environment', 'status', 'version', 'duration_ms', 'deployed_at', 'synced_to_clickhouse', 'recovery_time_ms'];
     const values = [data.tenantId, data.deploymentId, data.service, data.environment, data.status, data.version, data.durationMs, data.deployedAt, data.syncedToClickhouse, data.recoveryTimeMs];
 

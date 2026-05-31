@@ -190,7 +190,7 @@ export class EfficiencyGlobalDeploymentRepository extends BaseRepository<Efficie
     super(db, 'efficiency_global_deployments');
   }
 
-  async create(data: Omit<EfficiencyGlobalDeploymentEntity, 'createdAt'> & Partial<Pick<EfficiencyGlobalDeploymentEntity, 'id'>>): Promise<EfficiencyGlobalDeploymentEntity> {
+  async create(data: any): Promise<EfficiencyGlobalDeploymentEntity> {
     const columns = ['id', 'tenant_id', 'deployment_data', 'deployed_at'];
     const values = [data.id, data.tenantId, JSON.stringify(data.deploymentData), data.deployedAt];
 
@@ -238,7 +238,7 @@ export class EfficiencyGlobalPipelineRepository extends BaseRepository<Efficienc
     super(db, 'efficiency_global_pipelines');
   }
 
-  async create(data: Omit<EfficiencyGlobalPipelineEntity, 'createdAt'> & Partial<Pick<EfficiencyGlobalPipelineEntity, 'id'>>): Promise<EfficiencyGlobalPipelineEntity> {
+  async create(data: any): Promise<EfficiencyGlobalPipelineEntity> {
     const columns = ['id', 'tenant_id', 'pipeline_data', 'completed_at'];
     const values = [data.id, data.tenantId, JSON.stringify(data.pipelineData), data.completedAt];
 

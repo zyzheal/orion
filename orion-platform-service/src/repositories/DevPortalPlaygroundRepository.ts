@@ -29,7 +29,7 @@ export class DevPortalPlaygroundRequestRepository extends BaseRepository<DevPort
     super(db, 'devportal_playground_requests');
   }
 
-  async create(data: Omit<DevPortalPlaygroundRequestEntity, 'createdAt'> & Partial<Pick<DevPortalPlaygroundRequestEntity, 'id'>>): Promise<DevPortalPlaygroundRequestEntity> {
+  async create(data: any): Promise<DevPortalPlaygroundRequestEntity> {
     const columns = ['id', 'tenant_id', 'user_id', 'name', 'method', 'url', 'headers', 'query_params', 'body', 'body_type'];
     const values = [data.id, data.tenantId, data.userId, data.name, data.method, data.url, JSON.stringify(data.headers), JSON.stringify(data.queryParams), data.body, data.bodyType];
 
@@ -110,7 +110,7 @@ export class DevPortalPlaygroundResponseRepository extends BaseRepository<DevPor
     super(db, 'devportal_playground_responses');
   }
 
-  async create(data: Omit<DevPortalPlaygroundResponseEntity, 'createdAt'> & Partial<Pick<DevPortalPlaygroundResponseEntity, 'id'>>): Promise<DevPortalPlaygroundResponseEntity> {
+  async create(data: any): Promise<DevPortalPlaygroundResponseEntity> {
     const columns = ['id', 'request_id', 'status_code', 'status_text', 'headers', 'body', 'latency_ms', 'timestamp'];
     const values = [data.id, data.requestId, data.statusCode, data.statusText, JSON.stringify(data.headers), data.body, data.latencyMs, data.timestamp];
 

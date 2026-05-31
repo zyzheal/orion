@@ -29,7 +29,7 @@ export class EfficiencyPipelineRecordRepository extends BaseRepository<Efficienc
     super(db, 'efficiency_pipeline_records');
   }
 
-  async create(data: Omit<EfficiencyPipelineRecordEntity, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<EfficiencyPipelineRecordEntity, 'id'>>): Promise<EfficiencyPipelineRecordEntity> {
+  async create(data: any): Promise<EfficiencyPipelineRecordEntity> {
     const columns = ['tenant_id', 'run_id', 'pipeline_id', 'status', 'trigger_type', 'git_ref', 'git_sha', 'duration_ms', 'completed_at', 'synced_to_clickhouse'];
     const values = [data.tenantId, data.runId, data.pipelineId, data.status, data.triggerType, data.gitRef, data.gitSha, data.durationMs, data.completedAt, data.syncedToClickhouse];
 

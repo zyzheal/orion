@@ -147,7 +147,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
   /**
    * Save a trigger execution record.
    */
-  async saveExecutionRecord(record: Omit<TriggerExecutionEntity, 'createdAt'>): Promise<TriggerExecutionEntity> {
+  async saveExecutionRecord(record: any): Promise<TriggerExecutionEntity> {
     const result = await this.db.query(
       `INSERT INTO pipeline_trigger_executions (id, trigger_id, run_id, status, context_json, executed_at)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,

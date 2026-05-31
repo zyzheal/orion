@@ -41,7 +41,7 @@ export class VectorRepository {
   /**
    * Insert a vector document
    */
-  async insert(entity: Omit<VectorEntity, 'id' | 'createdAt' | 'updatedAt'>): Promise<VectorEntity> {
+  async insert(entity: any): Promise<VectorEntity> {
     const now = new Date();
     const id = crypto.randomUUID();
 
