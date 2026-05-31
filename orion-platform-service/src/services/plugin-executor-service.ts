@@ -414,12 +414,12 @@ export class PluginExecutorService {
   /**
    * 获取审计日志
    */
-  getAuditLogs(options?: {
+  async getAuditLogs(options?: {
     taskId?: string;
     pluginId?: string;
     limit?: number;
   }) {
-    return this.auditLogger?.getLogs(options) || [];
+    return this.auditLogger ? await this.auditLogger.getLogs(options) : [];
   }
 
   /**

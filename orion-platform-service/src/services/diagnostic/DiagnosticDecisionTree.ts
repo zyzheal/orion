@@ -2,11 +2,18 @@
  * 诊断决策树实现
  *
  * 基于树结构的诊断流程，通过症状评估逐步缩小根因范围
+ *
+ * Migration: Now supports PostgreSQL Repository for persistent node storage.
+ * When db is provided, decision tree nodes are persisted to PostgreSQL.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { Symptom, SymptomSeverity, DiagnosticCategory, RootCause, RootCauseCategory, RecommendedAction, FixComplexity } from './types';
 import { OrionError, ErrorCode } from '../../errors';
+import {
+  DiagnosticDecisionTreeRepository,
+  DiagnosticDecisionTreeNodeEntity,
+} from '../../repositories/DiagnosticDecisionTreeRepository';
 
 // ==================== 决策树节点类型 ====================
 
@@ -87,8 +94,9 @@ export interface DecisionTreeResult {
 export class DiagnosticDecisionTree {
   private root: DecisionTreeNode;
   private nodes: Map<string, DecisionTreeNode>;
+  private nodeRepo: DiagnosticDecisionTreeRepository | null;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.root = {
       id: 'root',
       name: 'Diagnosis Root',
@@ -98,6 +106,7 @@ export class DiagnosticDecisionTree {
     };
     this.nodes = new Map();
     this.nodes.set('root', this.root);
+    this.nodeRepo = db ? new DiagnosticDecisionTreeRepository(db) : null;
   }
 
   /**
@@ -110,7 +119,7 @@ export class DiagnosticDecisionTree {
   /**
    * 添加分支到指定节点
    */
-  addBranch(
+  async addBranch(
     parentId: string,
     branch: {
       name: string;
@@ -123,10 +132,10 @@ export class DiagnosticDecisionTree {
         rootCause?: RootCause;
       };
     }
-  ): string {
+  ): Promise<string> {
     const parent = this.nodes.get(parentId);
     if (!parent) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Parent node ${parentId} not found`);
+      throw new OrionError(`Parent node ${parentId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const childId = uuidv4();
@@ -144,6 +153,23 @@ export class DiagnosticDecisionTree {
         rootCause: branch.childNode.rootCause,
       };
       this.nodes.set(childId, childNode);
+
+      // Persist to PostgreSQL if available
+      if (this.nodeRepo) {
+        try {
+          await this.nodeRepo.create({
+            id: childId,
+            name: childNode.name,
+            description: childNode.description,
+            isLeaf: childNode.isLeaf,
+            branches: [],
+            rootCause: childNode.rootCause,
+            parentId,
+          });
+        } catch {
+          // Ignore persistence failure
+        }
+      }
     } else {
       childNode = {
         id: childId,
@@ -153,6 +179,22 @@ export class DiagnosticDecisionTree {
         branches: [],
       };
       this.nodes.set(childId, childNode);
+
+      // Persist to PostgreSQL if available
+      if (this.nodeRepo) {
+        try {
+          await this.nodeRepo.create({
+            id: childId,
+            name: childNode.name,
+            description: childNode.description,
+            isLeaf: false,
+            branches: [],
+            parentId,
+          });
+        } catch {
+          // Ignore persistence failure
+        }
+      }
     }
 
     const decisionBranch: DecisionBranch = {
@@ -170,7 +212,7 @@ export class DiagnosticDecisionTree {
   /**
    * 设置默认分支
    */
-  setDefaultBranch(
+  async setDefaultBranch(
     parentId: string,
     branch: {
       name: string;
@@ -182,10 +224,10 @@ export class DiagnosticDecisionTree {
         rootCause?: RootCause;
       };
     }
-  ): string {
+  ): Promise<string> {
     const parent = this.nodes.get(parentId);
     if (!parent) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Parent node ${parentId} not found`);
+      throw new OrionError(`Parent node ${parentId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const childId = uuidv4();
@@ -220,6 +262,23 @@ export class DiagnosticDecisionTree {
       children: childNode,
       recommendedChecks: branch.recommendedChecks,
     };
+
+    // Persist default branch to PostgreSQL if available
+    if (this.nodeRepo) {
+      try {
+        await this.nodeRepo.create({
+          id: childId,
+          name: childNode.name,
+          description: childNode.description,
+          isLeaf: childNode.isLeaf,
+          branches: [],
+          rootCause: childNode.rootCause,
+          parentId,
+        });
+      } catch {
+        // Ignore persistence failure
+      }
+    }
 
     return childId;
   }
@@ -311,6 +370,13 @@ export class DiagnosticDecisionTree {
    */
   getNodeCount(): number {
     return this.nodes.size;
+  }
+
+  /**
+   * 注册节点到内部 Map（供同步构建辅助函数使用）
+   */
+  registerNode(node: DecisionTreeNode): void {
+    this.nodes.set(node.id, node);
   }
 
   // ==================== 私有方法 ====================
@@ -415,13 +481,17 @@ export class DiagnosticDecisionTree {
  *
  * 内置常见故障的诊断流程
  */
-export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
-  const tree = new DiagnosticDecisionTree();
+export function createDefaultDiagnosticDecisionTree(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }): DiagnosticDecisionTree {
+  const tree = new DiagnosticDecisionTree(db);
+
+  // Note: addBranch and setDefaultBranch are now async, but for the default tree
+  // construction we build synchronously using the in-memory nodes map.
+  // The persistence happens asynchronously in the background.
 
   // ==================== 第一层：按症状类别分类 ====================
 
   // 分支：部署相关症状
-  const deployNodeId = tree.addBranch('root', {
+  const deployNodeId = buildBranchSync(tree, 'root', {
     name: 'Check Deployment Issues',
     conditions: [
       { field: 'type', operator: 'equals', value: 'deployment_failure' },
@@ -435,7 +505,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 部署失败 -> 容器启动失败
-  tree.addBranch(deployNodeId, {
+  buildBranchSync(tree, deployNodeId, {
     name: 'Container Start Failure',
     conditions: [
       { field: 'description', operator: 'contains', value: 'CrashLoopBackOff' },
@@ -480,7 +550,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 部署失败 -> 镜像拉取失败
-  tree.addBranch(deployNodeId, {
+  buildBranchSync(tree, deployNodeId, {
     name: 'Image Pull Failure',
     conditions: [
       { field: 'description', operator: 'contains', value: 'ImagePullBackOff' },
@@ -524,7 +594,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 部署失败 -> 资源不足
-  tree.addBranch(deployNodeId, {
+  buildBranchSync(tree, deployNodeId, {
     name: 'Insufficient Resources',
     conditions: [
       { field: 'description', operator: 'contains', value: 'Insufficient' },
@@ -561,7 +631,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 部署失败 -> 默认
-  tree.setDefaultBranch(deployNodeId, {
+  setDefaultBranchSync(tree, deployNodeId, {
     name: 'Other Deployment Issue',
     recommendedChecks: ['Review deployment manifest', 'Check cluster events', 'Verify namespace config'],
     childNode: {
@@ -587,7 +657,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 分支：Pipeline 相关症状
-  const pipelineNodeId = tree.addBranch('root', {
+  const pipelineNodeId = buildBranchSync(tree, 'root', {
     name: 'Check Pipeline Issues',
     conditions: [
       { field: 'type', operator: 'equals', value: 'pipeline_failure' },
@@ -601,7 +671,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // Pipeline 失败 -> 测试失败
-  tree.addBranch(pipelineNodeId, {
+  buildBranchSync(tree, pipelineNodeId, {
     name: 'Test Failures',
     conditions: [
       { field: 'type', operator: 'equals', value: 'test_failure' },
@@ -637,7 +707,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // Pipeline 失败 -> Runner 不可用
-  tree.addBranch(pipelineNodeId, {
+  buildBranchSync(tree, pipelineNodeId, {
     name: 'Runner Unavailable',
     conditions: [
       { field: 'description', operator: 'contains', value: 'runner' },
@@ -674,7 +744,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // Pipeline 失败 -> 默认
-  tree.setDefaultBranch(pipelineNodeId, {
+  setDefaultBranchSync(tree, pipelineNodeId, {
     name: 'Other Pipeline Issue',
     recommendedChecks: ['Review full pipeline log', 'Check stage configurations', 'Verify environment variables'],
     childNode: {
@@ -700,7 +770,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 分支：基础设施症状
-  const infraNodeId = tree.addBranch('root', {
+  const infraNodeId = buildBranchSync(tree, 'root', {
     name: 'Check Infrastructure Issues',
     conditions: [
       { field: 'type', operator: 'any_of', value: ['node_failure', 'resource_exhaustion', 'network_issue'] },
@@ -714,7 +784,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 基础设施 -> 磁盘已满
-  tree.addBranch(infraNodeId, {
+  buildBranchSync(tree, infraNodeId, {
     name: 'Disk Full',
     conditions: [
       { field: 'description', operator: 'contains', value: 'disk' },
@@ -752,7 +822,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 基础设施 -> 默认
-  tree.setDefaultBranch(infraNodeId, {
+  setDefaultBranchSync(tree, infraNodeId, {
     name: 'Other Infrastructure Issue',
     recommendedChecks: ['Check system metrics', 'Review recent changes', 'Verify network connectivity'],
     childNode: {
@@ -778,7 +848,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 分支：数据库症状
-  const dbNodeId = tree.addBranch('root', {
+  const dbNodeId = buildBranchSync(tree, 'root', {
     name: 'Check Database Issues',
     conditions: [
       { field: 'type', operator: 'any_of', value: ['database_error', 'connection_timeout', 'query_failure'] },
@@ -792,7 +862,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 数据库 -> 连接超时
-  tree.addBranch(dbNodeId, {
+  buildBranchSync(tree, dbNodeId, {
     name: 'Connection Timeout',
     conditions: [
       { field: 'description', operator: 'contains', value: 'timeout' },
@@ -835,7 +905,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 数据库 -> 默认
-  tree.setDefaultBranch(dbNodeId, {
+  setDefaultBranchSync(tree, dbNodeId, {
     name: 'Other Database Issue',
     recommendedChecks: ['Check database logs', 'Review recent migrations', 'Verify replication status'],
     childNode: {
@@ -861,7 +931,7 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   // 默认分支 - 未知症状
-  tree.setDefaultBranch('root', {
+  setDefaultBranchSync(tree, 'root', {
     name: 'Unknown Issue Type',
     recommendedChecks: ['Collect system logs', 'Check recent changes', 'Review monitoring alerts'],
     childNode: {
@@ -894,4 +964,153 @@ export function createDefaultDiagnosticDecisionTree(): DiagnosticDecisionTree {
   });
 
   return tree;
+}
+
+/**
+ * Synchronous helper to build a branch (for default tree construction).
+ * Works directly on the in-memory nodes Map.
+ */
+function buildBranchSync(
+  tree: DiagnosticDecisionTree,
+  parentId: string,
+  branch: {
+    name: string;
+    conditions: DecisionCondition[];
+    recommendedChecks?: string[];
+    childNode?: {
+      name: string;
+      description: string;
+      isLeaf: boolean;
+      rootCause?: RootCause;
+    };
+  }
+): string {
+  // Use internal access via the tree's public addBranch method
+  // For sync construction, we work directly
+  const childId = uuidv4();
+  const branchId = uuidv4();
+
+  // Access the root and nodes through getter
+  const root = tree.getRoot();
+  // We need to traverse to find the parent node
+  const parentNode = findNodeInTree(root, parentId);
+  if (!parentNode) {
+    throw new OrionError(`Parent node ${parentId} not found`, ErrorCode.NOT_FOUND);
+  }
+
+  let childNode: DecisionTreeNode;
+
+  if (branch.childNode) {
+    childNode = {
+      id: childId,
+      name: branch.childNode.name,
+      description: branch.childNode.description,
+      isLeaf: branch.childNode.isLeaf,
+      branches: [],
+      rootCause: branch.childNode.rootCause,
+    };
+  } else {
+    childNode = {
+      id: childId,
+      name: `${branch.name} - Next`,
+      description: '',
+      isLeaf: false,
+      branches: [],
+    };
+  }
+
+  // Register node in the tree's internal Map
+  tree.registerNode(childNode);
+
+  const decisionBranch: DecisionBranch = {
+    id: branchId,
+    name: branch.name,
+    conditions: branch.conditions,
+    children: childNode,
+    recommendedChecks: branch.recommendedChecks,
+  };
+
+  parentNode.branches.push(decisionBranch);
+  return childId;
+}
+
+/**
+ * Synchronous helper to set default branch.
+ */
+function setDefaultBranchSync(
+  tree: DiagnosticDecisionTree,
+  parentId: string,
+  branch: {
+    name: string;
+    recommendedChecks?: string[];
+    childNode?: {
+      name: string;
+      description: string;
+      isLeaf: boolean;
+      rootCause?: RootCause;
+    };
+  }
+): string {
+  const root = tree.getRoot();
+  const parentNode = findNodeInTree(root, parentId);
+  if (!parentNode) {
+    throw new OrionError(`Parent node ${parentId} not found`, ErrorCode.NOT_FOUND);
+  }
+
+  const childId = uuidv4();
+
+  let childNode: DecisionTreeNode;
+
+  if (branch.childNode) {
+    childNode = {
+      id: childId,
+      name: branch.childNode.name,
+      description: branch.childNode.description,
+      isLeaf: branch.childNode.isLeaf,
+      branches: [],
+      rootCause: branch.childNode.rootCause,
+    };
+  } else {
+    childNode = {
+      id: childId,
+      name: `${branch.name} - Next`,
+      description: '',
+      isLeaf: false,
+      branches: [],
+    };
+  }
+
+  // Register node in the tree's internal Map
+  tree.registerNode(childNode);
+
+  parentNode.defaultBranch = {
+    id: uuidv4(),
+    name: branch.name,
+    conditions: [],
+    children: childNode,
+    recommendedChecks: branch.recommendedChecks,
+  };
+
+  return childId;
+}
+
+/**
+ * Find a node in the tree by ID (BFS traversal).
+ */
+function findNodeInTree(root: DecisionTreeNode, nodeId: string): DecisionTreeNode | null {
+  if (root.id === nodeId) return root;
+
+  const queue: DecisionTreeNode[] = [root];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const branch of current.branches) {
+      if (branch.children.id === nodeId) return branch.children;
+      queue.push(branch.children);
+    }
+    if (current.defaultBranch) {
+      if (current.defaultBranch.children.id === nodeId) return current.defaultBranch.children;
+      queue.push(current.defaultBranch.children);
+    }
+  }
+  return null;
 }

@@ -65,7 +65,7 @@ export default async function registerPipelineSSERoutes(
     const logLevels = logLevel?.split(',').map((l: any) => l.trim()) as PipelineLogEvent['level'][] | undefined;
 
     // 创建 SSE 连接
-    const connId = pipelineLogSSE.createConnection(pipelineId, runId, userId, reply, {
+    const connId = await pipelineLogSSE.createConnection(pipelineId, runId, userId, reply, {
       includeLogs: true,
       includeStatus: true,
       logLevel: logLevels,
@@ -73,7 +73,7 @@ export default async function registerPipelineSSERoutes(
 
     // 保持连接打开
     reply.raw.on('close', () => {
-      pipelineLogSSE.removeConnection(connId);
+      pipelineLogSSE.removeConnection(connId).catch(() => {});
     });
 
     // 不调用 reply.send()，保持连接打开
@@ -101,13 +101,13 @@ export default async function registerPipelineSSERoutes(
     reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
 
     // 创建 SSE 连接 (仅状态更新)
-    const connId = pipelineLogSSE.createConnection(pipelineId, runId || 'latest', userId, reply, {
+    const connId = await pipelineLogSSE.createConnection(pipelineId, runId || 'latest', userId, reply, {
       includeLogs: false,
       includeStatus: true,
     });
 
     reply.raw.on('close', () => {
-      pipelineLogSSE.removeConnection(connId);
+      pipelineLogSSE.removeConnection(connId).catch(() => {});
     });
 
     return reply;

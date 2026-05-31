@@ -608,25 +608,25 @@ export class ChatOpsController {
     const listener = (data: Record<string, unknown>) => {
       const raw = (reply as any).raw;
       if (raw?.writableEnded) {
-        connectionManager?.removeConnection(connId);
+        connectionManager?.removeConnection(connId).catch(() => {});
         return;
       }
       try {
         raw.write(`data: ${JSON.stringify(data)}\n\n`);
       } catch {
-        connectionManager?.removeConnection(connId);
+        connectionManager?.removeConnection(connId).catch(() => {});
       }
     };
 
     // Register with connection manager for heartbeat + event forwarding
-    connectionManager?.addConnection(
+    await connectionManager?.addConnection(
       { id: connId, userId: user.userId, listener, connectedAt: new Date() },
       reply,
     );
 
     // 安全修复: H-NEW-1 - 客户端断开时立即清理 listener，不等待 30s 心跳
     reply.raw.on('close', () => {
-      connectionManager?.removeConnection(connId);
+      connectionManager?.removeConnection(connId).catch(() => {});
     });
   }
 

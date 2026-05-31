@@ -114,14 +114,14 @@ export class AIGateway {
     db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.degradationRouter = degradationRouter || new AIDegradationRouter();
+    this.degradationRouter = degradationRouter || new AIDegradationRouter(undefined, db);
     this.promptSecurityConfig = { ...DEFAULT_PROMPT_SECURITY_CONFIG, ...promptSecurityConfig };
     this.promptDetector = new PromptInjectionDetector({
       riskThresholdHigh: this.promptSecurityConfig.riskThresholdHigh,
       riskThresholdMedium: this.promptSecurityConfig.riskThresholdMedium,
     });
     this.promptSanitizer = new PromptSanitizer();
-    this.circuitBreakerManager = circuitBreakerManager || new CircuitBreakerManager();
+    this.circuitBreakerManager = circuitBreakerManager || new CircuitBreakerManager({}, db);
     this.currentProvider = 'openai'; // 默认 Provider
 
     // Initialize repositories if db is provided
@@ -196,6 +196,10 @@ export class AIGateway {
       }
 
       logger.info({ msg: 'AIGateway state restored from DB', metricsCount: metricsEntities.length, circuitCount: circuitEntities.length });
+
+      // Restore sub-component states
+      await this.degradationRouter.restoreState();
+      await this.circuitBreakerManager.restoreState();
     } catch (error) {
       logger.error({ msg: 'Failed to restore AIGateway state from DB', error });
     }

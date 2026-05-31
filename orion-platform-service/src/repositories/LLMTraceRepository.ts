@@ -71,6 +71,15 @@ export class LLMTraceRepository {
     return result.rows.map(r => this.rowToTrace(r));
   }
 
+  async findAll(limit: number = 1000): Promise<LLMTrace[]> {
+    const result = await this.pool.query('SELECT * FROM llm_traces ORDER BY created_at DESC LIMIT $1', [limit]);
+    return result.rows.map(r => this.rowToTrace(r));
+  }
+
+  async deleteAll(): Promise<void> {
+    await this.pool.query('DELETE FROM llm_traces');
+  }
+
   async getDailyStats(tenantId: number, dateStr: string): Promise<DailyStatsRow> {
     const result = await this.pool.query(
       `SELECT

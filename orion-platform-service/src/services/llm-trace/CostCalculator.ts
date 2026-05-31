@@ -9,6 +9,8 @@
  */
 
 import { MODEL_PRICING } from './LLMTraceService';
+import { ModelPricingRepository } from '../../repositories/ModelPricingRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -29,15 +31,19 @@ export interface TraceCostInput {
 
 export class CostCalculator {
   private currency: string = 'CNY';
-  private customPricing: Map<string, { input: number; output: number }> = new Map();
+  private pricingRepo: ModelPricingRepository | null = null;
 
-  constructor() {}
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.pricingRepo = new ModelPricingRepository(db);
+    }
+  }
 
   /**
    * Calculate cost for a single LLM call
    */
-  calculate(modelId: string, inputTokens: number, outputTokens: number): CostBreakdown {
-    const pricing = this.getPricing(modelId);
+  async calculate(modelId: string, inputTokens: number, outputTokens: number): Promise<CostBreakdown> {
+    const pricing = await this.getPricing(modelId);
 
     const inputCost = inputTokens * pricing.input;
     const outputCost = outputTokens * pricing.output;
@@ -57,13 +63,13 @@ export class CostCalculator {
   /**
    * Calculate cost for multiple traces
    */
-  calculateBatch(traces: TraceCostInput[]): CostBreakdown {
+  async calculateBatch(traces: TraceCostInput[]): Promise<CostBreakdown> {
     let totalInputCost = 0;
     let totalOutputCost = 0;
     const breakdownByModel: Record<string, number> = {};
 
     for (const trace of traces) {
-      const pricing = this.getPricing(trace.modelId);
+      const pricing = await this.getPricing(trace.modelId);
       const inputCost = trace.inputTokens * pricing.input;
       const outputCost = trace.outputTokens * pricing.output;
       const cost = inputCost + outputCost;
@@ -90,18 +96,24 @@ export class CostCalculator {
   /**
    * Set custom pricing for a model
    */
-  setCustomPricing(modelId: string, inputPrice: number, outputPrice: number): void {
-    this.customPricing.set(modelId, { input: inputPrice, output: outputPrice });
+  async setCustomPricing(modelId: string, inputPrice: number, outputPrice: number): Promise<void> {
+    if (!this.pricingRepo) {
+      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured for CostCalculator');
+    }
+    await this.pricingRepo.upsertByModelId(modelId, { inputPrice, outputPrice });
     logger.info(`[CostCalculator] Set custom pricing for ${modelId}: input=${inputPrice}, output=${outputPrice}`);
   }
 
   /**
    * Get pricing for a model (custom or default)
    */
-  getPricing(modelId: string): { input: number; output: number } {
-    const custom = this.customPricing.get(modelId);
-    if (custom) {
-      return custom;
+  async getPricing(modelId: string): Promise<{ input: number; output: number }> {
+    // Check custom pricing in DB first
+    if (this.pricingRepo) {
+      const custom = await this.pricingRepo.findByModelId(modelId);
+      if (custom) {
+        return { input: custom.inputPrice, output: custom.outputPrice };
+      }
     }
     return MODEL_PRICING[modelId] || MODEL_PRICING['gpt-4'];
   }
@@ -109,8 +121,8 @@ export class CostCalculator {
   /**
    * Estimate monthly cost based on daily token usage
    */
-  estimateMonthlyCost(dailyTokens: number, modelId: string): number {
-    const pricing = this.getPricing(modelId);
+  async estimateMonthlyCost(dailyTokens: number, modelId: string): Promise<number> {
+    const pricing = await this.getPricing(modelId);
 
     // Assume equal input/output split
     const avgInputTokens = dailyTokens / 2;
@@ -127,21 +139,28 @@ export class CostCalculator {
   /**
    * Get all available model pricings
    */
-  getAvailableModels(): string[] {
-    const customModels = Array.from(this.customPricing.keys());
+  async getAvailableModels(): Promise<string[]> {
     const defaultModels = Object.keys(MODEL_PRICING);
+    if (!this.pricingRepo) {
+      return defaultModels;
+    }
+    const customPricings = await this.pricingRepo.findAll();
+    const customModels = customPricings.entities.map(p => p.modelId);
     return [...new Set([...defaultModels, ...customModels])];
   }
 
   /**
    * Get all pricing information
    */
-  getAllPricing(): Record<string, { input: number; output: number }> {
+  async getAllPricing(): Promise<Record<string, { input: number; output: number }>> {
     const allPricing: Record<string, { input: number; output: number }> = { ...MODEL_PRICING };
 
-    // Add custom pricing
-    for (const [modelId, pricing] of this.customPricing.entries()) {
-      allPricing[modelId] = pricing;
+    // Add custom pricing from DB
+    if (this.pricingRepo) {
+      const customPricings = await this.pricingRepo.findAll();
+      for (const pricing of customPricings.entities) {
+        allPricing[pricing.modelId] = { input: pricing.inputPrice, output: pricing.outputPrice };
+      }
     }
 
     return allPricing;
@@ -150,14 +169,14 @@ export class CostCalculator {
   /**
    * Calculate cost savings by using a cheaper model
    */
-  calculateSavings(
+  async calculateSavings(
     currentModel: string,
     alternativeModel: string,
     inputTokens: number,
     outputTokens: number
-  ): { currentCost: number; alternativeCost: number; savings: number; savingsPercent: number } {
-    const currentPricing = this.getPricing(currentModel);
-    const alternativePricing = this.getPricing(alternativeModel);
+  ): Promise<{ currentCost: number; alternativeCost: number; savings: number; savingsPercent: number }> {
+    const currentPricing = await this.getPricing(currentModel);
+    const alternativePricing = await this.getPricing(alternativeModel);
 
     const currentCost = inputTokens * currentPricing.input + outputTokens * currentPricing.output;
     const alternativeCost = inputTokens * alternativePricing.input + outputTokens * alternativePricing.output;

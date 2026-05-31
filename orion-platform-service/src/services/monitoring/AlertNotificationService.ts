@@ -9,6 +9,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 import { OrionError } from '../../errors';
+import {
+  MonitoringNotificationChannelRepository,
+} from '../../repositories/MonitoringNotificationChannelRepository';
+import {
+  MonitoringEscalationPolicyRepository,
+} from '../../repositories/MonitoringEscalationPolicyRepository';
+import {
+  MonitoringNotificationHistoryRepository,
+} from '../../repositories/MonitoringNotificationHistoryRepository';
 
 const logger = pino({ name: 'LAlert-LNotification-LService' });
 import {
@@ -24,6 +33,8 @@ import {
   WebhookChannelConfig,
   SlackChannelConfig,
 } from './types';
+
+type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
 /**
  * Escalation state for a specific alert
@@ -51,13 +62,22 @@ interface EscalationState {
  * - Notification history and delivery status
  */
 export class AlertNotificationService {
-  /** Registered notification channels */
+  /** Optional PostgreSQL repository for notification channels */
+  private readonly channelRepo?: MonitoringNotificationChannelRepository;
+
+  /** Optional PostgreSQL repository for escalation policies */
+  private readonly escalationPolicyRepo?: MonitoringEscalationPolicyRepository;
+
+  /** Optional PostgreSQL repository for notification history */
+  private readonly notificationHistoryRepo?: MonitoringNotificationHistoryRepository;
+
+  /** Registered notification channels (in-memory cache) */
   private channels: Map<string, AlertChannel> = new Map();
 
-  /** Registered escalation policies */
+  /** Registered escalation policies (in-memory cache) */
   private escalationPolicies: Map<string, EscalationPolicy> = new Map();
 
-  /** Notification history */
+  /** Notification history (in-memory cache) */
   private notifications: NotificationRecord[] = [];
 
   /** Active escalation states */
@@ -66,6 +86,14 @@ export class AlertNotificationService {
   /** Alert to escalation policy mapping */
   private alertEscalationMap: Map<string, string> = new Map();
 
+  constructor(db?: DbConnection) {
+    if (db) {
+      this.channelRepo = new MonitoringNotificationChannelRepository(db);
+      this.escalationPolicyRepo = new MonitoringEscalationPolicyRepository(db);
+      this.notificationHistoryRepo = new MonitoringNotificationHistoryRepository(db);
+    }
+  }
+
   // ==================== Channel Management ====================
 
   /**
@@ -73,6 +101,19 @@ export class AlertNotificationService {
    */
   addChannel(channel: AlertChannel): void {
     this.channels.set(channel.id, channel);
+
+    // Persist to repository if available (fire-and-forget)
+    this.channelRepo?.create({
+      id: channel.id,
+      tenant_id: '00000000-0000-0000-0000-000000000000',
+      name: channel.name,
+      type: channel.type,
+      config: channel.config,
+      enabled: channel.enabled,
+      severity_filter: channel.severityFilter || [],
+    } as any).catch((err: any) =>
+      logger.warn('[AlertNotificationService] Failed to persist channel:', err)
+    );
   }
 
   /**
@@ -84,6 +125,21 @@ export class AlertNotificationService {
 
     const updated = { ...existing, ...updates };
     this.channels.set(channelId, updated);
+
+    // Persist to repository if available (fire-and-forget)
+    const repoUpdate: any = {};
+    if (updates.name !== undefined) repoUpdate.name = updates.name;
+    if (updates.type !== undefined) repoUpdate.type = updates.type;
+    if (updates.config !== undefined) repoUpdate.config = updates.config;
+    if (updates.enabled !== undefined) repoUpdate.enabled = updates.enabled;
+    if (updates.severityFilter !== undefined) repoUpdate.severity_filter = updates.severityFilter;
+
+    if (Object.keys(repoUpdate).length > 0) {
+      this.channelRepo?.update(channelId, repoUpdate).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to update channel in repository:', err)
+      );
+    }
+
     return updated;
   }
 
@@ -91,7 +147,15 @@ export class AlertNotificationService {
    * Remove a channel
    */
   removeChannel(channelId: string): boolean {
-    return this.channels.delete(channelId);
+    const result = this.channels.delete(channelId);
+
+    if (result) {
+      this.channelRepo?.delete(channelId).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to delete channel from repository:', err)
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -115,6 +179,12 @@ export class AlertNotificationService {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
     channel.enabled = enabled;
+
+    // Persist to repository if available (fire-and-forget)
+    this.channelRepo?.toggleEnabled(channelId, enabled).catch((err: any) =>
+      logger.warn('[AlertNotificationService] Failed to toggle channel in repository:', err)
+    );
+
     return true;
   }
 
@@ -125,6 +195,19 @@ export class AlertNotificationService {
    */
   addEscalationPolicy(policy: EscalationPolicy): void {
     this.escalationPolicies.set(policy.id, policy);
+
+    // Persist to repository if available (fire-and-forget)
+    this.escalationPolicyRepo?.create({
+      id: policy.id,
+      tenant_id: '00000000-0000-0000-0000-000000000000',
+      name: policy.name,
+      steps: policy.steps,
+      repeat_count: policy.repeatCount,
+      enabled: policy.enabled,
+      description: policy.description ?? null,
+    } as any).catch((err: any) =>
+      logger.warn('[AlertNotificationService] Failed to persist escalation policy:', err)
+    );
   }
 
   /**
@@ -146,16 +229,23 @@ export class AlertNotificationService {
    */
   removeEscalationPolicy(policyId: string): boolean {
     // Cancel any active escalations for this policy
-    for (const [alertId, state] of this.escalationStates) {
-      const policy = this.escalationPolicies.get(
-        this.alertEscalationMap.get(alertId) || ''
-      );
+    for (const [alertId] of this.escalationStates) {
+      const mappedPolicyId = this.alertEscalationMap.get(alertId) || '';
+      const policy = this.escalationPolicies.get(mappedPolicyId);
       if (policy && policy.id === policyId) {
         this.cancelEscalation(alertId);
       }
     }
 
-    return this.escalationPolicies.delete(policyId);
+    const result = this.escalationPolicies.delete(policyId);
+
+    if (result) {
+      this.escalationPolicyRepo?.delete(policyId).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to delete escalation policy from repository:', err)
+      );
+    }
+
+    return result;
   }
 
   // ==================== Notification Sending ====================
@@ -197,6 +287,14 @@ export class AlertNotificationService {
     }
 
     this.notifications.push(...records);
+
+    // Persist notification records to repository (fire-and-forget)
+    for (const record of records) {
+      this.notificationHistoryRepo?.create(this.notificationRecordToEntity(record) as any).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to persist notification record:', err)
+      );
+    }
+
     return records;
   }
 
@@ -392,6 +490,11 @@ export class AlertNotificationService {
       });
 
       this.notifications.push(record);
+
+      // Persist escalation notification to repository (fire-and-forget)
+      this.notificationHistoryRepo?.create(this.notificationRecordToEntity(record) as any).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to persist escalation notification:', err)
+      );
     })().catch((err) => logger.error({ err }, 'Notification step failed'));
 
     // Schedule next step
@@ -552,5 +655,25 @@ export class AlertNotificationService {
     this.notifications = [];
     this.escalationStates.clear();
     this.alertEscalationMap.clear();
+  }
+
+  // ==================== Private Helpers ====================
+
+  /**
+   * Convert a NotificationRecord to a repository entity object
+   */
+  private notificationRecordToEntity(record: NotificationRecord): Record<string, any> {
+    return {
+      id: record.id,
+      tenant_id: '00000000-0000-0000-0000-000000000000',
+      alert_id: record.alertId,
+      channel_id: record.channelId,
+      channel_type: record.channelType,
+      status: record.status,
+      sent_at: record.sentAt,
+      error_message: record.errorMessage ?? null,
+      response_payload: record.responsePayload ?? null,
+      escalation_step: record.escalationStep ?? null,
+    };
   }
 }

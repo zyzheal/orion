@@ -20,6 +20,7 @@ import {
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
 import { TicketLoadRecordRepository } from '../../repositories/TicketLoadRecordRepository';
+import { AssignmentHistoryRepository } from '../../repositories/AssignmentHistoryRepository';
 
 /**
  * Ticket load record for tracking assignments
@@ -58,8 +59,9 @@ export class LoadBalancer {
   private loadRecordRepository?: TicketLoadRecordRepository;
   private ticketLoads: Map<string, TicketLoadRecord> = new Map(); // in-memory cache
 
-  /** Assignment history */
-  private assignmentHistory: TicketAssignment[] = [];
+  /** Assignment history - migrated to repository */
+  private assignmentHistoryRepository?: AssignmentHistoryRepository;
+  private assignmentHistory: TicketAssignment[] = []; // in-memory cache
 
   /** Overload threshold */
   private overloadThreshold: number;
@@ -73,6 +75,7 @@ export class LoadBalancer {
     this.underutilizationThreshold = options.underutilizationThreshold ?? DEFAULT_UNDERUTILIZATION_THRESHOLD;
     if (options.db) {
       this.loadRecordRepository = new TicketLoadRecordRepository(options.db);
+      this.assignmentHistoryRepository = new AssignmentHistoryRepository(options.db);
     }
   }
 
@@ -480,6 +483,19 @@ export class LoadBalancer {
    */
   recordAssignmentHistory(assignment: TicketAssignment): void {
     this.assignmentHistory.push({ ...assignment });
+
+    // Persist to repository
+    if (this.assignmentHistoryRepository) {
+      this.assignmentHistoryRepository.create({
+        id: assignment.id,
+        ticketId: assignment.ticketId,
+        assignee: assignment.assignee,
+        assignedBy: assignment.assignedBy,
+        assignedAt: assignment.assignedAt,
+        reason: assignment.reason,
+        matchScore: assignment.matchScore ?? null,
+      }).catch(() => {/* ignore */});
+    }
   }
 
   /**

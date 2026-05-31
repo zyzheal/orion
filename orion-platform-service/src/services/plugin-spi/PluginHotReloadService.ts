@@ -370,7 +370,31 @@ export class PluginHotReloadService extends EventEmitter {
    * 回滚到上一个版本
    */
   async rollback(pluginId: string, targetVersion?: string): Promise<PluginInfo> {
-    const snapshots = this.versionSnapshots.get(pluginId);
+    // Try reading from repository first
+    let snapshots: PluginVersionSnapshot[] | undefined;
+
+    if (this.snapshotRepository) {
+      try {
+        const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
+        snapshots = entities.map(e => ({
+          pluginId: e.pluginId,
+          version: e.version,
+          manifest: e.manifest as PluginManifest,
+          config: e.config,
+          status: e.status as PluginVersionSnapshot['status'],
+          timestamp: e.snapshotAt,
+          checksum: e.checksum || undefined,
+        }));
+      } catch (err) {
+        logger.warn({ pluginId, error: err }, 'Failed to read snapshots from repository for rollback, falling back to in-memory');
+      }
+    }
+
+    // Fallback to in-memory cache
+    if (!snapshots || snapshots.length === 0) {
+      snapshots = this.versionSnapshots.get(pluginId);
+    }
+
     if (!snapshots || snapshots.length === 0) {
       throw new OrionError(ErrorCode.NOT_FOUND, `No snapshots available for plugin "${pluginId}"`);
     }
@@ -471,7 +495,26 @@ export class PluginHotReloadService extends EventEmitter {
   /**
    * 获取插件版本历史
    */
-  getVersionHistory(pluginId: string): PluginVersionSnapshot[] {
+  async getVersionHistory(pluginId: string): Promise<PluginVersionSnapshot[]> {
+    // Read from repository when available
+    if (this.snapshotRepository) {
+      try {
+        const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
+        return entities.map(e => ({
+          pluginId: e.pluginId,
+          version: e.version,
+          manifest: e.manifest as PluginManifest,
+          config: e.config,
+          status: e.status as PluginVersionSnapshot['status'],
+          timestamp: e.snapshotAt,
+          checksum: e.checksum || undefined,
+        }));
+      } catch (err) {
+        logger.warn({ pluginId, error: err }, 'Failed to read version history from repository, falling back to in-memory');
+      }
+    }
+
+    // Fallback to in-memory cache
     return this.versionSnapshots.get(pluginId) || [];
   }
 

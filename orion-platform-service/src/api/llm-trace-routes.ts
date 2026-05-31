@@ -9,15 +9,15 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { LLMTraceService, LLMTrace } from '../services/llm-trace/LLMTraceService';
 import { CostCalculator } from '../services/llm-trace/CostCalculator';
-import { LLMTraceRepository } from '../repositories/LLMTraceRepository';
 
 let traceService: LLMTraceService | null = null;
 let costCalculator: CostCalculator | null = null;
 
 export function initLLMTrace(database?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number }> }): void {
-  const repo = database ? new LLMTraceRepository(database) : undefined;
-  traceService = new LLMTraceService(repo);
-  costCalculator = new CostCalculator();
+  if (database) {
+    traceService = new LLMTraceService(database);
+    costCalculator = new CostCalculator(database);
+  }
 }
 
 // Default initialization (in-memory only, for backward compatibility)
@@ -56,7 +56,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest<{ Params: TraceIdParams }>, reply: FastifyReply) => {
       const { traceId } = request.params;
-      const trace = svc.getTrace(traceId);
+      const trace = await svc.getTrace(traceId);
       if (!trace) {
         return reply.code(404).send({ error: 'Trace not found', traceId });
       }
@@ -74,9 +74,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
       const { tenantId, scenarioId, limit = 100 } = request.query;
       let traces: LLMTrace[];
       if (tenantId) {
-        traces = svc.getTracesByTenant(tenantId);
+        traces = await svc.getTracesByTenant(tenantId);
       } else if (scenarioId) {
-        traces = svc.getTracesByScenario(scenarioId);
+        traces = await svc.getTracesByScenario(scenarioId);
       } else {
         traces = [];
       }
@@ -106,7 +106,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest<{ Querystring: CostBreakdownQuery }>, reply: FastifyReply) => {
       const { tenantId, startDate, endDate } = request.query;
-      const traces = svc.getTracesByTenant(tenantId);
+      const traces = await svc.getTracesByTenant(tenantId);
       let filteredTraces = traces;
       if (startDate) {
         const start = new Date(startDate);
@@ -116,7 +116,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
         const end = new Date(endDate);
         filteredTraces = filteredTraces.filter(t => t.requestStartedAt <= end);
       }
-      const breakdown = calc.calculateBatch(
+      const breakdown = await calc.calculateBatch(
         filteredTraces.map(t => ({ modelId: t.modelId, inputTokens: t.inputTokens, outputTokens: t.outputTokens }))
       );
       return reply.send({ tenantId, startDate, endDate, totalTraces: filteredTraces.length, ...breakdown });
@@ -144,7 +144,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
       onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const pricing = calc.getAllPricing();
+      const pricing = await calc.getAllPricing();
       return reply.send({ currency: 'CNY', unit: 'per token', pricing });
     }
   );
@@ -160,7 +160,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
       if (!modelId || inputTokens === undefined || outputTokens === undefined) {
         return reply.code(400).send({ error: 'Missing required fields: modelId, inputTokens, outputTokens' });
       }
-      const breakdown = calc.calculate(modelId, inputTokens, outputTokens);
+      const breakdown = await calc.calculate(modelId, inputTokens, outputTokens);
       return reply.send({ modelId, inputTokens, outputTokens, ...breakdown });
     }
   );

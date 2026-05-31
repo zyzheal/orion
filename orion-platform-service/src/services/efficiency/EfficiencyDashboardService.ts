@@ -2,10 +2,18 @@
 /**
  * Efficiency Dashboard Service - 8 Scenario Templates
  * Provides comprehensive engineering efficiency insights
+ *
+ * Migration: Now supports PostgreSQL Repository for persistent scenario caching.
+ * When db is provided, scenarios are persisted to PostgreSQL.
  */
 
 import pino from 'pino';
+import { v4 as uuidv4 } from 'uuid';
 import { OrionError } from '../../errors';
+import {
+  EfficiencyScenarioRepository,
+  EfficiencyScenarioEntity,
+} from '../../repositories/EfficiencyScenarioRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -46,19 +54,19 @@ export interface EfficiencyMetrics {
   deploymentFrequency: number;   // per day
   changeFailureRate: number;     // percentage
   mttr: number;                  // minutes
-  
+
   // Quality metrics
   codeReviewTime: number;        // hours
   bugEscapeRate: number;         // percentage
   testCoverage: number;          // percentage
   technicalDebt: number;         // hours
-  
+
   // Performance metrics
   buildTime: number;             // minutes
   testExecutionTime: number;     // minutes
   pipelineSuccessRate: number;   // percentage
   apiLatencyP99: number;         // ms
-  
+
   // Team metrics
   activeContributors: number;
   codeReviewParticipation: number;
@@ -69,9 +77,15 @@ export interface EfficiencyMetrics {
 // ============== Scenario Templates ==============
 
 export class EfficiencyDashboardService {
+  /** In-memory fallback cache */
   private scenarioCache: Map<string, EfficiencyScenario> = new Map();
+  /** PostgreSQL repository for persistent caching */
+  private scenarioRepo: EfficiencyScenarioRepository | null;
+  private tenantId: string;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, tenantId?: string) {
+    this.scenarioRepo = db ? new EfficiencyScenarioRepository(db) : null;
+    this.tenantId = tenantId || 'default';
     logger.info('[EfficiencyDashboard] Initialized');
   }
 
@@ -79,13 +93,26 @@ export class EfficiencyDashboardService {
    * Get scenario dashboard by ID
    */
   async getScenario(
-    scenarioId: string, 
+    scenarioId: string,
     timeRange: TimeRange
   ): Promise<EfficiencyScenario> {
     const cacheKey = `${scenarioId}-${timeRange.start.getTime()}-${timeRange.end.getTime()}`;
-    
-    const cached = this.scenarioCache.get(cacheKey);
-    if (cached) return cached;
+
+    // Try PostgreSQL cache first
+    if (this.scenarioRepo) {
+      try {
+        const cached = await this.scenarioRepo.findByCacheKey(cacheKey);
+        if (cached) {
+          return this.entityToScenario(cached);
+        }
+      } catch {
+        // Fall back to in-memory
+      }
+    }
+
+    // Try in-memory cache
+    const memCached = this.scenarioCache.get(cacheKey);
+    if (memCached) return memCached;
 
     let scenario: EfficiencyScenario;
 
@@ -118,6 +145,28 @@ export class EfficiencyDashboardService {
         throw new OrionError('NOT_FOUND', `Unknown scenario: ${scenarioId}`)
     }
 
+    // Cache in PostgreSQL
+    if (this.scenarioRepo) {
+      try {
+        await this.scenarioRepo.create({
+          id: uuidv4(),
+          tenantId: this.tenantId,
+          scenarioId,
+          name: scenario.name,
+          description: scenario.description,
+          category: scenario.category,
+          widgets: scenario.widgets,
+          timeRange: scenario.timeRange,
+          summary: scenario.summary,
+          cacheKey,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+        });
+      } catch {
+        // Ignore persistence failure
+      }
+    }
+
+    // Also cache in memory
     this.scenarioCache.set(cacheKey, scenario);
     return scenario;
   }
@@ -127,7 +176,7 @@ export class EfficiencyDashboardService {
    */
   private async buildDeliverySpeedScenario(timeRange: TimeRange): Promise<EfficiencyScenario> {
     const metrics = await this.getSampleMetrics(timeRange);
-    
+
     const widgets: DashboardWidget[] = [
       {
         id: 'lead-time',
@@ -741,6 +790,21 @@ export class EfficiencyDashboardService {
       days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
       hours: Array.from({ length: 12 }, (_, i) => i + 8),
       data: Array.from({ length: 60 }, () => Math.floor(Math.random() * 10)),
+    };
+  }
+
+  /**
+   * Convert repository entity to domain scenario
+   */
+  private entityToScenario(entity: EfficiencyScenarioEntity): EfficiencyScenario {
+    return {
+      id: entity.scenarioId,
+      name: entity.name,
+      description: entity.description,
+      category: entity.category as EfficiencyScenario['category'],
+      widgets: entity.widgets,
+      timeRange: entity.timeRange,
+      summary: entity.summary,
     };
   }
 

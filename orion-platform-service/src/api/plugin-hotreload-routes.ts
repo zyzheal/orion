@@ -107,7 +107,7 @@ export default async function registerPluginHotReloadRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
     const {  pluginId  } = request.params as any;
 
-    const history = hotReloadService.getVersionHistory(pluginId);
+    const history = await hotReloadService.getVersionHistory(pluginId);
     return reply.send({
       pluginId,
       history,

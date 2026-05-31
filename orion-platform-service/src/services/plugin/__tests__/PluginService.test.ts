@@ -336,7 +336,7 @@ describe('PluginAuditLogger', () => {
       expect(typeof entryId).toBe('string');
     });
 
-    it('should store log retrievable via getLogs', () => {
+    it('should store log retrievable via getLogs', async () => {
       const ctx: ExecutionContext = {
         taskId: 'task-1',
         pluginId: 'plugin-a',
@@ -346,7 +346,7 @@ describe('PluginAuditLogger', () => {
         quota: DEFAULT_QUOTA,
       };
       logger.logExecutionStart(ctx, { key: 'value' });
-      const logs = logger.getLogs({ taskId: 'task-1' });
+      const logs = await logger.getLogs({ taskId: 'task-1' });
       expect(logs.length).toBe(1);
       expect(logs[0].action).toBe('EXECUTION_START');
       expect(logs[0].level).toBe('INFO');
@@ -355,7 +355,7 @@ describe('PluginAuditLogger', () => {
   });
 
   describe('logExecutionComplete', () => {
-    it('should log execution complete with duration', () => {
+    it('should log execution complete with duration', async () => {
       const ctx: ExecutionContext = {
         taskId: 'task-1',
         pluginId: 'plugin-a',
@@ -366,14 +366,14 @@ describe('PluginAuditLogger', () => {
       };
       const entryId = logger.logExecutionComplete(ctx, { result: 'ok' }, 1234);
       expect(entryId).toBeDefined();
-      const logs = logger.getLogs({ taskId: 'task-1', action: 'EXECUTION_COMPLETE' });
+      const logs = await logger.getLogs({ taskId: 'task-1', action: 'EXECUTION_COMPLETE' });
       expect(logs[0].durationMs).toBe(1234);
       expect(logs[0].level).toBe('INFO');
     });
   });
 
   describe('logExecutionError', () => {
-    it('should log error with error details', () => {
+    it('should log error with error details', async () => {
       const ctx: ExecutionContext = {
         taskId: 'task-1',
         pluginId: 'plugin-a',
@@ -385,7 +385,7 @@ describe('PluginAuditLogger', () => {
       const err = new Error('Something went wrong');
       const entryId = logger.logExecutionError(ctx, err, 5678);
       expect(entryId).toBeDefined();
-      const logs = logger.getLogs({ taskId: 'task-1', action: 'EXECUTION_ERROR' });
+      const logs = await logger.getLogs({ taskId: 'task-1', action: 'EXECUTION_ERROR' });
       expect(logs[0].level).toBe('ERROR');
       expect(logs[0].message).toContain('Something went wrong');
     });
@@ -510,7 +510,7 @@ describe('PluginAuditLogger', () => {
   });
 
   describe('getLogs / getSecurityEvents filtering', () => {
-    it('should filter logs by pluginId', () => {
+    it('should filter logs by pluginId', async () => {
       const ctx1: ExecutionContext = {
         taskId: 'task-1', pluginId: 'plugin-a', pipelineRunId: '', stageId: '', startedAt: new Date(), quota: DEFAULT_QUOTA,
       };
@@ -520,31 +520,31 @@ describe('PluginAuditLogger', () => {
       logger.logExecutionStart(ctx1);
       logger.logExecutionStart(ctx2);
 
-      const logsA = logger.getLogs({ pluginId: 'plugin-a' });
+      const logsA = await logger.getLogs({ pluginId: 'plugin-a' });
       expect(logsA.length).toBe(1);
       expect(logsA[0].pluginId).toBe('plugin-a');
     });
 
-    it('should filter logs by level', () => {
+    it('should filter logs by level', async () => {
       const ctx: ExecutionContext = {
         taskId: 'task-1', pluginId: 'plugin-a', pipelineRunId: '', stageId: '', startedAt: new Date(), quota: DEFAULT_QUOTA,
       };
       logger.logExecutionStart(ctx);
       logger.logExecutionError(ctx, new Error('fail'));
 
-      const errorLogs = logger.getLogs({ level: 'ERROR' });
+      const errorLogs = await logger.getLogs({ level: 'ERROR' });
       expect(errorLogs.length).toBe(1);
       expect(errorLogs[0].level).toBe('ERROR');
     });
 
-    it('should filter logs by limit', () => {
+    it('should filter logs by limit', async () => {
       for (let i = 0; i < 10; i++) {
         const ctx: ExecutionContext = {
           taskId: `task-${i}`, pluginId: 'plugin-a', pipelineRunId: '', stageId: '', startedAt: new Date(), quota: DEFAULT_QUOTA,
         };
         logger.logExecutionStart(ctx);
       }
-      const logs = logger.getLogs({ limit: 3 });
+      const logs = await logger.getLogs({ limit: 3 });
       expect(logs.length).toBe(3);
     });
 
@@ -572,7 +572,7 @@ describe('PluginAuditLogger', () => {
   });
 
   describe('cleanupExpiredLogs', () => {
-    it('should remove logs older than retention period', () => {
+    it('should remove logs older than retention period', async () => {
       logger = new PluginAuditLogger({ maxEntries: 100, retentionMs: 1 });
       const ctx: ExecutionContext = {
         taskId: 'task-1', pluginId: 'plugin-a', pipelineRunId: '', stageId: '', startedAt: new Date(), quota: DEFAULT_QUOTA,
@@ -580,13 +580,13 @@ describe('PluginAuditLogger', () => {
       logger.logExecutionStart(ctx);
 
       // Force cleanup after retention
-      const removed = logger.cleanupExpiredLogs();
+      const removed = await logger.cleanupExpiredLogs();
       expect(removed).toBeGreaterThanOrEqual(0);
     });
   });
 
   describe('logResourceUsage', () => {
-    it('should log resource usage as DEBUG level', () => {
+    it('should log resource usage as DEBUG level', async () => {
       const ctx: ExecutionContext = {
         taskId: 'task-1', pluginId: 'plugin-a', pipelineRunId: '', stageId: '', startedAt: new Date(), quota: DEFAULT_QUOTA,
       };
@@ -598,7 +598,7 @@ describe('PluginAuditLogger', () => {
         networkTxBytes: 2048,
         timestamp: new Date(),
       });
-      const logs = logger.getLogs({ level: 'DEBUG', taskId: 'task-1' });
+      const logs = await logger.getLogs({ level: 'DEBUG', taskId: 'task-1' });
       expect(logs.length).toBeGreaterThan(0);
       expect(logs[0].action).toBe('RESOURCE_USAGE');
     });

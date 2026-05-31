@@ -7,6 +7,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import pino from 'pino';
 import {
   AlertRule,
   Alert,
@@ -15,6 +16,16 @@ import {
   AlertCondition,
 } from './types';
 import { MetricCollector } from './MetricCollector';
+import {
+  MonitoringAlertRuleRepository,
+} from '../../repositories/MonitoringAlertRuleRepository';
+import {
+  MonitoringAlertInstanceRepository,
+} from '../../repositories/MonitoringAlertInstanceRepository';
+
+const logger = pino({ name: 'LAlert-LRule-LEngine' });
+
+type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
 /**
  * Internal state for cooldown tracking
@@ -36,10 +47,16 @@ interface CooldownEntry {
  * - Alert deduplication and suppression
  */
 export class AlertRuleEngine {
-  /** Registered alert rules */
+  /** Optional PostgreSQL repository for alert rules */
+  private readonly ruleRepo?: MonitoringAlertRuleRepository;
+
+  /** Optional PostgreSQL repository for alert instances */
+  private readonly alertRepo?: MonitoringAlertInstanceRepository;
+
+  /** Registered alert rules (in-memory cache) */
   private rules: Map<string, AlertRule> = new Map();
 
-  /** Active alerts: alertId -> Alert */
+  /** Active alerts: alertId -> Alert (in-memory cache) */
   private alerts: Map<string, Alert> = new Map();
 
   /** Cooldown tracking per rule */
@@ -54,8 +71,12 @@ export class AlertRuleEngine {
   /** Callback for when new alerts are created */
   onAlert?: (alert: Alert) => void;
 
-  constructor(metricCollector?: MetricCollector) {
+  constructor(metricCollector?: MetricCollector, db?: DbConnection) {
     this.metricCollector = metricCollector;
+    if (db) {
+      this.ruleRepo = new MonitoringAlertRuleRepository(db);
+      this.alertRepo = new MonitoringAlertInstanceRepository(db);
+    }
   }
 
   // ==================== Rule Management ====================
@@ -70,6 +91,24 @@ export class AlertRuleEngine {
     if (!this.cooldowns.has(rule.id)) {
       this.cooldowns.set(rule.id, { lastTriggeredAt: new Date(0) });
     }
+
+    // Persist to repository if available (fire-and-forget)
+    this.ruleRepo?.create({
+      id: rule.id,
+      tenant_id: '00000000-0000-0000-0000-000000000000',
+      name: rule.name,
+      metric: rule.metric,
+      condition: rule.condition,
+      threshold: rule.threshold,
+      severity: rule.severity,
+      enabled: rule.enabled,
+      suppressed: false,
+      cooldown_ms: rule.cooldownMs,
+      tags: rule.tags || {},
+      rate_of_change_percent: rule.rateOfChangePercent ?? null,
+      description: rule.description ?? null,
+      evaluation_window_ms: rule.evaluationWindowMs ?? null,
+    } as any).catch((err: any) => logger.warn('[AlertRuleEngine] Failed to persist rule:', err));
   }
 
   /**
@@ -81,6 +120,27 @@ export class AlertRuleEngine {
 
     const updated = { ...existing, ...updates };
     this.rules.set(ruleId, updated);
+
+    // Persist to repository if available (fire-and-forget)
+    const repoUpdate: any = {};
+    if (updates.name !== undefined) repoUpdate.name = updates.name;
+    if (updates.metric !== undefined) repoUpdate.metric = updates.metric;
+    if (updates.condition !== undefined) repoUpdate.condition = updates.condition;
+    if (updates.threshold !== undefined) repoUpdate.threshold = updates.threshold;
+    if (updates.severity !== undefined) repoUpdate.severity = updates.severity;
+    if (updates.enabled !== undefined) repoUpdate.enabled = updates.enabled;
+    if (updates.cooldownMs !== undefined) repoUpdate.cooldown_ms = updates.cooldownMs;
+    if (updates.tags !== undefined) repoUpdate.tags = updates.tags;
+    if (updates.rateOfChangePercent !== undefined) repoUpdate.rate_of_change_percent = updates.rateOfChangePercent;
+    if (updates.description !== undefined) repoUpdate.description = updates.description;
+    if (updates.evaluationWindowMs !== undefined) repoUpdate.evaluation_window_ms = updates.evaluationWindowMs;
+
+    if (Object.keys(repoUpdate).length > 0) {
+      this.ruleRepo?.update(ruleId, repoUpdate).catch((err: any) =>
+        logger.warn('[AlertRuleEngine] Failed to update rule in repository:', err)
+      );
+    }
+
     return updated;
   }
 
@@ -88,7 +148,16 @@ export class AlertRuleEngine {
    * Remove a rule
    */
   removeRule(ruleId: string): boolean {
-    return this.rules.delete(ruleId);
+    const result = this.rules.delete(ruleId);
+
+    // Persist to repository if available (fire-and-forget)
+    if (result) {
+      this.ruleRepo?.delete(ruleId).catch((err: any) =>
+        logger.warn('[AlertRuleEngine] Failed to delete rule from repository:', err)
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -112,6 +181,12 @@ export class AlertRuleEngine {
     const rule = this.rules.get(ruleId);
     if (!rule) return false;
     rule.enabled = enabled;
+
+    // Persist to repository if available (fire-and-forget)
+    this.ruleRepo?.toggleEnabled(ruleId, enabled).catch((err: any) =>
+      logger.warn('[AlertRuleEngine] Failed to toggle rule in repository:', err)
+    );
+
     return true;
   }
 
@@ -168,6 +243,11 @@ export class AlertRuleEngine {
           activeAlertId: alert.id,
         });
 
+        // Persist alert to repository (fire-and-forget)
+        this.alertRepo?.create(this.alertToEntity(alert) as any).catch((err: any) =>
+          logger.warn('[AlertRuleEngine] Failed to persist alert:', err)
+        );
+
         // Notify callback
         if (this.onAlert) {
           this.onAlert(alert);
@@ -200,6 +280,11 @@ export class AlertRuleEngine {
         lastTriggeredAt: now,
         activeAlertId: alert.id,
       });
+
+      // Persist alert to repository (fire-and-forget)
+      this.alertRepo?.create(this.alertToEntity(alert) as any).catch((err: any) =>
+        logger.warn('[AlertRuleEngine] Failed to persist alert:', err)
+      );
 
       if (this.onAlert) {
         this.onAlert(alert);
@@ -248,6 +333,11 @@ export class AlertRuleEngine {
       entry.activeAlertId = undefined;
     }
 
+    // Persist to repository (fire-and-forget)
+    this.alertRepo?.updateStatus(alertId, 'resolved').catch((err: any) =>
+      logger.warn('[AlertRuleEngine] Failed to resolve alert in repository:', err)
+    );
+
     return alert;
   }
 
@@ -263,6 +353,11 @@ export class AlertRuleEngine {
     alert.acknowledgedAt = new Date();
     alert.acknowledgedBy = acknowledgedBy;
 
+    // Persist to repository (fire-and-forget)
+    this.alertRepo?.updateStatus(alertId, 'acknowledged', { acknowledged_by: acknowledgedBy }).catch((err: any) =>
+      logger.warn('[AlertRuleEngine] Failed to acknowledge alert in repository:', err)
+    );
+
     return alert;
   }
 
@@ -274,6 +369,12 @@ export class AlertRuleEngine {
     if (!alert) return null;
 
     alert.status = 'suppressed';
+
+    // Persist to repository (fire-and-forget)
+    this.alertRepo?.updateStatus(alertId, 'suppressed').catch((err: any) =>
+      logger.warn('[AlertRuleEngine] Failed to suppress alert in repository:', err)
+    );
+
     return alert;
   }
 
@@ -466,5 +567,30 @@ export class AlertRuleEngine {
     }
 
     return all;
+  }
+
+  // ==================== Private Helpers ====================
+
+  /**
+   * Convert an Alert to a repository entity object
+   */
+  private alertToEntity(alert: Alert): Record<string, any> {
+    return {
+      id: alert.id,
+      tenant_id: '00000000-0000-0000-0000-000000000000',
+      rule_id: alert.ruleId,
+      rule_name: alert.ruleName ?? null,
+      metric: alert.metric,
+      value: alert.value,
+      threshold: alert.threshold,
+      severity: alert.severity,
+      status: alert.status,
+      triggered_at: alert.triggeredAt,
+      acknowledged_at: alert.acknowledgedAt ?? null,
+      acknowledged_by: alert.acknowledgedBy ?? null,
+      resolved_at: alert.resolvedAt ?? null,
+      tags: alert.tags || {},
+      message: alert.message ?? null,
+    };
   }
 }

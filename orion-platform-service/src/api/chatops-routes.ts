@@ -100,7 +100,7 @@ export default async function chatopsRoutes(
 
   // CommandRouter: 注册真实服务 handler (若注入)，否则使用内置 mock handler
   const serviceMap = new Map<string, any>();
-  const commandRouter = new CommandRouter(serviceMap);
+  const commandRouter = new CommandRouter(serviceMap, db);
 
   // 注册真实服务 handler
   if (options.pipelineService) {
@@ -308,17 +308,17 @@ export default async function chatopsRoutes(
   let connectionManager: SSEConnectionManager | null = null;
 
   if (options.eventBus) {
-    eventSubscriber = new ChatOpsEventSubscriber(options.eventBus);
+    eventSubscriber = new ChatOpsEventSubscriber(options.eventBus, db);
     await eventSubscriber.initialize().catch(err => {
       logger.warn('[ChatOpsRoutes] EventSubscriber initialization failed:', err);
     });
 
-    connectionManager = new SSEConnectionManager(eventSubscriber!.getLocalBus());
+    connectionManager = new SSEConnectionManager(eventSubscriber!.getLocalBus(), db);
 
     // Register shutdown handler
     const gracefulShutdown = () => {
-      connectionManager?.shutdown();
-      eventSubscriber?.cleanup();
+      connectionManager?.shutdown().catch(() => {});
+      eventSubscriber?.cleanup().catch(() => {});
     };
     process.on('SIGTERM', gracefulShutdown);
     process.on('SIGINT', gracefulShutdown);

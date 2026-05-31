@@ -22,6 +22,7 @@ import {
   TicketSLA,
 } from './types';
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
+import { AssignmentRuleRepository } from '../../repositories/AssignmentRuleRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
@@ -64,8 +65,9 @@ const DEFAULT_SLA_TARGETS: SLATarget[] = [
  * - Escalation for overdue tickets
  */
 export class TicketWorkflowService {
-  /** Assignment rules (in-memory, no DB table yet) */
-  private assignmentRules: AssignmentRule[] = [];
+  /** Assignment rules - migrated to repository */
+  private assignmentRuleRepository?: AssignmentRuleRepository;
+  private assignmentRules: AssignmentRule[] = []; // in-memory cache
 
   /** SLA targets (in-memory configuration) */
   private slaTargets: SLATarget[] = [...DEFAULT_SLA_TARGETS];
@@ -89,6 +91,7 @@ export class TicketWorkflowService {
     if (db) {
       this.workflowRepository = new TicketWorkflowRepository(db);
       this.slaRepository = new TicketSLARepository(db);
+      this.assignmentRuleRepository = new AssignmentRuleRepository(db);
     }
     if (options && options.ticketingRepository) {
       this.ticketingRepository = options.ticketingRepository;
@@ -402,6 +405,19 @@ export class TicketWorkflowService {
   addAssignmentRule(rule: AssignmentRule): void {
     this.assignmentRules.push(rule);
     this.assignmentRules.sort((a, b) => a.order - b.order);
+
+    // Persist to repository
+    if (this.assignmentRuleRepository) {
+      this.assignmentRuleRepository.create({
+        id: rule.id,
+        name: rule.name,
+        categories: rule.categories,
+        assignee: rule.assignee,
+        priorities: rule.priorities || null,
+        enabled: rule.enabled,
+        ruleOrder: rule.order,
+      }).catch(() => {/* ignore */});
+    }
   }
 
   /**
@@ -418,6 +434,12 @@ export class TicketWorkflowService {
     const idx = this.assignmentRules.findIndex(r => r.id === ruleId);
     if (idx === -1) return false;
     this.assignmentRules.splice(idx, 1);
+
+    // Persist deletion to repository
+    if (this.assignmentRuleRepository) {
+      this.assignmentRuleRepository.delete(ruleId).catch(() => {/* ignore */});
+    }
+
     return true;
   }
 

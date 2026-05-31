@@ -305,7 +305,7 @@ async function registerWithPermission(
 
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
   // ==================== SSE Service Initialization (shared with pipeline engine) ====================
-  const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());
+  const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter(), options.database);
 
   // ==================== LLM Trace Service Initialization ====================
   initLLMTrace(options.database);
@@ -415,8 +415,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
       return configSvc.get('moduleConfig') || DEFAULT_MODULE_CONFIG;
     }
     return DEFAULT_MODULE_CONFIG;
-  });
-  moduleManager.loadFromConfig();
+  }, options.database);
+  await moduleManager.loadFromConfig();
   (options as any).moduleManager = moduleManager;
 
   // CMDB 路由已在下方统一注册（Phase 3.5）
@@ -707,7 +707,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // ==================== Community Ecosystem Services ====================
-  if (moduleManager.isModuleEnabled('domain:community')) {
+  if (await moduleManager.isModuleEnabled('domain:community')) {
     await registerWithRoleGuard(app, communityRoutes, '/community');
   } else {
     logger.info('[routes] Community module disabled, skipping route registration');

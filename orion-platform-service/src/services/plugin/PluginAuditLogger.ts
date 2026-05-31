@@ -23,6 +23,7 @@ import {
 } from './types';
 import { PluginAuditLogRepository } from '../../repositories/PluginAuditLogRepository';
 import { PluginSecurityEventRepository } from '../../repositories/PluginSecurityEventRepository';
+import { PluginAuditEntryRepository } from '../../repositories/PluginAuditEntryRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -76,6 +77,9 @@ const DLP_PATTERNS: Record<string, { pattern: RegExp; type: DLPPattern['type'] }
 export class PluginAuditLogger extends EventEmitter {
   private logs: Map<string, AuditLogEntry> = new Map();
 
+  /** Audit entries - migrated to repository */
+  private auditEntryRepository?: PluginAuditEntryRepository;
+
   /** Security events - migrated to repository */
   private securityEventRepository?: PluginSecurityEventRepository;
   private securityEvents: Map<string, SecurityEvent> = new Map(); // in-memory cache
@@ -92,6 +96,7 @@ export class PluginAuditLogger extends EventEmitter {
       enableSecurityAlerts: config?.enableSecurityAlerts ?? true,
     };
     if (db) {
+      this.auditEntryRepository = new PluginAuditEntryRepository(db);
       this.securityEventRepository = new PluginSecurityEventRepository(db);
     }
 
@@ -336,13 +341,42 @@ export class PluginAuditLogger extends EventEmitter {
   /**
    * 获取审计日志
    */
-  getLogs(options?: {
+  async getLogs(options?: {
     taskId?: string;
     pluginId?: string;
     level?: AuditLogLevel;
     action?: string;
     limit?: number;
-  }): AuditLogEntry[] {
+  }): Promise<AuditLogEntry[]> {
+    // Read from repository when available
+    if (this.auditEntryRepository) {
+      try {
+        const entities = await this.auditEntryRepository.findByFilters({
+          taskId: options?.taskId,
+          pluginId: options?.pluginId,
+          level: options?.level,
+          action: options?.action,
+          limit: options?.limit,
+        });
+        return entities.map(e => ({
+          id: e.id,
+          timestamp: e.entryAt,
+          level: e.level as AuditLogLevel,
+          taskId: e.taskId || '',
+          pluginId: e.pluginId || '',
+          action: e.action as AuditLogEntry['action'],
+          message: e.message || '',
+          input: e.input,
+          output: e.output,
+          durationMs: e.durationMs || undefined,
+          metadata: e.metadata,
+        }));
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to read audit entries from repository, falling back to in-memory');
+      }
+    }
+
+    // Fallback to in-memory
     let entries = Array.from(this.logs.values());
 
     if (options?.taskId) {
@@ -412,12 +446,12 @@ export class PluginAuditLogger extends EventEmitter {
   /**
    * 清理过期日志
    */
-  cleanupExpiredLogs(): number {
+  async cleanupExpiredLogs(): Promise<number> {
     const now = Date.now();
     const expiredThreshold = now - this.config.retentionMs;
     let removedCount = 0;
 
-    // 清理审计日志
+    // 清理审计日志 (in-memory)
     for (const [id, entry] of this.logs.entries()) {
       if (entry.timestamp.getTime() < expiredThreshold) {
         this.logs.delete(id);
@@ -425,19 +459,28 @@ export class PluginAuditLogger extends EventEmitter {
       }
     }
 
-    // 清理安全事件
+    // 清理安全事件 (in-memory)
     for (const [id, event] of this.securityEvents.entries()) {
       if (event.timestamp.getTime() < expiredThreshold) {
         this.securityEvents.delete(id);
       }
     }
 
-    // Persist cleanup to repository
+    // Persist cleanup to repositories
+    if (this.auditEntryRepository) {
+      try {
+        const dbRemoved = await this.auditEntryRepository.cleanupExpired(this.config.retentionMs);
+        removedCount += dbRemoved;
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to cleanup expired audit entries from repository');
+      }
+    }
+
     if (this.securityEventRepository) {
       this.securityEventRepository.cleanupExpired(this.config.retentionMs).catch(() => {/* ignore */});
     }
 
-    // 如果超过最大条目数，删除最旧的
+    // 如果超过最大条目数，删除最旧的 (in-memory only)
     if (this.logs.size > this.config.maxEntries) {
       const entries = Array.from(this.logs.values()).sort(
         (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
@@ -470,6 +513,27 @@ export class PluginAuditLogger extends EventEmitter {
   private addLog(entry: AuditLogEntry): void {
     this.logs.set(entry.id, entry);
     this.emit('log:created', entry);
+
+    // Persist to repository
+    if (this.auditEntryRepository) {
+      const tenantId = entry.metadata?.tenantId as string | undefined;
+      this.auditEntryRepository.create({
+        id: entry.id,
+        tenant_id: tenantId || null,
+        plugin_id: entry.pluginId || null,
+        task_id: entry.taskId || null,
+        level: entry.level,
+        action: entry.action,
+        message: entry.message || null,
+        input: entry.input ? JSON.stringify(entry.input) : null,
+        output: entry.output ? JSON.stringify(entry.output) : null,
+        duration_ms: entry.durationMs ?? null,
+        metadata: entry.metadata || {},
+        entry_at: entry.timestamp,
+      }).catch(err => {
+        logger.warn({ entryId: entry.id, error: err }, 'Failed to persist audit entry to repository');
+      });
+    }
   }
 
   /**

@@ -3,7 +3,14 @@
  *
  * 参照 apkgo 项目的设计，提供统一的APK上传到各应用市场的接口
  * 支持：华为、小米、OPPO、VIVO、荣耀、腾讯应用宝、蒲公英、fir.im等
+ *
+ * PostgreSQL 持久化说明：
+ * - MarketUploader 对象包含 upload() 方法，无法序列化到数据库
+ * - 上传器注册元数据（市场名称、状态）持久化到 apk_market_registrations 表
+ * - uploaders Map 保留为运行时上传器注册表
  */
+
+import { ApkMarketUploaderRepository } from '../../repositories/ApkMarketUploaderRepository';
 
 export interface UploadRequest {
   /** APK文件路径（本地路径或HTTP URL） */
@@ -139,8 +146,12 @@ export enum ErrorCategory {
  */
 export class ApkMarketUploadService {
   private uploaders: Map<string, MarketUploader> = new Map();
+  private repository: ApkMarketUploaderRepository | null = null;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new ApkMarketUploaderRepository(db);
+    }
     this.registerDefaultUploaders();
   }
 
@@ -153,9 +164,17 @@ export class ApkMarketUploadService {
 
   /**
    * 注册自定义上传器
+   * MarketUploader 对象保留为运行时对象（含 upload 方法），无法序列化到 DB
+   * 注册元数据异步持久化到 PostgreSQL
    */
   registerUploader(uploader: MarketUploader) {
-    this.uploaders.set(uploader.name().toLowerCase(), uploader);
+    const name = uploader.name().toLowerCase();
+    this.uploaders.set(name, uploader);
+
+    // PostgreSQL 持久化（异步，不阻塞）
+    if (this.repository) {
+      this.repository.upsertRegistration(name, 'active').catch(() => { /* 持久化失败不阻塞 */ });
+    }
   }
 
   /**

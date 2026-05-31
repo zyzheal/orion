@@ -19,6 +19,11 @@
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import { CircuitState } from './types';
+import {
+  ProviderCBStateRepository,
+  ProviderCBMetricsRepository,
+  ProviderCBRequestHistoryRepository,
+} from '../../repositories/ProviderCircuitBreakerRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -122,9 +127,80 @@ export class ProviderCircuitBreaker extends EventEmitter {
   /** Provider -> OPEN状态开始时间 */
   private openStartTimes: Map<string, Date> = new Map();
 
-  constructor(config: Partial<ProviderCircuitBreakerConfig> = {}) {
+  // Repositories (optional, for PostgreSQL persistence)
+  private stateRepo: ProviderCBStateRepository | null = null;
+  private metricsRepo: ProviderCBMetricsRepository | null = null;
+  private historyRepo: ProviderCBRequestHistoryRepository | null = null;
+
+  constructor(
+    config: Partial<ProviderCircuitBreakerConfig> = {},
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+
+    // Initialize repositories if db is provided
+    if (db) {
+      this.stateRepo = new ProviderCBStateRepository(db);
+      this.metricsRepo = new ProviderCBMetricsRepository(db);
+      this.historyRepo = new ProviderCBRequestHistoryRepository(db);
+    }
+  }
+
+  /**
+   * 从数据库恢复状态（启动时调用）
+   */
+  async restoreState(): Promise<void> {
+    if (!this.stateRepo) return;
+
+    try {
+      // Restore states
+      const stateEntities = await this.stateRepo.listAll();
+      for (const entity of stateEntities) {
+        const stateDetail: ProviderCircuitStateDetail = {
+          providerId: entity.provider_id,
+          state: entity.state as CircuitState,
+          failureCount: entity.failure_count,
+          successCount: entity.success_count,
+          lastFailureTime: entity.last_failure_time || undefined,
+          lastSuccessTime: entity.last_success_time || undefined,
+          lastStateChangeTime: entity.last_state_change_time,
+          halfOpenProbeCount: entity.half_open_probe_count,
+          openStartTime: entity.open_start_time || undefined,
+        };
+        this.states.set(entity.provider_id, stateDetail);
+
+        if (entity.open_start_time) {
+          this.openStartTimes.set(entity.provider_id, entity.open_start_time);
+        }
+      }
+
+      // Restore metrics
+      if (this.metricsRepo) {
+        const metricsEntities = await this.metricsRepo.listAll();
+        for (const entity of metricsEntities) {
+          this.metrics.set(entity.provider_id, {
+            providerId: entity.provider_id,
+            totalRequests: entity.total_requests,
+            failedRequests: entity.failed_requests,
+            successRequests: entity.success_requests,
+            failureRate: entity.failure_rate,
+            successRate: entity.success_rate,
+            avgLatency: entity.avg_latency,
+            p95Latency: entity.p95_latency,
+            lastFailureTime: entity.last_failure_time || undefined,
+            lastSuccessTime: entity.last_success_time || undefined,
+          });
+        }
+      }
+
+      logger.info({
+        msg: 'ProviderCircuitBreaker state restored from DB',
+        stateCount: stateEntities.length,
+      });
+    } catch (error) {
+      logger.error({ msg: 'Failed to restore ProviderCircuitBreaker state from DB', error });
+    }
   }
 
   /**
@@ -275,18 +351,72 @@ export class ProviderCircuitBreaker extends EventEmitter {
         }
       }
     }
+
+    // Persist request history to DB
+    if (this.historyRepo) {
+      this.historyRepo.create({
+        id: `${providerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        provider_id: providerId,
+        success,
+        latency,
+        request_time: new Date(),
+      }).then(() => {
+        // Prune old records
+        return this.historyRepo!.pruneOldRecords(providerId, new Date(cutoff));
+      }).catch(err => logger.error({ msg: 'Failed to persist request history', error: err }));
+    }
+
+    // Persist metrics to DB
+    if (this.metricsRepo) {
+      const currentMetrics = this.metrics.get(providerId);
+      if (currentMetrics) {
+        this.metricsRepo.upsertByProviderId({
+          id: `metrics-${providerId}`,
+          providerId,
+          totalRequests: currentMetrics.totalRequests,
+          failedRequests: currentMetrics.failedRequests,
+          successRequests: currentMetrics.successRequests,
+          failureRate: currentMetrics.failureRate,
+          successRate: currentMetrics.successRate,
+          avgLatency: currentMetrics.avgLatency,
+          p95Latency: currentMetrics.p95Latency,
+          lastFailureTime: currentMetrics.lastFailureTime,
+          lastSuccessTime: currentMetrics.lastSuccessTime,
+        }).catch(err => logger.error({ msg: 'Failed to persist metrics', error: err }));
+      }
+    }
+
+    // Persist state to DB
+    if (this.stateRepo) {
+      const currentState = this.states.get(providerId);
+      if (currentState) {
+        this.stateRepo.upsertByProviderId({
+          id: `state-${providerId}`,
+          providerId,
+          state: currentState.state,
+          failureCount: currentState.failureCount,
+          successCount: currentState.successCount,
+          lastFailureTime: currentState.lastFailureTime,
+          lastSuccessTime: currentState.lastSuccessTime,
+          lastStateChangeTime: currentState.lastStateChangeTime,
+          halfOpenProbeCount: currentState.halfOpenProbeCount,
+          openStartTime: this.openStartTimes.get(providerId),
+        }).catch(err => logger.error({ msg: 'Failed to persist provider state', error: err }));
+      }
+    }
   }
 
   /**
    * 手动重置Provider熔断器
    */
   reset(providerId: string): void {
+    const now = new Date();
     this.states.set(providerId, {
       providerId,
       state: 'CLOSED',
       failureCount: 0,
       successCount: 0,
-      lastStateChangeTime: new Date(),
+      lastStateChangeTime: now,
       halfOpenProbeCount: 0,
     });
     this.requestHistory.delete(providerId);
@@ -305,7 +435,35 @@ export class ProviderCircuitBreaker extends EventEmitter {
     });
 
     logger.info(`[ProviderCircuitBreaker] ${providerId} reset to CLOSED`);
-    this.emit('provider:reset', { providerId, timestamp: new Date() });
+    this.emit('provider:reset', { providerId, timestamp: now });
+
+    // Persist to DB
+    if (this.stateRepo) {
+      this.stateRepo.upsertByProviderId({
+        id: `state-${providerId}`,
+        providerId,
+        state: 'CLOSED',
+        failureCount: 0,
+        successCount: 0,
+        lastStateChangeTime: now,
+        halfOpenProbeCount: 0,
+      }).catch(err => logger.error({ msg: 'Failed to persist provider reset', error: err }));
+    }
+
+    // Reset metrics in DB
+    if (this.metricsRepo) {
+      this.metricsRepo.upsertByProviderId({
+        id: `metrics-${providerId}`,
+        providerId,
+        totalRequests: 0,
+        failedRequests: 0,
+        successRequests: 0,
+        failureRate: 0,
+        successRate: 0,
+        avgLatency: 0,
+        p95Latency: 0,
+      }).catch(err => logger.error({ msg: 'Failed to persist metrics reset', error: err }));
+    }
   }
 
   /**
@@ -453,6 +611,22 @@ export class ProviderCircuitBreaker extends EventEmitter {
       `[ProviderCircuitBreaker] ${providerId} transitioned: ${oldState} -> ${newState} (reason: ${reason})`
     );
     this.emit('state:changed', event);
+
+    // Persist state change to DB
+    if (this.stateRepo) {
+      this.stateRepo.upsertByProviderId({
+        id: `state-${providerId}`,
+        providerId,
+        state: newState,
+        failureCount: stateDetail.failureCount,
+        successCount: stateDetail.successCount,
+        lastFailureTime: stateDetail.lastFailureTime,
+        lastSuccessTime: stateDetail.lastSuccessTime,
+        lastStateChangeTime: stateDetail.lastStateChangeTime,
+        halfOpenProbeCount: stateDetail.halfOpenProbeCount,
+        openStartTime: this.openStartTimes.get(providerId),
+      }).catch(err => logger.error({ msg: 'Failed to persist provider state transition', error: err }));
+    }
   }
 
   /**

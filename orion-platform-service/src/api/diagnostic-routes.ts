@@ -38,6 +38,7 @@ export default async function diagnosticRoutes(
     const repository = new DiagnosticRepository(options.database);
     const config: DiagnosticAgentServiceConfig = {
       repository,
+      db: options.database,
     };
     service = new DiagnosticAgentService(config);
   } else if (options.diagnosticAgentService) {
@@ -155,7 +156,7 @@ export default async function diagnosticRoutes(
       }
 
       // 尝试获取关联报告
-      const report = service.getReportBySession(id);
+      const report = await service.getReportBySession(id);
 
       return reply.send({
         data: session,
@@ -269,7 +270,7 @@ export default async function diagnosticRoutes(
       };
       const { sessionId, tenantId, limit } = query;
 
-      const reports = service.getReportHistory({
+      const reports = await service.getReportHistory({
         sessionId,
         tenantId,
         limit: limit ? parseInt(limit, 10) : undefined,
@@ -298,7 +299,7 @@ export default async function diagnosticRoutes(
       reply: FastifyReply
     ) => {
       const { id } = request.params as { id: string };
-      const report = service.getReport(id);
+      const report = await service.getReport(id);
 
       if (!report) {
         return reply.status(404).send({
@@ -329,7 +330,7 @@ export default async function diagnosticRoutes(
       const { id } = request.params as { id: string };
 
       try {
-        const complexity = service.estimateFixComplexity(id);
+        const complexity = await service.estimateFixComplexity(id);
         return reply.send({
           data: complexity,
         });
@@ -370,7 +371,7 @@ export default async function diagnosticRoutes(
         });
       }
 
-      const pattern = service.addPattern({
+      const pattern = await service.addPattern({
         name,
         symptoms,
         rootCause,
@@ -405,7 +406,7 @@ export default async function diagnosticRoutes(
       };
       const { category, keyword, minFrequency, limit } = query;
 
-      const patterns = service.searchPatterns({
+      const patterns = await service.searchPatterns({
         category,
         keyword,
         minFrequency: minFrequency ? parseInt(minFrequency, 10) : undefined,
@@ -435,7 +436,7 @@ export default async function diagnosticRoutes(
       reply: FastifyReply
     ) => {
       const { id } = request.params as { id: string };
-      const pattern = service.getPattern(id);
+      const pattern = await service.getPattern(id);
 
       if (!pattern) {
         return reply.status(404).send({
@@ -460,7 +461,7 @@ export default async function diagnosticRoutes(
       onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const stats = service.getKnowledgeBaseStats();
+      const stats = await service.getKnowledgeBaseStats();
       return reply.send({
         data: stats,
       });
@@ -496,7 +497,7 @@ export default async function diagnosticRoutes(
         });
       }
 
-      const outcome = service.recordOutcome({
+      const outcome = await service.recordOutcome({
         sessionId,
         patternId,
         confirmed,
@@ -519,7 +520,7 @@ export default async function diagnosticRoutes(
   app.get('/status', {
     onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const status = service.getStatus();
+    const status = await service.getStatus();
     return reply.send({
       data: status,
     });

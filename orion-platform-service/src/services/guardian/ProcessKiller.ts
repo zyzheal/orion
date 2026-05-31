@@ -1,29 +1,69 @@
 import pino from 'pino';
 import { spawn } from 'child_process';
 import { OrionError } from '../../errors';
+import { ProcessRegistryRepository } from '../../repositories/ProcessRegistryRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface ProcessInfo {
   taskId: string;
   pid: number;
-  pgid?: number;  // Process group ID
+  pgid?: number;
   containerId?: string;
 }
 
 export class ProcessKiller {
-  private processes: Map<string, ProcessInfo> = new Map();
+  private repository?: ProcessRegistryRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new ProcessRegistryRepository(db);
+    }
+  }
 
   register(processInfo: ProcessInfo): void {
-    this.processes.set(processInfo.taskId, processInfo);
+    if (this.repository) {
+      this.repository.create({
+        id: uuidv4(),
+        taskId: processInfo.taskId,
+        pid: processInfo.pid,
+        pgid: processInfo.pgid ?? null,
+        containerId: processInfo.containerId ?? null,
+        status: 'active',
+      }).catch((err) => {
+        logger.warn({ err, taskId: processInfo.taskId }, 'Failed to persist process registration');
+      });
+    }
   }
 
   unregister(taskId: string): void {
-    this.processes.delete(taskId);
+    if (this.repository) {
+      this.repository.deleteByTaskId(taskId).catch((err) => {
+        logger.warn({ err, taskId }, 'Failed to delete process from DB');
+      });
+    }
   }
 
   async kill(taskId: string, reason: string): Promise<void> {
-    const processInfo = this.processes.get(taskId);
+    let processInfo: ProcessInfo | undefined;
+
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findByTaskId(taskId);
+        if (entity) {
+          processInfo = {
+            taskId: entity.taskId,
+            pid: entity.pid,
+            pgid: entity.pgid ?? undefined,
+            containerId: entity.containerId ?? undefined,
+          };
+        }
+      } catch (err) {
+        logger.warn({ err, taskId }, 'Failed to find process in DB');
+      }
+    }
+
     if (!processInfo) {
       logger.warn({ taskId }, 'Process not found, nothing to kill');
       return;
@@ -35,10 +75,8 @@ export class ProcessKiller {
     logger.info({ taskId }, 'Phase 1: Giving SIGTERM to process group');
     try {
       const targetPid = processInfo.pgid || processInfo.pid;
-      // Negative PID means process group
       process.kill(-targetPid, 'SIGTERM');
     } catch {
-      // Fallback to single process
       try {
         process.kill(processInfo.pid, 'SIGTERM');
       } catch {
@@ -76,7 +114,12 @@ export class ProcessKiller {
       }
     }
 
-    this.processes.delete(taskId);
+    // Mark as killed in DB
+    if (this.repository) {
+      this.repository.markKilled(taskId).catch((err) => {
+        logger.warn({ err, taskId }, 'Failed to mark process as killed in DB');
+      });
+    }
   }
 
   private isAlive(pid: number): boolean {
@@ -101,11 +144,9 @@ export class ProcessKiller {
   }
 
   private dockerCommand(containerId: string, command: string, timeoutMs: number = 10000): Promise<void> {
-    // Validate containerId to prevent injection via malformed IDs
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(containerId)) {
       throw new OrionError('VALIDATION_ERROR', `Invalid container ID: ${containerId}`)
     }
-    // Validate command to prevent arbitrary docker subcommand execution
     const allowedCommands = new Set(['pause', 'unpause', 'kill', 'stop', 'rm']);
     if (!allowedCommands.has(command)) {
       throw new OrionError('VALIDATION_ERROR', `Invalid docker command: ${command}`)
@@ -118,7 +159,6 @@ export class ProcessKiller {
       let stdout = '';
       let stderr = '';
 
-      // SRE: Timeout to prevent indefinite hang if Docker daemon is unresponsive
       const timer = setTimeout(() => {
         try { child.kill('SIGKILL'); } catch { /* already dead */ }
         reject(new Error(`docker ${command} timed out after ${timeoutMs}ms`));
