@@ -1,3 +1,4 @@
+import { ErrorCode } from '../../errors';
 /**
  * ConfigDiffService - Configuration Diff & Comparison
  *

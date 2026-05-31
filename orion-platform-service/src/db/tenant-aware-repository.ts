@@ -15,7 +15,7 @@ import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-reposi
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
 import { tenantContext } from '../services/tenant/TenantContext';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

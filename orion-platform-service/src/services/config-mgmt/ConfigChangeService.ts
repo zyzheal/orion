@@ -16,7 +16,7 @@ import { DatabasePool } from '../database';
 import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LConfig-LChange-LService' });
 

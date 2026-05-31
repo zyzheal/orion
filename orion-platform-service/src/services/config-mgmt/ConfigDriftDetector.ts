@@ -13,7 +13,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import { ConfigService } from './ConfigService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ============================================================
 // Types

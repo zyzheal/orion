@@ -23,7 +23,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { SelfHealingController } from '../api/controllers/SelfHealingController';
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
 import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export default async function selfHealingRoutes(
   app: FastifyInstance,

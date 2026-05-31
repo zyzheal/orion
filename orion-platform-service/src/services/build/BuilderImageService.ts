@@ -20,7 +20,7 @@ import {
   updateBuilderImage,
   isImageAvailable,
 } from '../../models/BuilderImage';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 预置镜像定义

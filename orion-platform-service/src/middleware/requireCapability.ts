@@ -30,7 +30,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CapabilityService } from '../services/capability';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'require-LCapability' });
 

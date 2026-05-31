@@ -17,7 +17,7 @@ import {
   RecoveryPlan,
 } from './types';
 import { BackupStorage } from './BackupStorage';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { BackupVerificationRepository } from '../../repositories/BackupVerificationRepository';
 
 /**

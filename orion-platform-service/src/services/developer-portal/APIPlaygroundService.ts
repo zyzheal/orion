@@ -152,7 +152,7 @@ export class APIPlaygroundService {
       .filter((r) => r.tenantId === tenantId && r.userId === userId);
 
     if (options?.method) {
-      requests = requests.filter((r) => r.method === options.method.toUpperCase());
+      requests = requests.filter((r) => r.method === options.method!.toUpperCase());
     }
 
     requests.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());

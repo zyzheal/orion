@@ -18,7 +18,7 @@ import {
   ChainBreak,
   DEFAULT_CHAIN_CONFIG,
 } from './AuditTypes';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'audit-chain' });
 

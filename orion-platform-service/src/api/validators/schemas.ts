@@ -3,7 +3,7 @@
  */
 
 import { FastifyRequest } from 'fastify';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export const pipelineSchema = {
   type: 'object',

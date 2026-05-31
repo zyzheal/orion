@@ -12,7 +12,7 @@ import * as yaml from 'js-yaml';
 import { spawn } from 'child_process';
 import pino from 'pino';
 import { PipelineStep } from '../../engine/YamlPreprocessor';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'shared-action-service' });
 

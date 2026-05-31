@@ -13,7 +13,7 @@ import pino from 'pino';
 import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 import { CronExecutionRepository, CronExecutionEntity } from '../../repositories/CronExecutionRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

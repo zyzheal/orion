@@ -11,7 +11,7 @@ import {
   WorkflowInstanceStatus,
   WorkflowHistory,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = require('pino')({ name: 'WorkflowRepository' });
 

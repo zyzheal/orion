@@ -32,7 +32,7 @@ import {
 } from './types';
 import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LSelf-LHealing-LService' });
 

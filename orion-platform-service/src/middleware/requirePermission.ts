@@ -12,7 +12,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthZRequest } from '../services/authz/AuthorizationEngine';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface RequirePermissionOptions {
   resource: string;

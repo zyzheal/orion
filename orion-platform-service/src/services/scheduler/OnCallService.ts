@@ -16,7 +16,7 @@ interface RawEntityEscalation {
 }
 import { OnCallAssignmentRepository, OnCallAssignmentEntity } from '../../repositories/OnCallAssignmentRepository';
 import { OnCallOverrideRepository, OnCallOverrideEntity } from '../../repositories/OnCallOverrideRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

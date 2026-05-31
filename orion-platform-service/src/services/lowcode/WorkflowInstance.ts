@@ -13,7 +13,7 @@ import {
   WorkflowDefinition,
 } from './types';
 import { WorkflowInstanceRepository } from './WorkflowRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = require('pino')({ name: 'WorkflowInstance' });
 

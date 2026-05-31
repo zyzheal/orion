@@ -10,7 +10,7 @@ import {
   PortalDocumentService,
   PortalDocumentServiceError,
 } from '../../services/developer-portal/PortalDocumentService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class PortalDocumentController {
   private service: PortalDocumentService;

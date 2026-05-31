@@ -10,7 +10,7 @@ import { EscalationConfigService, EscalationPolicy } from './EscalationConfigSer
 import { TicketingRepository } from '../ticketing/TicketingRepository';
 import { EventBusService } from '../event-bus-service';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

@@ -249,11 +249,7 @@ export class StageOrchestrator {
   async executeStage(
     execution: PipelineExecution,
     stage: Stage,
-    callbacks: {
-      checkAndExecuteDeploymentStrategy: (execution: PipelineExecution, stage: Stage, tasks: Array<{ id: string; name: string; type: string; parameters: Record<string, unknown>; status?: string }>) => Promise<'success' | 'failed' | null>;
-      checkStageQualityGate: (execution: PipelineExecution, stage: Stage) => Promise<{ reason: string } | undefined>;
-      checkRunCompletion: (execution: PipelineExecution) => void;
-    }
+    callbacks: any
   ): Promise<void> {
     // 更新 Stage 状态为 running
     const runningStage = {

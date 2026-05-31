@@ -9,7 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { abacPolicyEngine, AbacPolicy, ConditionRule } from '../services/authz/AbacPolicyEngine';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 interface PolicyParams {
   id: string;

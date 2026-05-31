@@ -522,12 +522,12 @@ export class RootCauseAnalysisService {
    * 生成部署时间线报告
    * GET /rca/:deploymentId/timeline
    */
-  generateTimelineReport(
+  async generateTimelineReport(
     deploymentId: string,
     timeWindow: { start: Date; end: Date },
     alerts: RcaAlert[] = [],
     deploymentEvents: Array<{ timestamp: Date; description: string; type?: string }> = [],
-  ): TimelineReport {
+  ): Promise<TimelineReport> {
     const events: TimelineEvent[] = [];
 
     // Convert alerts to timeline events

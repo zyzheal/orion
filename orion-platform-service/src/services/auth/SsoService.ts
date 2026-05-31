@@ -26,7 +26,7 @@ import {
   type TokenEndpointResponseHelpers,
 } from 'openid-client';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

@@ -17,7 +17,7 @@ import {
   DegradationResult,
   AI_SCENARIO_PRIORITY,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // 默认配置
 const DEFAULT_CONFIG: RuleEngineConfig = {

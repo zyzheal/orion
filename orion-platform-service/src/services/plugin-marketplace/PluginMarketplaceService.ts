@@ -23,7 +23,7 @@ import {
 } from '../../repositories/PluginAuditLogRepository';
 import type { DatabasePool } from '../database';
 import { PluginInfo, PluginType, PluginState } from '../plugin-manager-service';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

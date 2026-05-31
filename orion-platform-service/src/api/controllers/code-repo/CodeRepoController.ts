@@ -13,7 +13,7 @@ import {
   PullRequestStatus,
   MergeStrategy,
 } from '../../../services/code-repo';
-import { OrionError, ErrorCode } from '../../../../errors';
+import { OrionError, ErrorCode } from '../../../errors';
 
 /** 已注册的代码仓库适配器 */
 const adapters = new Map<string, ICodeRepoAdapter>();

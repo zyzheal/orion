@@ -12,7 +12,7 @@ import {
   TriggerEntity,
   TriggerEventEntity,
 } from '../../repositories/Phase3Repository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface TriggerConfig {
   conditions?: Record<string, any>;

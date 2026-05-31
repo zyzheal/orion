@@ -26,7 +26,7 @@ import {
   IEventPublisher,
   ConfigEvents,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /** Parsed config file from Git */
 interface ParsedGitConfig {

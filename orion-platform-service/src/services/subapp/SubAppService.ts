@@ -6,7 +6,7 @@
 
 import { DatabasePool } from '../database';
 import { SubAppRepository, SubAppConfig, CreateSubAppInput, UpdateSubAppInput, SubAppConfigHistory } from './SubAppRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class SubAppService {
   private repository: SubAppRepository;

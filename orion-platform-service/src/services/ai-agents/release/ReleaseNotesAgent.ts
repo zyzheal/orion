@@ -32,7 +32,7 @@ import {
   CommitType,
   ReleaseNotesAgentConfig,
 } from './types';
-import { OrionError, ErrorCode } from '../../../../errors';
+import { OrionError, ErrorCode } from '../../../errors';
 
 const execFileAsync = promisify(execFile);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

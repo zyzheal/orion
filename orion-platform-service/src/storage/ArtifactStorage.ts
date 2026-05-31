@@ -4,7 +4,7 @@
  */
 
 import { ArtifactStorage as IArtifactStorage, CreateArtifactInput } from '../models/Artifact';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface ArtifactStorage extends IArtifactStorage {}
 

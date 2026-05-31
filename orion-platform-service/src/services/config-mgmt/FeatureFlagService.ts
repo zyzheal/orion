@@ -11,7 +11,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export type FeatureFlagStatus = 'active' | 'inactive' | 'archived';
 export type RolloutStrategy = 'percentage' | 'targeted' | 'gradual';

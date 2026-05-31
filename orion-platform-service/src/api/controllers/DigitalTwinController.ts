@@ -10,7 +10,7 @@ import { BaseController } from './BaseController';
 import { TrafficRecorderService, RecordingConfig, RecordingSession } from '../../services/digital-twin/TrafficRecorderService';
 import { TrafficReplayService, ReplayConfig, ReplaySession } from '../../services/digital-twin/TrafficReplayService';
 import { SandboxService, SandboxConfig } from '../../services/digital-twin/SandboxService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 interface DigitalTwin {
   id: string;

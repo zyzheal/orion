@@ -6,7 +6,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 interface DataPipeline {
   id: string;

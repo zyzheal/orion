@@ -109,7 +109,7 @@ import {
   CostRecommendationEntity,
   SavingsTrackingEntity,
 } from '../../repositories/CostOptimizationRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * AI 成本优化服务

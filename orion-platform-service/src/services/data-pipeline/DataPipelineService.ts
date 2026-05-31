@@ -4,7 +4,7 @@ import {
   PipelineExecution,
   DataLineage,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * DataPipelineService — manages data pipeline CRUD, execution, scheduling, and lineage.

@@ -1,3 +1,5 @@
+import pino from 'pino';
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 import { DatabasePool } from '../database';
 /**
  * PipelineTemplateService - Business logic for Pipeline Template Library

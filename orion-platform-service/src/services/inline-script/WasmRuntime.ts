@@ -2,7 +2,7 @@
 
 import pino from 'pino';
 import { getQuickJS, QuickJSWASMModule, QuickJSContext, QuickJSHandle } from 'quickjs-emscripten';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

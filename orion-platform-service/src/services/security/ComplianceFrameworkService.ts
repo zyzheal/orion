@@ -15,7 +15,7 @@ import {
   ComplianceRemediationEntity,
 } from '../../repositories/Phase3Repository';
 import { ComplianceEvidenceRepository, ComplianceEvidenceEntity } from '../../repositories/ComplianceEvidenceRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface CompliancePolicyInput {
   name: string;

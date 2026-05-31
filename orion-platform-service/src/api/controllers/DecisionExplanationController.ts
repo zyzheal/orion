@@ -7,7 +7,7 @@ import {
   DecisionExplanationService,
   DecisionFeature,
 } from '../../services/ai/DecisionExplanationService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class DecisionExplanationController {
   private service: DecisionExplanationService;

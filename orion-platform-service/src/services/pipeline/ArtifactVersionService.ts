@@ -12,7 +12,7 @@
 import pino from 'pino';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactVersion, ArtifactVersionCreateInput } from '../../models/ArtifactVersion';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'artifact-version-service' });
 

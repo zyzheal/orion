@@ -8,7 +8,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
 import { PerformanceBaselineService } from '../../services/performance/PerformanceBaselineService';
 import { PerformanceProfileService } from '../../services/performance/PerformanceProfileService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class PerformanceController extends BaseController {
   private baselineService: PerformanceBaselineService;

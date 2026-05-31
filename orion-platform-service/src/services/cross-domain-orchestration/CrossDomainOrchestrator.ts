@@ -25,7 +25,7 @@ import {
 } from '../../saga/types';
 import { DomainConnector } from './DomainConnector';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
 

@@ -9,7 +9,7 @@ import { K8sProvisionerService } from './services/k8s-provisioner-service';
 import { EphemeralEnvService } from './services/ephemeral-env-service';
 import { EphemeralEnvController } from './api/controllers/EphemeralEnvController';
 import { EventBusService } from './services/event-bus-service';
-import { OrionError, ErrorCode } from '../errors';
+import { OrionError, ErrorCode } from './errors';
 
 export interface EphemeralEnvRoutesOptions {
   eventBus?: EventBusService;

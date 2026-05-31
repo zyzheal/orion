@@ -27,7 +27,7 @@ import {
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
 import { DatabasePool } from '../database';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LBudget-LService' });
 import {

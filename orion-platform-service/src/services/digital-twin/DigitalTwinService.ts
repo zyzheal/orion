@@ -14,7 +14,7 @@ import pino from 'pino';
 import { DatabasePool } from '../database';
 import { DigitalTwinSnapshotRepository } from '../../repositories/DigitalTwinSnapshotRepository';
 import { TwinConfigRepository, TwinConfigEntity, SandboxEntity, SandboxRepository, RecordingSessionEntity, RecordingSessionRepository, ReplaySessionEntity, ReplaySessionRepository } from '../../repositories/DigitalTwinEnhancedRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

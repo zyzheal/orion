@@ -16,7 +16,7 @@ import { AgentRunController } from './api/controllers/AgentRunController';
 import { EventBusService } from './services/event-bus-service';
 import { AgentRunRepository } from './repositories/AgentRunRepository';
 import { DatabasePool } from './services/database';
-import { OrionError, ErrorCode } from '../errors';
+import { OrionError, ErrorCode } from './errors';
 
 export interface AgentRoutesOptions {
   eventBus?: EventBusService;

@@ -23,7 +23,7 @@ import {
 } from './PipelineRepository';
 import type { DatabasePool } from '../database';
 import { CacheService } from '../cache/CacheService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export { PipelineEntity as Pipeline };
 

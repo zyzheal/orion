@@ -10,7 +10,7 @@ import {
   ConnectorConfig,
   IntegrationEvent,
 } from '../ConnectorRegistry';
-import { OrionError, ErrorCode } from '../../../../errors';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // Jira API response types
 interface JiraProject {

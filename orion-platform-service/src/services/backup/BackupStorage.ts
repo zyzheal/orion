@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { StorageUsage } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * Simulated in-memory storage for backup records.

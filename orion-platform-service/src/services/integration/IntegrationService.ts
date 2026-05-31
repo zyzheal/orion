@@ -13,7 +13,7 @@ import {
 } from './ConnectorRegistry';
 import { GitLabConnector } from './connectors/GitLabConnector';
 import { JiraConnector } from './connectors/JiraConnector';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { IntegrationConfigRepository } from '../../repositories/IntegrationConfigRepository';
 import { IntegrationMappingRepository } from '../../repositories/IntegrationMappingRepository';
 

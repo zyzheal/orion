@@ -16,7 +16,7 @@ import {
 } from '../../models/ChatOps';
 import { ChatOpsCommandRepository } from '../../repositories/ChatOpsRepository';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LCommand-LService' });
 

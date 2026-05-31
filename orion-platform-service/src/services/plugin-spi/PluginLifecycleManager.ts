@@ -25,7 +25,7 @@ import {
   PluginDependency,
 } from './types';
 import { PluginDependencyResolver } from './PluginDependencyResolver';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -148,7 +148,7 @@ export class PluginLifecycleManager extends EventEmitter {
     }
 
     // Update status
-    const updated = this.registry.updateStatus(pluginId, 'enabled');
+    const updated = await this.registry.updateStatus(pluginId, 'enabled');
     if (!updated) {
       throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found during enable`);
     }
@@ -159,7 +159,7 @@ export class PluginLifecycleManager extends EventEmitter {
     logger.info({ pluginId }, 'Plugin enabled successfully');
     this.emit('plugin:enabled', { pluginId });
 
-    return updated;
+    return updated as PluginInfo;
   }
 
   /**
@@ -199,7 +199,7 @@ export class PluginLifecycleManager extends EventEmitter {
     }
 
     // Update status
-    const updated = this.registry.updateStatus(pluginId, 'disabled');
+    const updated = await this.registry.updateStatus(pluginId, 'disabled');
     if (!updated) {
       throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found during disable`);
     }
@@ -210,7 +210,7 @@ export class PluginLifecycleManager extends EventEmitter {
     logger.info({ pluginId }, 'Plugin disabled successfully');
     this.emit('plugin:disabled', { pluginId });
 
-    return updated;
+    return updated as PluginInfo;
   }
 
   /**

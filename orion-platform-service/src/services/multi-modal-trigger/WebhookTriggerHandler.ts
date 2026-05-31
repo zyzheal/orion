@@ -14,7 +14,7 @@ import {
 } from '../../repositories/Phase3Repository';
 import { UnifiedTriggerService } from './UnifiedTriggerService';
 import crypto from 'crypto';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface WebhookConfig {
   triggerId?: string;

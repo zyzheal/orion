@@ -9,7 +9,7 @@
  */
 
 import { parentPort } from 'worker_threads';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 if (!parentPort) {
   throw new OrionError(ErrorCode.OPERATION_FAILED, 'This file must be run as a Worker Thread');

@@ -11,7 +11,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { PluginService } from '../../services/plugin-spi/PluginService';
 import { PluginManifest } from '../../services/plugin-spi/types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 let pluginService: PluginService | null = null;
 
@@ -329,7 +329,7 @@ export class PluginSpiController {
       }
 
       const service = getService();
-      const plugin = service.updatePluginConfig(params.pluginId, body.config);
+      const plugin = await service.updatePluginConfig(params.pluginId, body.config);
 
       if (!plugin) {
         await reply.status(404).send({

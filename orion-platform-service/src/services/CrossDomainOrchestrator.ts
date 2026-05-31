@@ -19,7 +19,7 @@ import type { CreateNotificationInput } from './notification/NotificationReposit
 import { AISecurityService, sanitizeInput, validateOutput } from './ai-security';
 import type { DatabasePool } from './database';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
 import {

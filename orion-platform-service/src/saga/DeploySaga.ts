@@ -14,7 +14,7 @@
 import { SagaStep, SagaContext, SagaDefinition } from './types';
 import { DeploymentEventPublisher } from '../events/DeploymentEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * Deploy Saga 输入

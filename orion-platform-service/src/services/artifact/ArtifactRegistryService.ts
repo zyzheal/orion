@@ -17,7 +17,7 @@ import {
   ArtifactDownloadOptions,
   ArtifactRegistryService
 } from '../../models/Artifact';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

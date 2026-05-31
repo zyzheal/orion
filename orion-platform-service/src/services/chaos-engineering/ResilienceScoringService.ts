@@ -11,7 +11,7 @@
 
 import { ResilienceScoreCalculator, ResilienceScoreRepository } from './ResilienceScoreCalculator';
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== Types ====================
 

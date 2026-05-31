@@ -25,7 +25,7 @@ import {
 import { RunnerJob, RunnerJobCreateInput } from '../../models/RunnerJob';
 import { PostgresRunnerRepository, RunnerRepository } from '../../repositories/RunnerRepository';
 import { PostgresRunnerJobRepository, RunnerJobRepository } from '../../repositories/RunnerJobRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'runner-pool-service' });
 

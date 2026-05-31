@@ -9,7 +9,7 @@
  */
 
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface LockInfo {
   locked: boolean;

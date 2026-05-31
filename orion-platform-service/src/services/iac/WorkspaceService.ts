@@ -23,7 +23,7 @@ import {
 import { IaCWorkspaceRepository, IaCWorkspaceEntity } from '../../repositories/IaCWorkspaceRepository';
 import { IaCStateVersionRepository, IaCStateVersionEntity } from '../../repositories/IaCStateVersionRepository';
 import { IaCModuleRepository, IaCModuleEntity } from '../../repositories/IaCModuleRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface IaCWorkspaceListFilter {
   projectId?: string;

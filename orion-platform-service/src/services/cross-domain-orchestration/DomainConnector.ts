@@ -1,3 +1,4 @@
+import { ErrorCode } from '../../errors';
 /**
  * DomainConnector - 领域连接器
  *

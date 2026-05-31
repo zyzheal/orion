@@ -17,7 +17,7 @@ import {
   CircuitBreakerEventRepository,
   type CircuitBreakerEventType,
 } from './circuit-breaker-repositories';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 

@@ -21,7 +21,7 @@ import {
 import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 import { DeploymentVerifier } from './DeploymentVerifier';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LRollback-LService' });
 

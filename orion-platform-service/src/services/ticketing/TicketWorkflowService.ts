@@ -24,7 +24,7 @@ import {
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LTicket-LWorkflow-LService' });
 

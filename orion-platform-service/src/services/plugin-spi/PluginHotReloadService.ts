@@ -15,7 +15,7 @@ import { PluginLifecycleManager, ActivationHook, DeactivationHook } from './Plug
 import { PluginRegistry } from './PluginRegistry';
 import { PluginManifest, PluginInfo } from './types';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { PluginVersionSnapshotRepository } from '../../repositories/PluginVersionSnapshotRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

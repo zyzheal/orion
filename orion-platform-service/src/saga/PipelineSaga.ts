@@ -17,7 +17,7 @@ import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * Pipeline Saga 输入

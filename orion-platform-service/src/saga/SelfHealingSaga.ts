@@ -13,7 +13,7 @@
 
 import { SagaStep, SagaContext, SagaDefinition } from './types';
 import { EventBusService } from '../services/event-bus-service';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * Self-Healing Saga 输入

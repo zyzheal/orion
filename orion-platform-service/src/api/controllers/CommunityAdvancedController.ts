@@ -8,7 +8,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
 import { CommunityAdvancedService } from '../../services/community/CommunityAdvancedService';
 import { CommunityService, BestPracticeInput, BestPracticeFilters } from '../../services/community/CommunityService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class CommunityAdvancedController extends BaseController {
   private service: CommunityAdvancedService;

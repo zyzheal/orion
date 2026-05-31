@@ -9,7 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { SubAppService } from '../services/subapp';
 import { DatabasePool } from '../services/database';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'subapp-routes' });
 

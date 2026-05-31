@@ -13,7 +13,7 @@ import { ErrorClassifier } from '../services/pipeline/ErrorClassifier';
 import { AdaptiveTimeoutService } from '../services/pipeline/AdaptiveTimeoutService';
 import { AutoRetryService } from '../services/pipeline/AutoRetryService';
 import { AutonomousPipelineController } from './controllers/AutonomousPipelineController';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 interface AutonomousPipelineRoutesOptions {
   database?: DatabasePool;

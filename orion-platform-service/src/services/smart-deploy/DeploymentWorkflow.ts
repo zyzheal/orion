@@ -25,7 +25,7 @@ import { DeploymentHistoryService } from './DeploymentHistoryService';
 import { RollbackService } from './RollbackService';
 import { EnvironmentLockService } from '../environment/EnvironmentLockService';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LDeployment-LWorkflow' });
 

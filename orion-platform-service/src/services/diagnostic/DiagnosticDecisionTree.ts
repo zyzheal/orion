@@ -6,7 +6,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { Symptom, SymptomSeverity, DiagnosticCategory, RootCause, RootCauseCategory, RecommendedAction, FixComplexity } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== 决策树节点类型 ====================
 

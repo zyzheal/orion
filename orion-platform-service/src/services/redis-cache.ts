@@ -7,7 +7,7 @@
 import Redis, { RedisOptions } from 'ioredis';
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'redis-cache' });
 

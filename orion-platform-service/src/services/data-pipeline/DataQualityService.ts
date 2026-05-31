@@ -7,7 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export type RuleType = 'not_null' | 'unique' | 'range' | 'pattern' | 'custom' | 'referential' | 'completeness';
 export type RuleSeverity = 'critical' | 'warning' | 'info';

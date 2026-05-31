@@ -28,7 +28,7 @@ import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjecti
 import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
 import { CircuitBreakerManager, DualCircuitState } from './CircuitBreakerManager';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

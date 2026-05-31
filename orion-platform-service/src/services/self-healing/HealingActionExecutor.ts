@@ -18,7 +18,7 @@ import {
   HealingActionType,
   HealingActionResult,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { HealingActionResultRepository } from '../../repositories/HealingActionResultRepository';
 
 const logger = pino({ name: 'healing-action-executor' });

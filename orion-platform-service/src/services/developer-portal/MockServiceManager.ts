@@ -171,7 +171,7 @@ export class MockServiceManager {
       rules = rules.filter((r) => r.enabled === options.enabled);
     }
     if (options?.method) {
-      rules = rules.filter((r) => r.method === options.method.toUpperCase());
+      rules = rules.filter((r) => r.method === options.method!.toUpperCase());
     }
 
     // Sort by priority DESC, then createdAt DESC

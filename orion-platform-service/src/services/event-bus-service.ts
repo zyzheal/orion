@@ -22,7 +22,7 @@ export { TypedEnvelope } from './types/event-types';
 import { JetStreamConfig, ConsumerConfig, TypedEnvelope } from './types/event-types';
 import type { JetStreamClient, JetStreamManager } from 'nats';
 import { JetStreamManagerService } from './jetstream-manager';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * 连接状态枚举 - 明确区分各种状态

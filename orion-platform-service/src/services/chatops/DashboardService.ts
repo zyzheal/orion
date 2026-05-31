@@ -1,5 +1,5 @@
 import { ChatOpsExecutionRepository } from '../../repositories/ChatOpsRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface DashboardMetrics {
   totalExecutions: number;

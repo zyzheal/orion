@@ -15,7 +15,7 @@ import { K8sWatchClient, SyncStatus, WatchEvent, K8sResourceKind } from './cmdb/
 import { K8sReconciliationService, ReconciliationResult } from './cmdb/K8sReconciliationService';
 import type { CI, CiType, CreateCIInput } from './cmdb/CmdbTypes';
 import { Client as SSHClient, ConnectConfig } from 'ssh2';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

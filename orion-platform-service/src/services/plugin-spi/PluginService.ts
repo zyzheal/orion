@@ -25,7 +25,7 @@ import {
   PluginHealthStatus,
   PluginSandboxConfig,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -168,10 +168,10 @@ export class PluginService extends EventEmitter {
   /**
    * Update plugin configuration
    */
-  updatePluginConfig(
+  async updatePluginConfig(
     pluginId: string,
     config: Record<string, any>
-  ): PluginInfo | undefined {
+  ): Promise<PluginInfo | undefined> {
     return this.registry.updateConfig(pluginId, config);
   }
 

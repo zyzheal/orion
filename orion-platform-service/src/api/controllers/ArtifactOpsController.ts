@@ -10,7 +10,7 @@ import { BaseController } from './BaseController';
 import { ArtifactOperationService, ArtifactOperationInput } from '../../services/artifact-ops/ArtifactOperationService';
 import { ArtifactScanService } from '../../services/artifact-ops/ArtifactScanService';
 import { ArtifactRetentionService, RetentionPolicyInput, ArtifactEntry } from '../../services/artifact-ops/ArtifactRetentionService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface ArtifactOpsServices {
   operationService: ArtifactOperationService;

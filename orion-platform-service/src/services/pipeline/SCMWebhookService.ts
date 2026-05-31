@@ -11,7 +11,7 @@ import crypto from 'crypto';
 import pino from 'pino';
 import { PipelineEngine } from '../../engine/PipelineEngine';
 import { TriggerType } from '../../models/PipelineRun';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

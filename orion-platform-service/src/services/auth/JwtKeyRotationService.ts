@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 import pino from 'pino';
 import { DatabasePool } from '../database';
 import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

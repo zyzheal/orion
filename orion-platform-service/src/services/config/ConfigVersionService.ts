@@ -6,7 +6,7 @@
 
 import pino from 'pino';
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'ConfigVersionService' });
 

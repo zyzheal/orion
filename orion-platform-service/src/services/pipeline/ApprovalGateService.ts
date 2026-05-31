@@ -6,7 +6,7 @@
  */
 import { Pool } from 'pg';
 import { ApprovalGateRepository, ApprovalGateEntity } from '../../repositories/ApprovalGateRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== Types ====================
 

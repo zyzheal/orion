@@ -10,7 +10,7 @@ import {
   ConnectorConfig,
   IntegrationEvent,
 } from '../ConnectorRegistry';
-import { OrionError, ErrorCode } from '../../../../errors';
+import { OrionError, ErrorCode } from '../../../errors';
 
 // GitLab API response types
 interface GitLabProject {

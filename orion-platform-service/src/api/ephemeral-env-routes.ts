@@ -12,7 +12,7 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Internal server error';

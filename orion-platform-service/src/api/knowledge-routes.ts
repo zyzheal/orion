@@ -17,7 +17,7 @@ import { KnowledgeService, KnowledgeServiceError } from '../services/knowledge/K
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'knowledge-routes' });
 

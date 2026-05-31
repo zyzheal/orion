@@ -26,7 +26,7 @@ import {
   DecisionTreeResult,
 } from './DiagnosticDecisionTree';
 import { DiagnosticKnowledgeBase, KnowledgeBaseSearchResult } from './DiagnosticKnowledgeBase';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 症状聚类结果

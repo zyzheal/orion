@@ -25,7 +25,7 @@ import { K8sProvisionerService } from './k8s-provisioner-service';
 import { EventBusService } from './event-bus-service';
 import { DatabasePool } from './database';
 import { EphemeralEnvRepository } from './ephemeral-env/EphemeralEnvRepository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

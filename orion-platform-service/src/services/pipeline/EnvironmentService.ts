@@ -9,7 +9,7 @@
 import pino from 'pino';
 import { EnvironmentRepository, EnvironmentEntity } from '../../repositories/EnvironmentRepository';
 import { createEnvironment, mergeVariables, type EnvironmentCreateInput, type EnvironmentUpdateInput } from '../../models/Environment';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

@@ -8,7 +8,7 @@
 
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { BackupPlanRepository, BackupPlanEntity } from '../../repositories/BackupPlanRepository';
 import {
   BackupPlan,
@@ -160,7 +160,7 @@ export class BackupScheduler extends EventEmitter {
           id: fullPlan.id,
           name: fullPlan.name,
           description: fullPlan.description || null,
-          sourceType: fullPlan.sourceType,
+          sourceType: fullPlan.sources?.[0] || 'unknown',
           backupType: fullPlan.type,
           enabled: fullPlan.enabled,
           schedule: fullPlan.schedule as any,
@@ -230,7 +230,7 @@ export class BackupScheduler extends EventEmitter {
           await this.planRepository.update(entity.id, {
             name: updated.name,
             description: updated.description || null,
-            sourceType: updated.sourceType,
+            sourceType: updated.sources?.[0] || 'unknown',
             backupType: updated.type,
             enabled: updated.enabled,
             schedule: updated.schedule as any,

@@ -13,7 +13,7 @@
  */
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { HookChainDefinitionRepository } from '../../repositories/HookChainDefinitionRepository';
 import { HookChainExecutionRepository } from '../../repositories/HookChainExecutionRepository';
 

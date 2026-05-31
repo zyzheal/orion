@@ -23,7 +23,7 @@ import {
 import { BuildLog, createBuildLog, appendLogEntry } from '../../models/BuildLog';
 import { BuildCacheService } from './BuildCacheService';
 import { BuilderImageService } from './BuilderImageService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * K8s 客户端接口

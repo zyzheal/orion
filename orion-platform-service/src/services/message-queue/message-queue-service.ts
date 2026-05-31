@@ -21,7 +21,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { DeadLetterMessageRepository } from '../../repositories/DeadLetterMessageRepository';
 import { ConsumerRegistryRepository } from '../../repositories/ConsumerRegistryRepository';
 

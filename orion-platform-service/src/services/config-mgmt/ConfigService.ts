@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfigRepository, ConfigEntry, ConfigHistory } from './ConfigRepository';
 import { ConfigItem, ConfigStatus, ConfigEnvironment } from './types';
 import { CacheService } from '../cache/CacheService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class ConfigServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'ConfigServiceError'; }

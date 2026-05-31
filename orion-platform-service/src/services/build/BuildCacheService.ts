@@ -28,7 +28,7 @@ import {
   BuildCacheConfigRepository,
   BuildCacheEntryRepository,
 } from '../../repositories/BuildCacheRepository';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class BuildCacheService {
   private configRepo: BuildCacheConfigRepository;

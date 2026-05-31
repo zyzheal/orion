@@ -47,7 +47,7 @@ import { ApprovalFlowEngine } from '../approval/ApprovalFlowEngine';
 import type { ApprovalFlowConfig, FlowStartContext, ApprovalResult as ApprovalFlowResult } from '../approval/ApprovalFlowEngine';
 import { NotificationService } from '../notification/NotificationService';
 import { WebhookService } from '../webhook/WebhookService';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'WorkflowEngine' });
 

@@ -1,5 +1,5 @@
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 /**
  * AutoProgressionEngine - Canary traffic auto-progression engine
  *

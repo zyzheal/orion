@@ -24,7 +24,7 @@ import {
   MergeCheckBlock,
   ApprovalRule,
 } from './types';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class BranchPolicyService {
   private repository: BranchPolicyRepository | null;

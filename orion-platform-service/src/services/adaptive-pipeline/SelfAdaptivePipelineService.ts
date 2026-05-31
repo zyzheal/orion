@@ -1,5 +1,5 @@
 import { DatabasePool } from '../database';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 /**
  * Self Adaptive Pipeline Service - Phase 2 + Phase 3.4
  *

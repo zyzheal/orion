@@ -8,7 +8,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ApiKeyService } from '../services/api-key/ApiKeyService';
 import { ApiKeyRepository } from '../services/api-key/ApiKeyRepository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 let apiKeyService: ApiKeyService | null = null;
 

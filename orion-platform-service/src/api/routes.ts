@@ -90,6 +90,19 @@ import capabilityRoutes from './capability-routes';
 import { registerAIAgentRoutes } from './ai-agent-routes';
 import apiMarketRoutes from './api-market-routes';
 
+// AI Module Routes — AI Gateway, Cost, Review, Security
+import aiGatewayRoutes from './ai-gateway-routes';
+import aiCostRoutes from './ai-cost-routes';
+import aiReviewRoutes from './ai-review-routes';
+import aiSecurityRoutes from './ai-security-routes';
+
+// New module routes — BuildEnv, Observability, Backup, OnCall, SBOM
+import buildEnvRoutes from './build-env-routes';
+import observabilityRoutes from './observability-routes';
+import backupRoutes from './backup-routes';
+import oncallRoutes from './oncall-routes';
+import sbomRoutes from './sbom-routes';
+
 // Phase 3.5: Previously orphan routes — Alert, Cache, Circuit Breaker, Maintenance, Message Queue, Team
 import alertRoutes from './alert-routes';
 import cacheRoutes from './cache-routes';
@@ -161,7 +174,7 @@ import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -1162,6 +1175,33 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== AI Agent Framework ====================
   registerAIAgentRoutes(app);
+
+  // ==================== AI Gateway ====================
+  await registerWithRoleGuard(app, aiGatewayRoutes, '/ai/gateway');
+
+  // ==================== AI Cost Optimization ====================
+  await registerWithRoleGuard(app, aiCostRoutes, '/ai/cost', { database: options.database });
+
+  // ==================== AI Code Review ====================
+  await registerWithRoleGuard(app, aiReviewRoutes, '/ai/review');
+
+  // ==================== AI Security ====================
+  await registerWithRoleGuard(app, aiSecurityRoutes, '/ai/security', { database: options.database });
+
+  // ==================== Build Environment ====================
+  await registerWithRoleGuard(app, buildEnvRoutes, '/build-env', { database: options.database });
+
+  // ==================== Observability ====================
+  await registerWithRoleGuard(app, observabilityRoutes, '/v1/observability', { database: options.database });
+
+  // ==================== Backup & Recovery ====================
+  await registerWithRoleGuard(app, backupRoutes, '/backup', { database: options.database });
+
+  // ==================== OnCall Scheduling ====================
+  await registerWithRoleGuard(app, oncallRoutes, '/v1/oncall', { database: options.database });
+
+  // ==================== SBOM (Software Bill of Materials) ====================
+  await registerWithRoleGuard(app, sbomRoutes, '/v1/sbom', { database: options.database });
 
   // ==================== Phase 3: Alert Management ====================
   // Phase 3.5 Fix: Register alert routes — previously orphan

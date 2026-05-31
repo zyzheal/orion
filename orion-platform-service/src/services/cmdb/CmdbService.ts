@@ -23,7 +23,7 @@ import {
   CiStatus,
   CiType,
 } from './CmdbTypes';
-import { OrionError, ErrorCode } from '../../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 内存存储（开发环境使用，生产环境应使用数据库）
