@@ -3,6 +3,7 @@
  * Backup verification data access layer
  */
 
+import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface BackupVerificationEntity {
@@ -51,7 +52,7 @@ export class BackupVerificationRepository extends BaseRepository<BackupVerificat
       params,
     );
     if (result.rows.length === 0) {
-      throw new Error(`Backup verification ${id} not found`);
+      throw new Error(ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

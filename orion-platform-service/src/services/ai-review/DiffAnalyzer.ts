@@ -5,10 +5,10 @@
  * 支持 unified diff 格式 (GitLab/Gerrit/GitHub 通用格式)。
  */
 
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LDiff-LAnalyzer' });
+import {
   DiffParseResult,
   FileDiff,
   DiffHunk,

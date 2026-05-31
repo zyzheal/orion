@@ -5,10 +5,10 @@
  * Supports iOS, macOS desktop applications, and HarmonyOS builds.
  */
 
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LMac-LBuild-LExecutor' });
+import {
   BuildExecutor,
   BuildType,
   Platform,

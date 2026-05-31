@@ -13,10 +13,10 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { EventBusService } from '../services/event-bus-service';
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'eventbus-routes' });
+import {
   EventBusConfigRepository,
   EventSubscriptionRepository,
   EventBusEventRepository,

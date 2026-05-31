@@ -6,10 +6,10 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LPerformance-LProfile-LService' });
+import {
   PerformanceProfileRepository,
   PerformanceProfileEntity,
 } from '../../repositories/PerformanceRepository';

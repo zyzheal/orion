@@ -363,7 +363,8 @@ export class PluginLifecycleManager extends EventEmitter {
 
       const depPlugin = this.registry.getPlugin(dep.name);
       if (!depPlugin) {
-        throw new OrionError('VALIDATION_ERROR', }
+        throw new OrionError('VALIDATION_ERROR', `Dependency ${dep.name} not found`);
+      }
 
       // Enable dependency if not already enabled
       if (depPlugin.status !== 'enabled') {

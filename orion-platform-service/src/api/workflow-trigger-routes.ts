@@ -21,10 +21,10 @@ import { TriggerManager } from '../services/lowcode/TriggerManager';
 import { WorkflowScheduler } from '../services/lowcode/WorkflowScheduler';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import type {
 import pino from 'pino';
 
 const logger = pino({ name: 'workflow-trigger-routes' });
+import type {
   WorkflowTrigger,
   CreateWorkflowTriggerInput,
   UpdateWorkflowTriggerInput,

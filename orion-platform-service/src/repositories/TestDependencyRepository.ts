@@ -4,6 +4,7 @@
  * Replaces in-memory Maps in TestDependencyAnalyzer and TestSelectorService.
  */
 
+import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
 
@@ -36,7 +37,7 @@ export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDepen
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -86,7 +87,7 @@ export class TestCaseDependencyRepository extends BaseRepository<TestCaseDepende
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -140,7 +141,7 @@ export class TestCodeMappingDependencyRepository extends BaseRepository<TestCode
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -192,7 +193,7 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -254,7 +255,7 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

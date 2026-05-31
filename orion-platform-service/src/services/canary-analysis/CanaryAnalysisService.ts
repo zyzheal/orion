@@ -15,10 +15,10 @@ import {
   CanaryAnalysisRunEntity,
 } from '../../repositories/CanaryAnalysisRepository';
 
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LCanary-LAnalysis-LService' });
+import {
   CanaryAnalysisRun,
   CanaryAnalysisRunCreateInput,
   createCanaryAnalysisRun,

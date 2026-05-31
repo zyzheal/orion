@@ -1,4 +1,4 @@
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 /**
  * BlacklistedTokenRepository - PostgreSQL data access for revoked tokens
  *

@@ -1,4 +1,4 @@
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 /**
  * Test Selector Repository - Test case, suite, and run data access layer
  *

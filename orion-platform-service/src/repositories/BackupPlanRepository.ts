@@ -3,6 +3,7 @@
  * Backup plan data access layer
  */
 
+import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface BackupPlanEntity {
@@ -37,7 +38,7 @@ export class BackupPlanRepository extends BaseRepository<BackupPlanEntity> {
       [id, enabled],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Backup plan ${id} not found`);
+      throw new Error(ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

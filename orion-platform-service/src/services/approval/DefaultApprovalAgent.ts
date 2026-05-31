@@ -13,8 +13,8 @@
  */
 
 import pino from 'pino';
-import {
 import { OrionError } from '../../errors';
+import {
   ApprovalAgentPlugin,
   ApprovalContext,
   ApprovalDecision,

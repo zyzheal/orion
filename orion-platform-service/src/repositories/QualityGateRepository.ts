@@ -15,7 +15,7 @@ import {
   QualityGateCreateInput,
   QualityGateUpdateInput,
 } from '../models/QualityGate';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 // ============================================================================
 // Repository

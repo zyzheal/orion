@@ -5,10 +5,10 @@
  * Supports C++, Android, and Linux/macOS/Windows desktop applications.
  */
 
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LHost-LBuild-LExecutor' });
+import {
   BuildExecutor,
   BuildType,
   Platform,

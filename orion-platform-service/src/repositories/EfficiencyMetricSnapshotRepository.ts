@@ -4,6 +4,7 @@
  * Replaces in-memory Map<string, MetricSnapshot[]> in DORACalculator.
  */
 
+import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
 
@@ -38,7 +39,7 @@ export class EfficiencyMetricSnapshotRepository extends BaseRepository<Efficienc
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

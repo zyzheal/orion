@@ -1,5 +1,5 @@
 import { BaseRepository } from '../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface OnCallScheduleEntity {
   id: string;

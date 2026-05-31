@@ -4,7 +4,7 @@
  * PostgreSQL persistence for model versions and A/B tests.
  */
 import { BaseRepository } from '../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== Model Version ====================
 

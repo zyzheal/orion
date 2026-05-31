@@ -4,11 +4,11 @@
  * Handles build environment and build record management
  */
 
-import { 
 import pino from 'pino';
 
 const logger = pino({ name: 'LBuild-LService' });
-  BuildRepository, 
+import {
+  BuildRepository,
   Build,
   BuildEnvironment,
   CreateBuildInput,

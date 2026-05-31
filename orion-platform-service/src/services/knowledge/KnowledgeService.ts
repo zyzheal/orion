@@ -4,10 +4,10 @@
  * Orchestrates space, document, and search operations through the repository layer.
  */
 
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LKnowledge-LService' });
+import {
   KnowledgeRepository,
   KnowledgeSpace,
   CreateSpaceInput,

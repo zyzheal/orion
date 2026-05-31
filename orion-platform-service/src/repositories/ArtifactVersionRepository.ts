@@ -14,7 +14,7 @@ import {
   DeploymentHistory,
   VersionDiff,
 } from '../models/ArtifactVersion';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * 数据库行映射（snake_case -> camelCase 转换中间层）

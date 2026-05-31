@@ -14,7 +14,7 @@ import {
   CacheCleanupPolicy,
   CacheStorageType,
 } from '../models/BuildCache';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== Config Repository ====================
 

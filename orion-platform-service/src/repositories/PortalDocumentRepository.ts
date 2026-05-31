@@ -6,7 +6,7 @@
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface PortalDocumentEntity {
   id: string;

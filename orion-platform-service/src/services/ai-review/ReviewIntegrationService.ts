@@ -8,10 +8,10 @@
  * 4. 生成审查摘要报告
  */
 
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LReview-LIntegration-LService' });
+import {
   ReviewResult,
   ReviewComment,
   ReviewSummary,

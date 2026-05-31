@@ -1,4 +1,4 @@
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 /**
  * DisasterRecoveryRepository - Database layer for Disaster Recovery operations
  *

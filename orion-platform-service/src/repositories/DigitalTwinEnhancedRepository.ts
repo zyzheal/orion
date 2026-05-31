@@ -7,7 +7,7 @@
 
 import { DatabasePool } from '../services/database';
 import { BaseRepository, FindAllResult, FindAllOptions } from '../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== TwinConfig ====================
 

@@ -4,6 +4,7 @@
  * Replaces in-memory Map<string, MockRule> in MockServiceManager.
  */
 
+import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
 
@@ -39,7 +40,7 @@ export class DevPortalMockRuleRepository extends BaseRepository<DevPortalMockRul
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -77,7 +78,7 @@ export class DevPortalMockRuleRepository extends BaseRepository<DevPortalMockRul
       [id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `Mock rule not found: ${id}`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

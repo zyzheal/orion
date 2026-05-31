@@ -3,7 +3,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '../errors';
 
 export type WorkflowTriggerType = 'event' | 'cron' | 'manual' | 'webhook';
 

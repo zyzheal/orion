@@ -4,6 +4,7 @@
  * Replaces in-memory Map<string, SDKGenerationTask> in SDKGeneratorService.
  */
 
+import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
 
@@ -37,7 +38,7 @@ export class DevPortalSDKTaskRepository extends BaseRepository<DevPortalSDKTaskE
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.DATABASE_ERROR);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -84,7 +85,7 @@ export class DevPortalSDKTaskRepository extends BaseRepository<DevPortalSDKTaskE
       params,
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `SDK task not found: ${id}`);
+      throw new OrionError('OPERATION_FAILED', ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

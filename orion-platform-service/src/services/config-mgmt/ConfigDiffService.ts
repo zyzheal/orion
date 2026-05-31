@@ -14,8 +14,8 @@
 import { ConfigService } from './ConfigService';
 import { ConfigHistory } from './ConfigRepository';
 import type { ConfigItem } from './types';
-import {
 import { OrionError } from '../../errors';
+import {
   ConfigDiff,
   DiffReport,
   VersionDiffReport,
