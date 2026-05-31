@@ -8,6 +8,7 @@
     "zod": "^4.4.3"
   },
   "dependencies": {
+    "@zyzheal/ola-cc": "^0.4.10",
     "tiktoken": "^1.0.22",
     "uuid": "^14.0.0"
   }

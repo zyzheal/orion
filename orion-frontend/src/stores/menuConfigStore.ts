@@ -96,6 +96,8 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/internal-libraries', label: '二方库', description: '内部依赖管理', category: '代码与制品', enabled: true },
       // 质量保障
       { key: '/test-selector', label: '测试管理', description: '测试用例与执行', category: '质量保障', enabled: true },
+      // 发布编排
+      { key: '/orchestration', label: '发布编排', description: '跨域编排与依赖管理', category: '持续交付', enabled: true },
     ],
   },
   '/observability': {
@@ -113,6 +115,16 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       // 智能诊断
       { key: '/observability/diagnostic', label: '诊断中心', description: '根因分析诊断', category: '智能诊断', enabled: true },
       { key: '/observability/self-healing', label: '自愈系统', description: '自动化故障恢复', category: '智能诊断', enabled: true },
+      // 混沌工程
+      { key: '/chaos-experiments', label: '混沌实验', description: '故障注入实验管理', category: '混沌工程', enabled: true },
+      { key: '/chaos-runs', label: '运行记录', description: '实验运行历史与时间线', category: '混沌工程', enabled: true },
+      { key: '/resilience-score', label: '弹性评分', description: '系统弹性评估与趋势', category: '混沌工程', enabled: true },
+      { key: '/fault-library', label: '故障库', description: '故障类型目录与模板', category: '混沌工程', enabled: true },
+      // APM 链路追踪
+      { key: '/apm/dashboard', label: 'APM 仪表盘', description: '应用性能监控总览', category: 'APM', enabled: true },
+      { key: '/apm/slow-requests', label: '慢请求分析', description: '慢请求追踪与优化', category: 'APM', enabled: true },
+      { key: '/apm/error-tracking', label: '错误追踪', description: '异常与错误聚合分析', category: 'APM', enabled: true },
+      { key: '/apm/service-topology', label: '服务拓扑', description: '服务依赖拓扑图', category: 'APM', enabled: true },
     ],
   },
   '/ai': {
@@ -136,6 +148,12 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/ai/cost', label: 'AI 成本', description: 'AI 成本分析', category: '可观测性', enabled: true },
       // 知识管理
       { key: '/ai/knowledge', label: 'AI 知识库', description: '智能知识管理', category: '知识管理', enabled: true },
+      { key: '/vector-store', label: '向量存储', description: '向量集合与检索', category: '知识管理', enabled: true },
+      { key: '/vector-store/index-management', label: '索引管理', description: '向量索引配置与优化', category: '知识管理', enabled: true },
+      { key: '/vector-store/auto-vectorize', label: '自动向量化', description: '文档自动向量化规则', category: '知识管理', enabled: true },
+      { key: '/ai/rag', label: 'RAG 检索', description: '语义检索与问答', category: '知识管理', enabled: true },
+      // MLOps
+      { key: '/mlops', label: 'MLOps 平台', description: '模型训练与部署管理', category: 'MLOps', enabled: true },
       // 安全合规
       { key: '/ai/security', label: 'AI 安全', description: 'AI 安全治理', category: '安全合规', enabled: true },
     ],
@@ -168,6 +186,12 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/sessions', label: '会话管理', description: '终端会话管理', category: '运维流程', enabled: true },
       { key: '/backup', label: '备份恢复', description: '数据备份策略管理', category: '运维流程', enabled: true },
       { key: '/oncall', label: '值班管理', description: '排班与告警响应', category: '运维流程', enabled: true },
+      // 多云管理
+      { key: '/multi-cloud', label: '多云管理', description: '多云资源统一管理', category: '多云管理', enabled: true },
+      { key: '/multi-cloud/advanced', label: '高级多云', description: '多云高级配置与同步', category: '多云管理', enabled: true },
+      { key: '/capacity-planning', label: '容量规划', description: '资源容量预测与规划', category: '多云管理', enabled: true },
+      // 数据库 DevOps
+      { key: '/dba', label: '数据库管理', description: 'SQL工单、数据源与审计规则', category: '数据库DevOps', enabled: true },
     ],
   },
   '/governance': {
@@ -182,6 +206,10 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/policies', label: '策略管理', description: '策略定义与执行', category: '安全合规', enabled: true },
       { key: '/audit-log', label: '审计日志', description: '操作审计追踪', category: '安全合规', enabled: true },
       { key: '/sbom', label: 'SBOM', description: '软件物料清单', category: '安全合规', enabled: true },
+      { key: '/supply-chain', label: '供应链安全', description: '供应链风险分析', category: '安全合规', enabled: true },
+      { key: '/security/abac-policy', label: 'ABAC 策略', description: '属性基访问控制', category: '安全合规', enabled: true },
+      { key: '/security/permission-audit', label: '权限审计', description: '权限使用审计', category: '安全合规', enabled: true },
+      { key: '/security/ueba', label: 'UEBA', description: '用户行为分析', category: '安全合规', enabled: true },
       // 组织管理
       { key: '/tenant-list', label: '租户列表', description: '租户创建与管理', category: '组织管理', enabled: true },
       { key: '/tenant-management', label: '租户配额', description: '配额与Namespace管理', category: '组织管理', enabled: true },
@@ -193,6 +221,12 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/workflows', label: '工作流设计器', description: '低代码流程编排', category: '流程管理', enabled: true },
       // 成本治理
       { key: '/finops', label: '成本分析', description: '云成本优化与治理', category: '成本治理', enabled: true },
+      // 数据治理
+      { key: '/data-lineage', label: '数据血缘', description: '数据流转追踪与影响分析', category: '数据治理', enabled: true },
+      { key: '/data-quality', label: '数据质量', description: '数据质量规则与监控', category: '数据治理', enabled: true },
+      // 计费与变更
+      { key: '/billing', label: '计费管理', description: '资源计费与账单', category: '计费管理', enabled: true },
+      { key: '/change-intelligence', label: '变更智能', description: '变更影响分析与风险评估', category: '变更管理', enabled: true },
     ],
   },
   '/ecosystem': {
@@ -205,6 +239,8 @@ const defaultModules: Record<string, MenuModuleConfig> = {
     // isDynamicSubApps: true 表示子应用从后端 /api/v1/subapps 动态读取
     isDynamicSubApps: true,
     children: [
+      // 开发者门户
+      { key: '/developer-portal', label: '开发者门户', description: 'Skill 市场与 SPI 扩展', category: '开发者门户', enabled: true },
       // 文档与知识
       { key: '/documents', label: '文档中心', description: '项目设计文档与运维手册', category: '文档与知识', enabled: true },
       // 扩展能力

@@ -1,52 +1,55 @@
 go 1.25.0
 
 use (
-	./orion-go-common
-	./orion-auth-svc
-	./orion-tenant-svc
-	./orion-user-svc
 	./orion-api-gateway-go
-	./orion-pipeline-svc-go
-	./orion-build-svc-go
-	./orion-deploy-svc-go
-	./orion-ticket-svc-go
-	./orion-cmdb-svc-go
-	./orion-monitor-svc-go
 	./orion-approval-svc-go
-	./orion-canary-svc-go
-	./orion-scheduler-svc-go
-	./orion-finops-svc-go
-	./orion-notification-svc-go
-	./orion-feature-flag-svc-go
-	./orion-secret-svc-go
-	./orion-workflow-svc-go
-	./orion-audit-svc-go
-	./orion-config-mgmt-svc-go
 	./orion-artifact-svc-go
+	./orion-audit-svc-go
+	./orion-auth-svc
+	./orion-build-svc-go
+	./orion-canary-svc-go
+	./orion-capacity-svc-go
+	./orion-chatops-svc-go
+	./orion-cmdb-svc-go
 	./orion-code-svc-go
-	./orion-runner-svc-go
-	./orion-plugin-svc-go
-	./orion-pipeline-template-svc-go
-	./orion-event-bus-svc-go
-	./orion-governance-svc-go
-	./orion-risk-svc-go
-	./orion-security-svc-go
-	./orion-selfhealing-svc-go
-	./orion-efficiency-svc-go
+	./orion-community-svc-go
+	./orion-config-mgmt-svc-go
+	./orion-cron-svc-go
+	./orion-deploy-svc-go
+	./orion-digital-twin-svc-go
 	./orion-dr-svc-go
-	./orion-llm-svc-go
-	./orion-intelligence-svc-go
+	./orion-efficiency-svc-go
+	./orion-event-bus-svc-go
+	./orion-feature-flag-svc-go
+	./orion-federation-svc-go
+	./orion-finops-svc-go
+	./orion-go-common
+	./orion-governance-svc-go
 	./orion-graph-svc-go
 	./orion-inception-svc-go
-	./orion-digital-twin-svc-go
+	./orion-inspection-svc-go
+	./orion-intelligence-svc-go
+	./orion-llm-svc-go
 	./orion-lowcode-svc-go
-	./orion-chatops-svc-go
-	./orion-community-svc-go
-	./orion-pandawiki-svc-go
-	./orion-federation-svc-go
-	./orion-visor-svc-go
-	./orion-skill-svc-go
-	./orion-skill-config-svc-go
+	./orion-middleware-ops-svc-go
+	./orion-monitor-svc-go
+	./orion-notification-svc-go
 	./orion-notify-svc-go
-	./orion-cron-svc-go
+	./orion-pandawiki-svc-go
+	./orion-pipeline-svc-go
+	./orion-pipeline-template-svc-go
+	./orion-plugin-svc-go
+	./orion-risk-svc-go
+	./orion-runner-svc-go
+	./orion-scheduler-svc-go
+	./orion-secret-svc-go
+	./orion-security-svc-go
+	./orion-selfhealing-svc-go
+	./orion-skill-config-svc-go
+	./orion-skill-svc-go
+	./orion-tenant-svc
+	./orion-ticket-svc-go
+	./orion-user-svc
+	./orion-visor-svc-go
+	./orion-workflow-svc-go
 )

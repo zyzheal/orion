@@ -296,6 +296,18 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/quality-gate/QualityGatePage')),
     protected: true,
   },
+  // Data Lineage
+  {
+    path: '/data-lineage',
+    element: React.lazy(() => import('@/pages/data-lineage/DataLineagePage')),
+    protected: true,
+  },
+  // Data Quality
+  {
+    path: '/data-quality',
+    element: React.lazy(() => import('@/pages/data-quality/DataQualityPage')),
+    protected: true,
+  },
   // Policy Management
   {
     path: '/policies',
@@ -1050,6 +1062,16 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/VectorStore')),
     protected: true,
   },
+  {
+    path: '/vector-store/index-management',
+    element: React.lazy(() => import('@/pages/VectorStore/IndexManagementPage')),
+    protected: true,
+  },
+  {
+    path: '/vector-store/auto-vectorize',
+    element: React.lazy(() => import('@/pages/VectorStore/AutoVectorizePage')),
+    protected: true,
+  },
   // EventBus Monitoring
   {
     path: '/eventbus',
@@ -1209,6 +1231,26 @@ export const routes: AppRoute[] = [
   {
     path: '/chaos-experiments',
     element: React.lazy(() => import('@/pages/chaos/ChaosExperimentPage')),
+    protected: true,
+  },
+  {
+    path: '/chaos-experiments/:id',
+    element: React.lazy(() => import('@/pages/chaos/ChaosExperimentDetailPage')),
+    protected: true,
+  },
+  {
+    path: '/chaos-runs',
+    element: React.lazy(() => import('@/pages/chaos/ChaosRunHistoryPage')),
+    protected: true,
+  },
+  {
+    path: '/resilience-score',
+    element: React.lazy(() => import('@/pages/chaos/ResilienceScorePage')),
+    protected: true,
+  },
+  {
+    path: '/fault-library',
+    element: React.lazy(() => import('@/pages/chaos/FaultLibraryPage')),
     protected: true,
   },
   // Supply Chain Security (Phase 3)
