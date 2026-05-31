@@ -4,6 +4,8 @@
  * 负责记录和管理 APK 上传到各应用市场的历史记录
  */
 
+import { ApkUploadRepository } from '../../repositories/ApkUploadRepository';
+
 export interface ApkUploadRecord {
   id: string;
   tenantId: string;
@@ -49,6 +51,13 @@ export interface ApkUploadRecordCreateInput {
 
 export class ApkUploadHistoryService {
   private records: Map<string, ApkUploadRecord> = new Map();
+  private repository: ApkUploadRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new ApkUploadRepository(db);
+    }
+  }
 
   /**
    * 创建上传记录
@@ -62,6 +71,31 @@ export class ApkUploadHistoryService {
     };
 
     this.records.set(record.id, record);
+
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.create({
+        id: record.id,
+        tenantId: record.tenantId,
+        pipelineRunId: record.pipelineRunId || null,
+        pipelineId: record.pipelineId || null,
+        pipelineName: record.pipelineName || null,
+        market: record.market,
+        packageName: record.packageName,
+        versionName: record.versionName || null,
+        versionCode: record.versionCode || null,
+        apkPath: record.apkPath,
+        status: record.status,
+        uploadUrl: record.uploadUrl || null,
+        uploadId: record.uploadId || null,
+        error: record.error || null,
+        stdout: record.stdout || null,
+        stderr: record.stderr || null,
+        durationMs: record.durationMs || null,
+        progress: record.progress || null,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+
     return record;
   }
 
@@ -79,6 +113,12 @@ export class ApkUploadHistoryService {
     };
 
     this.records.set(id, updated);
+
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.update(id, updates).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+
     return updated;
   }
 

@@ -20,12 +20,20 @@ import {
 } from './types';
 import { PipelineRunEventData } from '../../events/types';
 import {
-import pino from 'pino';
-
-const logger = pino({ name: 'LEvent-LHandler' });
   DeploymentCompletedEventData,
   DeploymentFailedEventData,
 } from '../../events/types/deployment';
+import {
+  EfficiencyPipelineRecordRepository,
+  EfficiencyPipelineRecordEntity,
+} from '../../repositories/EfficiencyPipelineRecordRepository';
+import {
+  EfficiencyDeploymentRecordRepository,
+  EfficiencyDeploymentRecordEntity,
+} from '../../repositories/EfficiencyDeploymentRecordRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'LEvent-LHandler' });
 
 /**
  * 效能事件处理器配置
@@ -43,6 +51,8 @@ export interface EfficiencyEventHandlerConfig {
   consumerGroup?: string;
   /** 自动同步间隔（毫秒，0 表示手动同步） */
   autoSyncInterval?: number;
+  /** PostgreSQL 数据库连接（可选，用于持久化） */
+  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /**
@@ -134,6 +144,129 @@ export class InMemoryLocalStorage implements LocalStorage {
 }
 
 /**
+ * PostgreSQL 本地存储实现
+ * 替换 InMemoryLocalStorage，使用 PostgreSQL 持久化
+ */
+export class PostgresLocalStorage implements LocalStorage {
+  private pipelineRepo: EfficiencyPipelineRecordRepository;
+  private deploymentRepo: EfficiencyDeploymentRecordRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.pipelineRepo = new EfficiencyPipelineRecordRepository(db);
+    this.deploymentRepo = new EfficiencyDeploymentRecordRepository(db);
+  }
+
+  async savePipelineRecord(record: PipelineCompletionRecord): Promise<void> {
+    await this.pipelineRepo.create({
+      id: record.id,
+      tenantId: record.tenantId || 'default',
+      runId: record.runId,
+      pipelineId: record.pipelineId,
+      status: record.status,
+      triggerType: record.triggerType,
+      gitRef: record.gitRef,
+      gitSha: record.gitSha,
+      durationMs: record.durationMs,
+      completedAt: record.completedAt,
+      syncedToClickhouse: record.syncedToClickHouse ?? false,
+    });
+  }
+
+  async getPipelineRecords(filter?: { tenantId?: string; since?: Date }): Promise<PipelineCompletionRecord[]> {
+    const entities = await this.pipelineRepo.findByTenant(filter?.tenantId || 'default', filter?.since);
+    return entities.map(e => ({
+      id: e.id,
+      runId: e.runId,
+      pipelineId: e.pipelineId,
+      status: e.status as 'success' | 'failed',
+      triggerType: e.triggerType || '',
+      gitRef: e.gitRef || '',
+      gitSha: e.gitSha || '',
+      durationMs: e.durationMs,
+      completedAt: e.completedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+      syncedAt: e.syncedAt || undefined,
+    }));
+  }
+
+  async getUnsyncedPipelineRecords(limit: number = 100): Promise<PipelineCompletionRecord[]> {
+    const entities = await this.pipelineRepo.findUnsynced(limit);
+    return entities.map(e => ({
+      id: e.id,
+      runId: e.runId,
+      pipelineId: e.pipelineId,
+      status: e.status as 'success' | 'failed',
+      triggerType: e.triggerType || '',
+      gitRef: e.gitRef || '',
+      gitSha: e.gitSha || '',
+      durationMs: e.durationMs,
+      completedAt: e.completedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+    }));
+  }
+
+  async saveDeploymentRecord(record: DeploymentRecord): Promise<void> {
+    await this.deploymentRepo.create({
+      id: record.id,
+      tenantId: record.tenantId || 'default',
+      deploymentId: record.deploymentId,
+      service: record.service,
+      environment: record.environment,
+      status: record.status,
+      version: record.version,
+      durationMs: record.durationMs,
+      deployedAt: record.deployedAt,
+      syncedToClickhouse: record.syncedToClickHouse ?? false,
+      recoveryTimeMs: record.recoveryTimeMs,
+    });
+  }
+
+  async getDeploymentRecords(filter?: { tenantId?: string; since?: Date }): Promise<DeploymentRecord[]> {
+    const entities = await this.deploymentRepo.findByTenant(filter?.tenantId || 'default', filter?.since);
+    return entities.map(e => ({
+      id: e.id,
+      deploymentId: e.deploymentId,
+      service: e.service || '',
+      environment: e.environment || '',
+      status: e.status as 'success' | 'failed' | 'rolled_back',
+      version: e.version || '',
+      durationMs: e.durationMs || 0,
+      deployedAt: e.deployedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+      syncedAt: e.syncedAt || undefined,
+      recoveryTimeMs: e.recoveryTimeMs || undefined,
+    }));
+  }
+
+  async getUnsyncedDeploymentRecords(limit: number = 100): Promise<DeploymentRecord[]> {
+    const entities = await this.deploymentRepo.findUnsynced(limit);
+    return entities.map(e => ({
+      id: e.id,
+      deploymentId: e.deploymentId,
+      service: e.service || '',
+      environment: e.environment || '',
+      status: e.status as 'success' | 'failed' | 'rolled_back',
+      version: e.version || '',
+      durationMs: e.durationMs || 0,
+      deployedAt: e.deployedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+    }));
+  }
+
+  async markPipelineSynced(id: string): Promise<void> {
+    await this.pipelineRepo.markSynced(id);
+  }
+
+  async markDeploymentSynced(id: string): Promise<void> {
+    await this.deploymentRepo.markSynced(id);
+  }
+}
+
+/**
  * 效能事件处理器
  */
 export class EfficiencyEventHandler {
@@ -151,7 +284,9 @@ export class EfficiencyEventHandler {
     this.eventBus = config.eventBus;
     this.doraMetricsService = config.doraMetricsService;
     this.clickHouseSync = config.clickHouseSync;
-    this.localStorage = new InMemoryLocalStorage();
+    this.localStorage = config.db
+      ? new PostgresLocalStorage(config.db)
+      : new InMemoryLocalStorage();
     this.streamName = config.streamName || 'orion-platform-stream';
     this.consumerGroup = config.consumerGroup || 'efficiency-consumers';
     this.autoSyncInterval = config.autoSyncInterval;

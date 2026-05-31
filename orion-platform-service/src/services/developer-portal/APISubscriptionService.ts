@@ -6,6 +6,10 @@
  */
 
 import { randomUUID } from 'crypto';
+import {
+  DevPortalSubscriptionRepository,
+  DevPortalUsageRecordRepository,
+} from '../../repositories/DevPortalSubscriptionRepository';
 
 // ==================== Type Definitions ====================
 
@@ -69,6 +73,15 @@ export class APISubscriptionServiceError extends Error {
 export class APISubscriptionService {
   private subscriptions: Map<string, APISubscription> = new Map();
   private usageRecords: Map<string, UsageRecord[]> = new Map();
+  private subscriptionRepo: DevPortalSubscriptionRepository | null = null;
+  private usageRepo: DevPortalUsageRecordRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.subscriptionRepo = new DevPortalSubscriptionRepository(db);
+      this.usageRepo = new DevPortalUsageRecordRepository(db);
+    }
+  }
 
   /**
    * 创建 API 订阅申请
@@ -113,6 +126,29 @@ export class APISubscriptionService {
     };
 
     this.subscriptions.set(subscription.id, subscription);
+
+    // PostgreSQL 持久化（异步）
+    if (this.subscriptionRepo) {
+      this.subscriptionRepo.create({
+        id: subscription.id,
+        tenantId: subscription.tenantId,
+        userId: subscription.userId,
+        apiName: subscription.apiName,
+        planName: subscription.planName,
+        quotaPerDay: subscription.quotaPerDay,
+        quotaPerMonth: subscription.quotaPerMonth,
+        usedToday: 0,
+        usedThisMonth: 0,
+        status: 'pending',
+        reason: subscription.reason,
+        approvedBy: null,
+        approvedAt: null,
+        rejectReason: null,
+        apiKey: subscription.apiKey,
+        expiresAt: subscription.expiresAt,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+
     return subscription;
   }
 
@@ -168,6 +204,11 @@ export class APISubscriptionService {
     sub.approvedAt = new Date();
     sub.updatedAt = new Date();
 
+    // PostgreSQL 持久化（异步）
+    if (this.subscriptionRepo) {
+      this.subscriptionRepo.updateStatus(id, 'approved', { approvedBy: input.approvedBy }).catch(() => {});
+    }
+
     return sub;
   }
 
@@ -188,6 +229,11 @@ export class APISubscriptionService {
     sub.rejectReason = input.rejectReason ?? '';
     sub.updatedAt = new Date();
 
+    // PostgreSQL 持久化（异步）
+    if (this.subscriptionRepo) {
+      this.subscriptionRepo.updateStatus(id, 'rejected', { approvedBy: input.approvedBy, rejectReason: input.rejectReason }).catch(() => {});
+    }
+
     return sub;
   }
 
@@ -205,6 +251,12 @@ export class APISubscriptionService {
 
     sub.status = 'suspended';
     sub.updatedAt = new Date();
+
+    // PostgreSQL 持久化（异步）
+    if (this.subscriptionRepo) {
+      this.subscriptionRepo.updateStatus(id, 'suspended').catch(() => {});
+    }
+
     return sub;
   }
 
@@ -219,6 +271,12 @@ export class APISubscriptionService {
 
     sub.status = 'cancelled';
     sub.updatedAt = new Date();
+
+    // PostgreSQL 持久化（异步）
+    if (this.subscriptionRepo) {
+      this.subscriptionRepo.updateStatus(id, 'cancelled').catch(() => {});
+    }
+
     return sub;
   }
 
@@ -262,6 +320,22 @@ export class APISubscriptionService {
     sub.usedToday++;
     sub.usedThisMonth++;
     sub.updatedAt = new Date();
+
+    // PostgreSQL 持久化（异步）
+    if (this.usageRepo) {
+      this.usageRepo.create({
+        id: record.id,
+        subscriptionId: record.subscriptionId,
+        timestamp: record.timestamp,
+        endpoint: record.endpoint,
+        method: record.method,
+        statusCode: record.statusCode,
+        latencyMs: record.latencyMs,
+      }).catch(() => {});
+    }
+    if (this.subscriptionRepo) {
+      this.subscriptionRepo.incrementUsage(subscriptionId).catch(() => {});
+    }
 
     return record;
   }

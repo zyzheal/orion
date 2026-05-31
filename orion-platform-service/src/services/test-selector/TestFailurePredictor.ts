@@ -10,6 +10,8 @@ import {
   TestSuite,
   TestCase,
 } from './types';
+import { TestExecutionHistoryDependencyRepository } from '../../repositories/TestDependencyRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 测试历史统计
@@ -47,6 +49,14 @@ export class TestFailurePredictor {
   private testHistory: Map<string, TestExecutionRecord[]> = new Map();
   // 测试 ID -> 统计信息（缓存）
   private statsCache: Map<string, TestHistoryStats> = new Map();
+  /** PostgreSQL 持久化（可选） */
+  private historyRepo: TestExecutionHistoryDependencyRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.historyRepo = new TestExecutionHistoryDependencyRepository(db);
+    }
+  }
 
   /**
    * 预测测试失败概率
@@ -149,6 +159,20 @@ export class TestFailurePredictor {
 
     // 清除该测试的统计缓存
     this.statsCache.delete(testId);
+
+    // PostgreSQL 持久化（异步）
+    if (this.historyRepo) {
+      this.historyRepo.create({
+        id: uuidv4(),
+        testId,
+        executionId: record.executionId,
+        passed: record.passed,
+        duration: record.duration,
+        failureMessage: record.failureMessage || null,
+        prId: record.prId || null,
+        executedAt: new Date(record.timestamp),
+      }).catch(() => {});
+    }
   }
 
   /**

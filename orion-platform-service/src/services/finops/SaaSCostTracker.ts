@@ -7,6 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { SaaSCost, BillingCycle } from './types';
+import { SaaSCostSubscriptionRepository } from '../../repositories/SaaSCostSubscriptionRepository';
 
 /**
  * SaaS 订阅更新请求
@@ -34,6 +35,13 @@ export interface SaaSSubscriptionUpdate {
 export class SaaSCostTracker {
   /** 订阅记录存储 */
   private subscriptions: Map<string, SaaSCost> = new Map();
+  private repository?: SaaSCostSubscriptionRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new SaaSCostSubscriptionRepository(db);
+    }
+  }
 
   /**
    * 添加 SaaS 订阅
@@ -67,6 +75,24 @@ export class SaaSCostTracker {
     };
 
     this.subscriptions.set(subscription.id, subscription);
+
+    // Persist to DB
+    if (this.repository) {
+      this.repository.create({
+        id: subscription.id,
+        tool: subscription.tool,
+        subscription: subscription.subscription,
+        seats: subscription.seats,
+        unitCost: subscription.unitCost,
+        totalCost: subscription.totalCost,
+        billingCycle: subscription.billingCycle,
+        startDate: subscription.startDate,
+        endDate: subscription.endDate,
+        status: subscription.status,
+        notes: subscription.notes || null,
+      }).catch(() => {});
+    }
+
     return subscription;
   }
 

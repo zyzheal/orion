@@ -7,11 +7,10 @@
  */
 
 import { EventEmitter } from 'events';
-import {
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../../errors';
-
-const logger = pino({ name: 'LBackup-LScheduler' });
+import { BackupPlanRepository, BackupPlanEntity } from '../../repositories/BackupPlanRepository';
+import {
   BackupPlan,
   BackupRecord,
   BackupStatus,
@@ -20,6 +19,8 @@ const logger = pino({ name: 'LBackup-LScheduler' });
   RetentionPolicy,
   BackupSchedule,
 } from './types';
+
+const logger = pino({ name: 'LBackup-LScheduler' });
 
 /**
  * Parse a cron expression and calculate the next run time.
@@ -104,8 +105,9 @@ function matchesField(value: number, field: string): boolean {
  * Backup Scheduler - Manages backup plans and scheduling
  */
 export class BackupScheduler extends EventEmitter {
-  /** Registered backup plans */
-  private plans: Map<string, BackupPlan> = new Map();
+  /** Registered backup plans - migrated to repository */
+  private plans: Map<string, BackupPlan> = new Map(); // in-memory cache
+  private planRepository?: BackupPlanRepository;
 
   /** Next scheduled execution times */
   private nextExecutions: Map<string, Date> = new Map();
@@ -122,10 +124,17 @@ export class BackupScheduler extends EventEmitter {
   /** Callback to execute a backup */
   public onExecuteBackup?: (plan: BackupPlan) => Promise<BackupRecord>;
 
-  constructor(checkIntervalMs?: number) {
+  constructor(checkIntervalMsOrOptions?: number | { checkIntervalMs?: number; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     super();
-    if (checkIntervalMs) {
-      this.checkIntervalMs = checkIntervalMs;
+    if (typeof checkIntervalMsOrOptions === 'number') {
+      this.checkIntervalMs = checkIntervalMsOrOptions;
+    } else if (checkIntervalMsOrOptions) {
+      if (checkIntervalMsOrOptions.checkIntervalMs) {
+        this.checkIntervalMs = checkIntervalMsOrOptions.checkIntervalMs;
+      }
+      if (checkIntervalMsOrOptions.db) {
+        this.planRepository = new BackupPlanRepository(checkIntervalMsOrOptions.db);
+      }
     }
   }
 
@@ -134,7 +143,7 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Create a new backup plan
    */
-  createPlan(plan: Omit<BackupPlan, 'createdAt' | 'updatedAt'>): BackupPlan {
+  async createPlan(plan: Omit<BackupPlan, 'createdAt' | 'updatedAt'>): Promise<BackupPlan> {
     const now = new Date();
     const fullPlan: BackupPlan = {
       ...plan,
@@ -143,6 +152,25 @@ export class BackupScheduler extends EventEmitter {
     };
 
     this.plans.set(fullPlan.id, fullPlan);
+
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        await this.planRepository.create({
+          id: fullPlan.id,
+          name: fullPlan.name,
+          description: fullPlan.description || null,
+          sourceType: fullPlan.sourceType,
+          backupType: fullPlan.type,
+          enabled: fullPlan.enabled,
+          schedule: fullPlan.schedule as any,
+          retention: fullPlan.retention as any,
+          storageConfig: {},
+        });
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to persist plan to repository:`, err);
+      }
+    }
 
     // Calculate next execution time
     if (fullPlan.enabled) {
@@ -182,7 +210,7 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Update a backup plan
    */
-  updatePlan(planId: string, updates: Partial<BackupPlan>): BackupPlan | null {
+  async updatePlan(planId: string, updates: Partial<BackupPlan>): Promise<BackupPlan | null> {
     const plan = this.plans.get(planId);
     if (!plan) return null;
 
@@ -193,6 +221,26 @@ export class BackupScheduler extends EventEmitter {
     };
 
     this.plans.set(planId, updated);
+
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        const entity = await this.planRepository.findById(planId);
+        if (entity) {
+          await this.planRepository.update(entity.id, {
+            name: updated.name,
+            description: updated.description || null,
+            sourceType: updated.sourceType,
+            backupType: updated.type,
+            enabled: updated.enabled,
+            schedule: updated.schedule as any,
+            retention: updated.retention as any,
+          });
+        }
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to persist plan update to repository:`, err);
+      }
+    }
 
     // Recalculate next execution if schedule changed or enabled status changed
     if (updates.schedule || updates.enabled !== undefined) {
@@ -215,9 +263,22 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Delete a backup plan
    */
-  deletePlan(planId: string): boolean {
+  async deletePlan(planId: string): Promise<boolean> {
     const deleted = this.plans.delete(planId);
     this.nextExecutions.delete(planId);
+
+    // Persist to repository
+    if (deleted && this.planRepository) {
+      try {
+        const entity = await this.planRepository.findById(planId);
+        if (entity) {
+          await this.planRepository.delete(entity.id);
+        }
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to delete plan from repository:`, err);
+      }
+    }
+
     if (deleted) {
       this.emit('plan:deleted', planId);
     }
@@ -227,7 +288,15 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Toggle a plan's enabled status
    */
-  togglePlan(planId: string, enabled: boolean): BackupPlan | null {
+  async togglePlan(planId: string, enabled: boolean): Promise<BackupPlan | null> {
+    // Persist toggle to repository
+    if (this.planRepository) {
+      try {
+        await this.planRepository.toggleEnabled(planId, enabled);
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to toggle plan in repository:`, err);
+      }
+    }
     return this.updatePlan(planId, { enabled });
   }
 

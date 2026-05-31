@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { DevPortalSDKTaskRepository } from '../../repositories/DevPortalSDKTaskRepository';
 
 // ==================== Type Definitions ====================
 
@@ -93,6 +94,13 @@ export class SDKGeneratorServiceError extends Error {
 
 export class SDKGeneratorService {
   private tasks: Map<string, SDKGenerationTask> = new Map();
+  private repository: DevPortalSDKTaskRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new DevPortalSDKTaskRepository(db);
+    }
+  }
 
   /**
    * 获取支持的语言列表
@@ -135,6 +143,23 @@ export class SDKGeneratorService {
     };
 
     this.tasks.set(task.id, task);
+
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.create({
+        id: task.id,
+        tenantId: task.tenantId,
+        name: task.name,
+        apiSpec: task.apiSpec,
+        language: task.language,
+        packageName: task.packageName,
+        version: task.version,
+        status: 'pending',
+        output: '',
+        error: null,
+        completedAt: null,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
 
     // Simulate async SDK generation
     this.processTask(task.id).catch(() => { /* swallowed */ });
@@ -187,7 +212,12 @@ export class SDKGeneratorService {
     if (!this.tasks.has(id)) {
       throw new SDKGeneratorServiceError(`SDK generation task not found: ${id}`, 'TASK_NOT_FOUND');
     }
-    return this.tasks.delete(id);
+    this.tasks.delete(id);
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.delete(id).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+    return true;
   }
 
   /**
@@ -244,6 +274,11 @@ export class SDKGeneratorService {
       task.status = 'failed';
       task.error = err instanceof Error ? err.message : 'Unknown generation error';
       task.completedAt = new Date();
+    }
+
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.updateStatus(taskId, task.status, task.output, task.error || undefined).catch(() => {});
     }
   }
 

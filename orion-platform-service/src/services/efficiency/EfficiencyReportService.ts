@@ -14,6 +14,13 @@ import {
   DoraMetricsReport,
 } from '../efficiency/types';
 import { DoraMetricsService } from '../efficiency/DoraMetricsService';
+import {
+  EfficiencyTeamDataRepository,
+  EfficiencyProjectDataRepository,
+  EfficiencyReportHistoryRepository,
+  EfficiencyGlobalDeploymentRepository,
+  EfficiencyGlobalPipelineRepository,
+} from '../../repositories/EfficiencyReportRepository';
 
 /**
  * 效能报告
@@ -131,7 +138,7 @@ export interface PeriodComparison {
 export class EfficiencyReportService {
   private doraService: DoraMetricsService;
 
-  /** 团队数据存储 */
+  /** 团队数据存储（内存缓存） */
   private teamData: Map<string, {
     name: string;
     members: number;
@@ -139,7 +146,7 @@ export class EfficiencyReportService {
     deployments: DeploymentRecord[];
   }> = new Map();
 
-  /** 项目数据存储 */
+  /** 项目数据存储（内存缓存） */
   private projectData: Map<string, {
     name: string;
     pipelines: PipelineCompletionRecord[];
@@ -147,15 +154,29 @@ export class EfficiencyReportService {
     commits: number;
   }> = new Map();
 
-  /** 历史报告存储 */
+  /** 历史报告存储（内存缓存） */
   private reportHistory: Map<string, EfficiencyReport[]> = new Map();
 
-  /** 模拟的部署和 Pipeline 数据 */
+  /** 模拟的部署和 Pipeline 数据（内存缓存） */
   private globalDeployments: Map<string, DeploymentRecord[]> = new Map();
   private globalPipelineRecords: Map<string, PipelineCompletionRecord[]> = new Map();
 
-  constructor() {
+  /** PostgreSQL 持久化（可选） */
+  private teamDataRepo: EfficiencyTeamDataRepository | null = null;
+  private projectDataRepo: EfficiencyProjectDataRepository | null = null;
+  private reportHistoryRepo: EfficiencyReportHistoryRepository | null = null;
+  private globalDeploymentsRepo: EfficiencyGlobalDeploymentRepository | null = null;
+  private globalPipelinesRepo: EfficiencyGlobalPipelineRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.doraService = new DoraMetricsService();
+    if (db) {
+      this.teamDataRepo = new EfficiencyTeamDataRepository(db);
+      this.projectDataRepo = new EfficiencyProjectDataRepository(db);
+      this.reportHistoryRepo = new EfficiencyReportHistoryRepository(db);
+      this.globalDeploymentsRepo = new EfficiencyGlobalDeploymentRepository(db);
+      this.globalPipelinesRepo = new EfficiencyGlobalPipelineRepository(db);
+    }
   }
 
   /**
@@ -213,6 +234,16 @@ export class EfficiencyReportService {
       history.splice(0, history.length - 50);
     }
     this.reportHistory.set(tenantId, history);
+
+    // PostgreSQL 持久化（异步）
+    if (this.reportHistoryRepo) {
+      this.reportHistoryRepo.create({
+        id: report.reportId,
+        tenantId,
+        reportData: report as unknown as Record<string, unknown>,
+        generatedAt: report.generatedAt,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
 
     return report;
   }
@@ -350,6 +381,17 @@ export class EfficiencyReportService {
     deployments: DeploymentRecord[]
   ): void {
     this.teamData.set(teamId, { name, members, pipelines, deployments });
+    // PostgreSQL 持久化（异步）
+    if (this.teamDataRepo) {
+      this.teamDataRepo.create({
+        id: teamId,
+        tenantId: 'default',
+        name,
+        members,
+        pipelines,
+        deployments,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
   }
 
   /**
@@ -363,6 +405,17 @@ export class EfficiencyReportService {
     commits: number = 0
   ): void {
     this.projectData.set(projectId, { name, pipelines, deployments, commits });
+    // PostgreSQL 持久化（异步）
+    if (this.projectDataRepo) {
+      this.projectDataRepo.create({
+        id: projectId,
+        tenantId: 'default',
+        name,
+        pipelines,
+        deployments,
+        commits,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
   }
 
   /**
@@ -375,6 +428,27 @@ export class EfficiencyReportService {
   ): void {
     this.globalDeployments.set(tenantId, deployments);
     this.globalPipelineRecords.set(tenantId, pipelineRecords);
+    // PostgreSQL 持久化（异步）
+    if (this.globalDeploymentsRepo) {
+      for (const d of deployments) {
+        this.globalDeploymentsRepo.create({
+          id: d.id || uuidv4(),
+          tenantId,
+          deploymentData: d as unknown as Record<string, unknown>,
+          deployedAt: d.deployedAt,
+        }).catch(() => { /* 持久化失败不阻塞 */ });
+      }
+    }
+    if (this.globalPipelinesRepo) {
+      for (const p of pipelineRecords) {
+        this.globalPipelinesRepo.create({
+          id: p.id || uuidv4(),
+          tenantId,
+          pipelineData: p as unknown as Record<string, unknown>,
+          completedAt: p.completedAt,
+        }).catch(() => { /* 持久化失败不阻塞 */ });
+      }
+    }
   }
 
   /**

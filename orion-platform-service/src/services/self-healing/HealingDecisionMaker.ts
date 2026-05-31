@@ -9,11 +9,10 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import {
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../../errors';
-
-const logger = pino({ name: 'LHealing-LDecision-LMaker' });
+import { HealingApprovalRequestRepository } from '../../repositories/HealingApprovalRequestRepository';
+import {
   HealingStrategy,
   HealingAction,
   HealingDecision,
@@ -24,6 +23,8 @@ const logger = pino({ name: 'LHealing-LDecision-LMaker' });
   IncidentSeverity,
   IncidentType,
 } from './types';
+
+const logger = pino({ name: 'LHealing-LDecision-LMaker' });
 
 /**
  * Risk assessment integration interface
@@ -71,13 +72,18 @@ export class HealingDecisionMaker {
   private config: Required<DecisionMakerConfig>;
   private approvalRequests: Map<string, ApprovalRequest> = new Map();
   private riskAssessor?: IRiskAssessor;
+  private repository?: HealingApprovalRequestRepository;
 
   constructor(
     config?: DecisionMakerConfig,
-    riskAssessor?: IRiskAssessor
+    riskAssessor?: IRiskAssessor,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.riskAssessor = riskAssessor;
+    if (db) {
+      this.repository = new HealingApprovalRequestRepository(db);
+    }
   }
 
   /**
@@ -219,6 +225,22 @@ export class HealingDecisionMaker {
 
     this.approvalRequests.set(request.id, request);
 
+    // Persist to DB (fire-and-forget)
+    if (this.repository) {
+      this.repository.create({
+        id: request.id,
+        incidentId: request.incidentId,
+        title: request.title,
+        description: request.description,
+        riskLevel: request.riskLevel,
+        recommendedActions: request.recommendedActions,
+        status: request.status,
+        requestedBy: request.requestedBy,
+        requestedAt: request.requestedAt,
+        expiresAt: request.expiresAt || null,
+      }).catch(() => {});
+    }
+
     return request;
   }
 
@@ -249,25 +271,73 @@ export class HealingDecisionMaker {
     request.approvalReason = response.reason;
     request.respondedAt = new Date();
 
+    // Persist to DB (fire-and-forget)
+    if (this.repository) {
+      this.repository.updateStatus(requestId, request.status, response.respondedBy, response.reason).catch(() => {});
+    }
+
     return request;
   }
 
   /**
    * Get an approval request by ID
    */
-  getApprovalRequest(requestId: string): ApprovalRequest | undefined {
-    return this.approvalRequests.get(requestId);
+  async getApprovalRequest(requestId: string): Promise<ApprovalRequest | undefined> {
+    // Check in-memory first
+    const cached = this.approvalRequests.get(requestId);
+    if (cached) return cached;
+
+    // Fallback to DB
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findById(requestId);
+        if (entity) {
+          return this.entityToApprovalRequest(entity);
+        }
+      } catch {
+        // DB unavailable
+      }
+    }
+    return undefined;
   }
 
   /**
    * Get all approval requests, optionally filtered by status
    */
-  getApprovalRequests(status?: ApprovalRequest['status']): ApprovalRequest[] {
+  async getApprovalRequests(status?: ApprovalRequest['status']): Promise<ApprovalRequest[]> {
+    if (this.repository) {
+      try {
+        const entities = status
+          ? await this.repository.findByStatus(status)
+          : (await this.repository.findAll({ limit: 1000 })).entities;
+        return entities.map(e => this.entityToApprovalRequest(e));
+      } catch {
+        // Fallback to in-memory
+      }
+    }
     const all = Array.from(this.approvalRequests.values());
     if (status) {
       return all.filter((r) => r.status === status);
     }
     return all;
+  }
+
+  private entityToApprovalRequest(entity: import('../../repositories/HealingApprovalRequestRepository').HealingApprovalRequestEntity): ApprovalRequest {
+    return {
+      id: entity.id,
+      incidentId: entity.incidentId,
+      title: entity.title || '',
+      description: entity.description || '',
+      riskLevel: (entity.riskLevel as RiskLevel) || 'medium',
+      recommendedActions: entity.recommendedActions || [],
+      status: entity.status as ApprovalRequest['status'],
+      requestedBy: entity.requestedBy || 'system',
+      requestedAt: entity.requestedAt,
+      expiresAt: entity.expiresAt || undefined,
+      approvedBy: entity.approvedBy || undefined,
+      approvalReason: entity.approvalReason || undefined,
+      respondedAt: entity.respondedAt || undefined,
+    };
   }
 
   /**

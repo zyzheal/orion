@@ -28,6 +28,8 @@ import { AlertDeduplication } from './AlertDeduplication';
 import { AlertCorrelationService } from './AlertCorrelationService';
 import { MaintenanceWindowRepository, MaintenanceWindowEntity } from '../../repositories/MaintenanceWindowRepository';
 import { KnownIssueRepository, KnownIssueEntity } from '../../repositories/KnownIssueRepository';
+import { AlertActiveAlertRepository, AlertActiveAlertEntity } from '../../repositories/AlertActiveAlertRepository';
+import { SuppressionLogRepository } from '../../repositories/SuppressionLogRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -84,11 +86,13 @@ export class AlertSuppressionService {
   private correlation: AlertCorrelationService;
   private maintenanceWindowRepository?: MaintenanceWindowRepository;
   private knownIssueRepository?: KnownIssueRepository;
-  private activeAlerts: Map<string, Alert> = new Map();
-  // 内存模式存储（用于测试和无 db 场景）
+  private activeAlertRepository?: AlertActiveAlertRepository;
+  private suppressionLogRepository?: SuppressionLogRepository;
+  // 内存模式回退（用于测试和无 db 场景）
+  private activeAlertsMemory: Map<string, Alert> = new Map();
   private maintenanceWindows: Map<string, MaintenanceWindow> = new Map();
   private knownIssues: Map<string, KnownIssue> = new Map();
-  private suppressionLog: Array<{
+  private suppressionLogMemory: Array<{
     alertId: string;
     ruleType: SuppressionRuleType;
     reason: string;
@@ -108,6 +112,8 @@ export class AlertSuppressionService {
     if (db) {
       this.maintenanceWindowRepository = new MaintenanceWindowRepository(db);
       this.knownIssueRepository = new KnownIssueRepository(db);
+      this.activeAlertRepository = new AlertActiveAlertRepository(db);
+      this.suppressionLogRepository = new SuppressionLogRepository(db);
     }
   }
 
@@ -152,7 +158,7 @@ export class AlertSuppressionService {
     if (this.config.maintenanceWindowCheckEnabled) {
       const maintenanceResult = await this.checkMaintenanceWindow(alert);
       if (maintenanceResult.suppressed) {
-        this.logSuppression(alert.id, maintenanceResult.ruleType!, maintenanceResult.reason!);
+        await this.logSuppression(alert.id, maintenanceResult.ruleType!, maintenanceResult.reason!);
         return maintenanceResult;
       }
     }
@@ -161,7 +167,7 @@ export class AlertSuppressionService {
     if (this.config.knownIssueSuppressionEnabled) {
       const knownIssueResult = await this.checkKnownIssue(alert);
       if (knownIssueResult.suppressed) {
-        this.logSuppression(alert.id, knownIssueResult.ruleType!, knownIssueResult.reason!);
+        await this.logSuppression(alert.id, knownIssueResult.ruleType!, knownIssueResult.reason!);
         return knownIssueResult;
       }
     }
@@ -169,48 +175,48 @@ export class AlertSuppressionService {
     // 3. 重复告警抑制
     const dupResult = this.checkDuplication(alert);
     if (dupResult.suppressed) {
-      this.logSuppression(alert.id, dupResult.ruleType!, dupResult.reason!);
+      await this.logSuppression(alert.id, dupResult.ruleType!, dupResult.reason!);
       return dupResult;
     }
 
     // 4. 根因抑制（级联故障）
     if (this.config.rootCauseSuppressionEnabled) {
-      const rootCauseResult = this.checkRootCauseSuppression(alert);
+      const rootCauseResult = await this.checkRootCauseSuppression(alert);
       if (rootCauseResult.suppressed) {
-        this.logSuppression(alert.id, rootCauseResult.ruleType!, rootCauseResult.reason!);
+        await this.logSuppression(alert.id, rootCauseResult.ruleType!, rootCauseResult.reason!);
         return rootCauseResult;
       }
     }
 
     // 5. 节点故障抑制
     if (this.config.nodeFailureSuppressionEnabled) {
-      const nodeResult = this.checkNodeFailure(alert);
+      const nodeResult = await this.checkNodeFailure(alert);
       if (nodeResult.suppressed) {
-        this.logSuppression(alert.id, nodeResult.ruleType!, nodeResult.reason!);
+        await this.logSuppression(alert.id, nodeResult.ruleType!, nodeResult.reason!);
         return nodeResult;
       }
     }
 
     // 6. 数据库故障抑制
     if (this.config.databaseFailureSuppressionEnabled) {
-      const dbResult = this.checkDatabaseFailure(alert);
+      const dbResult = await this.checkDatabaseFailure(alert);
       if (dbResult.suppressed) {
-        this.logSuppression(alert.id, dbResult.ruleType!, dbResult.reason!);
+        await this.logSuppression(alert.id, dbResult.ruleType!, dbResult.reason!);
         return dbResult;
       }
     }
 
     // 7. 网络故障抑制
     if (this.config.networkFailureSuppressionEnabled) {
-      const networkResult = this.checkNetworkFailure(alert);
+      const networkResult = await this.checkNetworkFailure(alert);
       if (networkResult.suppressed) {
-        this.logSuppression(alert.id, networkResult.ruleType!, networkResult.reason!);
+        await this.logSuppression(alert.id, networkResult.ruleType!, networkResult.reason!);
         return networkResult;
       }
     }
 
     // 未被抑制，保存到活跃告警列表
-    this.activeAlerts.set(alert.id, alert);
+    await this.saveActiveAlert(alert);
 
     return {
       suppressed: false,
@@ -487,10 +493,10 @@ export class AlertSuppressionService {
   /**
    * 规则4: 根因抑制（级联故障）
    */
-  private checkRootCauseSuppression(alert: Alert): SuppressionResult {
+  private async checkRootCauseSuppression(alert: Alert): Promise<SuppressionResult> {
     // 检查是否有根因告警标记
     if (alert.rootCauseAlertId) {
-      const rootCauseAlert = this.activeAlerts.get(alert.rootCauseAlertId);
+      const rootCauseAlert = await this.getActiveAlert(alert.rootCauseAlertId);
 
       if (rootCauseAlert) {
         logger.info(
@@ -512,7 +518,7 @@ export class AlertSuppressionService {
 
     // 检查影响范围内是否有更严重的告警
     for (const impactedId of impactScope) {
-      const impactedAlert = this.activeAlerts.get(impactedId);
+      const impactedAlert = await this.getActiveAlert(impactedId);
       if (impactedAlert && impactedAlert.id !== alert.id) {
         // 如果有上游告警，抑制此告警
         const deps = this.correlation.getDependencies(alert.sourceId);
@@ -533,16 +539,16 @@ export class AlertSuppressionService {
   /**
    * 规则5: 节点故障抑制
    */
-  private checkNodeFailure(alert: Alert): SuppressionResult {
+  private async checkNodeFailure(alert: Alert): Promise<SuppressionResult> {
     // 只抑制非节点类型的告警
     if (alert.sourceType === AlertSourceType.NODE) {
       return { suppressed: false };
     }
 
     // 检查是否有节点故障告警
-    for (const activeAlert of this.activeAlerts.values()) {
+    const nodeAlerts = await this.getActiveAlertsBySourceType(AlertSourceType.NODE);
+    for (const activeAlert of nodeAlerts) {
       if (
-        activeAlert.sourceType === AlertSourceType.NODE &&
         activeAlert.status === AlertStatus.FIRING &&
         activeAlert.severity === AlertSeverity.CRITICAL
       ) {
@@ -570,7 +576,7 @@ export class AlertSuppressionService {
   /**
    * 规则6: 数据库故障抑制
    */
-  private checkDatabaseFailure(alert: Alert): SuppressionResult {
+  private async checkDatabaseFailure(alert: Alert): Promise<SuppressionResult> {
     // 只抑制应用层告警
     if (
       alert.sourceType !== AlertSourceType.APPLICATION &&
@@ -580,9 +586,9 @@ export class AlertSuppressionService {
     }
 
     // 检查是否有数据库故障告警
-    for (const activeAlert of this.activeAlerts.values()) {
+    const dbAlerts = await this.getActiveAlertsBySourceType(AlertSourceType.DATABASE, AlertSeverity.HIGH);
+    for (const activeAlert of dbAlerts) {
       if (
-        activeAlert.sourceType === AlertSourceType.DATABASE &&
         activeAlert.status === AlertStatus.FIRING &&
         isSeverityAtLeast(activeAlert.severity, AlertSeverity.HIGH)
       ) {
@@ -610,16 +616,16 @@ export class AlertSuppressionService {
   /**
    * 规则7: 网络故障抑制
    */
-  private checkNetworkFailure(alert: Alert): SuppressionResult {
+  private async checkNetworkFailure(alert: Alert): Promise<SuppressionResult> {
     // 只抑制下游告警
     if (alert.sourceType === AlertSourceType.NETWORK) {
       return { suppressed: false };
     }
 
     // 检查是否有网络故障告警
-    for (const activeAlert of this.activeAlerts.values()) {
+    const networkAlerts = await this.getActiveAlertsBySourceType(AlertSourceType.NETWORK, AlertSeverity.HIGH);
+    for (const activeAlert of networkAlerts) {
       if (
-        activeAlert.sourceType === AlertSourceType.NETWORK &&
         activeAlert.status === AlertStatus.FIRING &&
         isSeverityAtLeast(activeAlert.severity, AlertSeverity.HIGH)
       ) {
@@ -794,44 +800,82 @@ export class AlertSuppressionService {
   /**
    * 获取抑制日志
    */
-  getSuppressionLog(options?: {
+  async getSuppressionLog(options?: {
     startTime?: Date;
     endTime?: Date;
     ruleType?: SuppressionRuleType;
     limit?: number;
-  }): Array<{
+  }): Promise<Array<{
     alertId: string;
     ruleType: SuppressionRuleType;
     reason: string;
     timestamp: Date;
-  }> {
-    let log = [...this.suppressionLog];
+  }>> {
+    if (this.suppressionLogRepository) {
+      let entities;
+      if (options?.startTime && options?.endTime) {
+        entities = await this.suppressionLogRepository.findInRange(
+          options.startTime, options.endTime, undefined,
+        );
+      } else if (options?.ruleType) {
+        entities = await this.suppressionLogRepository.findByRuleType(
+          options.ruleType, undefined, options?.limit || 100,
+        );
+      } else {
+        entities = await this.suppressionLogRepository.findByTenantId(
+          'default', options?.limit || 100,
+        );
+      }
+
+      let log = entities.map(e => ({
+        alertId: e.alertId,
+        ruleType: e.ruleType as SuppressionRuleType,
+        reason: e.reason,
+        timestamp: e.loggedAt,
+      }));
+
+      // Apply remaining filters
+      if (options?.startTime && !options?.endTime) {
+        log = log.filter(l => l.timestamp >= options.startTime!);
+      }
+      if (options?.endTime && !options?.startTime) {
+        log = log.filter(l => l.timestamp <= options.endTime!);
+      }
+      if (options?.ruleType && options?.startTime) {
+        log = log.filter(l => l.ruleType === options.ruleType);
+      }
+
+      log.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      if (options?.limit) {
+        log = log.slice(0, options.limit);
+      }
+      return log;
+    }
+
+    // Memory fallback
+    let log = [...this.suppressionLogMemory];
 
     if (options?.startTime) {
       log = log.filter((l) => l.timestamp >= options.startTime!);
     }
-
     if (options?.endTime) {
       log = log.filter((l) => l.timestamp <= options.endTime!);
     }
-
     if (options?.ruleType) {
       log = log.filter((l) => l.ruleType === options.ruleType);
     }
 
     log.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
     if (options?.limit) {
       log = log.slice(0, options.limit);
     }
-
     return log;
   }
 
   /**
    * 获取统计数据
    */
-  getStats(): {
+  async getStats(): Promise<{
     activeAlerts: number;
     maintenanceWindows: number;
     knownIssues: number;
@@ -842,7 +886,7 @@ export class AlertSuppressionService {
       degraded: number;
       unhealthy: number;
     };
-  } {
+  }> {
     const nodeHealth = this.correlation.getAllNodeHealth();
 
     // 计算活跃的维护窗口和已知问题数量
@@ -861,12 +905,20 @@ export class AlertSuppressionService {
       }
     }
 
+    let activeAlertCount = this.activeAlertsMemory.size;
+    let suppressionLogSize = this.suppressionLogMemory.length;
+
+    if (this.activeAlertRepository) {
+      const counts = await this.activeAlertRepository.countByStatus();
+      activeAlertCount = counts.total;
+    }
+
     return {
-      activeAlerts: this.activeAlerts.size,
+      activeAlerts: activeAlertCount,
       maintenanceWindows: activeMaintenanceWindows,
       knownIssues: openKnownIssues,
-      suppressionLogSize: this.suppressionLog.length,
-      deduplicationStats: this.deduplication.getStats(),
+      suppressionLogSize,
+      deduplicationStats: await this.deduplication.getStats(),
       nodeHealthStats: {
         healthy: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'healthy').length,
         degraded: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'degraded').length,
@@ -878,30 +930,50 @@ export class AlertSuppressionService {
   /**
    * 清除告警（已解决）
    */
-  clearAlert(alertId: string): boolean {
-    const deleted = this.activeAlerts.delete(alertId);
+  async clearAlert(alertId: string): Promise<boolean> {
+    if (this.activeAlertRepository) {
+      const existing = await this.activeAlertRepository.findById(alertId);
+      if (!existing) return false;
+      await this.activeAlertRepository.markResolved(alertId);
+      logger.info({ alertId }, 'Alert cleared');
+      return true;
+    }
 
+    const deleted = this.activeAlertsMemory.delete(alertId);
     if (deleted) {
       logger.info({ alertId }, 'Alert cleared');
     }
-
     return deleted;
   }
 
   /**
    * 记录抑制日志
    */
-  private logSuppression(alertId: string, ruleType: SuppressionRuleType, reason: string): void {
-    this.suppressionLog.push({
-      alertId,
-      ruleType,
-      reason,
-      timestamp: new Date(),
-    });
-
-    // 限制日志大小
-    if (this.suppressionLog.length > 10000) {
-      this.suppressionLog = this.suppressionLog.slice(-5000);
+  private async logSuppression(alertId: string, ruleType: SuppressionRuleType, reason: string): Promise<void> {
+    if (this.suppressionLogRepository) {
+      try {
+        await this.suppressionLogRepository.create({
+          id: uuidv4(),
+          tenantId: 'default',
+          alertId,
+          ruleType,
+          reason,
+          loggedAt: new Date(),
+        } as any);
+      } catch (err) {
+        logger.error({ err, alertId }, 'Failed to persist suppression log');
+      }
+    } else {
+      this.suppressionLogMemory.push({
+        alertId,
+        ruleType,
+        reason,
+        timestamp: new Date(),
+      });
+      // 限制内存日志大小
+      if (this.suppressionLogMemory.length > 10000) {
+        this.suppressionLogMemory = this.suppressionLogMemory.slice(-5000);
+      }
     }
   }
 
@@ -918,21 +990,141 @@ export class AlertSuppressionService {
     }
 
     // 清理已解决的告警（保留24小时）
-    const now = new Date();
-    const alertExpiryTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    for (const [id, alert] of this.activeAlerts.entries()) {
-      if (alert.status === AlertStatus.RESOLVED && alert.resolvedAt && alert.resolvedAt < alertExpiryTime) {
-        this.activeAlerts.delete(id);
+    if (this.activeAlertRepository) {
+      const alertExpiryTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const deleted = await this.activeAlertRepository.deleteResolved(alertExpiryTime);
+      if (deleted > 0) {
+        logger.info({ count: deleted }, 'Resolved alerts cleaned up from repository');
+      }
+    } else {
+      const now = new Date();
+      const alertExpiryTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      for (const [id, alert] of this.activeAlertsMemory.entries()) {
+        if (alert.status === AlertStatus.RESOLVED && alert.resolvedAt && alert.resolvedAt < alertExpiryTime) {
+          this.activeAlertsMemory.delete(id);
+        }
       }
     }
+  }
+
+  /**
+   * 保存活跃告警到 repository 或内存
+   */
+  private async saveActiveAlert(alert: Alert): Promise<void> {
+    if (this.activeAlertRepository) {
+      try {
+        await this.activeAlertRepository.create({
+          id: alert.id,
+          tenantId: alert.tenantId || 'default',
+          fingerprint: alert.fingerprint,
+          name: alert.name,
+          severity: alert.severity,
+          status: alert.status,
+          sourceType: alert.sourceType,
+          sourceId: alert.sourceId,
+          sourceName: alert.sourceName,
+          labels: alert.labels || {},
+          annotations: alert.annotations || {},
+          value: alert.value,
+          threshold: alert.threshold,
+          startsAt: alert.startsAt,
+          endsAt: alert.endsAt ?? null,
+          resolvedAt: alert.resolvedAt ?? null,
+          suppressedAt: alert.suppressedAt ?? null,
+          suppressedReason: alert.suppressedReason ?? null,
+          rootCauseAlertId: alert.rootCauseAlertId ?? null,
+          relatedAlertIds: alert.relatedAlertIds ?? [],
+          maintenanceWindowId: alert.maintenanceWindowId ?? null,
+          knownIssueId: alert.knownIssueId ?? null,
+        } as any);
+      } catch (err) {
+        logger.error({ err, alertId: alert.id }, 'Failed to persist active alert, falling back to memory');
+        this.activeAlertsMemory.set(alert.id, alert);
+      }
+    } else {
+      this.activeAlertsMemory.set(alert.id, alert);
+    }
+  }
+
+  /**
+   * 获取活跃告警（从 repository 或内存）
+   */
+  private async getActiveAlert(alertId: string): Promise<Alert | undefined> {
+    if (this.activeAlertRepository) {
+      const entity = await this.activeAlertRepository.findById(alertId);
+      if (entity) {
+        return this.entityToAlert(entity);
+      }
+      return undefined;
+    }
+    return this.activeAlertsMemory.get(alertId);
+  }
+
+  /**
+   * 按 sourceType 获取活跃告警（从 repository 或内存）
+   */
+  private async getActiveAlertsBySourceType(
+    sourceType: AlertSourceType,
+    minSeverity?: AlertSeverity,
+  ): Promise<Alert[]> {
+    if (this.activeAlertRepository) {
+      const entities = await this.activeAlertRepository.findFiringBySourceType(
+        sourceType,
+        minSeverity,
+      );
+      return entities.map(e => this.entityToAlert(e));
+    }
+
+    // Memory fallback
+    const results: Alert[] = [];
+    for (const alert of this.activeAlertsMemory.values()) {
+      if (alert.sourceType === sourceType && alert.status === AlertStatus.FIRING) {
+        if (!minSeverity || isSeverityAtLeast(alert.severity, minSeverity)) {
+          results.push(alert);
+        }
+      }
+    }
+    return results;
+  }
+
+  /**
+   * 将 repository entity 转换为 Alert 接口
+   */
+  private entityToAlert(entity: AlertActiveAlertEntity): Alert {
+    return {
+      id: entity.id,
+      fingerprint: entity.fingerprint,
+      name: entity.name,
+      severity: entity.severity as AlertSeverity,
+      status: entity.status as AlertStatus,
+      sourceType: entity.sourceType as AlertSourceType,
+      sourceId: entity.sourceId,
+      sourceName: entity.sourceName,
+      labels: entity.labels,
+      annotations: entity.annotations,
+      value: entity.value,
+      threshold: entity.threshold,
+      startsAt: entity.startsAt,
+      endsAt: entity.endsAt ?? undefined,
+      resolvedAt: entity.resolvedAt ?? undefined,
+      suppressedAt: entity.suppressedAt ?? undefined,
+      suppressedReason: entity.suppressedReason ?? undefined,
+      rootCauseAlertId: entity.rootCauseAlertId ?? undefined,
+      relatedAlertIds: entity.relatedAlertIds,
+      maintenanceWindowId: entity.maintenanceWindowId ?? undefined,
+      knownIssueId: entity.knownIssueId ?? undefined,
+      tenantId: entity.tenantId,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 
   /**
    * 清除所有数据（用于测试）
    */
   clearAll(): void {
-    this.activeAlerts.clear();
-    this.suppressionLog = [];
+    this.activeAlertsMemory.clear();
+    this.suppressionLogMemory = [];
     this.maintenanceWindows.clear();
     this.knownIssues.clear();
     this.deduplication.clearAll();

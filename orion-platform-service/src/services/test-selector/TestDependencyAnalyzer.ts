@@ -9,6 +9,11 @@ import { TestSuite, TestCase, TestDependency, TestCodeMapping } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import pino from 'pino';
+import {
+  TestSuiteDependencyRepository,
+  TestCaseDependencyRepository,
+  TestCodeMappingDependencyRepository,
+} from '../../repositories/TestDependencyRepository';
 
 const logger = pino({ name: 'test-dependency-analyzer' });
 import * as path from 'path';
@@ -37,11 +42,20 @@ export class TestDependencyAnalyzer {
   private testCodeMapping: Map<string, TestCodeMapping> = new Map();
   // 反向索引：源文件 -> 测试 ID 列表
   private sourceToTestsIndex: Map<string, Set<string>> = new Map();
+  /** PostgreSQL 持久化（可选） */
+  private suiteRepo: TestSuiteDependencyRepository | null = null;
+  private caseRepo: TestCaseDependencyRepository | null = null;
+  private mappingRepo: TestCodeMappingDependencyRepository | null = null;
 
-  constructor(config: DependencyAnalyzerConfig) {
+  constructor(config: DependencyAnalyzerConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.sourceRoot = config.sourceRoot;
     this.testRoot = config.testRoot;
     this.testPattern = config.testPattern || /\.test\.(ts|tsx|js|jsx)$/;
+    if (db) {
+      this.suiteRepo = new TestSuiteDependencyRepository(db);
+      this.caseRepo = new TestCaseDependencyRepository(db);
+      this.mappingRepo = new TestCodeMappingDependencyRepository(db);
+    }
   }
 
   /**
@@ -70,6 +84,46 @@ export class TestDependencyAnalyzer {
         result.cases.forEach(tc => this.testCases.set(tc.id, tc));
         this.testCodeMapping.set(testFile, result.mapping);
         this.updateSourceIndex(result.suite.id, result.mapping.sourcePaths);
+
+        // PostgreSQL 持久化（异步）
+        if (this.suiteRepo) {
+          this.suiteRepo.create({
+            id: result.suite.id,
+            name: result.suite.name,
+            filePath: result.suite.filePath,
+            testCount: result.suite.testCount,
+            avgDuration: result.suite.avgDuration,
+            passRate: result.suite.passRate,
+            lastRun: result.suite.lastRun ? new Date(result.suite.lastRun) : null,
+            sourceFiles: result.suite.sourceFiles,
+          }).catch(() => {});
+        }
+        if (this.caseRepo) {
+          for (const tc of result.cases) {
+            this.caseRepo.create({
+              id: tc.id,
+              suiteId: tc.suiteId,
+              name: tc.name,
+              filePath: tc.filePath,
+              dependencies: tc.dependencies,
+              avgDuration: tc.avgDuration,
+              flakyScore: tc.flakyScore,
+              history: tc.history,
+            }).catch(() => {});
+          }
+        }
+        if (this.mappingRepo) {
+          const symbolMappingObj: Record<string, string[]> = {};
+          result.mapping.symbolMapping.forEach((symbols, source) => {
+            symbolMappingObj[source] = symbols;
+          });
+          this.mappingRepo.create({
+            id: uuidv4(),
+            testPath: result.mapping.testPath,
+            sourcePaths: result.mapping.sourcePaths,
+            symbolMapping: symbolMappingObj,
+          }).catch(() => {});
+        }
       }
     }
 

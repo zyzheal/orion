@@ -18,6 +18,7 @@ import {
 } from './types';
 import { BackupStorage } from './BackupStorage';
 import { OrionError, ErrorCode } from '../../../errors';
+import { BackupVerificationRepository } from '../../repositories/BackupVerificationRepository';
 
 /**
  * Backup Verifier - Verifies backup integrity and tests restores
@@ -26,8 +27,9 @@ export class BackupVerifier extends EventEmitter {
   /** Reference to storage for checksum and retrieval operations */
   private storage: BackupStorage;
 
-  /** Verification records */
-  private verifications: Map<string, BackupVerification> = new Map();
+  /** Verification records - migrated to repository */
+  private verificationRepository?: BackupVerificationRepository;
+  private verifications: Map<string, BackupVerification> = new Map(); // in-memory cache
 
   /** Backup records reference */
   private backups: Map<string, BackupRecord> = new Map();
@@ -35,9 +37,12 @@ export class BackupVerifier extends EventEmitter {
   /** Recovery plans reference */
   private recoveryPlans: Map<string, RecoveryPlan> = new Map();
 
-  constructor(storage: BackupStorage) {
+  constructor(storage: BackupStorage, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.storage = storage;
+    if (db) {
+      this.verificationRepository = new BackupVerificationRepository(db);
+    }
   }
 
   /**
@@ -91,6 +96,21 @@ export class BackupVerifier extends EventEmitter {
 
     this.verifications.set(verificationId, verification);
 
+    // Persist initial verification to repository
+    if (this.verificationRepository) {
+      try {
+        await this.verificationRepository.create({
+          id: verificationId,
+          backupId,
+          status: 'in_progress',
+          integrityCheck: false,
+          restoreTest: false,
+        });
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     try {
       // Step 1: Check checksum
       const checksumResult = this.storage.verifyChecksum(backupId);
@@ -102,6 +122,7 @@ export class BackupVerifier extends EventEmitter {
       if (!checksumResult.valid) {
         verification.status = 'failed';
         verification.errorMessage = 'Integrity check failed: checksum mismatch';
+        this.persistVerificationUpdate(verification);
         this.emit('verification:failed', verification);
         return verification;
       }
@@ -112,6 +133,7 @@ export class BackupVerifier extends EventEmitter {
         verification.integrityCheck = false;
         verification.status = 'failed';
         verification.errorMessage = 'Failed to retrieve backup data';
+        this.persistVerificationUpdate(verification);
         this.emit('verification:failed', verification);
         return verification;
       }
@@ -121,6 +143,7 @@ export class BackupVerifier extends EventEmitter {
         verification.integrityCheck = false;
         verification.status = 'failed';
         verification.errorMessage = 'Backup data is empty';
+        this.persistVerificationUpdate(verification);
         this.emit('verification:failed', verification);
         return verification;
       }
@@ -129,6 +152,7 @@ export class BackupVerifier extends EventEmitter {
       verification.status = 'passed';
       verification.verifiedAt = new Date();
 
+      this.persistVerificationUpdate(verification);
       this.emit('verification:passed', verification);
       return verification;
     } catch (error: any) {
@@ -137,6 +161,7 @@ export class BackupVerifier extends EventEmitter {
       verification.errorMessage = error.message;
       verification.verifiedAt = new Date();
 
+      this.persistVerificationUpdate(verification);
       this.emit('verification:failed', verification);
       return verification;
     }
@@ -169,6 +194,21 @@ export class BackupVerifier extends EventEmitter {
 
     this.verifications.set(verificationId, verification);
 
+    // Persist initial verification to repository
+    if (this.verificationRepository) {
+      try {
+        await this.verificationRepository.create({
+          id: verificationId,
+          backupId,
+          status: 'in_progress',
+          integrityCheck: true,
+          restoreTest: false,
+        });
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     try {
       // Step 1: Verify integrity first
       const integrityResult = await this.verifyIntegrity(backupId);
@@ -177,6 +217,7 @@ export class BackupVerifier extends EventEmitter {
         verification.restoreTest = false;
         verification.restoreDetails = `Integrity check failed: ${integrityResult.errorMessage}`;
         verification.verifiedAt = new Date();
+        this.persistVerificationUpdate(verification);
         this.emit('verification:failed', verification);
         return verification;
       }
@@ -188,6 +229,7 @@ export class BackupVerifier extends EventEmitter {
         verification.restoreTest = false;
         verification.restoreDetails = 'Failed to retrieve backup data';
         verification.verifiedAt = new Date();
+        this.persistVerificationUpdate(verification);
         this.emit('verification:failed', verification);
         return verification;
       }
@@ -208,6 +250,7 @@ export class BackupVerifier extends EventEmitter {
         verification.restoreTest = false;
         verification.restoreDetails = 'Re-storage verification failed';
         verification.verifiedAt = new Date();
+        this.persistVerificationUpdate(verification);
         this.emit('verification:failed', verification);
         return verification;
       }
@@ -226,6 +269,7 @@ export class BackupVerifier extends EventEmitter {
         backup.status = 'verified';
       }
 
+      this.persistVerificationUpdate(verification);
       this.emit('verification:passed', verification);
       return verification;
     } catch (error: any) {
@@ -235,6 +279,7 @@ export class BackupVerifier extends EventEmitter {
       verification.restoreDetails = `Restore test error: ${error.message}`;
       verification.verifiedAt = new Date();
 
+      this.persistVerificationUpdate(verification);
       this.emit('verification:failed', verification);
       return verification;
     }
@@ -438,5 +483,26 @@ export class BackupVerifier extends EventEmitter {
    */
   getVerificationsForBackup(backupId: string): BackupVerification[] {
     return this.getAllVerifications().filter(v => v.backupId === backupId);
+  }
+
+  /**
+   * Persist verification update to repository
+   */
+  private async persistVerificationUpdate(verification: BackupVerification): Promise<void> {
+    if (!this.verificationRepository) return;
+    try {
+      const entity = await this.verificationRepository.findById(verification.id);
+      if (entity) {
+        await this.verificationRepository.updateStatus(entity.id, verification.status);
+        if (verification.integrityCheck !== undefined) {
+          await this.verificationRepository.updateIntegrityCheck(entity.id, verification.integrityCheck, verification.integrityDetails);
+        }
+        if (verification.restoreTest) {
+          await this.verificationRepository.updateRestoreTest(entity.id, true, verification.restoreDetails);
+        }
+      }
+    } catch (err) {
+      // Log but don't fail
+    }
   }
 }

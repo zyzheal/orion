@@ -16,6 +16,7 @@ import { PluginRegistry } from './PluginRegistry';
 import { PluginManifest, PluginInfo } from './types';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../../errors';
+import { PluginVersionSnapshotRepository } from '../../repositories/PluginVersionSnapshotRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -64,8 +65,9 @@ export class PluginHotReloadService extends EventEmitter {
   private registry: PluginRegistry;
   private config: HotReloadConfig;
 
-  // 版本快照存储 (用于回滚)
-  private versionSnapshots: Map<string, PluginVersionSnapshot[]> = new Map();
+  // 版本快照存储 (用于回滚) - migrated to repository
+  private snapshotRepository?: PluginVersionSnapshotRepository;
+  private versionSnapshots: Map<string, PluginVersionSnapshot[]> = new Map(); // in-memory cache
   private maxSnapshots = 5; // 每个插件最多保存 5 个版本快照
 
   // 监控器
@@ -78,12 +80,16 @@ export class PluginHotReloadService extends EventEmitter {
   constructor(
     lifecycleManager: PluginLifecycleManager,
     registry: PluginRegistry,
-    config: Partial<HotReloadConfig> = {}
+    config: Partial<HotReloadConfig> = {},
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
   ) {
     super();
     this.lifecycleManager = lifecycleManager;
     this.registry = registry;
     this.config = { ...DEFAULT_CONFIG, ...config };
+    if (db) {
+      this.snapshotRepository = new PluginVersionSnapshotRepository(db);
+    }
 
     // 监听生命周期事件
     this.setupEventListeners();
@@ -406,7 +412,7 @@ export class PluginHotReloadService extends EventEmitter {
   /**
    * 保存版本快照
    */
-  private saveSnapshot(pluginId: string): void {
+  private async saveSnapshot(pluginId: string): Promise<void> {
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) return;
 
@@ -428,6 +434,24 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     this.versionSnapshots.set(pluginId, snapshots);
+
+    // Persist to repository
+    if (this.snapshotRepository) {
+      try {
+        await this.snapshotRepository.create({
+          pluginId,
+          version: plugin.version,
+          manifest: plugin.manifest as any,
+          config: plugin.config || {},
+          status: plugin.status,
+        });
+        // Prune old snapshots
+        await this.snapshotRepository.pruneOldSnapshots(pluginId, this.maxSnapshots);
+      } catch (err) {
+        logger.warn({ pluginId, error: err }, 'Failed to persist snapshot to repository');
+      }
+    }
+
     logger.debug({ pluginId, version: plugin.version }, 'Snapshot saved');
   }
 

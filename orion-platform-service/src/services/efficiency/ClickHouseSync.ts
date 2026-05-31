@@ -10,10 +10,10 @@
  */
 
 import { EventEmitter } from 'events';
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LClick-LHouse-LSync' });
+import {
   EfficiencyMetricsRow,
   EfficiencyEventRow,
   ClickHouseSyncStatus,

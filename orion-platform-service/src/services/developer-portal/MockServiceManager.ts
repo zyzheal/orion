@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { DevPortalMockRuleRepository, DevPortalMockRuleEntity } from '../../repositories/DevPortalMockRuleRepository';
 
 // ==================== Type Definitions ====================
 
@@ -75,6 +76,13 @@ export class MockServiceManagerError extends Error {
 
 export class MockServiceManager {
   private rules: Map<string, MockRule> = new Map();
+  private repository: DevPortalMockRuleRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new DevPortalMockRuleRepository(db);
+    }
+  }
 
   /**
    * 创建 Mock 规则
@@ -116,6 +124,26 @@ export class MockServiceManager {
     };
 
     this.rules.set(rule.id, rule);
+
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.create({
+        id: rule.id,
+        tenantId: rule.tenantId,
+        name: rule.name,
+        description: rule.description,
+        method: rule.method,
+        path: rule.path,
+        statusCode: rule.statusCode,
+        headers: rule.headers,
+        body: rule.body,
+        delay: rule.delay,
+        enabled: rule.enabled,
+        priority: rule.priority,
+        matchType: rule.matchType,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+
     return rule;
   }
 
@@ -187,6 +215,24 @@ export class MockServiceManager {
     if (input.matchType !== undefined) rule.matchType = input.matchType;
 
     rule.updatedAt = new Date();
+
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.update(id, {
+        name: rule.name,
+        description: rule.description,
+        method: rule.method,
+        path: rule.path,
+        statusCode: rule.statusCode,
+        headers: rule.headers,
+        body: rule.body as any,
+        delay: rule.delay,
+        enabled: rule.enabled,
+        priority: rule.priority,
+        matchType: rule.matchType,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+
     return rule;
   }
 
@@ -197,7 +243,12 @@ export class MockServiceManager {
     if (!this.rules.has(id)) {
       throw new MockServiceManagerError(`Mock rule not found: ${id}`, 'RULE_NOT_FOUND');
     }
-    return this.rules.delete(id);
+    this.rules.delete(id);
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.delete(id).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+    return true;
   }
 
   /**
@@ -210,6 +261,10 @@ export class MockServiceManager {
     }
     rule.enabled = !rule.enabled;
     rule.updatedAt = new Date();
+    // PostgreSQL 持久化（异步）
+    if (this.repository) {
+      this.repository.toggleEnabled(id).catch(() => { /* 持久化失败不阻塞 */ });
+    }
     return rule;
   }
 

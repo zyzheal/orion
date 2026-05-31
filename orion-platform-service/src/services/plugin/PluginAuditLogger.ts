@@ -21,6 +21,8 @@ import {
   ExecutionContext,
   ResourceUsage,
 } from './types';
+import { PluginAuditLogRepository } from '../../repositories/PluginAuditLogRepository';
+import { PluginSecurityEventRepository } from '../../repositories/PluginSecurityEventRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -73,11 +75,15 @@ const DLP_PATTERNS: Record<string, { pattern: RegExp; type: DLPPattern['type'] }
  */
 export class PluginAuditLogger extends EventEmitter {
   private logs: Map<string, AuditLogEntry> = new Map();
-  private securityEvents: Map<string, SecurityEvent> = new Map();
+
+  /** Security events - migrated to repository */
+  private securityEventRepository?: PluginSecurityEventRepository;
+  private securityEvents: Map<string, SecurityEvent> = new Map(); // in-memory cache
+
   private config: AuditLoggerConfig;
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(config?: Partial<AuditLoggerConfig>) {
+  constructor(config?: Partial<AuditLoggerConfig>, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.config = {
       maxEntries: config?.maxEntries || 10000,
@@ -85,6 +91,9 @@ export class PluginAuditLogger extends EventEmitter {
       enableDLPSanitization: config?.enableDLPSanitization ?? true,
       enableSecurityAlerts: config?.enableSecurityAlerts ?? true,
     };
+    if (db) {
+      this.securityEventRepository = new PluginSecurityEventRepository(db);
+    }
 
     // 启动定期清理
     this.startCleanupInterval();
@@ -227,6 +236,18 @@ export class PluginAuditLogger extends EventEmitter {
     };
 
     this.securityEvents.set(eventId, fullEvent);
+
+    // Persist to repository
+    if (this.securityEventRepository) {
+      this.securityEventRepository.create({
+        eventType: event.type,
+        severity: event.severity,
+        taskId: event.taskId || null,
+        pluginId: event.pluginId || null,
+        message: event.message || null,
+        details: event.details || {},
+      }).catch(() => {/* ignore */});
+    }
 
     // 根据严重程度设置日志级别
     const logLevel = event.severity === 'CRITICAL' ? 'error' :
@@ -409,6 +430,11 @@ export class PluginAuditLogger extends EventEmitter {
       if (event.timestamp.getTime() < expiredThreshold) {
         this.securityEvents.delete(id);
       }
+    }
+
+    // Persist cleanup to repository
+    if (this.securityEventRepository) {
+      this.securityEventRepository.cleanupExpired(this.config.retentionMs).catch(() => {/* ignore */});
     }
 
     // 如果超过最大条目数，删除最旧的

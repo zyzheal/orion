@@ -12,6 +12,8 @@ import {
   CostEntityType,
   CostPeriod,
 } from './types';
+import { BudgetRepository } from '../../repositories/BudgetRepository';
+import { BudgetSpendRepository } from '../../repositories/BudgetSpendRepository';
 
 /**
  * 预算状态
@@ -108,6 +110,16 @@ export class BudgetService {
     string,
     { date: Date; cumulativeCost: number }[]
   > = new Map();
+
+  private budgetRepo?: BudgetRepository;
+  private spendRepo?: BudgetSpendRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.budgetRepo = new BudgetRepository(db);
+      this.spendRepo = new BudgetSpendRepository(db);
+    }
+  }
 
   /**
    * 创建预算

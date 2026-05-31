@@ -6,6 +6,10 @@
  */
 
 import { randomUUID } from 'crypto';
+import {
+  DevPortalPlaygroundRequestRepository,
+  DevPortalPlaygroundResponseRepository,
+} from '../../repositories/DevPortalPlaygroundRepository';
 
 // ==================== Type Definitions ====================
 
@@ -63,6 +67,15 @@ export class APIPlaygroundServiceError extends Error {
 export class APIPlaygroundService {
   private requests: Map<string, PlaygroundRequest> = new Map();
   private responses: Map<string, PlaygroundResponse[]> = new Map();
+  private requestRepo: DevPortalPlaygroundRequestRepository | null = null;
+  private responseRepo: DevPortalPlaygroundResponseRepository | null = null;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.requestRepo = new DevPortalPlaygroundRequestRepository(db);
+      this.responseRepo = new DevPortalPlaygroundResponseRepository(db);
+    }
+  }
 
   /**
    * 保存请求模板
@@ -96,6 +109,23 @@ export class APIPlaygroundService {
     };
 
     this.requests.set(request.id, request);
+
+    // PostgreSQL 持久化（异步）
+    if (this.requestRepo) {
+      this.requestRepo.create({
+        id: request.id,
+        tenantId: request.tenantId,
+        userId: request.userId,
+        name: request.name,
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        queryParams: request.queryParams,
+        body: request.body,
+        bodyType: request.bodyType,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+
     return request;
   }
 
@@ -171,7 +201,15 @@ export class APIPlaygroundService {
       throw new APIPlaygroundServiceError(`Request not found: ${id}`, 'REQUEST_NOT_FOUND');
     }
     this.responses.delete(id);
-    return this.requests.delete(id);
+    this.requests.delete(id);
+    // PostgreSQL 持久化（异步）
+    if (this.requestRepo) {
+      this.requestRepo.delete(id).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+    if (this.responseRepo) {
+      this.responseRepo.deleteByRequestId(id).catch(() => { /* 持久化失败不阻塞 */ });
+    }
+    return true;
   }
 
   /**
@@ -220,6 +258,20 @@ export class APIPlaygroundService {
     // Keep only last 50 responses per request
     if (history.length > 50) history.shift();
     this.responses.set(requestId, history);
+
+    // PostgreSQL 持久化（异步）
+    if (this.responseRepo) {
+      this.responseRepo.create({
+        id: response.id,
+        requestId: response.requestId,
+        statusCode: response.statusCode,
+        statusText: response.statusText,
+        headers: response.headers,
+        body: response.body,
+        latencyMs: response.latencyMs,
+        timestamp: response.timestamp,
+      }).catch(() => { /* 持久化失败不阻塞 */ });
+    }
 
     return { request, response };
   }

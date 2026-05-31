@@ -19,6 +19,7 @@ import {
   HealingActionResult,
 } from './types';
 import { OrionError, ErrorCode } from '../../../errors';
+import { HealingActionResultRepository } from '../../repositories/HealingActionResultRepository';
 
 const logger = pino({ name: 'healing-action-executor' });
 
@@ -140,10 +141,14 @@ function isSimulateMode(): boolean {
 }
 
 export class HealingActionExecutor {
-  // Track executed actions for potential rollback
+  // Track executed actions for potential rollback (in-memory cache + DB persistence)
   private executedActions: Map<string, HealingActionResult> = new Map();
+  private repository?: HealingActionResultRepository;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new HealingActionResultRepository(db);
+    }
     // Initialize K8s client on construction (non-blocking)
     k8sManager.initialize().catch(() => {
       // Initialization errors are logged but don't prevent operation
@@ -183,7 +188,9 @@ export class HealingActionExecutor {
       }
 
       // Store for potential rollback
-      this.executedActions.set(`${action.type}-${Date.now()}`, result);
+      const actionKey = `${action.type}-${Date.now()}`;
+      this.executedActions.set(actionKey, result);
+      this.persistActionResult(result).catch(() => {});
 
       return result;
     } catch (error: any) {
@@ -194,7 +201,9 @@ export class HealingActionExecutor {
       );
 
       // Store for potential rollback
-      this.executedActions.set(`${action.type}-${Date.now()}`, result);
+      const actionKey = `${action.type}-${Date.now()}`;
+      this.executedActions.set(actionKey, result);
+      this.persistActionResult(result).catch(() => {});
 
       return result;
     }
@@ -313,7 +322,25 @@ export class HealingActionExecutor {
   /**
    * Get history of executed actions
    */
-  getExecutedActions(): HealingActionResult[] {
+  async getExecutedActions(): Promise<HealingActionResult[]> {
+    if (this.repository) {
+      try {
+        const { entities } = await this.repository.findAll({ limit: 1000 });
+        return entities.map(e => ({
+          type: e.actionType as HealingActionType,
+          success: e.success,
+          durationMs: e.durationMs,
+          message: e.message || undefined,
+          error: e.error || undefined,
+          executedAt: e.executedAt,
+          verified: e.verified,
+          rollbackNeeded: e.rollbackNeeded,
+          rollbackSuccess: e.rollbackSuccess || undefined,
+        }));
+      } catch {
+        // Fallback to in-memory
+      }
+    }
     return Array.from(this.executedActions.values());
   }
 
@@ -322,6 +349,28 @@ export class HealingActionExecutor {
    */
   clearExecutedActions(): void {
     this.executedActions.clear();
+  }
+
+  /**
+   * Persist action result to DB (fire-and-forget)
+   */
+  private async persistActionResult(result: HealingActionResult): Promise<void> {
+    if (!this.repository) return;
+    try {
+      await this.repository.create({
+        actionType: result.type,
+        success: result.success,
+        durationMs: result.durationMs,
+        message: result.message || null,
+        error: result.error || null,
+        executedAt: result.executedAt,
+        verified: result.verified,
+        rollbackNeeded: result.rollbackNeeded || false,
+        rollbackSuccess: result.rollbackSuccess || null,
+      });
+    } catch (err) {
+      logger.warn({ err }, 'Failed to persist healing action result to DB');
+    }
   }
 
   // ==================== Action Implementations ====================

@@ -14,10 +14,10 @@ import {
   MetricAggregation,
   DataPoint,
 } from './types';
-import {
 import pino from 'pino';
 
 const logger = pino({ name: 'LMetric-LCollector' });
+import {
   MetricStorageRepository,
 } from './MetricStorageRepository';
 

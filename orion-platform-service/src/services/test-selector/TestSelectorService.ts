@@ -20,6 +20,7 @@ import { TestExecutionOptimizer } from './TestExecutionOptimizer';
 import { TestFailurePredictor, TestHistoryStats } from './TestFailurePredictor';
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
+import { PRTestResultDependencyRepository } from '../../repositories/TestDependencyRepository';
 
 const logger = pino({ name: 'test-selector-service' });
 
@@ -82,18 +83,22 @@ export class TestSelectorService {
   private prResults: Map<string, PRTestResult> = new Map();
   private isInitialized = false;
   private unsubscribe?: () => Promise<void>;
+  private prResultRepo: PRTestResultDependencyRepository | null = null;
 
-  constructor(config: TestSelectorServiceConfig) {
+  constructor(config: TestSelectorServiceConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     // 初始化组件
-    this.dependencyAnalyzer = new TestDependencyAnalyzer(config.analyzerConfig);
+    this.dependencyAnalyzer = new TestDependencyAnalyzer(config.analyzerConfig, db);
     this.impactAnalyzer = new TestImpactAnalyzer(this.dependencyAnalyzer);
-    this.failurePredictor = new TestFailurePredictor();
+    this.failurePredictor = new TestFailurePredictor(db);
     this.executionOptimizer = new TestExecutionOptimizer(
       this.impactAnalyzer,
       this.failurePredictor,
       config.optimizerConfig
     );
     this.eventBus = config.eventBus;
+    if (db) {
+      this.prResultRepo = new PRTestResultDependencyRepository(db);
+    }
   }
 
   /**
@@ -153,6 +158,17 @@ export class TestSelectorService {
       updatedAt: new Date().toISOString(),
     };
     this.prResults.set(prChange.prId, result);
+
+    // PostgreSQL 持久化（异步）
+    if (this.prResultRepo) {
+      this.prResultRepo.create({
+        id: uuidv4(),
+        prId: prChange.prId,
+        planData: plan as unknown as Record<string, unknown>,
+        impactData: impactResult as unknown as Record<string, unknown>,
+        status: 'pending',
+      }).catch(() => {});
+    }
 
     // 4. 发布事件
     await this.publishTestSelectionEvent(prChange.prId, plan);

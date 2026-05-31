@@ -18,11 +18,11 @@ import { NotificationRepository } from './notification/NotificationRepository';
 import type { CreateNotificationInput } from './notification/NotificationRepository';
 import { AISecurityService, sanitizeInput, validateOutput } from './ai-security';
 import type { DatabasePool } from './database';
-import {
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
+import {
   CrossDomainWorkflowRepository,
   CrossDomainExecutionRepository,
   WorkflowDefinitionEntity,
@@ -767,7 +767,7 @@ export class CrossDomainOrchestrator {
         }
 
         case 'dashboard': {
-          const dashboardData = service.getDashboardData();
+          const dashboardData = await service.getDashboardData();
           return {
             domain: 'monitor',
             action,

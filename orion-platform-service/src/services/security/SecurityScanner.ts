@@ -13,6 +13,9 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { SecurityTrivyScanRepository } from '../../repositories/SecurityTrivyScanRepository';
+import { SecurityCosignSignatureRepository } from '../../repositories/SecurityCosignSignatureRepository';
+import { SecuritySbomRepository } from '../../repositories/SecuritySbomRepository';
 
 const execAsync = promisify(exec);
 
@@ -120,6 +123,17 @@ export class SecurityScanner {
   private signatures: Map<string, CosignSignature> = new Map();
   private sboms: Map<string, SBOMResult> = new Map();
   private scanCounter: number = 0;
+  private trivyRepo?: SecurityTrivyScanRepository;
+  private cosignRepo?: SecurityCosignSignatureRepository;
+  private sbomRepo?: SecuritySbomRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.trivyRepo = new SecurityTrivyScanRepository(db);
+      this.cosignRepo = new SecurityCosignSignatureRepository(db);
+      this.sbomRepo = new SecuritySbomRepository(db);
+    }
+  }
 
   /**
    * Trivy 扫描镜像
@@ -139,6 +153,7 @@ export class SecurityScanner {
         const { stdout } = await execAsync(command);
         const parsedResult = this.parseTrivyResult(stdout, imageName);
         this.scanResults.set(scanId, parsedResult);
+        this.persistTrivyScan(scanId, parsedResult).catch(() => {});
 
         return {
           success: true,
@@ -148,6 +163,7 @@ export class SecurityScanner {
         // Fallback: simulated scan when Trivy is not available
         const simulatedResult = this.simulateTrivyScan(imageName);
         this.scanResults.set(scanId, simulatedResult);
+        this.persistTrivyScan(scanId, simulatedResult).catch(() => {});
 
         return {
           success: true,
@@ -236,6 +252,7 @@ export class SecurityScanner {
           verified: true,
         };
         this.signatures.set(imageName, signature);
+        this.persistCosignSignature(signature).catch(() => {});
 
         return {
           success: true,
@@ -251,6 +268,7 @@ export class SecurityScanner {
           verified: true,
         };
         this.signatures.set(imageName, signature);
+        this.persistCosignSignature(signature).catch(() => {});
 
         return {
           success: true,
@@ -628,5 +646,40 @@ export class SecurityScanner {
       generatedAt: new Date(),
       components,
     };
+  }
+
+  // ==================== DB Persistence Helpers ====================
+
+  private async persistTrivyScan(scanId: string, result: TrivyScanResult): Promise<void> {
+    if (!this.trivyRepo) return;
+    try {
+      await this.trivyRepo.create({
+        id: scanId,
+        imageName: result.imageName,
+        scannedAt: result.scannedAt,
+        scannerVersion: result.scannerVersion,
+        vulnerabilities: result.vulnerabilities,
+        summary: result.summary,
+        passed: result.passed,
+      });
+    } catch (err) {
+      // Fire-and-forget
+    }
+  }
+
+  private async persistCosignSignature(sig: CosignSignature): Promise<void> {
+    if (!this.cosignRepo) return;
+    try {
+      await this.cosignRepo.create({
+        id: `cosign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        imageName: sig.imageName,
+        digest: sig.digest,
+        signedAt: sig.signedAt,
+        keyId: sig.keyId,
+        verified: sig.verified,
+      });
+    } catch (err) {
+      // Fire-and-forget
+    }
   }
 }

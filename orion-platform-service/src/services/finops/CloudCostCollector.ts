@@ -6,11 +6,11 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import {
 import pino from 'pino';
 import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'LCloud-LCost-LCollector' });
+import {
   CloudResource,
   CloudProvider,
   CloudResourceType,

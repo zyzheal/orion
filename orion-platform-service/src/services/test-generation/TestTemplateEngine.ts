@@ -10,6 +10,7 @@
  */
 
 import pino from 'pino';
+import { TestTemplateRepository } from '../../repositories/TestTemplateRepository';
 
 import {
   TestTemplate,
@@ -43,8 +44,12 @@ interface TemplateContext {
  */
 export class TestTemplateEngine {
   private templates: Map<string, TestTemplate> = new Map();
+  private templateRepo?: TestTemplateRepository;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.templateRepo = new TestTemplateRepository(db);
+    }
     this.initializeTemplates();
   }
 

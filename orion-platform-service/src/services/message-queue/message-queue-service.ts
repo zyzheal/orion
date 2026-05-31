@@ -22,6 +22,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../../errors';
+import { DeadLetterMessageRepository } from '../../repositories/DeadLetterMessageRepository';
+import { ConsumerRegistryRepository } from '../../repositories/ConsumerRegistryRepository';
 
 const logger = pino({ name: 'message-queue' });
 
@@ -106,6 +108,8 @@ export class MessageQueueService {
     executeAt: Date;
     timer?: NodeJS.Timeout;
   }> = [];
+  private deadLetterRepo?: DeadLetterMessageRepository;
+  private consumerRepo?: ConsumerRegistryRepository;
 
   // Statistics
   private stats = {
@@ -115,6 +119,13 @@ export class MessageQueueService {
     totalFailed: 0,
     totalDeadLettered: 0,
   };
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.deadLetterRepo = new DeadLetterMessageRepository(db);
+      this.consumerRepo = new ConsumerRegistryRepository(db);
+    }
+  }
 
   // ─── Core: Enqueue / Dequeue ────────────────────────────────────────────
 

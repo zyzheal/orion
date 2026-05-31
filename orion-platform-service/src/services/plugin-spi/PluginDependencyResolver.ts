@@ -12,8 +12,8 @@
  */
 
 import pino from 'pino';
-import {
 import { OrionError } from '../../errors';
+import {
   PluginManifest,
   DependencyResolutionResult,
 } from './types';

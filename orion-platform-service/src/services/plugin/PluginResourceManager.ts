@@ -17,6 +17,7 @@ import {
   ResourceUsage,
   ExecutionContext,
 } from './types';
+import { PluginResourceQuotaRepository } from '../../repositories/PluginResourceQuotaRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -50,13 +51,19 @@ export class PluginResourceManager extends EventEmitter {
   private allocations: Map<string, QuotaAllocation> = new Map();
   private globalQuota: ResourceQuota;
   private stats: ResourceStats;
-  private pluginQuotas: Map<string, ResourceQuota> = new Map();
+
+  /** Plugin quotas - migrated to repository */
+  private quotaRepository?: PluginResourceQuotaRepository;
+  private pluginQuotas: Map<string, ResourceQuota> = new Map(); // in-memory cache
+
   // Per-tenant quota tracking
-  private tenantAllocations: Map<string, number> = new Map(); // tenantId -> active count
-  private tenantQuotas: Map<string, ResourceQuota> = new Map(); // tenantId -> quota
+  private tenantAllocations: Map<string, number> = new Map(); // tenantId -> active count (runtime)
+
+  /** Tenant quotas - migrated to repository */
+  private tenantQuotas: Map<string, ResourceQuota> = new Map(); // in-memory cache
   private defaultTenantQuota: ResourceQuota;
 
-  constructor(options?: { globalQuota?: ResourceQuota; defaultTenantQuota?: ResourceQuota }) {
+  constructor(options?: { globalQuota?: ResourceQuota; defaultTenantQuota?: ResourceQuota; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     super();
     this.globalQuota = options?.globalQuota || {
       cpuCores: 8,
@@ -77,6 +84,9 @@ export class PluginResourceManager extends EventEmitter {
       activeExecutions: 0,
       peakConcurrency: 0,
     };
+    if (options?.db) {
+      this.quotaRepository = new PluginResourceQuotaRepository(options.db);
+    }
   }
 
   /**
@@ -113,6 +123,17 @@ export class PluginResourceManager extends EventEmitter {
    */
   setPluginQuota(pluginId: string, quota: ResourceQuota): void {
     this.pluginQuotas.set(pluginId, quota);
+
+    // Persist to repository
+    if (this.quotaRepository) {
+      this.quotaRepository.upsertQuota('plugin', pluginId, {
+        cpuCores: quota.cpuCores,
+        memoryBytes: quota.memoryBytes,
+        timeoutMs: quota.timeoutMs,
+        maxConcurrent: quota.maxConcurrent,
+      }).catch(() => {/* ignore */});
+    }
+
     logger.info({ pluginId, quota }, 'Plugin quota configured');
   }
 
@@ -139,6 +160,17 @@ export class PluginResourceManager extends EventEmitter {
    */
   setTenantQuota(tenantId: string, quota: ResourceQuota): void {
     this.tenantQuotas.set(tenantId, quota);
+
+    // Persist to repository
+    if (this.quotaRepository) {
+      this.quotaRepository.upsertQuota('tenant', tenantId, {
+        cpuCores: quota.cpuCores,
+        memoryBytes: quota.memoryBytes,
+        timeoutMs: quota.timeoutMs,
+        maxConcurrent: quota.maxConcurrent,
+      }).catch(() => {/* ignore */});
+    }
+
     logger.info({ tenantId, quota }, 'Tenant quota configured');
   }
 

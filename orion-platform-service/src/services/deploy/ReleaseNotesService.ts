@@ -43,6 +43,15 @@ export class ReleaseNotesServiceError extends Error {
 export class ReleaseNotesService {
   private notes: Map<string, ReleaseNotes> = new Map();
   private counter = 0;
+  private repository?: import('../../repositories/ReleaseNotesRepository').ReleaseNotesRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      // Lazy import to avoid circular dependency
+      const { ReleaseNotesRepository } = require('../../repositories/ReleaseNotesRepository');
+      this.repository = new ReleaseNotesRepository(db);
+    }
+  }
 
   // ==================== Generate Release Notes ====================
 

@@ -13,6 +13,7 @@
 
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
+import { ChaosEngineeringRepository } from '../../repositories/ChaosEngineeringRepository';
 
 const execAsync = promisify(exec);
 
@@ -86,6 +87,13 @@ export class ChaosExecutorError extends Error {
 export class ChaosExecutor {
   private experiments: Map<string, ExperimentStatus> = new Map();
   private experimentCounter: number = 0;
+  private chaosRepo?: ChaosEngineeringRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.chaosRepo = new ChaosEngineeringRepository(db);
+    }
+  }
 
   /**
    * CPU 飙升注入

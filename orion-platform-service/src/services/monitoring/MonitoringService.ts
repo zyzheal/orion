@@ -398,7 +398,7 @@ export class MonitoringService {
 
   // ==================== Dashboard ====================
 
-  getDashboardData() {
+  async getDashboardData() {
     const activeAlerts = this.alertRuleEngine.getAlertCountsBySeverity();
     return this.dashboard.getDashboardData(activeAlerts as any);
   }

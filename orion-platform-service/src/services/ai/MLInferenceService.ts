@@ -1,9 +1,28 @@
 import { OrionError, ErrorCode } from '../../../errors';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  PredictionHistoryRepository,
+  PredictionHistoryEntity,
+} from '../../repositories/PredictionHistoryRepository';
+import {
+  AIModelRegistryRepository,
+  AIModelRegistryEntity,
+} from '../../repositories/AIModelRegistryRepository';
+import {
+  AIABTestRepository,
+  AIABTestEntity,
+} from '../../repositories/AIABTestRepository';
+
 /**
  * ML 模型推理集成服务
  *
  * 提供模型加载、推理预测、置信度评估、批量预测能力
  * 支持模型注册表、版本追踪、A/B 测试和回滚
+ *
+ * 使用 PostgreSQL Repository 模式持久化以下数据：
+ * - predictionHistory -> PredictionHistoryRepository
+ * - modelRegistry -> AIModelRegistryRepository
+ * - abTests -> AIABTestRepository
  */
 
 /**
@@ -138,16 +157,27 @@ export interface ModelPerformance {
  * ML 模型推理服务（增强版：支持模型注册表、A/B 测试、版本回滚）
  */
 export class MLInferenceService {
-  /** 已加载的模型 */
+  /** 已加载的模型 (runtime state, not persisted) */
   private models: Map<string, MLModel> = new Map();
-  /** 预测历史记录 */
-  private predictionHistory: Map<string, PredictionResult[]> = new Map();
-  /** 模型注册表 */
-  private modelRegistry: Map<string, ModelRegistryEntry> = new Map();
-  /** A/B 测试配置 */
-  private abTests: Map<string, ABTestConfig> = new Map();
 
-  constructor() {
+  /** Repositories */
+  private predictionRepo: PredictionHistoryRepository | null = null;
+  private registryRepo: AIModelRegistryRepository | null = null;
+  private abTestRepo: AIABTestRepository | null = null;
+
+  /** In-memory cache for model registry (backed by DB) */
+  private registryCache: Map<string, ModelRegistryEntry> = new Map();
+  /** In-memory cache for AB tests (backed by DB) */
+  private abTestCache: Map<string, ABTestConfig> = new Map();
+
+  constructor(
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
+    if (db) {
+      this.predictionRepo = new PredictionHistoryRepository(db);
+      this.registryRepo = new AIModelRegistryRepository(db);
+      this.abTestRepo = new AIABTestRepository(db);
+    }
     // 预置模拟模型
     this.registerDefaultModels();
   }
@@ -157,15 +187,25 @@ export class MLInferenceService {
   /**
    * 注册模型到注册表
    */
-  registerModelToRegistry(modelId: string, name: string, version: string, options?: {
+  async registerModelToRegistry(modelId: string, name: string, version: string, options?: {
     featureNames?: string[];
     featureCount?: number;
     modelType?: 'classification' | 'regression' | 'anomaly_detection';
     modelPath?: string;
     metrics?: ModelVersionEntry['metrics'];
-  }): ModelRegistryEntry {
+  }): Promise<ModelRegistryEntry> {
     const now = new Date();
-    let registry = this.modelRegistry.get(modelId);
+    let registry = this.registryCache.get(modelId);
+
+    if (!registry) {
+      // Try loading from DB
+      if (this.registryRepo) {
+        const entity = await this.registryRepo.findByModelId(modelId);
+        if (entity) {
+          registry = this.entityToRegistry(entity);
+        }
+      }
+    }
 
     if (!registry) {
       registry = {
@@ -175,7 +215,6 @@ export class MLInferenceService {
         createdAt: now,
         updatedAt: now,
       };
-      this.modelRegistry.set(modelId, registry);
     }
 
     // 检查版本是否已存在
@@ -198,28 +237,66 @@ export class MLInferenceService {
     registry.versions.push(versionEntry);
     registry.updatedAt = now;
 
+    // Persist to DB
+    if (this.registryRepo) {
+      const existing = await this.registryRepo.findByModelId(modelId);
+      if (existing) {
+        await this.registryRepo.updateVersions(modelId, registry.versions as unknown as unknown[], registry.activeVersion);
+      } else {
+        await this.registryRepo.create({
+          id: uuidv4(),
+          model_id: modelId,
+          name,
+          active_version: registry.activeVersion ?? null,
+          versions_json: registry.versions as unknown as unknown[],
+        });
+      }
+    }
+
+    this.registryCache.set(modelId, registry);
     return registry;
   }
 
   /**
    * 获取模型注册表信息
    */
-  getModelRegistry(modelId: string): ModelRegistryEntry | undefined {
-    return this.modelRegistry.get(modelId);
+  async getModelRegistry(modelId: string): Promise<ModelRegistryEntry | undefined> {
+    // Check cache first
+    const cached = this.registryCache.get(modelId);
+    if (cached) return cached;
+
+    // Load from DB
+    if (this.registryRepo) {
+      const entity = await this.registryRepo.findByModelId(modelId);
+      if (entity) {
+        const registry = this.entityToRegistry(entity);
+        this.registryCache.set(modelId, registry);
+        return registry;
+      }
+    }
+    return undefined;
   }
 
   /**
    * 列出所有注册的模型
    */
-  listRegistry(): ModelRegistryEntry[] {
-    return Array.from(this.modelRegistry.values());
+  async listRegistry(): Promise<ModelRegistryEntry[]> {
+    if (this.registryRepo) {
+      const entities = await this.registryRepo.listAll();
+      return entities.map(e => {
+        const reg = this.entityToRegistry(e);
+        this.registryCache.set(reg.modelId, reg);
+        return reg;
+      });
+    }
+    return Array.from(this.registryCache.values());
   }
 
   /**
    * 激活模型版本
    */
-  activateModelVersion(modelId: string, version: string): ModelRegistryEntry {
-    const registry = this.modelRegistry.get(modelId);
+  async activateModelVersion(modelId: string, version: string): Promise<ModelRegistryEntry> {
+    const registry = await this.getModelRegistry(modelId);
     if (!registry) {
       throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${modelId}`);
     }
@@ -242,14 +319,20 @@ export class MLInferenceService {
     registry.activeVersion = version;
     registry.updatedAt = new Date();
 
+    // Persist
+    if (this.registryRepo) {
+      await this.registryRepo.updateVersions(modelId, registry.versions as unknown as unknown[], registry.activeVersion);
+    }
+    this.registryCache.set(modelId, registry);
+
     return registry;
   }
 
   /**
    * 回滚到上一个模型版本
    */
-  rollbackModelVersion(modelId: string, targetVersion?: string): ModelRegistryEntry {
-    const registry = this.modelRegistry.get(modelId);
+  async rollbackModelVersion(modelId: string, targetVersion?: string): Promise<ModelRegistryEntry> {
+    const registry = await this.getModelRegistry(modelId);
     if (!registry) {
       throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${modelId}`);
     }
@@ -287,6 +370,12 @@ export class MLInferenceService {
     registry.activeVersion = target.version;
     registry.updatedAt = new Date();
 
+    // Persist
+    if (this.registryRepo) {
+      await this.registryRepo.updateVersions(modelId, registry.versions as unknown as unknown[], registry.activeVersion);
+    }
+    this.registryCache.set(modelId, registry);
+
     return registry;
   }
 
@@ -295,14 +384,14 @@ export class MLInferenceService {
   /**
    * 创建 A/B 测试
    */
-  createABTest(config: {
+  async createABTest(config: {
     id: string;
     name: string;
     modelId: string;
     variantA: { version: string; trafficPercent: number };
     variantB: { version: string; trafficPercent: number };
-  }): ABTestConfig {
-    const registry = this.modelRegistry.get(config.modelId);
+  }): Promise<ABTestConfig> {
+    const registry = await this.getModelRegistry(config.modelId);
     if (!registry) {
       throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${config.modelId}`);
     }
@@ -332,22 +421,49 @@ export class MLInferenceService {
       },
     };
 
-    this.abTests.set(config.id, abTest);
+    // Persist to DB
+    if (this.abTestRepo) {
+      await this.abTestRepo.create({
+        id: config.id,
+        name: config.name,
+        model_id: config.modelId,
+        variant_a: config.variantA as unknown as Record<string, unknown>,
+        variant_b: config.variantB as unknown as Record<string, unknown>,
+        status: 'running',
+        started_at: abTest.startedAt,
+        metrics: abTest.metrics as unknown as Record<string, unknown>,
+      });
+    }
+
+    this.abTestCache.set(config.id, abTest);
     return abTest;
   }
 
   /**
    * 获取 A/B 测试配置
    */
-  getABTest(testId: string): ABTestConfig | undefined {
-    return this.abTests.get(testId);
+  async getABTest(testId: string): Promise<ABTestConfig | undefined> {
+    // Check cache
+    const cached = this.abTestCache.get(testId);
+    if (cached) return cached;
+
+    // Load from DB
+    if (this.abTestRepo) {
+      const entity = await this.abTestRepo.findById(testId);
+      if (entity) {
+        const abTest = this.entityToABTest(entity);
+        this.abTestCache.set(testId, abTest);
+        return abTest;
+      }
+    }
+    return undefined;
   }
 
   /**
    * 完成 A/B 测试并选出获胜者
    */
-  completeABTest(testId: string): ABTestConfig {
-    const abTest = this.abTests.get(testId);
+  async completeABTest(testId: string): Promise<ABTestConfig> {
+    const abTest = await this.getABTest(testId);
     if (!abTest) {
       throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found: ${testId}`);
     }
@@ -360,14 +476,20 @@ export class MLInferenceService {
     abTest.status = 'completed';
     abTest.completedAt = new Date();
 
+    // Persist
+    if (this.abTestRepo) {
+      await this.abTestRepo.updateStatus(testId, 'completed', abTest.winner);
+    }
+    this.abTestCache.set(testId, abTest);
+
     return abTest;
   }
 
   /**
    * 暂停 A/B 测试
    */
-  pauseABTest(testId: string): ABTestConfig {
-    const abTest = this.abTests.get(testId);
+  async pauseABTest(testId: string): Promise<ABTestConfig> {
+    const abTest = await this.getABTest(testId);
     if (!abTest) {
       throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found: ${testId}`);
     }
@@ -376,14 +498,21 @@ export class MLInferenceService {
     }
 
     abTest.status = 'paused';
+
+    // Persist
+    if (this.abTestRepo) {
+      await this.abTestRepo.updateStatus(testId, 'paused');
+    }
+    this.abTestCache.set(testId, abTest);
+
     return abTest;
   }
 
   /**
    * 记录 A/B 测试请求结果
    */
-  recordABTestRequest(testId: string, variant: 'A' | 'B', success: boolean, confidence: number): void {
-    const abTest = this.abTests.get(testId);
+  async recordABTestRequest(testId: string, variant: 'A' | 'B', success: boolean, confidence: number): Promise<void> {
+    const abTest = await this.getABTest(testId);
     if (!abTest || abTest.status !== 'running') return;
 
     const metrics = abTest.metrics[variant === 'A' ? 'variantA' : 'variantB'];
@@ -393,6 +522,12 @@ export class MLInferenceService {
       (metrics.avgConfidence * (totalPredictions - 1) + confidence) / totalPredictions;
     metrics.successRate =
       (metrics.successRate * (totalPredictions - 1) + (success ? 1 : 0)) / totalPredictions;
+
+    // Persist metrics
+    if (this.abTestRepo) {
+      await this.abTestRepo.updateMetrics(testId, abTest.metrics as unknown as Record<string, unknown>);
+    }
+    this.abTestCache.set(testId, abTest);
   }
 
   /**
@@ -471,7 +606,7 @@ export class MLInferenceService {
   /**
    * 推理预测
    */
-  predict(features: Record<string, number>, modelId: string): PredictionResult {
+  async predict(features: Record<string, number>, modelId: string): Promise<PredictionResult> {
     const model = this.models.get(modelId);
     if (!model || model.status !== 'loaded') {
       throw new OrionError('OPERATION_FAILED', `Model ${modelId} is not loaded`)
@@ -526,7 +661,7 @@ export class MLInferenceService {
     };
 
     // 保存预测历史
-    this.savePredictionHistory(modelId, result);
+    await this.savePredictionHistory(modelId, result);
 
     return result;
   }
@@ -541,10 +676,10 @@ export class MLInferenceService {
   /**
    * 批量预测
    */
-  batchPredict(
+  async batchPredict(
     featureSets: Array<Record<string, number>>,
     modelId: string
-  ): BatchPredictionResult {
+  ): Promise<BatchPredictionResult> {
     const startTime = Date.now();
     const predictions: PredictionResult[] = [];
     let successCount = 0;
@@ -552,7 +687,7 @@ export class MLInferenceService {
 
     for (const features of featureSets) {
       try {
-        const result = this.predict(features, modelId);
+        const result = await this.predict(features, modelId);
         predictions.push(result);
         successCount++;
       } catch {
@@ -571,21 +706,34 @@ export class MLInferenceService {
   /**
    * 获取租户的预测历史
    */
-  getPredictionHistory(modelId: string, limit: number = 50): PredictionResult[] {
-    const history = this.predictionHistory.get(modelId) ?? [];
-    return history.slice(-limit);
+  async getPredictionHistory(modelId: string, limit: number = 50): Promise<PredictionResult[]> {
+    if (this.predictionRepo) {
+      const entities = await this.predictionRepo.findByModel(modelId, limit);
+      return entities.map(e => this.entityToPrediction(e));
+    }
+    return [];
   }
 
   /**
    * 获取模型性能统计
    */
-  getModelPerformance(modelId: string): ModelPerformance | null {
+  async getModelPerformance(modelId: string): Promise<ModelPerformance | null> {
     const model = this.models.get(modelId);
     if (!model) {
       return null;
     }
 
-    const history = this.predictionHistory.get(modelId) ?? [];
+    let history: PredictionResult[];
+    let totalCount: number;
+
+    if (this.predictionRepo) {
+      const entities = await this.predictionRepo.findByModel(modelId, 1000);
+      history = entities.map(e => this.entityToPrediction(e));
+      totalCount = await this.predictionRepo.findByModelCount(modelId);
+    } else {
+      history = [];
+      totalCount = 0;
+    }
 
     if (history.length === 0) {
       return {
@@ -608,7 +756,7 @@ export class MLInferenceService {
       modelId,
       modelName: model.name,
       modelType: model.modelType,
-      totalPredictions: history.length,
+      totalPredictions: totalCount,
       averageConfidence: Math.round((totalConfidence / history.length) * 1000) / 1000,
       minConfidence: Math.min(...confidences),
       maxConfidence: Math.max(...confidences),
@@ -708,13 +856,56 @@ export class MLInferenceService {
   /**
    * 保存预测历史
    */
-  private savePredictionHistory(modelId: string, result: PredictionResult): void {
-    const history = this.predictionHistory.get(modelId) ?? [];
-    history.push(result);
-    // 保留最近 500 条
-    if (history.length > 500) {
-      history.splice(0, history.length - 500);
+  private async savePredictionHistory(modelId: string, result: PredictionResult): Promise<void> {
+    if (this.predictionRepo) {
+      await this.predictionRepo.create({
+        id: uuidv4(),
+        model_id: modelId,
+        value_json: result.value,
+        confidence: result.confidence,
+        predicted_at: result.predictedAt,
+        input_features: result.inputFeatures,
+      });
+      // Prune old records (keep latest 500)
+      await this.predictionRepo.pruneOldRecords(modelId, 500);
     }
-    this.predictionHistory.set(modelId, history);
+  }
+
+  // ==================== Entity Conversion ====================
+
+  private entityToPrediction(entity: PredictionHistoryEntity): PredictionResult {
+    return {
+      value: entity.value_json as number | string,
+      confidence: entity.confidence,
+      predictedAt: entity.predicted_at,
+      modelId: entity.model_id,
+      inputFeatures: entity.input_features,
+    };
+  }
+
+  private entityToRegistry(entity: AIModelRegistryEntity): ModelRegistryEntry {
+    return {
+      modelId: entity.model_id,
+      name: entity.name,
+      versions: (entity.versions_json as unknown as ModelVersionEntry[]) ?? [],
+      activeVersion: entity.active_version ?? undefined,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
+  }
+
+  private entityToABTest(entity: AIABTestEntity): ABTestConfig {
+    return {
+      id: entity.id,
+      name: entity.name,
+      modelId: entity.model_id,
+      variantA: entity.variant_a as unknown as ABTestConfig['variantA'],
+      variantB: entity.variant_b as unknown as ABTestConfig['variantB'],
+      status: entity.status as ABTestConfig['status'],
+      startedAt: entity.started_at ?? new Date(),
+      completedAt: entity.completed_at ?? undefined,
+      winner: entity.winner ?? undefined,
+      metrics: entity.metrics as unknown as ABTestConfig['metrics'],
+    };
   }
 }

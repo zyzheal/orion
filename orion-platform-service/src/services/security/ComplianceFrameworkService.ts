@@ -14,6 +14,7 @@ import {
   ComplianceEvaluationEntity,
   ComplianceRemediationEntity,
 } from '../../repositories/Phase3Repository';
+import { ComplianceEvidenceRepository, ComplianceEvidenceEntity } from '../../repositories/ComplianceEvidenceRepository';
 import { OrionError, ErrorCode } from '../../../errors';
 
 export interface CompliancePolicyInput {
@@ -99,12 +100,14 @@ export class ComplianceFrameworkService {
   private policyRepo: CompliancePolicyRepository | null = null;
   private evaluationRepo: ComplianceEvaluationRepository | null = null;
   private remediationRepo: ComplianceRemediationRepository | null = null;
+  private evidenceRepo: ComplianceEvidenceRepository | null = null;
 
   constructor(db?: DatabasePool) {
     if (db) {
       this.policyRepo = new CompliancePolicyRepository(db);
       this.evaluationRepo = new ComplianceEvaluationRepository(db);
       this.remediationRepo = new ComplianceRemediationRepository(db);
+      this.evidenceRepo = new ComplianceEvidenceRepository(db);
     }
   }
 
@@ -537,6 +540,22 @@ export class ComplianceFrameworkService {
       status: 'collected',
     };
     this.evidenceStore.set(id, entity);
+
+    // Persist to DB
+    if (this.evidenceRepo) {
+      this.evidenceRepo.create({
+        id,
+        tenantId,
+        policyId,
+        controlId,
+        evidenceType: evidence.evidenceType,
+        description: evidence.description,
+        source: evidence.source,
+        collectedAt: new Date(),
+        status: 'collected',
+      }).catch(() => {});
+    }
+
     return entity;
   }
 
@@ -544,6 +563,25 @@ export class ComplianceFrameworkService {
    * Get evidence for a policy
    */
   async getEvidence(policyId: string): Promise<ComplianceEvidence[]> {
+    // Try DB first
+    if (this.evidenceRepo) {
+      try {
+        const entities = await this.evidenceRepo.findByPolicyId(policyId);
+        return entities.map(e => ({
+          id: e.id,
+          tenantId: e.tenantId,
+          policyId: e.policyId,
+          controlId: e.controlId,
+          evidenceType: e.evidenceType as ComplianceEvidence['evidenceType'],
+          description: e.description || '',
+          source: e.source || '',
+          collectedAt: e.collectedAt,
+          status: e.status as ComplianceEvidence['status'],
+        }));
+      } catch {
+        // Fallback to in-memory
+      }
+    }
     return Array.from(this.evidenceStore.values()).filter(e => e.policyId === policyId);
   }
 

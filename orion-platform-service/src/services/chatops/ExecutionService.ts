@@ -23,11 +23,11 @@ import {
 import { CommandService } from './CommandService';
 import { CommandRouter } from './CommandRouter';
 import { InputValidator, ParsedCommand } from './InputValidator';
-import {
 import pino from 'pino';
 import { OrionError } from '../../errors';
 
 const logger = pino({ name: 'LExecution-LService' });
+import {
   ChatOpsExecutionRepository,
   ChatOpsSessionRepository,
   ChatOpsAuditLogRepository,

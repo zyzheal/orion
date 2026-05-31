@@ -12,6 +12,7 @@
 
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { AutoRecoveryRecordRepository } from '../../repositories/AutoRecoveryRecordRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -51,10 +52,14 @@ export class AutoRecoveryService extends EventEmitter {
   private degradedProviders: Map<string, Date> = new Map();
   private providerSuccessRates: Map<string, number> = new Map();
   private timer?: NodeJS.Timeout;
+  private repository?: AutoRecoveryRecordRepository;
 
-  constructor(config: Partial<AutoRecoveryConfig> = {}) {
+  constructor(config: Partial<AutoRecoveryConfig> = {}, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+    if (db) {
+      this.repository = new AutoRecoveryRecordRepository(db);
+    }
   }
 
   /**

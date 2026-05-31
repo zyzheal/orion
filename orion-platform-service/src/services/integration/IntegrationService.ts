@@ -14,6 +14,8 @@ import {
 import { GitLabConnector } from './connectors/GitLabConnector';
 import { JiraConnector } from './connectors/JiraConnector';
 import { OrionError, ErrorCode } from '../../../errors';
+import { IntegrationConfigRepository } from '../../repositories/IntegrationConfigRepository';
+import { IntegrationMappingRepository } from '../../repositories/IntegrationMappingRepository';
 
 // Auto-register built-in connectors
 let connectorsRegistered = false;
@@ -70,9 +72,15 @@ export interface IntegrationSyncLog {
 export class IntegrationService {
   private integrations: Map<string, Integration> = new Map();
   private mappings: Map<string, IntegrationMapping[]> = new Map();
+  private integrationRepo?: IntegrationConfigRepository;
+  private mappingRepo?: IntegrationMappingRepository;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     registerBuiltinConnectors();
+    if (db) {
+      this.integrationRepo = new IntegrationConfigRepository(db);
+      this.mappingRepo = new IntegrationMappingRepository(db);
+    }
   }
 
   /**
@@ -121,6 +129,23 @@ export class IntegrationService {
     };
 
     this.integrations.set(integration.id, integration);
+
+    // Persist to DB
+    if (this.integrationRepo) {
+      this.integrationRepo.create({
+        id: integration.id,
+        tenantId: integration.tenantId,
+        provider: integration.provider,
+        name: integration.name,
+        config: integration.config,
+        status: integration.status,
+        lastSyncAt: null,
+        syncStatus: null,
+        errorMessage: null,
+        createdBy: integration.createdBy,
+      }).catch(() => {});
+    }
+
     return integration;
   }
 
@@ -128,7 +153,33 @@ export class IntegrationService {
    * Get integration by ID
    */
   async getIntegration(id: string): Promise<Integration | null> {
-    return this.integrations.get(id) || null;
+    const cached = this.integrations.get(id);
+    if (cached) return cached;
+
+    if (this.integrationRepo) {
+      try {
+        const entity = await this.integrationRepo.findById(id);
+        if (entity) {
+          return {
+            id: entity.id,
+            tenantId: entity.tenantId,
+            provider: entity.provider,
+            name: entity.name,
+            config: entity.config,
+            status: entity.status as Integration['status'],
+            lastSyncAt: entity.lastSyncAt,
+            syncStatus: entity.syncStatus,
+            errorMessage: entity.errorMessage,
+            createdBy: entity.createdBy,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+          };
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return null;
   }
 
   /**

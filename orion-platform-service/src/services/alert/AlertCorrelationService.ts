@@ -4,9 +4,12 @@
  * Uses clustering and root cause analysis to reduce alert fatigue
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 import { AlertSourceType } from './AlertTypes';
 import type { AlertTopologyNode, AlertTopologyEdge, RootCauseAnalysis } from './AlertTypes';
+import { AlertCorrelationGroupRepository, AlertCorrelationGroupEntity } from '../../repositories/AlertCorrelationGroupRepository';
+import { AlertTopologyNodeRepository, AlertTopologyNodeEntity } from '../../repositories/AlertTopologyNodeRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -55,10 +58,20 @@ const DEFAULT_OPTIONS: Required<CorrelationOptions> = {
 export class AlertCorrelationService {
   private options: Required<CorrelationOptions>;
   private alertBuffer: Alert[] = [];
-  private groups: Map<string, AlertGroup> = new Map();
+  private groupRepository?: AlertCorrelationGroupRepository;
+  private topologyNodeRepository?: AlertTopologyNodeRepository;
+  // In-memory fallback for groups
+  private groupsMemory: Map<string, AlertGroup> = new Map();
 
-  constructor(options?: CorrelationOptions) {
+  constructor(
+    options?: CorrelationOptions,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    if (db) {
+      this.groupRepository = new AlertCorrelationGroupRepository(db);
+      this.topologyNodeRepository = new AlertTopologyNodeRepository(db);
+    }
     logger.info(this.options, '[AlertCorrelation] Initialized');
   }
 
@@ -68,13 +81,13 @@ export class AlertCorrelationService {
   async addAlert(alert: Alert): Promise<AlertGroup | null> {
     // Add to buffer
     this.alertBuffer.push(alert);
-    
+
     // Clean old alerts
     this.cleanupBuffer();
 
     // Find or create group
-    const group = this.findOrCreateGroup(alert);
-    
+    const group = await this.findOrCreateGroup(alert);
+
     if (group) {
       logger.info({ 
         alertId: alert.id, 
@@ -103,18 +116,21 @@ export class AlertCorrelationService {
   /**
    * Find or create group for alert
    */
-  private findOrCreateGroup(alert: Alert): AlertGroup | null {
+  private async findOrCreateGroup(alert: Alert): Promise<AlertGroup | null> {
+    // Get all groups for matching
+    const allGroups = await this.getAllGroupsList();
+
     // Try to find existing group
-    for (const [groupId, group] of this.groups) {
+    for (const group of allGroups) {
       if (this.isSimilar(alert, group)) {
-        this.addToGroup(group, alert);
+        await this.addToGroupPersisted(group, alert);
         return group;
       }
     }
 
     // Create new group
     const group = this.createGroup(alert);
-    this.groups.set(group.id, group);
+    await this.saveGroup(group);
     return group;
   }
 
@@ -300,37 +316,47 @@ export class AlertCorrelationService {
   /**
    * Get all active groups
    */
-  getActiveGroups(): AlertGroup[] {
-    // Clean up old groups
-    const cutoff = Date.now() - this.options.timeWindowMs;
-    for (const [id, group] of this.groups) {
-      if (group.lastFiredAt.getTime() < cutoff) {
-        this.groups.delete(id);
-      }
+  async getActiveGroups(): Promise<AlertGroup[]> {
+    if (this.groupRepository) {
+      // Clean up old groups
+      await this.groupRepository.deleteExpired(this.options.timeWindowMs);
+      const entities = await this.groupRepository.findActive(this.options.timeWindowMs);
+      return entities.map(e => this.entityToGroup(e));
     }
 
-    return Array.from(this.groups.values());
+    // Memory fallback
+    const cutoff = Date.now() - this.options.timeWindowMs;
+    for (const [id, group] of this.groupsMemory) {
+      if (group.lastFiredAt.getTime() < cutoff) {
+        this.groupsMemory.delete(id);
+      }
+    }
+    return Array.from(this.groupsMemory.values());
   }
 
   /**
    * Get group by ID
    */
-  getGroup(id: string): AlertGroup | undefined {
-    return this.groups.get(id);
+  async getGroup(id: string): Promise<AlertGroup | undefined> {
+    if (this.groupRepository) {
+      const entity = await this.groupRepository.findById(id);
+      return entity ? this.entityToGroup(entity) : undefined;
+    }
+    return this.groupsMemory.get(id);
   }
 
   /**
    * Get correlation statistics
    */
-  getStats(): {
+  async getStats(): Promise<{
     totalAlerts: number;
     activeGroups: number;
     alertsPerGroup: number;
     byCategory: Record<string, number>;
     bySeverity: Record<string, number>;
     deduplicationRate: number;
-  } {
-    const groups = this.getActiveGroups();
+  }> {
+    const groups = await this.getActiveGroups();
     const totalAlerts = this.alertBuffer.length + groups.reduce(
       (sum, g) => sum + g.correlatedAlerts.length, 0
     );
@@ -364,21 +390,31 @@ export class AlertCorrelationService {
   /**
    * Acknowledge group (mark as handled)
    */
-  acknowledgeGroup(groupId: string): boolean {
-    return this.groups.delete(groupId);
+  async acknowledgeGroup(groupId: string): Promise<boolean> {
+    if (this.groupRepository) {
+      return this.groupRepository.delete(groupId);
+    }
+    return this.groupsMemory.delete(groupId);
   }
 
   /**
    * Clear all groups
    */
-  clear(): void {
-    this.groups.clear();
+  async clear(): Promise<void> {
+    if (this.groupRepository) {
+      // Delete all groups for default tenant
+      const groups = await this.groupRepository.findByTenantId('default');
+      for (const g of groups) {
+        await this.groupRepository.delete(g.id);
+      }
+    }
+    this.groupsMemory.clear();
     this.alertBuffer = [];
   }
 
   // ==================== Topology & Dependency Management ====================
 
-  private topologyNodes: Map<string, AlertTopologyNode> = new Map();
+  private topologyNodesMemory: Map<string, AlertTopologyNode> = new Map();
   private topologyEdges: AlertTopologyEdge[] = [];
   private nodeHealth: Map<string, 'healthy' | 'degraded' | 'unhealthy'> = new Map();
   private dependencyMap: Map<string, string[]> = new Map();
@@ -387,15 +423,16 @@ export class AlertCorrelationService {
   /**
    * Get the current topology
    */
-  getTopology(): {
+  async getTopology(): Promise<{
     nodes: Array<{ id: string; type: string; name: string; status: string }>;
     edges: Array<{ source: string; target: string; relationType: string }>;
-  } {
-    const nodes = Array.from(this.topologyNodes.values()).map(n => ({
+  }> {
+    const topoNodes = await this.getTopologyNodes();
+    const nodes = topoNodes.map(n => ({
       id: n.id,
       type: n.type,
       name: n.name,
-      status: this.nodeHealth.get(n.id) || 'healthy',
+      status: this.nodeHealth.get(n.id) || n.status || 'healthy',
     }));
     const edges = this.topologyEdges.map(e => ({
       source: e.source,
@@ -408,11 +445,15 @@ export class AlertCorrelationService {
   /**
    * Set the topology graph
    */
-  setTopology(topology: {
+  async setTopology(topology: {
     nodes: Array<{ id: string; type: AlertSourceType; name: string; parentId?: string; status?: 'healthy' | 'degraded' | 'unhealthy' }>;
     edges: Array<{ source: string; target: string; relationType: 'depends_on' | 'runs_on' | 'connected_to' }>;
-  }): void {
-    this.topologyNodes.clear();
+  }): Promise<void> {
+    // Clear old topology
+    if (this.topologyNodeRepository) {
+      await this.topologyNodeRepository.deleteByTenant('default');
+    }
+    this.topologyNodesMemory.clear();
     this.topologyEdges = topology.edges;
     this.dependencyMap.clear();
     this.impactMap.clear();
@@ -427,7 +468,26 @@ export class AlertCorrelationService {
         parentId: node.parentId,
         childrenIds: [],
       };
-      this.topologyNodes.set(node.id, topoNode);
+
+      if (this.topologyNodeRepository) {
+        try {
+          await this.topologyNodeRepository.create({
+            id: node.id,
+            tenantId: 'default',
+            nodeType: node.type,
+            name: node.name,
+            status: node.status || 'healthy',
+            parentId: node.parentId ?? null,
+            childrenIds: [],
+          } as any);
+        } catch (err) {
+          logger.warn({ err, nodeId: node.id }, 'Failed to persist topology node, using memory');
+          this.topologyNodesMemory.set(node.id, topoNode);
+        }
+      } else {
+        this.topologyNodesMemory.set(node.id, topoNode);
+      }
+
       if (!this.nodeHealth.has(node.id)) {
         this.nodeHealth.set(node.id, 'healthy');
       }
@@ -436,28 +496,38 @@ export class AlertCorrelationService {
     // Build parent-child relationships
     for (const node of topology.nodes) {
       if (node.parentId) {
-        const parent = this.topologyNodes.get(node.parentId);
-        if (parent && parent.childrenIds) {
-          parent.childrenIds.push(node.id);
+        if (this.topologyNodeRepository) {
+          // Update parent's children_ids in DB
+          const parent = await this.topologyNodeRepository.findById(node.parentId);
+          if (parent) {
+            const children = [...(parent.childrenIds || []), node.id];
+            await this.topologyNodeRepository.update(node.parentId, { childrenIds: children } as any);
+          }
+        } else {
+          const parent = this.topologyNodesMemory.get(node.parentId);
+          if (parent && parent.childrenIds) {
+            parent.childrenIds.push(node.id);
+          }
         }
       }
     }
 
-    // Build dependency and impact maps
+    // Build dependency and impact maps (always in-memory for fast lookup)
     for (const edge of topology.edges) {
-      // edge.source depends on edge.target
       const deps = this.dependencyMap.get(edge.source) || [];
       deps.push(edge.target);
       this.dependencyMap.set(edge.source, deps);
 
-      // edge.target impacts edge.source
       const impacts = this.impactMap.get(edge.target) || [];
       impacts.push(edge.source);
       this.impactMap.set(edge.target, impacts);
     }
 
+    const nodeCount = this.topologyNodeRepository
+      ? (await this.topologyNodeRepository.findByTenantId('default')).length
+      : this.topologyNodesMemory.size;
     logger.info(
-      { nodeCount: this.topologyNodes.size, edgeCount: this.topologyEdges.length },
+      { nodeCount, edgeCount: this.topologyEdges.length },
       '[AlertCorrelation] Topology set'
     );
   }
@@ -583,6 +653,109 @@ export class AlertCorrelationService {
       result.push({ nodeId, status });
     }
     return result;
+  }
+
+  // ==================== Repository Helper Methods ====================
+
+  /**
+   * Get all groups list from repository or memory
+   */
+  private async getAllGroupsList(): Promise<AlertGroup[]> {
+    if (this.groupRepository) {
+      const entities = await this.groupRepository.findByTenantId('default');
+      return entities.map(e => this.entityToGroup(e));
+    }
+    return Array.from(this.groupsMemory.values());
+  }
+
+  /**
+   * Save a group to repository or memory
+   */
+  private async saveGroup(group: AlertGroup): Promise<void> {
+    if (this.groupRepository) {
+      try {
+        await this.groupRepository.create({
+          id: group.id,
+          tenantId: 'default',
+          rootAlert: group.rootAlert as any,
+          correlatedAlerts: group.correlatedAlerts as any,
+          commonLabels: group.commonLabels,
+          category: group.category,
+          severity: group.severity,
+          firstFiredAt: group.firstFiredAt,
+          lastFiredAt: group.lastFiredAt,
+          totalCount: group.totalCount,
+          uniqueServices: group.uniqueServices,
+          recommendedAction: group.recommendedAction ?? null,
+        } as any);
+      } catch (err) {
+        logger.warn({ err, groupId: group.id }, 'Failed to persist group, using memory');
+        this.groupsMemory.set(group.id, group);
+      }
+    } else {
+      this.groupsMemory.set(group.id, group);
+    }
+  }
+
+  /**
+   * Update a group in repository or memory
+   */
+  private async addToGroupPersisted(group: AlertGroup, alert: Alert): Promise<void> {
+    // Update group in-memory first
+    this.addToGroup(group, alert);
+
+    if (this.groupRepository) {
+      try {
+        await this.groupRepository.updateAlerts(group.id, {
+          correlatedAlerts: group.correlatedAlerts as any,
+          commonLabels: group.commonLabels,
+          lastFiredAt: group.lastFiredAt,
+          totalCount: group.totalCount,
+          uniqueServices: group.uniqueServices,
+          severity: group.severity,
+          recommendedAction: group.recommendedAction ?? undefined,
+        });
+      } catch (err) {
+        logger.warn({ err, groupId: group.id }, 'Failed to update group in repository');
+      }
+    }
+  }
+
+  /**
+   * Get topology nodes from repository or memory
+   */
+  private async getTopologyNodes(): Promise<AlertTopologyNode[]> {
+    if (this.topologyNodeRepository) {
+      const entities = await this.topologyNodeRepository.findByTenantId('default');
+      return entities.map(e => ({
+        id: e.id,
+        type: e.nodeType as AlertSourceType,
+        name: e.name,
+        status: e.status as 'healthy' | 'degraded' | 'unhealthy',
+        parentId: e.parentId ?? undefined,
+        childrenIds: e.childrenIds,
+      }));
+    }
+    return Array.from(this.topologyNodesMemory.values());
+  }
+
+  /**
+   * Convert repository entity to AlertGroup interface
+   */
+  private entityToGroup(entity: AlertCorrelationGroupEntity): AlertGroup {
+    return {
+      id: entity.id,
+      rootAlert: entity.rootAlert as unknown as Alert,
+      correlatedAlerts: entity.correlatedAlerts as unknown as Alert[],
+      commonLabels: entity.commonLabels,
+      category: entity.category,
+      severity: entity.severity as 'critical' | 'warning' | 'info',
+      firstFiredAt: entity.firstFiredAt,
+      lastFiredAt: entity.lastFiredAt,
+      totalCount: entity.totalCount,
+      uniqueServices: entity.uniqueServices,
+      recommendedAction: entity.recommendedAction ?? undefined,
+    };
   }
 }
 

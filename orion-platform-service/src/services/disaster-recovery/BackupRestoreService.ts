@@ -6,6 +6,7 @@
  * Uses in-memory Map storage (can migrate to Repository later).
  */
 import { v4 as uuidv4 } from 'uuid';
+import { DisasterRecoveryRepository } from '../../repositories/DisasterRecoveryRepository';
 
 export interface BackupConfig {
   scope: 'full' | 'incremental' | 'config-only' | 'data-only';
@@ -60,6 +61,13 @@ export class BackupRestoreServiceError extends Error {
 export class BackupRestoreService {
   private backups: Map<string, BackupRecord> = new Map();
   private backupsByTenant: Map<string, string[]> = new Map();
+  private drRepo?: DisasterRecoveryRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.drRepo = new DisasterRecoveryRepository(db);
+    }
+  }
 
   /**
    * Create a backup for a tenant

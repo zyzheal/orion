@@ -15,6 +15,11 @@ import {
   IncidentRecord,
 } from '../efficiency/types';
 import { DoraMetricsService } from '../efficiency/DoraMetricsService';
+import {
+  EfficiencyMetricSnapshotRepository,
+  EfficiencyMetricSnapshotEntity,
+} from '../../repositories/EfficiencyMetricSnapshotRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 标准指标结果格式
@@ -89,11 +94,16 @@ const DEFAULT_TARGETS = {
  */
 export class DORACalculator {
   private doraService: DoraMetricsService;
-  /** 历史快照存储 */
+  /** 历史快照存储（内存缓存） */
   private snapshotHistory: Map<string, MetricSnapshot[]> = new Map();
+  /** PostgreSQL 持久化（可选） */
+  private snapshotRepo: EfficiencyMetricSnapshotRepository | null = null;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.doraService = new DoraMetricsService();
+    if (db) {
+      this.snapshotRepo = new EfficiencyMetricSnapshotRepository(db);
+    }
   }
 
   /**
@@ -321,18 +331,34 @@ export class DORACalculator {
     timeWindow: TimeWindow,
     metrics: Omit<MetricSnapshot, 'tenantId' | 'timeWindow' | 'capturedAt'>
   ): void {
-    const history = this.snapshotHistory.get(tenantId) ?? [];
-    history.push({
+    const snapshot: MetricSnapshot = {
       tenantId,
       timeWindow,
       ...metrics,
       capturedAt: new Date(),
-    });
-    // 保留最近 100 条快照
+    };
+
+    // 内存缓存
+    const history = this.snapshotHistory.get(tenantId) ?? [];
+    history.push(snapshot);
     if (history.length > 100) {
       history.splice(0, history.length - 100);
     }
     this.snapshotHistory.set(tenantId, history);
+
+    // PostgreSQL 持久化（异步，不阻塞）
+    if (this.snapshotRepo) {
+      this.snapshotRepo.create({
+        id: uuidv4(),
+        tenantId,
+        timeWindow,
+        deploymentFrequency: metrics.deploymentFrequency,
+        leadTimeMs: metrics.leadTimeMs,
+        changeFailureRate: metrics.changeFailureRate,
+        mttrMs: metrics.mttrMs,
+        capturedAt: snapshot.capturedAt,
+      }).catch(() => { /* 持久化失败不阻塞主流程 */ });
+    }
   }
 
   /**

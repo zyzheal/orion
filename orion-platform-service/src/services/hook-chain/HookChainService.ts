@@ -14,6 +14,8 @@
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../../errors';
+import { HookChainDefinitionRepository } from '../../repositories/HookChainDefinitionRepository';
+import { HookChainExecutionRepository } from '../../repositories/HookChainExecutionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -215,13 +217,20 @@ export class HookChainService extends EventEmitter {
   private executors: Map<string, HookExecutor> = new Map();
   private executionHistory: Map<string, ChainExecutionResult[]> = new Map();
   private pendingExecutions: Map<string, HookExecutionContext> = new Map();
+  private chainRepo?: HookChainDefinitionRepository;
+  private executionRepo?: HookChainExecutionRepository;
 
   constructor(options?: {
     eventBus?: EventEmitter;
     pipelineService?: any;
     approvalService?: any;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     super();
+    if (options?.db) {
+      this.chainRepo = new HookChainDefinitionRepository(options.db);
+      this.executionRepo = new HookChainExecutionRepository(options.db);
+    }
 
     const eventBus = options?.eventBus || new EventEmitter();
 
@@ -243,6 +252,20 @@ export class HookChainService extends EventEmitter {
 
     // 存储
     this.chains.set(definition.id, definition);
+
+    // Persist to DB
+    if (this.chainRepo) {
+      this.chainRepo.create({
+        id: definition.id,
+        name: definition.name,
+        description: definition.description || null,
+        hooks: definition.hooks,
+        executionMode: definition.executionMode || 'sequential',
+        stopOnFailure: definition.stopOnFailure !== false,
+        inputTransform: definition.inputTransform || null,
+        outputTransform: definition.outputTransform || null,
+      }).catch(() => {});
+    }
 
     logger.info({ chainId: definition.id, hooksCount: definition.hooks.length }, 'Hook chain created');
     this.emit('chain:created', { chainId: definition.id, definition });
@@ -604,6 +627,22 @@ export class HookChainService extends EventEmitter {
       history = history.slice(-100);
     }
     this.executionHistory.set(chainId, history);
+
+    // Persist to DB
+    if (this.executionRepo) {
+      this.executionRepo.create({
+        id: result.executionId,
+        chainId,
+        executionId: result.executionId,
+        triggerSource: null,
+        success: result.success,
+        hookResults: result.hookResults,
+        totalDurationMs: result.totalDurationMs,
+        finalOutput: result.finalOutput || null,
+        error: result.error || null,
+        executedAt: result.timestamp,
+      }).catch(() => {});
+    }
   }
 
   // ==================== Query Methods ====================

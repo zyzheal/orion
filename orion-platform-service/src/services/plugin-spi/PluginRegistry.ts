@@ -12,8 +12,8 @@
 import pino from 'pino';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
 import { OrionError } from '../../errors';
+import {
   PluginManifest,
   PluginInfo,
   PluginStatus,
@@ -21,6 +21,7 @@ import { OrionError } from '../../errors';
   PluginEventType,
   PluginSecurityLevel,
 } from './types';
+import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -30,12 +31,16 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
  * Central registry for plugin metadata and lifecycle tracking.
  */
 export class PluginRegistry {
-  private plugins: Map<string, PluginInfo> = new Map();
+  private plugins: Map<string, PluginInfo> = new Map(); // in-memory cache
   private pluginDirectory: string;
   private listeners: Map<PluginEventType, Array<(data: any) => void>> = new Map();
+  private repository?: PluginRegistryRepository;
 
-  constructor(options?: { pluginDirectory?: string }) {
+  constructor(options?: { pluginDirectory?: string; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.pluginDirectory = options?.pluginDirectory || path.join(process.cwd(), 'plugins');
+    if (options?.db) {
+      this.repository = new PluginRegistryRepository(options.db);
+    }
   }
 
   /**
@@ -56,6 +61,23 @@ export class PluginRegistry {
     };
 
     this.plugins.set(manifest.name, pluginInfo);
+
+    // Persist to repository
+    if (this.repository) {
+      try {
+        await this.repository.create({
+          name: manifest.name,
+          version: manifest.version,
+          description: manifest.description,
+          author: manifest.author,
+          status: 'installed',
+          config: config || {},
+          manifest: manifest as any,
+        });
+      } catch (err) {
+        logger.warn({ pluginId: manifest.name, error: err }, 'Failed to persist plugin to repository');
+      }
+    }
 
     logger.info({ pluginId: manifest.name, version: manifest.version }, 'Plugin registered');
     this.emit('plugin:registered', { pluginId: manifest.name, version: manifest.version });
@@ -179,7 +201,7 @@ export class PluginRegistry {
   /**
    * Update plugin status
    */
-  updateStatus(name: string, status: PluginStatus, error?: string): PluginInfo | undefined {
+  async updateStatus(name: string, status: PluginStatus, error?: string): Promise<PluginInfo | undefined> {
     const plugin = this.plugins.get(name);
     if (!plugin) {
       return undefined;
@@ -193,28 +215,64 @@ export class PluginRegistry {
       plugin.enabledDate = new Date();
     }
 
+    // Persist to repository
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findByName(name);
+        if (entity) {
+          await this.repository.updateStatus(entity.id, status, error);
+        }
+      } catch (err) {
+        logger.warn({ pluginId: name, error: err }, 'Failed to persist status update to repository');
+      }
+    }
+
     return plugin;
   }
 
   /**
    * Update plugin configuration
    */
-  updateConfig(name: string, config: Record<string, any>): PluginInfo | undefined {
+  async updateConfig(name: string, config: Record<string, any>): Promise<PluginInfo | undefined> {
     const plugin = this.plugins.get(name);
     if (!plugin) {
       return undefined;
     }
 
     plugin.config = { ...plugin.config, ...config };
+
+    // Persist to repository
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findByName(name);
+        if (entity) {
+          await this.repository.updateConfig(entity.id, config);
+        }
+      } catch (err) {
+        logger.warn({ pluginId: name, error: err }, 'Failed to persist config update to repository');
+      }
+    }
+
     return plugin;
   }
 
   /**
    * Remove a plugin from the registry
    */
-  remove(name: string): boolean {
+  async remove(name: string): Promise<boolean> {
     const existed = this.plugins.delete(name);
     if (existed) {
+      // Remove from repository
+      if (this.repository) {
+        try {
+          const entity = await this.repository.findByName(name);
+          if (entity) {
+            await this.repository.delete(entity.id);
+          }
+        } catch (err) {
+          logger.warn({ pluginId: name, error: err }, 'Failed to remove plugin from repository');
+        }
+      }
       logger.info({ pluginId: name }, 'Plugin removed from registry');
     }
     return existed;
