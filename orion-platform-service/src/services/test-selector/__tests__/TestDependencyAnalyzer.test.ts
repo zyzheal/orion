@@ -10,14 +10,82 @@ import * as path from 'path';
 jest.mock('fs');
 const mockedFs = jest.mocked(fs, true);
 
+// 模拟数据库
+const createMockDb = () => {
+  const suites: any[] = [];
+  const cases: any[] = [];
+  const mappings: any[] = [];
+  return {
+    query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      // INSERT INTO test_selector_suites
+      if (sql.includes('test_selector_suites') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], name: params?.[2], file_path: params?.[3],
+          test_count: params?.[4], avg_duration: params?.[5], pass_rate: params?.[6],
+          last_run: params?.[7], source_files: params?.[8],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        suites.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // INSERT INTO test_selector_cases
+      if (sql.includes('test_selector_cases') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], suite_id: params?.[2], name: params?.[3],
+          file_path: params?.[4], dependencies: params?.[5], avg_duration: params?.[6],
+          flaky_score: params?.[7], history: params?.[8],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        cases.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // INSERT INTO test_selector_code_mappings
+      if (sql.includes('test_selector_code_mappings') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], test_path: params?.[2],
+          source_paths: params?.[3], symbol_mapping: params?.[4],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        mappings.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // SELECT FROM test_selector_suites WHERE tenant_id
+      if (sql.includes('test_selector_suites') && sql.includes('SELECT') && sql.includes('tenant_id')) {
+        return { rows: suites.filter(s => s.tenant_id === (params?.[0] || 'default')), rowCount: suites.length };
+      }
+      // SELECT FROM test_selector_cases WHERE tenant_id
+      if (sql.includes('test_selector_cases') && sql.includes('SELECT') && sql.includes('tenant_id')) {
+        return { rows: cases.filter(c => c.tenant_id === (params?.[0] || 'default')), rowCount: cases.length };
+      }
+      // SELECT FROM test_selector_code_mappings WHERE tenant_id
+      if (sql.includes('test_selector_code_mappings') && sql.includes('SELECT') && sql.includes('tenant_id')) {
+        return { rows: mappings.filter(m => m.tenant_id === (params?.[0] || 'default')), rowCount: mappings.length };
+      }
+      // DELETE
+      if (sql.includes('DELETE')) {
+        if (sql.includes('test_selector_suites')) suites.length = 0;
+        if (sql.includes('test_selector_cases')) cases.length = 0;
+        if (sql.includes('test_selector_code_mappings')) mappings.length = 0;
+        return { rows: [], rowCount: 0 };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+    _suites: suites,
+    _cases: cases,
+    _mappings: mappings,
+  };
+};
+
 describe('TestDependencyAnalyzer', () => {
   let analyzer: TestDependencyAnalyzer;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
+    mockDb = createMockDb();
     analyzer = new TestDependencyAnalyzer({
       sourceRoot: '/project/src',
       testRoot: '/project/src',
-    });
+    }, mockDb as any);
     mockedFs.readdirSync.mockReset();
     mockedFs.readFileSync.mockReset();
     mockedFs.existsSync.mockReset();
@@ -145,11 +213,12 @@ describe('App', () => {
 
   describe('mapTestsToSourceFiles', () => {
     it('应该根据命名约定推断源文件', async () => {
-      analyzer.clearCache();
+      await analyzer.clearCache();
+      const mockDb2 = createMockDb();
       const analyzer2 = new TestDependencyAnalyzer({
         sourceRoot: '/project/src',
         testRoot: '/project/src',
-      });
+      }, mockDb2 as any);
 
       mockedFs.readdirSync.mockImplementation((dirPath: fs.PathLike) => {
         const dir = dirPath.toString();
@@ -183,7 +252,7 @@ describe('UserService', () => {
 
   describe('getTestCoverage', () => {
     it('应该返回覆盖率统计', async () => {
-      analyzer.clearCache();
+      await analyzer.clearCache();
 
       mockedFs.readdirSync.mockImplementation((dirPath: fs.PathLike) => {
         const dir = dirPath.toString();
@@ -214,9 +283,9 @@ describe('App', () => {
   });
 
   describe('getSuites and getCases', () => {
-    it('应该返回空数组当没有分析数据', () => {
-      expect(analyzer.getSuites()).toEqual([]);
-      expect(analyzer.getCases()).toEqual([]);
+    it('应该返回空数组当没有分析数据', async () => {
+      expect(await analyzer.getSuites()).toEqual([]);
+      expect(await analyzer.getCases()).toEqual([]);
     });
   });
 
@@ -237,12 +306,12 @@ describe('App', () => {
       mockedFs.existsSync.mockReturnValue(false);
 
       await analyzer.analyzeTestDependencies();
-      expect(analyzer.getSuites().length).toBeGreaterThan(0);
+      expect((await analyzer.getSuites()).length).toBeGreaterThan(0);
 
-      analyzer.clearCache();
+      await analyzer.clearCache();
 
-      expect(analyzer.getSuites()).toEqual([]);
-      expect(analyzer.getCases()).toEqual([]);
+      expect(await analyzer.getSuites()).toEqual([]);
+      expect(await analyzer.getCases()).toEqual([]);
     });
   });
 
@@ -254,8 +323,8 @@ describe('App', () => {
   });
 
   describe('getDependenciesForTest', () => {
-    it('应该返回空数组对于未知测试', () => {
-      const result = analyzer.getDependenciesForTest('unknown-test');
+    it('应该返回空数组对于未知测试', async () => {
+      const result = await analyzer.getDependenciesForTest('unknown-test');
       expect(result).toEqual([]);
     });
   });

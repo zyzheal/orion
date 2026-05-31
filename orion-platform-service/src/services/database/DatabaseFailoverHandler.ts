@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
 import {
   ReplicationLagMonitor,
   DegradationLevel,
@@ -16,6 +17,10 @@ import {
   LagTrendAnalysis,
 } from './ReplicationLagMonitor';
 import { ReadTrafficManager, RoutingDecision, ReadRequestContext, TrafficDistribution } from './ReadTrafficManager';
+import { DbFailoverAlertTimeRepository } from '../../repositories/DbFailoverAlertTimeRepository';
+import { DbDegradationEventRepository } from '../../repositories/DbDegradationEventRepository';
+import { DbRecoveryEventRepository } from '../../repositories/DbRecoveryEventRepository';
+import { DbFailoverAlertRepository } from '../../repositories/DbFailoverAlertRepository';
 
 /**
  * 故障切换状态
@@ -109,16 +114,21 @@ export class DatabaseFailoverHandler extends EventEmitter {
   private currentLevel: DegradationLevel = DegradationLevel.LEVEL_0;
   private recoveryCheckTimer?: ReturnType<typeof setInterval>;
   private recoverySuccessCount: number = 0;
-  private lastAlertTime: Map<DegradationLevel, Date> = new Map();
-  private degradationHistory: DegradationEvent[] = [];
-  private recoveryHistory: RecoveryEvent[] = [];
-  private alertHistory: FailoverAlert[] = [];
+  private alertTimeRepo: DbFailoverAlertTimeRepository;
+  private degradationEventRepo: DbDegradationEventRepository;
+  private recoveryEventRepo: DbRecoveryEventRepository;
+  private failoverAlertRepo: DbFailoverAlertRepository;
   private lastDegradationTime?: Date;
+  private tenantId?: string;
 
-  constructor(config: Partial<DatabaseFailoverHandlerConfig> & {
-    lagMonitor: ReplicationLagMonitor;
-    trafficManager: ReadTrafficManager;
-  }) {
+  constructor(
+    config: Partial<DatabaseFailoverHandlerConfig> & {
+      lagMonitor: ReplicationLagMonitor;
+      trafficManager: ReadTrafficManager;
+    },
+    db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId?: string,
+  ) {
     super();
     this.config = {
       ...DEFAULT_CONFIG,
@@ -127,6 +137,11 @@ export class DatabaseFailoverHandler extends EventEmitter {
 
     this.lagMonitor = this.config.lagMonitor;
     this.trafficManager = this.config.trafficManager;
+    this.tenantId = tenantId;
+    this.alertTimeRepo = new DbFailoverAlertTimeRepository(db);
+    this.degradationEventRepo = new DbDegradationEventRepository(db);
+    this.recoveryEventRepo = new DbRecoveryEventRepository(db);
+    this.failoverAlertRepo = new DbFailoverAlertRepository(db);
 
     // 绑定延迟监控器事件
     this.setupLagMonitorListeners();
@@ -166,7 +181,7 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 获取当前状态
    */
-  getCurrentState(): {
+  async getCurrentState(): Promise<{
     state: FailoverState;
     level: DegradationLevel;
     maxLag: number;
@@ -175,60 +190,91 @@ export class DatabaseFailoverHandler extends EventEmitter {
     replicaStatuses: Map<string, ReplicaStatus>;
     degradationCount: number;
     recoveryCount: number;
-  } {
-    const statuses = this.lagMonitor.getReplicaStatuses();
+  }> {
+    const statuses = await this.lagMonitor.getReplicaStatuses();
+    const degradationHistory = await this.degradationEventRepo.findRecent(1000, this.tenantId);
+    const recoveryHistory = await this.recoveryEventRepo.findRecent(1000, this.tenantId);
     return {
       state: this.currentState,
       level: this.currentLevel,
-      maxLag: this.lagMonitor.getMaxLag(),
-      averageLag: this.lagMonitor.getAverageLag(),
+      maxLag: await this.lagMonitor.getMaxLag(),
+      averageLag: await this.lagMonitor.getAverageLag(),
       distribution: this.trafficManager.getCurrentDistribution(),
       replicaStatuses: statuses,
-      degradationCount: this.degradationHistory.length,
-      recoveryCount: this.recoveryHistory.length,
+      degradationCount: degradationHistory.length,
+      recoveryCount: recoveryHistory.length,
     };
   }
 
   /**
    * 获取降级历史
    */
-  getDegradationHistory(limit: number = 10): DegradationEvent[] {
-    return this.degradationHistory.slice(-limit);
+  async getDegradationHistory(limit: number = 10): Promise<DegradationEvent[]> {
+    const entities = await this.degradationEventRepo.findRecent(limit, this.tenantId);
+    return entities.map((e) => ({
+      timestamp: e.eventTime,
+      previousLevel: e.previousLevel as DegradationLevel,
+      newLevel: e.newLevel as DegradationLevel,
+      trigger: e.triggerType as DegradationEvent['trigger'],
+      maxLag: e.maxLag,
+      averageLag: e.averageLag,
+      affectedReplicas: e.affectedReplicas,
+      message: e.message || '',
+    }));
   }
 
   /**
    * 获取恢复历史
    */
-  getRecoveryHistory(limit: number = 10): RecoveryEvent[] {
-    return this.recoveryHistory.slice(-limit);
+  async getRecoveryHistory(limit: number = 10): Promise<RecoveryEvent[]> {
+    const entities = await this.recoveryEventRepo.findRecent(limit, this.tenantId);
+    return entities.map((e) => ({
+      timestamp: e.eventTime,
+      previousLevel: e.previousLevel as DegradationLevel,
+      newLevel: e.newLevel as DegradationLevel,
+      recoveryTime: e.recoveryTimeMs,
+      maxLag: e.maxLag,
+      checksPassed: e.checksPassed,
+      message: e.message || '',
+    }));
   }
 
   /**
    * 获取告警历史
    */
-  getAlertHistory(limit: number = 10): FailoverAlert[] {
-    return this.alertHistory.slice(-limit);
+  async getAlertHistory(limit: number = 10): Promise<FailoverAlert[]> {
+    const entities = await this.failoverAlertRepo.findRecent(limit, this.tenantId);
+    return entities.map((e) => ({
+      id: e.id,
+      timestamp: e.alertTime,
+      severity: e.severity as FailoverAlert['severity'],
+      level: e.degradationLevel as DegradationLevel,
+      message: e.message || '',
+      maxLag: e.maxLag,
+      replicas: e.replicas,
+      trend: e.trend as LagTrendAnalysis | undefined,
+    }));
   }
 
   /**
    * 为读请求获取路由决策
    */
-  routeReadRequest(context: ReadRequestContext): RoutingDecision {
+  async routeReadRequest(context: ReadRequestContext): Promise<RoutingDecision> {
     return this.trafficManager.selectNode(context);
   }
 
   /**
    * 获取延迟趋势分析
    */
-  getLagTrend(host: string): LagTrendAnalysis {
+  async getLagTrend(host: string): Promise<LagTrendAnalysis> {
     return this.lagMonitor.analyzeTrend(host);
   }
 
   /**
    * 设置节点健康状态
    */
-  setNodeHealth(nodeId: string, healthy: boolean, latency?: number): void {
-    this.trafficManager.updateNodeHealth(nodeId, healthy, latency);
+  async setNodeHealth(nodeId: string, healthy: boolean, latency?: number): Promise<void> {
+    await this.trafficManager.updateNodeHealth(nodeId, healthy, latency);
   }
 
   /**
@@ -263,13 +309,13 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 处理级别变更
    */
-  private handleLevelChange(data: {
+  private async handleLevelChange(data: {
     previousLevel: DegradationLevel;
     newLevel: DegradationLevel;
     maxLag: number;
     averageLag: number;
     timestamp: Date;
-  }): void {
+  }): Promise<void> {
     const { previousLevel, newLevel, maxLag, averageLag, timestamp } = data;
 
     // 更新流量管理器
@@ -287,6 +333,19 @@ export class DatabaseFailoverHandler extends EventEmitter {
 
     // 记录降级事件
     if (newLevel > previousLevel) {
+      const affectedReplicas = await this.getUnhealthyReplicas();
+      await this.degradationEventRepo.create({
+        id: `deg-${Date.now()}-${randomUUID().slice(0, 8)}`,
+        event_time: timestamp,
+        previous_level: previousLevel,
+        new_level: newLevel,
+        trigger_type: 'lag_threshold',
+        max_lag: maxLag,
+        average_lag: averageLag,
+        affected_replicas: affectedReplicas,
+        message: reason,
+        tenant_id: this.tenantId || null,
+      });
       const event: DegradationEvent = {
         timestamp,
         previousLevel,
@@ -294,10 +353,9 @@ export class DatabaseFailoverHandler extends EventEmitter {
         trigger: 'lag_threshold',
         maxLag,
         averageLag,
-        affectedReplicas: this.getUnhealthyReplicas(),
+        affectedReplicas,
         message: reason,
       };
-      this.degradationHistory.push(event);
       this.emit('degradation', event);
     }
 
@@ -307,6 +365,17 @@ export class DatabaseFailoverHandler extends EventEmitter {
         ? timestamp.getTime() - this.lastDegradationTime.getTime()
         : 0;
 
+      await this.recoveryEventRepo.create({
+        id: `rec-${Date.now()}-${randomUUID().slice(0, 8)}`,
+        event_time: timestamp,
+        previous_level: previousLevel,
+        new_level: newLevel,
+        recovery_time_ms: recoveryTime,
+        max_lag: maxLag,
+        checks_passed: this.recoverySuccessCount,
+        message: `Recovered from level ${previousLevel} to ${newLevel}`,
+        tenant_id: this.tenantId || null,
+      });
       const event: RecoveryEvent = {
         timestamp,
         previousLevel,
@@ -316,7 +385,6 @@ export class DatabaseFailoverHandler extends EventEmitter {
         checksPassed: this.recoverySuccessCount,
         message: `Recovered from level ${previousLevel} to ${newLevel}`,
       };
-      this.recoveryHistory.push(event);
       this.recoverySuccessCount = 0;
       this.emit('recovery', event);
     }
@@ -325,44 +393,59 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 处理告警
    */
-  private handleAlert(alertData: {
+  private async handleAlert(alertData: {
     level: string;
     message: string;
     lag: number;
     degradationLevel: DegradationLevel;
     timestamp: Date;
-  }): void {
+  }): Promise<void> {
     const { level, message, lag, degradationLevel, timestamp } = alertData;
 
     // 检查告警冷却
-    const lastAlert = this.lastAlertTime.get(degradationLevel);
-    if (lastAlert && timestamp.getTime() - lastAlert.getTime() < this.config.alertCooldownPeriod) {
+    const lastAlertEntity = await this.alertTimeRepo.findByLevel(degradationLevel, this.tenantId);
+    if (lastAlertEntity && timestamp.getTime() - lastAlertEntity.lastAlertTime.getTime() < this.config.alertCooldownPeriod) {
       return;
     }
 
     // 创建告警
+    const replicas = await this.lagMonitor.getReplicaStatuses();
+    const alertId = `alert-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    let trendData: Record<string, any> = {};
+
+    // 添加趋势分析
+    if (this.config.enableTrendPrediction) {
+      for (const [host] of replicas) {
+        trendData = await this.lagMonitor.analyzeTrend(host);
+        break; // 只取第一个从库的趋势
+      }
+    }
+
+    await this.failoverAlertRepo.create({
+      id: alertId,
+      alert_time: timestamp,
+      severity: level,
+      degradation_level: degradationLevel,
+      message,
+      max_lag: lag,
+      replicas: Array.from(replicas.values()),
+      trend: trendData,
+      tenant_id: this.tenantId || null,
+    });
+
+    // 更新最后告警时间
+    await this.alertTimeRepo.upsertAlertTime(degradationLevel, timestamp, this.tenantId);
+
     const alert: FailoverAlert = {
-      id: `alert-${Date.now()}`,
+      id: alertId,
       timestamp,
       severity: level as 'info' | 'warning' | 'critical' | 'severe',
       level: degradationLevel,
       message,
       maxLag: lag,
-      replicas: Array.from(this.lagMonitor.getReplicaStatuses().values()),
+      replicas: Array.from(replicas.values()),
+      trend: trendData as LagTrendAnalysis,
     };
-
-    // 添加趋势分析
-    if (this.config.enableTrendPrediction) {
-      const replicas = this.lagMonitor.getReplicaStatuses();
-      for (const [host] of replicas) {
-        alert.trend = this.lagMonitor.analyzeTrend(host);
-        break; // 只取第一个从库的趋势
-      }
-    }
-
-    // 记录告警
-    this.alertHistory.push(alert);
-    this.lastAlertTime.set(degradationLevel, timestamp);
 
     // 发送告警
     this.emit('alert', alert);
@@ -399,17 +482,17 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 执行恢复检查
    */
-  private performRecoveryCheck(): void {
+  private async performRecoveryCheck(): Promise<void> {
     // 只有在降级状态才检查恢复
     if (this.currentLevel === DegradationLevel.LEVEL_0) {
       return;
     }
 
-    const maxLag = this.lagMonitor.getMaxLag();
+    const maxLag = await this.lagMonitor.getMaxLag();
     const currentLevel = this.currentLevel;
 
     // 检查是否可以恢复
-    if (this.trafficManager.canRecoverFromDegradation(currentLevel, maxLag)) {
+    if (await this.trafficManager.canRecoverFromDegradation(currentLevel, maxLag)) {
       this.recoverySuccessCount++;
 
       // 达到恢复阈值
@@ -443,14 +526,14 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 应用降级级别
    */
-  private applyDegradationLevel(
+  private async applyDegradationLevel(
     level: DegradationLevel,
     trigger: DegradationEvent['trigger'],
     reason: string
-  ): void {
+  ): Promise<void> {
     const previousLevel = this.currentLevel;
-    const maxLag = this.lagMonitor.getMaxLag();
-    const averageLag = this.lagMonitor.getAverageLag();
+    const maxLag = await this.lagMonitor.getMaxLag();
+    const averageLag = await this.lagMonitor.getAverageLag();
     const timestamp = new Date();
 
     // 更新流量管理器
@@ -470,6 +553,19 @@ export class DatabaseFailoverHandler extends EventEmitter {
 
     // 记录事件
     if (level > previousLevel) {
+      const affectedReplicas = await this.getUnhealthyReplicas();
+      await this.degradationEventRepo.create({
+        id: `deg-${Date.now()}-${randomUUID().slice(0, 8)}`,
+        event_time: timestamp,
+        previous_level: previousLevel,
+        new_level: level,
+        trigger_type: trigger,
+        max_lag: maxLag,
+        average_lag: averageLag,
+        affected_replicas: affectedReplicas,
+        message: reason,
+        tenant_id: this.tenantId || null,
+      });
       const event: DegradationEvent = {
         timestamp,
         previousLevel,
@@ -477,16 +573,26 @@ export class DatabaseFailoverHandler extends EventEmitter {
         trigger,
         maxLag,
         averageLag,
-        affectedReplicas: this.getUnhealthyReplicas(),
+        affectedReplicas,
         message: reason,
       };
-      this.degradationHistory.push(event);
       this.emit('degradation', event);
     } else if (level < previousLevel) {
       const recoveryTime = this.lastDegradationTime
         ? timestamp.getTime() - this.lastDegradationTime.getTime()
         : 0;
 
+      await this.recoveryEventRepo.create({
+        id: `rec-${Date.now()}-${randomUUID().slice(0, 8)}`,
+        event_time: timestamp,
+        previous_level: previousLevel,
+        new_level: level,
+        recovery_time_ms: recoveryTime,
+        max_lag: maxLag,
+        checks_passed: this.recoverySuccessCount,
+        message: reason,
+        tenant_id: this.tenantId || null,
+      });
       const event: RecoveryEvent = {
         timestamp,
         previousLevel,
@@ -496,7 +602,6 @@ export class DatabaseFailoverHandler extends EventEmitter {
         checksPassed: this.recoverySuccessCount,
         message: reason,
       };
-      this.recoveryHistory.push(event);
       this.recoverySuccessCount = 0;
       this.emit('recovery', event);
 
@@ -525,9 +630,9 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 获取不健康的从库列表
    */
-  private getUnhealthyReplicas(): string[] {
+  private async getUnhealthyReplicas(): Promise<string[]> {
     const unhealthy: string[] = [];
-    const statuses = this.lagMonitor.getReplicaStatuses();
+    const statuses = await this.lagMonitor.getReplicaStatuses();
     // 使用默认的 warning 阈值 10 秒
     const warningThreshold = 10;
 
@@ -579,7 +684,7 @@ export class DatabaseFailoverHandler extends EventEmitter {
   /**
    * 获取统计信息
    */
-  getStats(): {
+  async getStats(): Promise<{
     uptime: number;
     currentState: FailoverState;
     currentLevel: DegradationLevel;
@@ -593,12 +698,15 @@ export class DatabaseFailoverHandler extends EventEmitter {
     };
     healthyReplicas: number;
     totalReplicas: number;
-  } {
-    const totalRecoveryTime = this.recoveryHistory.reduce(
-      (sum, event) => sum + event.recoveryTime,
+  }> {
+    const recoveryHistory = await this.recoveryEventRepo.findRecent(1000, this.tenantId);
+    const degradationHistory = await this.degradationEventRepo.findRecent(1, this.tenantId);
+    const alertHistory = await this.failoverAlertRepo.findRecent(1000, this.tenantId);
+    const totalRecoveryTime = recoveryHistory.reduce(
+      (sum, event) => sum + event.recoveryTimeMs,
       0
     );
-    const statuses = this.lagMonitor.getReplicaStatuses();
+    const statuses = await this.lagMonitor.getReplicaStatuses();
     let healthyCount = 0;
     for (const status of statuses.values()) {
       if (status.ioRunning && status.sqlRunning && status.secondsBehindMaster < 10) {
@@ -607,18 +715,18 @@ export class DatabaseFailoverHandler extends EventEmitter {
     }
 
     return {
-      uptime: Date.now() - (this.degradationHistory[0]?.timestamp?.getTime() || Date.now()),
+      uptime: Date.now() - (degradationHistory[0]?.eventTime?.getTime() || Date.now()),
       currentState: this.currentState,
       currentLevel: this.currentLevel,
-      totalDegradations: this.degradationHistory.length,
-      totalRecoveries: this.recoveryHistory.length,
-      totalAlerts: this.alertHistory.length,
-      averageRecoveryTime: this.recoveryHistory.length > 0
-        ? totalRecoveryTime / this.recoveryHistory.length
+      totalDegradations: degradationHistory.length,
+      totalRecoveries: recoveryHistory.length,
+      totalAlerts: alertHistory.length,
+      averageRecoveryTime: recoveryHistory.length > 0
+        ? totalRecoveryTime / recoveryHistory.length
         : 0,
       currentLag: {
-        max: this.lagMonitor.getMaxLag(),
-        average: this.lagMonitor.getAverageLag(),
+        max: await this.lagMonitor.getMaxLag(),
+        average: await this.lagMonitor.getAverageLag(),
       },
       healthyReplicas: healthyCount,
       totalReplicas: statuses.size,

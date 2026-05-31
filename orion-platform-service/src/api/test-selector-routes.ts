@@ -63,6 +63,10 @@ export default async function testSelectorRoutes(
       return options.testSelectorService;
     }
 
+    if (!options.database) {
+      throw new Error('Database is required for TestSelectorService');
+    }
+
     const analyzerConfig = options.analyzerConfig || {
       sourceRoot: 'src',
       testRoot: 'src',
@@ -73,7 +77,7 @@ export default async function testSelectorRoutes(
       optimizerConfig: options.optimizerConfig,
     };
 
-    return new TestSelectorService(config);
+    return new TestSelectorService(config, options.database);
   };
 
   const service = getService();
@@ -212,7 +216,7 @@ export default async function testSelectorRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const stats = service.getTestHistory((request.params as any).testId);
+      const stats = await service.getTestHistory((request.params as any).testId);
 
       return reply.status(200).send({
         success: true,
@@ -237,7 +241,7 @@ export default async function testSelectorRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const allStats = service.getAllTestHistory();
+      const allStats = await service.getAllTestHistory();
 
       return reply.status(200).send({
         success: true,
@@ -376,7 +380,7 @@ export default async function testSelectorRoutes(
       if (testSuiteRepo) {
         suites = await testSuiteRepo.findAllWithStats();
       } else {
-        suites = service.getSuites();
+        suites = await service.getSuites();
       }
 
       return reply.status(200).send({
@@ -416,7 +420,7 @@ export default async function testSelectorRoutes(
           cases = result.data;
         }
       } else {
-        cases = service.getCases();
+        cases = await service.getCases();
       }
 
       return reply.status(200).send({

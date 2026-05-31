@@ -3,6 +3,7 @@
  *
  * 负责分析测试文件与源代码文件之间的依赖关系，
  * 构建测试到代码的映射图。
+ * PostgreSQL Repository 模式：数据存储在 test_selector_suites/cases/code_mappings 表中。
  */
 
 import { TestSuite, TestCase, TestDependency, TestCodeMapping } from './types';
@@ -37,25 +38,26 @@ export class TestDependencyAnalyzer {
   private sourceRoot: string;
   private testRoot: string;
   private testPattern: RegExp;
-  private testSuites: Map<string, TestSuite> = new Map();
-  private testCases: Map<string, TestCase> = new Map();
-  private testCodeMapping: Map<string, TestCodeMapping> = new Map();
-  // 反向索引：源文件 -> 测试 ID 列表
+  // 反向索引：源文件 -> 测试 ID 列表（从 DB 加载后缓存）
   private sourceToTestsIndex: Map<string, Set<string>> = new Map();
-  /** PostgreSQL 持久化（可选） */
-  private suiteRepo: TestSuiteDependencyRepository | null = null;
-  private caseRepo: TestCaseDependencyRepository | null = null;
-  private mappingRepo: TestCodeMappingDependencyRepository | null = null;
+  /** PostgreSQL 持久化 */
+  private suiteRepo: TestSuiteDependencyRepository;
+  private caseRepo: TestCaseDependencyRepository;
+  private mappingRepo: TestCodeMappingDependencyRepository;
+  private tenantId: string;
 
-  constructor(config: DependencyAnalyzerConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(
+    config: DependencyAnalyzerConfig,
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId: string = 'default',
+  ) {
     this.sourceRoot = config.sourceRoot;
     this.testRoot = config.testRoot;
     this.testPattern = config.testPattern || /\.test\.(ts|tsx|js|jsx)$/;
-    if (db) {
-      this.suiteRepo = new TestSuiteDependencyRepository(db);
-      this.caseRepo = new TestCaseDependencyRepository(db);
-      this.mappingRepo = new TestCodeMappingDependencyRepository(db);
-    }
+    this.tenantId = tenantId;
+    this.suiteRepo = new TestSuiteDependencyRepository(db);
+    this.caseRepo = new TestCaseDependencyRepository(db);
+    this.mappingRepo = new TestCodeMappingDependencyRepository(db);
   }
 
   /**
@@ -80,50 +82,47 @@ export class TestDependencyAnalyzer {
         cases.push(...result.cases);
         mapping.push(result.mapping);
 
-        this.testSuites.set(result.suite.id, result.suite);
-        result.cases.forEach(tc => this.testCases.set(tc.id, tc));
-        this.testCodeMapping.set(testFile, result.mapping);
-        this.updateSourceIndex(result.suite.id, result.mapping.sourcePaths);
+        // PostgreSQL 持久化（upsert 模式，支持重复分析）
+        await this.suiteRepo.create({
+          id: result.suite.id,
+          tenantId: this.tenantId,
+          name: result.suite.name,
+          filePath: result.suite.filePath,
+          testCount: result.suite.testCount,
+          avgDuration: result.suite.avgDuration,
+          passRate: result.suite.passRate,
+          lastRun: result.suite.lastRun ? new Date(result.suite.lastRun) : null,
+          sourceFiles: result.suite.sourceFiles,
+        });
 
-        // PostgreSQL 持久化（异步）
-        if (this.suiteRepo) {
-          this.suiteRepo.create({
-            id: result.suite.id,
-            name: result.suite.name,
-            filePath: result.suite.filePath,
-            testCount: result.suite.testCount,
-            avgDuration: result.suite.avgDuration,
-            passRate: result.suite.passRate,
-            lastRun: result.suite.lastRun ? new Date(result.suite.lastRun) : null,
-            sourceFiles: result.suite.sourceFiles,
-          }).catch(() => {});
-        }
-        if (this.caseRepo) {
-          for (const tc of result.cases) {
-            this.caseRepo.create({
-              id: tc.id,
-              suiteId: tc.suiteId,
-              name: tc.name,
-              filePath: tc.filePath,
-              dependencies: tc.dependencies,
-              avgDuration: tc.avgDuration,
-              flakyScore: tc.flakyScore,
-              history: tc.history,
-            }).catch(() => {});
-          }
-        }
-        if (this.mappingRepo) {
-          const symbolMappingObj: Record<string, string[]> = {};
-          result.mapping.symbolMapping.forEach((symbols, source) => {
-            symbolMappingObj[source] = symbols;
+        for (const tc of result.cases) {
+          await this.caseRepo.create({
+            id: tc.id,
+            tenantId: this.tenantId,
+            suiteId: tc.suiteId,
+            name: tc.name,
+            filePath: tc.filePath,
+            dependencies: tc.dependencies,
+            avgDuration: tc.avgDuration,
+            flakyScore: tc.flakyScore,
+            history: tc.history,
           });
-          this.mappingRepo.create({
-            id: uuidv4(),
-            testPath: result.mapping.testPath,
-            sourcePaths: result.mapping.sourcePaths,
-            symbolMapping: symbolMappingObj,
-          }).catch(() => {});
         }
+
+        const symbolMappingObj: Record<string, string[]> = {};
+        result.mapping.symbolMapping.forEach((symbols, source) => {
+          symbolMappingObj[source] = symbols;
+        });
+        await this.mappingRepo.create({
+          id: uuidv4(),
+          tenantId: this.tenantId,
+          testPath: result.mapping.testPath,
+          sourcePaths: result.mapping.sourcePaths,
+          symbolMapping: symbolMappingObj,
+        });
+
+        // 更新反向索引
+        this.updateSourceIndex(result.suite.id, result.mapping.sourcePaths);
       }
     }
 
@@ -138,10 +137,11 @@ export class TestDependencyAnalyzer {
    */
   async mapTestsToSourceFiles(): Promise<Map<string, string[]>> {
     const mapping = new Map<string, string[]>();
+    const suites = await this.suiteRepo.findByTenant(this.tenantId);
 
-    for (const [suiteId, suite] of this.testSuites) {
+    for (const suite of suites) {
       const sourceFiles = this.inferSourceFiles(suite.filePath);
-      mapping.set(suiteId, sourceFiles);
+      mapping.set(suite.id, sourceFiles);
     }
 
     return mapping;
@@ -176,12 +176,16 @@ export class TestDependencyAnalyzer {
   /**
    * 获取指定测试的依赖源文件
    */
-  getDependenciesForTest(testId: string): TestDependency[] {
-    const testCase = this.testCases.get(testId);
+  async getDependenciesForTest(testId: string): Promise<TestDependency[]> {
+    // 先查 case
+    const cases = await this.caseRepo.findByTenant(this.tenantId);
+    const testCase = cases.find(c => c.id === testId);
     if (testCase) {
-      return testCase.dependencies;
+      return testCase.dependencies as TestDependency[];
     }
-    const testSuite = this.testSuites.get(testId);
+    // 再查 suite
+    const suites = await this.suiteRepo.findByTenant(this.tenantId);
+    const testSuite = suites.find(s => s.id === testId);
     if (testSuite) {
       return testSuite.sourceFiles.map(f => ({
         filePath: f,
@@ -194,24 +198,44 @@ export class TestDependencyAnalyzer {
   /**
    * 获取所有测试套件
    */
-  getSuites(): TestSuite[] {
-    return Array.from(this.testSuites.values());
+  async getSuites(): Promise<TestSuite[]> {
+    const entities = await this.suiteRepo.findByTenant(this.tenantId);
+    return entities.map(e => ({
+      id: e.id,
+      name: e.name,
+      filePath: e.filePath,
+      testCount: e.testCount,
+      avgDuration: e.avgDuration,
+      passRate: e.passRate,
+      lastRun: e.lastRun ? e.lastRun.toISOString() : new Date().toISOString(),
+      sourceFiles: e.sourceFiles,
+    }));
   }
 
   /**
    * 获取所有测试用例
    */
-  getCases(): TestCase[] {
-    return Array.from(this.testCases.values());
+  async getCases(): Promise<TestCase[]> {
+    const entities = await this.caseRepo.findByTenant(this.tenantId);
+    return entities.map(e => ({
+      id: e.id,
+      suiteId: e.suiteId,
+      name: e.name,
+      filePath: e.filePath,
+      dependencies: e.dependencies as TestDependency[],
+      avgDuration: e.avgDuration,
+      flakyScore: e.flakyScore,
+      history: e.history as any[],
+    }));
   }
 
   /**
    * 清空缓存
    */
-  clearCache(): void {
-    this.testSuites.clear();
-    this.testCases.clear();
-    this.testCodeMapping.clear();
+  async clearCache(): Promise<void> {
+    await this.suiteRepo.deleteByTenant(this.tenantId);
+    await this.caseRepo.deleteByTenant(this.tenantId);
+    await this.mappingRepo.deleteByTenant(this.tenantId);
     this.sourceToTestsIndex.clear();
   }
 

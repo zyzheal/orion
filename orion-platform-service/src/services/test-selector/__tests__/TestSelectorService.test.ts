@@ -9,10 +9,137 @@ import * as fs from 'fs';
 jest.mock('fs');
 const mockedFs = jest.mocked(fs, true);
 
+// 模拟数据库
+const createMockDb = () => {
+  const suites: any[] = [];
+  const cases: any[] = [];
+  const mappings: any[] = [];
+  const prResults: any[] = [];
+  const history: any[] = [];
+  return {
+    query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      // INSERT INTO test_selector_suites
+      if (sql.includes('test_selector_suites') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], name: params?.[2], file_path: params?.[3],
+          test_count: params?.[4], avg_duration: params?.[5], pass_rate: params?.[6],
+          last_run: params?.[7], source_files: params?.[8],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        suites.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // INSERT INTO test_selector_cases
+      if (sql.includes('test_selector_cases') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], suite_id: params?.[2], name: params?.[3],
+          file_path: params?.[4], dependencies: params?.[5], avg_duration: params?.[6],
+          flaky_score: params?.[7], history: params?.[8],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        cases.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // INSERT INTO test_selector_code_mappings
+      if (sql.includes('test_selector_code_mappings') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], test_path: params?.[2],
+          source_paths: params?.[3], symbol_mapping: params?.[4],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        mappings.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // INSERT INTO test_selector_pr_results
+      if (sql.includes('test_selector_pr_results') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], pr_id: params?.[2],
+          plan_data: typeof params?.[3] === 'string' ? JSON.parse(params[3]) : params?.[3],
+          impact_data: typeof params?.[4] === 'string' ? JSON.parse(params[4]) : params?.[4],
+          status: params?.[5],
+          created_at: new Date(), updated_at: new Date(),
+        };
+        prResults.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // INSERT INTO test_selector_execution_history
+      if (sql.includes('test_selector_execution_history') && sql.includes('INSERT')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], test_id: params?.[2],
+          execution_id: params?.[3], passed: params?.[4], duration: params?.[5],
+          failure_message: params?.[6], pr_id: params?.[7], executed_at: params?.[8],
+          created_at: new Date(),
+        };
+        history.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // SELECT FROM test_selector_suites
+      if (sql.includes('test_selector_suites') && sql.includes('SELECT')) {
+        return { rows: suites, rowCount: suites.length };
+      }
+      // SELECT FROM test_selector_cases
+      if (sql.includes('test_selector_cases') && sql.includes('SELECT')) {
+        return { rows: cases, rowCount: cases.length };
+      }
+      // SELECT FROM test_selector_pr_results WHERE pr_id
+      if (sql.includes('test_selector_pr_results') && sql.includes('pr_id')) {
+        const prId = params?.[0];
+        const row = prResults.find(r => r.pr_id === prId);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // SELECT FROM test_selector_pr_results WHERE plan_data
+      if (sql.includes('test_selector_pr_results') && sql.includes('plan_data')) {
+        const planId = params?.[1];
+        const row = prResults.find(r => r.plan_data?.planId === planId);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // SELECT DISTINCT test_id
+      if (sql.includes('DISTINCT test_id')) {
+        const testIds = [...new Set(history.map(r => r.test_id))];
+        return { rows: testIds.map(id => ({ test_id: id })), rowCount: testIds.length };
+      }
+      // SELECT FROM test_selector_execution_history
+      if (sql.includes('test_selector_execution_history') && sql.includes('SELECT')) {
+        const testId = params?.[0];
+        const limit = params?.[1] || 100;
+        const rows = history
+          .filter(r => r.test_id === testId)
+          .sort((a, b) => new Date(a.executed_at).getTime() - new Date(b.executed_at).getTime())
+          .slice(0, limit);
+        return { rows, rowCount: rows.length };
+      }
+      // UPDATE test_selector_pr_results
+      if (sql.includes('test_selector_pr_results') && sql.includes('UPDATE')) {
+        const id = params?.[1];
+        const status = params?.[0];
+        const row = prResults.find(r => r.id === id);
+        if (row) row.status = status;
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // DELETE
+      if (sql.includes('DELETE')) {
+        if (sql.includes('test_selector_suites')) suites.length = 0;
+        if (sql.includes('test_selector_cases')) cases.length = 0;
+        if (sql.includes('test_selector_code_mappings')) mappings.length = 0;
+        if (sql.includes('test_selector_execution_history')) history.length = 0;
+        return { rows: [], rowCount: 0 };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+    _suites: suites,
+    _cases: cases,
+    _mappings: mappings,
+    _prResults: prResults,
+    _history: history,
+  };
+};
+
 describe('TestSelectorService', () => {
   let service: TestSelectorService;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
+    mockDb = createMockDb();
     mockedFs.readdirSync.mockReset();
     mockedFs.readFileSync.mockReset();
     mockedFs.existsSync.mockReset();
@@ -27,7 +154,7 @@ describe('TestSelectorService', () => {
         maxExecutionTimeMs: 60000,
         maxParallelGroups: 4,
       },
-    });
+    }, mockDb as any);
   });
 
   afterEach(async () => {
@@ -45,13 +172,12 @@ describe('App', () => {
   it('should work', () => {});
 });
 `);
-
       mockedFs.existsSync.mockReturnValue(false);
 
       await service.initialize();
 
       // 服务应该能够返回套件列表
-      const suites = service.getSuites();
+      const suites = await service.getSuites();
       expect(suites.length).toBeGreaterThan(0);
     });
 
@@ -67,7 +193,7 @@ describe('App', () => {
       await service.initialize(); // 第二次调用
 
       // 应该只分析一次
-      const suites = service.getSuites();
+      const suites = await service.getSuites();
       expect(suites.length).toBeGreaterThan(0);
     });
   });
@@ -235,15 +361,15 @@ describe('UserService', () => {
         'pr-006'
       );
 
-      const history = service.getTestHistory('test-001');
+      const history = await service.getTestHistory('test-001');
       expect(history.totalRuns).toBe(1);
       expect(history.passedRuns).toBe(1);
     });
   });
 
   describe('getTestHistory', () => {
-    it('对于没有历史的测试应该返回空统计', () => {
-      const stats = service.getTestHistory('unknown-test');
+    it('对于没有历史的测试应该返回空统计', async () => {
+      const stats = await service.getTestHistory('unknown-test');
       expect(stats.totalRuns).toBe(0);
     });
   });
@@ -253,7 +379,7 @@ describe('UserService', () => {
       await service.recordTestResult('test-001', true, 500);
       await service.recordTestResult('test-002', false, 800);
 
-      const allStats = service.getAllTestHistory();
+      const allStats = await service.getAllTestHistory();
       expect(allStats.length).toBe(2);
     });
   });
@@ -272,9 +398,9 @@ describe('UserService', () => {
   });
 
   describe('getSuites and getCases', () => {
-    it('应该返回空数组当没有数据时', () => {
-      expect(service.getSuites()).toEqual([]);
-      expect(service.getCases()).toEqual([]);
+    it('应该返回空数组当没有数据时', async () => {
+      expect(await service.getSuites()).toEqual([]);
+      expect(await service.getCases()).toEqual([]);
     });
   });
 
@@ -312,7 +438,7 @@ describe('App', () => { it('works', () => {}); });
       mockedFs.existsSync.mockReturnValue(false);
 
       await service.initialize();
-      expect(service.getSuites().length).toBeGreaterThan(0);
+      expect((await service.getSuites()).length).toBeGreaterThan(0);
 
       // 重新设置 mock（因为 reanalyze 会清除并重新扫描）
       mockedFs.readdirSync.mockImplementation(() => mockTestFile);
@@ -323,7 +449,7 @@ describe('App', () => { it('works', () => {}); });
 
       await service.reanalyze();
       // 重新分析后应该仍然有数据
-      expect(service.getSuites().length).toBeGreaterThan(0);
+      expect((await service.getSuites()).length).toBeGreaterThan(0);
     });
   });
 

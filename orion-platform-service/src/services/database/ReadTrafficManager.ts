@@ -8,7 +8,10 @@
  */
 
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
 import { DegradationLevel } from './ReplicationLagMonitor';
+import { DbHealthCheckCountRepository } from '../../repositories/DbHealthCheckCountRepository';
+import { DbRoutingTimeRepository } from '../../repositories/DbRoutingTimeRepository';
 
 /**
  * 数据库节点类型
@@ -115,15 +118,23 @@ export class ReadTrafficManager extends EventEmitter {
   private config: ReadTrafficManagerConfig;
   private currentDistribution: TrafficDistribution;
   private currentNodeIndex: number = 0;
-  private healthCheckCounts: Map<string, number> = new Map();
-  private lastRoutingTime: Map<string, Date> = new Map();
+  private healthCheckCountRepo: DbHealthCheckCountRepository;
+  private routingTimeRepo: DbRoutingTimeRepository;
+  private tenantId?: string;
 
-  constructor(config: Partial<ReadTrafficManagerConfig> & { primaryNode: DatabaseNode }) {
+  constructor(
+    config: Partial<ReadTrafficManagerConfig> & { primaryNode: DatabaseNode },
+    db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId?: string,
+  ) {
     super();
     this.config = {
       ...DEFAULT_CONFIG,
       ...config,
     } as ReadTrafficManagerConfig;
+    this.tenantId = tenantId;
+    this.healthCheckCountRepo = new DbHealthCheckCountRepository(db);
+    this.routingTimeRepo = new DbRoutingTimeRepository(db);
 
     // 初始化默认流量分配
     this.currentDistribution = this.calculateDistribution(DegradationLevel.LEVEL_0);
@@ -161,7 +172,7 @@ export class ReadTrafficManager extends EventEmitter {
   /**
    * 为读请求选择目标节点
    */
-  selectNode(context: ReadRequestContext): RoutingDecision {
+  async selectNode(context: ReadRequestContext): Promise<RoutingDecision> {
     const level = this.currentDistribution.degradationLevel;
     const skippedReplicas: string[] = [];
     let reason = '';
@@ -173,7 +184,7 @@ export class ReadTrafficManager extends EventEmitter {
       targetNode = this.config.primaryNode;
       strategy = RoutingStrategy.PRIMARY_ONLY;
       reason = `High priority request routed to primary`;
-      this.lastRoutingTime.set(targetNode.id, new Date());
+      await this.routingTimeRepo.upsertRoutingTime(targetNode.id, new Date(), this.tenantId);
       return {
         targetNode,
         strategy,
@@ -240,7 +251,7 @@ export class ReadTrafficManager extends EventEmitter {
     }
 
     // 记录路由时间
-    this.lastRoutingTime.set(targetNode.id, new Date());
+    await this.routingTimeRepo.upsertRoutingTime(targetNode.id, new Date(), this.tenantId);
 
     return {
       targetNode,
@@ -254,7 +265,7 @@ export class ReadTrafficManager extends EventEmitter {
   /**
    * 更新节点健康状态
    */
-  updateNodeHealth(nodeId: string, healthy: boolean, latency?: number): void {
+  async updateNodeHealth(nodeId: string, healthy: boolean, latency?: number): Promise<void> {
     // 查找节点
     let node: DatabaseNode | undefined;
     if (this.config.primaryNode.id === nodeId) {
@@ -286,11 +297,12 @@ export class ReadTrafficManager extends EventEmitter {
     // 更新健康检查计数
     if (healthy) {
       // 节点健康时增加计数（无论是状态变化还是持续健康）
-      const count = (this.healthCheckCounts.get(nodeId) || 0) + 1;
-      this.healthCheckCounts.set(nodeId, count);
+      const existing = await this.healthCheckCountRepo.findByNodeId(nodeId, this.tenantId);
+      const count = (existing?.checkCount || 0) + 1;
+      await this.healthCheckCountRepo.upsertCount(nodeId, count, this.tenantId);
     } else {
       // 节点不健康时重置计数
-      this.healthCheckCounts.set(nodeId, 0);
+      await this.healthCheckCountRepo.upsertCount(nodeId, 0, this.tenantId);
     }
   }
 
@@ -307,25 +319,30 @@ export class ReadTrafficManager extends EventEmitter {
   /**
    * 获取路由统计
    */
-  getRoutingStats(): {
+  async getRoutingStats(): Promise<{
     totalReplicas: number;
     healthyReplicas: number;
     currentDistribution: TrafficDistribution;
     lastRoutingTimes: Map<string, Date>;
-  } {
+  }> {
     const healthyReplicas = this.config.replicaNodes.filter((n) => n.healthy).length;
+    const allRoutingTimes = await this.routingTimeRepo.findAll({ limit: 1000 });
+    const lastRoutingTimes = new Map<string, Date>();
+    for (const entity of allRoutingTimes.entities) {
+      lastRoutingTimes.set(entity.nodeId, entity.lastRoutingTime);
+    }
     return {
       totalReplicas: this.config.replicaNodes.length,
       healthyReplicas,
       currentDistribution: this.currentDistribution,
-      lastRoutingTimes: new Map(this.lastRoutingTime),
+      lastRoutingTimes,
     };
   }
 
   /**
    * 检查是否可以从降级中恢复
    */
-  canRecoverFromDegradation(currentLevel: DegradationLevel, replicaLag: number): boolean {
+  async canRecoverFromDegradation(currentLevel: DegradationLevel, replicaLag: number): Promise<boolean> {
     if (currentLevel === DegradationLevel.LEVEL_0) {
       return false;
     }
@@ -338,7 +355,8 @@ export class ReadTrafficManager extends EventEmitter {
 
     // 检查连续健康检查次数
     for (const replica of this.config.replicaNodes) {
-      const count = this.healthCheckCounts.get(replica.id) || 0;
+      const existing = await this.healthCheckCountRepo.findByNodeId(replica.id, this.tenantId);
+      const count = existing?.checkCount || 0;
       if (count < this.config.recoveryThreshold) {
         return false;
       }
@@ -357,11 +375,11 @@ export class ReadTrafficManager extends EventEmitter {
   /**
    * 重置状态
    */
-  reset(): void {
+  async reset(): Promise<void> {
     this.currentDistribution = this.calculateDistribution(DegradationLevel.LEVEL_0);
     this.currentNodeIndex = 0;
-    this.healthCheckCounts.clear();
-    this.lastRoutingTime.clear();
+    await this.healthCheckCountRepo.deleteAll();
+    await this.routingTimeRepo.deleteAll();
     this.emit('reset');
   }
 

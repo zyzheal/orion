@@ -64,8 +64,8 @@ export class TestExecutionOptimizer {
     impactResult: ImpactAnalysisResult,
     prId?: string
   ): Promise<TestExecutionPlan> {
-    const allSuites = this.impactAnalyzer['dependencyAnalyzer'].getSuites();
-    const allCases = this.impactAnalyzer['dependencyAnalyzer'].getCases();
+    const allSuites = await this.impactAnalyzer['dependencyAnalyzer'].getSuites();
+    const allCases = await this.impactAnalyzer['dependencyAnalyzer'].getCases();
     const affectedIds = impactResult.allAffectedTestIds;
 
     // 选择需要执行的测试

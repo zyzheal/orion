@@ -8,9 +8,15 @@
  * - 通知发送失败不应影响 Pipeline 的正常执行状态
  * - 支持动态注册新的 IM 适配器
  * - 所有错误被捕获并记录日志，不会向上抛出
+ * - 通知渠道配置持久化到 PostgreSQL（IMNotificationChannelRepository）
+ *
+ * 迁移说明：
+ * - adapters Map 保留为运行时适配器注册表（包含 send 方法的对象无法序列化到 DB）
+ * - 通知渠道配置（webhookUrl、平台类型、名称）迁移到 PostgreSQL
  */
 
 import { PipelineRun } from '../../models/PipelineRun';
+import { IMNotificationChannelRepository } from '../../repositories/IMNotificationChannelRepository';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -47,14 +53,25 @@ export interface IMAdapter {
 // ============================================================================
 
 export class IMNotifier {
+  /** 运行时适配器注册表（包含 send 方法，无法持久化到 DB） */
   private adapters: Map<IMPlatformType, IMAdapter>;
+  /** 通知渠道配置持久化仓库 */
+  private channelRepository: IMNotificationChannelRepository | null = null;
+  private tenantId: string;
 
-  constructor() {
+  constructor(options?: {
+    db?: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+    tenantId?: string;
+  }) {
     this.adapters = new Map();
+    this.tenantId = options?.tenantId || 'default';
+    if (options?.db) {
+      this.channelRepository = new IMNotificationChannelRepository(options.db);
+    }
   }
 
   /**
-   * 注册 IM 适配器
+   * 注册 IM 适配器（运行时注册，不持久化）
    */
   registerAdapter(adapter: IMAdapter): void {
     this.adapters.set(adapter.platformType, adapter);
@@ -66,6 +83,92 @@ export class IMNotifier {
    */
   getAdapterCount(): number {
     return this.adapters.size;
+  }
+
+  /**
+   * 注册通知渠道到 PostgreSQL
+   */
+  async registerChannel(config: IMNotificationConfig): Promise<void> {
+    if (!this.channelRepository) {
+      logger.warn('No channel repository configured, skipping channel persistence');
+      return;
+    }
+
+    try {
+      await this.channelRepository.createChannel({
+        id: `${this.tenantId}:${config.type}:${config.name}`,
+        tenantId: this.tenantId,
+        platform: config.type,
+        name: config.name,
+        webhookUrl: config.webhookUrl,
+        enabled: true,
+      });
+      logger.info({ platform: config.type, name: config.name }, 'IM notification channel registered');
+    } catch (err) {
+      logger.error(
+        { err, platform: config.type, name: config.name },
+        'Failed to register IM notification channel'
+      );
+    }
+  }
+
+  /**
+   * 从 PostgreSQL 获取所有通知渠道
+   */
+  async getChannels(options?: { enabledOnly?: boolean }): Promise<IMNotificationConfig[]> {
+    if (!this.channelRepository) {
+      return [];
+    }
+
+    try {
+      const entities = await this.channelRepository.findByTenant(this.tenantId, options);
+      return entities.map(e => ({
+        type: e.platform as IMPlatformType,
+        webhookUrl: e.webhookUrl,
+        name: e.name,
+      }));
+    } catch (err) {
+      logger.error({ err }, 'Failed to load IM notification channels from PostgreSQL');
+      return [];
+    }
+  }
+
+  /**
+   * 按平台类型获取通知渠道
+   */
+  async getChannelsByPlatform(platform: IMPlatformType): Promise<IMNotificationConfig[]> {
+    if (!this.channelRepository) {
+      return [];
+    }
+
+    try {
+      const entities = await this.channelRepository.findEnabledByPlatform(this.tenantId, platform);
+      return entities.map(e => ({
+        type: e.platform as IMPlatformType,
+        webhookUrl: e.webhookUrl,
+        name: e.name,
+      }));
+    } catch (err) {
+      logger.error({ err, platform }, 'Failed to load IM channels by platform from PostgreSQL');
+      return [];
+    }
+  }
+
+  /**
+   * 删除通知渠道
+   */
+  async removeChannel(channelId: string): Promise<void> {
+    if (!this.channelRepository) {
+      logger.warn('No channel repository configured');
+      return;
+    }
+
+    try {
+      await this.channelRepository.delete(channelId);
+      logger.info({ channelId }, 'IM notification channel removed');
+    } catch (err) {
+      logger.error({ err, channelId }, 'Failed to remove IM notification channel');
+    }
   }
 
   /**
@@ -92,6 +195,20 @@ export class IMNotifier {
         'Failed to send IM notification'
       );
     }
+  }
+
+  /**
+   * 发送通知到所有已注册的渠道（从 PostgreSQL 加载）
+   */
+  async sendToAllChannels(payload: IMNotificationPayload): Promise<void> {
+    const channels = await this.getChannels({ enabledOnly: true });
+    if (channels.length === 0) {
+      logger.info('No enabled IM notification channels found');
+      return;
+    }
+
+    const promises = channels.map(config => this.sendNotification(config, payload));
+    await Promise.allSettled(promises);
   }
 
   /**

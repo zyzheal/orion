@@ -7,13 +7,16 @@
  * - 按 run 管理 artifact 生命周期
  * - 将 artifact 从上游 Stage 传递给下游 Stage
  *
- * 存储方式：文件系统，默认 /tmp/orion-artifacts
+ * 存储方式：文件系统 + PostgreSQL 元数据索引
+ * 文件系统：默认 /tmp/orion-artifacts
+ * 元数据：artifact_records 表（ArtifactRecordRepository）
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import pino from 'pino';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
+import { ArtifactRecordRepository } from '../../repositories/ArtifactRecordRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -54,21 +57,29 @@ export interface ArtifactServiceOptions {
   baseDir?: string;
   maxAgeHours?: number;
   versionRepository?: ArtifactVersionRepository;
+  /** PostgreSQL database connection for artifact record persistence */
+  db?: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  tenantId?: string;
 }
 
 export class ArtifactService {
   private baseDir: string;
-  // 内存索引：runId -> stageId -> name -> ArtifactRecord
-  private index = new Map<string, Map<string, Map<string, ArtifactRecord>>>();
   private cleanupInterval?: NodeJS.Timeout;
   private maxAgeMs: number;
   // 可选的版本追踪仓库（GAP-CN-06）
   private versionRepository?: ArtifactVersionRepository;
+  // Artifact 记录持久化仓库
+  private recordRepository: ArtifactRecordRepository | null = null;
+  private tenantId: string;
 
   constructor(options?: ArtifactServiceOptions) {
     this.baseDir = options?.baseDir || process.env.ARTIFACT_BASE_DIR || '/tmp/orion-artifacts';
     this.maxAgeMs = (options?.maxAgeHours ?? 72) * 60 * 60 * 1000; // Default: 72 hours
     this.versionRepository = options?.versionRepository;
+    this.tenantId = options?.tenantId || 'system';
+    if (options?.db) {
+      this.recordRepository = new ArtifactRecordRepository(options.db);
+    }
     this.ensureBaseDir();
     this.startCleanupInterval();
   }
@@ -88,26 +99,47 @@ export class ArtifactService {
 
     fs.writeFileSync(filePath, data);
 
+    const now = new Date();
     const record: ArtifactRecord = {
       name: input.name,
       runId: input.runId,
       stageId: input.stageId,
       size: data.length,
       mimeType: input.mimeType,
-      createdAt: new Date(),
+      createdAt: now,
       uploadedBy: input.uploadedBy,
       description: input.description,
       filePath,
     };
 
-    // 更新索引
-    this.addToIndex(record);
+    // 持久化到 PostgreSQL
+    if (this.recordRepository) {
+      try {
+        await this.recordRepository.createRecord({
+          id: `${input.runId}:${input.stageId}:${input.name}`,
+          tenantId: this.tenantId,
+          runId: input.runId,
+          stageId: input.stageId,
+          name: input.name,
+          size: data.length,
+          mimeType: input.mimeType,
+          filePath,
+          uploadedBy: input.uploadedBy,
+          description: input.description,
+        });
+      } catch (err) {
+        logger.warn(
+          { err, runId: input.runId, stageId: input.stageId, name: input.name },
+          'Failed to persist artifact record to PostgreSQL (non-fatal)'
+        );
+      }
+    }
 
     // GAP-CN-06: 如果配置了版本追踪仓库，记录版本信息
     if (this.versionRepository && input.pipelineId && input.version) {
       try {
         await this.versionRepository.createVersion({
-          tenantId: 'system', // TODO: 从上下文中获取真实 tenantId
+          tenantId: this.tenantId,
           pipelineId: input.pipelineId,
           runId: input.runId,
           stageName: input.stageId,
@@ -146,7 +178,7 @@ export class ArtifactService {
    * 下载 artifact
    */
   async download(runId: string, stageId: string, name: string): Promise<Buffer | null> {
-    const record = this.findInIndex(runId, stageId, name);
+    const record = await this.findRecord(runId, stageId, name);
     if (!record || !fs.existsSync(record.filePath)) {
       return null;
     }
@@ -164,14 +196,40 @@ export class ArtifactService {
   /**
    * 列出某个 run 的所有 artifact
    */
-  listByRun(runId: string): ArtifactRecord[] {
-    const runIndex = this.index.get(runId);
-    if (!runIndex) return [];
+  async listByRun(runId: string): Promise<ArtifactRecord[]> {
+    if (this.recordRepository) {
+      try {
+        const entities = await this.recordRepository.findByRunId(runId);
+        return entities.map(e => this.entityToRecord(e));
+      } catch (err) {
+        logger.warn({ err, runId }, 'Failed to list artifacts from PostgreSQL');
+      }
+    }
+
+    // Fallback: scan filesystem (for environments without DB)
+    const runDir = this.getRunDir(runId);
+    if (!fs.existsSync(runDir)) return [];
 
     const results: ArtifactRecord[] = [];
-    for (const stageMap of runIndex.values()) {
-      for (const record of stageMap.values()) {
-        results.push(record);
+    const stageDirs = fs.readdirSync(runDir, { withFileTypes: true });
+    for (const stageEntry of stageDirs) {
+      if (stageEntry.isDirectory()) {
+        const stagePath = path.join(runDir, stageEntry.name);
+        const files = fs.readdirSync(stagePath);
+        for (const file of files) {
+          const filePath = path.join(stagePath, file);
+          const stats = fs.statSync(filePath);
+          if (stats.isFile()) {
+            results.push({
+              name: file,
+              runId,
+              stageId: stageEntry.name,
+              size: stats.size,
+              createdAt: stats.birthtime || stats.mtime,
+              filePath,
+            });
+          }
+        }
       }
     }
     return results;
@@ -180,19 +238,44 @@ export class ArtifactService {
   /**
    * 列出某个 stage 的所有 artifact
    */
-  listByStage(runId: string, stageId: string): ArtifactRecord[] {
-    const runIndex = this.index.get(runId);
-    if (!runIndex) return [];
-    const stageMap = runIndex.get(stageId);
-    if (!stageMap) return [];
-    return Array.from(stageMap.values());
+  async listByStage(runId: string, stageId: string): Promise<ArtifactRecord[]> {
+    if (this.recordRepository) {
+      try {
+        const entities = await this.recordRepository.findByStage(runId, stageId);
+        return entities.map(e => this.entityToRecord(e));
+      } catch (err) {
+        logger.warn({ err, runId, stageId }, 'Failed to list stage artifacts from PostgreSQL');
+      }
+    }
+
+    // Fallback: scan filesystem (for environments without DB)
+    const stageDir = this.getStageDir(runId, stageId);
+    if (!fs.existsSync(stageDir)) return [];
+
+    const results: ArtifactRecord[] = [];
+    const files = fs.readdirSync(stageDir);
+    for (const file of files) {
+      const filePath = path.join(stageDir, file);
+      const stats = fs.statSync(filePath);
+      if (stats.isFile()) {
+        results.push({
+          name: file,
+          runId,
+          stageId,
+          size: stats.size,
+          createdAt: stats.birthtime || stats.mtime,
+          filePath,
+        });
+      }
+    }
+    return results;
   }
 
   /**
    * 获取 artifact 元数据
    */
-  getMetadata(runId: string, stageId: string, name: string): ArtifactMetadata | null {
-    const record = this.findInIndex(runId, stageId, name);
+  async getMetadata(runId: string, stageId: string, name: string): Promise<ArtifactMetadata | null> {
+    const record = await this.findRecord(runId, stageId, name);
     if (!record) return null;
     const { filePath: _filePath, ...metadata } = record;
     return metadata;
@@ -213,7 +296,7 @@ export class ArtifactService {
     toStageId: string,
     artifactNames?: string[]
   ): Promise<{ passed: number; errors: string[] }> {
-    const sourceArtifacts = this.listByStage(runId, fromStageId);
+    const sourceArtifacts = await this.listByStage(runId, fromStageId);
     const namesToPass = artifactNames && artifactNames.length > 0
       ? sourceArtifacts.filter(a => artifactNames.includes(a.name))
       : sourceArtifacts;
@@ -235,7 +318,7 @@ export class ArtifactService {
         const targetPath = path.join(targetDir, `from-${fromStageId}-${this.sanitizeFileName(artifact.name)}`);
         fs.writeFileSync(targetPath, data);
 
-        // 添加到目标 stage 的索引
+        // 持久化到 PostgreSQL
         const passedRecord: ArtifactRecord = {
           name: artifact.name,
           runId,
@@ -247,7 +330,26 @@ export class ArtifactService {
           description: `Passed from stage ${fromStageId}`,
           filePath: targetPath,
         };
-        this.addToIndex(passedRecord);
+
+        if (this.recordRepository) {
+          try {
+            await this.recordRepository.createRecord({
+              id: `${runId}:${toStageId}:${artifact.name}`,
+              tenantId: this.tenantId,
+              runId,
+              stageId: toStageId,
+              name: artifact.name,
+              size: data.length,
+              mimeType: artifact.mimeType,
+              filePath: targetPath,
+              uploadedBy: `passed-from-${fromStageId}`,
+              description: `Passed from stage ${fromStageId}`,
+            });
+          } catch (err) {
+            logger.warn({ err, runId, toStageId }, 'Failed to persist passed artifact record');
+          }
+        }
+
         passed.push(passedRecord);
       } catch (err) {
         errors.push(`Failed to pass ${artifact.name}: ${err instanceof Error ? err.message : String(err)}`);
@@ -265,27 +367,34 @@ export class ArtifactService {
   /**
    * 获取某个 stage 可用的所有 artifacts（包括上游传递的）
    */
-  getAvailableArtifacts(runId: string, stageId: string): ArtifactRecord[] {
+  async getAvailableArtifacts(runId: string, stageId: string): Promise<ArtifactRecord[]> {
     return this.listByStage(runId, stageId);
   }
 
   /**
    * 清理某个 run 的所有 artifacts
    */
-  cleanupRun(runId: string): void {
+  async cleanupRun(runId: string): Promise<void> {
     const runDir = this.getRunDir(runId);
     if (fs.existsSync(runDir)) {
       fs.rmSync(runDir, { recursive: true, force: true });
     }
-    this.index.delete(runId);
+    // 从 PostgreSQL 删除
+    if (this.recordRepository) {
+      try {
+        await this.recordRepository.deleteByRunId(runId);
+      } catch (err) {
+        logger.warn({ err, runId }, 'Failed to delete artifact records from PostgreSQL');
+      }
+    }
     logger.info({ runId }, 'Artifact run cleaned up');
   }
 
   /**
    * 获取 artifact 的磁盘路径（供外部直接读取）
    */
-  getArtifactPath(runId: string, stageId: string, name: string): string | null {
-    const record = this.findInIndex(runId, stageId, name);
+  async getArtifactPath(runId: string, stageId: string, name: string): Promise<string | null> {
+    const record = await this.findRecord(runId, stageId, name);
     return record ? record.filePath : null;
   }
 
@@ -308,32 +417,16 @@ export class ArtifactService {
   /**
    * 清理过期的 artifact 记录
    */
-  private cleanupExpiredArtifacts(): void {
-    const now = Date.now();
-    const toDelete: string[] = [];
-
-    for (const [runId, runIndex] of this.index.entries()) {
-      let hasExpired = false;
-      for (const stageMap of runIndex.values()) {
-        for (const record of stageMap.values()) {
-          if (now - record.createdAt.getTime() > this.maxAgeMs) {
-            hasExpired = true;
-            break;
-          }
+  private async cleanupExpiredArtifacts(): Promise<void> {
+    if (this.recordRepository) {
+      try {
+        const deleted = await this.recordRepository.deleteExpired(this.maxAgeMs);
+        if (deleted > 0) {
+          logger.info({ removed: deleted }, 'Cleaned up expired artifact records from PostgreSQL');
         }
-        if (hasExpired) break;
+      } catch (err) {
+        logger.warn({ err }, 'Failed to cleanup expired artifacts from PostgreSQL');
       }
-      if (hasExpired) {
-        toDelete.push(runId);
-      }
-    }
-
-    for (const runId of toDelete) {
-      this.cleanupRun(runId);
-    }
-
-    if (toDelete.length > 0) {
-      logger.info({ removed: toDelete.length }, 'Cleaned up expired artifact runs');
     }
   }
 
@@ -367,25 +460,54 @@ export class ArtifactService {
     return name.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 
-  private addToIndex(record: ArtifactRecord): void {
-    let runIndex = this.index.get(record.runId);
-    if (!runIndex) {
-      runIndex = new Map();
-      this.index.set(record.runId, runIndex);
+  /**
+   * 从 PostgreSQL 查找单个 artifact 记录
+   * 如果没有配置 repository，回退到文件系统检查
+   */
+  private async findRecord(runId: string, stageId: string, name: string): Promise<ArtifactRecord | null> {
+    if (this.recordRepository) {
+      try {
+        const entity = await this.recordRepository.findByName(runId, stageId, name);
+        if (entity) {
+          return this.entityToRecord(entity);
+        }
+      } catch (err) {
+        logger.warn({ err, runId, stageId, name }, 'Failed to find artifact in PostgreSQL');
+      }
     }
-    let stageMap = runIndex.get(record.stageId);
-    if (!stageMap) {
-      stageMap = new Map();
-      runIndex.set(record.stageId, stageMap);
+
+    // Fallback: check filesystem directly (for environments without DB)
+    const stageDir = this.getStageDir(runId, stageId);
+    const sanitizedPath = path.join(stageDir, this.sanitizeFileName(name));
+    if (fs.existsSync(sanitizedPath)) {
+      const stats = fs.statSync(sanitizedPath);
+      return {
+        name,
+        runId,
+        stageId,
+        size: stats.size,
+        createdAt: stats.birthtime || stats.mtime,
+        filePath: sanitizedPath,
+      };
     }
-    stageMap.set(record.name, record);
+
+    return null;
   }
 
-  private findInIndex(runId: string, stageId: string, name: string): ArtifactRecord | null {
-    const runIndex = this.index.get(runId);
-    if (!runIndex) return null;
-    const stageMap = runIndex.get(stageId);
-    if (!stageMap) return null;
-    return stageMap.get(name) ?? null;
+  /**
+   * 将数据库实体转换为 ArtifactRecord
+   */
+  private entityToRecord(entity: any): ArtifactRecord {
+    return {
+      name: entity.name,
+      runId: entity.runId,
+      stageId: entity.stageId,
+      size: entity.size,
+      mimeType: entity.mimeType,
+      createdAt: entity.createdAt,
+      uploadedBy: entity.uploadedBy,
+      description: entity.description,
+      filePath: entity.filePath,
+    };
   }
 }

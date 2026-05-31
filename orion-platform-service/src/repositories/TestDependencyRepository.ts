@@ -1,7 +1,7 @@
 /**
  * TestDependencyRepository
  * Data access layer for test dependency analysis data.
- * Replaces in-memory Maps in TestDependencyAnalyzer and TestSelectorService.
+ * Replaces in-memory Maps in TestDependencyAnalyzer, TestSelectorService, and TestFailurePredictor.
  */
 
 import { ErrorCode } from '../errors';
@@ -12,6 +12,7 @@ import { OrionError } from '../errors';
 
 export interface TestSuiteDependencyEntity {
   id: string;
+  tenantId: string;
   name: string;
   filePath: string;
   testCount: number;
@@ -29,11 +30,16 @@ export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDepen
   }
 
   async create(data: Omit<TestSuiteDependencyEntity, 'created_at' | 'updated_at'> & Partial<Pick<TestSuiteDependencyEntity, 'id'>>): Promise<TestSuiteDependencyEntity> {
-    const columns = ['id', 'name', 'file_path', 'test_count', 'avg_duration', 'pass_rate', 'last_run', 'source_files'];
-    const values = [data.id, data.name, data.filePath, data.testCount, data.avgDuration, data.passRate, data.lastRun, JSON.stringify(data.sourceFiles)];
+    const columns = ['id', 'tenant_id', 'name', 'file_path', 'test_count', 'avg_duration', 'pass_rate', 'last_run', 'source_files'];
+    const values = [data.id, data.tenantId, data.name, data.filePath, data.testCount, data.avgDuration, data.passRate, data.lastRun, JSON.stringify(data.sourceFiles)];
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders})
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name, file_path = EXCLUDED.file_path, test_count = EXCLUDED.test_count,
+        avg_duration = EXCLUDED.avg_duration, pass_rate = EXCLUDED.pass_rate, last_run = EXCLUDED.last_run,
+        source_files = EXCLUDED.source_files, updated_at = NOW()
+      RETURNING *`;
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
@@ -42,9 +48,26 @@ export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDepen
     return this.mapRowToEntity(result.rows[0]);
   }
 
+  async findByTenant(tenantId: string): Promise<TestSuiteDependencyEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ${this.tableName} WHERE tenant_id = $1 ORDER BY created_at DESC`,
+      [tenantId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async deleteByTenant(tenantId: string): Promise<number> {
+    const result = await this.db.query(
+      `DELETE FROM ${this.tableName} WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rowCount ?? 0;
+  }
+
   protected mapRowToEntity(row: any): TestSuiteDependencyEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       name: row.name,
       filePath: row.file_path,
       testCount: row.test_count,
@@ -62,6 +85,7 @@ export class TestSuiteDependencyRepository extends BaseRepository<TestSuiteDepen
 
 export interface TestCaseDependencyEntity {
   id: string;
+  tenantId: string;
   suiteId: string;
   name: string;
   filePath: string;
@@ -79,11 +103,16 @@ export class TestCaseDependencyRepository extends BaseRepository<TestCaseDepende
   }
 
   async create(data: Omit<TestCaseDependencyEntity, 'created_at' | 'updated_at'> & Partial<Pick<TestCaseDependencyEntity, 'id'>>): Promise<TestCaseDependencyEntity> {
-    const columns = ['id', 'suite_id', 'name', 'file_path', 'dependencies', 'avg_duration', 'flaky_score', 'history'];
-    const values = [data.id, data.suiteId, data.name, data.filePath, JSON.stringify(data.dependencies), data.avgDuration, data.flakyScore, JSON.stringify(data.history)];
+    const columns = ['id', 'tenant_id', 'suite_id', 'name', 'file_path', 'dependencies', 'avg_duration', 'flaky_score', 'history'];
+    const values = [data.id, data.tenantId, data.suiteId, data.name, data.filePath, JSON.stringify(data.dependencies), data.avgDuration, data.flakyScore, JSON.stringify(data.history)];
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders})
+      ON CONFLICT (id) DO UPDATE SET
+        suite_id = EXCLUDED.suite_id, name = EXCLUDED.name, file_path = EXCLUDED.file_path,
+        dependencies = EXCLUDED.dependencies, avg_duration = EXCLUDED.avg_duration,
+        flaky_score = EXCLUDED.flaky_score, history = EXCLUDED.history, updated_at = NOW()
+      RETURNING *`;
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
@@ -100,9 +129,26 @@ export class TestCaseDependencyRepository extends BaseRepository<TestCaseDepende
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  async findByTenant(tenantId: string): Promise<TestCaseDependencyEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ${this.tableName} WHERE tenant_id = $1 ORDER BY created_at`,
+      [tenantId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async deleteByTenant(tenantId: string): Promise<number> {
+    const result = await this.db.query(
+      `DELETE FROM ${this.tableName} WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rowCount ?? 0;
+  }
+
   protected mapRowToEntity(row: any): TestCaseDependencyEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       suiteId: row.suite_id,
       name: row.name,
       filePath: row.file_path,
@@ -120,6 +166,7 @@ export class TestCaseDependencyRepository extends BaseRepository<TestCaseDepende
 
 export interface TestCodeMappingEntity {
   id: string;
+  tenantId: string;
   testPath: string;
   sourcePaths: string[];
   symbolMapping: Record<string, string[]>;
@@ -133,11 +180,15 @@ export class TestCodeMappingDependencyRepository extends BaseRepository<TestCode
   }
 
   async create(data: Omit<TestCodeMappingEntity, 'created_at' | 'updated_at'> & Partial<Pick<TestCodeMappingEntity, 'id'>>): Promise<TestCodeMappingEntity> {
-    const columns = ['id', 'test_path', 'source_paths', 'symbol_mapping'];
-    const values = [data.id, data.testPath, JSON.stringify(data.sourcePaths), JSON.stringify(data.symbolMapping)];
+    const columns = ['id', 'tenant_id', 'test_path', 'source_paths', 'symbol_mapping'];
+    const values = [data.id, data.tenantId, data.testPath, JSON.stringify(data.sourcePaths), JSON.stringify(data.symbolMapping)];
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders})
+      ON CONFLICT (id) DO UPDATE SET
+        test_path = EXCLUDED.test_path, source_paths = EXCLUDED.source_paths,
+        symbol_mapping = EXCLUDED.symbol_mapping, updated_at = NOW()
+      RETURNING *`;
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
@@ -155,9 +206,26 @@ export class TestCodeMappingDependencyRepository extends BaseRepository<TestCode
     return this.mapRowToEntity(result.rows[0]);
   }
 
+  async findByTenant(tenantId: string): Promise<TestCodeMappingEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ${this.tableName} WHERE tenant_id = $1 ORDER BY created_at`,
+      [tenantId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async deleteByTenant(tenantId: string): Promise<number> {
+    const result = await this.db.query(
+      `DELETE FROM ${this.tableName} WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rowCount ?? 0;
+  }
+
   protected mapRowToEntity(row: any): TestCodeMappingEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       testPath: row.test_path,
       sourcePaths: row.source_paths ?? [],
       symbolMapping: row.symbol_mapping ?? {},
@@ -171,6 +239,7 @@ export class TestCodeMappingDependencyRepository extends BaseRepository<TestCode
 
 export interface PRTestResultEntity {
   id: string;
+  tenantId: string;
   prId: string;
   planData: Record<string, unknown>;
   impactData: Record<string, unknown>;
@@ -185,8 +254,8 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
   }
 
   async create(data: Omit<PRTestResultEntity, 'created_at' | 'updated_at'> & Partial<Pick<PRTestResultEntity, 'id'>>): Promise<PRTestResultEntity> {
-    const columns = ['id', 'pr_id', 'plan_data', 'impact_data', 'status'];
-    const values = [data.id, data.prId, JSON.stringify(data.planData), JSON.stringify(data.impactData), data.status];
+    const columns = ['id', 'tenant_id', 'pr_id', 'plan_data', 'impact_data', 'status'];
+    const values = [data.id, data.tenantId, data.prId, JSON.stringify(data.planData), JSON.stringify(data.impactData), data.status];
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
     const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -198,13 +267,30 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async findByPrId(prId: string): Promise<PRTestResultEntity | null> {
+  async findByPrId(prId: string, tenantId: string = 'default'): Promise<PRTestResultEntity | null> {
     const result = await this.db.query(
-      `SELECT * FROM ${this.tableName} WHERE pr_id = $1 LIMIT 1`,
-      [prId],
+      `SELECT * FROM ${this.tableName} WHERE pr_id = $1 AND tenant_id = $2 ORDER BY created_at DESC LIMIT 1`,
+      [prId, tenantId],
     );
     if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async findByPlanId(planId: string, tenantId: string = 'default'): Promise<PRTestResultEntity | null> {
+    const result = await this.db.query(
+      `SELECT * FROM ${this.tableName} WHERE tenant_id = $1 AND plan_data->>'planId' = $2 LIMIT 1`,
+      [tenantId, planId],
+    );
+    if (result.rows.length === 0) return null;
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async findByTenant(tenantId: string): Promise<PRTestResultEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ${this.tableName} WHERE tenant_id = $1 ORDER BY created_at DESC`,
+      [tenantId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
   }
 
   async updateStatus(id: string, status: string): Promise<void> {
@@ -217,6 +303,7 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
   protected mapRowToEntity(row: any): PRTestResultEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       prId: row.pr_id,
       planData: row.plan_data ?? {},
       impactData: row.impact_data ?? {},
@@ -231,6 +318,7 @@ export class PRTestResultDependencyRepository extends BaseRepository<PRTestResul
 
 export interface TestExecutionHistoryEntity {
   id: string;
+  tenantId: string;
   testId: string;
   executionId: string;
   passed: boolean;
@@ -247,8 +335,8 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
   }
 
   async create(data: any): Promise<TestExecutionHistoryEntity> {
-    const columns = ['id', 'test_id', 'execution_id', 'passed', 'duration', 'failure_message', 'pr_id', 'executed_at'];
-    const values = [data.id, data.testId, data.executionId, data.passed, data.duration, data.failureMessage, data.prId, data.executedAt];
+    const columns = ['id', 'tenant_id', 'test_id', 'execution_id', 'passed', 'duration', 'failure_message', 'pr_id', 'executed_at'];
+    const values = [data.id, data.tenantId || 'default', data.testId, data.executionId, data.passed, data.duration, data.failureMessage, data.prId, data.executedAt];
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
     const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -262,10 +350,34 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
 
   async findByTestId(testId: string, limit: number = 100): Promise<TestExecutionHistoryEntity[]> {
     const result = await this.db.query(
-      `SELECT * FROM ${this.tableName} WHERE test_id = $1 ORDER BY executed_at DESC LIMIT $2`,
+      `SELECT * FROM ${this.tableName} WHERE test_id = $1 ORDER BY executed_at ASC LIMIT $2`,
       [testId, limit],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findAllTestIds(tenantId: string = 'default'): Promise<string[]> {
+    const result = await this.db.query(
+      `SELECT DISTINCT test_id FROM ${this.tableName} WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rows.map((row: any) => row.test_id);
+  }
+
+  async deleteByTestId(testId: string): Promise<number> {
+    const result = await this.db.query(
+      `DELETE FROM ${this.tableName} WHERE test_id = $1`,
+      [testId],
+    );
+    return result.rowCount ?? 0;
+  }
+
+  async deleteByTenant(tenantId: string): Promise<number> {
+    const result = await this.db.query(
+      `DELETE FROM ${this.tableName} WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rowCount ?? 0;
   }
 
   async pruneOld(retentionDays: number = 90): Promise<number> {
@@ -278,6 +390,7 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
   protected mapRowToEntity(row: any): TestExecutionHistoryEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       testId: row.test_id,
       executionId: row.execution_id,
       passed: row.passed,

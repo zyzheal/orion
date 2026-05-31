@@ -16,12 +16,15 @@ export class FinOpsController {
   private k8sAllocator: K8sCostAllocator;
   private eventPublisher: CostEventPublisher;
 
-  constructor(service: FinOpsService) {
+  constructor(
+    service: FinOpsService,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
     this.service = service;
     // CloudCostCollector and K8sCostAllocator are kept for their
     // collection/allocation logic (they transform data from external sources).
     // The persistence layer is now handled by FinOpsService (PostgreSQL).
-    this.cloudCollector = new CloudCostCollector();
+    this.cloudCollector = new CloudCostCollector(db!);
     this.k8sAllocator = new K8sCostAllocator();
     this.eventPublisher = new CostEventPublisher();
   }
