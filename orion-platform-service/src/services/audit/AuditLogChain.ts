@@ -19,6 +19,7 @@ import {
   DEFAULT_CHAIN_CONFIG,
 } from './AuditTypes';
 import { OrionError, ErrorCode } from '../../errors';
+import { AuditChainEntryRepository } from '../../repositories/AuditChainEntryRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'audit-chain' });
 
@@ -51,10 +52,17 @@ export class AuditLogChain {
   private repository?: IAuditLogChainRepository;
   private useRepository: boolean = false;
 
-  constructor(config?: Partial<ChainConfig>, repository?: IAuditLogChainRepository) {
+  constructor(
+    config?: Partial<ChainConfig>,
+    repository?: IAuditLogChainRepository,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
     this.config = { ...DEFAULT_CHAIN_CONFIG, ...config };
     this.repository = repository;
-    this.useRepository = !!repository;
+    if (!this.repository && db) {
+      this.repository = new AuditChainEntryRepository(db);
+    }
+    this.useRepository = !!this.repository;
     logger.info({ algorithm: this.config.algorithm, useRepository: this.useRepository }, 'Audit log chain initialized');
   }
 
@@ -130,6 +138,11 @@ export class AuditLogChain {
     this.entries.set(id, entry);
     this.entriesBySequence.set(sequenceNumber, entry);
     this.lastEntry = entry;
+
+    // Persist to repository (fire-and-forget)
+    if (this.repository && 'createFromChainedEntry' in this.repository) {
+      (this.repository as any).createFromChainedEntry(entry).catch(() => {});
+    }
 
     logger.debug({ id, sequenceNumber, action, userId }, 'Audit entry added to chain');
 
@@ -388,15 +401,66 @@ export class AuditLogChain {
   /**
    * 根据 ID 获取条目
    */
-  getEntryById(id: string): ChainedAuditLogEntry | undefined {
-    return this.entries.get(id);
+  async getEntryById(id: string): Promise<ChainedAuditLogEntry | undefined> {
+    // Try in-memory cache first
+    const cached = this.entries.get(id);
+    if (cached) return cached;
+
+    // Fall back to repository
+    if (this.repository && 'findById' in this.repository) {
+      try {
+        const entity = await (this.repository as any).findById(id);
+        if (entity) {
+          // Map entity to ChainedAuditLogEntry
+          const entry: ChainedAuditLogEntry = {
+            id: entity.id,
+            timestamp: entity.timestamp,
+            action: entity.action,
+            userId: entity.userId,
+            tenantId: entity.tenantId || undefined,
+            prevHash: entity.prevHash,
+            contentHash: entity.contentHash,
+            chainHash: entity.chainHash,
+            details: entity.details,
+            signature: entity.signature || undefined,
+            sequenceNumber: entity.sequenceNumber,
+          };
+          // Cache it
+          this.entries.set(id, entry);
+          this.entriesBySequence.set(entry.sequenceNumber, entry);
+          return entry;
+        }
+      } catch {
+        // Silently fall through
+      }
+    }
+    return undefined;
   }
 
   /**
    * 根据序列号获取条目
    */
-  getEntryBySequence(sequenceNumber: number): ChainedAuditLogEntry | undefined {
-    return this.entriesBySequence.get(sequenceNumber);
+  async getEntryBySequence(sequenceNumber: number): Promise<ChainedAuditLogEntry | undefined> {
+    // Try in-memory cache first
+    const cached = this.entriesBySequence.get(sequenceNumber);
+    if (cached) return cached;
+
+    // Fall back to repository
+    if (this.useRepository && this.repository) {
+      try {
+        const entries = await this.repository.getEntries({ startSequence: sequenceNumber, endSequence: sequenceNumber, limit: 1 });
+        if (entries.length > 0) {
+          const entry = entries[0];
+          // Cache it
+          this.entries.set(entry.id, entry);
+          this.entriesBySequence.set(entry.sequenceNumber, entry);
+          return entry;
+        }
+      } catch {
+        // Silently fall through
+      }
+    }
+    return undefined;
   }
 
   /**

@@ -14,6 +14,7 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import { ChainedAuditLogEntry, ChainConfig, DEFAULT_CHAIN_CONFIG } from './AuditTypes';
+import { ImmutableAuditEntryRepository, ImmutableAuditFileRepository } from '../../repositories/ImmutableAuditRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'immutable-storage' });
 
@@ -93,13 +94,24 @@ export class ImmutableAuditStorage extends EventEmitter {
   private flushInterval?: NodeJS.Timeout;
   private initialized: boolean = false;
 
+  // PostgreSQL Repository (primary storage)
+  private entryRepository?: ImmutableAuditEntryRepository;
+  private fileRepository?: ImmutableAuditFileRepository;
+  private useRepository: boolean = false;
+
   constructor(
     storageConfig?: Partial<ImmutableStorageConfig>,
-    chainConfig?: Partial<ChainConfig>
+    chainConfig?: Partial<ChainConfig>,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
   ) {
     super();
     this.config = { ...DEFAULT_STORAGE_CONFIG, ...storageConfig };
     this.chainConfig = { ...DEFAULT_CHAIN_CONFIG, ...chainConfig };
+    if (db) {
+      this.entryRepository = new ImmutableAuditEntryRepository(db);
+      this.fileRepository = new ImmutableAuditFileRepository(db);
+      this.useRepository = true;
+    }
   }
 
   /**
@@ -142,6 +154,11 @@ export class ImmutableAuditStorage extends EventEmitter {
 
     // 添加到缓冲区
     this.entryBuffer.push(entry);
+
+    // Persist to PostgreSQL (fire-and-forget for non-blocking writes)
+    if (this.useRepository && this.entryRepository) {
+      this.entryRepository.createFromChainedEntry(entry, this.currentFile || undefined).catch(() => {});
+    }
 
     // 如果开启同步写入，立即刷盘
     if (this.config.syncWrite) {
@@ -232,6 +249,37 @@ export class ImmutableAuditStorage extends EventEmitter {
       await this.initialize();
     }
 
+    // Try PostgreSQL repository first
+    if (this.useRepository && this.entryRepository && !options?.file) {
+      try {
+        const entities = await this.entryRepository.findBySequenceRange(
+          options?.startSequence || 1,
+          options?.endSequence || Number.MAX_SAFE_INTEGER,
+        );
+        let entries = entities.map(e => ({
+          id: e.id,
+          timestamp: e.timestamp,
+          action: e.action,
+          userId: e.userId,
+          tenantId: e.tenantId || undefined,
+          prevHash: e.prevHash,
+          contentHash: e.contentHash,
+          chainHash: e.chainHash,
+          details: e.details,
+          signature: e.signature || undefined,
+          sequenceNumber: e.sequenceNumber,
+        } as ChainedAuditLogEntry));
+
+        if (options?.limit) {
+          entries = entries.slice(0, options.limit);
+        }
+        return entries;
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to read from repository, falling back to files');
+      }
+    }
+
+    // Fallback: file-based storage
     const entries: ChainedAuditLogEntry[] = [];
     const files = options?.file
       ? [options.file]
@@ -279,6 +327,31 @@ export class ImmutableAuditStorage extends EventEmitter {
    * 根据 ID 获取条目
    */
   async getById(id: string): Promise<ChainedAuditLogEntry | null> {
+    // Try PostgreSQL repository first
+    if (this.useRepository && this.entryRepository) {
+      try {
+        const entity = await this.entryRepository.findById(id);
+        if (entity) {
+          return {
+            id: entity.id,
+            timestamp: entity.timestamp,
+            action: entity.action,
+            userId: entity.userId,
+            tenantId: entity.tenantId || undefined,
+            prevHash: entity.prevHash,
+            contentHash: entity.contentHash,
+            chainHash: entity.chainHash,
+            details: entity.details,
+            signature: entity.signature || undefined,
+            sequenceNumber: entity.sequenceNumber,
+          };
+        }
+      } catch (err) {
+        logger.warn({ error: err, id }, 'Failed to get from repository, falling back to files');
+      }
+    }
+
+    // Fallback: file-based storage
     const files = await this.getSortedFiles();
 
     for (const file of files) {
@@ -368,6 +441,24 @@ export class ImmutableAuditStorage extends EventEmitter {
       await this.initialize();
     }
 
+    // Try PostgreSQL repository first
+    if (this.useRepository && this.entryRepository) {
+      try {
+        const maxSeq = await this.entryRepository.getMaxSequenceNumber();
+        const lastEntry = maxSeq > 0 ? await this.entryRepository.findBySequenceRange(maxSeq, maxSeq) : [];
+        return {
+          totalFiles: 0, // DB doesn't track files
+          totalEntries: maxSeq,
+          lastSequenceNumber: maxSeq,
+          lastChainHash: lastEntry.length > 0 ? lastEntry[0].chainHash : this.chainConfig.genesisHash,
+          storageSizeBytes: 0, // Not applicable for DB
+        };
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to get stats from repository, falling back to files');
+      }
+    }
+
+    // Fallback: file-based stats
     const files = await this.getSortedFiles();
     let totalEntries = 0;
     let storageSizeBytes = 0;

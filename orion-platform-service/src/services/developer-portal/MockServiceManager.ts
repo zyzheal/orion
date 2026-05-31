@@ -151,6 +151,17 @@ export class MockServiceManager {
    * 获取 Mock 规则详情
    */
   async getRuleById(id: string): Promise<MockRule> {
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findById(id);
+        if (entity) {
+          const rule = this.entityToRule(entity);
+          this.rules.set(id, rule); // update cache
+          return rule;
+        }
+      } catch { /* fallback to Map */ }
+    }
     const rule = this.rules.get(id);
     if (!rule) {
       throw new MockServiceManagerError(`Mock rule not found: ${id}`, 'RULE_NOT_FOUND');
@@ -165,6 +176,23 @@ export class MockServiceManager {
     tenantId: string,
     options?: { enabled?: boolean; method?: string; page?: number; pageSize?: number }
   ): Promise<{ data: MockRule[]; total: number; page: number; totalPages: number }> {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entities = await this.repository.findByTenant(tenantId, {
+          enabled: options?.enabled,
+          method: options?.method,
+        });
+        const total = entities.length;
+        const start = (page - 1) * pageSize;
+        const data = entities.slice(start, start + pageSize).map(e => this.entityToRule(e));
+        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+      } catch { /* fallback to Map */ }
+    }
+
     let rules = Array.from(this.rules.values()).filter((r) => r.tenantId === tenantId);
 
     if (options?.enabled !== undefined) {
@@ -177,8 +205,6 @@ export class MockServiceManager {
     // Sort by priority DESC, then createdAt DESC
     rules.sort((a, b) => b.priority - a.priority || b.createdAt.getTime() - a.createdAt.getTime());
 
-    const page = options?.page ?? 1;
-    const pageSize = options?.pageSize ?? 20;
     const total = rules.length;
     const start = (page - 1) * pageSize;
     const data = rules.slice(start, start + pageSize);
@@ -276,9 +302,23 @@ export class MockServiceManager {
     method: string,
     path: string
   ): Promise<MockMatchResult> {
-    const rules = Array.from(this.rules.values())
-      .filter((r) => r.tenantId === tenantId && r.enabled && r.method === method.toUpperCase())
-      .sort((a, b) => b.priority - a.priority);
+    let rules: MockRule[];
+
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entities = await this.repository.findEnabledByTenant(tenantId, method);
+        rules = entities.map(e => this.entityToRule(e));
+      } catch {
+        rules = Array.from(this.rules.values())
+          .filter((r) => r.tenantId === tenantId && r.enabled && r.method === method.toUpperCase())
+          .sort((a, b) => b.priority - a.priority);
+      }
+    } else {
+      rules = Array.from(this.rules.values())
+        .filter((r) => r.tenantId === tenantId && r.enabled && r.method === method.toUpperCase())
+        .sort((a, b) => b.priority - a.priority);
+    }
 
     for (const rule of rules) {
       let matched = false;
@@ -318,11 +358,43 @@ export class MockServiceManager {
    * 获取 Mock 统计
    */
   async getStats(tenantId: string): Promise<{ total: number; enabled: number; disabled: number }> {
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entities = await this.repository.findByTenant(tenantId);
+        return {
+          total: entities.length,
+          enabled: entities.filter((r) => r.enabled).length,
+          disabled: entities.filter((r) => !r.enabled).length,
+        };
+      } catch { /* fallback to Map */ }
+    }
+
     const rules = Array.from(this.rules.values()).filter((r) => r.tenantId === tenantId);
     return {
       total: rules.length,
       enabled: rules.filter((r) => r.enabled).length,
       disabled: rules.filter((r) => !r.enabled).length,
+    };
+  }
+
+  private entityToRule(entity: any): MockRule {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description ?? '',
+      method: entity.method,
+      path: entity.path,
+      statusCode: entity.statusCode ?? 200,
+      headers: entity.headers ?? {},
+      body: entity.body ?? {},
+      delay: entity.delay ?? 0,
+      enabled: entity.enabled ?? true,
+      priority: entity.priority ?? 0,
+      matchType: entity.matchType ?? 'exact',
+      createdAt: entity.created_at ? new Date(entity.created_at) : new Date(),
+      updatedAt: entity.updated_at ? new Date(entity.updated_at) : new Date(),
     };
   }
 }

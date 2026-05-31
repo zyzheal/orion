@@ -11,10 +11,45 @@
  */
 
 import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 import { AutoRecoveryRecordRepository } from '../../repositories/AutoRecoveryRecordRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+/**
+ * Repository for degraded provider state persistence
+ */
+class DegradedStateRepository {
+  constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {}
+
+  async upsert(providerId: string, degradedAt: Date, successRate?: number, tenantId?: string): Promise<void> {
+    await this.db.query(
+      `INSERT INTO auto_recovery_degraded_state (id, provider_id, degraded_at, last_success_rate, tenant_id)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (provider_id) DO UPDATE SET degraded_at = $3, last_success_rate = $4, updated_at = NOW()`,
+      [uuidv4(), providerId, degradedAt, successRate ?? null, tenantId ?? null],
+    );
+  }
+
+  async remove(providerId: string): Promise<void> {
+    await this.db.query(
+      `DELETE FROM auto_recovery_degraded_state WHERE provider_id = $1`,
+      [providerId],
+    );
+  }
+
+  async findAll(): Promise<Array<{ providerId: string; degradedAt: Date; lastSuccessRate: number | null }>> {
+    const result = await this.db.query(
+      `SELECT provider_id, degraded_at, last_success_rate FROM auto_recovery_degraded_state ORDER BY degraded_at DESC`,
+    );
+    return result.rows.map(row => ({
+      providerId: row.provider_id,
+      degradedAt: new Date(row.degraded_at),
+      lastSuccessRate: row.last_success_rate !== null ? Number(row.last_success_rate) : null,
+    }));
+  }
+}
 
 export interface AutoRecoveryConfig {
   recoveryCheckInterval: number;   // 检查间隔，默认 30 秒
@@ -53,12 +88,36 @@ export class AutoRecoveryService extends EventEmitter {
   private providerSuccessRates: Map<string, number> = new Map();
   private timer?: NodeJS.Timeout;
   private repository?: AutoRecoveryRecordRepository;
+  private degradedStateRepository?: DegradedStateRepository;
+  private useRepository: boolean = false;
 
   constructor(config: Partial<AutoRecoveryConfig> = {}, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     if (db) {
       this.repository = new AutoRecoveryRecordRepository(db);
+      this.degradedStateRepository = new DegradedStateRepository(db);
+      this.useRepository = true;
+    }
+  }
+
+  /**
+   * Load degraded state from repository into memory cache
+   */
+  async loadFromRepository(): Promise<void> {
+    if (!this.degradedStateRepository) return;
+
+    try {
+      const degradedStates = await this.degradedStateRepository.findAll();
+      for (const state of degradedStates) {
+        this.degradedProviders.set(state.providerId, state.degradedAt);
+        if (state.lastSuccessRate !== null) {
+          this.providerSuccessRates.set(state.providerId, state.lastSuccessRate);
+        }
+      }
+      logger.info('[AutoRecovery] Loaded %d degraded providers from repository', degradedStates.length);
+    } catch (err) {
+      logger.warn('[AutoRecovery] Failed to load degraded state from repository:', err);
     }
   }
 
@@ -119,12 +178,40 @@ export class AutoRecoveryService extends EventEmitter {
     this.recoveryAttempts.set(providerId, attempts);
     this.providerSuccessRates.set(providerId, successRate);
 
+    // Persist attempt to repository (fire-and-forget)
+    if (this.useRepository && this.repository) {
+      this.repository.create({
+        id: uuidv4(),
+        provider_id: providerId,
+        attempted_at: attempt.attemptedAt,
+        success,
+        success_rate: successRate,
+        degraded_at: this.degradedProviders.get(providerId) || null,
+        recovered_at: success ? new Date() : null,
+        tenant_id: null,
+      }).catch(() => {});
+    }
+
     if (success) {
       // 从降级列表中移除
       this.degradedProviders.delete(providerId);
+
+      // Remove from degraded state repository (fire-and-forget)
+      if (this.useRepository && this.degradedStateRepository) {
+        this.degradedStateRepository.remove(providerId).catch(() => {});
+      }
+
       this.emit('recovery:success', { providerId, attempt, successRate });
       logger.info('[AutoRecovery] Provider recovered: %s (successRate: %.2f)', providerId, successRate);
     } else {
+      // Update success rate in degraded state (fire-and-forget)
+      if (this.useRepository && this.degradedStateRepository) {
+        const degradedAt = this.degradedProviders.get(providerId);
+        if (degradedAt) {
+          this.degradedStateRepository.upsert(providerId, degradedAt, successRate).catch(() => {});
+        }
+      }
+
       this.emit('recovery:failed', { providerId, attempt, successRate });
       logger.warn('[AutoRecovery] Recovery failed for: %s (successRate: %.2f, threshold: %.2f)',
         providerId, successRate, this.config.successThreshold);
@@ -174,6 +261,12 @@ export class AutoRecoveryService extends EventEmitter {
   markDegraded(providerId: string): void {
     const now = new Date();
     this.degradedProviders.set(providerId, now);
+
+    // Persist to repository (fire-and-forget)
+    if (this.useRepository && this.degradedStateRepository) {
+      this.degradedStateRepository.upsert(providerId, now).catch(() => {});
+    }
+
     logger.info('[AutoRecovery] Provider marked degraded: %s at %s', providerId, now.toISOString());
   }
 
@@ -223,6 +316,12 @@ export class AutoRecoveryService extends EventEmitter {
    */
   clearDegraded(providerId: string): void {
     this.degradedProviders.delete(providerId);
+
+    // Remove from repository (fire-and-forget)
+    if (this.useRepository && this.degradedStateRepository) {
+      this.degradedStateRepository.remove(providerId).catch(() => {});
+    }
+
     logger.info('[AutoRecovery] Provider cleared from degraded list: %s', providerId);
   }
 

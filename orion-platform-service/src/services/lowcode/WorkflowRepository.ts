@@ -12,6 +12,8 @@ import {
   WorkflowHistory,
 } from './types';
 import { OrionError, ErrorCode } from '../../errors';
+import { LowcodeWorkflowDefinitionPgRepository } from '../../repositories/LowcodeWorkflowDefinitionRepository';
+import { LowcodeWorkflowInstancePgRepository } from '../../repositories/LowcodeWorkflowInstanceRepository';
 
 const logger = require('pino')({ name: 'WorkflowRepository' });
 
@@ -20,9 +22,11 @@ const logger = require('pino')({ name: 'WorkflowRepository' });
  */
 export class WorkflowDefinitionRepository {
   private pool: DatabasePool | null;
+  private defRepo: LowcodeWorkflowDefinitionPgRepository | null;
 
   constructor(pool?: DatabasePool | null) {
     this.pool = pool || null;
+    this.defRepo = pool ? new LowcodeWorkflowDefinitionPgRepository(pool) : null;
   }
 
   /**
@@ -56,7 +60,22 @@ export class WorkflowDefinitionRepository {
 
     try {
       const result = await this.pool!.query(query, values);
-      return this.mapRowToDefinition(result.rows[0]);
+      const mapped = this.mapRowToDefinition(result.rows[0]);
+
+      // Also persist via BaseRepository (fire-and-forget)
+      this.defRepo?.create({
+        id: mapped.id,
+        tenant_id: mapped.tenantId,
+        name: mapped.name,
+        description: mapped.description || null,
+        version: mapped.version,
+        enabled: mapped.enabled,
+        nodes: JSON.stringify(mapped.nodes),
+        edges: JSON.stringify(mapped.edges),
+        created_by: mapped.createdBy,
+      }).catch(() => {});
+
+      return mapped;
     } catch (error) {
       logger.error({ error, definition }, 'Failed to create workflow definition');
       throw error;
@@ -244,9 +263,11 @@ export class WorkflowDefinitionRepository {
  */
 export class WorkflowInstanceRepository {
   private pool: DatabasePool | null;
+  private instRepo: LowcodeWorkflowInstancePgRepository | null;
 
   constructor(pool?: DatabasePool | null) {
     this.pool = pool || null;
+    this.instRepo = pool ? new LowcodeWorkflowInstancePgRepository(pool) : null;
   }
 
   /**
@@ -284,7 +305,24 @@ export class WorkflowInstanceRepository {
 
     try {
       const result = await this.pool!.query(query, values);
-      return this.mapRowToInstance(result.rows[0]);
+      const mapped = this.mapRowToInstance(result.rows[0]);
+
+      // Also persist via BaseRepository (fire-and-forget)
+      this.instRepo?.create({
+        id: mapped.id,
+        workflow_id: mapped.workflowId,
+        workflow_definition_id: mapped.workflowDefinitionId,
+        tenant_id: mapped.tenantId,
+        status: mapped.status,
+        current_node_id: mapped.currentNodeId,
+        variables: JSON.stringify(mapped.variables),
+        history: JSON.stringify(mapped.history),
+        input: JSON.stringify(mapped.input),
+        output: mapped.output ? JSON.stringify(mapped.output) : null,
+        error: mapped.error || null,
+      }).catch(() => {});
+
+      return mapped;
     } catch (error) {
       logger.error({ error, instance }, 'Failed to create workflow instance');
       throw error;

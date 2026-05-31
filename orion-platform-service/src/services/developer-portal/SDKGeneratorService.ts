@@ -171,6 +171,17 @@ export class SDKGeneratorService {
    * 获取任务详情
    */
   async getTaskById(id: string): Promise<SDKGenerationTask> {
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findById(id);
+        if (entity) {
+          const task = this.entityToTask(entity);
+          this.tasks.set(id, task); // update cache
+          return task;
+        }
+      } catch { /* fallback to Map */ }
+    }
     const task = this.tasks.get(id);
     if (!task) {
       throw new SDKGeneratorServiceError(`SDK generation task not found: ${id}`, 'TASK_NOT_FOUND');
@@ -185,6 +196,23 @@ export class SDKGeneratorService {
     tenantId: string,
     options?: { language?: SDKLanguage; status?: string; page?: number; pageSize?: number }
   ): Promise<{ data: SDKGenerationTask[]; total: number; page: number; totalPages: number }> {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entities = await this.repository.findByTenant(tenantId, {
+          language: options?.language,
+          status: options?.status,
+        });
+        const total = entities.length;
+        const start = (page - 1) * pageSize;
+        const data = entities.slice(start, start + pageSize).map(e => this.entityToTask(e));
+        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+      } catch { /* fallback to Map */ }
+    }
+
     let tasks = Array.from(this.tasks.values()).filter((t) => t.tenantId === tenantId);
 
     if (options?.language) {
@@ -196,8 +224,6 @@ export class SDKGeneratorService {
 
     tasks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    const page = options?.page ?? 1;
-    const pageSize = options?.pageSize ?? 20;
     const total = tasks.length;
     const start = (page - 1) * pageSize;
     const data = tasks.slice(start, start + pageSize);
@@ -224,7 +250,17 @@ export class SDKGeneratorService {
    * 重新生成 SDK
    */
   async regenerateTask(id: string): Promise<SDKGenerationTask> {
-    const task = this.tasks.get(id);
+    // Try repository first
+    let task = this.tasks.get(id);
+    if (!task && this.repository) {
+      try {
+        const entity = await this.repository.findById(id);
+        if (entity) {
+          task = this.entityToTask(entity);
+          this.tasks.set(id, task); // update cache
+        }
+      } catch { /* fallback */ }
+    }
     if (!task) {
       throw new SDKGeneratorServiceError(`SDK generation task not found: ${id}`, 'TASK_NOT_FOUND');
     }
@@ -242,6 +278,19 @@ export class SDKGeneratorService {
    * 获取 SDK 生成统计
    */
   async getStats(tenantId: string): Promise<{ total: number; completed: number; failed: number; pending: number }> {
+    // Try repository first
+    if (this.repository) {
+      try {
+        const entities = await this.repository.findByTenant(tenantId);
+        return {
+          total: entities.length,
+          completed: entities.filter((t) => t.status === 'completed').length,
+          failed: entities.filter((t) => t.status === 'failed').length,
+          pending: entities.filter((t) => t.status === 'pending' || t.status === 'generating').length,
+        };
+      } catch { /* fallback to Map */ }
+    }
+
     const tasks = Array.from(this.tasks.values()).filter((t) => t.tenantId === tenantId);
     return {
       total: tasks.length,
@@ -511,5 +560,22 @@ namespace ${className}
       default:
         return `// Unsupported language: ${config.language}`;
     }
+  }
+
+  private entityToTask(entity: any): SDKGenerationTask {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      apiSpec: entity.apiSpec ?? '',
+      language: entity.language,
+      packageName: entity.packageName,
+      version: entity.version ?? '1.0.0',
+      status: entity.status ?? 'pending',
+      output: entity.output ?? '',
+      error: entity.error ?? null,
+      createdAt: entity.created_at ? new Date(entity.created_at) : new Date(),
+      completedAt: entity.completedAt ? new Date(entity.completedAt) : null,
+    };
   }
 }

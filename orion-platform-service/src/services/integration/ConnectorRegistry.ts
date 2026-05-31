@@ -1,4 +1,5 @@
 import { OrionError } from '../../errors';
+import { ConnectorRegistryRepository } from '../../repositories/ConnectorRegistryRepository';
 /**
  * Connector Registry - Unified connector system for external integrations
  *
@@ -58,6 +59,13 @@ export interface ConnectorInfo {
 
 export class ConnectorRegistry {
   private connectors: Map<string, Connector> = new Map();
+  private repo: ConnectorRegistryRepository | null;
+  private tenantId: string;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, tenantId?: string) {
+    this.repo = db ? new ConnectorRegistryRepository(db) : null;
+    this.tenantId = tenantId || 'default';
+  }
 
   /**
    * Register a connector with the registry
@@ -67,6 +75,13 @@ export class ConnectorRegistry {
       throw new OrionError('VALIDATION_ERROR', `Connector with name '${connector.name}' is already registered`)
     }
     this.connectors.set(connector.name, connector);
+
+    // Persist registration metadata to PostgreSQL (fire-and-forget)
+    this.repo?.upsertByName(connector.name, {
+      version: connector.version,
+      capabilities: JSON.stringify(connector.capabilities),
+      tenantId: this.tenantId,
+    }).catch(() => {});
   }
 
   /**
@@ -115,7 +130,16 @@ export class ConnectorRegistry {
    * Unregister a connector
    */
   unregister(name: string): boolean {
-    return this.connectors.delete(name);
+    const deleted = this.connectors.delete(name);
+    // Remove from PostgreSQL (fire-and-forget)
+    if (deleted && this.repo) {
+      this.repo.findByName(name).then(entity => {
+        if (entity) {
+          this.repo!.delete(entity.id).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+    return deleted;
   }
 
   /**
@@ -123,6 +147,7 @@ export class ConnectorRegistry {
    */
   clear(): void {
     this.connectors.clear();
+    // Note: PostgreSQL records are not cleared on clear() to preserve audit trail
   }
 }
 

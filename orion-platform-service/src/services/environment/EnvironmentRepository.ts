@@ -1,4 +1,5 @@
 import { DatabasePool } from '../database';
+import { EnvironmentConfigRepository } from '../../repositories/EnvironmentConfigRepository';
 /**
  * EnvironmentRepository - Database layer for Environment operations
  *
@@ -26,8 +27,11 @@ export interface Environment {
 
 export class EnvironmentRepository {
   private inMemory: Map<string, Environment> = new Map();
+  private configRepo: EnvironmentConfigRepository | null;
 
-  constructor(private pool: DatabasePool) {}
+  constructor(private pool: DatabasePool) {
+    this.configRepo = pool ? new EnvironmentConfigRepository(pool) : null;
+  }
 
   private isDbAvailable(): boolean {
     return true;
@@ -37,12 +41,25 @@ export class EnvironmentRepository {
     if (!this.isDbAvailable()) {
       return this.inMemory.get(id) || null;
     }
+    // Try repository first, fall back to direct pool query
+    if (this.configRepo) {
+      const entity = await this.configRepo.findById(id);
+      if (entity) {
+        return this.mapEntityToEnvironment(entity);
+      }
+      return null;
+    }
     return (await this.pool.query('SELECT * FROM environments WHERE id = $1', [id])).rows[0] || null;
   }
 
   async findByProject(projectId: string): Promise<Environment[]> {
     if (!this.isDbAvailable()) {
       return Array.from(this.inMemory.values()).filter(e => e.project_id === projectId);
+    }
+    // Try repository first, fall back to direct pool query
+    if (this.configRepo) {
+      const entities = await this.configRepo.findByProjectId(projectId);
+      return entities.map(e => this.mapEntityToEnvironment(e));
     }
     return (await this.pool.query('SELECT * FROM environments WHERE project_id = $1', [projectId])).rows;
   }
@@ -76,7 +93,26 @@ export class EnvironmentRepository {
        VALUES ($1, $2, $3, $4, $5, $6, 'active') RETURNING *`,
       [projectId, name, type, config, cluster || null, namespace || null]
     );
-    return result.rows[0];
+    const row = result.rows[0];
+
+    // Also persist to BaseRepository (fire-and-forget)
+    this.configRepo?.create({
+      id: row.id,
+      tenant_id: row.tenant_id || 'default',
+      project_id: row.project_id,
+      name: row.name,
+      type: row.type,
+      cluster: row.cluster || null,
+      namespace: row.namespace || null,
+      config: typeof row.config === 'string' ? row.config : JSON.stringify(row.config || {}),
+      status: row.status,
+      locked: row.locked || false,
+      locked_by: row.locked_by || null,
+      locked_at: row.locked_at || null,
+      locked_reason: row.locked_reason || null,
+    }).catch(() => {});
+
+    return row;
   }
 
   async update(id: string, updates: { name?: string; type?: string; config?: Record<string, any>; cluster?: string; namespace?: string; status?: string }): Promise<Environment | null> {
@@ -146,5 +182,28 @@ export class EnvironmentRepository {
       [id]
     );
     return result.rows[0] || null;
+  }
+
+  /**
+   * Map repository entity to Environment interface
+   */
+  private mapEntityToEnvironment(entity: any): Environment {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenant_id,
+      project_id: entity.project_id,
+      name: entity.name,
+      type: entity.type,
+      cluster: entity.cluster,
+      namespace: entity.namespace,
+      config: typeof entity.config === 'string' ? JSON.parse(entity.config) : (entity.config || {}),
+      status: entity.status,
+      locked: entity.locked,
+      locked_by: entity.locked_by,
+      locked_at: entity.locked_at,
+      locked_reason: entity.locked_reason,
+      created_at: entity.created_at,
+      updated_at: entity.updated_at,
+    };
   }
 }

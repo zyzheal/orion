@@ -156,6 +156,17 @@ export class APISubscriptionService {
    * 获取订阅详情
    */
   async getSubscriptionById(id: string): Promise<APISubscription> {
+    // Try repository first
+    if (this.subscriptionRepo) {
+      try {
+        const entity = await this.subscriptionRepo.findById(id);
+        if (entity) {
+          const sub = this.entityToSubscription(entity);
+          this.subscriptions.set(id, sub); // update cache
+          return sub;
+        }
+      } catch { /* fallback to Map */ }
+    }
     const sub = this.subscriptions.get(id);
     if (!sub) {
       throw new APISubscriptionServiceError(`Subscription not found: ${id}`, 'SUBSCRIPTION_NOT_FOUND');
@@ -170,6 +181,24 @@ export class APISubscriptionService {
     tenantId: string,
     options?: { userId?: string; apiName?: string; status?: SubscriptionStatus; page?: number; pageSize?: number }
   ): Promise<{ data: APISubscription[]; total: number; page: number; totalPages: number }> {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+
+    // Try repository first
+    if (this.subscriptionRepo) {
+      try {
+        const entities = await this.subscriptionRepo.findByTenant(tenantId, {
+          userId: options?.userId,
+          apiName: options?.apiName,
+          status: options?.status,
+        });
+        const total = entities.length;
+        const start = (page - 1) * pageSize;
+        const data = entities.slice(start, start + pageSize).map(e => this.entityToSubscription(e));
+        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+      } catch { /* fallback to Map */ }
+    }
+
     let subs = Array.from(this.subscriptions.values()).filter((s) => s.tenantId === tenantId);
 
     if (options?.userId) subs = subs.filter((s) => s.userId === options.userId);
@@ -178,8 +207,6 @@ export class APISubscriptionService {
 
     subs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    const page = options?.page ?? 1;
-    const pageSize = options?.pageSize ?? 20;
     const total = subs.length;
     const start = (page - 1) * pageSize;
     const data = subs.slice(start, start + pageSize);
@@ -347,16 +374,45 @@ export class APISubscriptionService {
     subscriptionId: string,
     options?: { page?: number; pageSize?: number }
   ): Promise<{ data: UsageRecord[]; total: number; page: number; totalPages: number }> {
+    // Validate subscription exists
     const sub = this.subscriptions.get(subscriptionId);
-    if (!sub) {
+    if (!sub && this.subscriptionRepo) {
+      try {
+        const entity = await this.subscriptionRepo.findById(subscriptionId);
+        if (!entity) {
+          throw new APISubscriptionServiceError(`Subscription not found: ${subscriptionId}`, 'SUBSCRIPTION_NOT_FOUND');
+        }
+      } catch (e) {
+        if (e instanceof APISubscriptionServiceError) throw e;
+        // repo failed, check Map
+        if (!this.subscriptions.has(subscriptionId)) {
+          throw new APISubscriptionServiceError(`Subscription not found: ${subscriptionId}`, 'SUBSCRIPTION_NOT_FOUND');
+        }
+      }
+    } else if (!sub) {
       throw new APISubscriptionServiceError(`Subscription not found: ${subscriptionId}`, 'SUBSCRIPTION_NOT_FOUND');
+    }
+
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+
+    // Try repository first
+    if (this.usageRepo) {
+      try {
+        const limit = pageSize;
+        const offset = (page - 1) * pageSize;
+        const [entities, total] = await Promise.all([
+          this.usageRepo.findBySubscription(subscriptionId, { limit, offset }),
+          this.usageRepo.countBySubscription(subscriptionId),
+        ]);
+        const data = entities.map(e => this.entityToUsageRecord(e));
+        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+      } catch { /* fallback to Map */ }
     }
 
     const records = (this.usageRecords.get(subscriptionId) ?? [])
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    const page = options?.page ?? 1;
-    const pageSize = options?.pageSize ?? 20;
     const total = records.length;
     const start = (page - 1) * pageSize;
     const data = records.slice(start, start + pageSize);
@@ -374,6 +430,20 @@ export class APISubscriptionService {
     rejected: number;
     suspended: number;
   }> {
+    // Try repository first
+    if (this.subscriptionRepo) {
+      try {
+        const entities = await this.subscriptionRepo.findByTenant(tenantId);
+        return {
+          totalSubscriptions: entities.length,
+          approved: entities.filter((s) => s.status === 'approved').length,
+          pending: entities.filter((s) => s.status === 'pending').length,
+          rejected: entities.filter((s) => s.status === 'rejected').length,
+          suspended: entities.filter((s) => s.status === 'suspended').length,
+        };
+      } catch { /* fallback to Map */ }
+    }
+
     const subs = Array.from(this.subscriptions.values()).filter((s) => s.tenantId === tenantId);
     return {
       totalSubscriptions: subs.length,
@@ -393,5 +463,40 @@ export class APISubscriptionService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  private entityToSubscription(entity: any): APISubscription {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      userId: entity.userId,
+      apiName: entity.apiName,
+      planName: entity.planName,
+      quotaPerDay: entity.quotaPerDay,
+      quotaPerMonth: entity.quotaPerMonth,
+      usedToday: entity.usedToday ?? 0,
+      usedThisMonth: entity.usedThisMonth ?? 0,
+      status: entity.status,
+      reason: entity.reason ?? '',
+      approvedBy: entity.approvedBy ?? null,
+      approvedAt: entity.approvedAt ? new Date(entity.approvedAt) : null,
+      rejectReason: entity.rejectReason ?? null,
+      apiKey: entity.apiKey,
+      expiresAt: entity.expiresAt ? new Date(entity.expiresAt) : null,
+      createdAt: entity.created_at ? new Date(entity.created_at) : new Date(),
+      updatedAt: entity.updated_at ? new Date(entity.updated_at) : new Date(),
+    };
+  }
+
+  private entityToUsageRecord(entity: any): UsageRecord {
+    return {
+      id: entity.id,
+      subscriptionId: entity.subscriptionId,
+      timestamp: entity.timestamp ? new Date(entity.timestamp) : new Date(),
+      endpoint: entity.endpoint,
+      method: entity.method,
+      statusCode: entity.statusCode,
+      latencyMs: entity.latencyMs ?? 0,
+    };
   }
 }

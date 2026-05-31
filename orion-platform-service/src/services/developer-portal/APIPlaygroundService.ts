@@ -133,6 +133,17 @@ export class APIPlaygroundService {
    * 获取请求模板
    */
   async getRequestById(id: string): Promise<PlaygroundRequest> {
+    // Try repository first
+    if (this.requestRepo) {
+      try {
+        const entity = await this.requestRepo.findById(id);
+        if (entity) {
+          const req = this.entityToRequest(entity);
+          this.requests.set(id, req); // update cache
+          return req;
+        }
+      } catch { /* fallback to Map */ }
+    }
     const req = this.requests.get(id);
     if (!req) {
       throw new APIPlaygroundServiceError(`Request not found: ${id}`, 'REQUEST_NOT_FOUND');
@@ -148,6 +159,23 @@ export class APIPlaygroundService {
     userId: string,
     options?: { method?: string; page?: number; pageSize?: number }
   ): Promise<{ data: PlaygroundRequest[]; total: number; page: number; totalPages: number }> {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+
+    // Try repository first
+    if (this.requestRepo) {
+      try {
+        const limit = pageSize;
+        const offset = (page - 1) * pageSize;
+        const [entities, total] = await Promise.all([
+          this.requestRepo.findByUser(tenantId, userId, { method: options?.method, limit, offset }),
+          this.requestRepo.countByUser(tenantId, userId, options?.method),
+        ]);
+        const data = entities.map(e => this.entityToRequest(e));
+        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+      } catch { /* fallback to Map */ }
+    }
+
     let requests = Array.from(this.requests.values())
       .filter((r) => r.tenantId === tenantId && r.userId === userId);
 
@@ -157,8 +185,6 @@ export class APIPlaygroundService {
 
     requests.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    const page = options?.page ?? 1;
-    const pageSize = options?.pageSize ?? 20;
     const total = requests.length;
     const start = (page - 1) * pageSize;
     const data = requests.slice(start, start + pageSize);
@@ -216,7 +242,17 @@ export class APIPlaygroundService {
    * 执行 API 请求（模拟）
    */
   async executeRequest(requestId: string): Promise<PlaygroundExecuteResult> {
-    const request = this.requests.get(requestId);
+    // Try repository first
+    let request = this.requests.get(requestId);
+    if (!request && this.requestRepo) {
+      try {
+        const entity = await this.requestRepo.findById(requestId);
+        if (entity) {
+          request = this.entityToRequest(entity);
+          this.requests.set(requestId, request); // update cache
+        }
+      } catch { /* fallback */ }
+    }
     if (!request) {
       throw new APIPlaygroundServiceError(`Request not found: ${requestId}`, 'REQUEST_NOT_FOUND');
     }
@@ -291,11 +327,26 @@ export class APIPlaygroundService {
     requestId: string,
     options?: { page?: number; pageSize?: number }
   ): Promise<{ data: PlaygroundResponse[]; total: number; page: number; totalPages: number }> {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+
+    // Try repository first
+    if (this.responseRepo) {
+      try {
+        const limit = pageSize;
+        const offset = (page - 1) * pageSize;
+        const [entities, total] = await Promise.all([
+          this.responseRepo.findByRequestId(requestId, { limit, offset }),
+          this.responseRepo.countByRequestId(requestId),
+        ]);
+        const data = entities.map(e => this.entityToResponse(e));
+        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+      } catch { /* fallback to Map */ }
+    }
+
     const responses = (this.responses.get(requestId) ?? [])
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    const page = options?.page ?? 1;
-    const pageSize = options?.pageSize ?? 20;
     const total = responses.length;
     const start = (page - 1) * pageSize;
     const data = responses.slice(start, start + pageSize);
@@ -318,6 +369,28 @@ export class APIPlaygroundService {
     totalExecutions: number;
     avgLatency: number;
   }> {
+    // Try repository first
+    if (this.requestRepo) {
+      try {
+        const totalRequests = await this.requestRepo.countByUser(tenantId, userId);
+        // For execution stats, fall back to Map (responses are supplementary)
+        const requests = Array.from(this.requests.values())
+          .filter((r) => r.tenantId === tenantId && r.userId === userId);
+        let totalExecutions = 0;
+        let totalLatency = 0;
+        for (const req of requests) {
+          const responses = this.responses.get(req.id) ?? [];
+          totalExecutions += responses.length;
+          totalLatency += responses.reduce((sum, r) => sum + r.latencyMs, 0);
+        }
+        return {
+          totalRequests,
+          totalExecutions,
+          avgLatency: totalExecutions > 0 ? Math.round(totalLatency / totalExecutions) : 0,
+        };
+      } catch { /* fallback to Map */ }
+    }
+
     const requests = Array.from(this.requests.values())
       .filter((r) => r.tenantId === tenantId && r.userId === userId);
 
@@ -438,5 +511,34 @@ export class APIPlaygroundService {
     } catch {
       return {};
     }
+  }
+
+  private entityToRequest(entity: any): PlaygroundRequest {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      userId: entity.userId,
+      name: entity.name,
+      method: entity.method,
+      url: entity.url,
+      headers: entity.headers ?? {},
+      queryParams: entity.queryParams ?? {},
+      body: entity.body ?? '',
+      bodyType: entity.bodyType ?? 'none',
+      createdAt: entity.created_at ? new Date(entity.created_at) : new Date(),
+    };
+  }
+
+  private entityToResponse(entity: any): PlaygroundResponse {
+    return {
+      id: entity.id,
+      requestId: entity.requestId,
+      statusCode: entity.statusCode,
+      statusText: entity.statusText,
+      headers: entity.headers ?? {},
+      body: entity.body ?? '',
+      latencyMs: entity.latencyMs ?? 0,
+      timestamp: entity.timestamp ? new Date(entity.timestamp) : new Date(),
+    };
   }
 }

@@ -3,6 +3,7 @@
  */
 
 import { DatabasePool } from '../database';
+import { ConfigEntryRepository as DbConfigEntryRepository } from '../../repositories/ConfigEntryRepository';
 
 export interface ConfigEntry {
   id: string;
@@ -46,9 +47,13 @@ export interface ConfigHistory {
 
 export class ConfigRepository {
   private pool: DatabasePool | null;
+  private repo?: DbConfigEntryRepository;
   private inMemory: Map<string, ConfigEntry> = new Map();
-  constructor(pool?: DatabasePool) { 
-    this.pool = pool || null; 
+  constructor(pool?: DatabasePool) {
+    this.pool = pool || null;
+    if (pool) {
+      this.repo = new DbConfigEntryRepository(pool);
+    }
   }
 
   private isDbAvailable(): boolean {
@@ -58,6 +63,11 @@ export class ConfigRepository {
   async findById(id: string): Promise<ConfigEntry | null> {
     if (!this.isDbAvailable()) {
       return Array.from(this.inMemory.values()).find(c => c.id === id) || null;
+    }
+    if (this.repo) {
+      const entity = await this.repo.findById(id);
+      if (!entity) return null;
+      return this.entityToEntry(entity);
     }
     return (await this.pool!.query('SELECT * FROM config_entries WHERE id = $1', [id])).rows[0] || null;
   }
@@ -72,6 +82,11 @@ export class ConfigRepository {
       }
       return null;
     }
+    if (this.repo) {
+      const entity = await this.repo.findByKey(tenantId, key);
+      if (!entity) return null;
+      return this.entityToEntry(entity);
+    }
     return (await this.pool!.query(
       'SELECT * FROM config_entries WHERE tenant_id = $1 AND key = $2',
       [tenantId, key]
@@ -81,6 +96,10 @@ export class ConfigRepository {
   async findAll(tenantId: string): Promise<ConfigEntry[]> {
     if (!this.isDbAvailable()) {
       return Array.from(this.inMemory.values()).filter(c => c.tenant_id === tenantId);
+    }
+    if (this.repo) {
+      const entities = await this.repo.findByTenantId(tenantId);
+      return entities.map(e => this.entityToEntry(e));
     }
     return (await this.pool!.query(
       'SELECT * FROM config_entries WHERE tenant_id = $1 ORDER BY key',
@@ -114,7 +133,12 @@ export class ConfigRepository {
       this.inMemory.set(key_, entry);
       return entry;
     }
-    
+
+    if (this.repo) {
+      const entity = await this.repo.upsert(tenantId, key, value, changedBy);
+      return this.entityToEntry(entity);
+    }
+
     const result = await this.pool!.query(
       `INSERT INTO config_entries (tenant_id, key, value, version, created_at, updated_at)
        VALUES ($1, $2, $3, 1, NOW(), NOW())
@@ -138,6 +162,11 @@ export class ConfigRepository {
       }
       return null;
     }
+    if (this.repo) {
+      const entity = await this.repo.updateByKey(key, value);
+      if (!entity) return null;
+      return this.entityToEntry(entity);
+    }
     const result = await this.pool!.query(
       `UPDATE config_entries SET value = $1, version = version + 1, updated_at = NOW() WHERE key = $2 RETURNING *`,
       [value, key]
@@ -159,6 +188,9 @@ export class ConfigRepository {
       }
       return keysToDelete.length > 0;
     }
+    if (this.repo) {
+      return this.repo.deleteByKey(tenantId, key);
+    }
     const result = await this.pool!.query(
       'DELETE FROM config_entries WHERE tenant_id = $1 AND key = $2',
       [tenantId, key]
@@ -169,6 +201,26 @@ export class ConfigRepository {
   async getHistory(tenantId: string, key: string, limit: number = 10): Promise<ConfigHistory[]> {
     if (!this.isDbAvailable()) {
       return [];
+    }
+    if (this.repo) {
+      const entities = await this.repo.findHistoryByKey(tenantId, key, limit);
+      return entities.map(e => ({
+        id: e.id,
+        config_id: e.config_id,
+        configId: e.config_id,
+        changed_by: e.changed_by ?? null,
+        changedBy: e.changed_by ?? undefined,
+        old_value: e.old_value,
+        oldValue: e.old_value,
+        new_value: e.new_value,
+        newValue: e.new_value,
+        key,
+        version: e.version,
+        changeLog: e.change_log,
+        createdBy: e.changed_by,
+        createdAt: e.created_at,
+        created_at: e.created_at,
+      }));
     }
     return (await this.pool!.query(
       `SELECT ch.* FROM config_history ch
@@ -183,9 +235,54 @@ export class ConfigRepository {
     if (!this.isDbAvailable()) {
       return [];
     }
+    if (this.repo) {
+      const entities = await this.repo.findHistory(configId, limit);
+      return entities.map(e => ({
+        id: e.id,
+        config_id: e.config_id,
+        configId: e.config_id,
+        changed_by: e.changed_by ?? null,
+        changedBy: e.changed_by ?? undefined,
+        old_value: e.old_value,
+        oldValue: e.old_value,
+        new_value: e.new_value,
+        newValue: e.new_value,
+        version: e.version,
+        changeLog: e.change_log,
+        createdBy: e.changed_by,
+        createdAt: e.created_at,
+        created_at: e.created_at,
+      }));
+    }
     return (await this.pool!.query(
       `SELECT * FROM config_history WHERE config_id = $1 ORDER BY created_at DESC LIMIT $2`,
       [configId, limit]
     )).rows;
+  }
+
+  /**
+   * 将 Repository Entity 转换为 ConfigEntry
+   */
+  private entityToEntry(entity: any): ConfigEntry {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenant_id,
+      key: entity.key,
+      value: entity.value,
+      version: entity.version,
+      environment: entity.environment,
+      status: entity.status,
+      description: entity.description,
+      encrypted: entity.encrypted,
+      tags: entity.tags,
+      created_by: entity.created_by,
+      updated_by: entity.updated_by,
+      createdBy: entity.created_by,
+      updatedBy: entity.updated_by,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+      created_at: entity.created_at,
+      updated_at: entity.updated_at,
+    };
   }
 }

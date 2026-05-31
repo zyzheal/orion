@@ -5,6 +5,7 @@
  */
 
 import { DatabasePool } from '../database';
+import { EscalationPolicyRepository } from '../../repositories/EscalationPolicyRepository';
 import pino from 'pino';
 
 const logger = pino({ name: 'LEscalation-LConfig-LService' });
@@ -48,11 +49,15 @@ const DEFAULT_CONFIG: GlobalEscalationConfig = {
 
 export class EscalationConfigService {
   private db?: DatabasePool;
+  private repo?: EscalationPolicyRepository;
   private cache: Map<string, EscalationPolicy[]> = new Map();
   private globalConfig: GlobalEscalationConfig = DEFAULT_CONFIG;
 
   constructor(database?: DatabasePool) {
     this.db = database;
+    if (database) {
+      this.repo = new EscalationPolicyRepository(database);
+    }
   }
 
   /**
@@ -66,7 +71,7 @@ export class EscalationConfigService {
 
     const createTableSQL = `
       CREATE TABLE IF NOT EXISTS escalation_policies (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR(100) PRIMARY KEY,
         entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('alert', 'ticket', 'incident')),
         severity VARCHAR(20),
         level INTEGER NOT NULL DEFAULT 1,
@@ -79,8 +84,8 @@ export class EscalationConfigService {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
         UNIQUE(entity_type, severity, level)
       );
-      
-      CREATE INDEX IF NOT EXISTS idx_escalation_policies_entity 
+
+      CREATE INDEX IF NOT EXISTS idx_escalation_policies_entity
         ON escalation_policies(entity_type, severity, level);
     `;
 
@@ -100,12 +105,32 @@ export class EscalationConfigService {
     if (!this.db) return;
 
     try {
-      const result = await this.db.query(
-        'SELECT * FROM escalation_policies WHERE is_active = true ORDER BY entity_type, level'
-      );
+      let rows: any[] = [];
+
+      if (this.repo) {
+        const entities = await this.repo.findActive();
+        rows = entities.map(e => ({
+          id: e.id,
+          entity_type: e.entity_type,
+          severity: e.severity,
+          level: e.level,
+          timeout_minutes: e.timeout_minutes,
+          notify_users: e.notify_users,
+          notify_channels: e.notify_channels,
+          auto_action: e.auto_action,
+          is_active: e.is_active,
+          created_at: e.created_at,
+          updated_at: e.updated_at,
+        }));
+      } else {
+        const result = await this.db.query(
+          'SELECT * FROM escalation_policies WHERE is_active = true ORDER BY entity_type, level'
+        );
+        rows = result.rows;
+      }
 
       this.cache.clear();
-      for (const row of result.rows) {
+      for (const row of rows) {
         const key = `${row.entity_type}_${row.severity || 'default'}`;
         const policy: EscalationPolicy = {
           id: row.id,
@@ -113,8 +138,8 @@ export class EscalationConfigService {
           severity: row.severity,
           level: row.level,
           timeoutMinutes: row.timeout_minutes,
-          notifyUsers: row.notify_users,
-          notifyChannels: row.notify_channels,
+          notifyUsers: typeof row.notify_users === 'string' ? JSON.parse(row.notify_users) : (row.notify_users ?? []),
+          notifyChannels: typeof row.notify_channels === 'string' ? JSON.parse(row.notify_channels) : (row.notify_channels ?? []),
           autoAction: row.auto_action,
           isActive: row.is_active,
           createdAt: row.created_at,
@@ -126,7 +151,7 @@ export class EscalationConfigService {
         this.cache.set(key, existing);
       }
 
-      logger.info(`[EscalationConfig] Loaded ${result.rows.length} policies`);
+      logger.info(`[EscalationConfig] Loaded ${rows.length} policies`);
     } catch (error) {
       logger.error('[EscalationConfig] Failed to load policies:', error);
     }
@@ -139,15 +164,26 @@ export class EscalationConfigService {
     const id = `policy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date();
 
-    if (this.db) {
+    if (this.repo) {
+      await this.repo.upsert({
+        entity_type: policy.entityType,
+        severity: policy.severity,
+        level: policy.level,
+        timeout_minutes: policy.timeoutMinutes,
+        notify_users: policy.notifyUsers,
+        notify_channels: policy.notifyChannels,
+        auto_action: policy.autoAction,
+        is_active: policy.isActive,
+      }).catch(() => {});
+    } else if (this.db) {
       await this.db.query(
-        `INSERT INTO escalation_policies 
+        `INSERT INTO escalation_policies
          (id, entity_type, severity, level, timeout_minutes, notify_users, notify_channels, auto_action, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         ON CONFLICT (entity_type, severity, level) 
+         ON CONFLICT (entity_type, severity, level)
          DO UPDATE SET timeout_minutes = $4, notify_users = $5, notify_channels = $6, auto_action = $7, updated_at = $10`,
         [id, policy.entityType, policy.severity || null, policy.level, policy.timeoutMinutes,
-         JSON.stringify(policy.notifyUsers), JSON.stringify(policy.notifyChannels), 
+         JSON.stringify(policy.notifyUsers), JSON.stringify(policy.notifyChannels),
          policy.autoAction || null, policy.isActive, now, now]
       );
     }

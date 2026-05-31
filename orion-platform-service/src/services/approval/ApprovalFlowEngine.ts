@@ -12,6 +12,7 @@
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { ApprovalFlowConfigRepository } from '../../repositories/ApprovalFlowConfigRepository';
 import {
   MultiLevelApprovalService,
   ApprovalAction,
@@ -169,6 +170,7 @@ export interface ExternalApprovalResponse {
 export class ApprovalFlowEngine {
   private multiLevelService: MultiLevelApprovalService;
   private pool: DatabasePool;
+  private repo?: ApprovalFlowConfigRepository;
 
   // 流程配置缓存 (tenantId -> flowId -> config)
   private flowConfigCache: Map<string, Map<string, ApprovalFlowConfig>> = new Map();
@@ -182,6 +184,9 @@ export class ApprovalFlowEngine {
   ) {
     this.multiLevelService = new MultiLevelApprovalService(db);
     this.pool = pool;
+    if (pool) {
+      this.repo = new ApprovalFlowConfigRepository(pool);
+    }
     this.ensureTables();
   }
 
@@ -204,25 +209,37 @@ export class ApprovalFlowEngine {
       return cachedFlow;
     }
 
-    // 2. 从数据库查询匹配规则
+    // 2. 从 Repository 或数据库查询匹配规则
     try {
-      const result = await this.pool.query(
-        `SELECT * FROM approval_flow_configs
-         WHERE tenant_id = $1 AND enabled = true
-         AND (capability_ids ? $2 OR capability_ids @> '["*"]'::jsonb)
-         AND (environments ? $3 OR environments @> '["*"]'::jsonb)
-         AND ($4 >= min_risk_level AND $4 <= max_risk_level)
-         ORDER BY priority DESC, version DESC
-         LIMIT 1`,
-        [tenantId, capabilityId, environment, riskLevel],
-      );
+      let config: ApprovalFlowConfig | null = null;
 
-      if ((result as any).rows.length === 0) {
+      if (this.repo) {
+        const entity = await this.repo.findMatching(tenantId, capabilityId, environment, riskLevel);
+        if (entity) {
+          config = this.entityToFlowConfig(entity);
+        }
+      } else {
+        const result = await this.pool.query(
+          `SELECT * FROM approval_flow_configs
+           WHERE tenant_id = $1 AND enabled = true
+           AND (capability_ids ? $2 OR capability_ids @> '["*"]'::jsonb)
+           AND (environments ? $3 OR environments @> '["*"]'::jsonb)
+           AND ($4 >= min_risk_level AND $4 <= max_risk_level)
+           ORDER BY priority DESC, version DESC
+           LIMIT 1`,
+          [tenantId, capabilityId, environment, riskLevel],
+        );
+
+        if ((result as any).rows.length > 0) {
+          config = this.parseFlowConfig((result as any).rows[0]);
+        }
+      }
+
+      if (!config) {
         logger.warn({ capabilityId, environment, riskLevel, tenantId }, 'No matching flow config found');
         return null;
       }
 
-      const config = this.parseFlowConfig((result as any).rows[0]);
       this.cacheFlowConfig(tenantId, config);
       return config;
     } catch (error) {
@@ -410,6 +427,25 @@ export class ApprovalFlowEngine {
     const id = `flow_${uuidv4()}`;
     const now = new Date();
 
+    if (this.repo) {
+      const entity = await this.repo.create({
+        id,
+        tenant_id: tenantId,
+        flow_id: input.flowId,
+        name: input.name,
+        description: input.description || null,
+        enabled: input.enabled,
+        nodes: JSON.stringify(input.nodes),
+        version: 1,
+        created_at: now,
+        updated_at: now,
+      });
+      const config = this.entityToFlowConfig(entity);
+      this.cacheFlowConfig(tenantId, config);
+      logger.info({ flowId: input.flowId, tenantId }, 'Flow config created');
+      return config;
+    }
+
     await this.pool.query(
       `INSERT INTO approval_flow_configs (id, tenant_id, flow_id, name, description, enabled, nodes, version, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -450,7 +486,15 @@ export class ApprovalFlowEngine {
     const cached = this.flowConfigCache.get(tenantId)?.get(flowId);
     if (cached) return cached;
 
-    // 从数据库查询
+    // 从 Repository 或数据库查询
+    if (this.repo) {
+      const entity = await this.repo.findByFlowId(flowId, tenantId);
+      if (!entity) return null;
+      const config = this.entityToFlowConfig(entity);
+      this.cacheFlowConfig(tenantId, config);
+      return config;
+    }
+
     const result = await this.pool.query(
       'SELECT * FROM approval_flow_configs WHERE flow_id = $1 AND tenant_id = $2',
       [flowId, tenantId],
@@ -467,6 +511,11 @@ export class ApprovalFlowEngine {
    * 获取租户下所有审批流程配置
    */
   async listFlowConfigs(tenantId: string): Promise<ApprovalFlowConfig[]> {
+    if (this.repo) {
+      const entities = await this.repo.findByTenantId(tenantId);
+      return entities.map(e => this.entityToFlowConfig(e));
+    }
+
     const result = await this.pool.query(
       'SELECT * FROM approval_flow_configs WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
@@ -488,6 +537,23 @@ export class ApprovalFlowEngine {
 
     const now = new Date();
     const newVersion = existing.version + 1;
+
+    if (this.repo) {
+      const updateData: any = { version: newVersion };
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
+      if (updates.nodes !== undefined) updateData.nodes = JSON.stringify(updates.nodes);
+
+      const entity = await this.repo.updateByFlowId(flowId, tenantId, updateData);
+      if (!entity) return null;
+
+      // 清除缓存
+      this.flowConfigCache.get(tenantId)?.delete(flowId);
+      const config = this.entityToFlowConfig(entity);
+      this.cacheFlowConfig(tenantId, config);
+      return config;
+    }
 
     await this.pool.query(
       `UPDATE approval_flow_configs
@@ -521,6 +587,15 @@ export class ApprovalFlowEngine {
    * 删除审批流程配置
    */
   async deleteFlowConfig(flowId: string, tenantId: string): Promise<boolean> {
+    if (this.repo) {
+      const deleted = await this.repo.deleteByFlowId(flowId, tenantId);
+      if (deleted) {
+        this.flowConfigCache.get(tenantId)?.delete(flowId);
+        logger.info({ flowId, tenantId }, 'Flow config deleted');
+      }
+      return deleted;
+    }
+
     const result = await this.pool.query(
       'DELETE FROM approval_flow_configs WHERE flow_id = $1 AND tenant_id = $2',
       [flowId, tenantId],
@@ -628,6 +703,24 @@ export class ApprovalFlowEngine {
       version: row.version,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+    };
+  }
+
+  /**
+   * 将 Repository Entity 转换为服务层 ApprovalFlowConfig
+   */
+  private entityToFlowConfig(entity: any): ApprovalFlowConfig {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      flowId: entity.flow_id,
+      name: entity.name,
+      description: entity.description,
+      enabled: entity.enabled,
+      nodes: Array.isArray(entity.nodes) ? entity.nodes : (typeof entity.nodes === 'string' ? JSON.parse(entity.nodes) : []),
+      version: entity.version,
+      createdAt: entity.created_at instanceof Date ? entity.created_at : new Date(entity.created_at),
+      updatedAt: entity.updated_at instanceof Date ? entity.updated_at : new Date(entity.updated_at),
     };
   }
 
