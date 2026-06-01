@@ -14,11 +14,11 @@ import { TenantValidatorMiddleware, createTenantValidatorMiddleware, TenantValid
 describe('TenantIsolationService', () => {
   let service: TenantIsolationService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     service = new TenantIsolationService();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     service.removeAllListeners();
   });
 
@@ -105,16 +105,16 @@ describe('TenantIsolationService', () => {
   });
 
   describe('enable/disable', () => {
-    it('should be enabled by default', () => {
+    it('should be enabled by default', async () => {
       expect(service.isEnabled()).toBe(true);
     });
 
-    it('should allow disabling isolation', () => {
+    it('should allow disabling isolation', async () => {
       service.disable();
       expect(service.isEnabled()).toBe(false);
     });
 
-    it('should allow re-enabling isolation', () => {
+    it('should allow re-enabling isolation', async () => {
       service.disable();
       service.enable();
       expect(service.isEnabled()).toBe(true);
@@ -211,7 +211,7 @@ describe('TenantValidatorMiddleware', () => {
   let mockDone: jest.Mock;
   let isolationService: TenantIsolationService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     isolationService = new TenantIsolationService();
 
     mockRequest = {
@@ -228,8 +228,8 @@ describe('TenantValidatorMiddleware', () => {
     mockDone = jest.fn();
   });
 
-  afterEach(() => {
-    isolationService.removeAllListeners();
+  afterEach(async () => {
+    await isolationService.removeAllListeners();
   });
 
   describe('createTenantValidatorMiddleware', () => {
@@ -311,12 +311,12 @@ describe('TenantValidatorMiddleware', () => {
   });
 
   describe('TenantValidatorOptions', () => {
-    it('should use default options when not provided', () => {
+    it('should use default options when not provided', async () => {
       const options: TenantValidatorOptions = {};
       expect(options.required).toBeUndefined();
     });
 
-    it('should merge custom options with defaults', () => {
+    it('should merge custom options with defaults', async () => {
       const middleware = createTenantValidatorMiddleware(isolationService, {
         required: true,
         validateAllLayers: false

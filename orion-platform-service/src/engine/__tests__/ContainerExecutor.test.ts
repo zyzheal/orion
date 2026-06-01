@@ -14,7 +14,7 @@ import {
 describe('LocalSpawnExecutor', () => {
   let executor: LocalSpawnExecutor;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     executor = new LocalSpawnExecutor();
   });
 
@@ -67,7 +67,7 @@ describe('LocalSpawnExecutor', () => {
 describe('DockerExecutor', () => {
   let executor: DockerExecutor;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     executor = new DockerExecutor();
   });
 

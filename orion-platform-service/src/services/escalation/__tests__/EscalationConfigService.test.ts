@@ -67,13 +67,13 @@ type MockDb = {
 describe('EscalationConfigService', () => {
   let service: EscalationConfigService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
   });
 
@@ -164,7 +164,7 @@ describe('EscalationConfigService', () => {
   // ---------------------------------------------------------------------------
 
   describe('createPolicy', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       service = new EscalationConfigService();
     });
 
@@ -345,17 +345,17 @@ describe('EscalationConfigService', () => {
       });
     });
 
-    it('should return policies by entityType', () => {
+    it('should return policies by entityType', async () => {
       const policies = service.getPolicies('alert', 'critical');
       expect(policies).toHaveLength(2);
     });
 
-    it('should return policies by entityType and severity', () => {
+    it('should return policies by entityType and severity', async () => {
       const policies = service.getPolicies('alert', 'critical');
       expect(policies.every(p => p.severity === 'critical')).toBe(true);
     });
 
-    it('should return empty array for unknown type', () => {
+    it('should return empty array for unknown type', async () => {
       const policies = service.getPolicies('unknown', 'critical');
       expect(policies).toEqual([]);
     });
@@ -412,33 +412,33 @@ describe('EscalationConfigService', () => {
       });
     });
 
-    it('should get next level from current level 0', () => {
+    it('should get next level from current level 0', async () => {
       const next = service.getNextEscalation('ticket', 'high', 0);
       expect(next).not.toBeNull();
       expect(next!.level).toBe(1);
       expect(next!.notifyUsers).toEqual(['engineer']);
     });
 
-    it('should get next level from current level 1', () => {
+    it('should get next level from current level 1', async () => {
       const next = service.getNextEscalation('ticket', 'high', 1);
       expect(next).not.toBeNull();
       expect(next!.level).toBe(2);
       expect(next!.notifyUsers).toEqual(['team-lead']);
     });
 
-    it('should get next level from current level 2', () => {
+    it('should get next level from current level 2', async () => {
       const next = service.getNextEscalation('ticket', 'high', 2);
       expect(next).not.toBeNull();
       expect(next!.level).toBe(3);
       expect(next!.notifyUsers).toEqual(['director']);
     });
 
-    it('should return null when no next level exists', () => {
+    it('should return null when no next level exists', async () => {
       const next = service.getNextEscalation('ticket', 'high', 3);
       expect(next).toBeNull();
     });
 
-    it('should return null when no policies exist for type', () => {
+    it('should return null when no policies exist for type', async () => {
       const next = service.getNextEscalation('alert', 'critical', 0);
       expect(next).toBeNull();
     });
@@ -449,11 +449,11 @@ describe('EscalationConfigService', () => {
   // ---------------------------------------------------------------------------
 
   describe('updateGlobalConfig', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       service = new EscalationConfigService();
     });
 
-    it('should update default timeout values', () => {
+    it('should update default timeout values', async () => {
       service.updateGlobalConfig({
         defaults: {
           alertTimeoutMinutes: 30,
@@ -468,21 +468,21 @@ describe('EscalationConfigService', () => {
       expect(config.defaults.incidentTimeoutMinutes).toBe(60);
     });
 
-    it('should update autoEscalationEnabled', () => {
+    it('should update autoEscalationEnabled', async () => {
       service.updateGlobalConfig({ autoEscalationEnabled: false });
 
       const config = service.getGlobalConfig();
       expect(config.autoEscalationEnabled).toBe(false);
     });
 
-    it('should update checkIntervalSeconds', () => {
+    it('should update checkIntervalSeconds', async () => {
       service.updateGlobalConfig({ checkIntervalSeconds: 120 });
 
       const config = service.getGlobalConfig();
       expect(config.checkIntervalSeconds).toBe(120);
     });
 
-    it('partial update preserves existing values', () => {
+    it('partial update preserves existing values', async () => {
       service.updateGlobalConfig({ autoEscalationEnabled: false });
 
       const config = service.getGlobalConfig();
@@ -498,18 +498,18 @@ describe('EscalationConfigService', () => {
   // ---------------------------------------------------------------------------
 
   describe('getGlobalConfig', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       service = new EscalationConfigService();
     });
 
-    it('should return a copy of the config', () => {
+    it('should return a copy of the config', async () => {
       const config1 = service.getGlobalConfig();
       const config2 = service.getGlobalConfig();
       expect(config1).toEqual(config2);
       expect(config1).not.toBe(config2);
     });
 
-    it('should have correct default values', () => {
+    it('should have correct default values', async () => {
       const config = service.getGlobalConfig();
 
       expect(config.defaults.alertTimeoutMinutes).toBe(15);
@@ -525,27 +525,27 @@ describe('EscalationConfigService', () => {
   // ---------------------------------------------------------------------------
 
   describe('getDefaultTimeout', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       service = new EscalationConfigService();
     });
 
-    it('should return 15 for alert', () => {
+    it('should return 15 for alert', async () => {
       expect(service.getDefaultTimeout('alert')).toBe(15);
     });
 
-    it('should return 120 for ticket', () => {
+    it('should return 120 for ticket', async () => {
       expect(service.getDefaultTimeout('ticket')).toBe(120);
     });
 
-    it('should return 30 for incident', () => {
+    it('should return 30 for incident', async () => {
       expect(service.getDefaultTimeout('incident')).toBe(30);
     });
 
-    it('should return 15 for unknown entity type', () => {
+    it('should return 15 for unknown entity type', async () => {
       expect(service.getDefaultTimeout('unknown')).toBe(15);
     });
 
-    it('should reflect updated defaults', () => {
+    it('should reflect updated defaults', async () => {
       service.updateGlobalConfig({
         defaults: {
           alertTimeoutMinutes: 30,
@@ -606,7 +606,7 @@ describe('EscalationScheduler', () => {
     });
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -618,7 +618,7 @@ describe('EscalationScheduler', () => {
     mockEventBus = new EventBusService({ enabled: false });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
   });
 
@@ -736,7 +736,7 @@ describe('EscalationScheduler', () => {
       );
     });
 
-    it('should handle stop when never started', () => {
+    it('should handle stop when never started', async () => {
       scheduler = new EscalationScheduler();
       expect(() => scheduler.stop()).not.toThrow();
     });

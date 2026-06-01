@@ -12,7 +12,7 @@ describe('GitLabAdapter', () => {
   let adapter: GitLabAdapter;
   let mockFetch: jest.Mock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     adapter = new GitLabAdapter({
       baseUrl: 'https://gitlab.example.com',
       token: 'test-token',
@@ -22,18 +22,18 @@ describe('GitLabAdapter', () => {
     global.fetch = mockFetch;
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
+  afterEach(async () => {
+    await jest.restoreAllMocks();
   });
 
   describe('type', () => {
-    it('should return GITLAB type', () => {
+    it('should return GITLAB type', async () => {
       expect(adapter.type).toBe(RepoType.GITLAB);
     });
   });
 
   describe('getRepository', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
@@ -58,7 +58,7 @@ describe('GitLabAdapter', () => {
   });
 
   describe('listRepositories', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
@@ -75,7 +75,7 @@ describe('GitLabAdapter', () => {
   });
 
   describe('branch management', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
@@ -142,7 +142,7 @@ describe('GitLabAdapter', () => {
   });
 
   describe('commit management', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([

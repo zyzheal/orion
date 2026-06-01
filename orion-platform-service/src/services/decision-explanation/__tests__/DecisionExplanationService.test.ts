@@ -13,7 +13,7 @@ describe('DecisionExplanationService', () => {
   let service: DecisionExplanationService;
   let repository: DecisionExplanationRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     repository = new DecisionExplanationRepository(mockPool as any);
     service = new DecisionExplanationService(mockPool as any);
@@ -25,8 +25,13 @@ describe('DecisionExplanationService', () => {
         mockPool.query.mockResolvedValue({
           rows: [{
             decision_id: 'd1',
-            scenario: 'risk-assessment',
+            decision_type: 'risk-assessment',
             model_id: 'm1',
+            confidence_score: '0.85',
+            feature_importance: [
+              { feature: 'test_coverage', value: 0.85, contribution: 0.3, direction: 'positive' },
+            ],
+            explanation: { summary: 'Test explanation' },
             created_at: new Date(),
           }],
         });
@@ -39,7 +44,14 @@ describe('DecisionExplanationService', () => {
 
       it('应该包含 SHAP 因素', async () => {
         mockPool.query.mockResolvedValue({
-          rows: [{ decision_id: 'd1', created_at: new Date() }],
+          rows: [{
+            decision_id: 'd1',
+            feature_importance: [
+              { feature: 'test_coverage', value: 0.85, contribution: 0.3, direction: 'positive' },
+            ],
+            explanation: {},
+            created_at: new Date(),
+          }],
         });
 
         const result = await repository.findExplanation('d1');
@@ -100,7 +112,7 @@ describe('DecisionExplanationService', () => {
       it('应该返回质量统计', async () => {
         mockPool.query.mockResolvedValue({
           rows: [{
-            scenario: 'risk-assessment',
+            decision_type: 'risk-assessment',
             total_decisions: '100',
             correct_count: '80',
             incorrect_count: '15',
@@ -245,7 +257,13 @@ describe('DecisionExplanationService', () => {
   describe('ShapFactor', () => {
     it('应该包含正确的因素信息', async () => {
       mockPool.query.mockResolvedValue({
-        rows: [{ decision_id: 'd1' }],
+        rows: [{
+          decision_id: 'd1',
+          feature_importance: [
+            { feature: 'test_coverage', value: 0.85, contribution: 0.3, direction: 'positive' },
+          ],
+          explanation: {},
+        }],
       });
 
       const result = await repository.findExplanation('d1');
@@ -277,7 +295,7 @@ describe('DecisionExplanationService', () => {
   });
 
   describe('DecisionExplanationServiceError', () => {
-    it('应该正确设置错误信息', () => {
+    it('应该正确设置错误信息', async () => {
       const error = new DecisionExplanationServiceError('Decision not found', 'DECISION_NOT_FOUND');
 
       expect(error.message).toBe('Decision not found');

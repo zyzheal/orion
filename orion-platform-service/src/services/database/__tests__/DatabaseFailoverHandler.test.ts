@@ -38,7 +38,7 @@ describe('DatabaseFailoverHandler', () => {
   let lagMonitor: ReplicationLagMonitor;
   let trafficManager: ReadTrafficManager;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     lagMonitor = new ReplicationLagMonitor({
       checkInterval: 1000,
       executeQuery: createMockQuery([
@@ -70,7 +70,7 @@ describe('DatabaseFailoverHandler', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     handler.stop();
   });
 
@@ -114,7 +114,7 @@ describe('DatabaseFailoverHandler', () => {
       handler.stop();
     });
 
-    it('应该记录降级事件', (done) => {
+    it('应该记录降级事件', async (done) => {
       handler.on('degradation', (event) => {
         expect(event.newLevel).toBe(DegradationLevel.LEVEL_2);
         expect(event.trigger).toBe('manual');
@@ -400,7 +400,7 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('配置管理', () => {
-    it('应该返回正确的配置', () => {
+    it('应该返回正确的配置', async () => {
       const config = handler.getConfig();
 
       expect(config.enableAutoRecovery).toBe(true);
@@ -408,7 +408,7 @@ describe('DatabaseFailoverHandler', () => {
       expect(config.recoverySuccessThreshold).toBe(2);
     });
 
-    it('应该正确更新配置', () => {
+    it('应该正确更新配置', async () => {
       handler.updateConfig({
         enableAutoRecovery: false,
         recoverySuccessThreshold: 5,
@@ -435,7 +435,7 @@ describe('DatabaseFailoverHandler', () => {
       handler.stop();
     });
 
-    it('重置应该发出事件', (done) => {
+    it('重置应该发出事件', async (done) => {
       handler.on('reset', () => {
         done();
       });

@@ -112,7 +112,7 @@ export class SharedActionService {
     }
 
     if (!version || /^(main|master|HEAD)$/i.test(version)) {
-      throw new OrionError('Version must not be a default branch', ErrorCode.VALIDATION_ERROR);
+      throw new OrionError('Version must use SHA or version tag', ErrorCode.VALIDATION_ERROR);
     }
 
     if (this.registryWhitelist.length > 0) {

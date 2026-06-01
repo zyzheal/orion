@@ -44,7 +44,7 @@ describe('RoleService', () => {
       const result = await service.createRole('tenant-1', 'admin', ['read', 'write', 'delete']);
 
       expect(result).toEqual(mockRole);
-      expect(mockRepository.create).toHaveBeenCalledWith('tenant-1', 'admin', ['read', 'write', 'delete']);
+      expect(mockRepository.create).toHaveBeenCalledWith('tenant-1', 'admin');
     });
 
     it('should throw when tenantId is missing', async () => {
@@ -396,17 +396,16 @@ describe('RoleRepository', () => {
   });
 
   describe('update', () => {
-    it('should update role name and permissions', async () => {
-      const mockRow = { id: 'role-1', name: 'updated', permissions: ['read', 'write'] };
+    it('should update role name', async () => {
+      const mockRow = { id: 'role-1', name: 'updated', description: 'desc' };
       mockDb.query.mockResolvedValue({ rows: [mockRow] });
 
-      const result = await repository.update('role-1', { name: 'updated', permissions: ['read', 'write'] });
+      const result = await repository.update('role-1', { name: 'updated' });
 
       expect(result).toEqual(mockRow);
       const sql = mockDb.query.mock.calls[0][0];
       expect(sql).toContain('UPDATE roles SET');
       expect(sql).toContain('name = $');
-      expect(sql).toContain('permissions = $');
     });
 
     it('should return existing when no updates provided', async () => {

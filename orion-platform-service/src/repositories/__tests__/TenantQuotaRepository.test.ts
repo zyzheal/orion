@@ -8,7 +8,7 @@ describe('TenantQuotaRepository', () => {
   let repo: TenantQuotaRepository;
   let mockDb: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockDb = { query: jest.fn() };
     repo = new TenantQuotaRepository(mockDb);
   });

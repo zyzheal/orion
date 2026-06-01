@@ -125,7 +125,7 @@ describe('AI Decision Integration - Explanation + Feedback', () => {
   let mockDb: MockDecisionDb;
   let service: DecisionExplanationService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockDb = new MockDecisionDb();
     service = new DecisionExplanationService(mockDb as any);
   });

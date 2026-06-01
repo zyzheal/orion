@@ -130,7 +130,7 @@ describe('DebugController Integration with StageExecutor', () => {
   let mockPublisher: jest.Mocked<PipelineEventPublisher>;
   let executor: StageExecutor;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     DebugController.resetForTesting();
     debugController = DebugController.getInstance();
     mockRunner = new MockTaskRunner();
@@ -143,7 +143,7 @@ describe('DebugController Integration with StageExecutor', () => {
   describe('production mode (no DebugController)', () => {
     let prodExecutor: StageExecutor;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       // Create executor WITHOUT DebugController — this is production mode
       prodExecutor = new StageExecutor(mockRunner, mockPublisher);
     });

@@ -181,7 +181,7 @@ describe('BuildService - PostgreSQL Repository', () => {
   let mockDb: MockDatabasePool;
   let service: BuildService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockDb = new MockDatabasePool();
     service = new BuildService(mockDb as any);
   });

@@ -121,7 +121,7 @@ describe('PipelineService.retryRun() - GAP-06', () => {
     },
   ];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     // Reset service with mock repository
     service = new PipelineService(mockPipelineRepository as any);

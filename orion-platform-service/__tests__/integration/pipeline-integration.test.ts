@@ -223,12 +223,12 @@ spec:
             environment: staging
 `;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     pipelineRepo = new MockPipelineRepository();
     pipelineService = new PipelineService(pipelineRepo as any);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     pipelineRepo.clear();
   });
 

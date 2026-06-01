@@ -25,7 +25,7 @@ class MockModelVersionRepository extends ModelVersionRepository {
   async create(data: any) {
     const now = new Date();
     const entity = { ...data, registered_at: now };
-    this.store.set(entity.id, entity);
+    await this.store.set(entity.id, entity);
     return entity;
   }
 
@@ -62,14 +62,14 @@ class MockModelVersionRepository extends ModelVersionRepository {
   }
 
   async update(id: string, data: any) {
-    const entity = this.store.get(id);
+    const entity = await this.store.get(
     if (!entity) throw new Error(`Model ${id} not found`);
     Object.assign(entity, data);
     return entity;
   }
 
   async updateMetrics(id: string, metrics: any) {
-    const entity = this.store.get(id);
+    const entity = await this.store.get(
     if (!entity) throw new Error(`Model ${id} not found`);
     entity.metrics = { ...entity.metrics, ...metrics };
     return entity;
@@ -108,7 +108,7 @@ class MockABTestRepository extends ABTestRepository {
   async create(data: any) {
     const now = new Date();
     const entity = { ...data, start_date: now };
-    this.store.set(entity.id, entity);
+    await this.store.set(entity.id, entity);
     return entity;
   }
 
@@ -123,7 +123,7 @@ class MockABTestRepository extends ABTestRepository {
   }
 
   async updateStatus(id: string, status: string) {
-    const entity = this.store.get(id);
+    const entity = await this.store.get(
     if (!entity) throw new Error(`AB test ${id} not found`);
     entity.status = status;
     return entity;
@@ -138,7 +138,7 @@ class MockABTestMetricRepository extends ABTestMetricRepository {
 
   async create(data: any) {
     const entity = { ...data };
-    this.store.set(entity.id, entity);
+    await this.store.set(entity.id, entity);
     return entity;
   }
 
@@ -155,14 +155,14 @@ class MockABTestMetricRepository extends ABTestMetricRepository {
   }
 
   async incrementRequestCount(id: string) {
-    const entity = this.store.get(id);
+    const entity = await this.store.get(
     if (!entity) throw new Error(`AB test metric ${id} not found`);
     entity.request_count++;
     return entity;
   }
 
   async updateMetrics(id: string, metrics: any) {
-    const entity = this.store.get(id);
+    const entity = await this.store.get(
     if (!entity) throw new Error(`AB test metric ${id} not found`);
     entity.metrics = metrics;
     return entity;
@@ -179,7 +179,7 @@ describe('ModelVersionService', () => {
   let abTestRepo: MockABTestRepository;
   let abTestMetricRepo: MockABTestMetricRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     modelRepo = new MockModelVersionRepository();
     abTestRepo = new MockABTestRepository();
     abTestMetricRepo = new MockABTestMetricRepository();
@@ -195,7 +195,7 @@ describe('ModelVersionService', () => {
     (service as any).abTestMetricRepo = abTestMetricRepo;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     modelRepo.clear();
     abTestRepo.clear();
     abTestMetricRepo.clear();

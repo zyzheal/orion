@@ -8,7 +8,7 @@ import { Task, TaskStatus } from '../../models/Task';
 describe('TaskRunner - APK Upload to Market', () => {
   let runner: TaskRunner;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     runner = new TaskRunner();
   });
 

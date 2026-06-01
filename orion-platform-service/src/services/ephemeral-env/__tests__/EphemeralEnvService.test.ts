@@ -66,7 +66,7 @@ describe('EphemeralEnvService', () => {
     createdBy: 'user-1',
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockPool = new MockDatabasePool();
     mockK8s = new MockK8sProvisionerService();
     mockEventBus = new MockEventBusService();
@@ -80,7 +80,7 @@ describe('EphemeralEnvService', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.clearAllMocks();
   });
 

@@ -314,7 +314,7 @@ export class PluginLifecycleManager extends EventEmitter {
   private validateTransition(pluginId: string, from: PluginStatus, to: PluginStatus): void {
     const allowed = VALID_TRANSITIONS[from];
     if (!allowed.includes(to)) {
-      throw new OrionError('Platform version above maximum supported', ErrorCode.VALIDATION_ERROR);
+      throw new OrionError(`Invalid state transition from '${from}' to '${to}'`, ErrorCode.VALIDATION_ERROR);
     }
   }
 

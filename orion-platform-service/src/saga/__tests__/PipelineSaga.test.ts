@@ -48,7 +48,7 @@ describe('PipelineSaga', () => {
   let pipelineService: PipelineService;
   let eventPublisher: PipelineEventPublisher;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // 创建 Mock PipelineService
     pipelineService = {
       getById: async (id: string) => ({
@@ -85,14 +85,14 @@ describe('PipelineSaga', () => {
   });
 
   describe('Saga 定义', () => {
-    it('should create pipeline saga definition', () => {
+    it('should create pipeline saga definition', async () => {
       const definition = createPipelineSagaDefinition(pipelineService, eventPublisher);
 
       expect(definition.name).toBe('PipelineExecutionSaga');
       expect(definition.steps.length).toBe(5);
     });
 
-    it('should have correct step names', () => {
+    it('should have correct step names', async () => {
       const definition = pipelineSaga.getDefinition();
 
       const stepNames = definition.steps.map(s => s.name);
@@ -105,7 +105,7 @@ describe('PipelineSaga', () => {
       ]);
     });
 
-    it('should have compensate function for each step', () => {
+    it('should have compensate function for each step', async () => {
       const definition = pipelineSaga.getDefinition();
 
       for (const step of definition.steps) {

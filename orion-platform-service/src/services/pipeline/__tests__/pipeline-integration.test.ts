@@ -249,7 +249,7 @@ describe('Pipeline Integration Tests', () => {
   let service: PipelineService;
   let repository: MockPipelineRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repository = new MockPipelineRepository();
     service = new PipelineService(repository);
   });

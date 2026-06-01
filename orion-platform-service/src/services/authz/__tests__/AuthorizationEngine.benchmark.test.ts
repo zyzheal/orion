@@ -40,16 +40,16 @@ class InMemoryCache {
   private store = new Map<string, { value: string; expiresAt: number }>();
 
   async get(key: string): Promise<string | null> {
-    const entry = this.store.get(key);
+    const entry = await this.store.get(
     if (!entry || Date.now() > entry.expiresAt) {
-      this.store.delete(key);
+      await this.store.delete(key);
       return null;
     }
     return entry.value;
   }
 
   async set(key: string, value: string, ttl: number): Promise<void> {
-    this.store.set(key, { value, expiresAt: Date.now() + ttl * 1000 });
+    await this.store.set(key, { value, expiresAt: Date.now() + ttl * 1000 });
   }
 
   async keys(pattern: string): Promise<string[]> {
@@ -130,7 +130,7 @@ describe('AuthorizationEngine Performance Benchmark', () => {
   }
 
   describe('without cache', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       engine = createEngine(false);
     });
 
@@ -167,7 +167,7 @@ describe('AuthorizationEngine Performance Benchmark', () => {
   });
 
   describe('with cache', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       engine = createEngine(true);
     });
 
@@ -259,7 +259,7 @@ describe('PermissionCache Unit Tests', () => {
   let cache: PermissionCache;
   let cacheService: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     cacheService = new MockCacheService();
     cache = new PermissionCache(cacheService, 300);
   });

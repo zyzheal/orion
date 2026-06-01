@@ -21,7 +21,7 @@ describe('PluginSandbox', () => {
     quota: { ...DEFAULT_QUOTA }, // 使用副本避免修改影响其他测试
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     resourceManager = new PluginResourceManager();
     auditLogger = new PluginAuditLogger();
     sandbox = new PluginSandbox({
@@ -30,14 +30,14 @@ describe('PluginSandbox', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox.shutdown();
     auditLogger.shutdown();
     resourceManager.releaseAll();
   });
 
   describe('Input Validation', () => {
-    it('should validate normal input', () => {
+    it('should validate normal input', async () => {
       const input = { param: 'value' };
       const result = sandbox.validateInput(input);
 
@@ -45,7 +45,7 @@ describe('PluginSandbox', () => {
       expect(result.errors.length).toBe(0);
     });
 
-    it('should detect command injection patterns', () => {
+    it('should detect command injection patterns', async () => {
       const input = { command: 'ls; rm -rf /' };
       const result = sandbox.validateInput(input);
 
@@ -53,7 +53,7 @@ describe('PluginSandbox', () => {
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('should detect path traversal patterns', () => {
+    it('should detect path traversal patterns', async () => {
       const input = { path: '../../../etc/passwd' };
       const result = sandbox.validateInput(input);
 
@@ -61,7 +61,7 @@ describe('PluginSandbox', () => {
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('should detect dangerous environment variables', () => {
+    it('should detect dangerous environment variables', async () => {
       const input = { env: { PATH: '/malicious/path' } };
       const result = sandbox.validateInput(input);
 
@@ -69,7 +69,7 @@ describe('PluginSandbox', () => {
       expect(result.errors.some(e => e.field === 'env.PATH')).toBe(true);
     });
 
-    it('should reject large input', () => {
+    it('should reject large input', async () => {
       const largeInput = 'x'.repeat(20 * 1024 * 1024); // 20MB
       const result = sandbox.validateInput(largeInput);
 
@@ -209,7 +209,7 @@ describe('PluginSandbox', () => {
       });
     });
 
-    it('should return false when cancelling non-existent execution', () => {
+    it('should return false when cancelling non-existent execution', async () => {
       const result = sandbox.cancelExecution('non-existent');
       expect(result).toBe(false);
     });
@@ -234,7 +234,7 @@ describe('PluginSandbox', () => {
       expect(events.length).toBe(1);
     });
 
-    it('should detect credit card in output', () => {
+    it('should detect credit card in output', async () => {
       const output = { cardNumber: '4111-1111-1111-1111' };
       const result = sandbox.detectSensitiveOutput(output);
 

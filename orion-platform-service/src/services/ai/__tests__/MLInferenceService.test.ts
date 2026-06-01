@@ -7,14 +7,14 @@ import { MLInferenceService } from '../MLInferenceService';
 describe('MLInferenceService', () => {
   let service: MLInferenceService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     service = new MLInferenceService();
   });
 
   // ==================== loadModel ====================
 
   describe('loadModel', () => {
-    it('should load a default model', () => {
+    it('should load a default model', async () => {
       const model = service.loadModel('pipeline-failure-predictor');
 
       expect(model.modelId).toBe('pipeline-failure-predictor');
@@ -23,7 +23,7 @@ describe('MLInferenceService', () => {
       expect(model.loadedAt).toBeDefined();
     });
 
-    it('should return existing model if already loaded', () => {
+    it('should return existing model if already loaded', async () => {
       const first = service.loadModel('pipeline-failure-predictor');
       const second = service.loadModel('pipeline-failure-predictor');
 
@@ -31,7 +31,7 @@ describe('MLInferenceService', () => {
       expect(second.status).toBe('loaded');
     });
 
-    it('should create a new model for unknown modelId', () => {
+    it('should create a new model for unknown modelId', async () => {
       const model = service.loadModel('custom-model-123');
 
       expect(model.modelId).toBe('custom-model-123');
@@ -43,7 +43,7 @@ describe('MLInferenceService', () => {
   // ==================== unloadModel ====================
 
   describe('unloadModel', () => {
-    it('should unload a loaded model', () => {
+    it('should unload a loaded model', async () => {
       service.loadModel('pipeline-failure-predictor');
 
       const result = service.unloadModel('pipeline-failure-predictor');
@@ -53,7 +53,7 @@ describe('MLInferenceService', () => {
       expect(model!.status).toBe('unloaded');
     });
 
-    it('should return false for non-existent model', () => {
+    it('should return false for non-existent model', async () => {
       const result = service.unloadModel('non-existent');
       expect(result).toBe(false);
     });
@@ -62,7 +62,7 @@ describe('MLInferenceService', () => {
   // ==================== getModel ====================
 
   describe('getModel', () => {
-    it('should return model info', () => {
+    it('should return model info', async () => {
       service.loadModel('cost-estimator');
 
       const model = service.getModel('cost-estimator');
@@ -71,7 +71,7 @@ describe('MLInferenceService', () => {
       expect(model!.modelType).toBe('regression');
     });
 
-    it('should return undefined for non-existent model', () => {
+    it('should return undefined for non-existent model', async () => {
       const model = service.getModel('non-existent');
       expect(model).toBeUndefined();
     });
@@ -80,7 +80,7 @@ describe('MLInferenceService', () => {
   // ==================== listLoadedModels ====================
 
   describe('listLoadedModels', () => {
-    it('should list only loaded models', () => {
+    it('should list only loaded models', async () => {
       service.loadModel('pipeline-failure-predictor');
       service.loadModel('cost-estimator');
 
@@ -89,7 +89,7 @@ describe('MLInferenceService', () => {
       expect(models.every((m) => m.status === 'loaded')).toBe(true);
     });
 
-    it('should return empty list when no models loaded', () => {
+    it('should return empty list when no models loaded', async () => {
       const models = service.listLoadedModels();
       expect(models).toHaveLength(0);
     });

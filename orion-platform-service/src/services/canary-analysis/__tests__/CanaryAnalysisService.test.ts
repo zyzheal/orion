@@ -92,7 +92,7 @@ describe('CanaryAnalysisService', () => {
   describe('listRuns', () => {
     it('should list runs by deployment', async () => {
       const mockRuns = [
-        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: { canary: 10 }, status: 'running', confidence: null, decision: null, startedAt: new Date(), completedAt: null, durationMs: null },
+        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: { canary: 10 }, status: 'running', startedAt: new Date() },
       ];
       mockRunRepo.findByDeployment.mockResolvedValue(mockRuns);
 
@@ -104,7 +104,7 @@ describe('CanaryAnalysisService', () => {
 
     it('should list runs by status', async () => {
       const mockRuns = [
-        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: {}, status: 'running', confidence: null, decision: null, startedAt: new Date(), completedAt: null, durationMs: null },
+        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: {}, status: 'running', startedAt: new Date() },
       ];
       mockRunRepo.findByStatus.mockResolvedValue(mockRuns);
 
@@ -150,11 +150,7 @@ describe('CanaryAnalysisService', () => {
         runNumber: 1,
         trafficSplit: { canary: 10, baseline: 90 },
         status: 'running',
-        confidence: null,
-        decision: null,
         startedAt: new Date(),
-        completedAt: null,
-        durationMs: null,
       };
       mockRunRepo.create.mockResolvedValue(mockRun);
       mockRunRepo.updateRunStatus.mockResolvedValue({ ...mockRun, status: 'promote', decision: 'promote', confidence: 0.75, completedAt: new Date() });
@@ -287,7 +283,7 @@ describe('CanaryAnalysisService', () => {
 
   describe('forcePromote', () => {
     it('should force promote run', async () => {
-      const existing = { id: 'run-1', deploymentId: 'dep-1', status: 'running', confidence: 0.5, decision: null, startedAt: new Date(), completedAt: null };
+      const existing = { id: 'run-1', deploymentId: 'dep-1', status: 'running', confidence: 0.5, startedAt: new Date() };
       mockRunRepo.findById.mockResolvedValue(existing as any);
       mockRunRepo.updateRunStatus.mockResolvedValue({ ...existing, status: 'promote', decision: 'promote', confidence: 1.0 } as any);
       mockDecisionRepo.create.mockResolvedValue({} as any);
@@ -308,7 +304,7 @@ describe('CanaryAnalysisService', () => {
 
   describe('forceRollback', () => {
     it('should force rollback run', async () => {
-      const existing = { id: 'run-1', deploymentId: 'dep-1', status: 'running', confidence: 0.5, decision: null, startedAt: new Date(), completedAt: null };
+      const existing = { id: 'run-1', deploymentId: 'dep-1', status: 'running', confidence: 0.5, startedAt: new Date() };
       mockRunRepo.findById.mockResolvedValue(existing as any);
       mockRunRepo.updateRunStatus.mockResolvedValue({ ...existing, status: 'rollback', decision: 'rollback', confidence: 0.0 } as any);
       mockDecisionRepo.create.mockResolvedValue({} as any);

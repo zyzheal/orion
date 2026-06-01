@@ -12,7 +12,7 @@ const mockPool = {
 describe('MultiCloudManagerService', () => {
   let service: MultiCloudManagerService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     service = new MultiCloudManagerService(mockPool as any);
   });

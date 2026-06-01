@@ -53,7 +53,8 @@ describe('Tenant Routes', () => {
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body).toHaveProperty('context');
+      expect(body).toHaveProperty('data');
+      expect(body.data).toHaveProperty('context');
     });
 
     it('returns 400 without tenant id header', async () => {
@@ -75,7 +76,7 @@ describe('Tenant Routes', () => {
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body).toHaveProperty('quota');
+      expect(body.data).toHaveProperty('quota');
     });
   });
 

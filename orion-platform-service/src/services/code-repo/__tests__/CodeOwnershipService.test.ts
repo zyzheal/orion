@@ -145,19 +145,19 @@ describe('CodeOwnershipService', () => {
       const recs = await service.recommendOwners('test-repo', ['index.js', 'main.ts']);
 
       expect(recs).toHaveLength(2);
-      expect(recs[0].recommendedOwners).toContain('frontend-team');
-      expect(recs[1].recommendedOwners).toContain('backend-team');
+      expect(recs[0].owners).toContain('frontend-team');
+      expect(recs[1].owners).toContain('backend-team');
     });
 
     it('should return empty owners for unmatched files', async () => {
       const recs = await service.recommendOwners('test-repo', ['unknown.xyz']);
 
-      expect(recs[0].recommendedOwners).toEqual([]);
+      expect(recs[0].owners).toEqual([]);
     });
 
     it('should return empty for repo without CODEOWNERS', async () => {
       const recs = await service.recommendOwners('no-owners-repo', ['file.js']);
-      expect(recs[0].recommendedOwners).toEqual([]);
+      expect(recs[0].owners).toEqual([]);
     });
 
     it('should match path-based rules', async () => {
@@ -166,7 +166,7 @@ describe('CodeOwnershipService', () => {
       // Both *.js and /src/api/ should match
       const apiRule = recs[0].matchedRules.find(r => r.pattern === '/src/api/');
       expect(apiRule).toBeDefined();
-      expect(recs[0].recommendedOwners).toContain('api-team');
+      expect(recs[0].owners).toContain('api-team');
     });
   });
 
@@ -217,17 +217,17 @@ package.json @core-team
 
     it('should match exact file names', async () => {
       const recs = await service.recommendOwners('test-repo', ['package.json']);
-      expect(recs[0].recommendedOwners).toContain('core-team');
+      expect(recs[0].owners).toContain('core-team');
     });
 
     it('should match directory patterns', async () => {
       const recs = await service.recommendOwners('test-repo', ['docs/readme.md']);
-      expect(recs[0].recommendedOwners).toContain('docs-team');
+      expect(recs[0].owners).toContain('docs-team');
     });
 
     it('should match extension patterns', async () => {
       const recs = await service.recommendOwners('test-repo', ['src/main.ts']);
-      expect(recs[0].recommendedOwners).toContain('typescript-team');
+      expect(recs[0].owners).toContain('typescript-team');
     });
   });
 });

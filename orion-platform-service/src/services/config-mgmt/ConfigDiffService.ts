@@ -134,7 +134,7 @@ export class ConfigDiffService {
       throw new OrionError('Invalid configuration format', ErrorCode.VALIDATION_ERROR);
     }
     if (!toVersionRecord) {
-      throw new OrionError('Configuration comparison failed', ErrorCode.VALIDATION_ERROR);
+      throw new OrionError(`Version ${toVersion} not found`, ErrorCode.NOT_FOUND);
     }
 
     const valToString = (v: any): string => {
