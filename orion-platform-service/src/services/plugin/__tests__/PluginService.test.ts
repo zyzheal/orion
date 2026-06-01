@@ -33,7 +33,7 @@ describe('PluginResourceManager', () => {
 
   describe('getGlobalQuota', () => {
     it('should return default global quota', async () => {
-      const quota = await manager.getGlobalQuota(
+      const quota = await manager.getGlobalQuota();
       expect(quota.cpuCores).toBe(8);
       expect(quota.memoryBytes).toBe(16 * 1024 * 1024 * 1024);
       expect(quota.timeoutMs).toBe(300000);
@@ -48,7 +48,7 @@ describe('PluginResourceManager', () => {
         maxConcurrent: 20,
       };
       manager = new PluginResourceManager({ globalQuota: customQuota });
-      const quota = await manager.getGlobalQuota(
+      const quota = await manager.getGlobalQuota();
       expect(quota.cpuCores).toBe(4);
       expect(quota.maxConcurrent).toBe(20);
     });
@@ -56,7 +56,7 @@ describe('PluginResourceManager', () => {
 
   describe('getResourceStats', () => {
     it('should return initial stats', async () => {
-      const stats = await manager.getResourceStats(
+      const stats = await manager.getResourceStats();
       expect(stats.totalAllocated).toBe(0);
       expect(stats.cpuCoresUsed).toBe(0);
       expect(stats.memoryBytesUsed).toBe(0);
@@ -68,7 +68,7 @@ describe('PluginResourceManager', () => {
       await manager.allocateQuota('task-1', 'plugin-1', 'MEDIUM');
       await manager.allocateQuota('task-2', 'plugin-2', 'LOW');
 
-      const stats = await manager.getResourceStats(
+      const stats = await manager.getResourceStats();
       expect(stats.totalAllocated).toBe(2);
       expect(stats.activeExecutions).toBe(2);
       expect(stats.peakConcurrency).toBe(2);
@@ -78,7 +78,7 @@ describe('PluginResourceManager', () => {
       await manager.allocateQuota('task-1', 'plugin-1', 'MEDIUM');
       await manager.releaseQuota('task-1');
 
-      const stats = await manager.getResourceStats(
+      const stats = await manager.getResourceStats();
       expect(stats.activeExecutions).toBe(0);
       expect(stats.cpuCoresUsed).toBe(0);
     });
@@ -86,14 +86,14 @@ describe('PluginResourceManager', () => {
 
   describe('getAvailableResources', () => {
     it('should return full resources when nothing allocated', async () => {
-      const available = await manager.getAvailableResources(
+      const available = await manager.getAvailableResources();
       expect(available.cpuCores).toBe(8);
       expect(available.concurrencySlots).toBe(50);
     });
 
     it('should subtract allocated resources', async () => {
       await manager.allocateQuota('task-1', 'plugin-1', 'HIGH');
-      const available = await manager.getAvailableResources(
+      const available = await manager.getAvailableResources();
       expect(available.cpuCores).toBe(7);
       expect(available.concurrencySlots).toBe(49);
     });
@@ -103,33 +103,33 @@ describe('PluginResourceManager', () => {
     it('should use custom quota when set', async () => {
       const custom: ResourceQuota = { cpuCores: 6, memoryBytes: 4e9, timeoutMs: 180000, maxConcurrent: 40 };
       await manager.setPluginQuota('my-plugin', custom);
-      const quota = await manager.getPluginQuota(
+      const quota = await manager.getPluginQuota('my-plugin');
       expect(quota.cpuCores).toBe(6);
       expect(quota.maxConcurrent).toBe(40);
     });
 
     it('should fallback to security level quota', async () => {
-      const quota = await manager.getPluginQuota(
+      const quota = await manager.getPluginQuota('some-plugin', 'HIGH');
       expect(quota).toEqual(SECURITY_LEVEL_QUOTAS.HIGH);
     });
 
     it('should fallback to DEFAULT_QUOTA when no security level', async () => {
-      const quota = await manager.getPluginQuota(
+      const quota = await manager.getPluginQuota('unknown-plugin');
       expect(quota).toEqual(DEFAULT_QUOTA);
     });
 
-    it('should return a copy, not the original', () => {
+    it('should return a copy, not the original', async () => {
       await manager.setPluginQuota('plugin-x', { cpuCores: 2, memoryBytes: 1e9, timeoutMs: 60000, maxConcurrent: 5 });
-      const q1 = await manager.getPluginQuota(
+      const q1 = await manager.getPluginQuota('plugin-x');
       q1.cpuCores = 99;
-      const q2 = await manager.getPluginQuota(
+      const q2 = await manager.getPluginQuota('plugin-x')
       expect(q2.cpuCores).toBe(2);
     });
   });
 
   describe('canAllocate', () => {
     it('should allow allocation when resources available', async () => {
-      const result = await manager.canAllocate(
+      const result = await manager.canAllocate('task-1', 'plugin-a', 'MEDIUM');
       expect(result.canAllocate).toBe(true);
       expect(result.reason).toBeUndefined();
     });
@@ -139,7 +139,7 @@ describe('PluginResourceManager', () => {
         globalQuota: { cpuCores: 8, memoryBytes: 16e9, timeoutMs: 300000, maxConcurrent: 1 },
       });
       await manager.allocateQuota('task-1', 'p1');
-      const result = await manager.canAllocate(
+      const result = await manager.canAllocate('task-1', 'plugin-a', 'HIGH');
       expect(result.canAllocate).toBe(false);
       expect(result.reason).toContain('Maximum concurrent');
     });
@@ -149,7 +149,7 @@ describe('PluginResourceManager', () => {
         globalQuota: { cpuCores: 1, memoryBytes: 16e9, timeoutMs: 300000, maxConcurrent: 50 },
       });
       const highCpu: ResourceQuota = { cpuCores: 4, memoryBytes: 1e9, timeoutMs: 60000, maxConcurrent: 5 };
-      const result = await manager.canAllocate(
+      const result = await manager.canAllocate('task-1', 'plugin-a', 'HIGH');
       expect(result.canAllocate).toBe(false);
       expect(result.reason).toContain('Insufficient CPU');
     });
@@ -158,7 +158,7 @@ describe('PluginResourceManager', () => {
       manager = new PluginResourceManager({
         globalQuota: { cpuCores: 8, memoryBytes: 100, timeoutMs: 300000, maxConcurrent: 50 },
       });
-      const result = await manager.canAllocate(
+      const result = await manager.canAllocate('task-1', 'plugin-a', 'HIGH');
       expect(result.canAllocate).toBe(false);
       expect(result.reason).toContain('Insufficient memory');
     });
@@ -166,7 +166,7 @@ describe('PluginResourceManager', () => {
 
   describe('allocateQuota / releaseQuota', () => {
     it('should return ExecutionContext on successful allocation', async () => {
-      const ctx = await manager.allocateQuota(
+      const ctx = await manager.allocateQuota('task-1', 'plugin-a', 'MEDIUM');
       expect(ctx).not.toBeNull();
       expect(ctx?.taskId).toBe('task-1');
       expect(ctx?.pluginId).toBe('plugin-a');
@@ -177,20 +177,20 @@ describe('PluginResourceManager', () => {
       manager = new PluginResourceManager({
         globalQuota: { cpuCores: 8, memoryBytes: 16e9, timeoutMs: 300000, maxConcurrent: 0 },
       });
-      const ctx = await manager.allocateQuota(
+      const ctx = await manager.allocateQuota('task-1', 'plugin-a', 'MEDIUM');
       expect(ctx).toBeNull();
     });
 
     it('should track allocations by taskId', async () => {
       await manager.allocateQuota('task-1', 'plugin-a');
       await manager.allocateQuota('task-2', 'plugin-b');
-      const alloc = await manager.getAllocation(
+      const alloc = await manager.getAllocation('task-1');
       expect(alloc).toBeDefined();
       expect(alloc?.pluginId).toBe('plugin-a');
     });
 
     it('getAllocation returns undefined for unknown taskId', async () => {
-      const alloc = await manager.getAllocation(
+      const alloc = await manager.getAllocation('unknown');
       expect(alloc).toBeUndefined();
     });
 
@@ -198,7 +198,7 @@ describe('PluginResourceManager', () => {
       await manager.allocateQuota('t1', 'p1');
       await manager.allocateQuota('t2', 'p2');
       await manager.allocateQuota('t3', 'p3');
-      expect(await manager.getActiveAllocations().length).toBe(3);
+      expect((await manager.getActiveAllocations()).length).toBe(3);
     });
 
     it('releaseQuota removes allocation', async () => {
@@ -215,7 +215,7 @@ describe('PluginResourceManager', () => {
       await manager.allocateQuota('t1', 'p1');
       await manager.allocateQuota('t2', 'p2');
       await manager.releaseAll();
-      expect(await manager.getActiveAllocations().length).toBe(0);
+      expect((await manager.getActiveAllocations()).length).toBe(0);
       expect(await manager.getResourceStats().activeExecutions).toBe(0);
     });
 
@@ -264,7 +264,7 @@ describe('PluginResourceManager', () => {
         expect(data.type).toBe('MEMORY');
         done();
       });
-      const highMemoryQuota = await manager.getPluginQuota(
+      const highMemoryQuota = await manager.getPluginQuota()
       await manager.updateUsage('task-1', {
         cpuPercent: 10,
         memoryBytes: Math.floor(highMemoryQuota.memoryBytes * 0.95),
