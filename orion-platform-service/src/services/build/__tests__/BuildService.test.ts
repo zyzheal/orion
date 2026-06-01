@@ -189,13 +189,13 @@ describe('BuildService - PostgreSQL Repository', () => {
   describe('createBuild', () => {
     it('should create a build with required fields', async () => {
       const input: BuildCreateInput = {
-        tenantId: 'tenant-1',
+        tenant_id: 'tenant-1',
       };
 
       const build = await service.createBuild(input);
 
       expect(build.id).toBeDefined();
-      expect(build.tenantId).toBe('tenant-1');
+      expect(build.tenant_id).toBe('tenant-1');
       expect(build.status).toBe(BuildStatus.PENDING);
       expect(build.projectId).toBeNull();
       expect(build.pipelineRunId).toBeNull();
@@ -205,7 +205,7 @@ describe('BuildService - PostgreSQL Repository', () => {
 
     it('should create a build with all fields', async () => {
       const input: BuildCreateInput = {
-        tenantId: 'tenant-1',
+        tenant_id: 'tenant-1',
         projectId: 'proj-1',
         pipelineRunId: 'run-1',
         image: 'my-app',
@@ -228,7 +228,7 @@ describe('BuildService - PostgreSQL Repository', () => {
   describe('findBuildById', () => {
     it('should return build by ID', async () => {
       const created = await service.createBuild({
-        tenantId: 'tenant-1',
+        tenant_id: 'tenant-1',
         image: 'test-app',
         tag: 'latest',
       });
@@ -248,9 +248,9 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('findBuildsByTenant', () => {
     beforeEach(async () => {
-      await service.createBuild({ tenantId: 'tenant-1', image: 'app1' });
-      await service.createBuild({ tenantId: 'tenant-1', image: 'app2' });
-      await service.createBuild({ tenantId: 'tenant-2', image: 'app3' });
+      await service.createBuild({ tenant_id: 'tenant-1', image: 'app1' });
+      await service.createBuild({ tenant_id: 'tenant-1', image: 'app2' });
+      await service.createBuild({ tenant_id: 'tenant-2', image: 'app3' });
     });
 
     it('should filter builds by tenant', async () => {
@@ -267,9 +267,9 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('findBuildsByArtifact', () => {
     beforeEach(async () => {
-      await service.createBuild({ tenantId: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenantId: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenantId: 'tenant-1', pipelineRunId: 'run-2' });
+      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-2' });
     });
 
     it('should filter builds by pipeline run ID', async () => {
@@ -281,9 +281,9 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('findBuildsByProject', () => {
     beforeEach(async () => {
-      await service.createBuild({ tenantId: 'tenant-1', projectId: 'proj-1' });
-      await service.createBuild({ tenantId: 'tenant-1', projectId: 'proj-1' });
-      await service.createBuild({ tenantId: 'tenant-1', projectId: 'proj-2' });
+      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-2' });
     });
 
     it('should filter builds by project', async () => {
@@ -294,9 +294,9 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('findBuildsByStatus', () => {
     it('should filter builds by status', async () => {
-      await service.createBuild({ tenantId: 'tenant-1' });
-      await service.createBuild({ tenantId: 'tenant-1' });
-      await service.createBuild({ tenantId: 'tenant-1' });
+      await service.createBuild({ tenant_id: 'tenant-1' });
+      await service.createBuild({ tenant_id: 'tenant-1' });
+      await service.createBuild({ tenant_id: 'tenant-1' });
 
       const pending = await service.findBuildsByStatus(BuildStatus.PENDING);
       expect(pending.length).toBe(3);
@@ -305,9 +305,9 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('listBuilds', () => {
     beforeEach(async () => {
-      await service.createBuild({ tenantId: 'tenant-1', projectId: 'proj-1' });
-      await service.createBuild({ tenantId: 'tenant-1', projectId: 'proj-2' });
-      await service.createBuild({ tenantId: 'tenant-2', projectId: 'proj-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-2' });
+      await service.createBuild({ tenant_id: 'tenant-2', projectId: 'proj-1' });
     });
 
     it('should list all builds', async () => {
@@ -317,7 +317,7 @@ describe('BuildService - PostgreSQL Repository', () => {
     });
 
     it('should filter by tenant', async () => {
-      const result = await service.listBuilds({ tenantId: 'tenant-1' });
+      const result = await service.listBuilds({ tenant_id: 'tenant-1' });
       expect(result.builds.length).toBe(2);
     });
 
@@ -334,7 +334,7 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('updateBuild', () => {
     it('should update build fields', async () => {
-      const created = await service.createBuild({ tenantId: 'tenant-1' });
+      const created = await service.createBuild({ tenant_id: 'tenant-1' });
 
       const updated = await service.updateBuild(created.id, {
         image: 'updated-app',
@@ -354,7 +354,7 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('updateBuildStatus', () => {
     it('should update status to running', async () => {
-      const created = await service.createBuild({ tenantId: 'tenant-1' });
+      const created = await service.createBuild({ tenant_id: 'tenant-1' });
       const startedAt = new Date();
 
       const updated = await service.updateBuildStatus(
@@ -369,7 +369,7 @@ describe('BuildService - PostgreSQL Repository', () => {
     });
 
     it('should update status to success with duration', async () => {
-      const created = await service.createBuild({ tenantId: 'tenant-1' });
+      const created = await service.createBuild({ tenant_id: 'tenant-1' });
       const startedAt = new Date(Date.now() - 5000);
       const completedAt = new Date();
 
@@ -388,7 +388,7 @@ describe('BuildService - PostgreSQL Repository', () => {
     });
 
     it('should update status to failed with error message', async () => {
-      const created = await service.createBuild({ tenantId: 'tenant-1' });
+      const created = await service.createBuild({ tenant_id: 'tenant-1' });
 
       const updated = await service.updateBuildStatus(
         created.id,
@@ -405,7 +405,7 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('deleteBuild', () => {
     it('should delete existing build', async () => {
-      const created = await service.createBuild({ tenantId: 'tenant-1' });
+      const created = await service.createBuild({ tenant_id: 'tenant-1' });
 
       const deleted = await service.deleteBuild(created.id);
       expect(deleted).toBe(true);
@@ -422,9 +422,9 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('cleanupByPipelineRun', () => {
     it('should delete builds by pipeline run ID', async () => {
-      await service.createBuild({ tenantId: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenantId: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenantId: 'tenant-1', pipelineRunId: 'run-2' });
+      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-2' });
 
       const count = await service.cleanupByPipelineRun('run-1');
       expect(count).toBe(2);
@@ -433,12 +433,12 @@ describe('BuildService - PostgreSQL Repository', () => {
 
   describe('getStats', () => {
     it('should return build statistics', async () => {
-      await service.createBuild({ tenantId: 'tenant-1' });
-      await service.createBuild({ tenantId: 'tenant-1' });
-      await service.createBuild({ tenantId: 'tenant-1' });
+      await service.createBuild({ tenant_id: 'tenant-1' });
+      await service.createBuild({ tenant_id: 'tenant-1' });
+      await service.createBuild({ tenant_id: 'tenant-1' });
 
       // Update one to success
-      const builds = await service.listBuilds({ tenantId: 'tenant-1' });
+      const builds = await service.listBuilds({ tenant_id: 'tenant-1' });
       if (builds.builds.length > 0) {
         await service.updateBuildStatus(builds.builds[0].id, BuildStatus.SUCCESS);
       }

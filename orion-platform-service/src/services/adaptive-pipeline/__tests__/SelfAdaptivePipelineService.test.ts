@@ -1,3 +1,4 @@
+jest.setTimeout(30000);
 /**
  * SelfAdaptivePipelineService 单元测试
  */

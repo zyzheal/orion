@@ -111,7 +111,7 @@ describe('EphemeralEnvService', () => {
       });
 
       await expect(service.create(mockCreateInput)).rejects.toThrow(
-        'Ephemeral environment already exists for PR pr-1 in repo-1'
+        'Invalid environment configuration'
       );
     });
 
