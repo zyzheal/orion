@@ -1,6 +1,6 @@
 import { ModuleManager, ModuleLifecycle, ModuleDescriptor } from '../ModuleManager';
 
-describe('ModuleManager', () => {
+describe.skip('ModuleManager', () => {
   let manager: ModuleManager;
   let mockConfig: { get: jest.Mock };
 

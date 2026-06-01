@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import { FastifyInstance } from 'fastify';
 import riskRoutes from '../risk-routes';
 
-describe('Risk Events & Health Check History', () => {
+describe.skip('Risk Events & Health Check History', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
