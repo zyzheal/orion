@@ -31,7 +31,6 @@ export interface PromotionRecord {
   toStage: PromotionStage;
   promotedBy: string;
   approvedBy?: string;
-  approvedAt?: Date;
   reason?: string;
   timestamp: Date;
 }
@@ -104,14 +103,11 @@ export class PromotionService {
     if (this.promotionRepository) {
       await this.promotionRepository.create({
         artifactId,
-        fromEnv: currentStage,
-        toEnv: nextStage,
-        status: 'completed',
+        fromStage: currentStage,
+        toStage: nextStage,
         promotedBy,
         approvedBy: null,
-        approvedAt: null,
         reason: reason ?? null,
-        createdAt: record.timestamp,
       });
     } else {
       // Deprecated in-memory fallback
@@ -129,7 +125,6 @@ export class PromotionService {
   async promoteWithApproval(artifactId: string, promotedBy: string, approvedBy: string, reason?: string): Promise<PromotionRecord> {
     const record = await this.promote(artifactId, promotedBy, reason);
     record.approvedBy = approvedBy;
-    record.approvedAt = new Date();
 
     // Update repository with approval info
     if (this.promotionRepository) {
@@ -147,8 +142,8 @@ export class PromotionService {
     if (this.promotionRepository) {
       const entities = await this.promotionRepository.findByArtifact(artifactId);
       if (entities.length > 0) {
-        // The latest record's to_env is the current stage
-        return entities[0].to_env as PromotionStage;
+        // The latest record's to_stage is the current stage
+        return entities[0].to_stage as PromotionStage;
       }
       // No promotions yet — artifact starts at DEVELOPMENT
       return PromotionStage.DEVELOPMENT;
@@ -167,13 +162,12 @@ export class PromotionService {
       return entities.map((e: ArtifactPromotionEntity) => ({
         id: e.id,
         artifactId: e.artifact_id,
-        fromStage: e.from_env as PromotionStage,
-        toStage: e.to_env as PromotionStage,
+        fromStage: e.from_stage as PromotionStage,
+        toStage: e.to_stage as PromotionStage,
         promotedBy: e.promoted_by,
         approvedBy: e.approved_by ?? undefined,
-        approvedAt: e.approved_at ?? undefined,
         reason: e.reason ?? undefined,
-        timestamp: e.created_at,
+        timestamp: e.promoted_at,
       }));
     }
     // Deprecated in-memory fallback

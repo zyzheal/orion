@@ -4,7 +4,7 @@ const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 function validateIdentifier(name: string, label: string): void {
   if (!VALID_IDENTIFIER.test(name)) {
-    throw new OrionError('VALIDATION_ERROR', `Invalid ${label}: ${name}`)
+    throw new OrionError(`Invalid ${label}: ${name}`, 'VALIDATION_ERROR')
   }
 }
 

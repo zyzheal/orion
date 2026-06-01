@@ -58,7 +58,7 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
       [tenantIdValue, purpose, JSON.stringify(labels), id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `Failed to allocate namespace: ${id}`)
+      throw new OrionError(`Failed to allocate namespace: ${id}`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -69,7 +69,7 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
       [id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `Failed to release namespace: ${id}`)
+      throw new OrionError(`Failed to release namespace: ${id}`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

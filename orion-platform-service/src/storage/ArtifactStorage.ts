@@ -45,7 +45,7 @@ export class LocalArtifactStorage implements ArtifactStorage {
     // 从数据库获取存储路径
     const artifact = await this.getArtifactMetadata(id);
     if (!artifact) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
+      throw new OrionError(`Artifact not found: ${id}`, ErrorCode.NOT_FOUND);
     }
     
     const filePath = path.join(this.storageDir, artifact.storagePath);
@@ -64,7 +64,7 @@ export class LocalArtifactStorage implements ArtifactStorage {
     // 从数据库获取存储路径
     const artifact = await this.getArtifactMetadata(id);
     if (!artifact) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
+      throw new OrionError(`Artifact not found: ${id}`, ErrorCode.NOT_FOUND);
     }
     
     const filePath = path.join(this.storageDir, artifact.storagePath);

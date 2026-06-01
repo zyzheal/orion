@@ -105,19 +105,19 @@ export function createPipelineSagaDefinition(
         // 获取 Pipeline 定义
         const pipeline = await pipelineService.getById(input.pipelineId);
         if (!pipeline) {
-          throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${input.pipelineId}' not found`);
+          throw new OrionError(`Pipeline '${input.pipelineId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         // 解析 YAML
         let spec: { stages: PipelineYamlStage[] };
         try {
           if (!pipeline.yamlDefinition) {
-            throw new OrionError(ErrorCode.OPERATION_FAILED, 'Pipeline has no YAML definition');
+            throw new OrionError('Pipeline has no YAML definition', ErrorCode.OPERATION_FAILED);
           }
           const result = parsePipelineYaml(pipeline.yamlDefinition);
           spec = result.spec;
         } catch (error) {
-          throw new OrionError(ErrorCode.NOT_FOUND, `Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new OrionError(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`, ErrorCode.NOT_FOUND);
         }
 
         // 创建 PipelineRun
@@ -175,7 +175,7 @@ export function createPipelineSagaDefinition(
         const previousOutput = context.stepExecutions[0]?.output as CreateRunOutput;
 
         if (!runId || !previousOutput) {
-          throw new OrionError(ErrorCode.NOT_FOUND, 'Missing runId or previous step output');
+          throw new OrionError('Missing runId or previous step output', ErrorCode.NOT_FOUND);
         }
 
         const spec = previousOutput.spec;
@@ -218,7 +218,7 @@ export function createPipelineSagaDefinition(
 
         // 资源预留 — ResourceService 尚未实现，显式失败而非静默成功
         // TODO: 注入 ResourceService 后替换为真实调用
-        throw new OrionError('OPERATION_FAILED', 'ResourceService not implemented — cannot reserve resources for pipeline run. Implement ResourceService and inject it into PipelineSaga.');
+        throw new OrionError('ResourceService not implemented — cannot reserve resources for pipeline run. Implement ResourceService and inject it into PipelineSaga.', 'OPERATION_FAILED');
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const typedOutput = output as ReserveResourcesOutput;
@@ -358,7 +358,7 @@ export function createPipelineSagaDefinition(
         const run = pipelineRuns.get(runId);
 
         if (!run) {
-          throw new OrionError(ErrorCode.NOT_FOUND, `PipelineRun '${runId}' not found`);
+          throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         const previousStatus = run.status;
@@ -412,7 +412,7 @@ export function createPipelineSagaDefinition(
         const stages = stagesByRun.get(runId) || [];
 
         if (!run) {
-          throw new OrionError(ErrorCode.NOT_FOUND, `PipelineRun '${runId}' not found`);
+          throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         const events: string[] = [];
@@ -469,7 +469,7 @@ export function createPipelineSagaDefinition(
     }
 
     if (!run) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `PipelineRun '${runId}' not found`);
+      throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     return {

@@ -134,7 +134,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into portal_documents returned no rows');
+      throw new OrionError('INSERT into portal_documents returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -196,7 +196,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     if (updates.length === 0) {
       const existing = await this.findById(id);
       if (!existing) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Document not found: ${id}`);
+        throw new OrionError(`Document not found: ${id}`, ErrorCode.NOT_FOUND);
       }
       return existing;
     }
@@ -206,7 +206,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     const result = await this.db.query(query, params);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `UPDATE on portal_documents affected no rows (id: ${id})`)
+      throw new OrionError(`UPDATE on portal_documents affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -154,11 +154,11 @@ export function parsePipelineYaml(yaml: string): { spec: PipelineSpec; metadata:
   };
 
   if (!parsed.apiVersion || !parsed.kind || !parsed.metadata || !parsed.spec) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid Pipeline YAML format');
+    throw new OrionError('Invalid Pipeline YAML format', ErrorCode.VALIDATION_ERROR);
   }
 
   if (parsed.kind !== 'Pipeline') {
-    throw new OrionError('OPERATION_FAILED', `Expected kind 'Pipeline', got '${parsed.kind}'`)
+    throw new OrionError(`Expected kind 'Pipeline', got '${parsed.kind}'`, 'OPERATION_FAILED')
   }
 
   return {

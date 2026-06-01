@@ -99,7 +99,7 @@ export class ModelVersionRepository extends BaseRepository<ModelVersionEntity> {
       `UPDATE model_versions SET metrics = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [JSON.stringify(metrics), id],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `Model version ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(`Model version ${id} not found`, ErrorCode.NOT_FOUND);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -164,7 +164,7 @@ export class ABTestRepository extends BaseRepository<ABTestEntity> {
       `UPDATE ab_tests SET status = $1 WHERE id = $2 RETURNING *`,
       [status, id],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `AB test ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(`AB test ${id} not found`, ErrorCode.NOT_FOUND);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -219,7 +219,7 @@ export class ABTestMetricRepository extends BaseRepository<ABTestMetricEntity> {
       `UPDATE ab_test_metrics SET request_count = request_count + 1 WHERE id = $1 RETURNING *`,
       [id],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `AB test metric ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(`AB test metric ${id} not found`, ErrorCode.NOT_FOUND);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -228,7 +228,7 @@ export class ABTestMetricRepository extends BaseRepository<ABTestMetricEntity> {
       `UPDATE ab_test_metrics SET metrics = $1 WHERE id = $2 RETURNING *`,
       [JSON.stringify(metrics), id],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `AB test metric ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(`AB test metric ${id} not found`, ErrorCode.NOT_FOUND);
     return this.mapRowToEntity(result.rows[0]);
   }
 

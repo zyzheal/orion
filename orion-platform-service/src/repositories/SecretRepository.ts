@@ -102,7 +102,7 @@ export class SecretRepository extends BaseRepository<SecretEntity> {
       data.createdBy || null,
     ]);
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `UPSERT on ${this.tableName} returned no rows`)
+      throw new OrionError(`UPSERT on ${this.tableName} returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -82,7 +82,7 @@ export class MultiCloudRepository extends BaseRepository<CloudAccountEntity> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into cloud_accounts returned no rows');
+      throw new OrionError('INSERT into cloud_accounts returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -145,7 +145,7 @@ export class MultiCloudRepository extends BaseRepository<CloudAccountEntity> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into cloud_resources returned no rows');
+      throw new OrionError('INSERT into cloud_resources returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapResourceRow(result.rows[0]);
   }

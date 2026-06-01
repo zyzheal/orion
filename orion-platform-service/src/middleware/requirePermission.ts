@@ -40,7 +40,7 @@ export function getAuthzEngine() {
 export function requirePermission(options: RequirePermissionOptions) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     if (!authzEngine) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'AuthZ engine not initialized');
+      throw new OrionError('AuthZ engine not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     const user = (request as any).user;

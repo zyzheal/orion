@@ -60,7 +60,7 @@ export class UnifiedResourceRepository extends BaseRepository<UnifiedResourceEnt
       ],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into unified_resources returned no rows');
+      throw new OrionError('INSERT into unified_resources returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -146,7 +146,7 @@ export class DeploymentResultRepository extends BaseRepository<DeploymentResultE
       ],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into deployment_results returned no rows');
+      throw new OrionError('INSERT into deployment_results returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

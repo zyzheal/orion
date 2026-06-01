@@ -58,7 +58,7 @@ export class ConfigRepository {
 
     // Check if config exists
     const existing = await this.db.query(
-      `SELECT * FROM config_items WHERE key = $1 AND namespace = $2 AND environment = $3 AND tenant_id = $4`,
+      `SELECT * FROM config_items WHERE key = $1 AND app_id = $2 AND environment = $3 AND tenant_id = $4`,
       [data.key, data.namespace, environment, tenantId],
     );
 
@@ -86,9 +86,9 @@ export class ConfigRepository {
       config = this.mapConfigRow(configUpdate.rows[0]);
 
       const versionInsert = await this.db.query(
-        `INSERT INTO config_versions (id, config_key, namespace, version, value, diff_from_previous, created_by, commit_message)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [uuidv4(), data.key, data.namespace, newVersion, JSON.stringify(data.value), JSON.stringify(diff), data.createdBy, data.commitMessage || null],
+        `INSERT INTO config_versions (id, config_id, version, value, change_reason, changed_by)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [uuidv4(), existingRow.id, newVersion, JSON.stringify(data.value), data.commitMessage || null, data.createdBy],
       );
       const version = this.mapVersionRow(versionInsert.rows[0]);
 
@@ -98,16 +98,16 @@ export class ConfigRepository {
     // Create new config
     newVersion = 1;
     const configInsert = await this.db.query(
-      `INSERT INTO config_items (key, namespace, value, environment, tenant_id, created_by, current_version, item_type, status)
+      `INSERT INTO config_items (key, app_id, value, environment, tenant_id, created_by, current_version, item_type, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [data.key, data.namespace, JSON.stringify(data.value), environment, tenantId, data.createdBy, 1, 'application', 'active'],
     );
     config = this.mapConfigRow(configInsert.rows[0]);
 
     const versionInsert = await this.db.query(
-      `INSERT INTO config_versions (id, config_key, namespace, version, value, diff_from_previous, created_by, commit_message)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [uuidv4(), data.key, data.namespace, newVersion, JSON.stringify(data.value), null, data.createdBy, data.commitMessage || null],
+      `INSERT INTO config_versions (id, config_id, version, value, change_reason, changed_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [uuidv4(), configInsert.rows[0].id, newVersion, JSON.stringify(data.value), data.commitMessage || null, data.createdBy],
     );
     const version = this.mapVersionRow(versionInsert.rows[0]);
 
@@ -119,7 +119,7 @@ export class ConfigRepository {
    */
   async getConfig(key: string, namespace: string, environment: string = 'production'): Promise<ConfigItemEntity | undefined> {
     const result = await this.db.query(
-      `SELECT * FROM config_items WHERE key = $1 AND namespace = $2 AND environment = $3 AND status = $4`,
+      `SELECT * FROM config_items WHERE key = $1 AND app_id = $2 AND environment = $3 AND status = $4`,
       [key, namespace, environment, 'active'],
     );
     if (result.rows.length === 0) return undefined;
@@ -139,7 +139,7 @@ export class ConfigRepository {
     let paramIndex = 1;
 
     if (filters?.namespace) {
-      query += ` AND namespace = $${paramIndex}`;
+      query += ` AND app_id = $${paramIndex}`;
       params.push(filters.namespace);
       paramIndex++;
     }
@@ -165,10 +165,18 @@ export class ConfigRepository {
    * Get a specific version, or latest if version not specified
    */
   async getVersion(configKey: string, namespace: string, version?: number): Promise<ConfigVersionEntity | undefined> {
+    // First get the config item ID
+    const configResult = await this.db.query(
+      `SELECT id FROM config_items WHERE key = $1 AND app_id = $2`,
+      [configKey, namespace],
+    );
+    if (configResult.rows.length === 0) return undefined;
+    const configId = configResult.rows[0].id;
+
     if (version !== undefined) {
       const result = await this.db.query(
-        `SELECT * FROM config_versions WHERE config_key = $1 AND namespace = $2 AND version = $3`,
-        [configKey, namespace, version],
+        `SELECT * FROM config_versions WHERE config_id = $1 AND version = $2`,
+        [configId, version],
       );
       if (result.rows.length === 0) return undefined;
       return this.mapVersionRow(result.rows[0]);
@@ -176,9 +184,9 @@ export class ConfigRepository {
 
     // Get latest version
     const result = await this.db.query(
-      `SELECT * FROM config_versions WHERE config_key = $1 AND namespace = $2
+      `SELECT * FROM config_versions WHERE config_id = $1
        ORDER BY version DESC LIMIT 1`,
-      [configKey, namespace],
+      [configId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapVersionRow(result.rows[0]);
@@ -188,9 +196,17 @@ export class ConfigRepository {
    * List all versions for a config
    */
   async listVersions(configKey: string, namespace: string): Promise<ConfigVersionEntity[]> {
-    const result = await this.db.query(
-      `SELECT * FROM config_versions WHERE config_key = $1 AND namespace = $2 ORDER BY version ASC`,
+    // First get the config item ID
+    const configResult = await this.db.query(
+      `SELECT id FROM config_items WHERE key = $1 AND app_id = $2`,
       [configKey, namespace],
+    );
+    if (configResult.rows.length === 0) return [];
+    const configId = configResult.rows[0].id;
+
+    const result = await this.db.query(
+      `SELECT * FROM config_versions WHERE config_id = $1 ORDER BY version ASC`,
+      [configId],
     );
     return result.rows.map((row) => this.mapVersionRow(row));
   }
@@ -216,9 +232,9 @@ export class ConfigRepository {
     // Create new version (rollback is just a new version with old value)
     const newVersion = currentConfig.currentVersion + 1;
     const versionInsert = await this.db.query(
-      `INSERT INTO config_versions (id, config_key, namespace, version, value, diff_from_previous, created_by, commit_message)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [uuidv4(), configKey, namespace, newVersion, JSON.stringify(target.value), JSON.stringify(diff), createdBy, `Rollback to version ${targetVersion}`],
+      `INSERT INTO config_versions (id, config_id, version, value, change_reason, changed_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [uuidv4(), currentConfig.id, newVersion, JSON.stringify(target.value), `Rollback to version ${targetVersion}`, createdBy],
     );
     const version = this.mapVersionRow(versionInsert.rows[0]);
 
@@ -286,7 +302,7 @@ export class ConfigRepository {
     return {
       id: row.id,
       key: row.key,
-      namespace: row.namespace,
+      namespace: row.app_id,
       currentVersion: row.current_version,
       value: typeof row.value === 'string' ? JSON.parse(row.value) : (row.value ?? {}),
       status: row.status,
@@ -301,13 +317,13 @@ export class ConfigRepository {
   private mapVersionRow(row: any): ConfigVersionEntity {
     return {
       id: row.id,
-      configKey: row.config_key,
-      namespace: row.namespace,
+      configKey: row.config_id,
+      namespace: row.namespace || '',
       version: row.version,
       value: typeof row.value === 'string' ? JSON.parse(row.value) : (row.value ?? {}),
-      diffFromPrevious: typeof row.diff_from_previous === 'string' ? JSON.parse(row.diff_from_previous) : (row.diff_from_previous ?? null),
-      createdBy: row.created_by,
-      commitMessage: row.commit_message,
+      diffFromPrevious: null,
+      createdBy: row.changed_by,
+      commitMessage: row.change_reason,
       createdAt: row.created_at,
     };
   }

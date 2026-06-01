@@ -65,7 +65,7 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into artifact_version_tracking returned no rows');
+      throw new OrionError('INSERT into artifact_version_tracking returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

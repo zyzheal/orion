@@ -61,7 +61,7 @@ export class InlineScriptApprovalRepository extends BaseRepository<InlineScriptA
       [approvalId, tenantId]
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Approval not found or no longer pending: ${approvalId}`);
+      throw new OrionError(`Approval not found or no longer pending: ${approvalId}`, ErrorCode.NOT_FOUND);
     }
     return {
       status: result.rows[0].status,
@@ -103,7 +103,7 @@ export class InlineScriptApprovalRepository extends BaseRepository<InlineScriptA
       [status, currentApprovals, approvalId, tenantId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Approval with approval_id ${approvalId} not found for tenant`);
+      throw new OrionError(`Approval with approval_id ${approvalId} not found for tenant`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

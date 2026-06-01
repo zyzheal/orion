@@ -52,7 +52,7 @@ export class SkillRepository extends BaseRepository<SkillEntity> {
       [enabled, id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Skill with id ${id} not found`);
+      throw new OrionError(`Skill with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -49,7 +49,7 @@ export class HeartbeatRegistryRepository extends BaseRepository<HeartbeatRegistr
       [lastBeat, taskId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `HeartbeatRegistry with task_id ${taskId} not found`);
+      throw new OrionError(`HeartbeatRegistry with task_id ${taskId} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -60,7 +60,7 @@ export class HeartbeatRegistryRepository extends BaseRepository<HeartbeatRegistr
       [taskId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `HeartbeatRegistry with task_id ${taskId} not found`);
+      throw new OrionError(`HeartbeatRegistry with task_id ${taskId} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

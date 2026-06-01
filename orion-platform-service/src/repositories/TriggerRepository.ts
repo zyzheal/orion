@@ -57,7 +57,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into pipeline_triggers returned no rows`)
+      throw new OrionError(`INSERT into pipeline_triggers returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -103,7 +103,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
       [status, id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `UPDATE on pipeline_triggers affected no rows (id: ${id})`)
+      throw new OrionError(`UPDATE on pipeline_triggers affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -117,7 +117,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
       [type, config, id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `UPDATE on pipeline_triggers affected no rows (id: ${id})`)
+      throw new OrionError(`UPDATE on pipeline_triggers affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -154,7 +154,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
       [record.id, record.triggerId, record.runId ?? null, record.status, record.contextJson ?? {}, record.executedAt],
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into pipeline_trigger_executions returned no rows`)
+      throw new OrionError(`INSERT into pipeline_trigger_executions returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapExecutionRowToEntity(result.rows[0]);
   }

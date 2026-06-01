@@ -99,7 +99,7 @@ export class NatsConnectionManager extends EventEmitter {
       const { connect } = await import('nats').catch(() => ({ connect: null }));
 
       if (!connect) {
-        throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'NATS module not available. Run: npm install nats');
+        throw new OrionError('NATS module not available. Run: npm install nats', ErrorCode.SERVICE_UNAVAILABLE);
       }
 
       this.rawConnection = await connect({

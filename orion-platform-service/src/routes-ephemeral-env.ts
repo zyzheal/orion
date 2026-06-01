@@ -24,7 +24,7 @@ export default async function registerEphemeralEnvRoutes(
   options: EphemeralEnvRoutesOptions
 ): Promise<void> {
   // 初始化服务
-  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured'); } });
+  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE); } });
   const ephemeralEnvService = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options.eventBus,

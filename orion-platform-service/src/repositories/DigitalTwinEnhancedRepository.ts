@@ -73,7 +73,7 @@ export class TwinConfigRepository extends BaseRepository<TwinConfigEntity> {
         data.data_retention_days,
       ],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -210,7 +210,7 @@ export class SandboxRepository extends BaseRepository<SandboxEntity> {
         data.started_at ?? null,
       ],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -328,7 +328,7 @@ export class RecordingSessionRepository extends BaseRepository<RecordingSessionE
        RETURNING *`,
       [data.tenant_id, data.twin_id, data.session_name, data.filter_patterns ?? null],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -443,7 +443,7 @@ export class ReplaySessionRepository extends BaseRepository<ReplaySessionEntity>
         data.config,
       ],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 

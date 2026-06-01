@@ -50,7 +50,7 @@ export class GuardianTaskRepository extends BaseRepository<GuardianTaskEntity> {
       [taskId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `GuardianTask with task_id ${taskId} not found`);
+      throw new OrionError(`GuardianTask with task_id ${taskId} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -61,7 +61,7 @@ export class GuardianTaskRepository extends BaseRepository<GuardianTaskEntity> {
       [taskId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `GuardianTask with task_id ${taskId} not found`);
+      throw new OrionError(`GuardianTask with task_id ${taskId} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -201,7 +201,7 @@ export class PerformanceProfileRepository extends BaseRepository<PerformanceProf
       `UPDATE performance_profiles SET results = $1, status = $2, error_message = $3, completed_at = NOW(), updated_at = NOW() WHERE id = $4 RETURNING *`,
       [JSON.stringify(results), status, errorMessage ?? null, id],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.NOT_FOUND, `Profile ${id} not found`);
+    if (result.rows.length === 0) throw new OrionError(`Profile ${id} not found`, ErrorCode.NOT_FOUND);
     return this.mapRowToEntity(result.rows[0]);
   }
 

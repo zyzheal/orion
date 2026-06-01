@@ -22,7 +22,7 @@ export async function authenticateApiKey(
   reply: FastifyReply
 ): Promise<void> {
   if (!apiKeyService) {
-    throw new OrionError(ErrorCode.OPERATION_FAILED, 'API key auth not initialized. Call initApiKeyAuth() first.');
+    throw new OrionError('API key auth not initialized. Call initApiKeyAuth() first.', ErrorCode.OPERATION_FAILED);
   }
 
   const apiKey = request.headers['x-api-key'] as string | undefined;

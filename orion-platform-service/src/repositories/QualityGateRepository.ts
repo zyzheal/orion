@@ -109,7 +109,7 @@ export class QualityGateRepository extends BaseRepository<QualityGate> {
     }
 
     if (updates.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
+      throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);
     }
 
     updates.push(`updated_at = NOW()`);
@@ -120,7 +120,7 @@ export class QualityGateRepository extends BaseRepository<QualityGate> {
       params
     );
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `UPDATE on quality_gates affected no rows (id: ${id})`)
+      throw new OrionError(`UPDATE on quality_gates affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

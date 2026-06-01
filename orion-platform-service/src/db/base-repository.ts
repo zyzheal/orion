@@ -4,7 +4,7 @@ const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 function validateIdentifier(name: string, label: string): void {
   if (!VALID_IDENTIFIER.test(name)) {
-    throw new OrionError('VALIDATION_ERROR', `Invalid ${label}: ${name}`)
+    throw new OrionError(`Invalid ${label}: ${name}`, 'VALIDATION_ERROR')
   }
 }
 
@@ -87,7 +87,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into ${this.tableName} returned no rows`)
+      throw new OrionError(`INSERT into ${this.tableName} returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -97,7 +97,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const values = Object.values(data);
 
     if (columns.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Update requires at least one column');
+      throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);
     }
 
     for (const col of columns) {
@@ -109,7 +109,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const result = await this.db.query(query, [...values, id]);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `UPDATE on ${this.tableName} affected no rows (id: ${id})`)
+      throw new OrionError(`UPDATE on ${this.tableName} affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

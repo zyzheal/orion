@@ -45,7 +45,7 @@ export class CronExecutionRepository extends BaseRepository<CronExecutionEntity>
       [status, completedAt, result ? JSON.stringify(result) : null, errorMessage, id],
     );
     if (queryResult.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cron execution with id ${id} not found`);
+      throw new OrionError(`Cron execution with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(queryResult.rows[0]);
   }

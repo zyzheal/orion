@@ -51,7 +51,7 @@ export class CronJobRepository extends BaseRepository<CronJobEntity> {
       [lastRunAt, status, nextRunAt, id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `CronJob with id ${id} not found`);
+      throw new OrionError(`CronJob with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

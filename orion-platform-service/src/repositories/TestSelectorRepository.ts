@@ -89,7 +89,7 @@ interface FindAllResult<T> {
 export class TestCaseRepository {
   constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db || typeof db.query !== 'function') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid database connection provided to TestCaseRepository');
+      throw new OrionError('Invalid database connection provided to TestCaseRepository', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -190,7 +190,7 @@ export class TestCaseRepository {
 export class TestSuiteRepository {
   constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db || typeof db.query !== 'function') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid database connection provided to TestSuiteRepository');
+      throw new OrionError('Invalid database connection provided to TestSuiteRepository', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -278,7 +278,7 @@ export class TestSuiteRepository {
 export class TestRunRepository {
   constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db || typeof db.query !== 'function') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid database connection provided to TestRunRepository');
+      throw new OrionError('Invalid database connection provided to TestRunRepository', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -346,7 +346,7 @@ export class TestRunRepository {
 export class TestTagRepository {
   constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db || typeof db.query !== 'function') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid database connection provided to TestTagRepository');
+      throw new OrionError('Invalid database connection provided to TestTagRepository', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -400,7 +400,7 @@ export class TestTagRepository {
 export class TestCoverageRepository {
   constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db || typeof db.query !== 'function') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid database connection provided to TestCoverageRepository');
+      throw new OrionError('Invalid database connection provided to TestCoverageRepository', ErrorCode.VALIDATION_ERROR);
     }
   }
 

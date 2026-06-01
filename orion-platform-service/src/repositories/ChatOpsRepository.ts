@@ -88,7 +88,7 @@ export class ChatOpsCommandRepository extends BaseRepository<ChatOpsCommandEntit
       `INSERT INTO chatops_commands (name, subcommand, schema, aliases, permission_level, examples) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [data.name, data.subcommand, data.schema, data.aliases, data.permissionLevel, data.examples],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -169,7 +169,7 @@ export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionE
         data.milestones,
       ],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -353,7 +353,7 @@ export class ChatOpsSessionRepository extends BaseRepository<ChatOpsSessionEntit
       `INSERT INTO chatops_sessions (key, user_id, channel_id, history, state) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [data.key, data.user_id, data.channel_id, data.history, data.state],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -410,7 +410,7 @@ export class ChatOpsAuditLogRepository extends BaseRepository<ChatOpsAuditLogEnt
       `INSERT INTO chatops_audit_logs (trace_id, actor, timestamp, action, result, context) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [data.trace_id, data.actor, data.timestamp, data.action, data.result, data.context],
     );
-    if (result.rows.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 

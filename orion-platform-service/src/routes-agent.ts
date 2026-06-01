@@ -44,7 +44,7 @@ export default async function registerAgentRoutes(
       runRepository,
     });
   } else {
-    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Agent routes require a database connection');
+    throw new OrionError('Agent routes require a database connection', ErrorCode.SERVICE_UNAVAILABLE);
   }
 
   // 初始化控制器

@@ -49,7 +49,7 @@ export class ProcessRegistryRepository extends BaseRepository<ProcessRegistryEnt
       [taskId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `ProcessRegistry with task_id ${taskId} not found`);
+      throw new OrionError(`ProcessRegistry with task_id ${taskId} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -125,7 +125,7 @@ let capabilityService: CapabilityService | null = null;
  */
 export function setCapabilityService(service: CapabilityService): void {
   if (!service) {
-    throw new OrionError(ErrorCode.OPERATION_FAILED, 'setCapabilityService: service must not be null');
+    throw new OrionError('setCapabilityService: service must not be null', ErrorCode.OPERATION_FAILED);
   }
   capabilityService = service;
   // 启动时校验：验证服务可用

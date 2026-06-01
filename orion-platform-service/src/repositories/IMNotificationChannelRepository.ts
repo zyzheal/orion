@@ -45,7 +45,7 @@ export class IMNotificationChannelRepository extends BaseRepository<IMNotificati
       [data.id, data.tenantId, data.platform, data.name, data.webhookUrl, data.enabled ?? true],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into im_notification_channels returned no rows');
+      throw new OrionError('INSERT into im_notification_channels returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -97,7 +97,7 @@ export class IMNotificationChannelRepository extends BaseRepository<IMNotificati
       [enabled, id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, `UPDATE on im_notification_channels affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on im_notification_channels affected no rows (id: ${id})`, ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -111,7 +111,7 @@ export class IMNotificationChannelRepository extends BaseRepository<IMNotificati
       [webhookUrl, id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, `UPDATE on im_notification_channels affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on im_notification_channels affected no rows (id: ${id})`, ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

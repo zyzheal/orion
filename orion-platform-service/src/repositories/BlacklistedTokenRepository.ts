@@ -140,7 +140,7 @@ export class BlacklistedTokenRepository {
       [userId],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No count data returned from database');
+      throw new OrionError('No count data returned from database', ErrorCode.OPERATION_FAILED);
     }
     return parseInt(result.rows[0]?.count || '0', 10);
   }
@@ -163,7 +163,7 @@ export class BlacklistedTokenRepository {
 
     const row = result.rows[0];
     if (!row) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No stats data returned from database');
+      throw new OrionError('No stats data returned from database', ErrorCode.OPERATION_FAILED);
     }
 
     return {

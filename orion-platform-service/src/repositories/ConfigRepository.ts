@@ -74,7 +74,7 @@ export class ConfigRepository extends BaseRepository<ConfigEntity> {
       [JSON.stringify(value), id],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Config with id ${id} not found`);
+      throw new OrionError(`Config with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -95,7 +95,7 @@ export class ConfigRepository extends BaseRepository<ConfigEntity> {
       [data.key, JSON.stringify(data.value), data.scope, data.scopeId, data.description ?? null],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to create config');
+      throw new OrionError('Failed to create config', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

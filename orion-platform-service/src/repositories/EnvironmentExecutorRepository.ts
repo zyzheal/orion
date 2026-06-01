@@ -197,7 +197,7 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
 
     if (fields.length === 0) {
       const entity = await this.findById(id);
-      if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Entity with id ${id} not found`);
+      if (!entity) throw new OrionError(`Entity with id ${id} not found`, ErrorCode.NOT_FOUND);
       return entity;
     }
 
@@ -210,7 +210,7 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
       values,
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Update failed: entity with id ${id} not found`);
+      throw new OrionError(`Update failed: entity with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

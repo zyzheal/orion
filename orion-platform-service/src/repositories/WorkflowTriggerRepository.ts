@@ -94,7 +94,7 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
     );
 
     if ((result as any).rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into workflow_triggers returned no rows');
+      throw new OrionError('INSERT into workflow_triggers returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity((result as any).rows[0]);
   }
