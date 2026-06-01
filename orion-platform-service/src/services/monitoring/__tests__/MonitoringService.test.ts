@@ -170,10 +170,10 @@ describe('MonitoringService', () => {
   // ==================== Dashboard ====================
 
   describe('dashboard', () => {
-    it('should get dashboard data', () => {
+    it('should get dashboard data', async () => {
       service.metricCollector.recordMetric('system.cpu.usage', 45);
 
-      const data = service.getDashboardData();
+      const data = await service.getDashboardData();
       expect(data).toBeDefined();
       expect(data.widgets).toBeDefined();
       expect(data.healthScore).toBeDefined();

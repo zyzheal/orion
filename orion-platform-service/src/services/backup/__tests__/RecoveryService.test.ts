@@ -52,8 +52,8 @@ describe('RecoveryService', () => {
   // ==================== Recovery Plan Management ====================
 
   describe('createPlan', () => {
-    it('should create a recovery plan', () => {
-      const plan = recovery.createPlan(createRecoveryPlan());
+    it('should create a recovery plan', async () => {
+      const plan = await recovery.createPlan(createRecoveryPlan());
 
       expect(plan.id).toBe('rp-1');
       expect(plan.name).toBe('Test Recovery Plan');
@@ -62,18 +62,18 @@ describe('RecoveryService', () => {
       expect(plan.steps.length).toBe(5);
     });
 
-    it('should throw error for invalid RTO', () => {
-      expect(() => recovery.createPlan(createRecoveryPlan({ rto: 0 })))
-        .toThrow('RTO must be a positive number');
+    it('should throw error for invalid RTO', async () => {
+      await expect(recovery.createPlan(createRecoveryPlan({ rto: 0 })))
+        .rejects.toThrow('RTO must be a positive number');
     });
 
-    it('should throw error for invalid RPO', () => {
-      expect(() => recovery.createPlan(createRecoveryPlan({ rpo: -1 })))
-        .toThrow('RPO must be a positive number');
+    it('should throw error for invalid RPO', async () => {
+      await expect(recovery.createPlan(createRecoveryPlan({ rpo: -1 })))
+        .rejects.toThrow('RPO must be a positive number');
     });
 
-    it('should sort steps by order', () => {
-      const plan = recovery.createPlan(createRecoveryPlan({
+    it('should sort steps by order', async () => {
+      const plan = await recovery.createPlan(createRecoveryPlan({
         steps: [
           { order: 2, description: 'Step 3', action: 'verify' },
           { order: 0, description: 'Step 1', action: 'restore_database' },
@@ -86,18 +86,18 @@ describe('RecoveryService', () => {
       expect(plan.steps[2].description).toBe('Step 3');
     });
 
-    it('should emit plan:created event', () => {
+    it('should emit plan:created event', async () => {
       let created = false;
       recovery.on('plan:created', () => { created = true; });
 
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
       expect(created).toBe(true);
     });
   });
 
   describe('getPlan', () => {
-    it('should return a plan by ID', () => {
-      recovery.createPlan(createRecoveryPlan());
+    it('should return a plan by ID', async () => {
+      await recovery.createPlan(createRecoveryPlan());
 
       const plan = recovery.getPlan('rp-1');
       expect(plan).not.toBeNull();
@@ -111,9 +111,9 @@ describe('RecoveryService', () => {
   });
 
   describe('getAllPlans', () => {
-    it('should return all plans', () => {
-      recovery.createPlan(createRecoveryPlan({ id: 'rp-1' }));
-      recovery.createPlan(createRecoveryPlan({ id: 'rp-2', name: 'Plan 2' }));
+    it('should return all plans', async () => {
+      await recovery.createPlan(createRecoveryPlan({ id: 'rp-1' }));
+      await recovery.createPlan(createRecoveryPlan({ id: 'rp-2', name: 'Plan 2' }));
 
       const plans = recovery.getAllPlans();
       expect(plans.length).toBe(2);
@@ -121,40 +121,40 @@ describe('RecoveryService', () => {
   });
 
   describe('updatePlan', () => {
-    it('should update a plan', () => {
-      recovery.createPlan(createRecoveryPlan());
+    it('should update a plan', async () => {
+      await recovery.createPlan(createRecoveryPlan());
 
-      const updated = recovery.updatePlan('rp-1', { name: 'Updated Plan' });
+      const updated = await recovery.updatePlan('rp-1', { name: 'Updated Plan' });
       expect(updated).not.toBeNull();
       expect(updated!.name).toBe('Updated Plan');
     });
 
-    it('should return null for non-existent plan', () => {
-      const updated = recovery.updatePlan('non-existent', { name: 'Updated' });
+    it('should return null for non-existent plan', async () => {
+      const updated = await recovery.updatePlan('non-existent', { name: 'Updated' });
       expect(updated).toBeNull();
     });
   });
 
   describe('deletePlan', () => {
-    it('should delete a plan', () => {
-      recovery.createPlan(createRecoveryPlan());
+    it('should delete a plan', async () => {
+      await recovery.createPlan(createRecoveryPlan());
 
-      const deleted = recovery.deletePlan('rp-1');
+      const deleted = await recovery.deletePlan('rp-1');
       expect(deleted).toBe(true);
       expect(recovery.getPlan('rp-1')).toBeNull();
     });
 
-    it('should return false for non-existent plan', () => {
-      const deleted = recovery.deletePlan('non-existent');
+    it('should return false for non-existent plan', async () => {
+      const deleted = await recovery.deletePlan('non-existent');
       expect(deleted).toBe(false);
     });
   });
 
   describe('markPlanTested', () => {
-    it('should mark a plan as tested', () => {
-      recovery.createPlan(createRecoveryPlan());
+    it('should mark a plan as tested', async () => {
+      await recovery.createPlan(createRecoveryPlan());
 
-      const updated = recovery.markPlanTested('rp-1');
+      const updated = await recovery.markPlanTested('rp-1');
       expect(updated).not.toBeNull();
       expect(updated!.lastTested).toBeDefined();
     });
@@ -164,7 +164,7 @@ describe('RecoveryService', () => {
 
   describe('initiateRecovery', () => {
     it('should initiate a recovery process', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
 
@@ -181,14 +181,14 @@ describe('RecoveryService', () => {
     });
 
     it('should throw error for disabled plan', async () => {
-      recovery.createPlan(createRecoveryPlan({ enabled: false }));
+      await recovery.createPlan(createRecoveryPlan({ enabled: false }));
 
       await expect(recovery.initiateRecovery('rp-1'))
         .rejects.toThrow('Recovery plan rp-1 is disabled');
     });
 
     it('should accept backupId and targetTime options', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const targetTime = new Date('2024-01-15T10:00:00Z');
       const execution = await recovery.initiateRecovery('rp-1', {
@@ -201,7 +201,7 @@ describe('RecoveryService', () => {
     });
 
     it('should emit recovery:initiated event', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       let initiated = false;
       recovery.on('recovery:initiated', () => { initiated = true; });
@@ -213,7 +213,7 @@ describe('RecoveryService', () => {
 
   describe('executeRecoveryPlan', () => {
     it('should execute a recovery plan successfully', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
       const result = await recovery.executeRecoveryPlan(execution.id);
@@ -230,7 +230,7 @@ describe('RecoveryService', () => {
     });
 
     it('should emit recovery:started event', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
 
@@ -242,7 +242,7 @@ describe('RecoveryService', () => {
     });
 
     it('should emit recovery:completed event', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
 
@@ -298,7 +298,7 @@ describe('RecoveryService', () => {
 
   describe('initiatePointInTimeRecovery', () => {
     it('should initiate point-in-time recovery', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const backups: BackupRecord[] = [
         createBackupRecord({
@@ -316,7 +316,7 @@ describe('RecoveryService', () => {
     });
 
     it('should throw error when no suitable backup found', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const targetTime = new Date('2024-01-01T00:00:00Z');
       await expect(
@@ -329,7 +329,7 @@ describe('RecoveryService', () => {
 
   describe('trackRTO', () => {
     it('should track RTO compliance', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
       await recovery.executeRecoveryPlan(execution.id);
@@ -338,7 +338,7 @@ describe('RecoveryService', () => {
     });
 
     it('should emit recovery:rto:tracked event', async () => {
-      recovery.createPlan(createRecoveryPlan({ rto: 1 })); // Very short RTO to potentially miss
+      await recovery.createPlan(createRecoveryPlan({ rto: 1 })); // Very short RTO to potentially miss
 
       const execution = await recovery.initiateRecovery('rp-1');
       await recovery.executeRecoveryPlan(execution.id);
@@ -350,7 +350,7 @@ describe('RecoveryService', () => {
 
   describe('trackRPO', () => {
     it('should track RPO compliance with target time', async () => {
-      recovery.createPlan(createRecoveryPlan({
+      await recovery.createPlan(createRecoveryPlan({
         rpo: 172800000, // 48 hours
       }));
 
@@ -376,7 +376,7 @@ describe('RecoveryService', () => {
 
   describe('getRtoRpoStats', () => {
     it('should return statistics after executions', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution1 = await recovery.initiateRecovery('rp-1');
       await recovery.executeRecoveryPlan(execution1.id);
@@ -403,7 +403,7 @@ describe('RecoveryService', () => {
 
   describe('rollbackRecovery', () => {
     it('should rollback a failed recovery', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
       // Manually set to failed for rollback testing
@@ -423,7 +423,7 @@ describe('RecoveryService', () => {
 
   describe('getExecution', () => {
     it('should return an execution by ID', async () => {
-      recovery.createPlan(createRecoveryPlan());
+      await recovery.createPlan(createRecoveryPlan());
 
       const execution = await recovery.initiateRecovery('rp-1');
       const retrieved = recovery.getExecution(execution.id);
@@ -435,8 +435,8 @@ describe('RecoveryService', () => {
 
   describe('getExecutionsForPlan', () => {
     it('should return executions for a specific plan', async () => {
-      recovery.createPlan(createRecoveryPlan({ id: 'rp-1' }));
-      recovery.createPlan(createRecoveryPlan({ id: 'rp-2', name: 'Plan 2' }));
+      await recovery.createPlan(createRecoveryPlan({ id: 'rp-1' }));
+      await recovery.createPlan(createRecoveryPlan({ id: 'rp-2', name: 'Plan 2' }));
 
       await recovery.initiateRecovery('rp-1');
       await recovery.initiateRecovery('rp-1');

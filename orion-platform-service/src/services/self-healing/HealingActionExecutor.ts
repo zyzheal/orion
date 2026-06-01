@@ -446,13 +446,15 @@ export class HealingActionExecutor {
         await this.delay(Math.min(10, timeoutMs));
       }
 
-      // Wait for restart to take effect
-      const restartPromise = this.delay(Math.min(5000, timeoutMs));
-      const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(`Restart timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
-      });
+      // Wait for restart to take effect (skip in simulated mode)
+      if (!isSimulateMode() && k8sManager.isAvailable()) {
+        const restartPromise = this.delay(Math.min(5000, timeoutMs));
+        const timeoutPromise = this.delay(timeoutMs).then(() => {
+          throw new OrionError(`Restart timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
+        });
 
-      await Promise.race([restartPromise, timeoutPromise]);
+        await Promise.race([restartPromise, timeoutPromise]);
+      }
 
       // Verify restart
       const verified = await this.verifyRestart(action.params);
@@ -561,13 +563,15 @@ export class HealingActionExecutor {
         await this.delay(Math.min(10, timeoutMs));
       }
 
-      // Wait for scale to take effect
-      const scalePromise = this.delay(Math.min(5000, timeoutMs));
-      const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(`Scale timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
-      });
+      // Wait for scale to take effect (skip in simulated mode)
+      if (!isSimulateMode() && k8sManager.isAvailable()) {
+        const scalePromise = this.delay(Math.min(5000, timeoutMs));
+        const timeoutPromise = this.delay(timeoutMs).then(() => {
+          throw new OrionError(`Scale timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
+        });
 
-      await Promise.race([scalePromise, timeoutPromise]);
+        await Promise.race([scalePromise, timeoutPromise]);
+      }
 
       // Verify scale
       const verified = await this.verifyScale(action.params);
@@ -647,13 +651,15 @@ export class HealingActionExecutor {
         await this.delay(Math.min(10, timeoutMs));
       }
 
-      // Wait for failover to take effect
-      const failoverPromise = this.delay(Math.min(5000, timeoutMs));
-      const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(`Failover timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
-      });
+      // Wait for failover to take effect (skip in simulated mode)
+      if (!isSimulateMode() && k8sManager.isAvailable()) {
+        const failoverPromise = this.delay(Math.min(5000, timeoutMs));
+        const timeoutPromise = this.delay(timeoutMs).then(() => {
+          throw new OrionError(`Failover timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
+        });
 
-      await Promise.race([failoverPromise, timeoutPromise]);
+        await Promise.race([failoverPromise, timeoutPromise]);
+      }
 
       // Verify failover
       const verified = await this.verifyFailover(action.params);
@@ -795,13 +801,15 @@ export class HealingActionExecutor {
         await this.delay(Math.min(10, timeoutMs));
       }
 
-      // Wait for rollback to take effect
-      const rollbackPromise = this.delay(Math.min(5000, timeoutMs));
-      const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(`Rollback timed out after ${timeoutMs}ms`, 'OPERATION_FAILED')
-      });
+      // Wait for rollback to take effect (skip in simulated mode)
+      if (!isSimulateMode() && k8sManager.isAvailable()) {
+        const rollbackPromise = this.delay(Math.min(5000, timeoutMs));
+        const timeoutPromise = this.delay(timeoutMs).then(() => {
+          throw new OrionError(`Rollback timed out after ${timeoutMs}ms`, 'OPERATION_FAILED')
+        });
 
-      await Promise.race([rollbackPromise, timeoutPromise]);
+        await Promise.race([rollbackPromise, timeoutPromise]);
+      }
 
       // Verify rollback
       const verified = await this.verifyRollback(action.params);

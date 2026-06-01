@@ -249,62 +249,62 @@ describe('HealingStrategyEngine', () => {
   });
 
   describe('Built-in Strategies', () => {
-    it('should register built-in strategies on construction', () => {
-      const strategies = engine.getAllStrategies();
+    it('should register built-in strategies on construction', async () => {
+      const strategies = await engine.getAllStrategies();
       expect(strategies.length).toBeGreaterThanOrEqual(8);
     });
 
-    it('should have restart-on-crash strategy', () => {
-      const strategy = engine.getStrategy('restart-on-crash');
+    it('should have restart-on-crash strategy', async () => {
+      const strategy = await engine.getStrategy('restart-on-crash');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('pod_crash');
       expect(strategy?.confidence).toBe(90);
     });
 
-    it('should have scale-on-high-cpu strategy', () => {
-      const strategy = engine.getStrategy('scale-on-high-cpu');
+    it('should have scale-on-high-cpu strategy', async () => {
+      const strategy = await engine.getStrategy('scale-on-high-cpu');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('high_cpu');
     });
 
-    it('should have failover-on-node-failure strategy', () => {
-      const strategy = engine.getStrategy('failover-on-node-failure');
+    it('should have failover-on-node-failure strategy', async () => {
+      const strategy = await engine.getStrategy('failover-on-node-failure');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('node_failure');
     });
 
-    it('should have rollback-on-deployment-failure strategy', () => {
-      const strategy = engine.getStrategy('rollback-on-deployment-failure');
+    it('should have rollback-on-deployment-failure strategy', async () => {
+      const strategy = await engine.getStrategy('rollback-on-deployment-failure');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('deployment_failure');
     });
   });
 
   describe('registerStrategy', () => {
-    it('should register a new strategy', () => {
+    it('should register a new strategy', async () => {
       const strategy = createStrategy({ id: 'custom-strategy' });
-      engine.registerStrategy(strategy);
+      await engine.registerStrategy(strategy);
 
-      const found = engine.getStrategy('custom-strategy');
+      const found = await engine.getStrategy('custom-strategy');
       expect(found).toBeDefined();
       expect(found?.id).toBe('custom-strategy');
     });
 
-    it('should make strategy available in getAllStrategies', () => {
-      const count = engine.getAllStrategies().length;
-      engine.registerStrategy(createStrategy({ id: 'new-strategy' }));
+    it('should make strategy available in getAllStrategies', async () => {
+      const count = (await engine.getAllStrategies()).length;
+      await engine.registerStrategy(createStrategy({ id: 'new-strategy' }));
 
-      expect(engine.getAllStrategies().length).toBe(count + 1);
+      expect((await engine.getAllStrategies()).length).toBe(count + 1);
     });
   });
 
   describe('unregisterStrategy', () => {
     it('should remove a registered strategy', async () => {
-      engine.registerStrategy(createStrategy({ id: 'to-remove' }));
+      await engine.registerStrategy(createStrategy({ id: 'to-remove' }));
 
       const result = await engine.unregisterStrategy('to-remove');
       expect(result).toBe(true);
-      expect(engine.getStrategy('to-remove')).toBeUndefined();
+      expect(await engine.getStrategy('to-remove')).toBeUndefined();
     });
 
     it('should return false for non-existent strategy', async () => {
@@ -316,16 +316,16 @@ describe('HealingStrategyEngine', () => {
   describe('enableStrategy / disableStrategy', () => {
     it('should enable a disabled strategy', async () => {
       const strategy = createStrategy({ id: 'toggle-test', enabled: false });
-      engine.registerStrategy(strategy);
+      await engine.registerStrategy(strategy);
 
       const result = await engine.enableStrategy('toggle-test');
       expect(result).toBe(true);
-      expect(engine.getStrategy('toggle-test')?.enabled).toBe(true);
+      expect((await engine.getStrategy('toggle-test'))?.enabled).toBe(true);
     });
 
     it('should disable an enabled strategy', async () => {
       await engine.disableStrategy('restart-on-crash');
-      expect(engine.getStrategy('restart-on-crash')?.enabled).toBe(false);
+      expect((await engine.getStrategy('restart-on-crash'))?.enabled).toBe(false);
     });
 
     it('should return false for non-existent strategy', async () => {
@@ -335,39 +335,39 @@ describe('HealingStrategyEngine', () => {
   });
 
   describe('matchStrategies', () => {
-    it('should match strategies by incident type', () => {
-      const matches = engine.matchStrategies('pod_crash');
+    it('should match strategies by incident type', async () => {
+      const matches = await engine.matchStrategies('pod_crash');
       expect(matches.length).toBeGreaterThan(0);
       expect(matches.every((s) => s.triggerType === 'pod_crash' || s.triggerType === 'any')).toBe(true);
     });
 
-    it('should return empty array for unmatched type', () => {
-      engine.disableStrategy('high_latency' as any);
-      const matches = engine.matchStrategies('custom');
+    it('should return empty array for unmatched type', async () => {
+      await engine.disableStrategy('high_latency' as any);
+      const matches = await engine.matchStrategies('custom');
       expect(matches.length).toBe(0);
     });
 
-    it('should only return enabled strategies', () => {
-      engine.disableStrategy('restart-on-crash');
+    it('should only return enabled strategies', async () => {
+      await engine.disableStrategy('restart-on-crash');
 
-      const matches = engine.matchStrategies('pod_crash');
+      const matches = await engine.matchStrategies('pod_crash');
       expect(matches.every((s) => s.id !== 'restart-on-crash')).toBe(true);
     });
 
-    it('should match strategies with "any" trigger type', () => {
-      engine.registerStrategy(createStrategy({
+    it('should match strategies with "any" trigger type', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'any-trigger',
         triggerType: 'any',
         confidence: 50,
       }));
 
-      const matches = engine.matchStrategies('pod_crash');
+      const matches = await engine.matchStrategies('pod_crash');
       const anyStrategy = matches.find((s) => s.id === 'any-trigger');
       expect(anyStrategy).toBeDefined();
     });
 
-    it('should filter by conditions', () => {
-      engine.registerStrategy(createStrategy({
+    it('should filter by conditions', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'conditional',
         triggerType: 'pod_crash',
         conditions: [
@@ -375,46 +375,46 @@ describe('HealingStrategyEngine', () => {
         ],
       }));
 
-      const criticalMatches = engine.matchStrategies('pod_crash', { severity: 'critical' });
+      const criticalMatches = await engine.matchStrategies('pod_crash', { severity: 'critical' });
       expect(criticalMatches.some((s) => s.id === 'conditional')).toBe(true);
 
-      const warningMatches = engine.matchStrategies('pod_crash', { severity: 'warning' });
+      const warningMatches = await engine.matchStrategies('pod_crash', { severity: 'warning' });
       expect(warningMatches.some((s) => s.id === 'conditional')).toBe(false);
     });
   });
 
   describe('selectBestStrategy', () => {
-    it('should select strategy with highest confidence', () => {
-      engine.registerStrategy(createStrategy({
+    it('should select strategy with highest confidence', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'low-conf',
         triggerType: 'pod_crash',
         confidence: 30,
       }));
 
-      const best = engine.selectBestStrategy('pod_crash');
+      const best = await engine.selectBestStrategy('pod_crash');
       expect(best?.id).toBe('restart-on-crash');
     });
 
-    it('should return null when no strategies match', () => {
-      const best = engine.selectBestStrategy('custom');
+    it('should return null when no strategies match', async () => {
+      const best = await engine.selectBestStrategy('custom');
       expect(best).toBeNull();
     });
 
-    it('should prefer strategies with more retries on tie', () => {
-      engine.registerStrategy(createStrategy({
+    it('should prefer strategies with more retries on tie', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'tie-a',
         triggerType: 'custom',
         confidence: 50,
         maxRetries: 3,
       }));
-      engine.registerStrategy(createStrategy({
+      await engine.registerStrategy(createStrategy({
         id: 'tie-b',
         triggerType: 'custom',
         confidence: 50,
         maxRetries: 1,
       }));
 
-      const best = engine.selectBestStrategy('custom');
+      const best = await engine.selectBestStrategy('custom');
       expect(best?.id).toBe('tie-a');
     });
   });
@@ -431,7 +431,7 @@ describe('HealingActionExecutor', () => {
 
   describe('executeAction', () => {
     it('should execute restart action successfully', async () => {
-      const action = createAction({ type: 'restart' });
+      const action = createAction({ type: 'restart', timeout: 100 });
       const result = await executor.executeAction(action);
 
       expect(result.type).toBe('restart');
@@ -443,6 +443,7 @@ describe('HealingActionExecutor', () => {
     it('should execute scale action successfully', async () => {
       const action = createAction({
         type: 'scale',
+        timeout: 100,
         params: { target: 'test-app', direction: 'up', increment: 2 },
       });
       const result = await executor.executeAction(action);
@@ -454,6 +455,7 @@ describe('HealingActionExecutor', () => {
     it('should execute failover action successfully', async () => {
       const action = createAction({
         type: 'failover',
+        timeout: 100,
         params: { target: 'test-app', sourceNode: 'node-1' },
       });
       const result = await executor.executeAction(action);
@@ -465,6 +467,7 @@ describe('HealingActionExecutor', () => {
     it('should execute rollback action successfully', async () => {
       const action = createAction({
         type: 'rollback',
+        timeout: 100,
         params: { target: 'test-app', targetVersion: '1.0.0' },
       });
       const result = await executor.executeAction(action);
@@ -509,7 +512,7 @@ describe('HealingActionExecutor', () => {
 
   describe('rollbackAction', () => {
     it('should rollback a restart action', async () => {
-      const action = createAction({ type: 'restart' });
+      const action = createAction({ type: 'restart', timeout: 100 });
       const result = await executor.rollbackAction(action);
 
       expect(result.type).toBe('restart');
@@ -519,6 +522,7 @@ describe('HealingActionExecutor', () => {
     it('should rollback a scale action', async () => {
       const action = createAction({
         type: 'scale',
+        timeout: 100,
         params: { direction: 'up', increment: 2 },
       });
       const result = await executor.rollbackAction(action);
@@ -528,7 +532,7 @@ describe('HealingActionExecutor', () => {
     });
 
     it('should rollback a failover action', async () => {
-      const action = createAction({ type: 'failover', params: {} });
+      const action = createAction({ type: 'failover', timeout: 100, params: {} });
       const result = await executor.rollbackAction(action);
 
       expect(result.type).toBe('failover');
@@ -538,18 +542,19 @@ describe('HealingActionExecutor', () => {
 
   describe('getExecutedActions', () => {
     it('should track executed actions', async () => {
-      await executor.executeAction(createAction({ type: 'restart' }));
-      await executor.executeAction(createAction({ type: 'scale' }));
+      await executor.executeAction(createAction({ type: 'restart', timeout: 100 }));
+      await executor.executeAction(createAction({ type: 'scale', timeout: 100 }));
 
-      const actions = executor.getExecutedActions();
+      const actions = await executor.getExecutedActions();
       expect(actions.length).toBe(2);
     });
 
     it('should clear executed actions', async () => {
-      await executor.executeAction(createAction({ type: 'restart' }));
+      await executor.executeAction(createAction({ type: 'restart', timeout: 100 }));
       executor.clearExecutedActions();
 
-      expect(executor.getExecutedActions().length).toBe(0);
+      const actions = await executor.getExecutedActions();
+      expect(actions.length).toBe(0);
     });
   });
 });
@@ -797,12 +802,12 @@ describe('HealingDecisionMaker', () => {
           approved: false,
           respondedBy: 'admin',
         })
-      ).toThrow('already approved');
+      ).toThrow('not pending');
     });
   });
 
   describe('getApprovalRequests', () => {
-    it('should return all requests when no filter', () => {
+    it('should return all requests when no filter', async () => {
       decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
@@ -818,11 +823,11 @@ describe('HealingDecisionMaker', () => {
         incidentType: 'pod_crash',
       });
 
-      const requests = decisionMaker.getApprovalRequests();
+      const requests = await decisionMaker.getApprovalRequests();
       expect(requests.length).toBe(2);
     });
 
-    it('should filter by status', () => {
+    it('should filter by status', async () => {
       const req1 = decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
@@ -840,13 +845,13 @@ describe('HealingDecisionMaker', () => {
 
       decisionMaker.respondToApproval(req1.id, { approved: true, respondedBy: 'admin' });
 
-      const pending = decisionMaker.getApprovalRequests('pending');
+      const pending = await decisionMaker.getApprovalRequests('pending');
       expect(pending.length).toBe(1);
     });
   });
 
   describe('checkExpiredRequests', () => {
-    it('should mark expired requests as expired', () => {
+    it('should mark expired requests as expired', async () => {
       const dm = new HealingDecisionMaker({
         approvalExpirationMs: 0,
       });
@@ -860,7 +865,7 @@ describe('HealingDecisionMaker', () => {
       });
 
       dm.checkExpiredRequests();
-      const updated = dm.getApprovalRequest(request.id);
+      const updated = await dm.getApprovalRequest(request.id);
       expect(updated?.status).toBe('expired');
     });
   });
@@ -1242,13 +1247,13 @@ describe('SelfHealingService', () => {
   });
 
   describe('Strategy Management', () => {
-    it('should return all strategies', () => {
-      const strategies = service.getStrategies();
+    it('should return all strategies', async () => {
+      const strategies = await service.getStrategies();
       expect(strategies.length).toBeGreaterThanOrEqual(8);
     });
 
-    it('should get strategy by ID', () => {
-      const strategy = service.getStrategy('restart-on-crash');
+    it('should get strategy by ID', async () => {
+      const strategy = await service.getStrategy('restart-on-crash');
       expect(strategy).toBeDefined();
       expect(strategy?.name).toBe('Auto Restart on Crash');
     });
@@ -1257,20 +1262,20 @@ describe('SelfHealingService', () => {
       const result = await service.toggleStrategy('restart-on-crash', false);
       expect(result).toBe(true);
 
-      const strategy = service.getStrategy('restart-on-crash');
+      const strategy = await service.getStrategy('restart-on-crash');
       expect(strategy?.enabled).toBe(false);
     });
 
-    it('should register custom strategy', () => {
+    it('should register custom strategy', async () => {
       const customStrategy = createStrategy({
         id: 'my-custom-strategy',
         name: 'My Custom Strategy',
         triggerType: 'custom',
       });
 
-      service.registerCustomStrategy(customStrategy);
+      await service.registerCustomStrategy(customStrategy);
 
-      const found = service.getStrategy('my-custom-strategy');
+      const found = await service.getStrategy('my-custom-strategy');
       expect(found).toBeDefined();
       expect(found?.name).toBe('My Custom Strategy');
     });
