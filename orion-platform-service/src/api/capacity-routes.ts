@@ -7,10 +7,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { CapacityService } from '../services/capacity/CapacityService';
+import { DatabasePool } from '../services/database';
 
-const capacityService = new CapacityService();
+interface CapacityRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function capacityRoutes(app: FastifyInstance): Promise<void> {
+export default async function capacityRoutes(
+  app: FastifyInstance,
+  options: CapacityRoutesOptions = {}
+): Promise<void> {
+  void options.database;
+  const capacityService = new CapacityService();
   // Metrics
   app.post('/capacity/metrics', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capacity', action: 'write' })],

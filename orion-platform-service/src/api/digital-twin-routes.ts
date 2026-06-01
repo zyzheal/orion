@@ -9,10 +9,17 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DigitalTwinController } from './controllers/DigitalTwinController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
-const controller = new DigitalTwinController();
+interface DigitalTwinRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function digitalTwinRoutes(app: FastifyInstance): Promise<void> {
+export default async function digitalTwinRoutes(
+  app: FastifyInstance,
+  options: DigitalTwinRoutesOptions = {}
+): Promise<void> {
+  const controller = new DigitalTwinController();
   // POST /v1/digital-twins - Register twin
   app.post('/', {
     onRequest: [authenticateUser, requirePermission({ resource: 'digital-twin', action: 'write' })],

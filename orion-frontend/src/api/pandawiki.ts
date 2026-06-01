@@ -45,43 +45,43 @@ export interface SearchResult {
 // ---- Spaces ----
 
 export function listSpaces() {
-  return api.get<WikiSpace[]>('/pandawiki/spaces');
+  return api.get<WikiSpace[]>('/v1/knowledge/spaces');
 }
 
 export function createSpace(data: CreateSpaceInput) {
-  return api.post('/pandawiki/spaces', data);
+  return api.post('/v1/knowledge/spaces', data);
 }
 
 export function getSpace(id: string) {
-  return api.get(`/pandawiki/spaces/${id}`);
+  return api.get(`/v1/knowledge/spaces/${id}`);
 }
 
 export function deleteSpace(id: string) {
-  return api.delete(`/pandawiki/spaces/${id}`);
+  return api.delete(`/v1/knowledge/spaces/${id}`);
 }
 
 // ---- Documents ----
 
 export function listDocuments(spaceId: string) {
-  return api.get<WikiDocument[]>(`/pandawiki/spaces/${spaceId}/documents`);
+  return api.get<WikiDocument[]>(`/v1/knowledge/spaces/${spaceId}/documents`);
 }
 
 export function createDocument(spaceId: string, data: CreateDocumentInput) {
-  return api.post(`/pandawiki/spaces/${spaceId}/documents`, data);
+  return api.post(`/v1/knowledge/spaces/${spaceId}/documents`, data);
 }
 
 export function getDocument(spaceId: string, docId: string) {
-  return api.get(`/pandawiki/spaces/${spaceId}/documents/${docId}`);
+  return api.get(`/v1/knowledge/spaces/${spaceId}/documents/${docId}`);
 }
 
 export function deleteDocument(spaceId: string, docId: string) {
-  return api.delete(`/pandawiki/spaces/${spaceId}/documents/${docId}`);
+  return api.delete(`/v1/knowledge/spaces/${spaceId}/documents/${docId}`);
 }
 
 // ---- Search ----
 
 export function searchDocuments(query: string, spaceId?: string) {
-  return api.get<SearchResult[]>('/pandawiki/search', {
+  return api.get<SearchResult[]>('/v1/knowledge/search', {
     params: { q: query, spaceId },
   });
 }

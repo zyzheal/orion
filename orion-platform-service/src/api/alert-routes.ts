@@ -15,12 +15,22 @@ import { AlertSuppressionService } from '../services/alert/AlertSuppressionServi
 import { AlertStatus, Alert, AlertSeverity } from '../services/alert/AlertTypes';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
+import { DatabasePool } from '../services/database';
 
-export default async function alertRoutes(app: FastifyInstance): Promise<void> {
-  // Initialize services
-  const correlationService = new AlertCorrelationService();
-  const deduplication = new AlertDeduplication();
-  const suppressionService = new AlertSuppressionService();
+interface AlertRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function alertRoutes(
+  app: FastifyInstance,
+  options: AlertRoutesOptions = {}
+): Promise<void> {
+  const db = options.database;
+
+  // Initialize services with DB for persistence
+  const correlationService = new AlertCorrelationService(undefined, db);
+  const deduplication = new AlertDeduplication(undefined, db);
+  const suppressionService = new AlertSuppressionService(deduplication, correlationService, undefined, db);
 
   // Start deduplication service
   deduplication.start();

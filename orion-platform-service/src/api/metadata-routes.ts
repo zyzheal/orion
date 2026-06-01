@@ -9,10 +9,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MetadataService } from '../services/metadata/MetadataService';
+import { DatabasePool } from '../services/database';
 
-const metadataService = new MetadataService();
+interface MetadataRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function metadataRoutes(app: FastifyInstance): Promise<void> {
+export default async function metadataRoutes(
+  app: FastifyInstance,
+  options: MetadataRoutesOptions = {}
+): Promise<void> {
+  void options.database;
+  const metadataService = new MetadataService();
   // Catalog
   app.post('/metadata/catalog', {
     onRequest: [authenticateUser, requirePermission({ resource: 'metadata', action: 'write' })],

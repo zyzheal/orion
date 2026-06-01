@@ -14,14 +14,21 @@ import { CostAnomalyDetectionService } from '../services/cost/CostAnomalyDetecti
 import { CostOptimizationService } from '../services/cost/CostOptimizationService';
 import { DatabasePool } from '../services/database';
 
-const mockPool = {} as unknown as DatabasePool;
-const controller = new CostOperationsController(
-  new CostBudgetGuardService(mockPool),
-  new CostAnomalyDetectionService(mockPool),
-  new CostOptimizationService(mockPool),
-);
+interface FinOpsRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function finOpsRoutes(app: FastifyInstance): Promise<void> {
+export default async function finOpsRoutes(
+  app: FastifyInstance,
+  options: FinOpsRoutesOptions = {}
+): Promise<void> {
+  const db = options.database;
+  const controller = new CostOperationsController(
+    new CostBudgetGuardService(db || ({} as any)),
+    new CostAnomalyDetectionService(db || ({} as any)),
+    new CostOptimizationService(db || ({} as any)),
+  );
+
   // Budget Guard
   app.post('/cost-operations/budget-guards', {
     onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],

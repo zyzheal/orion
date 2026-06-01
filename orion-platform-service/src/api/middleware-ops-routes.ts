@@ -7,10 +7,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MiddlewareOpsService } from '../services/middleware-ops/MiddlewareOpsService';
+import { DatabasePool } from '../services/database';
 
-const middlewareOpsService = new MiddlewareOpsService();
+interface MiddlewareOpsRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function middlewareOpsRoutes(app: FastifyInstance): Promise<void> {
+export default async function middlewareOpsRoutes(
+  app: FastifyInstance,
+  options: MiddlewareOpsRoutesOptions = {}
+): Promise<void> {
+  void options.database;
+  const middlewareOpsService = new MiddlewareOpsService();
   // Instances
   app.post('/middleware/instances', {
     onRequest: [authenticateUser, requirePermission({ resource: 'middleware', action: 'write' })],

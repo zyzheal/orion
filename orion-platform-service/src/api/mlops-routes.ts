@@ -9,10 +9,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MLOpsService } from '../services/mlops/MLOpsService';
+import { DatabasePool } from '../services/database';
 
-const mlopsService = new MLOpsService();
+interface MLOpsRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function mlopsRoutes(app: FastifyInstance): Promise<void> {
+export default async function mlopsRoutes(
+  app: FastifyInstance,
+  options: MLOpsRoutesOptions = {}
+): Promise<void> {
+  void options.database;
+  const mlopsService = new MLOpsService();
   // ==================== Experiments ====================
 
   app.post('/mlops/experiments', {

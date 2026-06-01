@@ -56,7 +56,9 @@ export default async function tenantRoutes(
   const quotaService = options.database
     ? new TenantQuotaService(options.database)
     : tenantQuotaService;
-  const namespacePool = namespacePoolService;
+  const namespacePool = options.database
+    ? new NamespacePoolService({}, options.database)
+    : namespacePoolService;
 
   // Initialize database-backed TenantService via Repository pattern
   let tenantService: TenantService | null = null;

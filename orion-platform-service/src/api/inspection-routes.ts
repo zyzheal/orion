@@ -7,10 +7,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { InspectionService } from '../services/inspection/InspectionService';
+import { DatabasePool } from '../services/database';
 
-const inspectionService = new InspectionService();
+interface InspectionRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function inspectionRoutes(app: FastifyInstance): Promise<void> {
+export default async function inspectionRoutes(
+  app: FastifyInstance,
+  options: InspectionRoutesOptions = {}
+): Promise<void> {
+  void options.database;
+  const inspectionService = new InspectionService();
   // Rules
   app.post('/inspection/rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'inspection', action: 'write' })],

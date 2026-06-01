@@ -12,6 +12,7 @@ import { SecretSanitizer } from '../services/privacy/SecretSanitizer';
 import { PIISanitizer } from '../services/privacy/PIISanitizer';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
 interface TenantParams {
   tenantId: string;
@@ -44,7 +45,15 @@ let policyService: TenantPrivacyPolicyService | null = null;
 let secretSanitizer: SecretSanitizer | null = null;
 let piiSanitizer: PIISanitizer | null = null;
 
-export default async function privacyRoutes(fastify: FastifyInstance) {
+interface PrivacyRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function privacyRoutes(
+  fastify: FastifyInstance,
+  options: PrivacyRoutesOptions = {}
+): Promise<void> {
+  void options.database;
   // Initialize service singletons
   if (!policyService) {
     policyService = new TenantPrivacyPolicyService();

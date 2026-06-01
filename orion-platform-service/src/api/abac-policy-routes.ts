@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { abacPolicyEngine, AbacPolicy, ConditionRule } from '../services/authz/AbacPolicyEngine';
 import { OrionError, ErrorCode } from '../errors';
+import { DatabasePool } from '../services/database';
 
 interface PolicyParams {
   id: string;
@@ -109,7 +110,15 @@ export function registerSystemPolicyId(id: string): void {
   SYSTEM_POLICY_IDS.add(id);
 }
 
-export default async function abacPolicyRoutes(app: FastifyInstance): Promise<void> {
+interface AbacPolicyRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function abacPolicyRoutes(
+  app: FastifyInstance,
+  options: AbacPolicyRoutesOptions = {}
+): Promise<void> {
+  void options.database;
   // Error handler
   function handleError(error: Error, reply: FastifyReply) {
     return reply.status(500).send({

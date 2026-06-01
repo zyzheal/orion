@@ -8,10 +8,18 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { ServerlessService } from '../services/serverless/ServerlessService';
 import type { FunctionStatus, FunctionRuntime, TriggerType } from '../services/serverless/ServerlessService';
+import { DatabasePool } from '../services/database';
 
-const serverlessService = new ServerlessService();
+interface ServerlessRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function serverlessRoutes(app: FastifyInstance): Promise<void> {
+export default async function serverlessRoutes(
+  app: FastifyInstance,
+  options: ServerlessRoutesOptions = {}
+): Promise<void> {
+  void options.database;
+  const serverlessService = new ServerlessService();
 
   // ============================================================================
   // Functions CRUD

@@ -13,6 +13,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { AIGateway } from '../services/ai/AIGateway';
 import { AIGenerateService, GenerateRequest } from '../services/ai/AIGenerateService';
 import { AIDiagnosisService, DiagnosisContext } from '../services/ai/AIDiagnosisService';
+import { DatabasePool } from '../services/database';
 import pino from 'pino';
 
 const logger = pino({ name: 'ai-gateway-routes' });
@@ -21,13 +22,14 @@ export interface AIGatewayRoutesOptions {
   aiGateway?: AIGateway;
   generateService?: AIGenerateService;
   diagnosisService?: AIDiagnosisService;
+  database?: DatabasePool;
 }
 
 export default async function aiGatewayRoutes(
   app: FastifyInstance,
   options: AIGatewayRoutesOptions
 ): Promise<void> {
-  const gateway = options.aiGateway || new AIGateway();
+  const gateway = options.aiGateway || new AIGateway({}, undefined, undefined, undefined, options.database);
   const generateService = options.generateService || new AIGenerateService();
   const diagnosisService = options.diagnosisService || new AIDiagnosisService();
 

@@ -78,7 +78,7 @@ export class MonitoringService {
     this.metricCollector = new MetricCollector({
       repository: metricRepo,
     });
-    this.alertRuleEngine = new AlertRuleEngine(this.metricCollector);
+    this.alertRuleEngine = new AlertRuleEngine(this.metricCollector, dbPool);
     this.notificationService = new AlertNotificationService();
     this.dashboard = new MonitoringDashboard(this.metricCollector);
 

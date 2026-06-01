@@ -58,6 +58,14 @@ export default defineConfig({
       '/static-file': { target: PANDAWIKI_API, changeOrigin: true },
 
       // SubApp API proxies — 按域分发
+      '/api/v1/code-repo': { target: 'http://localhost:3010', changeOrigin: true },
+      '/api/v1/build': { target: 'http://localhost:3010', changeOrigin: true },
+      '/api/v1/test-reports': { target: 'http://localhost:3010', changeOrigin: true },
+      '/api/v1/feature-flags': { target: 'http://localhost:8080', changeOrigin: true },
+      '/api/v1/federation': { target: 'http://localhost:3017', changeOrigin: true },
+      '/api/v1/federation-advanced': { target: 'http://localhost:3017', changeOrigin: true },
+      '/api/v1/multi-cloud': { target: 'http://localhost:3017', changeOrigin: true },
+      '/api/v1/multi-cloud-advanced': { target: 'http://localhost:3017', changeOrigin: true },
       '/api/v1/dba': { target: 'http://localhost:3030', changeOrigin: true },
       '/api/v1/visor': { target: 'http://localhost:3003', changeOrigin: true },
 

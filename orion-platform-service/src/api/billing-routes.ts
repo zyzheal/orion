@@ -9,10 +9,17 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { BillingService } from '../services/billing/BillingService';
+import { DatabasePool } from '../services/database';
 
-const billingService = new BillingService();
+interface BillingRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function billingRoutes(app: FastifyInstance): Promise<void> {
+export default async function billingRoutes(
+  app: FastifyInstance,
+  options: BillingRoutesOptions = {}
+): Promise<void> {
+  const billingService = new BillingService();
   // ==================== Usage Metering ====================
 
   // Record usage

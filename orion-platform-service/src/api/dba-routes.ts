@@ -9,6 +9,11 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DbaService, type CreateOrderInput, type CreateDataSourceInput, type CreateAuditRuleInput } from '../services/dba/DbaService';
+import { DatabasePool } from '../services/database';
+
+interface DbaRoutesOptions {
+  database?: DatabasePool;
+}
 
 // In-memory singleton (in production, should use PostgreSQL Repository)
 const dbaService = new DbaService();
@@ -26,7 +31,12 @@ async function getAuthInfo(request: FastifyRequest): Promise<AuthRequest> {
   };
 }
 
-export default async function dbaRoutes(app: FastifyInstance): Promise<void> {
+export default async function dbaRoutes(
+  app: FastifyInstance,
+  options: DbaRoutesOptions = {}
+): Promise<void> {
+  // db available for future Repository integration
+  void options.database;
   // ==================== SQL Orders ====================
 
   // List orders

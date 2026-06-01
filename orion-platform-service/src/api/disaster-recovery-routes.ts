@@ -8,10 +8,17 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DisasterRecoveryController } from './controllers/DisasterRecoveryController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
-const controller = new DisasterRecoveryController();
+interface DisasterRecoveryRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function disasterRecoveryRoutes(app: FastifyInstance): Promise<void> {
+export default async function disasterRecoveryRoutes(
+  app: FastifyInstance,
+  options: DisasterRecoveryRoutesOptions = {}
+): Promise<void> {
+  const controller = new DisasterRecoveryController();
   // POST /v1/disaster-recovery/plans - Create DR plan
   app.post('/plans', {
     onRequest: [authenticateUser, requirePermission({ resource: 'disaster-recovery', action: 'write' })],
