@@ -3575,3 +3575,34 @@ expect(result.data.xxx).toBe(...); // 正确访问解包后的数据
 - Lowcode 组件 - 未使用的变量警告和类型问题
 - pipeline/PipelineErrorDetail.tsx - response.data 类型问题
 - microfront 相关文件 - 类型定义不匹配
+
+---
+
+## Config Service 测试补全 (2026-06-01)
+
+### 新增测试文件 (7个)
+
+| 文件 | 测试数 | 覆盖内容 |
+|------|--------|---------|
+| `config/__tests__/ConfigFallbackService.test.ts` | 23 | 多级缓存降级链、LRU淘汰、默认值兜底、数据库查询、缓存预热、统计 |
+| `config/__tests__/ConfigSearchService.test.ts` | 52 | Fuse.js模糊搜索、UI Schema生成、表单布局、Markdown文档、widget推断 |
+| `config-mgmt/__tests__/ConfigChangeService.test.ts` | 28 | 变更请求生命周期、风险级别审批、执行/回滚、历史追踪 |
+| `config-mgmt/__tests__/FeatureFlagService.test.ts` | 32 | Feature Flag CRUD、rollout百分比、6种targeting规则、toggle历史 |
+| `config-mgmt/__tests__/ConfigAuditService.test.ts` | 18 | 审计日志记录、13种AuditAction、多条件过滤、分页 |
+| `config-mgmt/__tests__/ABExperimentService.test.ts` | 32 | 实验生命周期、流量分配、control变体、用户分配确定性 |
+| `config-mgmt/__tests__/ConfigDriftDetector.test.ts` | 22 | 配置对比、漂移检测、严重性评估、自动修复验证 |
+
+### 改进测试文件 (1个)
+
+| 文件 | 测试数 | 改进内容 |
+|------|--------|---------|
+| `config/__tests__/ConfigEventBus.test.ts` | 29 | 从骨架测试重写为完整测试：发布/订阅、过滤、取消订阅、历史、错误处理 |
+
+### 测试结果
+- **12 个测试套件全部通过**
+- **341 个测试通过**（1 个预存在的 skip）
+- **0 个失败**
+
+### 覆盖率
+- config/ 目录：7 个源文件中 5 个有测试（ConfigVersionService 和 RedisConfigCache 需要数据库/Redis mock）
+- config-mgmt/ 目录：11 个源文件中 10 个有测试（ConfigRepository 和 ConfigVersionService 需要数据库）
