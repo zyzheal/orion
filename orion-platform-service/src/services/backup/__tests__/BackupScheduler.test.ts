@@ -50,8 +50,8 @@ describe('BackupScheduler', () => {
   // ==================== Plan Management ====================
 
   describe('createPlan', () => {
-    it('should create a backup plan', () => {
-      const plan = scheduler.createPlan({
+    it('should create a backup plan', async () => {
+      const plan = await scheduler.createPlan({
         id: 'plan-1',
         name: 'Daily Full Backup',
         type: 'full',
@@ -146,8 +146,8 @@ describe('BackupScheduler', () => {
   });
 
   describe('updatePlan', () => {
-    it('should update a plan', () => {
-      scheduler.createPlan({
+    it('should update a plan', async () => {
+      await scheduler.createPlan({
         id: 'plan-1',
         name: 'Original',
         type: 'full',
@@ -159,20 +159,20 @@ describe('BackupScheduler', () => {
         encrypt: false,
       });
 
-      const updated = scheduler.updatePlan('plan-1', { name: 'Updated' });
+      const updated = await scheduler.updatePlan('plan-1', { name: 'Updated' });
       expect(updated).not.toBeNull();
       expect(updated!.name).toBe('Updated');
     });
 
-    it('should return null for non-existent plan', () => {
-      const updated = scheduler.updatePlan('non-existent', { name: 'Updated' });
+    it('should return null for non-existent plan', async () => {
+      const updated = await scheduler.updatePlan('non-existent', { name: 'Updated' });
       expect(updated).toBeNull();
     });
   });
 
   describe('deletePlan', () => {
-    it('should delete a plan', () => {
-      scheduler.createPlan({
+    it('should delete a plan', async () => {
+      await scheduler.createPlan({
         id: 'plan-1',
         name: 'Test',
         type: 'full',
@@ -184,20 +184,20 @@ describe('BackupScheduler', () => {
         encrypt: false,
       });
 
-      const deleted = scheduler.deletePlan('plan-1');
+      const deleted = await scheduler.deletePlan('plan-1');
       expect(deleted).toBe(true);
       expect(scheduler.getPlan('plan-1')).toBeNull();
     });
 
-    it('should return false for non-existent plan', () => {
-      const deleted = scheduler.deletePlan('non-existent');
+    it('should return false for non-existent plan', async () => {
+      const deleted = await scheduler.deletePlan('non-existent');
       expect(deleted).toBe(false);
     });
   });
 
   describe('togglePlan', () => {
-    it('should toggle a plan to disabled', () => {
-      scheduler.createPlan({
+    it('should toggle a plan to disabled', async () => {
+      await scheduler.createPlan({
         id: 'plan-1',
         name: 'Test',
         type: 'full',
@@ -209,7 +209,7 @@ describe('BackupScheduler', () => {
         encrypt: false,
       });
 
-      const toggled = scheduler.togglePlan('plan-1', false);
+      const toggled = await scheduler.togglePlan('plan-1', false);
       expect(toggled).not.toBeNull();
       expect(toggled!.enabled).toBe(false);
     });

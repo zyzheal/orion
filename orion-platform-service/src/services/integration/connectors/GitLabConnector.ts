@@ -117,7 +117,7 @@ export class GitLabConnector implements Connector {
 
     // Validate required config
     if (!config.token) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'GitLab token is required');
+      throw new OrionError('GitLab token is required', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -144,7 +144,7 @@ export class GitLabConnector implements Connector {
 
   async execute(action: string, params: Record<string, unknown>): Promise<unknown> {
     if (!this.config) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Connector not initialized. Call initialize() first.');
+      throw new OrionError('Connector not initialized. Call initialize() first.', ErrorCode.OPERATION_FAILED);
     }
 
     switch (action) {
@@ -171,7 +171,7 @@ export class GitLabConnector implements Connector {
       case 'getPipelineJobs':
         return this.getPipelineJobs(params);
       default:
-        throw new OrionError(ErrorCode.NOT_FOUND, `Unknown action: ${action}`);
+        throw new OrionError(`Unknown action: ${action}`, ErrorCode.NOT_FOUND);
     }
   }
 
@@ -239,7 +239,7 @@ export class GitLabConnector implements Connector {
   private async getProject(params: Record<string, unknown>): Promise<GitLabProject> {
     const { projectId } = params;
     if (!projectId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
+      throw new OrionError('projectId is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiGet(`/projects/${encodeURIComponent(String(projectId))}`);
@@ -249,7 +249,7 @@ export class GitLabConnector implements Connector {
   private async listBranches(params: Record<string, unknown>): Promise<GitLabBranch[]> {
     const { projectId, page = 1, perPage = 100 } = params;
     if (!projectId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
+      throw new OrionError('projectId is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const queryParams = new URLSearchParams({
@@ -266,7 +266,7 @@ export class GitLabConnector implements Connector {
   private async getCommit(params: Record<string, unknown>): Promise<GitLabCommit> {
     const { projectId, sha } = params;
     if (!projectId || !sha) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and sha are required');
+      throw new OrionError('projectId and sha are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiGet(
@@ -278,7 +278,7 @@ export class GitLabConnector implements Connector {
   private async listCommits(params: Record<string, unknown>): Promise<GitLabCommit[]> {
     const { projectId, refName, page = 1, perPage = 20 } = params;
     if (!projectId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
+      throw new OrionError('projectId is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const queryParams = new URLSearchParams({
@@ -298,7 +298,7 @@ export class GitLabConnector implements Connector {
     const { projectId, sourceBranch, targetBranch, title, description } = params;
 
     if (!projectId || !sourceBranch || !targetBranch || !title) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId, sourceBranch, targetBranch, and title are required');
+      throw new OrionError('projectId, sourceBranch, targetBranch, and title are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiPost(
@@ -316,7 +316,7 @@ export class GitLabConnector implements Connector {
   private async listMergeRequests(params: Record<string, unknown>): Promise<GitLabMergeRequest[]> {
     const { projectId, state, page = 1, perPage = 20 } = params;
     if (!projectId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId is required');
+      throw new OrionError('projectId is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const queryParams = new URLSearchParams({
@@ -336,7 +336,7 @@ export class GitLabConnector implements Connector {
     const { projectId, ref, variables } = params;
 
     if (!projectId || !ref) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and ref are required');
+      throw new OrionError('projectId and ref are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const body: Record<string, unknown> = { ref };
@@ -355,7 +355,7 @@ export class GitLabConnector implements Connector {
     const { projectId, pipelineId } = params;
 
     if (!projectId || !pipelineId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and pipelineId are required');
+      throw new OrionError('projectId and pipelineId are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiGet(
@@ -368,7 +368,7 @@ export class GitLabConnector implements Connector {
     const { projectId, pipelineId } = params;
 
     if (!projectId || !pipelineId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectId and pipelineId are required');
+      throw new OrionError('projectId and pipelineId are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiGet(
@@ -379,7 +379,7 @@ export class GitLabConnector implements Connector {
 
   private async apiGet(endpoint: string): Promise<unknown> {
     if (!this.config?.token) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'GitLab token not configured');
+      throw new OrionError('GitLab token not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const response = await fetch(`${this.baseUrl}/api/v4${endpoint}`, {
@@ -390,7 +390,7 @@ export class GitLabConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `GitLab API error: ${response.status} - ${error}`)
+      throw new OrionError(`GitLab API error: ${response.status} - ${error}`, 'OPERATION_FAILED')
     }
 
     return response.json();
@@ -398,7 +398,7 @@ export class GitLabConnector implements Connector {
 
   private async apiPost(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
     if (!this.config?.token) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'GitLab token not configured');
+      throw new OrionError('GitLab token not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const response = await fetch(`${this.baseUrl}/api/v4${endpoint}`, {
@@ -412,7 +412,7 @@ export class GitLabConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `GitLab API error: ${response.status} - ${error}`)
+      throw new OrionError(`GitLab API error: ${response.status} - ${error}`, 'OPERATION_FAILED')
     }
 
     return response.json();

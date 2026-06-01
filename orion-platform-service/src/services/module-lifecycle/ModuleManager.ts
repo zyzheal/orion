@@ -167,7 +167,7 @@ export class ModuleManager {
   async startModule(id: string): Promise<void> {
     const mod = await this.registry.get(id);
     if (!mod) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (!mod.config.enabled) {
@@ -179,7 +179,7 @@ export class ModuleManager {
     for (const dep of deps) {
       const depMod = await this.registry.get(dep);
       if (!depMod) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Dependency ${dep} not found for module ${id}`);
+        throw new OrionError(`Dependency ${dep} not found for module ${id}`, ErrorCode.NOT_FOUND);
       }
       // Skip disabled dependencies
       if (!depMod.config.enabled) {
@@ -187,7 +187,7 @@ export class ModuleManager {
         continue;
       }
       if (depMod.state !== 'active') {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Dependency ${dep} is not active for module ${id}`);
+        throw new OrionError(`Dependency ${dep} is not active for module ${id}`, ErrorCode.NOT_FOUND);
       }
     }
 
@@ -206,7 +206,7 @@ export class ModuleManager {
   async stopModule(id: string): Promise<void> {
     const mod = await this.registry.get(id);
     if (!mod) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
 
     const allModules = await this.registry.getAll();
@@ -215,7 +215,7 @@ export class ModuleManager {
       m.config.dependencies?.includes(id)
     );
     if (dependents.length > 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot stop ${id}: ${dependents.map(d => d.id).join(', ')} depend on it`);
+      throw new OrionError(`Cannot stop ${id}: ${dependents.map(d => d.id).join(', ')} depend on it`, ErrorCode.NOT_FOUND);
     }
 
     await this.registry.setState(id, 'stopping');
@@ -251,10 +251,10 @@ export class ModuleManager {
   async toggleModule(id: string, enabled: boolean): Promise<void> {
     const mod = await this.registry.get(id);
     if (!mod) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
     if (mod.level === 'core' && !enabled) {
-      throw new OrionError('VALIDATION_ERROR', `Core module ${id} cannot be disabled`)
+      throw new OrionError(`Core module ${id} cannot be disabled`, 'VALIDATION_ERROR')
     }
     mod.config.enabled = enabled;
     if (enabled && mod.state !== 'active') {

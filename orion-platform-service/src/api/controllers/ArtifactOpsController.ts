@@ -139,7 +139,7 @@ export class ArtifactOpsController extends BaseController {
       const params = request.params as { scanId: string };
       const report = await this.scanService.getScanReport(params.scanId);
       if (!report) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Scan report '${params.scanId}' not found`);
+        throw new OrionError(`Scan report '${params.scanId}' not found`, ErrorCode.NOT_FOUND);
       }
       return report;
     }, (report) => this.sendSuccess(reply, report));
@@ -197,7 +197,7 @@ export class ArtifactOpsController extends BaseController {
       const params = request.params as { policyId: string };
       const deleted = await this.retentionService.deletePolicy(params.policyId);
       if (!deleted) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Policy '${params.policyId}' not found`);
+        throw new OrionError(`Policy '${params.policyId}' not found`, ErrorCode.NOT_FOUND);
       }
       return { deleted: true, policyId: params.policyId };
     }, (result) => this.sendSuccess(reply, result));

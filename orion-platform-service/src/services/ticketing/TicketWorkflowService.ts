@@ -96,7 +96,7 @@ export class TicketWorkflowService {
     if (options && options.ticketingRepository) {
       this.ticketingRepository = options.ticketingRepository;
     } else {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'TicketingRepository is required for TicketWorkflowService');
+      throw new OrionError('TicketingRepository is required for TicketWorkflowService', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -143,7 +143,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist ticket to repository: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     // Update cache
@@ -197,7 +197,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository list failed: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -243,7 +243,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist update: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     const updated = { ...existing, ...updates, updatedAt: new Date() };
@@ -308,7 +308,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist workflow history: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     // Update SLA tracking on resolution
@@ -318,7 +318,7 @@ export class TicketWorkflowService {
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to update SLA: ${err}`;
         logger.error(message);
-        throw new OrionError('OPERATION_FAILED', message);
+        throw new OrionError(message, 'OPERATION_FAILED');
       }
     }
 
@@ -332,7 +332,7 @@ export class TicketWorkflowService {
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to reset SLA: ${err}`;
         logger.error(message);
-        throw new OrionError('OPERATION_FAILED', message);
+        throw new OrionError(message, 'OPERATION_FAILED');
       }
     }
 
@@ -391,7 +391,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist assignment: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     this.ticketsCache.set(ticketId, ticket);
@@ -525,7 +525,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist escalation: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     return { ticket };
@@ -611,7 +611,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -624,7 +624,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -658,7 +658,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getTicketSLA failed: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -671,7 +671,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -729,7 +729,7 @@ export class TicketWorkflowService {
     } catch (err) {
       const message = `[TicketWorkflowService] Repository count failed: ${err}`;
       logger.error(message);
-      throw new OrionError('OPERATION_FAILED', message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 

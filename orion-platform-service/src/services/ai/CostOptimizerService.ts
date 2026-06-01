@@ -247,7 +247,7 @@ export class CostOptimizerService {
     }
 
     if (!recommendation) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Recommendation ${recommendationId} not found`);
+      throw new OrionError(`Recommendation ${recommendationId} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (recommendation.status === 'applied') {

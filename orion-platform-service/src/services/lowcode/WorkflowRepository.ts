@@ -446,7 +446,7 @@ export class WorkflowInstanceRepository {
   async addHistory(id: string, historyItem: WorkflowHistory): Promise<void> {
     const instance = await this.findById(id);
     if (!instance) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${id}`);
+      throw new OrionError(`Workflow instance not found: ${id}`, ErrorCode.NOT_FOUND);
     }
 
     const history = [...instance.history, historyItem];

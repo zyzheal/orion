@@ -65,11 +65,11 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('setTopology', () => {
-    it('should set topology correctly', () => {
+    it('should set topology correctly', async () => {
       const topology = createTopology();
       correlation.setTopology(topology);
 
-      const result = correlation.getTopology();
+      const result = await correlation.getTopology();
 
       expect(result.nodes).toHaveLength(7);
       expect(result.edges).toHaveLength(7);

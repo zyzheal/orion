@@ -141,7 +141,7 @@ export class ConfigVersionService {
     const targetRecord = history.find(v => v.version === targetVersion);
 
     if (!targetRecord) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Version ${targetVersion} not found for ${domain}.${key}`);
+      throw new OrionError(`Version ${targetVersion} not found for ${domain}.${key}`, ErrorCode.NOT_FOUND);
     }
 
     // 记录回滚操作
@@ -210,7 +210,7 @@ export class ConfigVersionService {
     );
 
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Snapshot ${snapshotId} not found`);
+      throw new OrionError(`Snapshot ${snapshotId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const snapshot = this.mapRowToSnapshot(result.rows[0]);
@@ -244,7 +244,7 @@ export class ConfigVersionService {
     ]);
 
     if (v1.rows.length === 0 || v2.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'Version not found');
+      throw new OrionError('Version not found', ErrorCode.NOT_FOUND);
     }
 
     const oldObj = v1.rows[0].new_value;

@@ -97,7 +97,7 @@ describe('RootCauseAnalysisService', () => {
         timeWindow,
       );
 
-      const retrieved = service.getAnalysis(result.analysisId);
+      const retrieved = await service.getAnalysis(result.analysisId);
       expect(retrieved).toBeDefined();
       expect(retrieved!.analysisId).toBe(result.analysisId);
     });
@@ -113,12 +113,12 @@ describe('RootCauseAnalysisService', () => {
         timeWindow,
       );
 
-      const correlated = service.getCorrelatedAlerts(['alert-1', 'alert-2']);
+      const correlated = await service.getCorrelatedAlerts(['alert-1', 'alert-2']);
       expect(correlated.length).toBeGreaterThan(0);
     });
 
     it('should return empty for non-matching IDs', async () => {
-      const correlated = service.getCorrelatedAlerts(['non-existent']);
+      const correlated = await service.getCorrelatedAlerts(['non-existent']);
       expect(correlated).toEqual([]);
     });
   });
@@ -136,17 +136,17 @@ describe('RootCauseAnalysisService', () => {
     });
 
     it('should return top root causes', async () => {
-      const causes = service.getTopRootCauses('default');
+      const causes = await service.getTopRootCauses('default');
       expect(Array.isArray(causes)).toBe(true);
     });
 
     it('should respect limit parameter', async () => {
-      const causes = service.getTopRootCauses('default', undefined, 1);
+      const causes = await service.getTopRootCauses('default', undefined, 1);
       expect(causes.length).toBeLessThanOrEqual(1);
     });
 
     it('should return causes sorted by confidence', async () => {
-      const causes = service.getTopRootCauses('default');
+      const causes = await service.getTopRootCauses('default');
       for (let i = 1; i < causes.length; i++) {
         expect(causes[i - 1].confidence).toBeGreaterThanOrEqual(causes[i].confidence);
       }
@@ -157,7 +157,7 @@ describe('RootCauseAnalysisService', () => {
         startTime: new Date(Date.now() + 1000),
         endTime: new Date(Date.now() + 2000),
       };
-      const causes = service.getTopRootCauses('default', futureWindow);
+      const causes = await service.getTopRootCauses('default', futureWindow);
       expect(causes.length).toBe(0);
     });
   });
@@ -166,13 +166,13 @@ describe('RootCauseAnalysisService', () => {
 
   describe('getAnalysis', () => {
     it('should return undefined for non-existent analysis', async () => {
-      const result = service.getAnalysis('non-existent');
+      const result = await service.getAnalysis('non-existent');
       expect(result).toBeUndefined();
     });
 
     it('should return the analysis by ID', async () => {
       const created = await service.analyze(['svc'], [sampleAlerts[0]], timeWindow);
-      const retrieved = service.getAnalysis(created.analysisId);
+      const retrieved = await service.getAnalysis(created.analysisId);
       expect(retrieved).toBeDefined();
       expect(retrieved!.analysisId).toBe(created.analysisId);
     });
@@ -185,7 +185,7 @@ describe('RootCauseAnalysisService', () => {
       await service.analyze(['svc1'], [sampleAlerts[0]], timeWindow);
       await service.analyze(['svc2'], [sampleAlerts[1]], timeWindow);
 
-      const all = service.getAllAnalyses();
+      const all = await service.getAllAnalyses();
       expect(all.length).toBe(2);
     });
 
@@ -193,7 +193,7 @@ describe('RootCauseAnalysisService', () => {
       await service.analyze(['svc1'], [sampleAlerts[0]], timeWindow);
       await service.analyze(['svc2'], [sampleAlerts[1]], timeWindow);
 
-      const limited = service.getAllAnalyses(1);
+      const limited = await service.getAllAnalyses(1);
       expect(limited.length).toBe(1);
     });
   });

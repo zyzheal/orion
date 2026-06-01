@@ -343,7 +343,7 @@ export class PluginRegistry {
     }
 
     if (errors.length > 0) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid plugin manifest: ${errors.join(', ')}`)
+      throw new OrionError(`Invalid plugin manifest: ${errors.join(', ')}`, 'VALIDATION_ERROR')
     }
   }
 
@@ -353,13 +353,13 @@ export class PluginRegistry {
   private checkPlatformCompatibility(manifest: PluginManifest): void {
     if (manifest.minPlatformVersion) {
       if (!this.isVersionGte(PLATFORM_VERSION, manifest.minPlatformVersion)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version below minimum required');
+        throw new OrionError('Platform version below minimum required', ErrorCode.VALIDATION_ERROR);
       }
     }
 
     if (manifest.maxPlatformVersion) {
       if (!this.isVersionLte(PLATFORM_VERSION, manifest.maxPlatformVersion)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version above maximum supported');
+        throw new OrionError('Platform version above maximum supported', ErrorCode.VALIDATION_ERROR);
       }
     }
   }

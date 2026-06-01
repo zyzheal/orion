@@ -29,12 +29,12 @@ export class DingTalkAdapter implements IMAdapter {
     });
 
     if (!response.ok) {
-      throw new OrionError('OPERATION_FAILED', `DingTalk webhook returned status ${response.status}: ${response.statusText}`)
+      throw new OrionError(`DingTalk webhook returned status ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
     }
 
     const result = await response.json() as Record<string, unknown>;
     if (result.errcode !== undefined && result.errcode !== 0) {
-      throw new OrionError('OPERATION_FAILED', `DingTalk API error: ${JSON.stringify(result)}`)
+      throw new OrionError(`DingTalk API error: ${JSON.stringify(result)}`, 'OPERATION_FAILED')
     }
   }
 

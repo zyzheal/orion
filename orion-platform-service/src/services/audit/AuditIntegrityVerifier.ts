@@ -380,7 +380,7 @@ export class AuditIntegrityVerifier extends EventEmitter {
       });
 
       if (!response.ok) {
-        throw new OrionError('OPERATION_FAILED', `Webhook returned ${response.status}`)
+        throw new OrionError(`Webhook returned ${response.status}`, 'OPERATION_FAILED')
       }
 
       logger.info({ alertId: alert.id }, 'Webhook alert sent successfully');

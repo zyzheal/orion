@@ -328,7 +328,7 @@ export const escalationScheduler = {
     targetLevel?: number
   ): Promise<{ success: boolean; message: string }> {
     if (!this._scheduler) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'EscalationScheduler not initialized');
+      throw new OrionError('EscalationScheduler not initialized', ErrorCode.OPERATION_FAILED);
     }
     return this._scheduler.manualEscalate(entityType, entityId, targetLevel);
   },

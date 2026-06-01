@@ -73,7 +73,7 @@ export class MockGitClient implements IGitClient {
     const fullPath = `${repoDir}/${filePath}`.replace(/\/+/g, '/');
     const content = this.fileContents.get(fullPath) || this.fileContents.get(filePath);
     if (content === undefined) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `File not found: ${filePath}`);
+      throw new OrionError(`File not found: ${filePath}`, ErrorCode.NOT_FOUND);
     }
     return content;
   }
@@ -166,7 +166,7 @@ export class GitOpsService {
     }
 
     if (!config) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `GitOps config '${gitOpsConfigId}' not found`);
+      throw new OrionError(`GitOps config '${gitOpsConfigId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     config.status = 'disabled';

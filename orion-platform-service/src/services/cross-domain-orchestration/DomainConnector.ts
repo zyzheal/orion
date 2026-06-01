@@ -241,7 +241,7 @@ export class DomainConnector {
 
     // Check health
     if (domain.healthStatus === 'unhealthy') {
-      throw new OrionError('OPERATION_FAILED', `Domain '${domainName}' is unhealthy`)
+      throw new OrionError(`Domain '${domainName}' is unhealthy`, 'OPERATION_FAILED')
     }
 
     // Invoke via HTTP (simulated — in production, make actual HTTP call)
@@ -254,7 +254,7 @@ export class DomainConnector {
       domain.updatedAt = new Date();
       this.domains.set(`${domain.tenantId}:${domain.domainName}`, domain);
 
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid domain configuration');
+      throw new OrionError('Invalid domain configuration', ErrorCode.VALIDATION_ERROR);
     }
   }
 

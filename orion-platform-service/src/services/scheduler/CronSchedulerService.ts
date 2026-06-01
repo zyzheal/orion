@@ -228,7 +228,7 @@ export class CronSchedulerService {
   async executeJob(id: string): Promise<CronJobExecution> {
     const job = this.jobs.get(id);
     if (!job) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cron job not found: ${id}`);
+      throw new OrionError(`Cron job not found: ${id}`, ErrorCode.NOT_FOUND);
     }
     return this.runJob(job);
   }

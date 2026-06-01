@@ -493,17 +493,17 @@ export class ConfigChangeService {
   ): Promise<ChangeRequest> {
     const changeRequest = await this.repository.findById(requestId);
     if (!changeRequest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${requestId}' not found`);
+      throw new OrionError(`Change request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request is not pending (current: ${changeRequest.status})`);
+      throw new OrionError(`Change request is not pending (current: ${changeRequest.status})`, ErrorCode.NOT_FOUND);
     }
 
     // Check if reviewer already voted
     const existingApproval = changeRequest.approvals.find((a) => a.approver === reviewerId);
     if (existingApproval) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Reviewer '${reviewerId}' has already voted on this change request`);
+      throw new OrionError(`Reviewer '${reviewerId}' has already voted on this change request`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -559,11 +559,11 @@ export class ConfigChangeService {
   ): Promise<ChangeRequest> {
     const changeRequest = await this.repository.findById(requestId);
     if (!changeRequest) {
-      throw new OrionError('NOT_FOUND', `Change request '${requestId}' not found`)
+      throw new OrionError(`Change request '${requestId}' not found`, 'NOT_FOUND')
     }
 
     if (changeRequest.status !== 'approved') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request must be approved before execution (current: ${changeRequest.status})`);
+      throw new OrionError(`Change request must be approved before execution (current: ${changeRequest.status})`, ErrorCode.NOT_FOUND);
     }
 
     changeRequest.status = 'executing';
@@ -616,11 +616,11 @@ export class ConfigChangeService {
   ): Promise<ChangeRequest> {
     const changeRequest = await this.repository.findById(requestId);
     if (!changeRequest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${requestId}' not found`);
+      throw new OrionError(`Change request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (changeRequest.status !== 'executed' && changeRequest.status !== 'failed') {
-      throw new OrionError('OPERATION_FAILED', `Can only rollback executed or failed changes (current: ${changeRequest.status})`)
+      throw new OrionError(`Can only rollback executed or failed changes (current: ${changeRequest.status})`, 'OPERATION_FAILED')
     }
 
     changeRequest.status = 'rolled_back';

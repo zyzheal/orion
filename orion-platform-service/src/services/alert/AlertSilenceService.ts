@@ -143,7 +143,7 @@ export class AlertSilenceService {
     createdBy?: string,
   ): Promise<AlertSilence> {
     if (!input.matchers || input.matchers.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Silence requires at least one matcher');
+      throw new OrionError('Silence requires at least one matcher', ErrorCode.OPERATION_FAILED);
     }
 
     const now = new Date();
@@ -164,7 +164,7 @@ export class AlertSilenceService {
 
     // Validate time range
     if (silence.endsAt <= silence.startsAt) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'endsAt must be after startsAt');
+      throw new OrionError('endsAt must be after startsAt', ErrorCode.OPERATION_FAILED);
     }
 
     if (this.repository) {
@@ -190,7 +190,7 @@ export class AlertSilenceService {
     }
 
     // Should not reach here — repository is always initialized
-    throw new OrionError(ErrorCode.OPERATION_FAILED, 'AlertSilenceRepository not initialized');
+    throw new OrionError('AlertSilenceRepository not initialized', ErrorCode.OPERATION_FAILED);
   }
 
   /**

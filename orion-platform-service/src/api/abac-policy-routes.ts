@@ -50,31 +50,31 @@ function validateConditionRule(rule: ConditionRule, path = 'root'): void {
   // 如果是叶子节点，必须有 condition
   if (!rule.and && !rule.or && !rule.not) {
     if (!rule.condition) {
-      throw new OrionError('OPERATION_FAILED', `Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`)
+      throw new OrionError(`Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`, 'OPERATION_FAILED')
     }
     const cond = rule.condition;
     if (!cond.attribute || typeof cond.attribute !== 'string') {
-      throw new OrionError('VALIDATION_ERROR', `Condition at ${path}: attribute must be a non-empty string`)
+      throw new OrionError(`Condition at ${path}: attribute must be a non-empty string`, 'VALIDATION_ERROR')
     }
     const validOperators = ['equals', 'not_equals', 'in', 'not_in', 'contains', 'gt', 'lt', 'gte', 'lte', 'regex', 'match'];
     if (!cond.operator || !validOperators.includes(cond.operator)) {
-      throw new OrionError('VALIDATION_ERROR', `Condition at ${path}: operator must be one of ${validOperators.join(', ')}`)
+      throw new OrionError(`Condition at ${path}: operator must be one of ${validOperators.join(', ')}`, 'VALIDATION_ERROR')
     }
     if (cond.value === undefined) {
-      throw new OrionError('VALIDATION_ERROR', `Condition at ${path}: value is required`)
+      throw new OrionError(`Condition at ${path}: value is required`, 'VALIDATION_ERROR')
     }
   }
 
   // 递归验证组合规则
   if (rule.and) {
     if (!Array.isArray(rule.and) || rule.and.length === 0) {
-      throw new OrionError('VALIDATION_ERROR', `'and' at ${path} must be a non-empty array`)
+      throw new OrionError(`'and' at ${path} must be a non-empty array`, 'VALIDATION_ERROR')
     }
     rule.and.forEach((sub, i) => validateConditionRule(sub, `${path}.and[${i}]`));
   }
   if (rule.or) {
     if (!Array.isArray(rule.or) || rule.or.length === 0) {
-      throw new OrionError('VALIDATION_ERROR', `'or' at ${path} must be a non-empty array`)
+      throw new OrionError(`'or' at ${path} must be a non-empty array`, 'VALIDATION_ERROR')
     }
     rule.or.forEach((sub, i) => validateConditionRule(sub, `${path}.or[${i}]`));
   }
@@ -88,16 +88,16 @@ function validateConditionRule(rule: ConditionRule, path = 'root'): void {
  */
 function validatePolicyBody(body: CreatePolicyBody): void {
   if (!body.name || typeof body.name !== 'string') {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Policy name is required');
+    throw new OrionError('Policy name is required', ErrorCode.VALIDATION_ERROR);
   }
   if (!body.resourceType || (typeof body.resourceType !== 'string' && !Array.isArray(body.resourceType))) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'resourceType is required and must be a string or array');
+    throw new OrionError('resourceType is required and must be a string or array', ErrorCode.VALIDATION_ERROR);
   }
   if (!body.actionType || (typeof body.actionType !== 'string' && !Array.isArray(body.actionType))) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'actionType is required and must be a string or array');
+    throw new OrionError('actionType is required and must be a string or array', ErrorCode.VALIDATION_ERROR);
   }
   if (!body.effect || !['allow', 'deny'].includes(body.effect)) {
-    throw new OrionError(ErrorCode.OPERATION_FAILED, 'effect must be "allow" or "deny"');
+    throw new OrionError('effect must be "allow" or "deny"', ErrorCode.OPERATION_FAILED);
   }
   // 验证条件结构
   validateConditionRule(body.conditions);

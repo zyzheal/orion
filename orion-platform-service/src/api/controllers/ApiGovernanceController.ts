@@ -125,7 +125,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contract = this.contracts.get(params.id);
-      if (!contract) throw new OrionError(ErrorCode.NOT_FOUND, `Contract '${params.id}' not found`);
+      if (!contract) throw new OrionError(`Contract '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return contract;
     }, (contract) => this.sendSuccess(reply, contract));
   }
@@ -134,7 +134,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contract = this.contracts.get(params.id);
-      if (!contract) throw new OrionError(ErrorCode.NOT_FOUND, `Contract '${params.id}' not found`);
+      if (!contract) throw new OrionError(`Contract '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return {
         contractId: params.id,
         compliance: true,
@@ -152,7 +152,7 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contract = this.contracts.get(params.id);
-      if (!contract) throw new OrionError(ErrorCode.NOT_FOUND, `Contract '${params.id}' not found`);
+      if (!contract) throw new OrionError(`Contract '${params.id}' not found`, ErrorCode.NOT_FOUND);
 
       const body = request.body as {
         actualResponse?: Record<string, unknown>;
@@ -265,7 +265,7 @@ export class ApiGovernanceController extends BaseController {
       const params = request.params as { id: string };
       const body = request.body as { replacementVersion?: string; retirementDate?: string };
       const version = this.versions.get(params.id);
-      if (!version) throw new OrionError(ErrorCode.NOT_FOUND, `Version '${params.id}' not found`);
+      if (!version) throw new OrionError(`Version '${params.id}' not found`, ErrorCode.NOT_FOUND);
 
       version.status = 'deprecated';
       version.deprecationDate = new Date().toISOString();
@@ -281,9 +281,9 @@ export class ApiGovernanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const version = this.versions.get(params.id);
-      if (!version) throw new OrionError(ErrorCode.NOT_FOUND, `Version '${params.id}' not found`);
+      if (!version) throw new OrionError(`Version '${params.id}' not found`, ErrorCode.NOT_FOUND);
       if (version.status !== 'deprecated') {
-        throw new OrionError('VALIDATION_ERROR', `Version must be deprecated before retirement`)
+        throw new OrionError(`Version must be deprecated before retirement`, 'VALIDATION_ERROR')
       }
 
       version.status = 'retired';

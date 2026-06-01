@@ -98,7 +98,7 @@ export class PluginLifecycleManager extends EventEmitter {
     // Check if already installed and enabled
     const existing = this.registry.getPlugin(manifest.name);
     if (existing && existing.status === 'enabled') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Plugin is already installed and enabled');
+      throw new OrionError('Plugin is already installed and enabled', ErrorCode.VALIDATION_ERROR);
     }
 
     // Resolve and validate dependencies
@@ -124,7 +124,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found. Install it first.`);
+      throw new OrionError(`Plugin "${pluginId}" not found. Install it first.`, ErrorCode.NOT_FOUND);
     }
 
     // Validate state transition
@@ -143,14 +143,14 @@ export class PluginLifecycleManager extends EventEmitter {
         await activationHook(pluginId, plugin.config);
       } catch (error) {
         this.handleError(pluginId, error);
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version below minimum required');
+        throw new OrionError('Platform version below minimum required', ErrorCode.VALIDATION_ERROR);
       }
     }
 
     // Update status
     const updated = await this.registry.updateStatus(pluginId, 'enabled');
     if (!updated) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found during enable`);
+      throw new OrionError(`Plugin "${pluginId}" not found during enable`, ErrorCode.NOT_FOUND);
     }
 
     // Run after-enable hooks
@@ -173,7 +173,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found.`);
+      throw new OrionError(`Plugin "${pluginId}" not found.`, ErrorCode.NOT_FOUND);
     }
 
     // Validate state transition
@@ -201,7 +201,7 @@ export class PluginLifecycleManager extends EventEmitter {
     // Update status
     const updated = await this.registry.updateStatus(pluginId, 'disabled');
     if (!updated) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found during disable`);
+      throw new OrionError(`Plugin "${pluginId}" not found during disable`, ErrorCode.NOT_FOUND);
     }
 
     // Run after-disable hooks
@@ -224,7 +224,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found.`);
+      throw new OrionError(`Plugin "${pluginId}" not found.`, ErrorCode.NOT_FOUND);
     }
 
     // Validate state transition
@@ -314,7 +314,7 @@ export class PluginLifecycleManager extends EventEmitter {
   private validateTransition(pluginId: string, from: PluginStatus, to: PluginStatus): void {
     const allowed = VALID_TRANSITIONS[from];
     if (!allowed.includes(to)) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Platform version above maximum supported');
+      throw new OrionError('Platform version above maximum supported', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -345,7 +345,7 @@ export class PluginLifecycleManager extends EventEmitter {
         issues.push(`Circular dependency detected: ${cycle.join(' -> ')}`);
       }
 
-      throw new OrionError('OPERATION_FAILED', `Dependency resolution failed for "${manifest.name}": ${issues.join('; ')}`)
+      throw new OrionError(`Dependency resolution failed for "${manifest.name}": ${issues.join('; ')}`, 'OPERATION_FAILED')
     }
   }
 
@@ -363,7 +363,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
       const depPlugin = this.registry.getPlugin(dep.name);
       if (!depPlugin) {
-        throw new OrionError('VALIDATION_ERROR', `Dependency ${dep.name} not found`);
+        throw new OrionError(`Dependency ${dep.name} not found`, 'VALIDATION_ERROR');
       }
 
       // Enable dependency if not already enabled
@@ -396,7 +396,7 @@ export class PluginLifecycleManager extends EventEmitter {
     }
 
     if (dependents.length > 0) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Plugin is already enabled');
+      throw new OrionError('Plugin is already enabled', ErrorCode.VALIDATION_ERROR);
     }
   }
 

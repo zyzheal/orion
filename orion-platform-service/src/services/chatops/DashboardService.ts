@@ -87,18 +87,18 @@ export class DashboardService {
       }
       case 'custom': {
         if (!params.startDate || !params.endDate) {
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'custom range requires startDate and endDate');
+          throw new OrionError('custom range requires startDate and endDate', ErrorCode.OPERATION_FAILED);
         }
         const start = new Date(params.startDate);
         const end = new Date(params.endDate);
         const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
         if (diffDays > 90) {
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'custom range cannot exceed 90 days');
+          throw new OrionError('custom range cannot exceed 90 days', ErrorCode.OPERATION_FAILED);
         }
         return { start, end };
       }
       default:
-        throw new OrionError('VALIDATION_ERROR', `invalid time range: ${(params as any).range}`)
+        throw new OrionError(`invalid time range: ${(params as any).range}`, 'VALIDATION_ERROR')
     }
   }
 

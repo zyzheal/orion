@@ -72,7 +72,7 @@ export class ConnectorRegistry {
    */
   register(connector: Connector): void {
     if (this.connectors.has(connector.name)) {
-      throw new OrionError('VALIDATION_ERROR', `Connector with name '${connector.name}' is already registered`)
+      throw new OrionError(`Connector with name '${connector.name}' is already registered`, 'VALIDATION_ERROR')
     }
     this.connectors.set(connector.name, connector);
 

@@ -93,7 +93,7 @@ export class LLMTraceService extends EventEmitter {
     if (db) {
       this.repo = new LLMTraceRepository(db);
     } else {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database connection required for LLMTraceService');
+      throw new OrionError('Database connection required for LLMTraceService', ErrorCode.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -135,14 +135,14 @@ export class LLMTraceService extends EventEmitter {
       return saved;
     } catch (err) {
       logger.error(`[LLMTrace] Failed to persist trace ${traceId}:`, err);
-      throw new OrionError(ErrorCode.OPERATION_FAILED, `Failed to create trace: ${traceId}`);
+      throw new OrionError(`Failed to create trace: ${traceId}`, ErrorCode.OPERATION_FAILED);
     }
   }
 
   async completeTrace(traceId: string, params: TraceCompleteParams): Promise<LLMTrace> {
     const trace = await this.repo.findByTraceId(traceId);
     if (!trace) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Trace not found: ${traceId}`);
+      throw new OrionError(`Trace not found: ${traceId}`, ErrorCode.NOT_FOUND);
     }
 
     const cost = this.calculateCost({
@@ -180,14 +180,14 @@ export class LLMTraceService extends EventEmitter {
       });
 
       if (!updated) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Trace not found: ${traceId}`);
+        throw new OrionError(`Trace not found: ${traceId}`, ErrorCode.NOT_FOUND);
       }
       logger.debug(`[LLMTrace] Completed trace: ${traceId} tokens=${updated.totalTokens} cost=${updated.totalCost}`);
       this.emit('trace:completed', updated);
       return updated;
     } catch (err) {
       logger.error(`[LLMTrace] Failed to update trace ${traceId}:`, err);
-      throw new OrionError(ErrorCode.OPERATION_FAILED, `Failed to update trace: ${traceId}`);
+      throw new OrionError(`Failed to update trace: ${traceId}`, ErrorCode.OPERATION_FAILED);
     }
   }
 

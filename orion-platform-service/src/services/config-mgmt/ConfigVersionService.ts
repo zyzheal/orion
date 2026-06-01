@@ -207,7 +207,7 @@ export class ConfigVersionService {
   ): Promise<RollbackResult> {
     const versions = await this.repository.getVersions(tenantId, configKey, environment, 200);
     const target = versions.find(v => v.versionNumber === targetVersionNumber);
-    if (!target) throw new OrionError(ErrorCode.NOT_FOUND, `Version ${targetVersionNumber} not found`);
+    if (!target) throw new OrionError(`Version ${targetVersionNumber} not found`, ErrorCode.NOT_FOUND);
 
     const newVersion = await this.recordVersion(
       tenantId, configKey, environment,
@@ -237,8 +237,8 @@ export class ConfigVersionService {
     const from = versions.find(v => v.versionNumber === fromVersion);
     const to = versions.find(v => v.versionNumber === toVersion);
 
-    if (!from) throw new OrionError(ErrorCode.NOT_FOUND, `Version ${fromVersion} not found`);
-    if (!to) throw new OrionError(ErrorCode.NOT_FOUND, `Version ${toVersion} not found`);
+    if (!from) throw new OrionError(`Version ${fromVersion} not found`, ErrorCode.NOT_FOUND);
+    if (!to) throw new OrionError(`Version ${toVersion} not found`, ErrorCode.NOT_FOUND);
 
     const diff: ConfigVersionDiff = {
       configKey,

@@ -48,7 +48,7 @@ export class InternalLibraryService {
    * 创建二方库
    */
   async create(input: CreateLibraryInput): Promise<InternalLibrary> {
-    if (!this.libraryRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
+    if (!this.libraryRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const id = uuidv4();
     const now = new Date();
@@ -158,10 +158,10 @@ export class InternalLibraryService {
    * 发布新版本
    */
   async publishVersion(input: PublishVersionInput): Promise<LibraryVersion> {
-    if (!this.versionRepo || !this.libraryRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
+    if (!this.versionRepo || !this.libraryRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const library = await this.libraryRepo.findById(input.libraryId);
-    if (!library) throw new OrionError(ErrorCode.NOT_FOUND, 'Library not found');
+    if (!library) throw new OrionError('Library not found', ErrorCode.NOT_FOUND);
 
     const versionId = uuidv4();
     const now = new Date();
@@ -287,7 +287,7 @@ export class InternalLibraryService {
    * 添加依赖关系
    */
   async addDependent(libraryId: string, repoName: string, teamName: string, version: string): Promise<LibraryDependent> {
-    if (!this.dependentRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
+    if (!this.dependentRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const now = new Date();
     const entity = await this.dependentRepo.create({

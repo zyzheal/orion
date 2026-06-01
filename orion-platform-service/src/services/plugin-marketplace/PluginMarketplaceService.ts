@@ -325,7 +325,7 @@ export class PluginMarketplaceService {
   async installPlugin(input: InstallPluginInput, userId: string): Promise<PluginInstallResult> {
     const listing = pluginListings.get(input.plugin_id);
     if (!listing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${input.plugin_id}' not found`);
+      throw new OrionError(`Plugin '${input.plugin_id}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const installs = pluginInstalls.get(input.tenant_id) ?? [];
@@ -333,7 +333,7 @@ export class PluginMarketplaceService {
     // Check if already installed
     const existing = installs.find((i) => i.plugin_id === input.plugin_id && i.status === 'active');
     if (existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${input.plugin_id}' is already installed`);
+      throw new OrionError(`Plugin '${input.plugin_id}' is already installed`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -387,7 +387,7 @@ export class PluginMarketplaceService {
   async reviewPlugin(input: ReviewPluginInput): Promise<PluginReview> {
     const listing = pluginListings.get(input.plugin_id);
     if (!listing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${input.plugin_id}' not found`);
+      throw new OrionError(`Plugin '${input.plugin_id}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const reviews = pluginReviews.get(input.plugin_id) ?? [];
@@ -434,7 +434,7 @@ export class PluginMarketplaceService {
   async getPluginQualityScore(pluginId: string): Promise<QualityScore> {
     const listing = pluginListings.get(pluginId);
     if (!listing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'Plugin not found');
+      throw new OrionError('Plugin not found', ErrorCode.NOT_FOUND);
     }
 
     const reviews = pluginReviews.get(pluginId) ?? [];

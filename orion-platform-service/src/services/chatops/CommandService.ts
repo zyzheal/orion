@@ -166,7 +166,7 @@ export class CommandService {
 
   async insert(input: ChatOpsCommandCreateInput): Promise<ChatOpsCommand> {
     if (!this.commandRepository) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
+      throw new OrionError('CommandService: no database repository configured', ErrorCode.OPERATION_FAILED);
     }
 
     const entity = await this.commandRepository.insert({
@@ -196,7 +196,7 @@ export class CommandService {
 
   async getByName(name: string): Promise<ChatOpsCommand | undefined> {
     if (!this.commandRepository) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
+      throw new OrionError('CommandService: no database repository configured', ErrorCode.OPERATION_FAILED);
     }
 
     // Try direct name match
@@ -212,7 +212,7 @@ export class CommandService {
 
   async list(filter: ChatOpsCommandListFilter = {}): Promise<{ commands: ChatOpsCommand[]; total: number }> {
     if (!this.commandRepository) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
+      throw new OrionError('CommandService: no database repository configured', ErrorCode.OPERATION_FAILED);
     }
 
     let entities;
@@ -245,7 +245,7 @@ export class CommandService {
 
   async delete(name: string): Promise<boolean> {
     if (!this.commandRepository) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
+      throw new OrionError('CommandService: no database repository configured', ErrorCode.OPERATION_FAILED);
     }
 
     const entity = await this.commandRepository.findByName(name);
@@ -304,7 +304,7 @@ export class CommandService {
 
   async getAllCommands(): Promise<ChatOpsCommand[]> {
     if (!this.commandRepository) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'CommandService: no database repository configured');
+      throw new OrionError('CommandService: no database repository configured', ErrorCode.OPERATION_FAILED);
     }
 
     const result = await this.commandRepository.findAll({ limit: 1000 });

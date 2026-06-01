@@ -182,7 +182,7 @@ export class AIDiagnosisService {
     });
 
     if (!response.ok) {
-      throw new OrionError('OPERATION_FAILED', `AI service returned ${response.status}: ${response.statusText}`)
+      throw new OrionError(`AI service returned ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
     }
 
     const data: Record<string, any> = (await response.json()) as Record<string, any>;

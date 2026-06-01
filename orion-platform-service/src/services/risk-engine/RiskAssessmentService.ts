@@ -410,7 +410,7 @@ export class RiskAssessmentService {
 
     for (const feature of requiredFeatures) {
       if (features[feature] === undefined || features[feature] === null) {
-        throw new OrionError('NOT_FOUND', `Missing required feature: ${feature}`)
+        throw new OrionError(`Missing required feature: ${feature}`, 'NOT_FOUND')
       }
     }
   }

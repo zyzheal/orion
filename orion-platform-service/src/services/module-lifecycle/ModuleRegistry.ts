@@ -18,14 +18,14 @@ export class ModuleRegistry {
     if (db) {
       this.repo = new ModuleRegistryRepository(db);
     } else {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database connection required for ModuleRegistry');
+      throw new OrionError('Database connection required for ModuleRegistry', ErrorCode.SERVICE_UNAVAILABLE);
     }
   }
 
   async register(descriptor: ModuleDescriptor): Promise<void> {
     const existing = await this.repo.findById(descriptor.id);
     if (existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${descriptor.id} is already registered`);
+      throw new OrionError(`Module ${descriptor.id} is already registered`, ErrorCode.NOT_FOUND);
     }
     await this.repo.upsertModule(descriptor.id, {
       name: descriptor.name,
@@ -56,7 +56,7 @@ export class ModuleRegistry {
   async setState(id: string, state: ModuleState): Promise<void> {
     const entity = await this.repo.findById(id);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
     await this.repo.updateState(id, state);
     logger.debug(`[ModuleRegistry] ${id} -> ${state}`);
@@ -65,7 +65,7 @@ export class ModuleRegistry {
   async setFailed(id: string, error: Error): Promise<void> {
     const entity = await this.repo.findById(id);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
     await this.repo.updateState(id, 'failed', error.message);
     logger.error(`[ModuleRegistry] ${id} failed: ${error.message}`);

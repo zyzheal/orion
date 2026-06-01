@@ -115,17 +115,17 @@ class K8sClientManager {
   }
 
   getAppsApi(): k8s.AppsV1Api {
-    if (!this.appsApi) throw new OrionError(ErrorCode.OPERATION_FAILED, 'K8s AppsV1Api not initialized');
+    if (!this.appsApi) throw new OrionError('K8s AppsV1Api not initialized', ErrorCode.OPERATION_FAILED);
     return this.appsApi;
   }
 
   getCoreApi(): k8s.CoreV1Api {
-    if (!this.coreApi) throw new OrionError(ErrorCode.OPERATION_FAILED, 'K8s CoreV1Api not initialized');
+    if (!this.coreApi) throw new OrionError('K8s CoreV1Api not initialized', ErrorCode.OPERATION_FAILED);
     return this.coreApi;
   }
 
   getAutoscalingApi(): k8s.AutoscalingV2Api {
-    if (!this.autoscalingApi) throw new OrionError(ErrorCode.OPERATION_FAILED, 'K8s AutoscalingV2Api not initialized');
+    if (!this.autoscalingApi) throw new OrionError('K8s AutoscalingV2Api not initialized', ErrorCode.OPERATION_FAILED);
     return this.autoscalingApi;
   }
 }
@@ -449,7 +449,7 @@ export class HealingActionExecutor {
       // Wait for restart to take effect
       const restartPromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Restart timed out after ${timeoutMs}ms`);
+        throw new OrionError(`Restart timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
       });
 
       await Promise.race([restartPromise, timeoutPromise]);
@@ -564,7 +564,7 @@ export class HealingActionExecutor {
       // Wait for scale to take effect
       const scalePromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Scale timed out after ${timeoutMs}ms`);
+        throw new OrionError(`Scale timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
       });
 
       await Promise.race([scalePromise, timeoutPromise]);
@@ -650,7 +650,7 @@ export class HealingActionExecutor {
       // Wait for failover to take effect
       const failoverPromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Failover timed out after ${timeoutMs}ms`);
+        throw new OrionError(`Failover timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
       });
 
       await Promise.race([failoverPromise, timeoutPromise]);
@@ -798,7 +798,7 @@ export class HealingActionExecutor {
       // Wait for rollback to take effect
       const rollbackPromise = this.delay(Math.min(5000, timeoutMs));
       const timeoutPromise = this.delay(timeoutMs).then(() => {
-        throw new OrionError('OPERATION_FAILED', `Rollback timed out after ${timeoutMs}ms`)
+        throw new OrionError(`Rollback timed out after ${timeoutMs}ms`, 'OPERATION_FAILED')
       });
 
       await Promise.race([rollbackPromise, timeoutPromise]);

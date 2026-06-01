@@ -70,7 +70,7 @@ export class DataPipelineService {
   async executePipeline(pipelineId: string): Promise<PipelineExecution> {
     const pipeline = this.pipelines.get(pipelineId);
     if (!pipeline) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline ${pipelineId} not found`);
+      throw new OrionError(`Pipeline ${pipelineId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const execId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

@@ -82,7 +82,7 @@ export class DataPipelineController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${params.id}' not found`);
+      if (!pipeline) throw new OrionError(`Pipeline '${params.id}' not found`, ErrorCode.NOT_FOUND);
       const id = `exec-${Date.now()}`;
       const exec: PipelineExecution = {
         id,
@@ -102,7 +102,7 @@ export class DataPipelineController extends BaseController {
       const params = request.params as { id: string };
       const body = request.body as { cron: string };
       const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${params.id}' not found`);
+      if (!pipeline) throw new OrionError(`Pipeline '${params.id}' not found`, ErrorCode.NOT_FOUND);
       pipeline.schedule = body.cron;
       return pipeline;
     }, (pipeline) => this.sendSuccess(reply, pipeline));
@@ -112,7 +112,7 @@ export class DataPipelineController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${params.id}' not found`);
+      if (!pipeline) throw new OrionError(`Pipeline '${params.id}' not found`, ErrorCode.NOT_FOUND);
       const recentExecs = Array.from(this.executions.values())
         .filter((e) => e.pipelineId === params.id)
         .slice(-5);
@@ -132,7 +132,7 @@ export class DataPipelineController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline '${params.id}' not found`);
+      if (!pipeline) throw new OrionError(`Pipeline '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return { lineage: { source: pipeline.source, destination: pipeline.destination } };
     }, (data) => this.sendSuccess(reply, data));
   }

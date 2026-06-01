@@ -46,11 +46,11 @@ export class SharedActionService {
     depth: number = 0,
   ): Promise<PipelineStep[]> {
     if (visited.has(ref)) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Circular action reference detected: ${ref}`);
+      throw new OrionError(`Circular action reference detected: ${ref}`, ErrorCode.NOT_FOUND);
     }
 
     if (depth > MAX_DEPTH) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Action nesting depth exceeds maximum (${MAX_DEPTH}): ${ref}`);
+      throw new OrionError(`Action nesting depth exceeds maximum (${MAX_DEPTH}): ${ref}`, ErrorCode.NOT_FOUND);
     }
 
     visited.add(ref);
@@ -65,7 +65,7 @@ export class SharedActionService {
       if (builtin) {
         return this.expandAction(builtin, inputs);
       }
-      throw new OrionError(ErrorCode.NOT_FOUND, `Unknown builtin action: ${ref}`);
+      throw new OrionError(`Unknown builtin action: ${ref}`, ErrorCode.NOT_FOUND);
     } else if (ref.includes('/')) {
       actionYaml = await this.loadRemoteAction(ref);
     } else {
@@ -73,7 +73,7 @@ export class SharedActionService {
       if (builtin) {
         return this.expandAction(builtin, inputs);
       }
-      throw new OrionError(ErrorCode.NOT_FOUND, `Unknown action: ${ref}`);
+      throw new OrionError(`Unknown action: ${ref}`, ErrorCode.NOT_FOUND);
     }
 
     const action = yaml.load(actionYaml) as ActionDefinition;
@@ -87,16 +87,16 @@ export class SharedActionService {
 
     // Path traversal protection
     if (!resolvedPath.startsWith(path.resolve(this.workspaceRoot))) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Path traversal detected: action path must be within workspace root`);
+      throw new OrionError(`Path traversal detected: action path must be within workspace root`, ErrorCode.NOT_FOUND);
     }
 
     if (!fs.existsSync(resolvedPath)) {
       const altPath = path.resolve(this.workspaceRoot, ref, 'action.yaml');
       if (!altPath.startsWith(path.resolve(this.workspaceRoot))) {
-        throw new OrionError('VALIDATION_ERROR', `Path traversal detected: action path must be within workspace root`)
+        throw new OrionError(`Path traversal detected: action path must be within workspace root`, 'VALIDATION_ERROR')
       }
       if (!fs.existsSync(altPath)) {
-        throw new OrionError('NOT_FOUND', `Local action not found: ${ref}`)
+        throw new OrionError(`Local action not found: ${ref}`, 'NOT_FOUND')
       }
       return fs.readFileSync(altPath, 'utf-8');
     }
@@ -108,17 +108,17 @@ export class SharedActionService {
 
     // Validate repo format: only allow org/repo pattern with alphanumeric chars
     if (!/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(repo)) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Invalid repository format: ${repo}. Expected: org/repo`);
+      throw new OrionError(`Invalid repository format: ${repo}. Expected: org/repo`, ErrorCode.NOT_FOUND);
     }
 
     if (!version || /^(main|master|HEAD)$/i.test(version)) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Version must not be a default branch');
+      throw new OrionError('Version must not be a default branch', ErrorCode.VALIDATION_ERROR);
     }
 
     if (this.registryWhitelist.length > 0) {
       const org = repo.split('/')[0];
       if (!this.registryWhitelist.includes(org)) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Registry not in whitelist: ${org}`);
+        throw new OrionError(`Registry not in whitelist: ${org}`, ErrorCode.NOT_FOUND);
       }
     }
 
@@ -129,7 +129,7 @@ export class SharedActionService {
     const path = require('path');
     const actionPath = path.join(tmpDir, 'action.yml');
     if (!fs.existsSync(actionPath)) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `action.yml not found in remote: ${ref}`);
+      throw new OrionError(`action.yml not found in remote: ${ref}`, ErrorCode.NOT_FOUND);
     }
     return fs.readFileSync(actionPath, 'utf-8');
   }

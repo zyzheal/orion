@@ -47,7 +47,7 @@ export class PerformanceController extends BaseController {
         metrics: Record<string, number>;
       };
       const result = await this.baselineService.evaluatePerformance(tenantId, body.service, body.metrics);
-      if (!result) throw new OrionError(ErrorCode.NOT_FOUND, `No baseline found for service: ${body.service}`);
+      if (!result) throw new OrionError(`No baseline found for service: ${body.service}`, ErrorCode.NOT_FOUND);
       return result;
     }, (result) => this.sendSuccess(reply, result));
   }
@@ -66,7 +66,7 @@ export class PerformanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { profileId: string };
       const result = await this.profileSvc.analyzeBottlenecks(params.profileId);
-      if (!result) throw new OrionError('NOT_FOUND', `Profile not found or not completed: ${params.profileId}`);
+      if (!result) throw new OrionError(`Profile not found or not completed: ${params.profileId}`, 'NOT_FOUND');
       return result;
     }, (data) => this.sendSuccess(reply, data));
   }
@@ -88,7 +88,7 @@ export class PerformanceController extends BaseController {
       const tenantId = this.getTenantId(request);
       const body = this.getBody<{ service: string; currentMetrics: Record<string, number> }>(request);
       const result = await this.baselineService.detectRegression(tenantId, body.service, body.currentMetrics);
-      if (!result) throw new OrionError(ErrorCode.NOT_FOUND, `No baseline found for service: ${body.service}`);
+      if (!result) throw new OrionError(`No baseline found for service: ${body.service}`, ErrorCode.NOT_FOUND);
       return result;
     }, (result) => this.sendSuccess(reply, result));
   }
@@ -146,7 +146,7 @@ export class PerformanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = this.getParams<{ id: string }>(request);
       const baseline = await this.baselineService.getBaselineById(params.id);
-      if (!baseline) throw new OrionError('NOT_FOUND', `Baseline '${params.id}' not found`);
+      if (!baseline) throw new OrionError(`Baseline '${params.id}' not found`, 'NOT_FOUND');
       return baseline;
     }, (baseline) => this.sendSuccess(reply, baseline));
   }

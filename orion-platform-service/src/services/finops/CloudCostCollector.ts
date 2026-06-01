@@ -250,7 +250,7 @@ export class CloudCostCollector {
   ): Promise<CloudResource[]> {
     const adapter = this.getAdapter(provider);
     if (!adapter) {
-      throw new OrionError('OPERATION_FAILED', `No adapter registered for provider: ${provider}`)
+      throw new OrionError(`No adapter registered for provider: ${provider}`, 'OPERATION_FAILED')
     }
 
     const resources = await adapter.collectCosts(startDate, endDate);

@@ -262,7 +262,7 @@ export class WorkflowScheduler {
       return module;
     } catch (error) {
       logger.error({ error }, 'Failed to import node-cron module');
-      throw new OrionError('OPERATION_FAILED', 'node-cron module is not installed. Please run: npm install node-cron');
+      throw new OrionError('node-cron module is not installed. Please run: npm install node-cron', 'OPERATION_FAILED');
     }
   }
 

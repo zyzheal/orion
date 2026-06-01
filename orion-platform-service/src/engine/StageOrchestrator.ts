@@ -723,7 +723,7 @@ export class StageOrchestrator {
     checkRunCompletion: (execution: PipelineExecution) => void
   ): Promise<void> {
     if (!this.subPipelineService) {
-      throw new OrionError('SERVICE_UNAVAILABLE', `SubPipelineService not configured. Stage '${stage.name}' uses sub-pipeline type but SubPipelineService is not available.`);
+      throw new OrionError(`SubPipelineService not configured. Stage '${stage.name}' uses sub-pipeline type but SubPipelineService is not available.`, 'SERVICE_UNAVAILABLE');
     }
 
     const subPipelineTask = tasks[0];
@@ -731,7 +731,7 @@ export class StageOrchestrator {
     const childPipelineId = params.pipelineId as string;
 
     if (!childPipelineId) {
-      throw new OrionError('NOT_FOUND', `Sub-pipeline stage '${stage.name}' missing required parameter: pipelineId`);
+      throw new OrionError(`Sub-pipeline stage '${stage.name}' missing required parameter: pipelineId`, 'NOT_FOUND');
     }
 
     // Extract input parameters (params other than 'pipelineId' and 'outputMapping')

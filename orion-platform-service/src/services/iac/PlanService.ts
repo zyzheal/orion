@@ -135,7 +135,7 @@ export class PlanService {
     const entity = await this.planRepository.findById(planId);
     if (!entity) return undefined;
     if (entity.applied) {
-      throw new OrionError('OPERATION_FAILED', `Plan already applied`)
+      throw new OrionError(`Plan already applied`, 'OPERATION_FAILED')
     }
 
     await this.planRepository.markApplied(planId, 'system');

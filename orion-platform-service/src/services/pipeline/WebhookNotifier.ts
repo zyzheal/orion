@@ -215,7 +215,7 @@ export class WebhookNotifier {
       });
 
       if (!response.ok) {
-        throw new OrionError('OPERATION_FAILED', `Webhook returned ${response.status} ${response.statusText}`)
+        throw new OrionError(`Webhook returned ${response.status} ${response.statusText}`, 'OPERATION_FAILED')
       }
 
       try {

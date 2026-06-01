@@ -179,15 +179,15 @@ describe('PluginService (Integration)', () => {
       await service.registerPlugin(createManifest(), { initial: 'value' });
     });
 
-    it('should update plugin configuration', () => {
-      const plugin = service.updatePluginConfig('test-plugin', { newKey: 'newValue' });
+    it('should update plugin configuration', async () => {
+      const plugin = await service.updatePluginConfig('test-plugin', { newKey: 'newValue' });
 
       expect(plugin).toBeDefined();
       expect(plugin!.config).toEqual({ initial: 'value', newKey: 'newValue' });
     });
 
-    it('should return undefined for unknown plugin', () => {
-      const plugin = service.updatePluginConfig('unknown', { key: 'value' });
+    it('should return undefined for unknown plugin', async () => {
+      const plugin = await service.updatePluginConfig('unknown', { key: 'value' });
       expect(plugin).toBeUndefined();
     });
   });

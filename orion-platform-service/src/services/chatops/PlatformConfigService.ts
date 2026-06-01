@@ -66,7 +66,7 @@ export class PlatformConfigService {
   async update(userId: string, config: PlatformConfig): Promise<PlatformConfig> {
     // 验证 webhook URL 格式
     if (config.webhook && !validateWebhook(config.webhook, config.platform)) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid webhook URL for platform ${config.platform}`)
+      throw new OrionError(`Invalid webhook URL for platform ${config.platform}`, 'VALIDATION_ERROR')
     }
     // S-1: 存储前加密敏感字段
     const entity = await this.repo.upsert({
@@ -86,7 +86,7 @@ export class PlatformConfigService {
       for (const config of configs) {
         // 验证 webhook URL 格式
         if (config.webhook && !validateWebhook(config.webhook, config.platform)) {
-          throw new OrionError('VALIDATION_ERROR', `Invalid webhook URL for platform ${config.platform}`)
+          throw new OrionError(`Invalid webhook URL for platform ${config.platform}`, 'VALIDATION_ERROR')
         }
         // 在事务内直接执行 upsert
         const result = await client.query(

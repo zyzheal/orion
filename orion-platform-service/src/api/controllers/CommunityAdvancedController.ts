@@ -127,7 +127,7 @@ export class CommunityAdvancedController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = this.getParams<{ id: string }>(request);
       const practice = await this.communityService.getBestPractice(params.id);
-      if (!practice) throw new OrionError(ErrorCode.NOT_FOUND, `Best practice '${params.id}' not found`);
+      if (!practice) throw new OrionError(`Best practice '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return practice;
     }, (practice) => this.sendSuccess(reply, practice));
   }
@@ -140,7 +140,7 @@ export class CommunityAdvancedController extends BaseController {
       const params = this.getParams<{ id: string }>(request);
       const body = this.getBody<{ direction?: 'up' | 'down' }>(request);
       const practice = await this.communityService.voteBestPractice(params.id, body.direction || 'up');
-      if (!practice) throw new OrionError(ErrorCode.NOT_FOUND, `Best practice '${params.id}' not found`);
+      if (!practice) throw new OrionError(`Best practice '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return practice;
     }, (practice) => this.sendSuccess(reply, practice));
   }

@@ -201,7 +201,7 @@ export class AIGenerateService {
     });
 
     if (!response.ok) {
-      throw new OrionError('OPERATION_FAILED', `AI service returned ${response.status}`)
+      throw new OrionError(`AI service returned ${response.status}`, 'OPERATION_FAILED')
     }
 
     const data: Record<string, any> = (await response.json()) as Record<string, any>;

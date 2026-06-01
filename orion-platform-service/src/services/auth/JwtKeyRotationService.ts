@@ -128,7 +128,7 @@ export class JwtKeyRotationService extends EventEmitter {
   async activateKey(keyId: string): Promise<void> {
     const key = await this.getKeyById(keyId);
     if (!key) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Key not found: ${keyId}`);
+      throw new OrionError(`Key not found: ${keyId}`, ErrorCode.NOT_FOUND);
     }
 
     // Mark previous key as expiring (overlap period)

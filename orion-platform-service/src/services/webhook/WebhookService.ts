@@ -74,7 +74,7 @@ export class WebhookService {
           clearTimeout(timeout);
 
           if (!response.ok) {
-            throw new OrionError(ErrorCode.NOT_FOUND, `HTTP ${response.status}: ${response.statusText}`);
+            throw new OrionError(`HTTP ${response.status}: ${response.statusText}`, ErrorCode.NOT_FOUND);
           }
 
           const responseBody = await response.text();

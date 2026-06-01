@@ -93,7 +93,7 @@ export class CommitStatusService {
           await this.createGitHubStatus(input);
           break;
         default:
-          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
       
       logger.info({
@@ -124,7 +124,7 @@ export class CommitStatusService {
         case GitProvider.GITHUB:
           return await this.getGitHubStatus(query);
         default:
-          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
     } catch (error) {
       logger.error({
@@ -148,7 +148,7 @@ export class CommitStatusService {
         case GitProvider.GITHUB:
           return await this.getGitHubStatusDetail(query);
         default:
-          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
     } catch (error) {
       logger.error({
@@ -196,7 +196,7 @@ export class CommitStatusService {
           await this.deleteGitHubStatus(query);
           break;
         default:
-          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
       
       logger.info({
@@ -291,7 +291,7 @@ export class CommitStatusService {
 
     const state = gitlabStateMap[input.state];
     if (!state) {
-      throw new OrionError('VALIDATION_ERROR', `Unsupported state for GitLab: ${input.state}`)
+      throw new OrionError(`Unsupported state for GitLab: ${input.state}`, 'VALIDATION_ERROR')
     }
 
     await this.gitLabClient.createCommitStatus({
@@ -317,7 +317,7 @@ export class CommitStatusService {
 
     const state = githubStateMap[input.state];
     if (!state) {
-      throw new OrionError('VALIDATION_ERROR', `Unsupported state for GitHub: ${input.state}`)
+      throw new OrionError(`Unsupported state for GitHub: ${input.state}`, 'VALIDATION_ERROR')
     }
 
     await this.githubClient.createCommitStatus({
@@ -549,7 +549,7 @@ export class CommitStatusService {
           await this.postGitLabComment(repositoryId, prNumber, comment);
           break;
         default:
-          throw new OrionError('VALIDATION_ERROR', `Unsupported Git provider: ${provider}`)
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
 
       logger.info(
@@ -586,7 +586,7 @@ export class CommitStatusService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new OrionError('OPERATION_FAILED', `GitHub API error: ${response.status} - ${errorText}`)
+      throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
     }
   }
 
@@ -609,7 +609,7 @@ export class CommitStatusService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new OrionError('OPERATION_FAILED', `GitLab API error: ${response.status} - ${errorText}`)
+      throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
     }
   }
 
@@ -670,7 +670,7 @@ export class CommitStatusService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new OrionError('OPERATION_FAILED', `GitHub Check Run API error: ${response.status} - ${errorText}`)
+        throw new OrionError(`GitHub Check Run API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       const result = (await response.json()) as { id: number };
@@ -743,7 +743,7 @@ export class CommitStatusService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new OrionError('OPERATION_FAILED', `GitHub Check Run API error: ${response.status} - ${errorText}`)
+        throw new OrionError(`GitHub Check Run API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       logger.info(

@@ -61,7 +61,7 @@ export class WasmRuntime {
     const deadline = Date.now() + request.timeout;
     rt.setInterruptHandler(() => {
       if (Date.now() > deadline) {
-        throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Execution timeout: exceeded CPU time limit');
+        throw new OrionError('Execution timeout: exceeded CPU time limit', ErrorCode.SERVICE_UNAVAILABLE);
       }
     });
 

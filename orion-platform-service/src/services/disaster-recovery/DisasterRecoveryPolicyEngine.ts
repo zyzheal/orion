@@ -112,7 +112,7 @@ export class DRPolicyRepository extends BaseRepository<DRPolicy> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `INSERT into disaster_recovery_policies returned no rows`)
+      throw new OrionError(`INSERT into disaster_recovery_policies returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

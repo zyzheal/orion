@@ -135,15 +135,15 @@ export class MultiLevelApprovalService {
     comment?: string,
   ): Promise<ApprovalRequestDetail> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval request not found: ${requestId}`);
-    if (entity.status !== 'pending') throw new OrionError(ErrorCode.NOT_FOUND, `Approval request is not pending (current status: ${entity.status})`);
+    if (!entity) throw new OrionError(`Approval request not found: ${requestId}`, ErrorCode.NOT_FOUND);
+    if (entity.status !== 'pending') throw new OrionError(`Approval request is not pending (current status: ${entity.status})`, ErrorCode.NOT_FOUND);
 
     const steps = await this.repository.findStepsByApproval(requestId);
     const matchingStep = steps.find(s => s.approverId === reviewerId && (s.status === 'pending' || s.status === 'waiting'));
-    if (!matchingStep) throw new OrionError(ErrorCode.OPERATION_FAILED, 'Not authorized to review this request');
+    if (!matchingStep) throw new OrionError('Not authorized to review this request', ErrorCode.OPERATION_FAILED);
 
     if (matchingStep.status === 'waiting') {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'This step is waiting for previous level to complete');
+      throw new OrionError('This step is waiting for previous level to complete', ErrorCode.OPERATION_FAILED);
     }
 
     // Update the step status
@@ -186,7 +186,7 @@ export class MultiLevelApprovalService {
    */
   async getApprovalChain(requestId: string): Promise<ApprovalChainInfo> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval request not found: ${requestId}`);
+    if (!entity) throw new OrionError(`Approval request not found: ${requestId}`, ErrorCode.NOT_FOUND);
 
     const steps = await this.repository.findStepsByApproval(requestId);
     const levels = this.extractLevels(steps);

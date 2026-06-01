@@ -30,7 +30,7 @@ const logger = pino({ name: 'LBackup-LScheduler' });
 export function getNextCronTime(cronExpression: string, fromDate: Date = new Date()): Date {
   const parts = cronExpression.trim().split(/\s+/);
   if (parts.length !== 5) {
-    throw new OrionError(ErrorCode.NOT_FOUND, `Invalid cron expression: ${cronExpression}. Expected 5 fields.`);
+    throw new OrionError(`Invalid cron expression: ${cronExpression}. Expected 5 fields.`, ErrorCode.NOT_FOUND);
   }
 
   const [minuteStr, hourStr, dayOfMonthStr, monthStr, dayOfWeekStr] = parts;
@@ -65,7 +65,7 @@ export function getNextCronTime(cronExpression: string, fromDate: Date = new Dat
     iterations++;
   }
 
-  throw new OrionError(ErrorCode.NOT_FOUND, `Could not find next cron time for: ${cronExpression}`);
+  throw new OrionError(`Could not find next cron time for: ${cronExpression}`, ErrorCode.NOT_FOUND);
 }
 
 /**

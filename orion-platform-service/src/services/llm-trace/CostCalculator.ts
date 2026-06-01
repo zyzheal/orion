@@ -98,7 +98,7 @@ export class CostCalculator {
    */
   async setCustomPricing(modelId: string, inputPrice: number, outputPrice: number): Promise<void> {
     if (!this.pricingRepo) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured for CostCalculator');
+      throw new OrionError('Database not configured for CostCalculator', ErrorCode.SERVICE_UNAVAILABLE);
     }
     await this.pricingRepo.upsertByModelId(modelId, { inputPrice, outputPrice });
     logger.info(`[CostCalculator] Set custom pricing for ${modelId}: input=${inputPrice}, output=${outputPrice}`);

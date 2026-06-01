@@ -151,7 +151,7 @@ class JwtKeyManager extends EventEmitter {
    */
   async rotateKey(reason?: string): Promise<JwtKey | null> {
     if (!this.rotationService) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'JwtKeyManager not initialized');
+      throw new OrionError('JwtKeyManager not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     const newKey = await this.rotationService.generateNewKey();

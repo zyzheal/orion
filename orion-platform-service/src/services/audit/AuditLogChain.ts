@@ -71,7 +71,7 @@ export class AuditLogChain {
    */
   async loadFromRepository(): Promise<void> {
     if (!this.repository) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Repository not configured');
+      throw new OrionError('Repository not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const entries = await this.repository.getEntries();
@@ -357,7 +357,7 @@ export class AuditLogChain {
     endSequence?: number;
   }): Promise<ChainVerificationResult> {
     if (!this.repository) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Repository not configured');
+      throw new OrionError('Repository not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
     return this.repository.verifyChain(options);
   }
@@ -375,7 +375,7 @@ export class AuditLogChain {
     // 如果使用 Repository
     if (this.useRepository && (options?.useRepository || !this.entries.size)) {
       if (!this.repository) {
-        throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Repository not configured');
+        throw new OrionError('Repository not configured', ErrorCode.SERVICE_UNAVAILABLE);
       }
       return this.repository.getEntries(options);
     }
@@ -527,7 +527,7 @@ export class AuditLogChain {
    */
   private sign(data: string): string {
     if (!this.config.signingKey) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Signing key not configured');
+      throw new OrionError('Signing key not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
     return crypto
       .createHmac('sha256', this.config.signingKey)

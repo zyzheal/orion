@@ -301,7 +301,7 @@ export class PluginService extends EventEmitter {
   } {
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found`);
+      throw new OrionError(`Plugin "${pluginId}" not found`, ErrorCode.NOT_FOUND);
     }
 
     const deps = plugin.manifest.dependencies?.map((d) => d.name) || [];

@@ -92,12 +92,12 @@ export class ApprovalService {
    */
   async approve(approvalId: string, userId: string): Promise<ApprovalRequest> {
     const entity = await this.repository.findById(approvalId);
-    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval not found: ${approvalId}`);
-    if (entity.status !== 'pending') throw new OrionError(ErrorCode.OPERATION_FAILED, 'Approval not pending');
+    if (!entity) throw new OrionError(`Approval not found: ${approvalId}`, ErrorCode.NOT_FOUND);
+    if (entity.status !== 'pending') throw new OrionError('Approval not pending', ErrorCode.OPERATION_FAILED);
 
     const steps = await this.repository.findStepsByApproval(approvalId);
     const matchingStep = steps.find(s => s.approverId === userId);
-    if (!matchingStep) throw new OrionError(ErrorCode.OPERATION_FAILED, 'Not authorized to approve');
+    if (!matchingStep) throw new OrionError('Not authorized to approve', ErrorCode.OPERATION_FAILED);
     if (matchingStep.status === 'approved') {
       // Already approved, return current state
       return this.entityToRequestWithSteps(entity, steps);
@@ -122,12 +122,12 @@ export class ApprovalService {
    */
   async reject(approvalId: string, userId: string): Promise<ApprovalRequest> {
     const entity = await this.repository.findById(approvalId);
-    if (!entity) throw new OrionError(ErrorCode.NOT_FOUND, `Approval not found: ${approvalId}`);
-    if (entity.status !== 'pending') throw new OrionError(ErrorCode.OPERATION_FAILED, 'Approval not pending');
+    if (!entity) throw new OrionError(`Approval not found: ${approvalId}`, ErrorCode.NOT_FOUND);
+    if (entity.status !== 'pending') throw new OrionError('Approval not pending', ErrorCode.OPERATION_FAILED);
 
     const steps = await this.repository.findStepsByApproval(approvalId);
     const matchingStep = steps.find(s => s.approverId === userId);
-    if (!matchingStep) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Not authorized to reject');
+    if (!matchingStep) throw new OrionError('Not authorized to reject', ErrorCode.VALIDATION_ERROR);
 
     await this.repository.updateStepStatus(matchingStep.id, 'rejected', undefined, new Date());
     await this.repository.updateStatus(approvalId, 'rejected');

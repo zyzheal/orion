@@ -257,11 +257,11 @@ export class DeploymentWorkflow {
   ): Promise<{ success: boolean; stage?: DeploymentStage }> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (stageIndex < 0 || stageIndex >= deployment.stages.length) {
-      throw new OrionError('OPERATION_FAILED', `Stage index ${stageIndex} out of range. Valid range: 0-${deployment.stages.length - 1}`);
+      throw new OrionError(`Stage index ${stageIndex} out of range. Valid range: 0-${deployment.stages.length - 1}`, 'OPERATION_FAILED');
     }
 
     const stage = deployment.stages[stageIndex];
@@ -325,7 +325,7 @@ export class DeploymentWorkflow {
   ): Promise<{ success: boolean; report?: VerificationReport }> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const report = await this.verifier.generateVerificationReport(deployment);
@@ -375,7 +375,7 @@ export class DeploymentWorkflow {
   async completeDeployment(deploymentId: string): Promise<Deployment> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     deployment.status = 'completed';

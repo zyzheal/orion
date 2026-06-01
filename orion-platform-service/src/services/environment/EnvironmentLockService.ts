@@ -44,7 +44,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
+      throw new OrionError(`Environment not found: ${envId}`, ErrorCode.NOT_FOUND);
     }
 
     const row = result.rows[0];
@@ -69,7 +69,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
+      throw new OrionError(`Environment not found: ${envId}`, ErrorCode.NOT_FOUND);
     }
   }
 
@@ -83,7 +83,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
+      throw new OrionError(`Environment not found: ${envId}`, ErrorCode.NOT_FOUND);
     }
 
     return result.rows[0].locked;
@@ -99,7 +99,7 @@ export class EnvironmentLockService {
     );
 
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Environment not found: ${envId}`);
+      throw new OrionError(`Environment not found: ${envId}`, ErrorCode.NOT_FOUND);
     }
 
     const row = result.rows[0];

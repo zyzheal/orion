@@ -124,11 +124,11 @@ export class WorkflowEngine {
     // 获取工作流定义
     const definition = await this.definitionRepository.findById(workflowId);
     if (!definition) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow definition not found: ${workflowId}`);
+      throw new OrionError(`Workflow definition not found: ${workflowId}`, ErrorCode.NOT_FOUND);
     }
 
     if (!definition.enabled) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow is not enabled: ${workflowId}`);
+      throw new OrionError(`Workflow is not enabled: ${workflowId}`, ErrorCode.NOT_FOUND);
     }
 
     // 创建实例
@@ -150,17 +150,17 @@ export class WorkflowEngine {
     // 获取实例和定义
     const instance = await this.instanceManager.getInstance(instanceId);
     if (!instance) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
+      throw new OrionError(`Workflow instance not found: ${instanceId}`, ErrorCode.NOT_FOUND);
     }
 
     const definition = await this.definitionRepository.findById(instance.workflowDefinitionId);
     if (!definition) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow definition not found: ${instance.workflowDefinitionId}`);
+      throw new OrionError(`Workflow definition not found: ${instance.workflowDefinitionId}`, ErrorCode.NOT_FOUND);
     }
 
     // 检查实例状态（允许 pending/suspended/running，running 用于 resume 场景）
     if (instance.status !== 'pending' && instance.status !== 'suspended' && instance.status !== 'running') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot execute workflow instance with status: ${instance.status}`);
+      throw new OrionError(`Cannot execute workflow instance with status: ${instance.status}`, ErrorCode.NOT_FOUND);
     }
 
     // 启动实例
@@ -182,7 +182,7 @@ export class WorkflowEngine {
         // 获取当前节点
         const currentNode = definition.nodes.find(n => n.id === currentInstance.currentNodeId);
         if (!currentNode) {
-          throw new OrionError(ErrorCode.NOT_FOUND, `Node not found: ${currentInstance.currentNodeId}`);
+          throw new OrionError(`Node not found: ${currentInstance.currentNodeId}`, ErrorCode.NOT_FOUND);
         }
 
         executedNodes.push(currentNode.id);
@@ -308,11 +308,11 @@ export class WorkflowEngine {
     // 更新实例变量，合并任务结果
     const instance = await this.instanceManager.getInstance(instanceId);
     if (!instance) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Workflow instance not found: ${instanceId}`);
+      throw new OrionError(`Workflow instance not found: ${instanceId}`, ErrorCode.NOT_FOUND);
     }
 
     if (instance.status !== 'suspended') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot resume workflow instance with status: ${instance.status}. Expected 'suspended'.`);
+      throw new OrionError(`Cannot resume workflow instance with status: ${instance.status}. Expected 'suspended'.`, ErrorCode.NOT_FOUND);
     }
 
     // 合并任务结果到实例变量
@@ -408,7 +408,7 @@ export class WorkflowEngine {
           return await this.executeTimerNode(node.config as TimerNodeConfig, instance, context);
 
         default:
-          throw new OrionError(ErrorCode.NOT_FOUND, `Unknown node type: ${node.type}`);
+          throw new OrionError(`Unknown node type: ${node.type}`, ErrorCode.NOT_FOUND);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -634,7 +634,7 @@ export class WorkflowEngine {
     }
 
     if (lastError && !result) {
-      throw new OrionError('OPERATION_FAILED', `Webhook failed after ${config.retry.maxRetries + 1} attempts: ${lastError.message}`)
+      throw new OrionError(`Webhook failed after ${config.retry.maxRetries + 1} attempts: ${lastError.message}`, 'OPERATION_FAILED')
     }
 
     return {
@@ -1416,7 +1416,7 @@ export class WorkflowEngine {
 
           if (!result.success) {
             logger.error({ error: result.message }, 'Failed to start approval flow');
-            throw new OrionError('OPERATION_FAILED', `Failed to start approval: ${result.message}`)
+            throw new OrionError(`Failed to start approval: ${result.message}`, 'OPERATION_FAILED')
           }
 
           const approvalId = `approval_${result.ticketId}`;
@@ -1659,7 +1659,7 @@ export class WorkflowEngine {
           clearTimeout(timeoutId);
 
           if (!response.ok) {
-            throw new OrionError('OPERATION_FAILED', `HTTP ${response.status}: ${response.statusText}`)
+            throw new OrionError(`HTTP ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
           }
 
           // 尝试解析 JSON 响应

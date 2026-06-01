@@ -458,7 +458,7 @@ export class FederationService {
     }
 
     if (!selectedExecutor) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No suitable executor found for job dispatch');
+      throw new OrionError('No suitable executor found for job dispatch', ErrorCode.OPERATION_FAILED);
     }
 
     const jobId = this.generateId();

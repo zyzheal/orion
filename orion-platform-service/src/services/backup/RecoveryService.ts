@@ -54,10 +54,10 @@ export class RecoveryService extends EventEmitter {
 
     // Validate RTO and RPO are positive
     if (fullPlan.rto <= 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'RTO must be a positive number (milliseconds)');
+      throw new OrionError('RTO must be a positive number (milliseconds)', ErrorCode.OPERATION_FAILED);
     }
     if (fullPlan.rpo <= 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'RPO must be a positive number (milliseconds)');
+      throw new OrionError('RPO must be a positive number (milliseconds)', ErrorCode.OPERATION_FAILED);
     }
 
     // Sort steps by order
@@ -197,11 +197,11 @@ export class RecoveryService extends EventEmitter {
   ): Promise<RecoveryExecution> {
     const plan = this.recoveryPlans.get(planId);
     if (!plan) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery plan ${planId} not found`);
+      throw new OrionError(`Recovery plan ${planId} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (!plan.enabled) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery plan ${planId} is disabled`);
+      throw new OrionError(`Recovery plan ${planId} is disabled`, ErrorCode.NOT_FOUND);
     }
 
     // Create recovery execution record
@@ -257,16 +257,16 @@ export class RecoveryService extends EventEmitter {
   async executeRecoveryPlan(executionId: string): Promise<RecoveryExecution> {
     const execution = this.executions.get(executionId);
     if (!execution) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery execution ${executionId} not found`);
+      throw new OrionError(`Recovery execution ${executionId} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (execution.status !== 'initiated') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery execution ${executionId} is not in initiated state`);
+      throw new OrionError(`Recovery execution ${executionId} is not in initiated state`, ErrorCode.NOT_FOUND);
     }
 
     const plan = this.recoveryPlans.get(execution.planId);
     if (!plan) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Recovery plan ${execution.planId} not found`);
+      throw new OrionError(`Recovery plan ${execution.planId} not found`, ErrorCode.NOT_FOUND);
     }
 
     execution.status = 'in_progress';
@@ -405,7 +405,7 @@ export class RecoveryService extends EventEmitter {
     const backupResult = this.findBackupForPointInTime(targetTime, backups);
 
     if (!backupResult) {
-      throw new OrionError('OPERATION_FAILED', `No suitable backup found for point-in-time recovery at ${targetTime.toISOString()}`)
+      throw new OrionError(`No suitable backup found for point-in-time recovery at ${targetTime.toISOString()}`, 'OPERATION_FAILED')
     }
 
     const execution = await this.initiateRecovery(planId, {

@@ -112,7 +112,7 @@ export class DeploymentStrategyEngine {
           healthCheckConfig
         );
       default:
-        throw new OrionError('NOT_FOUND', `Unknown deployment strategy: ${strategyType}`)
+        throw new OrionError(`Unknown deployment strategy: ${strategyType}`, 'NOT_FOUND')
     }
   }
 

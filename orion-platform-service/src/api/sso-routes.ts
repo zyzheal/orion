@@ -195,7 +195,7 @@ export async function registerSsoRoutes(
         }
 
         if (!user) {
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to auto-provision user');
+          throw new OrionError('Failed to auto-provision user', ErrorCode.OPERATION_FAILED);
         }
 
         fastify.log.info(`[SsoRoutes] Auto-provisioned user: ${user.email} (role: ${platformRole})`);

@@ -234,7 +234,7 @@ export class ServerlessService {
   async deployFunction(functionId: string, tenantId: string): Promise<ServerlessDeployment> {
     const fn = functions.get(functionId);
     if (!fn || fn.tenantId !== tenantId) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'FUNCTION_NOT_FOUND');
+      throw new OrionError('FUNCTION_NOT_FOUND', ErrorCode.OPERATION_FAILED);
     }
 
     const deployment: ServerlessDeployment = {
@@ -300,11 +300,11 @@ export class ServerlessService {
   }> {
     const fn = functions.get(functionId);
     if (!fn || fn.tenantId !== tenantId) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'FUNCTION_NOT_FOUND');
+      throw new OrionError('FUNCTION_NOT_FOUND', ErrorCode.OPERATION_FAILED);
     }
 
     if (fn.status !== 'deployed') {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'FUNCTION_NOT_DEPLOYED');
+      throw new OrionError('FUNCTION_NOT_DEPLOYED', ErrorCode.OPERATION_FAILED);
     }
 
     const requestId = uuidv4();
@@ -346,7 +346,7 @@ export class ServerlessService {
   }, tenantId: string): Promise<ServerlessTrigger> {
     const fn = functions.get(input.functionId);
     if (!fn || fn.tenantId !== tenantId) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'FUNCTION_NOT_FOUND');
+      throw new OrionError('FUNCTION_NOT_FOUND', ErrorCode.OPERATION_FAILED);
     }
 
     const trigger: ServerlessTrigger = {

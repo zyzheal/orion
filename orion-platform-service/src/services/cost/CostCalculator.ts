@@ -59,7 +59,7 @@ export class CostCalculator {
     );
 
     if (!pricing) {
-      throw new OrionError('OPERATION_FAILED', `No pricing found for ${params.provider}/${params.model}`);
+      throw new OrionError(`No pricing found for ${params.provider}/${params.model}`, 'OPERATION_FAILED');
     }
 
     const estimate = this._estimateFromPricing(pricing, params.inputTokens, params.outputTokens);

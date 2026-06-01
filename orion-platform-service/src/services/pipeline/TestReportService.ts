@@ -94,7 +94,7 @@ export class TestReportService {
         result = this.jestParser.parse(content);
         break;
       default:
-        throw new OrionError('VALIDATION_ERROR', `Unsupported report format: ${format}`)
+        throw new OrionError(`Unsupported report format: ${format}`, 'VALIDATION_ERROR')
     }
 
     const report: TestReportCreateInput = {

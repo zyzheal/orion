@@ -188,13 +188,13 @@ export class ApprovalGateService {
     if (this.repository) {
       const entity = await this.repository.findByRunAndStage(runId, stageId);
       if (!entity) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'No pending approval request found for this stage');
+        throw new OrionError('No pending approval request found for this stage', ErrorCode.OPERATION_FAILED);
       }
       if (entity.status !== 'pending') {
-        throw new OrionError('OPERATION_FAILED', `Approval is ${entity.status}, not pending`)
+        throw new OrionError(`Approval is ${entity.status}, not pending`, 'OPERATION_FAILED')
       }
       if (!entity.approverIds.includes(userId)) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Not authorized to approve');
+        throw new OrionError('Not authorized to approve', ErrorCode.OPERATION_FAILED);
       }
 
       const now = new Date();
@@ -206,14 +206,14 @@ export class ApprovalGateService {
       });
 
       if (!updated) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to update approval gate');
+        throw new OrionError('Failed to update approval gate', ErrorCode.OPERATION_FAILED);
       }
 
       return this.mapEntityToGate(updated);
     }
 
     // Fallback to in-memory (should not reach here in normal operation)
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Repository required for approval operation');
+    throw new OrionError('Repository required for approval operation', ErrorCode.VALIDATION_ERROR);
   }
 
   /**
@@ -228,13 +228,13 @@ export class ApprovalGateService {
     if (this.repository) {
       const entity = await this.repository.findByRunAndStage(runId, stageId);
       if (!entity) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'No pending approval request found for this stage');
+        throw new OrionError('No pending approval request found for this stage', ErrorCode.OPERATION_FAILED);
       }
       if (entity.status !== 'pending') {
-        throw new OrionError('OPERATION_FAILED', `Approval is ${entity.status}, not pending`)
+        throw new OrionError(`Approval is ${entity.status}, not pending`, 'OPERATION_FAILED')
       }
       if (!entity.approverIds.includes(userId)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Not authorized to reject');
+        throw new OrionError('Not authorized to reject', ErrorCode.VALIDATION_ERROR);
       }
 
       const now = new Date();
@@ -246,14 +246,14 @@ export class ApprovalGateService {
       });
 
       if (!updated) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to update approval gate');
+        throw new OrionError('Failed to update approval gate', ErrorCode.OPERATION_FAILED);
       }
 
       return this.mapEntityToGate(updated);
     }
 
     // Fallback to in-memory (should not reach here in normal operation)
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Repository required for reject operation');
+    throw new OrionError('Repository required for reject operation', ErrorCode.VALIDATION_ERROR);
   }
 
   /**

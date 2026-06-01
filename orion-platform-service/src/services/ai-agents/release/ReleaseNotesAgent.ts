@@ -53,12 +53,12 @@ const ALLOWED_REPO_ROOTS = [
  */
 function validateRepoPath(repoPath: string): string {
   if (!repoPath || repoPath.trim().length === 0) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid repository path: must not be empty');
+    throw new OrionError('Invalid repository path: must not be empty', ErrorCode.VALIDATION_ERROR);
   }
 
   // 路径长度限制
   if (repoPath.length > 1024) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid repository path: too long');
+    throw new OrionError('Invalid repository path: too long', ErrorCode.VALIDATION_ERROR);
   }
 
   const resolved = resolve(repoPath);
@@ -68,14 +68,14 @@ function validateRepoPath(repoPath: string): string {
   try {
     realPath = realpathSync(resolved);
   } catch {
-    throw new OrionError('NOT_FOUND', `Invalid repository path: path does not exist or is not accessible`)
+    throw new OrionError(`Invalid repository path: path does not exist or is not accessible`, 'NOT_FOUND')
   }
 
   // 白名单校验：真实路径必须在允许的根目录下
   const isAllowed = ALLOWED_REPO_ROOTS.some(root => realPath.startsWith(root));
   if (!isAllowed) {
     logger.warn({ realPath, allowedRoots: ALLOWED_REPO_ROOTS }, 'Repository path not in allowed roots');
-    throw new OrionError('VALIDATION_ERROR', `Invalid repository path: not within allowed directories`)
+    throw new OrionError(`Invalid repository path: not within allowed directories`, 'VALIDATION_ERROR')
   }
 
   return realPath;
@@ -86,19 +86,19 @@ function validateRepoPath(repoPath: string): string {
  */
 function validateGitRef(ref: string): string {
   if (!ref || ref.trim().length === 0) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: must not be empty');
+    throw new OrionError('Invalid git ref: must not be empty', ErrorCode.VALIDATION_ERROR);
   }
   if (ref.length > 256) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: too long (max 256 chars)');
+    throw new OrionError('Invalid git ref: too long (max 256 chars)', ErrorCode.VALIDATION_ERROR);
   }
   // ref 不能以 - 开头，防止被解析为命令行参数
   if (ref.startsWith('-')) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: must not start with "-"');
+    throw new OrionError('Invalid git ref: must not start with "-"', ErrorCode.VALIDATION_ERROR);
   }
   // 只允许安全的字符
   const safeRefPattern = /^[a-zA-Z0-9_./-]+$/;
   if (!safeRefPattern.test(ref)) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid git ref: contains disallowed characters');
+    throw new OrionError('Invalid git ref: contains disallowed characters', ErrorCode.VALIDATION_ERROR);
   }
   return ref;
 }
@@ -346,7 +346,7 @@ export class ReleaseNotesAgent extends BaseAgent {
         from,
         to,
       });
-      throw new OrionError('OPERATION_FAILED', `Failed to get commits: ${error instanceof Error ? error.message : String(error)}`)
+      throw new OrionError(`Failed to get commits: ${error instanceof Error ? error.message : String(error)}`, 'OPERATION_FAILED')
     }
   }
 

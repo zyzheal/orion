@@ -94,7 +94,7 @@ export class DynamicParamsResolver {
     }
 
     if (validationErrors.length > 0) {
-      throw new OrionError('OPERATION_FAILED', `Parameter validation failed: ${validationErrors.join('; ')}`)
+      throw new OrionError(`Parameter validation failed: ${validationErrors.join('; ')}`, 'OPERATION_FAILED')
     }
 
     // Step 2: Inject environment variables

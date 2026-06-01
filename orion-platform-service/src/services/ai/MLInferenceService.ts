@@ -220,7 +220,7 @@ export class MLInferenceService {
     // 检查版本是否已存在
     const existingVersion = registry.versions.find((v) => v.version === version);
     if (existingVersion) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Version ${version} already exists for model ${modelId}`);
+      throw new OrionError(`Version ${version} already exists for model ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     const versionEntry: ModelVersionEntry = {
@@ -298,12 +298,12 @@ export class MLInferenceService {
   async activateModelVersion(modelId: string, version: string): Promise<ModelRegistryEntry> {
     const registry = await this.getModelRegistry(modelId);
     if (!registry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${modelId}`);
+      throw new OrionError(`Model not found in registry: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     const versionEntry = registry.versions.find((v) => v.version === version);
     if (!versionEntry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Version ${version} not found for model ${modelId}`);
+      throw new OrionError(`Version ${version} not found for model ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     // 将旧活跃版本设为 registered
@@ -334,7 +334,7 @@ export class MLInferenceService {
   async rollbackModelVersion(modelId: string, targetVersion?: string): Promise<ModelRegistryEntry> {
     const registry = await this.getModelRegistry(modelId);
     if (!registry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${modelId}`);
+      throw new OrionError(`Model not found in registry: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     let target: ModelVersionEntry | undefined;
@@ -343,7 +343,7 @@ export class MLInferenceService {
       // 回滚到指定版本
       target = registry.versions.find((v) => v.version === targetVersion);
       if (!target) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Target version ${targetVersion} not found for model ${modelId}`);
+        throw new OrionError(`Target version ${targetVersion} not found for model ${modelId}`, ErrorCode.NOT_FOUND);
       }
     } else {
       // 自动回滚到上一个活跃版本
@@ -352,7 +352,7 @@ export class MLInferenceService {
         .sort((a, b) => (b.activatedAt?.getTime() || 0) - (a.activatedAt?.getTime() || 0))[0];
 
       if (!previousActive) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `No previous version available for rollback: ${modelId}`);
+        throw new OrionError(`No previous version available for rollback: ${modelId}`, ErrorCode.NOT_FOUND);
       }
       target = previousActive;
     }
@@ -393,18 +393,18 @@ export class MLInferenceService {
   }): Promise<ABTestConfig> {
     const registry = await this.getModelRegistry(config.modelId);
     if (!registry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found in registry: ${config.modelId}`);
+      throw new OrionError(`Model not found in registry: ${config.modelId}`, ErrorCode.NOT_FOUND);
     }
 
     // 验证版本存在
     const versionA = registry.versions.find((v) => v.version === config.variantA.version);
     const versionB = registry.versions.find((v) => v.version === config.variantB.version);
     if (!versionA || !versionB) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'One or both variant versions not found');
+      throw new OrionError('One or both variant versions not found', ErrorCode.NOT_FOUND);
     }
 
     if (Math.abs(config.variantA.trafficPercent + config.variantB.trafficPercent - 100) > 0.01) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Traffic split must sum to 100');
+      throw new OrionError('Traffic split must sum to 100', ErrorCode.OPERATION_FAILED);
     }
 
     const abTest: ABTestConfig = {
@@ -465,7 +465,7 @@ export class MLInferenceService {
   async completeABTest(testId: string): Promise<ABTestConfig> {
     const abTest = await this.getABTest(testId);
     if (!abTest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found: ${testId}`);
+      throw new OrionError(`AB test not found: ${testId}`, ErrorCode.NOT_FOUND);
     }
 
     const { variantA, variantB } = abTest.metrics;
@@ -491,10 +491,10 @@ export class MLInferenceService {
   async pauseABTest(testId: string): Promise<ABTestConfig> {
     const abTest = await this.getABTest(testId);
     if (!abTest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found: ${testId}`);
+      throw new OrionError(`AB test not found: ${testId}`, ErrorCode.NOT_FOUND);
     }
     if (abTest.status === 'completed') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'AB test is already completed');
+      throw new OrionError('AB test is already completed', ErrorCode.VALIDATION_ERROR);
     }
 
     abTest.status = 'paused';
@@ -609,7 +609,7 @@ export class MLInferenceService {
   async predict(features: Record<string, number>, modelId: string): Promise<PredictionResult> {
     const model = this.models.get(modelId);
     if (!model || model.status !== 'loaded') {
-      throw new OrionError('OPERATION_FAILED', `Model ${modelId} is not loaded`)
+      throw new OrionError(`Model ${modelId} is not loaded`, 'OPERATION_FAILED')
     }
 
     // 验证特征
@@ -819,7 +819,7 @@ export class MLInferenceService {
   private validateFeatures(features: Record<string, number>, model: MLModel): void {
     const featureCount = Object.keys(features).length;
     if (featureCount === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Features cannot be empty');
+      throw new OrionError('Features cannot be empty', ErrorCode.OPERATION_FAILED);
     }
   }
 

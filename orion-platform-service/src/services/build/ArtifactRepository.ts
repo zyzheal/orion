@@ -177,7 +177,7 @@ export class ArtifactRepository extends BaseRepository<ArtifactRecord> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'INSERT into artifacts returned no rows');
+      throw new OrionError('INSERT into artifacts returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

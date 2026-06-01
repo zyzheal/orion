@@ -87,7 +87,7 @@ export class MultiCloudController extends BaseController {
         aliyun: { name: 'Alibaba Cloud', regions: ['cn-hangzhou', 'cn-beijing', 'cn-shanghai'], services: ['ECS', 'OSS', 'ACK', 'RDS'] },
       };
       const info = providers[params.provider.toLowerCase()];
-      if (!info) throw new OrionError('VALIDATION_ERROR', `Provider '${params.provider}' not supported`);
+      if (!info) throw new OrionError(`Provider '${params.provider}' not supported`, 'VALIDATION_ERROR');
       return info;
     }, (info) => this.sendSuccess(reply, info));
   }

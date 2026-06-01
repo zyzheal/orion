@@ -201,7 +201,7 @@ export class WorkspaceService {
       const entity = await this.workspaceRepository.findById(workspaceId);
       if (!entity) return undefined;
       if (entity.lockedBy) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Workspace is already locked by ${entity.lockedBy}`);
+        throw new OrionError(`Workspace is already locked by ${entity.lockedBy}`, ErrorCode.NOT_FOUND);
       }
 
       const updated = await this.workspaceRepository.update(workspaceId, {
@@ -320,7 +320,7 @@ export class WorkspaceService {
   async importResource(workspaceId: string, resource: Record<string, unknown>): Promise<Record<string, unknown>> {
     const workspace = await this.getById(workspaceId);
     if (!workspace) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'Workspace not found');
+      throw new OrionError('Workspace not found', ErrorCode.NOT_FOUND);
     }
 
     // Store imported resource in variables for tracking
@@ -392,7 +392,7 @@ export class WorkspaceService {
 
   async listStateVersions(workspaceId: string): Promise<Array<{ version: number; createdAt: string | undefined; serial: number; lineage: string }>> {
     const workspace = await this.getById(workspaceId);
-    if (!workspace) throw new OrionError(ErrorCode.NOT_FOUND, `Workspace ${workspaceId} not found`);
+    if (!workspace) throw new OrionError(`Workspace ${workspaceId} not found`, ErrorCode.NOT_FOUND);
 
     const history = await this.getStateHistory(workspaceId);
     return history.map((sv, index) => ({

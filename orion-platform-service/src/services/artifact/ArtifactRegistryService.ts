@@ -40,7 +40,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       );
 
       if (existing) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact already exists: ${input.namespace}/${input.name}:${input.version}`);
+        throw new OrionError(`Artifact already exists: ${input.namespace}/${input.name}:${input.version}`, ErrorCode.NOT_FOUND);
       }
 
       // 创建制品记录
@@ -79,7 +79,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(id);
       
       if (!artifact) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
+        throw new OrionError(`Artifact not found: ${id}`, ErrorCode.NOT_FOUND);
       }
 
       return artifact;
@@ -110,7 +110,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const existing = await this.artifactRepository.findById(input.id);
       
       if (!existing) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${input.id}`);
+        throw new OrionError(`Artifact not found: ${input.id}`, ErrorCode.NOT_FOUND);
       }
 
       // 更新状态
@@ -143,7 +143,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(id);
       
       if (!artifact) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
+        throw new OrionError(`Artifact not found: ${id}`, ErrorCode.NOT_FOUND);
       }
 
       // 软删除
@@ -209,11 +209,11 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(options.artifactId);
       
       if (!artifact) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${options.artifactId}`);
+        throw new OrionError(`Artifact not found: ${options.artifactId}`, ErrorCode.NOT_FOUND);
       }
 
       if (artifact.status !== ArtifactStatus.AVAILABLE) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not available: ${artifact.status}`);
+        throw new OrionError(`Artifact not available: ${artifact.status}`, ErrorCode.NOT_FOUND);
       }
 
       // 记录下载
@@ -268,7 +268,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.artifactRepository.findById(id);
       
       if (!artifact) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Artifact not found: ${id}`);
+        throw new OrionError(`Artifact not found: ${id}`, ErrorCode.NOT_FOUND);
       }
 
       // 创建新的制品记录

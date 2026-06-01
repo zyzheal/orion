@@ -30,7 +30,7 @@ export default async function selfHealingRoutes(
   opts?: { database?: any }
 ): Promise<void> {
   if (!opts?.database) {
-    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Self-healing routes require database connection');
+    throw new OrionError('Self-healing routes require database connection', ErrorCode.SERVICE_UNAVAILABLE);
   }
 
   const repository = new SelfHealingRepository(opts.database);

@@ -398,11 +398,11 @@ export class ConfigDriftDetector {
   async autoRemediateDrift(driftId: string): Promise<DriftReport> {
     const report = await this.repository.findById(driftId);
     if (!report) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Drift report '${driftId}' not found`);
+      throw new OrionError(`Drift report '${driftId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (report.driftStatus !== 'drift_detected') {
-      throw new OrionError('OPERATION_FAILED', `Can only remediate drift in 'drift_detected' state (current: ${report.driftStatus})`)
+      throw new OrionError(`Can only remediate drift in 'drift_detected' state (current: ${report.driftStatus})`, 'OPERATION_FAILED')
     }
 
     report.driftStatus = 'remediating';

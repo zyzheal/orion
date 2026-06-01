@@ -69,21 +69,21 @@ export class AlertStateService {
 
   async markAsRead(userId: string, alertId: string): Promise<void> {
     if (!await this.validateAlertOwnership(userId, alertId)) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, '无权访问该告警');
+      throw new OrionError('无权访问该告警', ErrorCode.OPERATION_FAILED);
     }
     await this.upsertState(userId, alertId, 'read', new Date(), null);
   }
 
   async markAsAcknowledged(userId: string, alertId: string): Promise<void> {
     if (!await this.validateAlertOwnership(userId, alertId)) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, '无权访问该告警');
+      throw new OrionError('无权访问该告警', ErrorCode.OPERATION_FAILED);
     }
     await this.upsertState(userId, alertId, 'acknowledged', new Date(), null);
   }
 
   async markAsDismissed(userId: string, alertId: string): Promise<void> {
     if (!await this.validateAlertOwnership(userId, alertId)) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, '无权访问该告警');
+      throw new OrionError('无权访问该告警', ErrorCode.OPERATION_FAILED);
     }
     await this.upsertState(userId, alertId, 'dismissed', null, new Date());
   }

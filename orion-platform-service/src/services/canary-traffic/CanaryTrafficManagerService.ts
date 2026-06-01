@@ -57,7 +57,7 @@ export class CanaryTrafficManagerService {
 
   async analyzeCanary(canaryId: string): Promise<CanaryAnalysis> {
     const canary = await this.getCanary(canaryId);
-    if (!canary) throw new OrionError(ErrorCode.NOT_FOUND, 'Canary not found');
+    if (!canary) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
 
     // Simulated analysis - would get real metrics
     const stableSuccessRate = 0.99;
@@ -84,7 +84,7 @@ export class CanaryTrafficManagerService {
 
   async incrementTraffic(canaryId: string): Promise<CanaryConfig> {
     const canary = await this.getCanary(canaryId);
-    if (!canary) throw new OrionError(ErrorCode.NOT_FOUND, 'Canary not found');
+    if (!canary) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
 
     const newPercent = Math.min(canary.current_percent + canary.increment_percent, canary.max_percent);
 

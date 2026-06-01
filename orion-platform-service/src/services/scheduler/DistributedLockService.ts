@@ -91,7 +91,7 @@ export class DistributedLockService {
       }
     }
 
-    throw new OrionError('NOT_FOUND', `Failed to acquire lock after ${retryCount} attempts: ${lastError?.message || 'Unknown error'}`)
+    throw new OrionError(`Failed to acquire lock after ${retryCount} attempts: ${lastError?.message || 'Unknown error'}`, 'NOT_FOUND')
   }
 
   /**
@@ -214,7 +214,7 @@ export class DistributedLockService {
           newTtl
         }, 'Lock renewed successfully');
       } else {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to renew lock - lock may have expired');
+        throw new OrionError('Failed to renew lock - lock may have expired', ErrorCode.OPERATION_FAILED);
       }
     } catch (error) {
       logger.error({

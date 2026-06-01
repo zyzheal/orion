@@ -253,17 +253,17 @@ export class HealingDecisionMaker {
   ): ApprovalRequest {
     const request = this.approvalRequests.get(requestId);
     if (!request) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${requestId}' not found`);
+      throw new OrionError(`Approval request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (request.status !== 'pending') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Approval request is not pending');
+      throw new OrionError('Approval request is not pending', ErrorCode.VALIDATION_ERROR);
     }
 
     // Check expiration
     if (request.expiresAt && new Date() > request.expiresAt) {
       request.status = 'expired';
-      throw new OrionError('OPERATION_FAILED', `Approval request '${requestId}' has expired`)
+      throw new OrionError(`Approval request '${requestId}' has expired`, 'OPERATION_FAILED')
     }
 
     request.status = response.approved ? 'approved' : 'rejected';

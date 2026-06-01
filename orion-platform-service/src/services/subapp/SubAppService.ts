@@ -46,7 +46,7 @@ export class SubAppService {
     // Check if key already exists
     const existing = await this.repository.findByKey(input.key);
     if (existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${input.key}' already exists`);
+      throw new OrionError(`Sub-app with key '${input.key}' already exists`, ErrorCode.NOT_FOUND);
     }
 
     // Create the config
@@ -75,18 +75,18 @@ export class SubAppService {
     // Get current config
     const current = await this.repository.findByKey(key);
     if (!current) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${key}' not found`);
+      throw new OrionError(`Sub-app with key '${key}' not found`, ErrorCode.NOT_FOUND);
     }
 
     // Validate input if provided
     if ((input as any).key && (input as any).key !== key) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot change sub-app key');
+      throw new OrionError('Cannot change sub-app key', ErrorCode.OPERATION_FAILED);
     }
 
     // Update the config
     const updated = await this.repository.update(key, input);
     if (!updated) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to update sub-app configuration');
+      throw new OrionError('Failed to update sub-app configuration', ErrorCode.OPERATION_FAILED);
     }
 
     // Add history record
@@ -109,12 +109,12 @@ export class SubAppService {
   async toggleStatus(key: string, userId?: string): Promise<SubAppConfig> {
     const current = await this.repository.findByKey(key);
     if (!current) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${key}' not found`);
+      throw new OrionError(`Sub-app with key '${key}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const updated = await this.repository.toggleStatus(key);
     if (!updated) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to toggle sub-app status');
+      throw new OrionError('Failed to toggle sub-app status', ErrorCode.OPERATION_FAILED);
     }
 
     // Add history record
@@ -136,12 +136,12 @@ export class SubAppService {
   async delete(key: string, userId?: string): Promise<void> {
     const current = await this.repository.findByKey(key);
     if (!current) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-app with key '${key}' not found`);
+      throw new OrionError(`Sub-app with key '${key}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const deleted = await this.repository.delete(key);
     if (!deleted) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to delete sub-app configuration');
+      throw new OrionError('Failed to delete sub-app configuration', ErrorCode.OPERATION_FAILED);
     }
 
     // Add history record
@@ -169,7 +169,7 @@ export class SubAppService {
     if ('key' in input && input.key) {
       // Key format: lowercase, alphanumeric, hyphens only
       if (!/^[a-z][a-z0-9-]*$/.test(input.key)) {
-        throw new OrionError('OPERATION_FAILED', 'Key must start with lowercase letter and contain only lowercase letters, numbers, and hyphens')
+        throw new OrionError('Key must start with lowercase letter and contain only lowercase letters, numbers, and hyphens', 'OPERATION_FAILED')
       }
     }
 
@@ -178,27 +178,27 @@ export class SubAppService {
       try {
         const url = new URL(input.entry_dev);
         if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Development entry must use HTTP or HTTPS');
+          throw new OrionError('Development entry must use HTTP or HTTPS', ErrorCode.OPERATION_FAILED);
         }
       } catch {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid development entry URL');
+        throw new OrionError('Invalid development entry URL', ErrorCode.VALIDATION_ERROR);
       }
     }
 
     if ('entry_prod' in input && input.entry_prod) {
       // Production entry should be a path or relative URL
       if (!input.entry_prod.startsWith('/') && !input.entry_prod.startsWith('http')) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Production entry must be a path starting with / or a full URL');
+        throw new OrionError('Production entry must be a path starting with / or a full URL', ErrorCode.OPERATION_FAILED);
       }
     }
 
     if ('routes' in input && input.routes) {
       if (!Array.isArray(input.routes)) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Routes must be an array');
+        throw new OrionError('Routes must be an array', ErrorCode.OPERATION_FAILED);
       }
       for (const route of input.routes) {
         if (!route.startsWith('/')) {
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Each route must start with /');
+          throw new OrionError('Each route must start with /', ErrorCode.OPERATION_FAILED);
         }
       }
     }

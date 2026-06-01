@@ -118,21 +118,21 @@ export class SubPipelineService {
     }
 
     if (!this.pipelineEngine) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'PipelineEngine not available for sub-pipeline invocation');
+      throw new OrionError('PipelineEngine not available for sub-pipeline invocation', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     if (!this.pipelineService) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'PipelineService not available for sub-pipeline invocation');
+      throw new OrionError('PipelineService not available for sub-pipeline invocation', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 2. Verify child pipeline exists and is active
     const childPipeline = await this.pipelineService.getById(input.childPipelineId);
     if (!childPipeline) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Child pipeline not found: ${input.childPipelineId}`);
+      throw new OrionError(`Child pipeline not found: ${input.childPipelineId}`, ErrorCode.NOT_FOUND);
     }
 
     if (childPipeline.status !== 'active') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Child pipeline is not active: ${input.childPipelineId}`);
+      throw new OrionError(`Child pipeline is not active: ${input.childPipelineId}`, ErrorCode.NOT_FOUND);
     }
 
     // 3. Trigger the child pipeline run
@@ -152,7 +152,7 @@ export class SubPipelineService {
       );
 
       if (!childRun) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to start child pipeline run');
+        throw new OrionError('Failed to start child pipeline run', ErrorCode.OPERATION_FAILED);
       }
 
       // 4. Update invocation with child run ID
@@ -223,7 +223,7 @@ export class SubPipelineService {
       }
 
       if (!invocation) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+        throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
       }
 
       // Check if child has reached a terminal state
@@ -232,18 +232,18 @@ export class SubPipelineService {
       }
 
       if (invocation.status === 'failed') {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline failed: ${invocation.error || 'Unknown error'}`);
+        throw new OrionError(`Sub-pipeline failed: ${invocation.error || 'Unknown error'}`, ErrorCode.NOT_FOUND);
       }
 
       if (invocation.status === 'cancelled') {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'Sub-pipeline was cancelled');
+        throw new OrionError('Sub-pipeline was cancelled', ErrorCode.OPERATION_FAILED);
       }
 
       // Still running, poll again
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
 
-    throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline timed out after ${timeoutMs}ms`);
+    throw new OrionError(`Sub-pipeline timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
   }
 
   /**
@@ -263,12 +263,12 @@ export class SubPipelineService {
     }
 
     if (!invocation) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+      throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
 
     if (invocation.status !== 'completed') {
-      throw new OrionError('NOT_FOUND', `Sub-pipeline is not completed (status: ${invocation.status}). ` +
-        'Cannot retrieve results.')
+      throw new OrionError(`Sub-pipeline is not completed (status: ${invocation.status}). ` +
+        'Cannot retrieve results.', 'NOT_FOUND')
     }
 
     // Apply output mapping: map child results to parent variable names
@@ -307,11 +307,11 @@ export class SubPipelineService {
     }
 
     if (!invocation) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+      throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
 
     if (invocation.status !== 'running') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot cancel sub-pipeline with status: ${invocation.status}`);
+      throw new OrionError(`Cannot cancel sub-pipeline with status: ${invocation.status}`, ErrorCode.NOT_FOUND);
     }
 
     // Cancel via PipelineEngine
@@ -350,7 +350,7 @@ export class SubPipelineService {
     }
 
     if (!invocation) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+      throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
 
     invocation = completeSubPipeline(invocation, results);
@@ -387,7 +387,7 @@ export class SubPipelineService {
     }
 
     if (!invocation) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Sub-pipeline invocation not found for childRunId: ${childRunId}`);
+      throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
 
     invocation = failSubPipeline(invocation, error);

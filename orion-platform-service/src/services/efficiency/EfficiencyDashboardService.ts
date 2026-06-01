@@ -142,7 +142,7 @@ export class EfficiencyDashboardService {
         scenario = await this.buildOverviewScenario(timeRange);
         break;
       default:
-        throw new OrionError('NOT_FOUND', `Unknown scenario: ${scenarioId}`)
+        throw new OrionError(`Unknown scenario: ${scenarioId}`, 'NOT_FOUND')
     }
 
     // Cache in PostgreSQL

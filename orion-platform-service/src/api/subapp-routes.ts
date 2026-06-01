@@ -60,7 +60,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
    */
   function getService(): SubAppService {
     if (!database) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     return new SubAppService(database);
   }

@@ -124,7 +124,7 @@ export class VectorStore {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new OrionError('OPERATION_FAILED', `OpenAI embedding API error (${response.status}): ${error}`)
+        throw new OrionError(`OpenAI embedding API error (${response.status}): ${error}`, 'OPERATION_FAILED')
       }
 
       const data = await response.json() as { data?: Array<{ embedding: number[] }> };

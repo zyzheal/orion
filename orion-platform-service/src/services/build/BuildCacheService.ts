@@ -52,7 +52,7 @@ export class BuildCacheService {
       input.targetId,
     );
     if (existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cache config already exists for level=${input.level}, target=${input.targetId}`);
+      throw new OrionError(`Cache config already exists for level=${input.level}, target=${input.targetId}`, ErrorCode.NOT_FOUND);
     }
 
     const config = createBuildCacheConfig(input);
@@ -239,7 +239,7 @@ export class BuildCacheService {
   ): Promise<CacheEntry> {
     const config = await this.getConfig(configId);
     if (!config) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cache config '${configId}' not found`);
+      throw new OrionError(`Cache config '${configId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const cacheKey = generateCacheKey(config.cacheKeyPattern, hash);

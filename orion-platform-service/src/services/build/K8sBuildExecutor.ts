@@ -363,7 +363,7 @@ export class K8sBuildExecutor {
   async getPodLogs(podId: string, containerName?: string): Promise<string> {
     const pod = this.pods.get(podId);
     if (!pod) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Pod '${podId}' not found`);
+      throw new OrionError(`Pod '${podId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     return this.k8sClient.getPodLogs(pod.namespace, pod.name, containerName);

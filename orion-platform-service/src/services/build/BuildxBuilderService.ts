@@ -461,7 +461,7 @@ export class BuildxBuilderService {
     try {
       await execAsync('docker buildx version');
     } catch (error) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Docker buildx is not available. Please install Docker buildx.');
+      throw new OrionError('Docker buildx is not available. Please install Docker buildx.', ErrorCode.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -473,7 +473,7 @@ export class BuildxBuilderService {
       await execAsync(`docker buildx create --name ${name} --use`);
       logger.info({ name }, 'Buildx builder created');
     } catch (error) {
-      throw new OrionError('OPERATION_FAILED', `Failed to create buildx builder: ${error}`)
+      throw new OrionError(`Failed to create buildx builder: ${error}`, 'OPERATION_FAILED')
     }
   }
 

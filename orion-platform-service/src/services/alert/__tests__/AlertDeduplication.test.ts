@@ -119,10 +119,10 @@ describe('AlertDeduplication', () => {
       updatedAt: new Date(),
     });
 
-    it('should create new group for first alert', () => {
+    it('should create new group for first alert', async () => {
       const alert = createAlert('alert-001', 'HighCPU', 'node-001');
 
-      const result = deduplication.processAlert(alert);
+      const result = await deduplication.processAlert(alert);
 
       expect(result.action).toBe('create');
       expect(result.isDuplicate).toBe(false);
@@ -130,27 +130,27 @@ describe('AlertDeduplication', () => {
       expect(result.group.alerts).toHaveLength(1);
     });
 
-    it('should update group for subsequent alert with same fingerprint', () => {
+    it('should update group for subsequent alert with same fingerprint', async () => {
       const alert1 = createAlert('alert-001', 'HighCPU', 'node-001');
       const alert2 = createAlert('alert-002', 'HighCPU', 'node-001');
 
       // First alert
-      deduplication.processAlert(alert1);
+      await deduplication.processAlert(alert1);
 
       // Second alert (should be duplicate)
-      const result = deduplication.processAlert(alert2);
+      const result = await deduplication.processAlert(alert2);
 
       expect(result.action).toBe('suppress');
       expect(result.isDuplicate).toBe(true);
       expect(result.group.count).toBe(2);
     });
 
-    it('should create separate groups for different fingerprints', () => {
+    it('should create separate groups for different fingerprints', async () => {
       const alert1 = createAlert('alert-001', 'HighCPU', 'node-001');
       const alert2 = createAlert('alert-002', 'HighMemory', 'node-001');
 
-      const result1 = deduplication.processAlert(alert1);
-      const result2 = deduplication.processAlert(alert2);
+      const result1 = await deduplication.processAlert(alert1);
+      const result2 = await deduplication.processAlert(alert2);
 
       expect(result1.group.fingerprint).not.toBe(result2.group.fingerprint);
       expect(result1.group.count).toBe(1);
@@ -159,7 +159,7 @@ describe('AlertDeduplication', () => {
   });
 
   describe('batchProcess', () => {
-    it('should correctly count duplicates and new alerts', () => {
+    it('should correctly count duplicates and new alerts', async () => {
       const alerts: Alert[] = [
         {
           id: 'alert-001',
@@ -215,7 +215,7 @@ describe('AlertDeduplication', () => {
         },
       ];
 
-      const result = deduplication.batchProcess(alerts);
+      const result = await deduplication.batchProcess(alerts);
 
       expect(result.newAlerts).toBe(2); // HighCPU (first) and HighMemory
       expect(result.duplicates).toBe(1); // HighCPU (second)
@@ -224,7 +224,7 @@ describe('AlertDeduplication', () => {
   });
 
   describe('getStats', () => {
-    it('should return correct statistics', () => {
+    it('should return correct statistics', async () => {
       const alert: Alert = {
         id: 'alert-001',
         fingerprint: '',
@@ -244,9 +244,9 @@ describe('AlertDeduplication', () => {
         updatedAt: new Date(),
       };
 
-      deduplication.processAlert(alert);
+      await deduplication.processAlert(alert);
 
-      const stats = deduplication.getStats();
+      const stats = await deduplication.getStats();
 
       expect(stats.totalGroups).toBe(1);
       expect(stats.totalAlerts).toBe(1);
@@ -255,10 +255,10 @@ describe('AlertDeduplication', () => {
   });
 
   describe('getActiveGroups', () => {
-    it('should filter groups by minCount', () => {
+    it('should filter groups by minCount', async () => {
       // Create multiple alerts with same fingerprint
       for (let i = 0; i < 3; i++) {
-        deduplication.processAlert({
+        await deduplication.processAlert({
           id: `alert-${i}`,
           fingerprint: '',
           name: 'HighCPU',
@@ -279,7 +279,7 @@ describe('AlertDeduplication', () => {
       }
 
       // Create single alert with different fingerprint
-      deduplication.processAlert({
+      await deduplication.processAlert({
         id: 'alert-single',
         fingerprint: '',
         name: 'HighMemory',
@@ -298,7 +298,7 @@ describe('AlertDeduplication', () => {
         updatedAt: new Date(),
       });
 
-      const groups = deduplication.getActiveGroups({ minCount: 2 });
+      const groups = await deduplication.getActiveGroups({ minCount: 2 });
 
       expect(groups).toHaveLength(1);
       expect(groups[0].count).toBe(3);

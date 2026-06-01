@@ -24,7 +24,7 @@ export default async function autonomousPipelineRoutes(
   options: AutonomousPipelineRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Autonomous pipeline routes require a database connection');
+    throw new OrionError('Autonomous pipeline routes require a database connection', ErrorCode.SERVICE_UNAVAILABLE);
   }
   const db = options.database;
 

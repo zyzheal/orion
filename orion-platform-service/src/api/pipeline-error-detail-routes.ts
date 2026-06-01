@@ -24,7 +24,7 @@ export default async function registerPipelineErrorDetailRoutes(
   opts: PipelineErrorRoutesOptions
 ): Promise<void> {
   if (!opts.database) {
-    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Pipeline error detail routes require a database connection');
+    throw new OrionError('Pipeline error detail routes require a database connection', ErrorCode.SERVICE_UNAVAILABLE);
   }
 
   const controller = new PipelineErrorDetailController(opts.database);

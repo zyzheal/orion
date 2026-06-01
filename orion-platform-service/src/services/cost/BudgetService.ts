@@ -339,7 +339,7 @@ export class BudgetService {
   }> {
     const budget = await this.getBudgetById(budgetId);
     if (!budget) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Budget ${budgetId} not found`);
+      throw new OrionError(`Budget ${budgetId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const usagePercent = budget.amount > 0 ? budget.spent / budget.amount : 0;

@@ -47,7 +47,7 @@ export class OnCallService {
     rotationStartHour: number = 9,
     escalations: EscalationRule[] = [],
   ): Promise<OnCallSchedule> {
-    if (!name || teamMembers.length === 0) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Name and team members required');
+    if (!name || teamMembers.length === 0) throw new OrionError('Name and team members required', ErrorCode.VALIDATION_ERROR);
 
     const id = `schedule_${uuidv4()}`;
     const now = new Date();

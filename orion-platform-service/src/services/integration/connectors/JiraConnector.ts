@@ -121,7 +121,7 @@ export class JiraConnector implements Connector {
     this.config = config;
 
     if (!config.host) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Jira host is required (e.g., https://yourcompany.atlassian.net)');
+      throw new OrionError('Jira host is required (e.g., https://yourcompany.atlassian.net)', ErrorCode.VALIDATION_ERROR);
     }
 
     this.baseUrl = config.host.replace(/\/$/, '');
@@ -132,7 +132,7 @@ export class JiraConnector implements Connector {
 
     // Validate required config
     if (!config.token && !(config.username && config.password)) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Jira token or username/password is required');
+      throw new OrionError('Jira token or username/password is required', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -169,7 +169,7 @@ export class JiraConnector implements Connector {
 
   async execute(action: string, params: Record<string, unknown>): Promise<unknown> {
     if (!this.config) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Connector not initialized. Call initialize() first.');
+      throw new OrionError('Connector not initialized. Call initialize() first.', ErrorCode.OPERATION_FAILED);
     }
 
     switch (action) {
@@ -194,7 +194,7 @@ export class JiraConnector implements Connector {
       case 'getComments':
         return this.getComments(params);
       default:
-        throw new OrionError(ErrorCode.NOT_FOUND, `Unknown action: ${action}`);
+        throw new OrionError(`Unknown action: ${action}`, ErrorCode.NOT_FOUND);
     }
   }
 
@@ -225,7 +225,7 @@ export class JiraConnector implements Connector {
   private async getProject(params: Record<string, unknown>): Promise<JiraProject> {
     const { projectKey } = params;
     if (!projectKey) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectKey is required');
+      throw new OrionError('projectKey is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiGet(`/project/${encodeURIComponent(String(projectKey))}`);
@@ -236,7 +236,7 @@ export class JiraConnector implements Connector {
     const { projectKey, summary, description, issueType, priority, labels, assigneeAccountId } = params;
 
     if (!projectKey || !summary || !issueType) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'projectKey, summary, and issueType are required');
+      throw new OrionError('projectKey, summary, and issueType are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const fields: Record<string, unknown> = {
@@ -302,7 +302,7 @@ export class JiraConnector implements Connector {
     const { issueKey, summary, description, labels, assigneeAccountId } = params;
 
     if (!issueKey) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
+      throw new OrionError('issueKey is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const fields: Record<string, unknown> = {};
@@ -348,7 +348,7 @@ export class JiraConnector implements Connector {
   private async getIssue(params: Record<string, unknown>): Promise<JiraIssue> {
     const { issueKey, fields: fieldsParam } = params;
     if (!issueKey) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
+      throw new OrionError('issueKey is required', ErrorCode.VALIDATION_ERROR);
     }
 
     let endpoint = `/issue/${encodeURIComponent(String(issueKey))}`;
@@ -386,11 +386,11 @@ export class JiraConnector implements Connector {
     const { issueKey, transitionId, transitionName } = params;
 
     if (!issueKey) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
+      throw new OrionError('issueKey is required', ErrorCode.VALIDATION_ERROR);
     }
 
     if (!transitionId && !transitionName) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'transitionId or transitionName is required');
+      throw new OrionError('transitionId or transitionName is required', ErrorCode.VALIDATION_ERROR);
     }
 
     let transition: Record<string, unknown> = {};
@@ -404,7 +404,7 @@ export class JiraConnector implements Connector {
         (t) => t.name.toLowerCase() === String(transitionName).toLowerCase()
       );
       if (!found) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Transition '${transitionName}' not found`);
+        throw new OrionError(`Transition '${transitionName}' not found`, ErrorCode.NOT_FOUND);
       }
       transition = { id: found.id };
     }
@@ -417,7 +417,7 @@ export class JiraConnector implements Connector {
   private async getTransitions(params: Record<string, unknown>): Promise<JiraTransition[]> {
     const { issueKey } = params;
     if (!issueKey) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
+      throw new OrionError('issueKey is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const response = await this.apiGet(
@@ -431,7 +431,7 @@ export class JiraConnector implements Connector {
     const { issueKey, body } = params;
 
     if (!issueKey || !body) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey and body are required');
+      throw new OrionError('issueKey and body are required', ErrorCode.VALIDATION_ERROR);
     }
 
     const commentBody = {
@@ -463,7 +463,7 @@ export class JiraConnector implements Connector {
     const { issueKey, startAt = 0, maxResults = 50 } = params;
 
     if (!issueKey) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'issueKey is required');
+      throw new OrionError('issueKey is required', ErrorCode.VALIDATION_ERROR);
     }
 
     const queryParams = new URLSearchParams({
@@ -479,7 +479,7 @@ export class JiraConnector implements Connector {
 
   private async apiGet(endpoint: string): Promise<unknown> {
     if (!this.config?.token && !(this.config?.username && this.config?.password)) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Jira credentials not configured');
+      throw new OrionError('Jira credentials not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const auth = this.config.token
@@ -495,7 +495,7 @@ export class JiraConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `Jira API error: ${response.status} - ${error}`)
+      throw new OrionError(`Jira API error: ${response.status} - ${error}`, 'OPERATION_FAILED')
     }
 
     return response.json();
@@ -503,7 +503,7 @@ export class JiraConnector implements Connector {
 
   private async apiPost(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
     if (!this.config?.token && !(this.config?.username && this.config?.password)) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Jira credentials not configured');
+      throw new OrionError('Jira credentials not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const auth = this.config.token
@@ -522,7 +522,7 @@ export class JiraConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `Jira API error: ${response.status} - ${error}`)
+      throw new OrionError(`Jira API error: ${response.status} - ${error}`, 'OPERATION_FAILED')
     }
 
     return response.json();
@@ -530,7 +530,7 @@ export class JiraConnector implements Connector {
 
   private async apiPut(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
     if (!this.config?.token && !(this.config?.username && this.config?.password)) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Jira credentials not configured');
+      throw new OrionError('Jira credentials not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const auth = this.config.token
@@ -549,7 +549,7 @@ export class JiraConnector implements Connector {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `Jira API error: ${response.status} - ${error}`)
+      throw new OrionError(`Jira API error: ${response.status} - ${error}`, 'OPERATION_FAILED')
     }
 
     return response.json();

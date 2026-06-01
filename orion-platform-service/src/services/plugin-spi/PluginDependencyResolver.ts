@@ -124,7 +124,7 @@ export class PluginDependencyResolver {
     const cycles = this.detectCycles(graph);
 
     if (cycles.length > 0) {
-      throw new OrionError('OPERATION_FAILED', `Cannot determine install order: circular dependency detected: ${cycles[0].join(' -> ')}`);
+      throw new OrionError(`Cannot determine install order: circular dependency detected: ${cycles[0].join(' -> ')}`, 'OPERATION_FAILED');
     }
 
     return this.topologicalSort(graph);

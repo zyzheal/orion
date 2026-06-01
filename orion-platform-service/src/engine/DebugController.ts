@@ -94,11 +94,11 @@ export class DebugController {
   async resume(runId: string): Promise<void> {
     const state = this.debugStates.get(runId);
     if (!state) {
-      throw new OrionError('NOT_FOUND', `No debug state found for run ${runId}`)
+      throw new OrionError(`No debug state found for run ${runId}`, 'NOT_FOUND')
     }
 
     if (state.status !== 'paused') {
-      throw new OrionError('OPERATION_FAILED', `Pipeline run ${runId} is not paused (status: ${state.status})`)
+      throw new OrionError(`Pipeline run ${runId} is not paused (status: ${state.status})`, 'OPERATION_FAILED')
     }
 
     state.status = 'running';
@@ -123,11 +123,11 @@ export class DebugController {
   async step(runId: string): Promise<DebugState> {
     const state = this.debugStates.get(runId);
     if (!state) {
-      throw new OrionError('NOT_FOUND', `No debug state found for run ${runId}`)
+      throw new OrionError(`No debug state found for run ${runId}`, 'NOT_FOUND')
     }
 
     if (state.status !== 'paused') {
-      throw new OrionError('OPERATION_FAILED', `Pipeline run ${runId} is not paused (status: ${state.status})`)
+      throw new OrionError(`Pipeline run ${runId} is not paused (status: ${state.status})`, 'OPERATION_FAILED')
     }
 
     // Unblock any executor waiting in waitForSignal

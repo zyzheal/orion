@@ -397,7 +397,7 @@ export class ApprovalFlowEngine {
   ): Promise<ExternalApprovalResponse> {
     const client = this.externalApprovalClients.get(serviceName);
     if (!client) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `External approval service not found: ${serviceName}`);
+      throw new OrionError(`External approval service not found: ${serviceName}`, ErrorCode.NOT_FOUND);
     }
 
     try {
@@ -971,7 +971,7 @@ export class ApprovalFlowEngine {
     } catch (error: any) {
       logger.error({ error: error.message }, 'Failed to ensure approval tables — this is a critical initialization failure');
       // 不吞异常：表创建失败意味着后续所有操作都会失败
-      throw new OrionError('OPERATION_FAILED', `ApprovalFlowEngine initialization failed: ${error.message}`)
+      throw new OrionError(`ApprovalFlowEngine initialization failed: ${error.message}`, 'OPERATION_FAILED')
     }
   }
 

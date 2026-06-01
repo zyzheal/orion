@@ -99,7 +99,7 @@ export class DatabasePool extends EventEmitter {
    */
   async getConnection(): Promise<pg.PoolClient> {
     if (!this.isConnected || !this.pool) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Database not connected');
+      throw new OrionError('Database not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return this.pool.connect();
@@ -113,7 +113,7 @@ export class DatabasePool extends EventEmitter {
    */
   async query(sql: string, params?: any[]): Promise<QueryResult> {
     if (!this.pool) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Database pool not initialized');
+      throw new OrionError('Database pool not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     // 优先使用请求绑定的连接（RLS session variable 已设置）
@@ -144,7 +144,7 @@ export class DatabasePool extends EventEmitter {
    */
   async transaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
     if (!this.pool) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Database pool not initialized');
+      throw new OrionError('Database pool not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     // 在请求上下文中，复用已有的 tenant-scoped client 执行事务

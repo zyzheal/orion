@@ -27,7 +27,7 @@ export default async function ephemeralEnvRoutes(
   app: FastifyInstance,
   options?: EphemeralEnvRoutesOptions
 ): Promise<void> {
-  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured'); } });
+  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE); } });
   const service = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options?.eventBus,

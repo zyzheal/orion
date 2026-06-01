@@ -243,7 +243,7 @@ export class PluginHotReloadService extends EventEmitter {
   async hotReload(pluginId: string, newManifest?: PluginManifest): Promise<PluginInfo> {
     // 防止重复加载
     if (this.reloadingPlugins.has(pluginId)) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" is already being reloaded`);
+      throw new OrionError(`Plugin "${pluginId}" is already being reloaded`, ErrorCode.NOT_FOUND);
     }
 
     this.reloadingPlugins.add(pluginId);
@@ -252,7 +252,7 @@ export class PluginHotReloadService extends EventEmitter {
       // 获取当前插件信息
       const currentPlugin = this.registry.getPlugin(pluginId);
       if (!currentPlugin) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Plugin "${pluginId}" not found`);
+        throw new OrionError(`Plugin "${pluginId}" not found`, ErrorCode.NOT_FOUND);
       }
 
       const oldVersion = currentPlugin.version;
@@ -334,7 +334,7 @@ export class PluginHotReloadService extends EventEmitter {
     // 浏览器环境不支持
     const isBrowser = typeof (globalThis as any).window !== 'undefined';
     if (isBrowser) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'File loading not supported in browser');
+      throw new OrionError('File loading not supported in browser', ErrorCode.VALIDATION_ERROR);
     }
 
     const fs = (global as any).require('fs');
@@ -363,7 +363,7 @@ export class PluginHotReloadService extends EventEmitter {
       }
     }
 
-    throw new OrionError(ErrorCode.NOT_FOUND, `Manifest not found for plugin "${pluginId}"`);
+    throw new OrionError(`Manifest not found for plugin "${pluginId}"`, ErrorCode.NOT_FOUND);
   }
 
   /**
@@ -396,7 +396,7 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     if (!snapshots || snapshots.length === 0) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `No snapshots available for plugin "${pluginId}"`);
+      throw new OrionError(`No snapshots available for plugin "${pluginId}"`, ErrorCode.NOT_FOUND);
     }
 
     // 找到目标版本快照
@@ -409,7 +409,7 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     if (!targetSnapshot) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Snapshot not found for version "${targetVersion || 'previous'}"`);
+      throw new OrionError(`Snapshot not found for version "${targetVersion || 'previous'}"`, ErrorCode.NOT_FOUND);
     }
 
     logger.info({ pluginId, targetVersion: targetSnapshot.version }, 'Rolling back plugin');

@@ -368,7 +368,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
             client.release();
           } catch {}
           reply.code(403).send({ error: 'Tenant isolation setup failed' });
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Failed to set tenant context');
+          throw new OrionError('Failed to set tenant context', ErrorCode.OPERATION_FAILED);
         }
       });
 

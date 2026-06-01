@@ -304,12 +304,12 @@ export class CrossDomainOrchestrator {
   ): Promise<ExecutionRecord> {
     const workflow = this.workflows.get(workflowId);
     if (!workflow) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'Workflow not found');
+      throw new OrionError('Workflow not found', ErrorCode.NOT_FOUND);
     }
 
     // Allow re-execution of completed or failed workflows
     if (workflow.status !== 'active' && workflow.status !== 'completed' && workflow.status !== 'failed') {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, `Workflow is not active (current status: ${workflow.status})`);
+      throw new OrionError(`Workflow is not active (current status: ${workflow.status})`, ErrorCode.OPERATION_FAILED);
     }
 
     // Reset to active for re-execution
@@ -611,7 +611,7 @@ export class CrossDomainOrchestrator {
     if (this.pipelineEngine) {
       const pipelineId = (parameters.pipelineId as string) || (parameters.id as string);
       if (!pipelineId) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Pipeline domain requires pipelineId parameter');
+        throw new OrionError('Pipeline domain requires pipelineId parameter', ErrorCode.VALIDATION_ERROR);
       }
 
       const triggerType = (parameters.triggerType as string) || 'manual';
@@ -667,7 +667,7 @@ export class CrossDomainOrchestrator {
         case 'rollback': {
           const deploymentId = (parameters.deploymentId as string) || (parameters.id as string);
           if (!deploymentId) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Rollback action requires deploymentId parameter');
+            throw new OrionError('Rollback action requires deploymentId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const actorId = (parameters.actorId as string) || 'orchestrator';
           const rolledBack = await service.rollback(deploymentId, actorId);
@@ -683,7 +683,7 @@ export class CrossDomainOrchestrator {
         case 'cancel': {
           const deploymentId = (parameters.deploymentId as string) || (parameters.id as string);
           if (!deploymentId) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Cancel action requires deploymentId parameter');
+            throw new OrionError('Cancel action requires deploymentId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const actorId = (parameters.actorId as string) || 'orchestrator';
           const cancelled = await service.cancelDeployment(deploymentId, actorId);
@@ -699,7 +699,7 @@ export class CrossDomainOrchestrator {
         case 'status': {
           const deploymentId = (parameters.deploymentId as string) || (parameters.id as string);
           if (!deploymentId) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Status action requires deploymentId parameter');
+            throw new OrionError('Status action requires deploymentId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const deployment = await service.getDeployment(deploymentId);
           return {
@@ -711,7 +711,7 @@ export class CrossDomainOrchestrator {
         }
 
         default:
-          throw new OrionError(ErrorCode.NOT_FOUND, `Unknown deploy action: ${action}`);
+          throw new OrionError(`Unknown deploy action: ${action}`, ErrorCode.NOT_FOUND);
       }
     }
 
@@ -787,7 +787,7 @@ export class CrossDomainOrchestrator {
         }
 
         default:
-          throw new OrionError(ErrorCode.NOT_FOUND, `Unknown monitor action: ${action}`);
+          throw new OrionError(`Unknown monitor action: ${action}`, ErrorCode.NOT_FOUND);
       }
     }
 
@@ -856,7 +856,7 @@ export class CrossDomainOrchestrator {
         }
 
         default:
-          throw new OrionError(ErrorCode.NOT_FOUND, `Unknown security action: ${action}`);
+          throw new OrionError(`Unknown security action: ${action}`, ErrorCode.NOT_FOUND);
       }
     }
 
@@ -887,7 +887,7 @@ export class CrossDomainOrchestrator {
             channel: (parameters.channel as string) || 'in-app',
           };
           if (!input.user_id) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Notification requires userId parameter');
+            throw new OrionError('Notification requires userId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const notification = await service.send(input);
           return {
@@ -903,7 +903,7 @@ export class CrossDomainOrchestrator {
         case 'getNotifications': {
           const userId = (parameters.userId as string) || '';
           if (!userId) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'List notifications requires userId parameter');
+            throw new OrionError('List notifications requires userId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const limit = (parameters.limit as number) || 20;
           const page = (parameters.page as number) || 1;
@@ -919,7 +919,7 @@ export class CrossDomainOrchestrator {
         case 'markRead': {
           const notificationId = (parameters.notificationId as string) || (parameters.id as string);
           if (!notificationId) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Mark read requires notificationId parameter');
+            throw new OrionError('Mark read requires notificationId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const updated = await service.markAsRead(notificationId);
           return {
@@ -933,7 +933,7 @@ export class CrossDomainOrchestrator {
         case 'unreadCount': {
           const userId = (parameters.userId as string) || '';
           if (!userId) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Unread count requires userId parameter');
+            throw new OrionError('Unread count requires userId parameter', ErrorCode.VALIDATION_ERROR);
           }
           const count = await service.getUnreadCount(userId);
           return {
@@ -951,7 +951,7 @@ export class CrossDomainOrchestrator {
           const title = (parameters.title as string) || 'Broadcast';
           const message = (parameters.message as string) || '';
           if (userIds.length === 0) {
-            throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Broadcast requires userIds parameter');
+            throw new OrionError('Broadcast requires userIds parameter', ErrorCode.VALIDATION_ERROR);
           }
           const count = await service.broadcast(tenantId, userIds, type, title, message);
           return {
@@ -963,7 +963,7 @@ export class CrossDomainOrchestrator {
         }
 
         default:
-          throw new OrionError(ErrorCode.NOT_FOUND, `Unknown notify action: ${action}`);
+          throw new OrionError(`Unknown notify action: ${action}`, ErrorCode.NOT_FOUND);
       }
     }
 
@@ -1111,7 +1111,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (workflow.status !== 'active') {
-      throw new OrionError('OPERATION_FAILED', `Cannot pause workflow with status: ${workflow.status}`)
+      throw new OrionError(`Cannot pause workflow with status: ${workflow.status}`, 'OPERATION_FAILED')
     }
 
     workflow.status = 'paused';
@@ -1136,7 +1136,7 @@ export class CrossDomainOrchestrator {
     }
 
     if (workflow.status !== 'paused') {
-      throw new OrionError('OPERATION_FAILED', `Cannot resume workflow with status: ${workflow.status}`)
+      throw new OrionError(`Cannot resume workflow with status: ${workflow.status}`, 'OPERATION_FAILED')
     }
 
     workflow.status = 'active';

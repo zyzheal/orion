@@ -259,7 +259,7 @@ export class AIGateway {
       if (request.options?.fallbackEnabled !== false) {
         return this.handleDegradation<T>(request, dualCircuitState.degradationReason || 'dual_circuit_triggered');
       }
-      throw new OrionError('OPERATION_FAILED', `Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`)
+      throw new OrionError(`Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`, 'OPERATION_FAILED')
     }
 
     // 如果有建议的 Provider（Provider 级熔断后自动降级）
@@ -286,7 +286,7 @@ export class AIGateway {
         if (request.options?.fallbackEnabled !== false) {
           return this.handleDegradation<T>(request, 'no_available_provider');
         }
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'No available provider');
+        throw new OrionError('No available provider', ErrorCode.OPERATION_FAILED);
       }
     }
 
@@ -368,7 +368,7 @@ export class AIGateway {
       if (request.options?.fallbackEnabled !== false) {
         return this.handleDegradation<T>(request, 'circuit_breaker_open');
       }
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Circuit breaker open, degradation disabled');
+      throw new OrionError('Circuit breaker open, degradation disabled', ErrorCode.OPERATION_FAILED);
     }
 
     // 检查健康状态
@@ -380,7 +380,7 @@ export class AIGateway {
         return this.handleDegradation<T>(request, 'health_check_failed');
       }
       // 如果降级禁用，抛出错误
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'AI service unavailable, degradation disabled');
+      throw new OrionError('AI service unavailable, degradation disabled', ErrorCode.OPERATION_FAILED);
     }
 
     // 尝试调用 LLM
@@ -438,7 +438,7 @@ export class AIGateway {
    */
   private async callLLM<T>(request: AIRequest): Promise<AIResponse<T>> {
     if (!this.llmCaller) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'LLM caller not configured');
+      throw new OrionError('LLM caller not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const timeout = request.options?.timeout || this.getTimeoutThreshold(request.scenario);

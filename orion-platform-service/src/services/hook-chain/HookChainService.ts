@@ -114,7 +114,7 @@ class WebhookExecutor implements HookExecutor {
     });
 
     if (!response.ok) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Webhook call failed: ${response.status} ${response.statusText}`);
+      throw new OrionError(`Webhook call failed: ${response.status} ${response.statusText}`, ErrorCode.NOT_FOUND);
     }
 
     return response.json() as Promise<Record<string, any>>;
@@ -157,7 +157,7 @@ class PipelineTriggerExecutor implements HookExecutor {
     const { pipelineId, parameters = {} } = config;
 
     if (!this.pipelineService) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Pipeline service not configured');
+      throw new OrionError('Pipeline service not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 触发 Pipeline
@@ -186,7 +186,7 @@ class ApprovalExecutor implements HookExecutor {
     const { approvalType, approvers, timeoutMinutes = 30 } = config;
 
     if (!this.approvalService) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Approval service not configured');
+      throw new OrionError('Approval service not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 创建审批请求
@@ -326,7 +326,7 @@ export class HookChainService extends EventEmitter {
   ): Promise<ChainExecutionResult> {
     const chain = this.chains.get(chainId);
     if (!chain) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Hook chain "${chainId}" not found`);
+      throw new OrionError(`Hook chain "${chainId}" not found`, ErrorCode.NOT_FOUND);
     }
 
     const executionId = `exec-${chainId}-${Date.now()}`;
@@ -488,7 +488,7 @@ export class HookChainService extends EventEmitter {
 
     const executor = this.executors.get(hook.type);
     if (!executor) {
-      throw new OrionError('OPERATION_FAILED', `No executor registered for hook type "${hook.type}"`)
+      throw new OrionError(`No executor registered for hook type "${hook.type}"`, 'OPERATION_FAILED')
     }
 
     const maxRetries = hook.retryPolicy?.maxRetries || 0;
@@ -583,12 +583,12 @@ export class HookChainService extends EventEmitter {
   // ==================== Helpers ====================
 
   private validateChainDefinition(definition: HookChainDefinition): void {
-    if (!definition.id) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Chain id is required');
-    if (!definition.hooks || definition.hooks.length === 0) throw new OrionError(ErrorCode.OPERATION_FAILED, 'Chain must have at least one hook');
+    if (!definition.id) throw new OrionError('Chain id is required', ErrorCode.VALIDATION_ERROR);
+    if (!definition.hooks || definition.hooks.length === 0) throw new OrionError('Chain must have at least one hook', ErrorCode.OPERATION_FAILED);
 
     for (const hook of definition.hooks) {
-      if (!hook.id) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Hook id is required');
-      if (!hook.type) throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Hook type is required');
+      if (!hook.id) throw new OrionError('Hook id is required', ErrorCode.VALIDATION_ERROR);
+      if (!hook.type) throw new OrionError('Hook type is required', ErrorCode.VALIDATION_ERROR);
       if (!this.executors.has(hook.type)) {
         logger.warn({ hookType: hook.type }, 'Unknown hook type, execution may fail');
       }

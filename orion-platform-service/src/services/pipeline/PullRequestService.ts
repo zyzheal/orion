@@ -111,7 +111,7 @@ export class GitHubPRClient implements PRApiClient {
     });
 
     if (!response.ok) {
-      throw new OrionError('OPERATION_FAILED', `GitHub API error: ${response.status} ${response.statusText}`)
+      throw new OrionError(`GitHub API error: ${response.status} ${response.statusText}`, 'OPERATION_FAILED')
     }
 
     return response.json() as Promise<T>;
@@ -193,7 +193,7 @@ export class GitLabPRClient implements PRApiClient {
     });
 
     if (!response.ok) {
-      throw new OrionError('OPERATION_FAILED', `GitLab API error: ${response.status} ${response.statusText}`)
+      throw new OrionError(`GitLab API error: ${response.status} ${response.statusText}`, 'OPERATION_FAILED')
     }
 
     return response.json() as Promise<T>;

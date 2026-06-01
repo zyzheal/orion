@@ -186,18 +186,18 @@ describe('AuditLogChain', () => {
   });
 
   describe('Entry Retrieval', () => {
-    it('should get entry by ID', () => {
+    it('should get entry by ID', async () => {
       const entry = chain.addEntry('ACTION', 'user-1', { test: true });
 
-      const retrieved = chain.getEntryById(entry.id);
+      const retrieved = await chain.getEntryById(entry.id);
       expect(retrieved).toBeDefined();
       expect(retrieved?.id).toBe(entry.id);
     });
 
-    it('should get entry by sequence number', () => {
+    it('should get entry by sequence number', async () => {
       const entry = chain.addEntry('ACTION', 'user-1', { test: true });
 
-      const retrieved = chain.getEntryBySequence(1);
+      const retrieved = await chain.getEntryBySequence(1);
       expect(retrieved).toBeDefined();
       expect(retrieved?.id).toBe(entry.id);
     });
@@ -226,8 +226,8 @@ describe('AuditLogChain', () => {
       expect(entries).toHaveLength(10);
     });
 
-    it('should return undefined for non-existent entry', () => {
-      const result = chain.getEntryById('non-existent-id');
+    it('should return undefined for non-existent entry', async () => {
+      const result = await chain.getEntryById('non-existent-id');
       expect(result).toBeUndefined();
     });
   });

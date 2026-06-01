@@ -169,7 +169,7 @@ export class ABExperimentService {
   ): Promise<ABExperiment> {
     const totalTraffic = input.variants.reduce((sum, v) => sum + v.trafficPercentage, 0);
     if (totalTraffic !== 100) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Total traffic percentage must be 100 (got ${totalTraffic})`);
+      throw new OrionError(`Total traffic percentage must be 100 (got ${totalTraffic})`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -203,8 +203,8 @@ export class ABExperimentService {
 
   async startExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
-    if (exp.status !== 'draft') throw new OrionError(ErrorCode.NOT_FOUND, `Experiment cannot be started from '${exp.status}' state`);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status !== 'draft') throw new OrionError(`Experiment cannot be started from '${exp.status}' state`, ErrorCode.NOT_FOUND);
 
     exp.status = 'running';
     exp.startDate = new Date();
@@ -215,8 +215,8 @@ export class ABExperimentService {
 
   async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
-    if (exp.status !== 'running') throw new OrionError(ErrorCode.NOT_FOUND, `Experiment is not running`);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status !== 'running') throw new OrionError(`Experiment is not running`, ErrorCode.NOT_FOUND);
 
     exp.status = 'completed';
     exp.endDate = new Date();
@@ -230,8 +230,8 @@ export class ABExperimentService {
 
   async cancelExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new OrionError(ErrorCode.NOT_FOUND, `Experiment '${id}' not found`);
-    if (exp.status === 'completed') throw new OrionError('OPERATION_FAILED', `Cannot cancel completed experiment`);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status === 'completed') throw new OrionError(`Cannot cancel completed experiment`, 'OPERATION_FAILED');
 
     exp.status = 'cancelled';
     exp.endDate = new Date();
@@ -250,7 +250,7 @@ export class ABExperimentService {
 
   async deleteExperiment(id: string): Promise<boolean> {
     const exp = await this.repository.findById(id);
-    if (exp && exp.status === 'running') throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot delete running experiment');
+    if (exp && exp.status === 'running') throw new OrionError('Cannot delete running experiment', ErrorCode.OPERATION_FAILED);
     return this.repository.deleteById(id);
   }
 

@@ -138,7 +138,7 @@ export class ExecutionService {
 
       const validation = this.inputValidator.validate(rawInput, parsed);
       if (!validation.valid) {
-        throw new OrionError('OPERATION_FAILED', `输入校验失败: ${validation.error}`)
+        throw new OrionError(`输入校验失败: ${validation.error}`, 'OPERATION_FAILED')
       }
     }
 

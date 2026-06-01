@@ -782,7 +782,7 @@ export class EventBusService extends EventEmitter {
    */
   async getEventHistory(options?: { eventType?: string; status?: string; limit?: number }) {
     if (!this.repos.eventRepo) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Event repository not available');
+      throw new OrionError('Event repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     if (options?.eventType) {
       return this.repos.eventRepo.findByType(options.eventType, { limit: options.limit });
@@ -798,7 +798,7 @@ export class EventBusService extends EventEmitter {
    */
   async getSubscriptions(tenantId?: string) {
     if (!this.repos.subscriptionRepo) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Subscription repository not available');
+      throw new OrionError('Subscription repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     if (tenantId) {
       return this.repos.subscriptionRepo.findByTenant(tenantId);
@@ -811,7 +811,7 @@ export class EventBusService extends EventEmitter {
    */
   async getEventStats() {
     if (!this.repos.eventRepo) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Event repository not available');
+      throw new OrionError('Event repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     const [published, pendingFallback, delivered, failed, deadLetter] = await Promise.all([
       this.repos.eventRepo.countByStatus('published'),
@@ -837,7 +837,7 @@ export class EventBusService extends EventEmitter {
     onProgress?: (eventId: string, success: boolean) => void;
   }): Promise<{ retried: number; succeeded: number; failed: number }> {
     if (!this.repos.eventRepo) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Event repository not available');
+      throw new OrionError('Event repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     if (this.connectionState !== 'connected' || !this.natsConnection) {
       throw new EventBusError('NATS not connected, cannot retry events', 'NOT_CONNECTED', true);

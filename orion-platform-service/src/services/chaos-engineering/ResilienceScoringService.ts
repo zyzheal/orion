@@ -149,7 +149,7 @@ export class ResilienceScoringService {
       [scheduleId, enabled]
     );
     if (!result.rows[0]) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'Schedule not found');
+      throw new OrionError('Schedule not found', ErrorCode.NOT_FOUND);
     }
     return this.mapScheduleRow(result.rows[0]);
   }

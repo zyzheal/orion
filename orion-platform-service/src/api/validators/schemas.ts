@@ -140,12 +140,12 @@ export const pipelineSchema = {
 export function validateTenantId(request: FastifyRequest): bigint {
   const tenantId = request.headers['x-orion-tenant-id'] as string;
   if (!tenantId) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required header: x-orion-tenant-id');
+    throw new OrionError('Missing required header: x-orion-tenant-id', ErrorCode.VALIDATION_ERROR);
   }
   try {
     return BigInt(tenantId);
   } catch {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid tenantId format, must be a valid bigint string');
+    throw new OrionError('Invalid tenantId format, must be a valid bigint string', ErrorCode.VALIDATION_ERROR);
   }
 }
 
@@ -155,7 +155,7 @@ export function validateTenantId(request: FastifyRequest): bigint {
 export function validateUserId(request: FastifyRequest): string {
   const userId = request.headers['x-orion-user-id'] as string;
   if (!userId) {
-    throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required header: x-orion-user-id');
+    throw new OrionError('Missing required header: x-orion-user-id', ErrorCode.VALIDATION_ERROR);
   }
   return userId;
 }

@@ -47,12 +47,12 @@ export class EnvironmentService {
     // Check for duplicate name within tenant
     const existing = await this.repository.findByTenantAndName(input.tenantId, input.name);
     if (existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Environment '${input.name}' already exists for tenant '${input.tenantId}'`);
+      throw new OrionError(`Environment '${input.name}' already exists for tenant '${input.tenantId}'`, ErrorCode.NOT_FOUND);
     }
 
     // Validate approval count
     if ((input.approvalCount ?? 1) < 1) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'approvalCount must be at least 1');
+      throw new OrionError('approvalCount must be at least 1', ErrorCode.OPERATION_FAILED);
     }
 
     const env = createEnvironment(input);
@@ -99,12 +99,12 @@ export class EnvironmentService {
   async updateEnvironment(id: string, input: EnvironmentUpdateInput): Promise<EnvironmentEntity> {
     const existing = await this.repository.findById(id);
     if (!existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Environment '${id}' not found`);
+      throw new OrionError(`Environment '${id}' not found`, ErrorCode.NOT_FOUND);
     }
 
     // Validate name if being changed
     if (input.approvalCount !== undefined && input.approvalCount < 1) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'approvalCount must be at least 1');
+      throw new OrionError('approvalCount must be at least 1', ErrorCode.OPERATION_FAILED);
     }
 
     const updates: Partial<EnvironmentEntity> = {};
@@ -257,14 +257,14 @@ export class EnvironmentService {
    */
   private validateName(name: string): void {
     if (!name || name.trim().length === 0) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Environment name cannot be empty');
+      throw new OrionError('Environment name cannot be empty', ErrorCode.OPERATION_FAILED);
     }
     const namePattern = /^[a-z][a-z0-9_]*$/;
     if (!namePattern.test(name)) {
-      throw new OrionError('VALIDATION_ERROR', `Environment name '${name}' is invalid. Must be lowercase alphanumeric with underscores, starting with a letter.`)
+      throw new OrionError(`Environment name '${name}' is invalid. Must be lowercase alphanumeric with underscores, starting with a letter.`, 'VALIDATION_ERROR')
     }
     if (name.length > 64) {
-      throw new OrionError('OPERATION_FAILED', `Environment name '${name}' is too long (max 64 characters)`)
+      throw new OrionError(`Environment name '${name}' is too long (max 64 characters)`, 'OPERATION_FAILED')
     }
   }
 }

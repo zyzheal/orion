@@ -145,11 +145,11 @@ export class ProcessKiller {
 
   private dockerCommand(containerId: string, command: string, timeoutMs: number = 10000): Promise<void> {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(containerId)) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid container ID: ${containerId}`)
+      throw new OrionError(`Invalid container ID: ${containerId}`, 'VALIDATION_ERROR')
     }
     const allowedCommands = new Set(['pause', 'unpause', 'kill', 'stop', 'rm']);
     if (!allowedCommands.has(command)) {
-      throw new OrionError('VALIDATION_ERROR', `Invalid docker command: ${command}`)
+      throw new OrionError(`Invalid docker command: ${command}`, 'VALIDATION_ERROR')
     }
     return new Promise((resolve, reject) => {
       const child = spawn('docker', [command, containerId], {

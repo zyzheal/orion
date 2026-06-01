@@ -149,7 +149,7 @@ export class WorkspaceIsolator {
         // 允许任意路径但记录警告，防止路径穿越到敏感系统目录
         const dangerousRoots = ['/', '/etc', '/usr', '/var', '/root', '/boot'];
         if (dangerousRoots.includes(resolved) || resolved.startsWith('/etc/') || resolved.startsWith('/usr/') || resolved.startsWith('/var/') || resolved.startsWith('/root/') || resolved.startsWith('/boot/')) {
-          throw new OrionError('VALIDATION_ERROR', `Invalid custom workspace root path: ${customRootPath} (resolved to ${resolved})`);
+          throw new OrionError(`Invalid custom workspace root path: ${customRootPath} (resolved to ${resolved})`, 'VALIDATION_ERROR');
         }
         logger.warn(
           { customRootPath, resolved },

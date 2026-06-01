@@ -373,7 +373,7 @@ export class PluginSpiController {
         async (signal) => {
           // Simulated execution - in production this would load and run the plugin's entry point
           if (signal.aborted) {
-            throw new OrionError(ErrorCode.OPERATION_FAILED, 'Execution aborted');
+            throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
           }
 
           // Simulate some work

@@ -483,17 +483,17 @@ export class SelfHealingService {
 
     const approvalRow = await this.repository.findApprovalById(id);
     if (!approvalRow) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${id}' not found`);
+      throw new OrionError(`Approval request '${id}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (approvalRow.status !== 'pending') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${id}' is already ${approvalRow.status}`);
+      throw new OrionError(`Approval request '${id}' is already ${approvalRow.status}`, ErrorCode.NOT_FOUND);
     }
 
     // Check expiration
     if (approvalRow.expires_at && new Date() > approvalRow.expires_at) {
       await this.repository.updateApprovalRequest(id, { status: 'expired' });
-      throw new OrionError(ErrorCode.NOT_FOUND, `Approval request '${id}' has expired`);
+      throw new OrionError(`Approval request '${id}' has expired`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -509,7 +509,7 @@ export class SelfHealingService {
     // Update associated incident
     const incident = await this.repository.findIncidentById(approvalRow.incident_id);
     if (!incident) {
-      throw new OrionError('NOT_FOUND', `Associated incident not found`)
+      throw new OrionError(`Associated incident not found`, 'NOT_FOUND')
     }
 
     // Publish approval_responded event

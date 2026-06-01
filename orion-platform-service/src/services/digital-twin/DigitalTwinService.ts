@@ -207,7 +207,7 @@ export class DigitalTwinService {
   }> {
     const twin = await this.getTwin(twinId);
     if (!twin) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Twin not found: ${twinId}`);
+      throw new OrionError(`Twin not found: ${twinId}`, ErrorCode.NOT_FOUND);
     }
 
     let sandboxCount = 0;
@@ -239,7 +239,7 @@ export class DigitalTwinService {
   async syncTwin(twinId: string): Promise<{ success: boolean; syncedAt: string }> {
     const twin = await this.getTwin(twinId);
     if (!twin) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Twin not found: ${twinId}`);
+      throw new OrionError(`Twin not found: ${twinId}`, ErrorCode.NOT_FOUND);
     }
 
     if (this.twinConfigRepository) {

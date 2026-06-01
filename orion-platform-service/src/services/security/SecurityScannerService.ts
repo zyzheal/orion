@@ -124,13 +124,13 @@ export class SecurityScannerService {
   private validatePath(inputPath: string): string {
     // Check input path for dangerous patterns before resolving
     if (inputPath.includes('..') || inputPath.includes('\0')) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid path: potential traversal attack');
+      throw new OrionError('Invalid path: potential traversal attack', ErrorCode.VALIDATION_ERROR);
     }
 
     // Check for shell metacharacters in input
     const dangerousChars = /[;&|$`\\(){}<>!]/;
     if (dangerousChars.test(inputPath)) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid path: contains forbidden characters');
+      throw new OrionError('Invalid path: contains forbidden characters', ErrorCode.VALIDATION_ERROR);
     }
 
     // Resolve to absolute path
@@ -138,7 +138,7 @@ export class SecurityScannerService {
 
     // Final check on resolved path
     if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(resolved)) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid path: resolved path contains forbidden characters');
+      throw new OrionError('Invalid path: resolved path contains forbidden characters', ErrorCode.VALIDATION_ERROR);
     }
 
     return resolved;
@@ -603,13 +603,13 @@ export class SecurityScannerService {
   }> {
     // Look up from database
     if (!this.scanRepository || !this.findingRepository) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Scan ${scanId} not found`);
+      throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
     }
 
     try {
       const dbScan = await this.scanRepository.findById(scanId);
       if (!dbScan) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Scan ${scanId} not found`);
+        throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
       }
 
       const dbFindings = await this.findingRepository.findByScanId(scanId);
@@ -626,7 +626,7 @@ export class SecurityScannerService {
         throw error;
       }
       logger.warn({ error }, '[SecurityScanner] Database lookup failed');
-      throw new OrionError(ErrorCode.NOT_FOUND, `Scan ${scanId} not found`);
+      throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
     }
   }
 

@@ -213,7 +213,7 @@ export class MessageQueueService {
   async ack(messageId: string): Promise<void> {
     const message = this.findMessageById(messageId);
     if (!message) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Message not found: ${messageId}`);
+      throw new OrionError(`Message not found: ${messageId}`, ErrorCode.NOT_FOUND);
     }
 
     message.status = 'completed';
@@ -249,7 +249,7 @@ export class MessageQueueService {
   async nack(messageId: string, error?: string): Promise<void> {
     const message = this.findMessageById(messageId);
     if (!message) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Message not found: ${messageId}`);
+      throw new OrionError(`Message not found: ${messageId}`, ErrorCode.NOT_FOUND);
     }
 
     message.retryCount++;
@@ -277,11 +277,11 @@ export class MessageQueueService {
   async retry(messageId: string): Promise<void> {
     const message = this.findMessageById(messageId);
     if (!message) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Message not found: ${messageId}`);
+      throw new OrionError(`Message not found: ${messageId}`, ErrorCode.NOT_FOUND);
     }
 
     if (message.status === 'completed') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot retry completed message: ${messageId}`);
+      throw new OrionError(`Cannot retry completed message: ${messageId}`, ErrorCode.NOT_FOUND);
     }
 
     message.status = 'pending';
@@ -392,7 +392,7 @@ export class MessageQueueService {
   async replayDeadLetter(deadLetterId: string, options?: { maxRetries?: number }): Promise<string> {
     const dlqEntry = this.deadLetters.get(deadLetterId);
     if (!dlqEntry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Dead letter not found: ${deadLetterId}`);
+      throw new OrionError(`Dead letter not found: ${deadLetterId}`, ErrorCode.NOT_FOUND);
     }
 
     dlqEntry.replayStatus = 'replaying';
@@ -467,7 +467,7 @@ export class MessageQueueService {
   heartbeat(consumerId: string): void {
     const consumer = this.consumers.get(consumerId);
     if (!consumer) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Consumer not found: ${consumerId}`);
+      throw new OrionError(`Consumer not found: ${consumerId}`, ErrorCode.NOT_FOUND);
     }
     consumer.lastHeartbeat = new Date();
     consumer.status = 'active';

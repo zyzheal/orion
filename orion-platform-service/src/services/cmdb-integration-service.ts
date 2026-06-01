@@ -900,12 +900,12 @@ export class CmdbIntegrationService {
     // 获取目标主机信息
     const ci = await this.cmdbService.getCIByCiId(ciId);
     if (!ci) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `CI ${ciId} not found`);
+      throw new OrionError(`CI ${ciId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const host = ci.attributes?.ip || ci.attributes?.hostname;
     if (!host) {
-      throw new OrionError('SERVICE_UNAVAILABLE', `CI ${ciId} has no IP or hostname for SSH connection`)
+      throw new OrionError(`CI ${ciId} has no IP or hostname for SSH connection`, 'SERVICE_UNAVAILABLE')
     }
 
     // 替换脚本中的参数
@@ -925,7 +925,7 @@ export class CmdbIntegrationService {
     // 构建 SSH 配置
     const sshConfig = this.buildSSHConfig(ci);
     if (!sshConfig) {
-      throw new OrionError('OPERATION_FAILED', `CI ${ciId} has no SSH credentials configured`)
+      throw new OrionError(`CI ${ciId} has no SSH credentials configured`, 'OPERATION_FAILED')
     }
 
     // 执行 SSH 命令

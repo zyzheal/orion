@@ -231,7 +231,7 @@ export abstract class BaseAgent {
     });
 
     if (!result.success) {
-      throw new OrionError('OPERATION_FAILED', result.error || result.degradationReason || 'AI call failed');
+      throw new OrionError(result.error || result.degradationReason || 'AI call failed', 'OPERATION_FAILED');
     }
 
     return result.data as string;
@@ -253,7 +253,7 @@ export abstract class BaseAgent {
     const result = await this.toolAdapter.executeTool(toolName, params, context);
 
     if (!result.success) {
-      throw new OrionError('OPERATION_FAILED', `Tool '${toolName}' execution failed: ${result.error}`)
+      throw new OrionError(`Tool '${toolName}' execution failed: ${result.error}`, 'OPERATION_FAILED')
     }
 
     return result.data;
@@ -267,13 +267,13 @@ export abstract class BaseAgent {
    */
   protected validateContext(context: AgentExecutionContext): void {
     if (!context.traceId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required field: traceId');
+      throw new OrionError('Missing required field: traceId', ErrorCode.VALIDATION_ERROR);
     }
     if (!context.userId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required field: userId');
+      throw new OrionError('Missing required field: userId', ErrorCode.VALIDATION_ERROR);
     }
     if (!context.tenantId) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Missing required field: tenantId');
+      throw new OrionError('Missing required field: tenantId', ErrorCode.VALIDATION_ERROR);
     }
   }
 

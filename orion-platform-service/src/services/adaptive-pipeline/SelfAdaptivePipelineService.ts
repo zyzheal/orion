@@ -186,7 +186,7 @@ export class SelfAdaptivePipelineService {
     }
 
     if (!updateResult?.rows?.length) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Pipeline ${pipelineId} not found or update failed`);
+      throw new OrionError(`Pipeline ${pipelineId} not found or update failed`, ErrorCode.NOT_FOUND);
     }
 
     // Record the adaptation

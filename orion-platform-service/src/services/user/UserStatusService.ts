@@ -73,13 +73,13 @@ export class UserStatusService {
     const user = userResult.rows[0];
 
     if (!user) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `User not found: ${userId}`);
+      throw new OrionError(`User not found: ${userId}`, ErrorCode.NOT_FOUND);
     }
 
     const oldStatus = user.status as UserStatus;
 
     if (oldStatus === newStatus) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `User ${userId} already has status ${newStatus}`);
+      throw new OrionError(`User ${userId} already has status ${newStatus}`, ErrorCode.NOT_FOUND);
     }
 
     // Update user status

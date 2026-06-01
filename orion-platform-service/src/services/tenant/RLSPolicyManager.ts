@@ -274,7 +274,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new OrionError('VALIDATION_ERROR', `Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`)
+        throw new OrionError(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`, 'VALIDATION_ERROR')
       }
 
       // 启用 RLS
@@ -329,7 +329,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new OrionError('VALIDATION_ERROR', `Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`)
+        throw new OrionError(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`, 'VALIDATION_ERROR')
       }
 
       await this.db.query(`ALTER TABLE ${tableName} DISABLE ROW LEVEL SECURITY`);
@@ -348,7 +348,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL/DML statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new OrionError('VALIDATION_ERROR', `Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`)
+        throw new OrionError(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`, 'VALIDATION_ERROR')
       }
 
       // 设置 session 变量

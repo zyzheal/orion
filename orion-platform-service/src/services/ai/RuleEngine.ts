@@ -924,10 +924,10 @@ export class RuleEngine {
   addRule(scenario: AIScenario, rule: Rule): void {
     const ruleSet = this.ruleSets.get(scenario);
     if (!ruleSet) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `RuleSet not found for scenario: ${scenario}`);
+      throw new OrionError(`RuleSet not found for scenario: ${scenario}`, ErrorCode.NOT_FOUND);
     }
     if (ruleSet.rules.length >= this.config.maxRulesPerScenario) {
-      throw new OrionError('OPERATION_FAILED', `Max rules reached for scenario: ${scenario}`)
+      throw new OrionError(`Max rules reached for scenario: ${scenario}`, 'OPERATION_FAILED')
     }
     ruleSet.rules.push(rule);
     ruleSet.rules.sort((a, b) => a.priority - b.priority);

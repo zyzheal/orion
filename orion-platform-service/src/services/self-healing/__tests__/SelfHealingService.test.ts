@@ -299,38 +299,38 @@ describe('HealingStrategyEngine', () => {
   });
 
   describe('unregisterStrategy', () => {
-    it('should remove a registered strategy', () => {
+    it('should remove a registered strategy', async () => {
       engine.registerStrategy(createStrategy({ id: 'to-remove' }));
 
-      const result = engine.unregisterStrategy('to-remove');
+      const result = await engine.unregisterStrategy('to-remove');
       expect(result).toBe(true);
       expect(engine.getStrategy('to-remove')).toBeUndefined();
     });
 
-    it('should return false for non-existent strategy', () => {
-      const result = engine.unregisterStrategy('non-existent');
+    it('should return false for non-existent strategy', async () => {
+      const result = await engine.unregisterStrategy('non-existent');
       expect(result).toBe(false);
     });
   });
 
   describe('enableStrategy / disableStrategy', () => {
-    it('should enable a disabled strategy', () => {
+    it('should enable a disabled strategy', async () => {
       const strategy = createStrategy({ id: 'toggle-test', enabled: false });
       engine.registerStrategy(strategy);
 
-      const result = engine.enableStrategy('toggle-test');
+      const result = await engine.enableStrategy('toggle-test');
       expect(result).toBe(true);
       expect(engine.getStrategy('toggle-test')?.enabled).toBe(true);
     });
 
-    it('should disable an enabled strategy', () => {
-      engine.disableStrategy('restart-on-crash');
+    it('should disable an enabled strategy', async () => {
+      await engine.disableStrategy('restart-on-crash');
       expect(engine.getStrategy('restart-on-crash')?.enabled).toBe(false);
     });
 
-    it('should return false for non-existent strategy', () => {
-      expect(engine.enableStrategy('non-existent')).toBe(false);
-      expect(engine.disableStrategy('non-existent')).toBe(false);
+    it('should return false for non-existent strategy', async () => {
+      expect(await engine.enableStrategy('non-existent')).toBe(false);
+      expect(await engine.disableStrategy('non-existent')).toBe(false);
     });
   });
 
@@ -1253,8 +1253,8 @@ describe('SelfHealingService', () => {
       expect(strategy?.name).toBe('Auto Restart on Crash');
     });
 
-    it('should toggle strategy', () => {
-      const result = service.toggleStrategy('restart-on-crash', false);
+    it('should toggle strategy', async () => {
+      const result = await service.toggleStrategy('restart-on-crash', false);
       expect(result).toBe(true);
 
       const strategy = service.getStrategy('restart-on-crash');

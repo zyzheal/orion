@@ -75,10 +75,10 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('初始化状态', () => {
-    it('应该正确初始化', () => {
+    it('应该正确初始化', async () => {
       handler.start();
 
-      const state = handler.getCurrentState();
+      const state = await handler.getCurrentState();
 
       expect(state.state).toBe(FailoverState.NORMAL);
       expect(state.level).toBe(DegradationLevel.LEVEL_0);
@@ -88,10 +88,10 @@ describe('DatabaseFailoverHandler', () => {
       handler.stop();
     });
 
-    it('应该返回正确的统计信息', () => {
+    it('应该返回正确的统计信息', async () => {
       handler.start();
 
-      const stats = handler.getStats();
+      const stats = await handler.getStats();
 
       expect(stats.currentState).toBe(FailoverState.NORMAL);
       expect(stats.currentLevel).toBe(DegradationLevel.LEVEL_0);
@@ -103,11 +103,11 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('手动降级', () => {
-    it('应该正确设置降级级别', () => {
+    it('应该正确设置降级级别', async () => {
       handler.start();
       handler.setDegradationLevel(DegradationLevel.LEVEL_1, 'Manual test');
 
-      const state = handler.getCurrentState();
+      const state = await handler.getCurrentState();
       expect(state.level).toBe(DegradationLevel.LEVEL_1);
       expect(state.state).toBe(FailoverState.DEGRADED);
 
@@ -166,7 +166,7 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('读请求路由', () => {
-    it('应该正确路由读请求', () => {
+    it('应该正确路由读请求', async () => {
       handler.start();
 
       const context = {
@@ -175,7 +175,7 @@ describe('DatabaseFailoverHandler', () => {
         canUseStaleData: true,
       };
 
-      const decision = handler.routeReadRequest(context);
+      const decision = await handler.routeReadRequest(context);
 
       expect(decision.targetNode).toBeDefined();
       expect(decision.degradationLevel).toBe(DegradationLevel.LEVEL_0);
@@ -183,7 +183,7 @@ describe('DatabaseFailoverHandler', () => {
       handler.stop();
     });
 
-    it('在降级模式下应该正确调整路由', () => {
+    it('在降级模式下应该正确调整路由', async () => {
       handler.start();
       handler.setDegradationLevel(DegradationLevel.LEVEL_1);
 
@@ -192,7 +192,7 @@ describe('DatabaseFailoverHandler', () => {
         priority: 'normal',
       };
 
-      const decision = handler.routeReadRequest(analyzeContext);
+      const decision = await handler.routeReadRequest(analyzeContext);
 
       expect(decision.targetNode.type).toBe(NodeType.PRIMARY);
       expect(decision.reason).toContain('L1');
@@ -314,7 +314,7 @@ describe('DatabaseFailoverHandler', () => {
       expect(event.newLevel).toBe(DegradationLevel.LEVEL_0);
       expect(event.previousLevel).toBe(DegradationLevel.LEVEL_1);
 
-      const state = handler.getCurrentState();
+      const state = await handler.getCurrentState();
       expect(state.state).toBe(FailoverState.NORMAL);
 
       handler.stop();
@@ -322,13 +322,13 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('历史记录', () => {
-    it('应该正确记录降级历史', () => {
+    it('应该正确记录降级历史', async () => {
       handler.start();
 
       handler.setDegradationLevel(DegradationLevel.LEVEL_1, 'Test 1');
       handler.setDegradationLevel(DegradationLevel.LEVEL_2, 'Test 2');
 
-      const history = handler.getDegradationHistory();
+      const history = await handler.getDegradationHistory();
 
       expect(history.length).toBeGreaterThanOrEqual(2);
       expect(history[0]?.newLevel).toBe(DegradationLevel.LEVEL_1);
@@ -354,7 +354,7 @@ describe('DatabaseFailoverHandler', () => {
       handler.setDegradationLevel(DegradationLevel.LEVEL_0, 'Recovery');
       await recoveryPromise;
 
-      const history = handler.getRecoveryHistory();
+      const history = await handler.getRecoveryHistory();
 
       expect(history.length).toBeGreaterThanOrEqual(1);
       expect(history[history.length - 1]?.newLevel).toBe(DegradationLevel.LEVEL_0);
@@ -390,7 +390,7 @@ describe('DatabaseFailoverHandler', () => {
         alertHandler.once('alert', () => resolve());
       });
 
-      const history = alertHandler.getAlertHistory();
+      const history = await alertHandler.getAlertHistory();
 
       expect(history.length).toBeGreaterThanOrEqual(1);
       expect(history[0]?.severity).toBe('severe');
@@ -422,13 +422,13 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('重置功能', () => {
-    it('应该正确重置状态', () => {
+    it('应该正确重置状态', async () => {
       handler.start();
       handler.setDegradationLevel(DegradationLevel.LEVEL_3, 'Test');
 
       handler.reset();
 
-      const state = handler.getCurrentState();
+      const state = await handler.getCurrentState();
       expect(state.level).toBe(DegradationLevel.LEVEL_0);
       expect(state.state).toBe(FailoverState.NORMAL);
 
@@ -453,7 +453,7 @@ describe('DatabaseFailoverHandler', () => {
         lagMonitor.once('check-complete', () => resolve());
       });
 
-      const trend = handler.getLagTrend('replica1.example.com:3306');
+      const trend = await handler.getLagTrend('replica1.example.com:3306');
 
       expect(trend).toBeDefined();
       expect(trend.trend).toBe('stable');
@@ -463,8 +463,8 @@ describe('DatabaseFailoverHandler', () => {
   });
 
   describe('节点健康状态', () => {
-    it('应该正确设置节点健康状态', () => {
-      handler.setNodeHealth('replica1', false, 500);
+    it('应该正确设置节点健康状态', async () => {
+      await handler.setNodeHealth('replica1', false, 500);
 
       const nodes = trafficManager.getNodesStatus();
       const unhealthyReplica = nodes.replicas.find((n) => n.id === 'replica1');

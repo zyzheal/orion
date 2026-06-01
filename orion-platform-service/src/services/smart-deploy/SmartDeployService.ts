@@ -566,7 +566,7 @@ export class SmartDeployService {
   ): Promise<{ deployment: DeploymentRecord; rollback: RollbackRecord }> {
     const deployment = activeDeployments.get(deploymentId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const rollbackId = uuidv4();
@@ -636,11 +636,11 @@ export class SmartDeployService {
   ): Promise<DeploymentRecord> {
     const deployment = activeDeployments.get(deploymentId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (deployment.status !== 'running') {
-      throw new OrionError('OPERATION_FAILED', `Cannot cancel deployment with status '${deployment.status}'`)
+      throw new OrionError(`Cannot cancel deployment with status '${deployment.status}'`, 'OPERATION_FAILED')
     }
 
     deployment.status = 'cancelled';

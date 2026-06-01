@@ -53,7 +53,7 @@ export function registerGerritInstance(id: string, config: {
 function getAdapter(adapterId: string): ICodeRepoAdapter {
   const adapter = adapters.get(adapterId);
   if (!adapter) {
-    throw new OrionError(ErrorCode.NOT_FOUND, `Adapter '${adapterId}' not found`);
+    throw new OrionError(`Adapter '${adapterId}' not found`, ErrorCode.NOT_FOUND);
   }
   return adapter;
 }

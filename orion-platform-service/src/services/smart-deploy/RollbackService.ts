@@ -62,12 +62,12 @@ export class RollbackService {
   ): Promise<RollbackEntity> {
     // Check if deployment is in a rollbackable state
     if (!this.isRollbackable(deployment.status)) {
-      throw new OrionError(ErrorCode.NOT_FOUND, 'Deployment not found');
+      throw new OrionError('Deployment not found', ErrorCode.NOT_FOUND);
     }
 
     // Check if already rolled back
     if (deployment.status === 'rolled_back') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Deployment is not in failed state');
+      throw new OrionError('Deployment is not in failed state', ErrorCode.VALIDATION_ERROR);
     }
 
     const rollbackId = uuidv4();
@@ -121,7 +121,7 @@ export class RollbackService {
         this.findPreviousVersion(deployment);
 
       if (!targetVersion && deployment.status !== 'failed') {
-        throw new OrionError(ErrorCode.NOT_FOUND, 'Rollback snapshot not found');
+        throw new OrionError('Rollback snapshot not found', ErrorCode.NOT_FOUND);
       }
 
       // Execute rollback with retry logic
@@ -152,7 +152,7 @@ export class RollbackService {
         );
         const healthPassed = healthResults.every(h => h.passed);
         if (!healthPassed) {
-          throw new OrionError(ErrorCode.OPERATION_FAILED, 'Rollback health verification failed');
+          throw new OrionError('Rollback health verification failed', ErrorCode.OPERATION_FAILED);
         }
       }
 
@@ -213,7 +213,7 @@ export class RollbackService {
     if (this.healthCheckFn) {
       const healthy = await this.healthCheckFn(deployment.appName, targetVersion, deployment.environment);
       if (!healthy) {
-        throw new OrionError('OPERATION_FAILED', `Health check failed after traffic switch for ${deployment.appName}:${targetVersion}`)
+        throw new OrionError(`Health check failed after traffic switch for ${deployment.appName}:${targetVersion}`, 'OPERATION_FAILED')
       }
     }
   }
@@ -242,7 +242,7 @@ export class RollbackService {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          throw new OrionError('OPERATION_FAILED', `Traffic switch API returned ${response.status}: ${response.statusText}`)
+          throw new OrionError(`Traffic switch API returned ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
         }
         return;
       } catch (err) {

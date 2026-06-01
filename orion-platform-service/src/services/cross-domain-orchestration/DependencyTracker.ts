@@ -184,7 +184,7 @@ export class DependencyTracker {
 
   async resolveDependency(id: string): Promise<CrossDomainDependency> {
     const dep = await this.repository.findById(id);
-    if (!dep) throw new OrionError(ErrorCode.NOT_FOUND, `Dependency '${id}' not found`);
+    if (!dep) throw new OrionError(`Dependency '${id}' not found`, ErrorCode.NOT_FOUND);
     dep.status = 'resolved';
     dep.resolvedAt = new Date();
     dep.updatedAt = new Date();

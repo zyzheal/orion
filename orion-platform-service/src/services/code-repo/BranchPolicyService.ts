@@ -56,7 +56,7 @@ export class BranchPolicyService {
    */
   async create(input: CreateBranchPolicyInput): Promise<BranchPolicy> {
     if (!this.repository) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'BranchPolicyRepository not configured');
+      throw new OrionError('BranchPolicyRepository not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // Generate IDs for approval rules

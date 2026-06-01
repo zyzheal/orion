@@ -145,7 +145,7 @@ export class CommandRouter {
     const target = COMMAND_ROUTES[commandName];
     if (!target) {
       // 未知命令: 返回友好错误
-      throw new OrionError('OPERATION_FAILED', `未知命令: ${commandName}。使用 /help 查看可用命令列表`)
+      throw new OrionError(`未知命令: ${commandName}。使用 /help 查看可用命令列表`, 'OPERATION_FAILED')
     }
 
     const service = this.services.get(target.service);

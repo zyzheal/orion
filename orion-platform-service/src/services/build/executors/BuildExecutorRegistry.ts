@@ -18,7 +18,7 @@ export class BuildExecutorRegistry {
    */
   register(executor: BuildExecutor): void {
     if (this.executors.has(executor.type)) {
-      throw new OrionError('VALIDATION_ERROR', `Executor ${executor.type} already registered`)
+      throw new OrionError(`Executor ${executor.type} already registered`, 'VALIDATION_ERROR')
     }
     this.executors.set(executor.type, executor);
   }

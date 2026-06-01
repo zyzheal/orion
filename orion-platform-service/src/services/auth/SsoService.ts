@@ -184,7 +184,7 @@ export class SsoService {
    */
   async getAuthorizationUrl(): Promise<{ url: string; stateKey: string }> {
     if (!this.oidcConfig || !this.config) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_NOT_CONFIGURED');
+      throw new OrionError('SSO_NOT_CONFIGURED', ErrorCode.OPERATION_FAILED);
     }
 
     const nonce = randomNonce();
@@ -211,12 +211,12 @@ export class SsoService {
    */
   async handleCallback(currentUrl: URL, stateKey: string): Promise<SsoUserProfile> {
     if (!this.oidcConfig || !this.config) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_NOT_CONFIGURED');
+      throw new OrionError('SSO_NOT_CONFIGURED', ErrorCode.OPERATION_FAILED);
     }
 
     const storedStateRaw = await this.stateStore.get(`sso:state:${stateKey}`);
     if (!storedStateRaw) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_STATE_MISMATCH: No matching state found');
+      throw new OrionError('SSO_STATE_MISMATCH: No matching state found', ErrorCode.OPERATION_FAILED);
     }
 
     // Clean up the state entry
@@ -239,7 +239,7 @@ export class SsoService {
       const claims = tokens.claims();
 
       if (!claims || !claims.sub) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'SSO_NO_CLAIMS: No subject claim found in ID token');
+        throw new OrionError('SSO_NO_CLAIMS: No subject claim found in ID token', ErrorCode.OPERATION_FAILED);
       }
 
       return {

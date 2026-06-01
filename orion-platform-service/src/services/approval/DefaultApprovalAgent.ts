@@ -450,7 +450,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
     });
 
     if (!response.ok) {
-      throw new OrionError('OPERATION_FAILED', `LLM API error: ${response.status}`)
+      throw new OrionError(`LLM API error: ${response.status}`, 'OPERATION_FAILED')
     }
 
     const result = await response.json() as any;

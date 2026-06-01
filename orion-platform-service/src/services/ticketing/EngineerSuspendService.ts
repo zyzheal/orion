@@ -178,7 +178,7 @@ export class EngineerSuspendService {
   async analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
     const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Suspend ${suspendId} not found`);
+      throw new OrionError(`Suspend ${suspendId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // Find tickets assigned to this engineer

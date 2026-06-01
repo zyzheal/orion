@@ -70,7 +70,7 @@ export class ConfigApprovalService {
   ): Promise<ConfigChangeRequest> {
     const config = await this.configService.getConfigById(input.configId);
     if (!config) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${input.configId}' not found`);
+      throw new OrionError(`Config '${input.configId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -130,11 +130,11 @@ export class ConfigApprovalService {
   ): Promise<ConfigChangeRequest> {
     const changeRequest = this.changeRequests.get(changeRequestId);
     if (!changeRequest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${changeRequestId}' not found`);
+      throw new OrionError(`Change request '${changeRequestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new OrionError('OPERATION_FAILED', `Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`);
+      throw new OrionError(`Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
     // Check if this approver has already approved
@@ -142,7 +142,7 @@ export class ConfigApprovalService {
       (a) => a.approver === input.approver
     );
     if (existingApproval) {
-      throw new OrionError('OPERATION_FAILED', `Approver '${input.approver}' has already voted on this change request`);
+      throw new OrionError(`Approver '${input.approver}' has already voted on this change request`, 'OPERATION_FAILED');
     }
 
     const now = new Date();
@@ -193,11 +193,11 @@ export class ConfigApprovalService {
   ): Promise<ConfigChangeRequest> {
     const changeRequest = this.changeRequests.get(changeRequestId);
     if (!changeRequest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${changeRequestId}' not found`);
+      throw new OrionError(`Change request '${changeRequestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new OrionError('OPERATION_FAILED', `Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`);
+      throw new OrionError(`Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
     // Check if this approver has already voted
@@ -205,7 +205,7 @@ export class ConfigApprovalService {
       (a) => a.approver === input.approver
     );
     if (existingApproval) {
-      throw new OrionError('OPERATION_FAILED', `Approver '${input.approver}' has already voted on this change request`);
+      throw new OrionError(`Approver '${input.approver}' has already voted on this change request`, 'OPERATION_FAILED');
     }
 
     const now = new Date();
@@ -285,11 +285,11 @@ export class ConfigApprovalService {
   async cancelChangeRequest(changeRequestId: string): Promise<ConfigChangeRequest> {
     const changeRequest = this.changeRequests.get(changeRequestId);
     if (!changeRequest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Change request '${changeRequestId}' not found`);
+      throw new OrionError(`Change request '${changeRequestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (changeRequest.status !== 'pending') {
-      throw new OrionError('OPERATION_FAILED', `Only pending change requests can be cancelled (current: ${changeRequest.status})`);
+      throw new OrionError(`Only pending change requests can be cancelled (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
     changeRequest.status = 'rejected';
@@ -327,7 +327,7 @@ export class ConfigApprovalService {
       changeRequest.status = 'approved'; // Keep as approved even if auto-apply failed
       changeRequest.updatedAt = new Date();
       this.changeRequests.set(changeRequest.id, changeRequest);
-      throw new OrionError('OPERATION_FAILED', `Change request approved but auto-apply failed: ${error.message}`);
+      throw new OrionError(`Change request approved but auto-apply failed: ${error.message}`, 'OPERATION_FAILED');
     }
   }
 

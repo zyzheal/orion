@@ -196,7 +196,7 @@ export class CircuitBreakerService {
   async reset(targetKey: string): Promise<void> {
     const entry = this.registry.get(targetKey);
     if (!entry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Circuit breaker not found for key: ${targetKey}`);
+      throw new OrionError(`Circuit breaker not found for key: ${targetKey}`, ErrorCode.NOT_FOUND);
     }
 
     const previousState = entry.breaker.currentState;
@@ -219,7 +219,7 @@ export class CircuitBreakerService {
   async trip(targetKey: string): Promise<void> {
     const entry = this.registry.get(targetKey);
     if (!entry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Circuit breaker not found for key: ${targetKey}`);
+      throw new OrionError(`Circuit breaker not found for key: ${targetKey}`, ErrorCode.NOT_FOUND);
     }
 
     const previousState = entry.breaker.currentState;
@@ -251,7 +251,7 @@ export class CircuitBreakerService {
     // Update in-memory instance
     const entry = this.registry.get(targetKey);
     if (!entry) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Circuit breaker not found for key: ${targetKey}`);
+      throw new OrionError(`Circuit breaker not found for key: ${targetKey}`, ErrorCode.NOT_FOUND);
     }
 
     // Merge config
@@ -284,7 +284,7 @@ export class CircuitBreakerService {
   async enable(targetKey: string): Promise<void> {
     const dbConfig = await this.configRepo.findByTargetKey(targetKey);
     if (!dbConfig) {
-      throw new OrionError('OPERATION_FAILED', `No configuration found for key: ${targetKey}`)
+      throw new OrionError(`No configuration found for key: ${targetKey}`, 'OPERATION_FAILED')
     }
     await this.register(targetKey, {
       failureThreshold: dbConfig.failureThreshold,

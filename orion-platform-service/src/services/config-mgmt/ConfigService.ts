@@ -92,7 +92,7 @@ export class ConfigService {
       const input = tenantIdOrInput as CreateConfigInput;
       const existing = await this.repository.findByKey('default', input.key);
       if (existing && existing.environment === input.environment) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Config '${input.key}' already exists in environment '${input.environment}'`);
+        throw new OrionError(`Config '${input.key}' already exists in environment '${input.environment}'`, ErrorCode.NOT_FOUND);
       }
       const entry = await this.repository.set('default', input.key, buildValueObject(input), input.createdBy);
       // Ensure createdBy is set since repository may not persist it
@@ -129,7 +129,7 @@ export class ConfigService {
       const input = keyOrInput as UpdateConfigInput;
       const existing = await this.repository.findById(tenantIdOrId);
       if (!existing) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Config '${tenantIdOrId}' not found`);
+        throw new OrionError(`Config '${tenantIdOrId}' not found`, ErrorCode.NOT_FOUND);
       }
       const rawValue = existing.value as any;
       const oldValue = rawValue?.value !== undefined ? rawValue.value : rawValue;
@@ -167,7 +167,7 @@ export class ConfigService {
   async deleteConfig(configId: string, changedBy?: string): Promise<boolean> {
     const existing = await this.repository.findById(configId);
     if (!existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${configId}' not found`);
+      throw new OrionError(`Config '${configId}' not found`, ErrorCode.NOT_FOUND);
     }
     // Invalidate cache on delete
     await this.cache.del(`config:${configId}`);
@@ -259,15 +259,15 @@ export class ConfigService {
   async rollbackConfig(configId: string, targetVersion: number, changedBy: string): Promise<ConfigItem> {
     const existing = await this.repository.findById(configId);
     if (!existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${configId}' not found`);
+      throw new OrionError(`Config '${configId}' not found`, ErrorCode.NOT_FOUND);
     }
     const versions = await this.getConfigVersions(configId);
     const target = versions.find(v => v.version === targetVersion);
     if (!target) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Version ${targetVersion} not found for config '${configId}'`);
+      throw new OrionError(`Version ${targetVersion} not found for config '${configId}'`, ErrorCode.NOT_FOUND);
     }
     if (targetVersion >= existing.version) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Target version ${targetVersion} must be less than current version ${existing.version}`);
+      throw new OrionError(`Target version ${targetVersion} must be less than current version ${existing.version}`, ErrorCode.NOT_FOUND);
     }
     const targetValue = typeof target.value === 'string' ? target.value : ((target as any).newValue?.value || (target as any).new_value?.value || JSON.stringify(target.value));
     const oldValueStr = typeof (existing.value as any)?.value === 'string' ? (existing.value as any).value : JSON.stringify(existing.value);
@@ -281,13 +281,13 @@ export class ConfigService {
   async cloneConfig(sourceId: string, targetEnvironment: string, changedBy: string): Promise<ConfigItem> {
     const source = await this.repository.findById(sourceId);
     if (!source) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Config '${sourceId}' not found`);
+      throw new OrionError(`Config '${sourceId}' not found`, ErrorCode.NOT_FOUND);
     }
     // Check if target already exists in the target environment
     const allConfigs = await this.repository.findAll(source.tenant_id);
     const existingInTarget = allConfigs.find(c => c.key === source.key && c.environment === targetEnvironment);
     if (existingInTarget) {
-      throw new OrionError('VALIDATION_ERROR', `Config '${source.key}' already exists in environment '${targetEnvironment}'`)
+      throw new OrionError(`Config '${source.key}' already exists in environment '${targetEnvironment}'`, 'VALIDATION_ERROR')
     }
     const clonedValue = { ...(source.value as any), environment: targetEnvironment };
     const entry = await this.repository.set('default', source.key, clonedValue, changedBy);

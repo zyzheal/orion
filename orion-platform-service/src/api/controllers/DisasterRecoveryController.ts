@@ -78,7 +78,7 @@ export class DisasterRecoveryController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const plan = this.drPlans.get(params.id);
-      if (!plan) throw new OrionError(ErrorCode.NOT_FOUND, `DR plan '${params.id}' not found`);
+      if (!plan) throw new OrionError(`DR plan '${params.id}' not found`, ErrorCode.NOT_FOUND);
       const id = `failover-test-${Date.now()}`;
       const record = {
         id,
@@ -114,7 +114,7 @@ export class DisasterRecoveryController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const plan = this.drPlans.get(params.id);
-      if (!plan) throw new OrionError(ErrorCode.NOT_FOUND, `DR plan '${params.id}' not found`);
+      if (!plan) throw new OrionError(`DR plan '${params.id}' not found`, ErrorCode.NOT_FOUND);
       const id = `failover-${Date.now()}`;
       const record = {
         id,

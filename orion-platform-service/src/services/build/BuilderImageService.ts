@@ -168,7 +168,7 @@ export class BuilderImageService {
       img => img.name === input.name && img.status !== BuilderImageStatus.DISABLED
     );
     if (existing) {
-      throw new OrionError('VALIDATION_ERROR', `Builder image '${input.name}' already exists`)
+      throw new OrionError(`Builder image '${input.name}' already exists`, 'VALIDATION_ERROR')
     }
 
     const image = createBuilderImage(input);
@@ -245,7 +245,7 @@ export class BuilderImageService {
 
     // 预置镜像不能禁用，只能标记为 deprecated
     if (image.isPreset) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot disable preset images. Use deprecate instead.');
+      throw new OrionError('Cannot disable preset images. Use deprecate instead.', ErrorCode.OPERATION_FAILED);
     }
 
     const updated = updateBuilderImage(image, {
@@ -329,7 +329,7 @@ export class BuilderImageService {
     }
 
     if (image.isPreset) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot delete preset images');
+      throw new OrionError('Cannot delete preset images', ErrorCode.OPERATION_FAILED);
     }
 
     images.delete(id);

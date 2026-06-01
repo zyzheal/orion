@@ -129,7 +129,7 @@ export class ModelVersionService {
     // 检查是否已存在相同名称+版本的模型
     const existing = await this.modelRepo.findByNameAndVersion(input.name, input.version);
     if (existing) {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid model version');
+      throw new OrionError('Invalid model version', ErrorCode.VALIDATION_ERROR);
     }
 
     const now = new Date();
@@ -176,11 +176,11 @@ export class ModelVersionService {
   async activateModel(modelId: string): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     if (entity.status === 'deprecated' || entity.status === 'archived') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot activate ${entity.status} model: ${modelId}`);
+      throw new OrionError(`Cannot activate ${entity.status} model: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     // 将同名模型的旧活跃版本设为非活跃
@@ -237,11 +237,11 @@ export class ModelVersionService {
   async deprecateModel(modelId: string): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     if (entity.status === 'archived') {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Cannot deprecate archived model: ${modelId}`);
+      throw new OrionError(`Cannot deprecate archived model: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     // 如果是当前活跃模型，清除活跃标记
@@ -277,7 +277,7 @@ export class ModelVersionService {
   async updateModelMetrics(modelId: string, metrics: Partial<ModelMetrics>): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     const updatedMetrics = { ...entity.metrics, ...metrics };
@@ -301,14 +301,14 @@ export class ModelVersionService {
     for (const variant of config.variants) {
       const model = await this.modelRepo.findById(variant.modelId);
       if (!model) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Variant model not found: ${variant.modelId}`);
+        throw new OrionError(`Variant model not found: ${variant.modelId}`, ErrorCode.NOT_FOUND);
       }
     }
 
     // 验证流量分配总和为 100
     const totalTraffic = Object.values(config.trafficSplit).reduce((sum, v) => sum + v, 0);
     if (Math.abs(totalTraffic - 100) > 0.01) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Traffic split must sum to 100, got ${totalTraffic}`);
+      throw new OrionError(`Traffic split must sum to 100, got ${totalTraffic}`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -396,10 +396,10 @@ export class ModelVersionService {
   async pauseABTest(modelName: string): Promise<ABTestConfig> {
     const abTest = await this.abTestRepo.findByName(modelName);
     if (!abTest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found for model: ${modelName}`);
+      throw new OrionError(`AB test not found for model: ${modelName}`, ErrorCode.NOT_FOUND);
     }
     if (abTest.status === 'completed') {
-      throw new OrionError(ErrorCode.VALIDATION_ERROR, 'AB test is already completed');
+      throw new OrionError('AB test is already completed', ErrorCode.VALIDATION_ERROR);
     }
 
     const updated = await this.abTestRepo.updateStatus(abTest.id, 'paused');
@@ -414,7 +414,7 @@ export class ModelVersionService {
   async completeABTest(modelName: string, winner?: string): Promise<ABTestResult> {
     const abTest = await this.abTestRepo.findByName(modelName);
     if (!abTest) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `AB test not found for model: ${modelName}`);
+      throw new OrionError(`AB test not found for model: ${modelName}`, ErrorCode.NOT_FOUND);
     }
 
     await this.abTestRepo.updateStatus(abTest.id, 'completed');
@@ -546,11 +546,11 @@ export class ModelVersionService {
   async archiveModel(modelId: string): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     if (entity.status === 'active') {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Cannot archive an active model. Deactivate it first.');
+      throw new OrionError('Cannot archive an active model. Deactivate it first.', ErrorCode.OPERATION_FAILED);
     }
 
     const updated = await this.modelRepo.update(modelId, { status: 'archived' });
@@ -564,7 +564,7 @@ export class ModelVersionService {
   async rollbackModel(modelId: string, targetVersion?: string): Promise<ModelVersion> {
     const entity = await this.modelRepo.findById(modelId);
     if (!entity) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Model not found: ${modelId}`);
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
     }
 
     if (targetVersion) {
@@ -572,10 +572,10 @@ export class ModelVersionService {
       const versions = await this.modelRepo.findByName(entity.name, false);
       const target = versions.find(m => m.version === targetVersion);
       if (!target) {
-        throw new OrionError(ErrorCode.NOT_FOUND, `Target version ${targetVersion} not found for model ${entity.name}`);
+        throw new OrionError(`Target version ${targetVersion} not found for model ${entity.name}`, ErrorCode.NOT_FOUND);
       }
       if (target.status === 'deprecated' || target.status === 'archived') {
-        throw new OrionError('OPERATION_FAILED', `Cannot rollback to ${target.status} version: ${targetVersion}`)
+        throw new OrionError(`Cannot rollback to ${target.status} version: ${targetVersion}`, 'OPERATION_FAILED')
       }
       return this.activateModel(target.id);
     }
@@ -587,7 +587,7 @@ export class ModelVersionService {
       .sort((a, b) => (b.activated_at?.getTime() || 0) - (a.activated_at?.getTime() || 0));
 
     if (previousVersions.length === 0) {
-      throw new OrionError('OPERATION_FAILED', `No previous version available for rollback: ${entity.name}`)
+      throw new OrionError(`No previous version available for rollback: ${entity.name}`, 'OPERATION_FAILED')
     }
 
     logger.info({

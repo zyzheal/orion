@@ -109,7 +109,7 @@ export class WechatWorkService {
    */
   getAuthorizationUrl(redirectUri: string, state: string): string {
     if (!this.isEnabled()) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_WORK_SSO_DISABLED');
+      throw new OrionError('WECHAT_WORK_SSO_DISABLED', ErrorCode.OPERATION_FAILED);
     }
 
     const params = new URLSearchParams({
@@ -135,7 +135,7 @@ export class WechatWorkService {
    */
   private async getAccessToken(): Promise<string> {
     if (!this.isEnabled()) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_WORK_SSO_DISABLED');
+      throw new OrionError('WECHAT_WORK_SSO_DISABLED', ErrorCode.OPERATION_FAILED);
     }
 
     // Check cache
@@ -150,7 +150,7 @@ export class WechatWorkService {
 
       if (data.errcode !== 0) {
         logger.error(`[WechatWorkService] Failed to get access_token: ${data.errmsg}`);
-        throw new OrionError('OPERATION_FAILED', `WECHAT_TOKEN_ERROR: ${data.errmsg}`)
+        throw new OrionError(`WECHAT_TOKEN_ERROR: ${data.errmsg}`, 'OPERATION_FAILED')
       }
 
       // Cache token with TTL (expires_in - 5 minute buffer)
@@ -174,7 +174,7 @@ export class WechatWorkService {
    */
   async getUserInfo(code: string): Promise<WechatWorkUserProfile> {
     if (!this.isEnabled()) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_WORK_SSO_DISABLED');
+      throw new OrionError('WECHAT_WORK_SSO_DISABLED', ErrorCode.OPERATION_FAILED);
     }
 
     try {
@@ -187,12 +187,12 @@ export class WechatWorkService {
 
       if (userIdData.errcode !== 0) {
         logger.error(`[WechatWorkService] Failed to get user info: ${userIdData.errmsg}`);
-        throw new OrionError('OPERATION_FAILED', `WECHAT_USERINFO_ERROR: ${userIdData.errmsg}`)
+        throw new OrionError(`WECHAT_USERINFO_ERROR: ${userIdData.errmsg}`, 'OPERATION_FAILED')
       }
 
       const userId = userIdData.UserId || userIdData.OpenId;
       if (!userId) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'WECHAT_NO_USERID: No UserId or OpenId in response');
+        throw new OrionError('WECHAT_NO_USERID: No UserId or OpenId in response', ErrorCode.OPERATION_FAILED);
       }
 
       // Step 2: Get detailed user information
@@ -202,7 +202,7 @@ export class WechatWorkService {
 
       if (userData.errcode !== 0) {
         logger.error(`[WechatWorkService] Failed to get user details: ${userData.errmsg}`);
-        throw new OrionError('OPERATION_FAILED', `WECHAT_USERDETAIL_ERROR: ${userData.errmsg}`)
+        throw new OrionError(`WECHAT_USERDETAIL_ERROR: ${userData.errmsg}`, 'OPERATION_FAILED')
       }
 
       return {

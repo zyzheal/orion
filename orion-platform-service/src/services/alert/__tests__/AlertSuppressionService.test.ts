@@ -408,7 +408,7 @@ describe('AlertSuppressionService', () => {
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
       await suppression.processAlert(alert);
 
-      const log = suppression.getSuppressionLog();
+      const log = await suppression.getSuppressionLog();
 
       expect(log).toHaveLength(1);
       expect(log[0].alertId).toBe('alert-001');
@@ -437,7 +437,7 @@ describe('AlertSuppressionService', () => {
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
       await suppression.processAlert(alert);
 
-      const stats = suppression.getStats();
+      const stats = await suppression.getStats();
 
       expect(stats.activeAlerts).toBe(1);
       expect(stats.maintenanceWindows).toBe(1);
@@ -450,12 +450,12 @@ describe('AlertSuppressionService', () => {
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
       await suppression.processAlert(alert);
 
-      expect(suppression.getStats().activeAlerts).toBe(1);
+      expect((await suppression.getStats()).activeAlerts).toBe(1);
 
-      const cleared = suppression.clearAlert('alert-001');
+      const cleared = await suppression.clearAlert('alert-001');
       expect(cleared).toBe(true);
 
-      expect(suppression.getStats().activeAlerts).toBe(0);
+      expect((await suppression.getStats()).activeAlerts).toBe(0);
     });
   });
 

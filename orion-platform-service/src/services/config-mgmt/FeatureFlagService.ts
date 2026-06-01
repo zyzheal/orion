@@ -275,7 +275,7 @@ export class FeatureFlagService {
   ): Promise<FeatureFlag> {
     const existing = await this.repository.findByKey(tenantId, input.key);
     if (existing) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Feature flag with key '${input.key}' already exists`);
+      throw new OrionError(`Feature flag with key '${input.key}' already exists`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -319,7 +319,7 @@ export class FeatureFlagService {
     updatedBy: string
   ): Promise<FeatureFlag> {
     const flag = await this.repository.findById(id);
-    if (!flag) throw new OrionError(ErrorCode.NOT_FOUND, `Feature flag '${id}' not found`);
+    if (!flag) throw new OrionError(`Feature flag '${id}' not found`, ErrorCode.NOT_FOUND);
 
     if (updates.name !== undefined) flag.name = updates.name;
     if (updates.description !== undefined) flag.description = updates.description;
@@ -344,7 +344,7 @@ export class FeatureFlagService {
 
   async setRolloutPercentage(id: string, percentage: number, updatedBy: string): Promise<FeatureFlag> {
     if (percentage < 0 || percentage > 100) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'Rollout percentage must be between 0 and 100');
+      throw new OrionError('Rollout percentage must be between 0 and 100', ErrorCode.OPERATION_FAILED);
     }
     return this.updateFlag(id, { rolloutPercentage: percentage }, updatedBy);
   }

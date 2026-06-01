@@ -380,7 +380,7 @@ export class AlertNotificationService {
     //   body: JSON.stringify(payload),
     //   signal: AbortSignal.timeout(config.timeoutMs || 10000),
     // });
-    // if (!response.ok) throw new OrionError('OPERATION_FAILED', `Webhook returned ${response.status}`);
+    // if (!response.ok) throw new OrionError(`Webhook returned ${response.status}`, 'OPERATION_FAILED');
 
     logger.info(`[Webhook] POST ${config.url} | Payload: ${JSON.stringify(payload).substring(0, 200)}...`);
 

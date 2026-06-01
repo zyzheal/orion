@@ -301,7 +301,7 @@ export class CodeEmbeddingService {
       case 'hash':
         return this.hashEmbedding(text);
       default:
-        throw new OrionError('NOT_FOUND', `Unknown embedding provider: ${this.providerConfig.type}`)
+        throw new OrionError(`Unknown embedding provider: ${this.providerConfig.type}`, 'NOT_FOUND')
     }
   }
 
@@ -310,7 +310,7 @@ export class CodeEmbeddingService {
    */
   private async callOpenAI(text: string): Promise<number[]> {
     if (!this.providerConfig.apiKey) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'OpenAI API key not configured');
+      throw new OrionError('OpenAI API key not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const model = this.providerConfig.model || 'text-embedding-ada-002';
@@ -327,7 +327,7 @@ export class CodeEmbeddingService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `OpenAI embedding API error (${response.status}): ${error}`)
+      throw new OrionError(`OpenAI embedding API error (${response.status}): ${error}`, 'OPERATION_FAILED')
     }
 
     const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
@@ -339,7 +339,7 @@ export class CodeEmbeddingService {
    */
   private async callVoyage(text: string): Promise<number[]> {
     if (!this.providerConfig.apiKey) {
-      throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Voyage API key not configured');
+      throw new OrionError('Voyage API key not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const model = this.providerConfig.model || 'voyage-2';
@@ -356,7 +356,7 @@ export class CodeEmbeddingService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new OrionError('OPERATION_FAILED', `Voyage embedding API error (${response.status}): ${error}`)
+      throw new OrionError(`Voyage embedding API error (${response.status}): ${error}`, 'OPERATION_FAILED')
     }
 
     const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };

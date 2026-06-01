@@ -119,7 +119,7 @@ export class ConfigGitOpsService {
     errors: string[];
   }> {
     if (!this.git) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'GitOps not initialized');
+      throw new OrionError('GitOps not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     const result = {

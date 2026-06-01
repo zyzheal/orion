@@ -43,7 +43,7 @@ export class CommunityController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
       const contribution = await this.communityService.getContribution(params.id);
-      if (!contribution) throw new OrionError(ErrorCode.NOT_FOUND, `Contribution '${params.id}' not found`);
+      if (!contribution) throw new OrionError(`Contribution '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return contribution;
     }, (contribution) => this.sendSuccess(reply, contribution));
   }
@@ -52,7 +52,7 @@ export class CommunityController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { userId: string };
       const contributor = await this.communityService.getContributor(params.userId);
-      if (!contributor) throw new OrionError(ErrorCode.NOT_FOUND, `Contributor '${params.userId}' not found`);
+      if (!contributor) throw new OrionError(`Contributor '${params.userId}' not found`, ErrorCode.NOT_FOUND);
       return contributor;
     }, (contributor) => this.sendSuccess(reply, contributor));
   }
@@ -70,7 +70,7 @@ export class CommunityController extends BaseController {
       const params = request.params as { id: string };
       const body = request.body as { action: 'approve' | 'reject'; comment: string };
       const plugin = await this.pluginService.reviewPlugin(params.id, body.action, body.comment);
-      if (!plugin) throw new OrionError(ErrorCode.NOT_FOUND, `Plugin '${params.id}' not found`);
+      if (!plugin) throw new OrionError(`Plugin '${params.id}' not found`, ErrorCode.NOT_FOUND);
       return plugin;
     }, (plugin) => this.sendSuccess(reply, plugin));
   }

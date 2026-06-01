@@ -280,7 +280,7 @@ export class CanaryTrafficService {
   async promoteCanary(canaryId: string): Promise<any> {
     const deployment = await this.getCanaryDeployment(canaryId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Canary deployment ${canaryId} not found`);
+      throw new OrionError(`Canary deployment ${canaryId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // Update traffic to 100% canary
@@ -310,7 +310,7 @@ export class CanaryTrafficService {
   async rollbackCanary(canaryId: string): Promise<any> {
     const deployment = await this.getCanaryDeployment(canaryId);
     if (!deployment) {
-      throw new OrionError(ErrorCode.NOT_FOUND, `Canary deployment ${canaryId} not found`);
+      throw new OrionError(`Canary deployment ${canaryId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // Update traffic to 100% baseline

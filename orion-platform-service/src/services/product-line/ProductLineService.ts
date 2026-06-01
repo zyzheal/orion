@@ -87,7 +87,7 @@ export class ProductLineService {
     }
 
     // Fallback - 不应该到达这里
-    throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
+    throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
   }
 
   /**
@@ -275,7 +275,7 @@ export class ProductLineService {
     preChecks?: any[];
     postActions?: any[];
   }): Promise<ReleaseTrain> {
-    if (!this.releaseTrainRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
+    if (!this.releaseTrainRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const entity = await this.releaseTrainRepo.create({
       productLineId,
@@ -358,7 +358,7 @@ export class ProductLineService {
     notifyOnCall?: boolean;
     maxDuration?: number;
   }): Promise<HotfixChannel> {
-    if (!this.hotfixChannelRepo) throw new OrionError(ErrorCode.SERVICE_UNAVAILABLE, 'Database not configured');
+    if (!this.hotfixChannelRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const entity = await this.hotfixChannelRepo.create({
       productLineId,

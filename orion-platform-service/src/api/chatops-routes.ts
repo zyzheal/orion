@@ -106,7 +106,7 @@ export default async function chatopsRoutes(
   if (options.pipelineService) {
     commandRouter.registerHandler('pipeline', async (params: Record<string, unknown>) => {
       const pipelineId = params.pipelineId as string;
-      if (!pipelineId) throw new OrionError(ErrorCode.OPERATION_FAILED, 'pipelineId 必填');
+      if (!pipelineId) throw new OrionError('pipelineId 必填', ErrorCode.OPERATION_FAILED);
       try {
         const pipeline = await options.pipelineService.getById(pipelineId);
         return {

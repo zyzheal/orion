@@ -133,7 +133,7 @@ export class SCMWebhookService {
     if (signature) {
       const rawPayload = JSON.stringify(payload);
       if (!this.validateGitHubSignature(rawPayload, signature)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitHub webhook signature');
+        throw new OrionError('Invalid GitHub webhook signature', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -162,7 +162,7 @@ export class SCMWebhookService {
     if (signature) {
       const rawPayload = JSON.stringify(payload);
       if (!this.validateGitHubSignature(rawPayload, signature)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitHub webhook signature');
+        throw new OrionError('Invalid GitHub webhook signature', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -209,7 +209,7 @@ export class SCMWebhookService {
     // Validate token if provided
     if (token) {
       if (!this.validateGitLabToken(token)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitLab webhook token');
+        throw new OrionError('Invalid GitLab webhook token', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -237,7 +237,7 @@ export class SCMWebhookService {
     // Validate token if provided
     if (token) {
       if (!this.validateGitLabToken(token)) {
-        throw new OrionError(ErrorCode.VALIDATION_ERROR, 'Invalid GitLab webhook token');
+        throw new OrionError('Invalid GitLab webhook token', ErrorCode.VALIDATION_ERROR);
       }
     }
 

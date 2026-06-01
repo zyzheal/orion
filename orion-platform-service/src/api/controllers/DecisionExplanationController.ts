@@ -90,7 +90,7 @@ export class DecisionExplanationController {
     try {
       const features: DecisionFeature[] = JSON.parse(featuresJson);
       if (!Array.isArray(features)) {
-        throw new OrionError(ErrorCode.OPERATION_FAILED, 'features must be an array');
+        throw new OrionError('features must be an array', ErrorCode.OPERATION_FAILED);
       }
 
       const importance = this.service.calculateFeatureImportance(features);

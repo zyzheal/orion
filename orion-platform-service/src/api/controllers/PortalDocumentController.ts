@@ -25,7 +25,7 @@ export class PortalDocumentController {
   private getTenantId(request: FastifyRequest): string {
     const tenant = tenantContext.getCurrentTenant();
     if (!tenant) {
-      throw new OrionError(ErrorCode.OPERATION_FAILED, 'No tenant context available');
+      throw new OrionError('No tenant context available', ErrorCode.OPERATION_FAILED);
     }
     return String(tenant.tenantId);
   }
