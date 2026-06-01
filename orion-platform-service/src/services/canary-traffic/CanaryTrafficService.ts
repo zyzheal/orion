@@ -352,6 +352,13 @@ export class CanaryTrafficService {
   private generateId(): string {
     return `canary-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
+
+  /**
+   * Clear all canary deployments (for testing or data reset).
+   */
+  async clearAllDeployments(): Promise<void> {
+    canaryDeployments.clear();
+  }
 }
 
 export default CanaryTrafficService;
