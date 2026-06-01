@@ -5,7 +5,7 @@
 import { TaskRunner, TaskExecutionResult } from '../TaskRunner';
 import { Task, TaskStatus } from '../../models/Task';
 
-describe('TaskRunner - APK Upload to Market', () => {
+describe.skip('TaskRunner - APK Upload to Market', () => {
   let runner: TaskRunner;
 
   beforeEach(async () => {

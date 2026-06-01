@@ -164,8 +164,7 @@ describe('CodeOwnershipService', () => {
       const recs = await service.recommendOwners('test-repo', ['src/api/users.js']);
 
       // Both *.js and /src/api/ should match
-      const apiRule = recs[0].matchedRules.find(r => r.pattern === '/src/api/');
-      expect(apiRule).toBeDefined();
+      expect(recs[0].matchedPattern).toBe('/src/api/');
       expect(recs[0].owners).toContain('api-team');
     });
   });

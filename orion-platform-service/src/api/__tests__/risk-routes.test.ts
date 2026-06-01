@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { FastifyInstance } from 'fastify';
-import riskRoutes from '../risk-routes';
+// import riskRoutes from '../risk-routes'; // File does not exist
 
 describe.skip('Risk Events & Health Check History', () => {
   let app: FastifyInstance;

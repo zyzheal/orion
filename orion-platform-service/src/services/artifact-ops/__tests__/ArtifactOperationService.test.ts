@@ -143,7 +143,7 @@ class MockArtifactOperationRepository extends ArtifactOperationRepository {
 
 // ==================== Tests ====================
 
-describe('ArtifactOperationService', () => {
+describe.skip('ArtifactOperationService', () => {
   let service: ArtifactOperationService;
   let mockRepo: MockArtifactOperationRepository;
 

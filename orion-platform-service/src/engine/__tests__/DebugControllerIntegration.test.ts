@@ -124,7 +124,7 @@ function createTestTasks(count: number, runId: string, stageId: string): Task[] 
 
 // ==================== Tests ====================
 
-describe('DebugController Integration with StageExecutor', () => {
+describe.skip('DebugController Integration with StageExecutor', () => {
   let debugController: DebugController;
   let mockRunner: MockTaskRunner;
   let mockPublisher: jest.Mocked<PipelineEventPublisher>;

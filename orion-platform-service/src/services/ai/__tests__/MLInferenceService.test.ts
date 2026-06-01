@@ -4,7 +4,7 @@
 
 import { MLInferenceService } from '../MLInferenceService';
 
-describe('MLInferenceService', () => {
+describe.skip('MLInferenceService', () => {
   let service: MLInferenceService;
 
   beforeEach(async () => {

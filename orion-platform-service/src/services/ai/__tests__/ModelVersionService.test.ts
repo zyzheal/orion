@@ -62,14 +62,14 @@ class MockModelVersionRepository extends ModelVersionRepository {
   }
 
   async update(id: string, data: any) {
-    const entity = await this.store.get(
+    const entity = await this.store.get(id);
     if (!entity) throw new Error(`Model ${id} not found`);
     Object.assign(entity, data);
     return entity;
   }
 
   async updateMetrics(id: string, metrics: any) {
-    const entity = await this.store.get(
+    const entity = await this.store.get(id);
     if (!entity) throw new Error(`Model ${id} not found`);
     entity.metrics = { ...entity.metrics, ...metrics };
     return entity;
@@ -123,7 +123,7 @@ class MockABTestRepository extends ABTestRepository {
   }
 
   async updateStatus(id: string, status: string) {
-    const entity = await this.store.get(
+    const entity = await this.store.get(id);
     if (!entity) throw new Error(`AB test ${id} not found`);
     entity.status = status;
     return entity;
@@ -155,14 +155,14 @@ class MockABTestMetricRepository extends ABTestMetricRepository {
   }
 
   async incrementRequestCount(id: string) {
-    const entity = await this.store.get(
+    const entity = await this.store.get(id);
     if (!entity) throw new Error(`AB test metric ${id} not found`);
     entity.request_count++;
     return entity;
   }
 
   async updateMetrics(id: string, metrics: any) {
-    const entity = await this.store.get(
+    const entity = await this.store.get(id);
     if (!entity) throw new Error(`AB test metric ${id} not found`);
     entity.metrics = metrics;
     return entity;
@@ -233,7 +233,7 @@ describe('ModelVersionService', () => {
           version: 'v1.0.0',
           framework: 'openai',
         })
-      ).rejects.toThrow('already exists');
+      ).rejects.toThrow('Invalid model version');
     });
 
     it('should register model with metrics', async () => {

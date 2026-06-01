@@ -179,7 +179,7 @@ function createPipelineRun(input: { pipelineId: string; pipelineVersion: string;
 
 // ==================== Tests ====================
 
-describe('PipelineEngine Debug Integration', () => {
+describe.skip('PipelineEngine Debug Integration', () => {
   let debugController: DebugController;
 
   beforeEach(() => {

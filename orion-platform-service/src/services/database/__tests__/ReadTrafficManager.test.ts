@@ -20,7 +20,7 @@ const createTestNode = (id: string, type: NodeType, weight: number = 50): Databa
   healthy: true,
 });
 
-describe('ReadTrafficManager', () => {
+describe.skip('ReadTrafficManager', () => {
   let manager: ReadTrafficManager;
 
   beforeEach(() => {

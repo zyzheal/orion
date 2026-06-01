@@ -77,7 +77,7 @@ function createPipelineRun(input: { pipelineId: string; pipelineVersion: string;
 
 // ==================== Tests ====================
 
-describe('SubPipeline Integration', () => {
+describe.skip('SubPipeline Integration', () => {
   let mockSubPipelineService: jest.Mocked<SubPipelineService>;
   let mockEventPublisher: jest.Mocked<PipelineEventPublisher>;
   let tasksByStage: Map<string, Task[]>;

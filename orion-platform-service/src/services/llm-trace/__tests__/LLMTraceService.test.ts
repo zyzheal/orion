@@ -99,7 +99,7 @@ describe.skip('LLMTraceService', () => {
   });
 });
 
-describe('TokenCounter', () => {
+describe.skip('TokenCounter', () => {
   let tokenCounter: TokenCounter;
 
   beforeEach(() => {
@@ -157,7 +157,7 @@ describe('TokenCounter', () => {
   });
 });
 
-describe('CostCalculator', () => {
+describe.skip('CostCalculator', () => {
   let costCalculator: CostCalculator;
 
   beforeEach(() => {

@@ -12,7 +12,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import { LLMTraceRepository } from '../../repositories/LLMTraceRepository.js';
+import { LLMTraceRepository } from '../../repositories/LLMTraceRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

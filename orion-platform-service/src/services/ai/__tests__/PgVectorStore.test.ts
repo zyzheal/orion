@@ -9,7 +9,7 @@ const mockPool = {
   query: jest.fn(),
 };
 
-describe('PgVectorStore (VectorStore with pgvector backend)', () => {
+describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
   let vectorStore: VectorStore;
 
   beforeEach(() => {

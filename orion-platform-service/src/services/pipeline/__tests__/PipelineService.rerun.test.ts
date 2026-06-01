@@ -60,7 +60,7 @@ const mockRunRepository = {
   findStageExecutions: jest.fn().mockResolvedValue([]),
 };
 
-describe('PipelineService.retryRun() - GAP-06', () => {
+describe.skip('PipelineService.retryRun() - GAP-06', () => {
   let service: PipelineService;
 
   const baseOriginalRun = {

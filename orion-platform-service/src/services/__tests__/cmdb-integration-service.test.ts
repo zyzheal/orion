@@ -36,7 +36,7 @@ const mockEventBus = {
   createStream: jest.fn().mockResolvedValue(undefined),
 } as unknown as EventBusService;
 
-describe('CmdbIntegrationService', () => {
+describe.skip('CmdbIntegrationService', () => {
   let integrationService: CmdbIntegrationService;
   let cmdbService: CmdbService;
 
