@@ -4,6 +4,23 @@
  * Tests for Docker build, push, and scan operations.
  */
 
+// Mock child_process to avoid actual Docker calls in tests
+jest.mock('child_process', () => ({
+  exec: jest.fn((cmd: string, opts: any, cb: any) => {
+    if (typeof opts === 'function') {
+      cb = opts;
+    }
+    // Simulate docker not available
+    cb(new Error('docker: command not found'), { stdout: '', stderr: 'docker: command not found' });
+  }),
+  execSync: jest.fn().mockImplementation(() => { throw new Error('docker: command not found'); }),
+  spawn: jest.fn().mockReturnValue({
+    stdout: { on: jest.fn() },
+    stderr: { on: jest.fn() },
+    on: jest.fn((event: string, cb: any) => { if (event === 'close') cb(1); }),
+  }),
+}));
+
 import { DockerBuildService, DockerBuildOptions } from '../DockerBuildService';
 
 describe('DockerBuildService', () => {

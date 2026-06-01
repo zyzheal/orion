@@ -423,6 +423,13 @@ export class CostOptimizationService {
   async clearUtilizationRecords(tenantId: string): Promise<void> {
     utilizationRecords.delete(tenantId);
   }
+
+  /**
+   * Clear optimization suggestions for a tenant (for testing or data reset).
+   */
+  async clearOptimizationSuggestions(tenantId: string): Promise<void> {
+    optimizationSuggestions.delete(tenantId);
+  }
 }
 
 export default CostOptimizationService;
