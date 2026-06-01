@@ -77,7 +77,7 @@ function createPipelineRun(input: { pipelineId: string; pipelineVersion: string;
 
 // ==================== Tests ====================
 
-describe.skip('SubPipeline Integration', () => {
+describe('SubPipeline Integration', () => {
   let mockSubPipelineService: jest.Mocked<SubPipelineService>;
   let mockEventPublisher: jest.Mocked<PipelineEventPublisher>;
   let tasksByStage: Map<string, Task[]>;
@@ -163,10 +163,11 @@ describe.skip('SubPipeline Integration', () => {
       mockRunService,
       mockEventPublisher,
       stageExecutor,
+      undefined, // sseBridge
       subPipelineService || null,
       undefined, undefined, undefined, undefined,
       undefined, undefined, undefined, undefined,
-      undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined,
     );
   }
 

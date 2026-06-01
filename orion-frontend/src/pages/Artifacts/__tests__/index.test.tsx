@@ -74,48 +74,11 @@ vi.mock('antd', async () => {
   const actual = await vi.importActual('antd');
   return {
     ...actual,
-    Typography: {
-      Title: ({ children, ...props }: any) => <h1 {...props}>{children}</h1>,
-      Text: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    },
     message: {
       error: vi.fn(),
       success: vi.fn(),
       warning: vi.fn(),
     },
-    Card: ({ children, ...props }: any) => (
-      <div data-testid="card" {...props}>
-        {children}
-      </div>
-    ),
-    Tabs: ({ items }: any) => <div data-testid="tabs">{items?.length} tabs</div>,
-    Drawer: ({ children, open }: any) => (open ? <div data-testid="drawer">{children}</div> : null),
-    Tag: ({ children, color, ...props }: any) => (
-      <span data-testid="tag" data-color={color} {...props}>
-        {children}
-      </span>
-    ),
-    Modal: ({ children, open }: any) => (open ? <div data-testid="modal">{children}</div> : null),
-    Select: ({ children, ...restProps }: any) => <select {...restProps}>{children}</select>,
-    Form: Object.assign(
-      ({ children, ...restProps }: any) => <form {...restProps}>{children}</form>,
-      {
-        Item: ({ children, ...restProps }: any) => <div {...restProps}>{children}</div>,
-        useForm: () => [
-          {
-            validateFields: vi.fn(),
-            resetFields: vi.fn(),
-            setFieldsValue: vi.fn(),
-          },
-        ],
-      }
-    ),
-    Input: Object.assign(({ ...props }: any) => <input {...props} />, {
-      TextArea: ({ ...props }: any) => <textarea {...props} />,
-    }),
-    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    Space: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    Alert: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   };
 });
 
@@ -175,28 +138,17 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
 
     const mockNamespaces = ['platform', 'ai'];
 
+    // After API interceptor unwraps { success: true, data: T } → { data: T }
     vi.mocked(artifactApi.getArtifacts).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockArtifacts as any, total: 2 } as any,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config: {} as any,
+      data: mockArtifacts as any,
     });
 
     vi.mocked(artifactApi.getArtifactStats).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockStats } as any,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config: {} as any,
+      data: mockStats as any,
     });
 
     vi.mocked(artifactApi.getNamespaces).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockNamespaces } as any,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config: {} as any,
+      data: mockNamespaces as any,
     });
 
     const ArtifactManagement = (await import('../index')).default;
@@ -208,8 +160,10 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
     });
 
     // Verify table rendered with data
-    const rowCount = screen.getByTestId('row-count');
-    expect(rowCount.textContent).toBe('2');
+    await waitFor(() => {
+      const rowCount = screen.getByTestId('row-count');
+      expect(rowCount.textContent).toBe('2');
+    });
 
     const totalCount = screen.getByTestId('total-count');
     expect(totalCount.textContent).toBe('2');

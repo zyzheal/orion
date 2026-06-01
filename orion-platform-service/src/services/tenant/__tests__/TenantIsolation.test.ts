@@ -11,7 +11,7 @@
 import { TenantIsolationService, TenantIsolationContext, FourLayerValidationResult } from '../TenantIsolationService';
 import { TenantValidatorMiddleware, createTenantValidatorMiddleware, TenantValidatorOptions } from '../TenantValidatorMiddleware';
 
-describe.skip('TenantIsolationService', () => {
+describe('TenantIsolationService', () => {
   let service: TenantIsolationService;
 
   beforeEach(async () => {

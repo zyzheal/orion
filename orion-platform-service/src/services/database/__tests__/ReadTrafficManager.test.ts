@@ -20,10 +20,99 @@ const createTestNode = (id: string, type: NodeType, weight: number = 50): Databa
   healthy: true,
 });
 
-describe.skip('ReadTrafficManager', () => {
+// Smart mock db that tracks health check counts
+function createMockDb() {
+  const healthCounts = new Map<string, number>(); // keyed by node_id
+  const rowIdToNodeId = new Map<string, string>(); // map row id → node_id
+  let idCounter = 0;
+
+  const mockFn = jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+    // INSERT ... RETURNING
+    if (sql.includes('INSERT INTO') && sql.includes('RETURNING')) {
+      // Track health check count inserts
+      if (sql.includes('db_health_check_counts') && params) {
+        const colMatch = sql.match(/INSERT INTO \w+\s*\(([^)]+)\)/);
+        if (colMatch) {
+          const cols = colMatch[1].split(',').map(c => c.trim());
+          const countIdx = cols.indexOf('check_count');
+          const nodeIdIdx = cols.indexOf('node_id');
+          const idIdx = cols.indexOf('id');
+          if (countIdx >= 0 && nodeIdIdx >= 0) {
+            healthCounts.set(params[nodeIdIdx], params[countIdx]);
+            if (idIdx >= 0) {
+              rowIdToNodeId.set(params[idIdx], params[nodeIdIdx]);
+            }
+          }
+        }
+        return { rows: [{ ...Object.fromEntries(
+          (sql.match(/INSERT INTO \w+\s*\(([^)]+)\)/)?.[1] || '').split(',').map((c, i) => [c.trim(), params?.[i]])
+        ) }], rowCount: 1 };
+      }
+      const row = { id: params?.[0] || `row-${++idCounter}` };
+      return { rows: [row], rowCount: 1 };
+    }
+    // SELECT ... WHERE node_id (health check count)
+    if (sql.includes('SELECT') && sql.includes('db_health_check_counts') && sql.includes('node_id')) {
+      const nodeId = params?.[0];
+      const count = healthCounts.get(nodeId) || 0;
+      if (count > 0) {
+        const rowId = `hcc-${nodeId}`;
+        rowIdToNodeId.set(rowId, nodeId); // ensure UPDATE can look up node_id
+        return { rows: [{ id: rowId, node_id: nodeId, check_count: count, tenant_id: null, created_at: new Date(), updated_at: new Date() }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    }
+    // SELECT COUNT (must be before generic SELECT check)
+    if (sql.includes('SELECT COUNT')) {
+      return { rows: [{ count: '0' }], rowCount: 1 };
+    }
+    // SELECT ... db_routing_times
+    if (sql.includes('SELECT') && sql.includes('db_routing_times')) {
+      return { rows: [], rowCount: 0 };
+    }
+    // UPDATE ... RETURNING (health check count update)
+    if (sql.includes('UPDATE') && sql.includes('db_health_check_counts') && sql.includes('RETURNING')) {
+      // Extract count from SET clause
+      const countMatch = sql.match(/check_count = \$(\d+)/);
+      if (countMatch && params) {
+        const countIdx = parseInt(countMatch[1]) - 1;
+        const count = params[countIdx];
+        // Find row id from WHERE clause (last param)
+        const rowId = params[params.length - 1];
+        // Look up node_id from our mapping
+        const nodeId = rowIdToNodeId.get(rowId);
+        if (nodeId) {
+          healthCounts.set(nodeId, count);
+        }
+      }
+      // Return a mock row with the updated values so mapRowToEntity works
+      const rowId = params?.[params.length - 1] || 'hcc-updated';
+      const nodeId = rowIdToNodeId.get(rowId);
+      const updatedCount = nodeId ? (healthCounts.get(nodeId) || 0) : 0;
+      return { rows: [{ id: rowId, node_id: nodeId, check_count: updatedCount, tenant_id: null, created_at: new Date(), updated_at: new Date() }], rowCount: 1 };
+    }
+    // UPDATE ... RETURNING (routing time)
+    if (sql.includes('UPDATE') && sql.includes('RETURNING')) {
+      return { rows: [{ id: `rt-updated` }], rowCount: 1 };
+    }
+    // DELETE
+    if (sql.includes('DELETE')) {
+      if (sql.includes('db_health_check_counts')) { healthCounts.clear(); rowIdToNodeId.clear(); }
+      return { rows: [], rowCount: 0 };
+    }
+    // Default
+    return { rows: [], rowCount: 0 };
+  });
+
+  return { query: mockFn, healthCounts };
+}
+
+describe('ReadTrafficManager', () => {
   let manager: ReadTrafficManager;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
+    mockDb = createMockDb();
     manager = new ReadTrafficManager({
       primaryNode: createTestNode('primary', NodeType.PRIMARY, 20),
       replicaNodes: [
@@ -31,7 +120,7 @@ describe.skip('ReadTrafficManager', () => {
         createTestNode('replica2', NodeType.REPLICA, 40),
       ],
       defaultStrategy: RoutingStrategy.WEIGHTED,
-    });
+    }, mockDb as any);
   });
 
   describe('流量分配', () => {
@@ -73,8 +162,8 @@ describe.skip('ReadTrafficManager', () => {
       manager.setDegradationLevel(DegradationLevel.LEVEL_0);
 
       const context = {
-        queryType: 'select',
-        priority: 'normal',
+        queryType: 'select' as const,
+        priority: 'normal' as const,
         canUseStaleData: true,
       };
 
@@ -94,8 +183,8 @@ describe.skip('ReadTrafficManager', () => {
       manager.setDegradationLevel(DegradationLevel.LEVEL_0);
 
       const context = {
-        queryType: 'select',
-        priority: 'high',
+        queryType: 'select' as const,
+        priority: 'high' as const,
         canUseStaleData: false,
       };
 
@@ -109,8 +198,8 @@ describe.skip('ReadTrafficManager', () => {
       manager.setDegradationLevel(DegradationLevel.LEVEL_1);
 
       const context = {
-        queryType: 'analyze',
-        priority: 'normal',
+        queryType: 'analyze' as const,
+        priority: 'normal' as const,
       };
 
       const decision = await manager.selectNode(context);
@@ -124,8 +213,8 @@ describe.skip('ReadTrafficManager', () => {
       manager.setDegradationLevel(DegradationLevel.LEVEL_2);
 
       const context = {
-        queryType: 'select',
-        priority: 'normal',
+        queryType: 'select' as const,
+        priority: 'normal' as const,
         canUseStaleData: true,
       };
 
@@ -145,8 +234,8 @@ describe.skip('ReadTrafficManager', () => {
       manager.setDegradationLevel(DegradationLevel.LEVEL_3);
 
       const context = {
-        queryType: 'select',
-        priority: 'normal',
+        queryType: 'select' as const,
+        priority: 'normal' as const,
       };
 
       // 多次选择，都应该去主库
@@ -191,8 +280,8 @@ describe.skip('ReadTrafficManager', () => {
       manager.setDegradationLevel(DegradationLevel.LEVEL_0);
 
       const context = {
-        queryType: 'select',
-        priority: 'normal',
+        queryType: 'select' as const,
+        priority: 'normal' as const,
         canUseStaleData: true,
       };
 

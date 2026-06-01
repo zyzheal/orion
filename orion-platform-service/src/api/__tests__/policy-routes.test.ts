@@ -13,7 +13,118 @@ jest.mock('../../middleware/requirePermission', () => ({
   requirePermission: () => async (_req: any, _reply: any) => {},
 }));
 
-describe.skip('Policy Bundle & Test Endpoints', () => {
+// Mock services to avoid database dependency
+jest.mock('../../services/policy/PolicyService', () => ({
+  PolicyService: jest.fn().mockImplementation(() => ({
+    listBundles: jest.fn().mockResolvedValue([]),
+    syncBundles: jest.fn().mockResolvedValue([]),
+    testPolicy: jest.fn().mockImplementation((rego: string, testCases: unknown[]) => ({
+      passed: true,
+      totalTests: Array.isArray(testCases) ? testCases.length : 0,
+      results: Array.isArray(testCases)
+        ? testCases.map((tc: any) => ({ input: tc, result: 'pass' }))
+        : [],
+    })),
+    toggle: jest.fn().mockResolvedValue({ id: 'policy-1', enabled: true }),
+    listPolicies: jest.fn().mockResolvedValue([]),
+    createPolicy: jest.fn().mockResolvedValue({ id: 'policy-1', name: 'test' }),
+    getPolicy: jest.fn().mockResolvedValue(null),
+    updatePolicy: jest.fn().mockResolvedValue({ id: 'policy-1' }),
+    deletePolicy: jest.fn().mockResolvedValue(true),
+    evaluatePolicy: jest.fn().mockResolvedValue({ allowed: true }),
+    getEvaluationHistory: jest.fn().mockResolvedValue([]),
+    getBundle: jest.fn().mockResolvedValue(null),
+    getPoliciesByGate: jest.fn().mockResolvedValue([]),
+  })),
+}));
+
+jest.mock('../../services/policy/PolicyEvaluationService', () => ({
+  PolicyEvaluationService: jest.fn().mockImplementation(() => ({
+    evaluate: jest.fn().mockResolvedValue({ allowed: true, violations: [] }),
+    listEvaluations: jest.fn().mockResolvedValue([]),
+    evaluateGate: jest.fn().mockResolvedValue({ passed: true }),
+    listViolations: jest.fn().mockResolvedValue([]),
+    getViolation: jest.fn().mockResolvedValue(null),
+    waiveViolation: jest.fn().mockResolvedValue({ id: 'v-1', status: 'waived' }),
+    resolveViolation: jest.fn().mockResolvedValue({ id: 'v-1', status: 'resolved' }),
+    listOverrides: jest.fn().mockResolvedValue([]),
+    createOverride: jest.fn().mockResolvedValue({ id: 'o-1' }),
+  })),
+}));
+
+jest.mock('../../services/policy/ExemptionService', () => ({
+  ExemptionService: jest.fn().mockImplementation(() => ({
+    submitExemption: jest.fn().mockResolvedValue({ id: 'ex-1', status: 'pending' }),
+    getExemptions: jest.fn().mockResolvedValue({ exemptions: [], total: 0 }),
+    getExemptionById: jest.fn().mockResolvedValue(null),
+    reviewExemption: jest.fn().mockResolvedValue({ id: 'ex-1', status: 'approved' }),
+    revokeExemption: jest.fn().mockResolvedValue({ id: 'ex-1', status: 'revoked' }),
+  })),
+}));
+
+jest.mock('../../services/policy/PolicyOverrideService', () => ({
+  PolicyOverrideService: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('../controllers/PolicyController', () => ({
+  PolicyController: jest.fn().mockImplementation(() => ({
+    listPolicies: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: [] });
+    }),
+    createPolicy: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.status(201).send({ code: 201, message: 'Created', data: { id: 'policy-1' } });
+    }),
+    getPolicy: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.status(404).send({ code: 404, message: 'Policy not found' });
+    }),
+    updatePolicy: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: { id: 'policy-1' } });
+    }),
+    deletePolicy: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'Deleted' });
+    }),
+    evaluatePolicy: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: { allowed: true } });
+    }),
+    getEvaluationHistory: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: [] });
+    }),
+  })),
+}));
+
+jest.mock('../controllers/PolicyEvaluationController', () => ({
+  PolicyEvaluationController: jest.fn().mockImplementation(() => ({
+    evaluate: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: { allowed: true } });
+    }),
+    listEvaluations: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: [] });
+    }),
+    evaluateGate: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: { passed: true } });
+    }),
+    listViolations: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: [] });
+    }),
+    getViolation: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.status(404).send({ code: 404, message: 'Violation not found' });
+    }),
+    waiveViolation: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: { status: 'waived' } });
+    }),
+    resolveViolation: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: { status: 'resolved' } });
+    }),
+    listOverrides: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.send({ code: 200, message: 'OK', data: [] });
+    }),
+    createOverride: jest.fn().mockImplementation((_req: any, reply: any) => {
+      return reply.status(201).send({ code: 201, message: 'Created', data: { id: 'o-1' } });
+    }),
+  })),
+}));
+
+describe('Policy Bundle & Test Endpoints', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -40,10 +151,10 @@ describe.skip('Policy Bundle & Test Endpoints', () => {
 
   describe('POST /v1/policies/bundles/sync', () => {
     it('syncs policy bundles', async () => {
-      const response = await app.inject({ method: 'POST', url: '/v1/policies/bundles/sync' });
+      const response = await app.inject({ method: 'POST', url: '/v1/policies/bundles/sync', payload: {} });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.data).toHaveProperty('synced');
+      expect(Array.isArray(body.data)).toBe(true);
     });
   });
 

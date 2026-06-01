@@ -1178,7 +1178,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { database: options.database });
 
   // ==================== Capability Management ====================
-  await registerWithRoleGuard(app, capabilityRoutes, '/capabilities');
+  await registerWithRoleGuard(app, capabilityRoutes, '/capabilities', { database: options.database });
 
   // ==================== API Marketplace ====================
   await registerWithRoleGuard(app, apiMarketRoutes, '/market', { database: options.database });

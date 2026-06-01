@@ -39,6 +39,42 @@ vi.mock('antd', async () => {
   };
 });
 
+// Mock alerts API - mock data must be inside the factory since vi.mock is hoisted
+vi.mock('@/api/alerts', () => ({
+  getAlerts: vi.fn().mockResolvedValue({
+    data: {
+      items: [
+        {
+          id: 'alert-1',
+          severity: 'critical',
+          metric: 'error_rate',
+          value: 5.2,
+          threshold: 1.0,
+          status: 'active',
+          message: 'Error rate exceeds threshold',
+          source: 'prometheus',
+          firstTriggered: '2026-04-12T10:00:00Z',
+          lastUpdated: '2026-04-12T15:00:00Z',
+        },
+        {
+          id: 'alert-2',
+          severity: 'warning',
+          metric: 'response_time_p99',
+          value: 1200,
+          threshold: 500,
+          status: 'active',
+          message: 'P99 response time is high',
+          source: 'prometheus',
+          firstTriggered: '2026-04-12T11:00:00Z',
+          lastUpdated: '2026-04-12T15:00:00Z',
+        },
+      ],
+    },
+  }),
+  acknowledgeAlert: vi.fn().mockResolvedValue({}),
+  resolveAlert: vi.fn().mockResolvedValue({}),
+}));
+
 const renderWithRouter = (ui: React.ReactElement) => {
   return render(<BrowserRouter>{ui}</BrowserRouter>);
 };

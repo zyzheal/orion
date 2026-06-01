@@ -63,6 +63,16 @@ vi.mock('@/components/CardPanel', () => ({
   default: ({ children }: any) => <div data-testid="card-panel">{children}</div>,
 }));
 
+// Mock YamlDiffViewer
+vi.mock('../YamlDiffViewer', () => ({
+  default: ({ oldYaml, newYaml }: any) => (
+    <div data-testid="yaml-diff-viewer">
+      <span data-testid="old-yaml">{oldYaml}</span>
+      <span data-testid="new-yaml">{newYaml}</span>
+    </div>
+  ),
+}));
+
 // Mock Table
 vi.mock('@/components/Table', () => ({
   default: ({
@@ -189,8 +199,8 @@ describe('PipelineVersionHistory', { timeout: 15000 }, () => {
     renderWithRouter('p1');
 
     await waitFor(() => {
-      expect(screen.getByText('v1')).toBeInTheDocument();
-      expect(screen.getByText('release')).toBeInTheDocument();
+      // Table mock renders row count, not individual cells
+      expect(screen.getByTestId('row-count')).toHaveTextContent('2');
     });
   });
 

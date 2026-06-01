@@ -6,8 +6,7 @@
 
 import {
   PolicyOverrideService,
-  PolicyOverrideServiceError,
-  type PolicyOverrideInput,
+  type CreateOverrideInput,
   type UpdateOverrideInput,
 } from '../PolicyOverrideService';
 import { PolicyOverrideRepository, PolicyOverrideEntity } from '../../../repositories/PolicyOverrideRepository';
@@ -17,14 +16,14 @@ import { PolicyOverrideRepository, PolicyOverrideEntity } from '../../../reposit
 function createMockRepository() {
   const store: PolicyOverrideEntity[] = [];
 
-  const repository: PolicyOverrideRepository = {
-    async findById(id: string): Promise<PolicyOverrideEntity | undefined> {
+  const repository = {
+    findById: jest.fn().mockImplementation(async (id: string) => {
       return store.find(e => e.id === id);
-    },
-    async findAll(): Promise<{ entities: PolicyOverrideEntity[]; total: number }> {
+    }),
+    findAll: jest.fn().mockImplementation(async () => {
       return { entities: [...store], total: store.length };
-    },
-    async createOverride(input: any): Promise<PolicyOverrideEntity> {
+    }),
+    createOverride: jest.fn().mockImplementation(async (input: any) => {
       const entity: PolicyOverrideEntity = {
         id: input.id,
         tenantId: input.tenantId,
@@ -45,30 +44,30 @@ function createMockRepository() {
       };
       store.push(entity);
       return entity;
-    },
-    async delete(id: string): Promise<boolean> {
+    }),
+    delete: jest.fn().mockImplementation(async (id: string) => {
       const idx = store.findIndex(e => e.id === id);
       if (idx === -1) return false;
       store.splice(idx, 1);
       return true;
-    },
-    async findActiveByTenant(tenantId: string): Promise<PolicyOverrideEntity[]> {
+    }),
+    findActiveByTenant: jest.fn().mockImplementation(async (tenantId: string) => {
       return store.filter(e => e.tenantId === tenantId && e.status === 'active');
-    },
-    async findByTenant(tenantId: string): Promise<{ entities: PolicyOverrideEntity[]; total: number }> {
+    }),
+    findByTenant: jest.fn().mockImplementation(async (tenantId: string) => {
       const entities = store.filter(e => e.tenantId === tenantId).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       return { entities, total: entities.length };
-    },
-    async findActiveByTenantAndPolicy(tenantId: string, policyId: string): Promise<PolicyOverrideEntity | undefined> {
+    }),
+    findActiveByTenantAndPolicy: jest.fn().mockImplementation(async (tenantId: string, policyId: string) => {
       return store.find(e => e.tenantId === tenantId && e.policyId === policyId && e.status === 'active');
-    },
-    async updateOverride(id: string, updates: any): Promise<PolicyOverrideEntity | undefined> {
+    }),
+    updateOverride: jest.fn().mockImplementation(async (id: string, updates: any) => {
       const entity = store.find(e => e.id === id);
       if (!entity) return undefined;
       Object.assign(entity, updates);
       return entity;
-    },
-    async markExpired(now: Date): Promise<number> {
+    }),
+    markExpired: jest.fn().mockImplementation(async (now: Date) => {
       let count = 0;
       for (const entity of store) {
         if (entity.status === 'active' && entity.expiresAt && entity.expiresAt < now) {
@@ -78,7 +77,7 @@ function createMockRepository() {
         }
       }
       return count;
-    },
+    }),
   } as unknown as PolicyOverrideRepository;
 
   return { repository, store };
@@ -93,72 +92,141 @@ function createMockService() {
 
 // ==================== Tests ====================
 
-describe.skip('PolicyOverrideService', () => {
+describe('PolicyOverrideService', () => {
   // ==================== createOverride ====================
 
   describe('createOverride', () => {
     it('should create a new override', async () => {
       const { service } = createMockService();
-      const input: PolicyOverrideInput = {
+      const input: CreateOverrideInput = {
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
-        pipelineId: 'pipe-1',
         reason: 'Emergency deployment needed',
         approvedBy: 'admin@example.com',
         expiresAt: new Date(Date.now() + 3600000),
       };
 
-      const override = await service.createOverride({ tenantId: 'tenant-1', ...input });
+      const override = await service.createOverride(input);
 
-      expect(override.id).toMatch(/^override-/);
+      expect(override.id).toBeDefined();
       expect(override.tenantId).toBe('tenant-1');
       expect(override.policyId).toBe('policy-1');
       expect(override.status).toBe('active');
       expect(override.approvedBy).toBe('admin@example.com');
     });
 
-    it('should throw error for missing required fields', async () => {
+    it('should create override with optional fields', async () => {
       const { service } = createMockService();
-      await expect(
-        service.createOverride({ tenantId: 'tenant-1',
-          policyId: '',
-          reason: '',
-          approvedBy: '',
-        })
-      ).rejects.toThrow(PolicyOverrideServiceError);
-    });
+      const override = await service.createOverride({
+        tenantId: 'tenant-1',
+        policyId: 'policy-1',
+        reason: 'test',
+        approvedBy: 'admin',
+        pipelineId: 'pipe-1',
+        runId: 'run-1',
+        scope: 'project',
+      });
 
-    it('should throw error for missing tenant ID', async () => {
-      const { service } = createMockService();
-      await expect(
-        service.createOverride({ tenantId: '',
-          policyId: 'policy-1',
-          reason: 'test',
-          approvedBy: 'admin',
-        })
-      ).rejects.toThrow(PolicyOverrideServiceError);
+      expect(override.pipelineId).toBe('pipe-1');
+      expect(override.runId).toBe('run-1');
+      expect(override.scope).toBe('project');
     });
   });
 
-  // ==================== getOverrideById ====================
+  // ==================== getOverride ====================
 
-  describe('getOverrideById', () => {
+  describe('getOverride', () => {
     it('should return override by ID', async () => {
       const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
+      const created = await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'test',
         approvedBy: 'admin',
       });
 
-      const found = await service.getOverrideById(created.id);
+      const found = await service.getOverride(created.id);
       expect(found).not.toBeNull();
       expect(found!.id).toBe(created.id);
     });
 
     it('should return null for non-existent override', async () => {
       const { service } = createMockService();
-      const found = await service.getOverrideById('non-existent');
+      const found = await service.getOverride('non-existent');
       expect(found).toBeNull();
+    });
+  });
+
+  // ==================== getActiveOverride ====================
+
+  describe('getActiveOverride', () => {
+    it('should return active override for tenant+policy', async () => {
+      const { service } = createMockService();
+      await service.createOverride({
+        tenantId: 'tenant-1',
+        policyId: 'policy-1',
+        reason: 'active override',
+        approvedBy: 'admin',
+      });
+
+      const found = await service.getActiveOverride('tenant-1', 'policy-1');
+      expect(found).not.toBeNull();
+      expect(found!.policyId).toBe('policy-1');
+    });
+
+    it('should return null for non-overridden policy', async () => {
+      const { service } = createMockService();
+      const found = await service.getActiveOverride('tenant-1', 'policy-99');
+      expect(found).toBeNull();
+    });
+
+    it('should not return revoked overrides', async () => {
+      const { service } = createMockService();
+      const created = await service.createOverride({
+        tenantId: 'tenant-1',
+        policyId: 'policy-1',
+        reason: 'will be revoked',
+        approvedBy: 'admin',
+      });
+      await service.revokeOverride(created.id, 'admin');
+
+      const found = await service.getActiveOverride('tenant-1', 'policy-1');
+      expect(found).toBeNull();
+    });
+  });
+
+  // ==================== listOverrides ====================
+
+  describe('listOverrides', () => {
+    it('should return all overrides for tenant', async () => {
+      const { service } = createMockService();
+      await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-1', reason: 'first', approvedBy: 'admin' });
+      await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-2', reason: 'second', approvedBy: 'admin' });
+      await service.createOverride({ tenantId: 'tenant-2', policyId: 'policy-3', reason: 'other tenant', approvedBy: 'admin' });
+
+      const result = await service.listOverrides({ tenantId: 'tenant-1' });
+      expect(result.overrides).toHaveLength(2);
+    });
+
+    it('should filter by status', async () => {
+      const { service } = createMockService();
+      await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-1', reason: 'active', approvedBy: 'admin' });
+      const created = await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-2', reason: 'will revoke', approvedBy: 'admin' });
+      await service.revokeOverride(created.id, 'admin');
+
+      const result = await service.listOverrides({ tenantId: 'tenant-1', status: 'active' });
+      expect(result.overrides).toHaveLength(1);
+      expect(result.overrides[0].policyId).toBe('policy-1');
+    });
+
+    it('should filter by policyId', async () => {
+      const { service } = createMockService();
+      await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-1', reason: 'first', approvedBy: 'admin' });
+      await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-2', reason: 'second', approvedBy: 'admin' });
+
+      const result = await service.listOverrides({ tenantId: 'tenant-1', policyId: 'policy-1' });
+      expect(result.overrides).toHaveLength(1);
+      expect(result.overrides[0].policyId).toBe('policy-1');
     });
   });
 
@@ -167,16 +235,8 @@ describe.skip('PolicyOverrideService', () => {
   describe('getActiveOverrides', () => {
     it('should return only active overrides', async () => {
       const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'active override',
-        approvedBy: 'admin',
-      });
-      const created = await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-2',
-        reason: 'will be revoked',
-        approvedBy: 'admin',
-      });
+      await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-1', reason: 'active override', approvedBy: 'admin' });
+      const created = await service.createOverride({ tenantId: 'tenant-1', policyId: 'policy-2', reason: 'will be revoked', approvedBy: 'admin' });
       await service.revokeOverride(created.id, 'admin');
 
       const active = await service.getActiveOverrides('tenant-1');
@@ -184,79 +244,21 @@ describe.skip('PolicyOverrideService', () => {
       expect(active[0].policyId).toBe('policy-1');
     });
 
-    it('should mark expired overrides', async () => {
+    it('should not return expired overrides', async () => {
       const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
+      await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'expired soon',
         approvedBy: 'admin',
         expiresAt: new Date(Date.now() - 1000), // Already expired
       });
 
+      // Mark expired first
+      await service.markExpiredOverrides();
+
       const active = await service.getActiveOverrides('tenant-1');
       expect(active).toHaveLength(0);
-    });
-  });
-
-  // ==================== getAllOverrides ====================
-
-  describe('getAllOverrides', () => {
-    it('should return all overrides for tenant', async () => {
-      const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'first',
-        approvedBy: 'admin',
-      });
-      await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-2',
-        reason: 'second',
-        approvedBy: 'admin',
-      });
-      await service.createOverride({ tenantId: 'tenant-2',
-        policyId: 'policy-3',
-        reason: 'other tenant',
-        approvedBy: 'admin',
-      });
-
-      const all = await service.getAllOverrides('tenant-1');
-      expect(all).toHaveLength(2);
-    });
-
-    it('should return sorted by createdAt descending', async () => {
-      const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1', reason: 'first', approvedBy: 'admin',
-      });
-      await new Promise((r) => setTimeout(r, 10));
-      await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-2', reason: 'second', approvedBy: 'admin',
-      });
-
-      const all = await service.getAllOverrides('tenant-1');
-      expect(all[0].policyId).toBe('policy-2');
-    });
-  });
-
-  // ==================== isOverridden ====================
-
-  describe('isOverridden', () => {
-    it('should return true for active override', async () => {
-      const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'override',
-        approvedBy: 'admin',
-      });
-
-      const result = await service.isOverridden('tenant-1', 'policy-1');
-      expect(result).toBe(true);
-    });
-
-    it('should return false for non-overridden policy', async () => {
-      const { service } = createMockService();
-      const result = await service.isOverridden('tenant-1', 'policy-99');
-      expect(result).toBe(false);
     });
   });
 
@@ -265,21 +267,22 @@ describe.skip('PolicyOverrideService', () => {
   describe('updateOverride', () => {
     it('should update override reason', async () => {
       const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
+      const created = await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'original reason',
         approvedBy: 'admin',
       });
 
-      const input: UpdateOverrideInput = { reason: 'updated reason' };
-      const updated = await service.updateOverride(created.id, input);
-
-      expect(updated.reason).toBe('updated reason');
+      const updated = await service.updateOverride(created.id, { reason: 'updated reason' });
+      expect(updated).not.toBeNull();
+      expect(updated!.reason).toBe('updated reason');
     });
 
     it('should update override expiresAt', async () => {
       const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
+      const created = await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'test',
         approvedBy: 'admin',
@@ -287,75 +290,15 @@ describe.skip('PolicyOverrideService', () => {
       });
 
       const newExpiry = new Date(Date.now() + 7200000);
-      const input: UpdateOverrideInput = { expiresAt: newExpiry };
-      const updated = await service.updateOverride(created.id, input);
-
-      expect(updated.expiresAt).toEqual(newExpiry);
+      const updated = await service.updateOverride(created.id, { expiresAt: newExpiry });
+      expect(updated).not.toBeNull();
+      expect(updated!.expiresAt).toEqual(newExpiry);
     });
 
-    it('should update both reason and expiresAt', async () => {
+    it('should return null for non-existent override', async () => {
       const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'original',
-        approvedBy: 'admin',
-      });
-
-      const newExpiry = new Date(Date.now() + 7200000);
-      const input: UpdateOverrideInput = { reason: 'updated', expiresAt: newExpiry };
-      const updated = await service.updateOverride(created.id, input);
-
-      expect(updated.reason).toBe('updated');
-      expect(updated.expiresAt).toEqual(newExpiry);
-    });
-
-    it('should throw error for non-existent override', async () => {
-      const { service } = createMockService();
-      await expect(
-        service.updateOverride('non-existent', { reason: 'test' })
-      ).rejects.toThrow(PolicyOverrideServiceError);
-    });
-
-    it('should throw error for revoked override', async () => {
-      const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'test',
-        approvedBy: 'admin',
-      });
-      await service.revokeOverride(created.id, 'admin');
-
-      await expect(
-        service.updateOverride(created.id, { reason: 'new reason' })
-      ).rejects.toThrow(PolicyOverrideServiceError);
-    });
-
-    it('should throw error if no fields provided', async () => {
-      const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'test',
-        approvedBy: 'admin',
-      });
-
-      await expect(
-        service.updateOverride(created.id, {} as UpdateOverrideInput)
-      ).rejects.toThrow(PolicyOverrideServiceError);
-    });
-
-    it('should update updatedAt timestamp', async () => {
-      const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
-        policyId: 'policy-1',
-        reason: 'test',
-        approvedBy: 'admin',
-      });
-      const beforeUpdate = created.updatedAt.getTime();
-
-      await new Promise((r) => setTimeout(r, 10));
-      const updated = await service.updateOverride(created.id, { reason: 'updated' });
-
-      expect(updated.updatedAt.getTime()).toBeGreaterThan(beforeUpdate);
+      const updated = await service.updateOverride('non-existent', { reason: 'test' });
+      expect(updated).toBeNull();
     });
   });
 
@@ -364,7 +307,8 @@ describe.skip('PolicyOverrideService', () => {
   describe('revokeOverride', () => {
     it('should revoke an active override', async () => {
       const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
+      const created = await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'test',
         approvedBy: 'admin',
@@ -372,58 +316,80 @@ describe.skip('PolicyOverrideService', () => {
 
       const revoked = await service.revokeOverride(created.id, 'admin@example.com');
 
-      expect(revoked.status).toBe('revoked');
-      expect(revoked.revokedBy).toBe('admin@example.com');
-      expect(revoked.revokedAt).toBeDefined();
+      expect(revoked).not.toBeNull();
+      expect(revoked!.status).toBe('revoked');
+      expect(revoked!.revokedBy).toBe('admin@example.com');
+      expect(revoked!.revokedAt).toBeDefined();
     });
 
-    it('should throw error for already revoked override', async () => {
+    it('should return null for non-existent override', async () => {
       const { service } = createMockService();
-      const created = await service.createOverride({ tenantId: 'tenant-1',
+      const result = await service.revokeOverride('non-existent', 'admin');
+      expect(result).toBeNull();
+    });
+  });
+
+  // ==================== deleteOverride ====================
+
+  describe('deleteOverride', () => {
+    it('should delete an override', async () => {
+      const { service } = createMockService();
+      const created = await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'test',
         approvedBy: 'admin',
       });
-      await service.revokeOverride(created.id, 'admin');
 
-      await expect(
-        service.revokeOverride(created.id, 'admin')
-      ).rejects.toThrow(PolicyOverrideServiceError);
+      const deleted = await service.deleteOverride(created.id);
+      expect(deleted).toBe(true);
+
+      const found = await service.getOverride(created.id);
+      expect(found).toBeNull();
+    });
+
+    it('should return false for non-existent override', async () => {
+      const { service } = createMockService();
+      const deleted = await service.deleteOverride('non-existent');
+      expect(deleted).toBe(false);
     });
   });
 
-  // ==================== cleanupExpiredOverrides ====================
+  // ==================== markExpiredOverrides ====================
 
-  describe('cleanupExpiredOverrides', () => {
+  describe('markExpiredOverrides', () => {
     it('should mark expired overrides', async () => {
       const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
+      await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'expired',
         approvedBy: 'admin',
         expiresAt: new Date(Date.now() - 1000),
       });
-      await service.createOverride({ tenantId: 'tenant-1',
+      await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-2',
         reason: 'not expired',
         approvedBy: 'admin',
         expiresAt: new Date(Date.now() + 3600000),
       });
 
-      const count = await service.cleanupExpiredOverrides();
+      const count = await service.markExpiredOverrides();
       expect(count).toBe(1);
     });
 
     it('should return 0 when no expired overrides', async () => {
       const { service } = createMockService();
-      await service.createOverride({ tenantId: 'tenant-1',
+      await service.createOverride({
+        tenantId: 'tenant-1',
         policyId: 'policy-1',
         reason: 'not expired',
         approvedBy: 'admin',
         expiresAt: new Date(Date.now() + 3600000),
       });
 
-      const count = await service.cleanupExpiredOverrides();
+      const count = await service.markExpiredOverrides();
       expect(count).toBe(0);
     });
   });

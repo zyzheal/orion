@@ -43,8 +43,8 @@ describe('ApiKeyManagement', () => {
   });
 
   it('renders loading state then displays data', async () => {
-    vi.mocked(apiKeyApi.getApiKeys).mockResolvedValue({ data: { data: { keys: mockKeys } } } as any);
-    vi.mocked(apiKeyApi.getApiKeyStats).mockResolvedValue({ data: { data: { stats: mockStats } } } as any);
+    vi.mocked(apiKeyApi.getApiKeys).mockResolvedValue({ data: { keys: mockKeys } } as any);
+    vi.mocked(apiKeyApi.getApiKeyStats).mockResolvedValue({ data: { stats: mockStats } } as any);
 
     render(<ApiKeyManagement />);
 
@@ -57,8 +57,8 @@ describe('ApiKeyManagement', () => {
   });
 
   it('opens create modal on button click', async () => {
-    vi.mocked(apiKeyApi.getApiKeys).mockResolvedValue({ data: { data: { keys: [] } } } as any);
-    vi.mocked(apiKeyApi.getApiKeyStats).mockResolvedValue({ data: { data: { stats: mockStats } } } as any);
+    vi.mocked(apiKeyApi.getApiKeys).mockResolvedValue({ data: { keys: [] } } as any);
+    vi.mocked(apiKeyApi.getApiKeyStats).mockResolvedValue({ data: { stats: mockStats } } as any);
 
     render(<ApiKeyManagement />);
 

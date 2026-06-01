@@ -20,7 +20,7 @@ import {
 
 // ==================== PluginResourceManager Tests ====================
 
-describe.skip('PluginResourceManager', () => {
+describe('PluginResourceManager', () => {
   let manager: PluginResourceManager;
 
   beforeEach(async () => {
@@ -129,7 +129,7 @@ describe.skip('PluginResourceManager', () => {
 
   describe('canAllocate', () => {
     it('should allow allocation when resources available', async () => {
-      const result = await manager.canAllocate('task-1', 'plugin-a', 'MEDIUM');
+      const result = manager.canAllocate(manager.getPluginQuota('plugin-a', 'MEDIUM'));
       expect(result.canAllocate).toBe(true);
       expect(result.reason).toBeUndefined();
     });
@@ -138,8 +138,8 @@ describe.skip('PluginResourceManager', () => {
       manager = new PluginResourceManager({
         globalQuota: { cpuCores: 8, memoryBytes: 16e9, timeoutMs: 300000, maxConcurrent: 1 },
       });
-      await manager.allocateQuota('task-1', 'p1');
-      const result = await manager.canAllocate('task-1', 'plugin-a', 'HIGH');
+      manager.allocateQuota('task-1', 'p1');
+      const result = manager.canAllocate(manager.getPluginQuota('plugin-a', 'HIGH'));
       expect(result.canAllocate).toBe(false);
       expect(result.reason).toContain('Maximum concurrent');
     });
@@ -148,8 +148,9 @@ describe.skip('PluginResourceManager', () => {
       manager = new PluginResourceManager({
         globalQuota: { cpuCores: 1, memoryBytes: 16e9, timeoutMs: 300000, maxConcurrent: 50 },
       });
-      const highCpu: ResourceQuota = { cpuCores: 4, memoryBytes: 1e9, timeoutMs: 60000, maxConcurrent: 5 };
-      const result = await manager.canAllocate('task-1', 'plugin-a', 'HIGH');
+      // HIGH quota has cpuCores:1 which exactly matches available, so use a quota that exceeds it
+      const quota: ResourceQuota = { cpuCores: 4, memoryBytes: 1e9, timeoutMs: 60000, maxConcurrent: 5 };
+      const result = manager.canAllocate(quota);
       expect(result.canAllocate).toBe(false);
       expect(result.reason).toContain('Insufficient CPU');
     });
@@ -158,7 +159,7 @@ describe.skip('PluginResourceManager', () => {
       manager = new PluginResourceManager({
         globalQuota: { cpuCores: 8, memoryBytes: 100, timeoutMs: 300000, maxConcurrent: 50 },
       });
-      const result = await manager.canAllocate('task-1', 'plugin-a', 'HIGH');
+      const result = manager.canAllocate(manager.getPluginQuota('plugin-a', 'HIGH'));
       expect(result.canAllocate).toBe(false);
       expect(result.reason).toContain('Insufficient memory');
     });
@@ -275,7 +276,7 @@ describe.skip('PluginResourceManager', () => {
           resolve();
         });
       });
-      const highMemoryQuota = await manager.getPluginQuota()
+      const highMemoryQuota = manager.getPluginQuota('plugin-a')
       await manager.updateUsage('task-1', {
         cpuPercent: 10,
         memoryBytes: Math.floor(highMemoryQuota.memoryBytes * 0.95),

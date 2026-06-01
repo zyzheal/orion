@@ -1,451 +1,341 @@
 /**
  * BuildService 测试
  *
- * 测试 BuildService 的 CRUD 操作、Repository 交互、内存降级模式。
+ * 测试 BuildService 的 CRUD 操作、Repository 交互。
  */
 
 import { BuildService } from '../BuildService';
-import { BuildRepository } from '../BuildRepository';
-import { BuildStatus, BuildCreateInput, Build } from '../../../models/Build';
+import { BuildRepository, Build, CreateBuildInput } from '../BuildRepository';
 
-// ==================== Mock Database ====================
+// ==================== Mock Repository ====================
 
-class MockDatabasePool {
-  private builds: Map<string, any> = new Map();
-  private queryCalls: Array<{ query: string; params: unknown[] }> = [];
+function createMockRepository() {
+  const builds: Map<string, Build> = new Map();
+  let idCounter = 0;
 
-  async query(text: string, params?: unknown[]) {
-    this.queryCalls.push({ query: text, params: params || [] });
-
-    // INSERT ... RETURNING
-    if (text.includes('INSERT INTO builds') && text.includes('RETURNING')) {
-      const id = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const record: any = {
-        id,
-        tenant_id: (params as any[])[0],
-        project_id: (params as any[])[1] || null,
-        pipeline_run_id: (params as any[])[2] || null,
-        image: (params as any[])[3] || null,
-        tag: (params as any[])[4] || null,
-        status: (params as any[])[7] || 'pending',
-        source_ref: (params as any[])[5] || null,
-        build_args: (params as any[])[6] || {},
+  const repo: jest.Mocked<BuildRepository> = {
+    findById: jest.fn().mockImplementation(async (id: string) => {
+      return builds.get(id) ?? null;
+    }),
+    findAll: jest.fn().mockImplementation(async (options?: any) => {
+      let results = Array.from(builds.values());
+      if (options?.tenantId) results = results.filter(b => b.tenant_id === options.tenantId);
+      if (options?.projectId) results = results.filter(b => b.project_id === options.projectId);
+      if (options?.status) results = results.filter(b => b.status === options.status);
+      results.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+      if (options?.offset) results = results.slice(options.offset);
+      if (options?.limit) results = results.slice(0, options.limit);
+      return results;
+    }),
+    count: jest.fn().mockImplementation(async (options?: any) => {
+      let results = Array.from(builds.values());
+      if (options?.tenantId) results = results.filter(b => b.tenant_id === options.tenantId);
+      if (options?.status) results = results.filter(b => b.status === options.status);
+      return results.length;
+    }),
+    create: jest.fn().mockImplementation(async (input: CreateBuildInput) => {
+      const build: Build = {
+        id: `build-${++idCounter}`,
+        tenant_id: input.tenant_id,
+        project_id: input.project_id ?? null,
+        pipeline_run_id: input.pipeline_run_id ?? null,
+        image: input.image ?? null,
+        tag: input.tag ?? null,
+        status: 'pending',
+        source_ref: input.source_ref ?? null,
+        build_args: input.build_args ?? {},
         started_at: null,
         completed_at: null,
         duration_ms: null,
         error_message: null,
         created_at: new Date(),
       };
-      this.builds.set(id, record);
-      return { rows: [record], rowCount: 1 };
-    }
-
-    // SELECT ... WHERE id = $1
-    if (text.includes('SELECT * FROM builds WHERE id = $1')) {
-      const id = (params as any[])[0];
-      const record = this.builds.get(id);
-      return { rows: record ? [record] : [], rowCount: record ? 1 : 0 };
-    }
-
-    // SELECT with filters and pagination
-    if (text.includes('SELECT * FROM builds WHERE') && text.includes('ORDER BY')) {
-      let results = Array.from(this.builds.values());
-
-      // Filter by tenant_id
-      if (text.includes('tenant_id = $1')) {
-        const tenantId = (params as any[])[0];
-        results = results.filter(r => r.tenant_id === tenantId);
+      builds.set(build.id, build);
+      return build;
+    }),
+    update: jest.fn().mockImplementation(async (id: string, input: any) => {
+      const build = builds.get(id);
+      if (!build) return null;
+      if (input.status !== undefined) build.status = input.status;
+      if (input.image !== undefined) build.image = input.image;
+      if (input.tag !== undefined) build.tag = input.tag;
+      if (input.error_message !== undefined) build.error_message = input.error_message;
+      return build;
+    }),
+    startBuild: jest.fn().mockImplementation(async (id: string) => {
+      const build = builds.get(id);
+      if (!build) return null;
+      build.status = 'running';
+      build.started_at = new Date();
+      return build;
+    }),
+    completeBuild: jest.fn().mockImplementation(async (id: string, status: string, errorMessage?: string) => {
+      const build = builds.get(id);
+      if (!build) return null;
+      build.status = status;
+      build.completed_at = new Date();
+      build.error_message = errorMessage ?? null;
+      if (build.started_at) {
+        build.duration_ms = build.completed_at.getTime() - build.started_at.getTime();
       }
-
-      // Filter by project_id
-      if (text.includes('project_id = $')) {
-        const projectIndex = text.split('project_id = $')[1]?.split(' ')[0];
-        if (projectIndex) {
-          const projectId = (params as any[])[parseInt(projectIndex) - 1];
-          if (projectId) results = results.filter(r => r.project_id === projectId);
-        }
+      return build;
+    }),
+    findByPipelineRun: jest.fn().mockImplementation(async (pipelineRunId: string) => {
+      for (const build of builds.values()) {
+        if (build.pipeline_run_id === pipelineRunId) return build;
       }
+      return null;
+    }),
+    getBuildStats: jest.fn().mockImplementation(async (tenantId?: string) => {
+      let results = Array.from(builds.values());
+      if (tenantId) results = results.filter(b => b.tenant_id === tenantId);
+      return {
+        total: results.length,
+        success: results.filter(b => b.status === 'success').length,
+        failed: results.filter(b => b.status === 'failed').length,
+        running: results.filter(b => b.status === 'running').length,
+        pending: results.filter(b => b.status === 'pending').length,
+        avgDuration: 0,
+      };
+    }),
+    findEnvironmentById: jest.fn(),
+    findAllEnvironments: jest.fn(),
+    createEnvironment: jest.fn(),
+    updateEnvironment: jest.fn(),
+    deleteEnvironment: jest.fn(),
+  } as unknown as jest.Mocked<BuildRepository>;
 
-      // Filter by pipeline_run_id
-      if (text.includes('pipeline_run_id = $')) {
-        const prIndex = text.split('pipeline_run_id = $')[1]?.split(' ')[0];
-        if (prIndex) {
-          const pipelineRunId = (params as any[])[parseInt(prIndex) - 1];
-          if (pipelineRunId) results = results.filter(r => r.pipeline_run_id === pipelineRunId);
-        }
-      }
-
-      // Filter by status
-      if (text.includes('status = $')) {
-        const statusIndex = text.split('status = $')[1]?.split(' ')[0];
-        if (statusIndex) {
-          const status = (params as any[])[parseInt(statusIndex) - 1];
-          if (status) results = results.filter(r => r.status === status);
-        }
-      }
-
-      // Apply LIMIT/OFFSET
-      const limitIndex = text.lastIndexOf('LIMIT $');
-      if (limitIndex !== -1) {
-        const limitParamIndex = text.substring(limitIndex + 7).split(' ')[0];
-        const limit = (params as any[])[parseInt(limitParamIndex) - 1] || 100;
-        const offsetParamIndex = text.lastIndexOf('OFFSET $');
-        const offset = offsetParamIndex !== -1
-          ? (params as any[])[parseInt(text.substring(offsetParamIndex + 8).split(' ')[0]) - 1] || 0
-          : 0;
-        results = results.slice(offset, offset + limit);
-      }
-
-      return { rows: results, rowCount: results.length };
-    }
-
-    // SELECT for COUNT
-    if (text.includes('SELECT COUNT(*)') && text.includes('builds')) {
-      const total = this.builds.size;
-      return { rows: [{ count: total.toString() }], rowCount: 1 };
-    }
-
-    // UPDATE status
-    if (text.includes('UPDATE builds SET') && text.includes('status = $1')) {
-      const id = (params as any[])[4];
-      const record = this.builds.get(id);
-      if (record) {
-        record.status = (params as any[])[0];
-        record.started_at = (params as any[])[1];
-        record.completed_at = (params as any[])[2];
-        record.error_message = (params as any[])[3];
-        if ((params as any[])[1] && (params as any[])[2]) {
-          record.duration_ms = ((params as any[])[2].getTime() - (params as any[])[1].getTime());
-        }
-      }
-      return { rows: record ? [record] : [], rowCount: record ? 1 : 0 };
-    }
-
-    // UPDATE (partial)
-    if (text.includes('UPDATE builds SET') && text.includes('WHERE id = $')) {
-      // Extract the SET clause columns to know the param order
-      const setStart = text.indexOf('SET ') + 4;
-      const setEnd = text.indexOf(' WHERE');
-      const setClause = text.substring(setStart, setEnd);
-      const columns = setClause.split(',').map(c => c.split('=')[0].trim());
-
-      // Extract the id from the last param
-      const idIndex = text.lastIndexOf('id = $');
-      const idParamIndex = parseInt(text.substring(idIndex + 5).split(' ')[0]);
-      const id = (params as any[])[idParamIndex - 1];
-      const record = this.builds.get(id);
-      if (record) {
-        // Apply values in the order they appear in the SET clause
-        columns.forEach((col, idx) => {
-          record[col] = (params as any[])[idx];
-        });
-      }
-      return { rows: record ? [record] : [], rowCount: record ? 1 : 0 };
-    }
-
-    // DELETE
-    if (text.includes('DELETE FROM builds WHERE id = $1')) {
-      const id = (params as any[])[0];
-      const deleted = this.builds.delete(id);
-      return { rows: [], rowCount: deleted ? 1 : 0 };
-    }
-
-    // DELETE by pipeline_run_id
-    if (text.includes('DELETE FROM builds WHERE pipeline_run_id = $1')) {
-      const pipelineRunId = (params as any[])[0];
-      let count = 0;
-      for (const [id, record] of this.builds.entries()) {
-        if (record.pipeline_run_id === pipelineRunId) {
-          this.builds.delete(id);
-          count++;
-        }
-      }
-      return { rows: [], rowCount: count };
-    }
-
-    return { rows: [], rowCount: 0 };
-  }
-
-  getQueryCalls() {
-    return this.queryCalls;
-  }
-
-  getBuilds() {
-    return this.builds;
-  }
+  return { repo, builds };
 }
 
 // ==================== Tests ====================
 
-describe.skip('BuildService - PostgreSQL Repository', () => {
-  let mockDb: MockDatabasePool;
+describe('BuildService - PostgreSQL Repository', () => {
   let service: BuildService;
+  let mockRepo: jest.Mocked<BuildRepository>;
 
-  beforeEach(async () => {
-    mockDb = new MockDatabasePool();
-    service = new BuildService(mockDb as any);
+  beforeEach(() => {
+    const { repo } = createMockRepository();
+    mockRepo = repo;
+    service = new BuildService(mockRepo);
   });
 
   describe('createBuild', () => {
     it('should create a build with required fields', async () => {
-      const input: BuildCreateInput = {
-        tenant_id: 'tenant-1',
-      };
-
-      const build = await service.createBuild(input);
+      const build = await service.createBuild({ tenant_id: 'tenant-1' });
 
       expect(build.id).toBeDefined();
       expect(build.tenant_id).toBe('tenant-1');
-      expect(build.status).toBe(BuildStatus.PENDING);
-      expect(build.projectId).toBeNull();
-      expect(build.pipelineRunId).toBeNull();
-      expect(build.buildArgs).toEqual({});
-      expect(build.createdAt).toBeDefined();
+      expect(build.status).toBe('pending');
+      expect(build.project_id).toBeNull();
+      expect(build.pipeline_run_id).toBeNull();
+      expect(build.build_args).toEqual({});
+      expect(build.created_at).toBeDefined();
     });
 
     it('should create a build with all fields', async () => {
-      const input: BuildCreateInput = {
+      const build = await service.createBuild({
         tenant_id: 'tenant-1',
-        projectId: 'proj-1',
-        pipelineRunId: 'run-1',
+        project_id: 'proj-1',
+        pipeline_run_id: 'run-1',
         image: 'my-app',
         tag: 'v1.0.0',
-        sourceRef: 'refs/heads/main',
-        buildArgs: { NODE_ENV: 'production' },
-      };
-
-      const build = await service.createBuild(input);
-
-      expect(build.projectId).toBe('proj-1');
-      expect(build.pipelineRunId).toBe('run-1');
-      expect(build.image).toBe('my-app');
-      expect(build.tag).toBe('v1.0.0');
-      expect(build.sourceRef).toBe('refs/heads/main');
-      expect(build.buildArgs).toEqual({ NODE_ENV: 'production' });
-    });
-  });
-
-  describe('findBuildById', () => {
-    it('should return build by ID', async () => {
-      const created = await service.createBuild({
-        tenant_id: 'tenant-1',
-        image: 'test-app',
-        tag: 'latest',
+        source_ref: 'refs/heads/main',
+        build_args: { NODE_ENV: 'production' },
       });
 
-      const found = await service.findBuildById(created.id);
-
-      expect(found).toBeDefined();
-      expect(found?.id).toBe(created.id);
-      expect(found?.image).toBe('test-app');
+      expect(build.project_id).toBe('proj-1');
+      expect(build.pipeline_run_id).toBe('run-1');
+      expect(build.image).toBe('my-app');
+      expect(build.tag).toBe('v1.0.0');
+      expect(build.source_ref).toBe('refs/heads/main');
+      expect(build.build_args).toEqual({ NODE_ENV: 'production' });
     });
 
-    it('should return undefined for non-existent ID', async () => {
-      const found = await service.findBuildById('non-existent');
-      expect(found).toBeUndefined();
-    });
-  });
-
-  describe('findBuildsByTenant', () => {
-    beforeEach(async () => {
-      await service.createBuild({ tenant_id: 'tenant-1', image: 'app1' });
-      await service.createBuild({ tenant_id: 'tenant-1', image: 'app2' });
-      await service.createBuild({ tenant_id: 'tenant-2', image: 'app3' });
-    });
-
-    it('should filter builds by tenant', async () => {
-      const builds = await service.findBuildsByTenant('tenant-1');
-      expect(builds.length).toBe(2);
-      expect(builds.every(b => b.tenantId === 'tenant-1')).toBe(true);
-    });
-
-    it('should support pagination', async () => {
-      const builds = await service.findBuildsByTenant('tenant-1', { limit: 1, offset: 0 });
-      expect(builds.length).toBe(1);
+    it('should throw error when tenant_id is missing', async () => {
+      await expect(service.createBuild({ tenant_id: '' })).rejects.toThrow('Tenant ID is required');
     });
   });
 
-  describe('findBuildsByArtifact', () => {
-    beforeEach(async () => {
-      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-2' });
+  describe('getBuild', () => {
+    it('should return build by ID', async () => {
+      const created = await service.createBuild({ tenant_id: 'tenant-1', image: 'test-app' });
+      const found = await service.getBuild(created.id);
+
+      expect(found.id).toBe(created.id);
+      expect(found.image).toBe('test-app');
     });
 
-    it('should filter builds by pipeline run ID', async () => {
-      const builds = await service.findBuildsByArtifact('run-1');
-      expect(builds.length).toBe(2);
-      expect(builds.every(b => b.pipelineRunId === 'run-1')).toBe(true);
-    });
-  });
-
-  describe('findBuildsByProject', () => {
-    beforeEach(async () => {
-      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-2' });
-    });
-
-    it('should filter builds by project', async () => {
-      const builds = await service.findBuildsByProject('proj-1');
-      expect(builds.length).toBe(2);
-    });
-  });
-
-  describe('findBuildsByStatus', () => {
-    it('should filter builds by status', async () => {
-      await service.createBuild({ tenant_id: 'tenant-1' });
-      await service.createBuild({ tenant_id: 'tenant-1' });
-      await service.createBuild({ tenant_id: 'tenant-1' });
-
-      const pending = await service.findBuildsByStatus(BuildStatus.PENDING);
-      expect(pending.length).toBe(3);
+    it('should throw for non-existent ID', async () => {
+      await expect(service.getBuild('non-existent')).rejects.toThrow('Build not found');
     });
   });
 
   describe('listBuilds', () => {
     beforeEach(async () => {
-      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', projectId: 'proj-2' });
-      await service.createBuild({ tenant_id: 'tenant-2', projectId: 'proj-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', project_id: 'proj-1' });
+      await service.createBuild({ tenant_id: 'tenant-1', project_id: 'proj-2' });
+      await service.createBuild({ tenant_id: 'tenant-2', project_id: 'proj-1' });
     });
 
-    it('should list all builds', async () => {
+    it('should list all builds with pagination', async () => {
       const result = await service.listBuilds();
-      expect(result.builds.length).toBe(3);
+      expect(result.data.length).toBe(3);
       expect(result.total).toBe(3);
+      expect(result.page).toBe(1);
     });
 
     it('should filter by tenant', async () => {
-      const result = await service.listBuilds({ tenant_id: 'tenant-1' });
-      expect(result.builds.length).toBe(2);
+      const result = await service.listBuilds({ tenantId: 'tenant-1' });
+      expect(result.data.length).toBe(2);
     });
 
     it('should filter by project', async () => {
       const result = await service.listBuilds({ projectId: 'proj-1' });
-      expect(result.builds.length).toBe(2);
+      expect(result.data.length).toBe(2);
     });
 
     it('should support pagination', async () => {
-      const result = await service.listBuilds({ limit: 1, offset: 0 });
-      expect(result.builds.length).toBe(1);
+      const result = await service.listBuilds({ limit: 1, page: 1 });
+      expect(result.data.length).toBe(1);
+      expect(result.totalPages).toBe(3);
     });
   });
 
-  describe('updateBuild', () => {
-    it('should update build fields', async () => {
+  describe('startBuild', () => {
+    it('should start a pending build', async () => {
       const created = await service.createBuild({ tenant_id: 'tenant-1' });
+      const started = await service.startBuild(created.id);
 
-      const updated = await service.updateBuild(created.id, {
-        image: 'updated-app',
-        tag: 'v2.0.0',
-      });
-
-      expect(updated).toBeDefined();
-      expect(updated?.image).toBe('updated-app');
-      expect(updated?.tag).toBe('v2.0.0');
+      expect(started.status).toBe('running');
+      expect(started.started_at).toBeDefined();
     });
 
-    it('should return undefined for non-existent ID', async () => {
-      const updated = await service.updateBuild('non-existent', { image: 'test' });
-      expect(updated).toBeUndefined();
+    it('should throw for non-existent build', async () => {
+      await expect(service.startBuild('non-existent')).rejects.toThrow('Build not found');
+    });
+
+    it('should throw for non-pending build', async () => {
+      const created = await service.createBuild({ tenant_id: 'tenant-1' });
+      await service.startBuild(created.id);
+      await expect(service.startBuild(created.id)).rejects.toThrow('Can only start pending builds');
     });
   });
 
-  describe('updateBuildStatus', () => {
-    it('should update status to running', async () => {
+  describe('cancelBuild', () => {
+    it('should cancel a pending build', async () => {
       const created = await service.createBuild({ tenant_id: 'tenant-1' });
-      const startedAt = new Date();
+      const cancelled = await service.cancelBuild(created.id);
 
-      const updated = await service.updateBuildStatus(
-        created.id,
-        BuildStatus.RUNNING,
-        startedAt,
-      );
-
-      expect(updated).toBeDefined();
-      expect(updated?.status).toBe(BuildStatus.RUNNING);
-      expect(updated?.startedAt).toEqual(startedAt);
+      expect(cancelled.status).toBe('cancelled');
+      expect(cancelled.error_message).toBe('Cancelled by user');
     });
 
-    it('should update status to success with duration', async () => {
-      const created = await service.createBuild({ tenant_id: 'tenant-1' });
-      const startedAt = new Date(Date.now() - 5000);
-      const completedAt = new Date();
-
-      const updated = await service.updateBuildStatus(
-        created.id,
-        BuildStatus.SUCCESS,
-        startedAt,
-        completedAt,
-      );
-
-      expect(updated).toBeDefined();
-      expect(updated?.status).toBe(BuildStatus.SUCCESS);
-      expect(updated?.startedAt).toEqual(startedAt);
-      expect(updated?.completedAt).toEqual(completedAt);
-      expect(updated?.durationMs).toBeGreaterThan(0);
-    });
-
-    it('should update status to failed with error message', async () => {
-      const created = await service.createBuild({ tenant_id: 'tenant-1' });
-
-      const updated = await service.updateBuildStatus(
-        created.id,
-        BuildStatus.FAILED,
-        new Date(),
-        new Date(),
-        'Build failed due to compilation error',
-      );
-
-      expect(updated?.status).toBe(BuildStatus.FAILED);
-      expect(updated?.errorMessage).toBe('Build failed due to compilation error');
+    it('should throw for non-existent build', async () => {
+      await expect(service.cancelBuild('non-existent')).rejects.toThrow('Build not found');
     });
   });
 
-  describe('deleteBuild', () => {
-    it('should delete existing build', async () => {
-      const created = await service.createBuild({ tenant_id: 'tenant-1' });
+  describe('getBuildByPipelineRun', () => {
+    it('should return build by pipeline run ID', async () => {
+      await service.createBuild({ tenant_id: 'tenant-1', pipeline_run_id: 'run-1' });
+      const found = await service.getBuildByPipelineRun('run-1');
 
-      const deleted = await service.deleteBuild(created.id);
-      expect(deleted).toBe(true);
-
-      const found = await service.findBuildById(created.id);
-      expect(found).toBeUndefined();
+      expect(found).not.toBeNull();
+      expect(found!.pipeline_run_id).toBe('run-1');
     });
 
-    it('should return false for non-existent ID', async () => {
-      const deleted = await service.deleteBuild('non-existent');
-      expect(deleted).toBe(false);
+    it('should return null for non-existent pipeline run', async () => {
+      const found = await service.getBuildByPipelineRun('non-existent');
+      expect(found).toBeNull();
     });
   });
 
-  describe('cleanupByPipelineRun', () => {
-    it('should delete builds by pipeline run ID', async () => {
-      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-1' });
-      await service.createBuild({ tenant_id: 'tenant-1', pipelineRunId: 'run-2' });
-
-      const count = await service.cleanupByPipelineRun('run-1');
-      expect(count).toBe(2);
-    });
-  });
-
-  describe('getStats', () => {
+  describe('getBuildStats', () => {
     it('should return build statistics', async () => {
       await service.createBuild({ tenant_id: 'tenant-1' });
       await service.createBuild({ tenant_id: 'tenant-1' });
-      await service.createBuild({ tenant_id: 'tenant-1' });
+      const build3 = await service.createBuild({ tenant_id: 'tenant-1' });
+      await service.startBuild(build3.id);
 
-      // Update one to success
-      const builds = await service.listBuilds({ tenant_id: 'tenant-1' });
-      if (builds.builds.length > 0) {
-        await service.updateBuildStatus(builds.builds[0].id, BuildStatus.SUCCESS);
-      }
-
-      const stats = await service.getStats('tenant-1');
+      const stats = await service.getBuildStats('tenant-1');
       expect(stats.total).toBe(3);
-      expect(stats.success).toBe(1);
+      expect(stats.pending).toBe(2);
+      expect(stats.running).toBe(1);
+    });
+
+    it('should return zero stats for empty tenant', async () => {
+      const stats = await service.getBuildStats('tenant-empty');
+      expect(stats.total).toBe(0);
+      expect(stats.success).toBe(0);
+    });
+  });
+
+  describe('environments', () => {
+    it('should create and get environment', async () => {
+      mockRepo.createEnvironment.mockResolvedValue({
+        id: 'env-1',
+        tenant_id: 'tenant-1',
+        name: 'node-build',
+        type: 'docker',
+        image: 'node:18',
+        description: 'Node.js build env',
+        config: {},
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      mockRepo.findEnvironmentById.mockResolvedValue({
+        id: 'env-1',
+        tenant_id: 'tenant-1',
+        name: 'node-build',
+        type: 'docker',
+        image: 'node:18',
+        description: 'Node.js build env',
+        config: {},
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      const env = await service.createEnvironment({
+        tenant_id: 'tenant-1',
+        name: 'node-build',
+        type: 'docker',
+        image: 'node:18',
+      });
+
+      expect(env.id).toBeDefined();
+      expect(env.name).toBe('node-build');
+
+      const found = await service.getEnvironment('env-1');
+      expect(found.name).toBe('node-build');
+    });
+
+    it('should list environments', async () => {
+      mockRepo.findAllEnvironments.mockResolvedValue([
+        { id: 'env-1', tenant_id: 't1', name: 'env1', type: 'docker', image: 'img', description: null, config: {}, status: 'active', created_at: new Date(), updated_at: new Date() },
+      ]);
+
+      const envs = await service.listEnvironments({ tenantId: 't1' });
+      expect(envs.length).toBe(1);
+    });
+
+    it('should throw for missing tenant_id', async () => {
+      await expect(service.createEnvironment({ tenant_id: '', name: 'test', type: 'docker', image: 'img' })).rejects.toThrow('Tenant ID is required');
+    });
+
+    it('should throw for missing name', async () => {
+      await expect(service.createEnvironment({ tenant_id: 't1', name: '', type: 'docker', image: 'img' })).rejects.toThrow('Environment name is required');
+    });
+
+    it('should throw for missing image', async () => {
+      await expect(service.createEnvironment({ tenant_id: 't1', name: 'test', type: 'docker', image: '' })).rejects.toThrow('Environment image is required');
+    });
+
+    it('should throw for non-existent environment', async () => {
+      mockRepo.findEnvironmentById.mockResolvedValue(null);
+      await expect(service.getEnvironment('non-existent')).rejects.toThrow('Build environment not found');
     });
   });
 });

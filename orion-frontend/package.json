@@ -31,7 +31,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "install:playwright": "playwright install"
+    "install:playwright": "playwright install",
+    "postinstall": "bash scripts/fix-orion-mf-esm.sh"
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",

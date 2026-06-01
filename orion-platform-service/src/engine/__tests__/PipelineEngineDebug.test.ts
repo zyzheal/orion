@@ -95,7 +95,7 @@ function createEngineWithDebug(debugController?: DebugController): {
     publishRunCreated: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<PipelineEventPublisher>;
 
-  const stageExecutor = new StageExecutor(taskRunner, eventPublisher, undefined, undefined, debugController || undefined);
+  const stageExecutor = new StageExecutor(taskRunner, eventPublisher, undefined, undefined, undefined, debugController || undefined);
 
   // Store tasks per stageId for getTasks mock
   const tasksByStage = new Map<string, Task[]>();
@@ -139,6 +139,7 @@ function createEngineWithDebug(debugController?: DebugController): {
     runService,
     eventPublisher,
     stageExecutor,
+    undefined, // sseBridge
     undefined, // subPipelineService
     undefined, // artifactService
     undefined, // approvalGateService
@@ -179,7 +180,7 @@ function createPipelineRun(input: { pipelineId: string; pipelineVersion: string;
 
 // ==================== Tests ====================
 
-describe.skip('PipelineEngine Debug Integration', () => {
+describe('PipelineEngine Debug Integration', () => {
   let debugController: DebugController;
 
   beforeEach(() => {
@@ -284,10 +285,10 @@ describe.skip('PipelineEngine Debug Integration', () => {
       } as unknown as jest.Mocked<PipelineRunService>;
 
       const mockPs = { getById: jest.fn().mockResolvedValue(null) } as unknown as jest.Mocked<PipelineService>;
-      const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, debugController);
+      const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, undefined, debugController);
       const slowEngine = new PipelineEngine(
         mockPs, mockRs, mockEp, slowStageExecutor,
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
+        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
       );
 
       const pipeline: Pipeline = {
@@ -407,10 +408,10 @@ describe.skip('PipelineEngine Debug Integration', () => {
       } as unknown as jest.Mocked<PipelineRunService>;
 
       const mockPs = { getById: jest.fn().mockResolvedValue(null) } as unknown as jest.Mocked<PipelineService>;
-      const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, debugController);
+      const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, undefined, debugController);
       const slowEngine = new PipelineEngine(
         mockPs, mockRs, mockEp, slowStageExecutor,
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
+        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
       );
 
       const pipeline: Pipeline = {

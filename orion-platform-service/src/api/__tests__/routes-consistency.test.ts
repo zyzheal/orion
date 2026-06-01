@@ -8,24 +8,25 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-describe.skip('Frontend-Backend API Consistency', () => {
+describe('Frontend-Backend API Consistency', () => {
   const readRouteFile = (filename: string) => {
     return fs.readFileSync(path.join(__dirname, '..', filename), 'utf-8');
   };
 
   describe('SBOM routes', () => {
     const content = readRouteFile('sbom-routes.ts');
-    it('has compliance endpoints', () => {
-      expect(content).toContain('/compliance/report');
-      expect(content).toContain('/compliance/eo14028');
-      expect(content).toContain('/compliance/eu-cra');
+    it('has document endpoints', () => {
+      expect(content).toContain('/documents');
+      expect(content).toContain('/documents/:id');
     });
-    it('has provenance endpoints', () => {
-      expect(content).toContain('/provenance');
+    it('has vulnerability endpoints', () => {
+      expect(content).toContain('/vulnerabilities');
     });
-    it('has gate endpoints', () => {
-      expect(content).toContain('/gate/evaluate');
-      expect(content).toContain('/gate/history');
+    it('has waiver endpoints', () => {
+      expect(content).toContain('/waivers');
+    });
+    it('has generate endpoint', () => {
+      expect(content).toContain('/generate');
     });
   });
 
@@ -80,11 +81,14 @@ describe.skip('Frontend-Backend API Consistency', () => {
 
   describe('Efficiency routes', () => {
     const content = readRouteFile('efficiency-routes.ts');
-    it('has score endpoint', () => {
-      expect(content).toContain('/score');
+    it('has reports endpoint', () => {
+      expect(content).toContain('/reports');
     });
-    it('has export endpoint', () => {
-      expect(content).toContain('/export');
+    it('has dora endpoint', () => {
+      expect(content).toContain('/dora');
+    });
+    it('has compare endpoint', () => {
+      expect(content).toContain('/compare');
     });
   });
 });

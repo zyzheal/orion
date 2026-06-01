@@ -300,9 +300,9 @@ export class PluginResourceManager extends EventEmitter {
   }
 
   /**
-   * 检查是否可以分配资源
+   * 内部资源检查（不发射事件）
    */
-  canAllocate(quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
+  private checkAllocation(quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
     const available = this.getAvailableResources();
 
     if (available.concurrencySlots <= 0) {
@@ -330,6 +330,13 @@ export class PluginResourceManager extends EventEmitter {
   }
 
   /**
+   * 检查是否可以分配资源
+   */
+  canAllocate(quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
+    return this.checkAllocation(quota);
+  }
+
+  /**
    * 分配资源配额
    */
   allocateQuota(
@@ -341,7 +348,7 @@ export class PluginResourceManager extends EventEmitter {
     const quota = this.getPluginQuota(pluginId, securityLevel);
 
     // 检查是否可以分配
-    const check = this.canAllocate(quota);
+    const check = this.checkAllocation(quota);
     if (!check.canAllocate) {
       logger.warn(
         { taskId, pluginId, reason: check.reason },

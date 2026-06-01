@@ -121,7 +121,7 @@ describe('calculateExecutionOrder', () => {
       { name: 'C', type: 'deploy', dependsOn: ['B'] },
     ];
     const result = calculateExecutionOrder(stages as any);
-    expect(result).toEqual(['A', 'B', 'C']);
+    expect(result).toEqual([['A'], ['B'], ['C']]);
   });
 
   it('handles parallel execution order', () => {
@@ -133,7 +133,7 @@ describe('calculateExecutionOrder', () => {
     ];
     const result = calculateExecutionOrder(stages as any);
     // A must be first, D must be last
-    expect(result[0]).toBe('A');
-    expect(result[result.length - 1]).toBe('D');
+    expect(result[0]).toEqual(['A']);
+    expect(result[result.length - 1]).toEqual(['D']);
   });
 });

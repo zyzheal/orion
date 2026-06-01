@@ -123,14 +123,14 @@ describe('VectorStorePage', () => {
 
   it('loads collections and stats from API on mount', async () => {
     mockApi.getCollections.mockResolvedValue({
-      data: { data: mockCollections },
+      data: mockCollections,
       status: 200,
       statusText: 'OK',
       headers: {},
       config: {} as any,
     });
     mockApi.getVectorStats.mockResolvedValue({
-      data: { data: mockStats },
+      data: mockStats,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -153,7 +153,7 @@ describe('VectorStorePage', () => {
   it('shows error on collections API failure, no mock data fallback', async () => {
     mockApi.getCollections.mockRejectedValue(new Error('Network error'));
     mockApi.getVectorStats.mockResolvedValue({
-      data: { data: mockStats },
+      data: mockStats,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -179,14 +179,14 @@ describe('VectorStorePage', () => {
 
   it('shows empty state when API returns empty array', async () => {
     mockApi.getCollections.mockResolvedValue({
-      data: { data: [] },
+      data: [],
       status: 200,
       statusText: 'OK',
       headers: {},
       config: {} as any,
     });
     mockApi.getVectorStats.mockResolvedValue({
-      data: { data: mockStats },
+      data: mockStats,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -207,7 +207,7 @@ describe('VectorStorePage', () => {
 
   it('handles stats API failure gracefully', async () => {
     mockApi.getCollections.mockResolvedValue({
-      data: { data: mockCollections },
+      data: mockCollections,
       status: 200,
       statusText: 'OK',
       headers: {},

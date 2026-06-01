@@ -7,7 +7,7 @@ import { PluginResourceManager } from '../plugin/PluginResourceManager';
 import { PluginAuditLogger } from '../plugin/PluginAuditLogger';
 import { ExecutionContext, DEFAULT_QUOTA } from '../plugin/types';
 
-describe.skip('PluginSandbox', () => {
+describe('PluginSandbox', () => {
   let sandbox: PluginSandbox;
   let resourceManager: PluginResourceManager;
   let auditLogger: PluginAuditLogger;
@@ -199,7 +199,7 @@ describe.skip('PluginSandbox', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(sandbox.getActiveExecutionCount()).toBe(3);
 
-      const count = sandbox.cancelAllExecutions('Bulk cancellation');
+      const count = await sandbox.cancelAllExecutions('Bulk cancellation');
       expect(count).toBe(3);
 
       const results = await Promise.all(promises);
@@ -317,7 +317,7 @@ describe.skip('PluginSandbox', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(sandbox.getActiveExecutionCount()).toBe(2);
 
-      sandbox.shutdown();
+      await sandbox.shutdown();
 
       const results = await Promise.all(promises);
       results.forEach(result => {

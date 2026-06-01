@@ -1,14 +1,45 @@
 import { ModuleRegistry, ModuleDescriptor } from '../ModuleRegistry';
 
-describe.skip('ModuleRegistry', () => {
+// In-memory store shared between mock and tests
+const store = new Map<string, any>();
+
+jest.mock('../../../repositories/ModuleRegistryRepository', () => {
+  return {
+    ModuleRegistryRepository: jest.fn().mockImplementation(() => ({
+      findById: jest.fn((id: string) => Promise.resolve(store.get(id) || null)),
+      findAllModules: jest.fn(() => Promise.resolve(Array.from(store.values()))),
+      upsertModule: jest.fn((id: string, data: any) => {
+        store.set(id, { id, ...data });
+        return Promise.resolve();
+      }),
+      updateState: jest.fn((id: string, state: string, error?: string) => {
+        const entity = store.get(id);
+        if (entity) {
+          entity.state = state;
+          if (error !== undefined) entity.error = error;
+        }
+        return Promise.resolve();
+      }),
+      delete: jest.fn((id: string) => {
+        store.delete(id);
+        return Promise.resolve();
+      }),
+    })),
+  };
+});
+
+const mockDb = { query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
+
+describe('ModuleRegistry', () => {
   let registry: ModuleRegistry;
 
   beforeEach(() => {
-    registry = new ModuleRegistry();
+    store.clear();
+    registry = new ModuleRegistry(mockDb);
   });
 
   describe('register', () => {
-    it('should register a module successfully', () => {
+    it('should register a module successfully', async () => {
       const module: ModuleDescriptor = {
         id: 'test-module',
         name: 'Test Module',
@@ -17,11 +48,14 @@ describe.skip('ModuleRegistry', () => {
         state: 'registered',
         config: { enabled: true, autoStart: true, priority: 10 },
       };
-      registry.register(module);
-      expect(registry.get('test-module')).toEqual(module);
+      await registry.register(module);
+      const result = await registry.get('test-module');
+      expect(result).toBeDefined();
+      expect(result!.id).toBe('test-module');
+      expect(result!.name).toBe('Test Module');
     });
 
-    it('should throw error when registering duplicate module', () => {
+    it('should throw error when registering duplicate module', async () => {
       const module: ModuleDescriptor = {
         id: 'test-module',
         name: 'Test Module',
@@ -30,13 +64,13 @@ describe.skip('ModuleRegistry', () => {
         state: 'registered',
         config: { enabled: true },
       };
-      registry.register(module);
-      expect(() => registry.register(module)).toThrow('Module test-module is already registered');
+      await registry.register(module);
+      await expect(registry.register(module)).rejects.toThrow('Module test-module is already registered');
     });
   });
 
   describe('state transitions', () => {
-    it('should transition from registered to starting to active', () => {
+    it('should transition from registered to starting to active', async () => {
       const module: ModuleDescriptor = {
         id: 'test-module',
         name: 'Test Module',
@@ -45,13 +79,14 @@ describe.skip('ModuleRegistry', () => {
         state: 'registered',
         config: { enabled: true },
       };
-      registry.register(module);
-      registry.setState('test-module', 'starting');
-      registry.setState('test-module', 'active');
-      expect(registry.get('test-module')?.state).toBe('active');
+      await registry.register(module);
+      await registry.setState('test-module', 'starting');
+      await registry.setState('test-module', 'active');
+      const result = await registry.get('test-module');
+      expect(result?.state).toBe('active');
     });
 
-    it('should transition to failed state with error message', () => {
+    it('should transition to failed state with error message', async () => {
       const module: ModuleDescriptor = {
         id: 'test-module',
         name: 'Test Module',
@@ -60,101 +95,101 @@ describe.skip('ModuleRegistry', () => {
         state: 'registered',
         config: { enabled: true },
       };
-      registry.register(module);
-      registry.setFailed('test-module', new Error('Connection failed'));
-      const mod = registry.get('test-module');
+      await registry.register(module);
+      await registry.setFailed('test-module', new Error('Connection failed'));
+      const mod = await registry.get('test-module');
       expect(mod?.state).toBe('failed');
       expect(mod?.error).toBe('Connection failed');
     });
   });
 
   describe('dependency validation', () => {
-    it('should validate satisfied dependencies', () => {
-      registry.register({
+    it('should validate satisfied dependencies', async () => {
+      await registry.register({
         id: 'module-a', name: 'A', description: '', level: 'service',
         state: 'active', config: { enabled: true },
       });
-      registry.register({
+      await registry.register({
         id: 'module-b', name: 'B', description: '', level: 'service',
         state: 'registered', config: { enabled: true, dependencies: ['module-a'] },
       });
-      const result = registry.validateDependencies();
+      const result = await registry.validateDependencies();
       expect(result.valid).toBe(true);
       expect(result.missingDependencies).toEqual([]);
     });
 
-    it('should detect missing dependencies', () => {
-      registry.register({
+    it('should detect missing dependencies', async () => {
+      await registry.register({
         id: 'module-b', name: 'B', description: '', level: 'service',
         state: 'registered', config: { enabled: true, dependencies: ['module-a', 'module-c'] },
       });
-      const result = registry.validateDependencies();
+      const result = await registry.validateDependencies();
       expect(result.valid).toBe(false);
       expect(result.missingDependencies).toContain('module-a');
       expect(result.missingDependencies).toContain('module-c');
     });
 
-    it('should detect circular dependencies', () => {
-      registry.register({
+    it('should detect circular dependencies', async () => {
+      await registry.register({
         id: 'module-a', name: 'A', description: '', level: 'service',
         state: 'registered', config: { enabled: true, dependencies: ['module-b'] },
       });
-      registry.register({
+      await registry.register({
         id: 'module-b', name: 'B', description: '', level: 'service',
         state: 'registered', config: { enabled: true, dependencies: ['module-a'] },
       });
-      const result = registry.validateDependencies();
+      const result = await registry.validateDependencies();
       expect(result.circularDependencies).toBeDefined();
       expect(result.circularDependencies!.length).toBeGreaterThan(0);
     });
   });
 
   describe('getStartupOrder', () => {
-    it('should return modules in dependency order', () => {
-      registry.register({
+    it('should return modules in dependency order', async () => {
+      await registry.register({
         id: 'db', name: 'DB', description: '', level: 'core',
         state: 'registered', config: { enabled: true, priority: 1 },
       });
-      registry.register({
+      await registry.register({
         id: 'auth', name: 'Auth', description: '', level: 'core',
         state: 'registered', config: { enabled: true, dependencies: ['db'], priority: 2 },
       });
-      registry.register({
+      await registry.register({
         id: 'api', name: 'API', description: '', level: 'domain',
         state: 'registered', config: { enabled: true, dependencies: ['auth'], priority: 10 },
       });
-      const order = registry.getStartupOrder();
+      const order = await registry.getStartupOrder();
       expect(order).toEqual(['db', 'auth', 'api']);
     });
   });
 
   describe('listByLevel', () => {
-    it('should filter modules by level', () => {
-      registry.register({
+    it('should filter modules by level', async () => {
+      await registry.register({
         id: 'core-1', name: 'Core 1', description: '', level: 'core',
         state: 'registered', config: { enabled: true },
       });
-      registry.register({
+      await registry.register({
         id: 'svc-1', name: 'Svc 1', description: '', level: 'service',
         state: 'registered', config: { enabled: true },
       });
-      const core = registry.listByLevel('core');
+      const core = await registry.listByLevel('core');
       expect(core).toHaveLength(1);
       expect(core[0].id).toBe('core-1');
     });
   });
 
   describe('getActiveModules', () => {
-    it('should return only active modules', () => {
-      registry.register({
+    it('should return only active modules', async () => {
+      await registry.register({
         id: 'active', name: 'Active', description: '', level: 'service',
         state: 'active', config: { enabled: true },
       });
-      registry.register({
+      await registry.register({
         id: 'stopped', name: 'Stopped', description: '', level: 'service',
         state: 'stopped', config: { enabled: false },
       });
-      const active = registry.getActiveModules();
+      const active = await registry.getActiveModules();
       expect(active).toHaveLength(1);
       expect(active[0].id).toBe('active');
     });

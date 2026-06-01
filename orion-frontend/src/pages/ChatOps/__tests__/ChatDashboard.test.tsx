@@ -26,7 +26,7 @@ describe('ChatDashboard', () => {
   });
 
   it('should render metric cards when data is loaded', async () => {
-    (chatopsApi.getDashboardStats as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockStats } });
+    (chatopsApi.getDashboardStats as ReturnType<typeof vi.fn>).mockResolvedValue({ data: mockStats });
 
     render(<ChatDashboard />);
 
@@ -50,6 +50,7 @@ describe('ChatDashboard', () => {
     (chatopsApi.getDashboardStats as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
     render(<ChatDashboard />);
-    expect(screen.getByText(/ChatOps 总览看板/)).toBeInTheDocument();
+    // During loading, the component renders a Skeleton and the refresh button
+    expect(screen.getByText('刷新')).toBeInTheDocument();
   });
 });

@@ -52,7 +52,7 @@ describe('SmartRecommend', () => {
 
   it('renders the Smart Recommendations header', async () => {
     vi.mocked(chatopsApi.fetchRecommendations).mockResolvedValue({
-      data: { data: [] },
+      data: [],
     } as any);
 
     render(<SmartRecommend />);
@@ -131,7 +131,7 @@ describe('SmartRecommend', () => {
 
   it('shows empty state when no recommendations exist', async () => {
     vi.mocked(chatopsApi.fetchRecommendations).mockResolvedValue({
-      data: { data: [] },
+      data: [],
     } as any);
 
     render(<SmartRecommend />);
@@ -155,7 +155,7 @@ describe('SmartRecommend', () => {
 
   it('refreshes recommendations when Refresh button is clicked', async () => {
     vi.mocked(chatopsApi.fetchRecommendations)
-      .mockResolvedValueOnce({ data: { data: [] } } as any)
+      .mockResolvedValueOnce({ data: [] } as any)
       .mockResolvedValueOnce({ data: { data: mockRecommendations } } as any);
 
     render(<SmartRecommend />);
@@ -189,7 +189,7 @@ describe('SmartRecommend', () => {
 
   it('displays connection status indicator', async () => {
     vi.mocked(chatopsApi.fetchRecommendations).mockResolvedValue({
-      data: { data: [] },
+      data: [],
     } as any);
 
     render(<SmartRecommend />);
@@ -205,7 +205,7 @@ describe('SmartRecommend', () => {
 
   it('opens execution log drawer when clicked', async () => {
     vi.mocked(chatopsApi.fetchRecommendations).mockResolvedValue({
-      data: { data: [] },
+      data: [],
     } as any);
 
     render(<SmartRecommend />);

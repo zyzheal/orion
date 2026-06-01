@@ -10,7 +10,7 @@ const mockPool = {
   query: jest.fn(),
 };
 
-describe.skip('SelfAdaptivePipelineService', () => {
+describe('SelfAdaptivePipelineService', () => {
   let service: SelfAdaptivePipelineService;
 
   beforeEach(() => {
@@ -25,6 +25,10 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '300000',
           avg_success: '0.95',
           run_count: '50',
+          max_duration: '500000',
+          min_duration: '100000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
@@ -42,6 +46,10 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '600000', // 10 minutes
           avg_success: '0.80',
           run_count: '100',
+          max_duration: '900000',
+          min_duration: '300000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
@@ -56,12 +64,16 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '600001', // > 600000 (10 min)
           avg_success: '0.95',
           run_count: '10',
+          max_duration: '900000',
+          min_duration: '300000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
       const result = await service.analyzePipelinePerformance('p1');
 
-      const timeoutSuggestion = result.suggestions.find(s => s.action === 'increase_timeout');
+      const timeoutSuggestion = result.suggestions.find(s => s.type === 'timeout_adjustment');
       expect(timeoutSuggestion).toBeDefined();
       expect(timeoutSuggestion!.confidence).toBeGreaterThan(0);
     });
@@ -72,17 +84,31 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '300000',
           avg_success: '0.85', // < 90%
           run_count: '50',
+          max_duration: '500000',
+          min_duration: '100000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
       const result = await service.analyzePipelinePerformance('p1');
 
-      const retrySuggestion = result.suggestions.find(s => s.action === 'add_retry_policy');
+      const retrySuggestion = result.suggestions.find(s => s.type === 'retry_optimization');
       expect(retrySuggestion).toBeDefined();
     });
 
     it('应该处理空结果', async () => {
-      mockPool.query.mockResolvedValue({ rows: [{ avg_duration: null, avg_success: null, run_count: null }] });
+      mockPool.query.mockResolvedValue({
+        rows: [{
+          avg_duration: null,
+          avg_success: null,
+          run_count: null,
+          max_duration: null,
+          min_duration: null,
+          avg_cpu: null,
+          avg_memory: null,
+        }],
+      });
 
       const result = await service.analyzePipelinePerformance('p1');
 
@@ -94,16 +120,19 @@ describe.skip('SelfAdaptivePipelineService', () => {
 
   describe('applyAdaptation', () => {
     it('应该应用适配规则', async () => {
-      mockPool.query.mockResolvedValue({
-        rows: [{
-          id: 'a1',
-          pipeline_id: 'p1',
-          adaptation_type: 'timeout_adjustment',
-          reason: 'avg_duration > 10min',
-          confidence: 0.8,
-          applied: false,
-        }],
-      });
+      // applyAdaptation calls applyOptimization which does UPDATE then INSERT
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: 'p1' }] }) // UPDATE
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'a1',
+            pipeline_id: 'p1',
+            adaptation_type: 'timeout_adjustment',
+            reason: 'avg_duration > 10min',
+            confidence: 0.8,
+            applied: false,
+          }],
+        }); // INSERT
 
       const result = await service.applyAdaptation('p1', {
         metric: 'duration',
@@ -117,12 +146,14 @@ describe.skip('SelfAdaptivePipelineService', () => {
     });
 
     it('应该记录适配历史', async () => {
-      mockPool.query.mockResolvedValue({
-        rows: [{
-          id: 'a1',
-          adaptation_type: 'retry_optimization',
-        }],
-      });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: 'p1' }] }) // UPDATE
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'a1',
+            adaptation_type: 'retry_optimization',
+          }],
+        }); // INSERT
 
       await service.applyAdaptation('p1', {
         metric: 'success_rate',
@@ -140,20 +171,22 @@ describe.skip('SelfAdaptivePipelineService', () => {
     it('应该支持不同的适配类型', async () => {
       const adaptationTypes = [
         'timeout_adjustment',
-        'resource_scaling',
         'retry_optimization',
+        'resource_scaling',
         'parallelism_tuning',
       ];
 
       for (const type of adaptationTypes) {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'a1', adaptation_type: type }],
-        });
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'p1' }] }) // UPDATE
+          .mockResolvedValueOnce({
+            rows: [{ id: 'a1', adaptation_type: type }],
+          }); // INSERT
 
         const result = await service.applyAdaptation('p1', {
           metric: 'test',
           condition: 'test',
-          action: type as any,
+          action: type,
           confidence: 0.5,
         });
 
@@ -208,6 +241,10 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '600000',
           avg_success: '0.80',
           run_count: '50',
+          max_duration: '900000',
+          min_duration: '300000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
@@ -215,9 +252,8 @@ describe.skip('SelfAdaptivePipelineService', () => {
 
       if (result.suggestions.length > 0) {
         const rule = result.suggestions[0];
-        expect(rule.metric).toBeDefined();
-        expect(rule.condition).toBeDefined();
-        expect(rule.action).toBeDefined();
+        expect(rule.type).toBeDefined();
+        expect(rule.description).toBeDefined();
         expect(rule.confidence).toBeGreaterThanOrEqual(0);
         expect(rule.confidence).toBeLessThanOrEqual(1);
       }
@@ -226,20 +262,22 @@ describe.skip('SelfAdaptivePipelineService', () => {
 
   describe('PipelineAdaptation', () => {
     it('应该包含完整的适配信息', async () => {
-      mockPool.query.mockResolvedValue({
-        rows: [{
-          id: 'a1',
-          tenant_id: 'tenant1',
-          pipeline_id: 'p1',
-          adaptation_type: 'timeout_adjustment',
-          before_value: { timeout: 300000 },
-          after_value: { timeout: 600000 },
-          reason: 'Duration exceeded',
-          confidence: 0.8,
-          applied: false,
-          created_at: new Date(),
-        }],
-      });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: 'p1' }] }) // UPDATE
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'a1',
+            tenant_id: 'tenant1',
+            pipeline_id: 'p1',
+            adaptation_type: 'timeout_adjustment',
+            before_value: { timeout: 300000 },
+            after_value: { timeout: 600000 },
+            reason: 'Duration exceeded',
+            confidence: 0.8,
+            applied: false,
+            created_at: new Date(),
+          }],
+        }); // INSERT
 
       const result = await service.applyAdaptation('p1', {
         metric: 'duration',
@@ -262,6 +300,10 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '300000',
           avg_success: '0.98',
           run_count: '1000',
+          max_duration: '500000',
+          min_duration: '100000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
@@ -276,6 +318,10 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '300000',
           avg_success: '0.50',
           run_count: '10',
+          max_duration: '500000',
+          min_duration: '100000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 
@@ -290,6 +336,10 @@ describe.skip('SelfAdaptivePipelineService', () => {
           avg_duration: '1800000', // 30 minutes
           avg_success: '0.95',
           run_count: '10',
+          max_duration: '3000000',
+          min_duration: '600000',
+          avg_cpu: '50',
+          avg_memory: '60',
         }],
       });
 

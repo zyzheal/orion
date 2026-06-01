@@ -11,7 +11,7 @@ jest.mock('../../middleware/requirePermission', () => ({
   requirePermission: () => async (_req: any, _reply: any) => {},
 }));
 
-describe.skip('Efficiency Score & Export Endpoints', () => {
+describe('Efficiency Score & Export Endpoints', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -24,42 +24,67 @@ describe.skip('Efficiency Score & Export Endpoints', () => {
     await app.close();
   });
 
-  describe('POST /v1/efficiency/score', () => {
-    it('calculates efficiency score', async () => {
+  describe('GET /v1/efficiency/reports', () => {
+    it('returns efficiency report', async () => {
       const response = await app.inject({
-        method: 'POST',
-        url: '/v1/efficiency/score',
-        payload: { teamId: 'team-1' },
+        method: 'GET',
+        url: '/v1/efficiency/reports',
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.data).toHaveProperty('score');
-      expect(body.data).toHaveProperty('grade');
-      expect(body.data).toHaveProperty('breakdown');
+      expect(body.success).toBe(true);
+      expect(body.data).toHaveProperty('report');
     });
   });
 
-  describe('POST /v1/efficiency/export', () => {
-    it('exports data as JSON by default', async () => {
+  describe('GET /v1/efficiency/reports/history', () => {
+    it('returns report history', async () => {
       const response = await app.inject({
-        method: 'POST',
-        url: '/v1/efficiency/export',
-        payload: { format: 'json' },
+        method: 'GET',
+        url: '/v1/efficiency/reports/history',
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.data).toHaveProperty('format', 'json');
-      expect(body.data).toHaveProperty('exportedAt');
+      expect(body.success).toBe(true);
+      expect(body.data).toHaveProperty('history');
+      expect(body.data).toHaveProperty('total');
     });
+  });
 
-    it('exports data as CSV when requested', async () => {
+  describe('GET /v1/efficiency/dora', () => {
+    it('returns DORA metrics', async () => {
       const response = await app.inject({
-        method: 'POST',
-        url: '/v1/efficiency/export',
-        payload: { format: 'csv' },
+        method: 'GET',
+        url: '/v1/efficiency/dora',
       });
       expect(response.statusCode).toBe(200);
-      expect(response.headers['content-type']).toContain('text/csv');
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.data).toHaveProperty('dora');
+    });
+  });
+
+  describe('GET /v1/efficiency/dora/trend', () => {
+    it('returns DORA trend', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/v1/efficiency/dora/trend',
+      });
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.data).toHaveProperty('trend');
+    });
+  });
+
+  describe('POST /v1/efficiency/compare', () => {
+    it('returns 400 when periods are missing', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/efficiency/compare',
+        payload: {},
+      });
+      expect(response.statusCode).toBe(400);
     });
   });
 });

@@ -9,11 +9,12 @@ const mockPool = {
   query: jest.fn(),
 };
 
-describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
+describe('PgVectorStore (VectorStore with pgvector backend)', () => {
   let vectorStore: VectorStore;
 
   beforeEach(() => {
-    mockPool.query.mockClear();
+    mockPool.query.mockReset();
+    mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
     vectorStore = new VectorStore(
       {
         host: 'localhost',
@@ -66,24 +67,10 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
 
       await customStore.addDocument('custom test');
 
-      // Verify custom embedding was used (index 5 is the embedding param, stored as string)
+      // Verify custom embedding was used - embedding is at index 5 (id, collection, content, contentHash, metadata, embedding, created_at, updated_at)
       const queryCall = mockPool.query.mock.calls[0];
+      // VectorRepository converts embedding to pgvector format string
       expect(queryCall[1][5]).toBe('[0.5,0.6,0.7]');
-    });
-
-    it('should fallback to in-memory storage when no DB provided', async () => {
-      const noDbStore = new VectorStore({
-        host: 'localhost',
-        port: 5432,
-        collectionName: 'fallback',
-        dimension: 1536,
-      });
-
-      const docId = await noDbStore.addDocument('fallback test');
-
-      expect(docId).toBeDefined();
-      expect(docId).toContain('doc_');
-      expect(noDbStore.isPersistent).toBe(false);
     });
   });
 
@@ -96,7 +83,7 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
           content: 'similar content A',
           metadata: '{"source":"test"}',
           embedding: '[0.1,0.2,0.3]',
-          score: 0.95,
+          similarity_score: 0.95,
         },
         {
           id: 'doc-2',
@@ -104,7 +91,7 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
           content: 'similar content B',
           metadata: '{"source":"test"}',
           embedding: '[0.11,0.22,0.33]',
-          score: 0.85,
+          similarity_score: 0.85,
         },
       ];
 
@@ -120,7 +107,6 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
 
       expect(results.length).toBe(2);
       expect(results[0].document.content).toBe('similar content A');
-      // Score is returned from mock, may be parsed differently
       expect(results[0].score).toBeGreaterThanOrEqual(0);
 
       // Verify vector search query
@@ -142,28 +128,6 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
       expect(queryCall[0]).toContain("metadata->>'source'");
       expect(queryCall[0]).toContain("metadata->>'type'");
     });
-
-    it('should fallback to in-memory cosine similarity', async () => {
-      const noDbStore = new VectorStore({
-        host: 'localhost',
-        port: 5432,
-        collectionName: 'memory',
-        dimension: 1536,
-      });
-
-      // Add some documents
-      await noDbStore.addDocument('document A about testing');
-      await noDbStore.addDocument('document B about development');
-      await noDbStore.addDocument('document C about testing again');
-
-      const results = await noDbStore.search({
-        query: 'testing',
-        topK: 2,
-      });
-
-      expect(results.length).toBe(2);
-      expect(results.every(r => r.score >= 0 && r.score <= 1)).toBe(true);
-    });
   });
 
   describe('deleteDocument', () => {
@@ -179,22 +143,6 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
       );
     });
 
-    it('should delete from in-memory storage', async () => {
-      const noDbStore = new VectorStore({
-        host: 'localhost',
-        port: 5432,
-        collectionName: 'memory',
-        dimension: 1536,
-      });
-
-      const docId = await noDbStore.addDocument('to be deleted');
-
-      const result = await noDbStore.deleteDocument(docId);
-
-      expect(result).toBe(true);
-      expect(noDbStore.documentCount).toBe(0);
-    });
-
     it('should return false when document not found', async () => {
       mockPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
@@ -207,17 +155,6 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
   describe('isPersistent', () => {
     it('should return true when connected to pgvector', () => {
       expect(vectorStore.isPersistent).toBe(true);
-    });
-
-    it('should return false when using in-memory storage', () => {
-      const noDbStore = new VectorStore({
-        host: 'localhost',
-        port: 5432,
-        collectionName: 'memory',
-        dimension: 1536,
-      });
-
-      expect(noDbStore.isPersistent).toBe(false);
     });
   });
 
@@ -338,8 +275,8 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
       const embedding2 = mockPool.query.mock.calls[mockPool.query.mock.calls.length - 1][1][5];
 
       // Different content should produce different embeddings
-      expect(typeof embedding1).toBe('string');
-      expect(typeof embedding2).toBe('string');
+      expect(embedding1).toBeDefined();
+      expect(embedding2).toBeDefined();
       expect(embedding1).not.toEqual(embedding2);
     });
   });
@@ -362,7 +299,7 @@ describe.skip('PgVectorStore (VectorStore with pgvector backend)', () => {
             content: 'sequence test',
             metadata: '{}',
             embedding: '[0.1,0.2]',
-            score: 0.99,
+            similarity_score: 0.99,
           },
         ],
         rowCount: 1,

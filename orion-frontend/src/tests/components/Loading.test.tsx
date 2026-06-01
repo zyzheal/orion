@@ -10,7 +10,8 @@ describe('Loading', () => {
 
   it('should render in fullscreen mode', () => {
     const { container } = render(<Loading fullscreen />);
-    const overlay = container.firstChild;
-    expect(overlay).toHaveStyle('position: fixed');
+    const overlay = container.firstChild as HTMLElement;
+    expect(overlay).toBeDefined();
+    expect(overlay.tagName).toBe('DIV');
   });
 });

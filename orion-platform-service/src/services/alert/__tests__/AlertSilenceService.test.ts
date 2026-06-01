@@ -4,12 +4,112 @@
 
 import { AlertSilenceService, CreateSilenceInput, AlertForSilenceCheck } from '../AlertSilenceService';
 
-describe.skip('AlertSilenceService', () => {
+// camelCase to snake_case helper
+function toSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`);
+}
+
+// In-memory store for mock db
+let silenceStore: Map<string, any>;
+
+function createMockDb() {
+  silenceStore = new Map();
+  const db = {
+    query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      // INSERT ... RETURNING *
+      if (sql.includes('INSERT INTO alert_silences')) {
+        const colsMatch = sql.match(/\(([^)]+)\)/);
+        const cols = colsMatch ? colsMatch[1].split(', ').map((c) => c.trim()) : [];
+        const row: any = {};
+        cols.forEach((col, i) => {
+          row[toSnakeCase(col)] = params?.[i];
+        });
+        if (!row.created_at) row.created_at = new Date();
+        if (!row.updated_at) row.updated_at = new Date();
+        silenceStore.set(row.id, row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // DELETE FROM alert_silences WHERE ends_at < NOW()
+      if (sql.includes('DELETE FROM alert_silences') && !sql.includes('WHERE id')) {
+        let count = 0;
+        const now = new Date();
+        for (const [id, row] of silenceStore) {
+          if (new Date(row.ends_at) < now) {
+            silenceStore.delete(id);
+            count++;
+          }
+        }
+        return { rows: [], rowCount: count };
+      }
+      // DELETE FROM alert_silences WHERE id = $1
+      if (sql.includes('DELETE FROM alert_silences')) {
+        const id = params?.[0];
+        const existed = silenceStore.has(id);
+        if (existed) silenceStore.delete(id);
+        return { rows: [], rowCount: existed ? 1 : 0 };
+      }
+      // UPDATE ... WHERE id = $N RETURNING *
+      if (sql.includes('UPDATE alert_silences')) {
+        const id = params?.[params.length - 1];
+        const existing = silenceStore.get(id);
+        if (!existing) return { rows: [], rowCount: 0 };
+        const setMatch = sql.match(/SET (.+?) WHERE/);
+        if (setMatch) {
+          const assignments = setMatch[1].split(', ');
+          let paramIdx = 0;
+          for (const assignment of assignments) {
+            const colRaw = assignment.split(' = ')[0].trim();
+            const col = toSnakeCase(colRaw);
+            if (col === 'updated_at') {
+              existing[col] = new Date();
+            } else {
+              existing[col] = params?.[paramIdx];
+              paramIdx++;
+            }
+          }
+        }
+        silenceStore.set(id, existing);
+        return { rows: [existing], rowCount: 1 };
+      }
+      // SELECT ... active by tenant (has time range conditions)
+      if (sql.includes('starts_at') && sql.includes('ends_at')) {
+        const tenantId = params?.[0];
+        const now = new Date();
+        const rows = Array.from(silenceStore.values()).filter(
+          (r) =>
+            r.tenant_id === tenantId &&
+            r.enabled === true &&
+            new Date(r.starts_at) <= now &&
+            new Date(r.ends_at) > now,
+        );
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE id = $1
+      if (sql.includes('WHERE id = $1')) {
+        const id = params?.[0];
+        const row = silenceStore.get(id);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // SELECT ... WHERE tenant_id = $1
+      if (sql.includes('WHERE tenant_id = $1')) {
+        const tenantId = params?.[0];
+        const rows = Array.from(silenceStore.values()).filter((r) => r.tenant_id === tenantId);
+        return { rows, rowCount: rows.length };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+  return db;
+}
+
+describe('AlertSilenceService', () => {
   let service: AlertSilenceService;
+  let mockDb: ReturnType<typeof createMockDb>;
   const tenantId = 'test-tenant-001';
 
   beforeEach(() => {
-    service = new AlertSilenceService();
+    mockDb = createMockDb();
+    service = new AlertSilenceService(mockDb as any);
   });
 
   // ==================== createSilence ====================
@@ -20,9 +120,7 @@ describe.skip('AlertSilenceService', () => {
         name: 'Maintenance Window',
         description: 'Database upgrade',
         silenceType: 'maintenance',
-        matchers: [
-          { name: 'service', type: 'equal', value: 'postgres-primary' },
-        ],
+        matchers: [{ name: 'service', type: 'equal', value: 'postgres-primary' }],
         endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
       };
 
@@ -39,9 +137,7 @@ describe.skip('AlertSilenceService', () => {
     it('should create a manual silence', async () => {
       const input: CreateSilenceInput = {
         name: 'Known Issue Silence',
-        matchers: [
-          { name: 'alertname', type: 'equal', value: 'HighMemoryUsage' },
-        ],
+        matchers: [{ name: 'alertname', type: 'equal', value: 'HighMemoryUsage' }],
         endsAt: new Date(Date.now() + 60 * 60 * 1000),
       };
 
@@ -52,9 +148,7 @@ describe.skip('AlertSilenceService', () => {
     it('should create a silence with regex matcher', async () => {
       const input: CreateSilenceInput = {
         name: 'Regex Silence',
-        matchers: [
-          { name: 'service', type: 'regex', value: '.*-primary' },
-        ],
+        matchers: [{ name: 'service', type: 'regex', value: '.*-primary' }],
         endsAt: new Date(Date.now() + 60 * 60 * 1000),
       };
 
@@ -70,7 +164,7 @@ describe.skip('AlertSilenceService', () => {
       };
 
       await expect(service.createSilence(tenantId, input)).rejects.toThrow(
-        'Silence requires at least one matcher'
+        'Silence requires at least one matcher',
       );
     });
 
@@ -83,7 +177,7 @@ describe.skip('AlertSilenceService', () => {
       };
 
       await expect(service.createSilence(tenantId, input)).rejects.toThrow(
-        'endsAt must be after startsAt'
+        'endsAt must be after startsAt',
       );
     });
   });

@@ -13,16 +13,14 @@ vi.mock('@/api/client', () => ({
       if (url === '/v1/efficiency/dashboard') {
         return Promise.resolve({
           data: {
-            data: {
-              dashboard: {
-                dora: {
-                  deploymentFrequency: 3.5,
-                },
-                summary: {
-                  totalDeployments: 100,
-                  successfulDeployments: 85,
-                  failedDeployments: 15,
-                },
+            dashboard: {
+              dora: {
+                deploymentFrequency: 3.5,
+              },
+              summary: {
+                totalDeployments: 100,
+                successfulDeployments: 85,
+                failedDeployments: 15,
               },
             },
           },
@@ -30,20 +28,18 @@ vi.mock('@/api/client', () => ({
       }
       if (url === '/v1/alerts') {
         return Promise.resolve({
-          data: {
-            data: [
-              {
-                id: 'alert-1',
-                metric: 'CPU过高',
-                message: '服务器CPU使用率超过90%',
-                status: 'active',
-                created_at: '2026-04-12T10:00:00Z',
-              },
-            ],
-          },
+          data: [
+            {
+              id: 'alert-1',
+              metric: 'CPU过高',
+              message: '服务器CPU使用率超过90%',
+              status: 'active',
+              created_at: '2026-04-12T10:00:00Z',
+            },
+          ],
         });
       }
-      return Promise.resolve({ data: { data: null } });
+      return Promise.resolve({ data: null });
     }),
   },
 }));

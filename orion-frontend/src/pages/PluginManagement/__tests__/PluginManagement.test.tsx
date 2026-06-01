@@ -11,6 +11,89 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PluginManagement from '../index';
 
+// Mock plugin data - defined inside vi.mock factory via vi.hoisted
+const { mockPlugins } = vi.hoisted(() => {
+  const mockPlugins = [
+    {
+      id: 'plugin-1',
+      name: '数据库迁移助手',
+      type: 'CUSTOM_TASK',
+      state: 'ACTIVE',
+      version: '1.0.0',
+      latestVersion: null,
+      category: 'core',
+      author: 'orion',
+      installedAt: '2024-01-01',
+      description: '数据库迁移插件',
+      healthStatus: 'healthy',
+      tags: ['database'],
+      securityLevel: 'MEDIUM',
+      configSchema: {},
+    },
+    {
+      id: 'plugin-2',
+      name: '日志分析插件',
+      type: 'CUSTOM_TASK',
+      state: 'INACTIVE',
+      version: '2.0.0',
+      latestVersion: '2.1.0',
+      category: 'monitoring',
+      author: 'orion',
+      installedAt: '2024-01-02',
+      description: '日志分析',
+      healthStatus: 'warning',
+      tags: ['logging'],
+      securityLevel: 'LOW',
+      configSchema: {},
+    },
+    {
+      id: 'plugin-3',
+      name: '安全审计',
+      type: 'CUSTOM_TASK',
+      state: 'ACTIVE',
+      version: '3.0.0',
+      latestVersion: null,
+      category: 'security',
+      author: 'orion',
+      installedAt: '2024-01-03',
+      description: '安全审计插件',
+      healthStatus: 'healthy',
+      tags: ['security'],
+      securityLevel: 'HIGH',
+      configSchema: {},
+    },
+    {
+      id: 'plugin-4',
+      name: '性能监控',
+      type: 'CUSTOM_TASK',
+      state: 'ACTIVE',
+      version: '4.0.0',
+      latestVersion: null,
+      category: 'monitoring',
+      author: 'orion',
+      installedAt: '2024-01-04',
+      description: '性能监控',
+      healthStatus: 'error',
+      tags: ['monitoring'],
+      securityLevel: 'MEDIUM',
+      configSchema: {},
+    },
+  ];
+  return { mockPlugins };
+});
+
+// Mock @/api/plugins - return { data: array } so component's response.data is the array
+vi.mock('@/api/plugins', () => ({
+  getInstalledPlugins: vi.fn().mockResolvedValue({ data: mockPlugins }),
+  getPlugin: vi.fn().mockResolvedValue({ data: mockPlugins[0] }),
+  configurePlugin: vi.fn().mockResolvedValue({}),
+  activatePlugin: vi.fn().mockResolvedValue({}),
+  deactivatePlugin: vi.fn().mockResolvedValue({}),
+  uninstallPlugin: vi.fn().mockResolvedValue({}),
+  installPlugin: vi.fn().mockResolvedValue({}),
+  executePlugin: vi.fn().mockResolvedValue({}),
+}));
+
 // Mock antd message to avoid console noise
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');
@@ -26,13 +109,13 @@ vi.mock('antd', async () => {
 });
 
 describe('PluginManagement', () => {
-  it('should render plugin management page', () => {
+  it('should render plugin management page', async () => {
     render(
       <MemoryRouter>
         <PluginManagement />
       </MemoryRouter>
     );
-    // Use getAllByTestId since multiple elements may exist
+    // PluginList also renders a div with data-testid="plugin-management-page"
     const pages = screen.getAllByTestId('plugin-management-page');
     expect(pages.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('插件管理')).toBeInTheDocument();
@@ -60,8 +143,9 @@ describe('PluginManagement', () => {
         <PluginManagement />
       </MemoryRouter>
     );
+    // Table component uses data-testid="orion-table"
     await waitFor(() => {
-      expect(screen.getByTestId('plugin-table')).toBeInTheDocument();
+      expect(screen.getByTestId('orion-table')).toBeInTheDocument();
     });
   });
 
@@ -98,7 +182,7 @@ describe('PluginManagement', () => {
       </MemoryRouter>
     );
     await waitFor(() => {
-      expect(screen.getByTestId('plugin-table')).toBeInTheDocument();
+      expect(screen.getByTestId('orion-table')).toBeInTheDocument();
     });
     const searchInput = screen.getByPlaceholderText('搜索插件名称、描述、作者...');
     expect(searchInput).toBeInTheDocument();
@@ -140,10 +224,11 @@ describe('PluginManagement', () => {
     await waitFor(() => {
       expect(screen.getAllByText('配置').length).toBeGreaterThanOrEqual(1);
     });
-    // Each plugin should have configure, toggle, and delete buttons
+    // Each plugin should have configure and delete buttons
     expect(screen.getAllByText('配置').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('删除').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('启用').length).toBeGreaterThanOrEqual(1);
+    // Active plugins show "禁用", inactive show "启用"
     expect(screen.getAllByText('禁用').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('启用').length).toBeGreaterThanOrEqual(1);
   });
 });

@@ -64,13 +64,11 @@ type MockDb = {
 // EscalationConfigService Tests
 // ============================================================================
 
-describe.skip('EscalationConfigService', () => {
+describe('EscalationConfigService', () => {
   let service: EscalationConfigService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(async () => {
@@ -86,7 +84,7 @@ describe.skip('EscalationConfigService', () => {
       service = new EscalationConfigService();
       await service.initialize();
 
-      expect(console.log).toHaveBeenCalledWith(
+      expect(mockLoggerMethods.info).toHaveBeenCalledWith(
         '[EscalationConfig] No DB, using in-memory config'
       );
     });
@@ -98,7 +96,7 @@ describe.skip('EscalationConfigService', () => {
       service = new EscalationConfigService(mockDb as any);
       await service.initialize();
 
-      // initialize calls query twice: CREATE TABLE + loadPolicies
+      // initialize calls query twice: CREATE TABLE + loadPolicies (via repo.findActive)
       expect(mockDb.query).toHaveBeenCalledTimes(2);
       const createSql = mockDb.query.mock.calls[0][0];
       expect(createSql).toContain('CREATE TABLE IF NOT EXISTS escalation_policies');
@@ -112,7 +110,7 @@ describe.skip('EscalationConfigService', () => {
       service = new EscalationConfigService(mockDb as any);
       await service.initialize();
 
-      // Second query is loadPolicies
+      // Second query is loadPolicies via repo.findActive
       const loadSql = mockDb.query.mock.calls[1][0];
       expect(loadSql).toContain('SELECT * FROM escalation_policies WHERE is_active = true');
     });
@@ -124,14 +122,14 @@ describe.skip('EscalationConfigService', () => {
       service = new EscalationConfigService(mockDb as any);
       await service.initialize();
 
-      expect(console.error).toHaveBeenCalled();
+      expect(mockLoggerMethods.error).toHaveBeenCalled();
     });
 
     it('should load policies into cache when DB returns rows', async () => {
       const mockDb: MockDb = {
         query: jest.fn()
-          .mockResolvedValueOnce({ rows: [] })
-          .mockResolvedValueOnce({
+          .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
+          .mockResolvedValueOnce({              // loadPolicies via repo.findActive
             rows: [
               {
                 id: 'policy-1',
@@ -294,7 +292,12 @@ describe.skip('EscalationConfigService', () => {
 
     it('should insert into DB when database is provided', async () => {
       const mockDb: MockDb = {
-        query: jest.fn().mockResolvedValue({ rows: [] }),
+        query: jest.fn().mockImplementation(async (sql: string) => {
+          if (sql.includes('INSERT')) {
+            return { rows: [{ id: 'policy-new' }], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }),
       };
       service = new EscalationConfigService(mockDb as any);
       await service.initialize();

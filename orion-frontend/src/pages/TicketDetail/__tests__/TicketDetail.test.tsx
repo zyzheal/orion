@@ -63,8 +63,10 @@ const mockTicketTKT004 = {
 
 beforeEach(() => {
   vi.mocked(ticketingApi.getTicket).mockResolvedValue({ data: { data: mockTicket } } as any);
-  vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { data: [] } } as any);
-  vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { data: [] } } as any);
+  vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: [] } } as any);
+  vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: [] } } as any);
+  vi.mocked(ticketingApi.getTicketRelations).mockResolvedValue({ data: { items: [] } } as any);
+  vi.mocked(ticketingApi.getTransferHistory).mockResolvedValue({ data: { items: [] } } as any);
   vi.mocked(usersApi.listUsers).mockResolvedValue({ data: { data: [] } } as any);
 });
 
@@ -197,7 +199,7 @@ describe('TicketDetail', () => {
   });
 
   it('should show not found for non-existent ticket', async () => {
-    vi.mocked(ticketingApi.getTicket).mockResolvedValue({ data: { data: null } } as any);
+    vi.mocked(ticketingApi.getTicket).mockResolvedValue({ data: null } as any);
     render(
       <MemoryRouter initialEntries={['/tickets/TKT-999']}>
         <Routes>

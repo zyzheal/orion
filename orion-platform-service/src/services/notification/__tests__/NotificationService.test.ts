@@ -5,7 +5,7 @@
 import { NotificationService, NotificationServiceError } from '../NotificationService';
 import { NotificationRepository, Notification, CreateNotificationInput } from '../NotificationRepository';
 
-describe.skip('NotificationService', () => {
+describe('NotificationService', () => {
   let mockRepository: jest.Mocked<NotificationRepository>;
   let service: NotificationService;
 
@@ -17,6 +17,7 @@ describe.skip('NotificationService', () => {
       markAsSent: jest.fn(),
       markAsRead: jest.fn(),
       getUnreadCount: jest.fn(),
+      count: jest.fn(),
     } as unknown as jest.Mocked<NotificationRepository>;
 
     service = new NotificationService(mockRepository);
@@ -40,7 +41,7 @@ describe.skip('NotificationService', () => {
         read_at: null,
         created_at: new Date(),
       };
-      await mockRepository.create.mockResolvedValue(mockNotification);
+      mockRepository.create.mockResolvedValue(mockNotification);
 
       const result = await service.send(input);
 
@@ -80,20 +81,24 @@ describe.skip('NotificationService', () => {
         { id: 'n1', tenant_id: 't1', user_id: 'u1', type: 'alert', title: 'A', message: 'M', channel: 'in-app', status: 'sent', sent_at: new Date(), read_at: null, created_at: new Date() },
         { id: 'n2', tenant_id: 't1', user_id: 'u1', type: 'info', title: 'B', message: 'M', channel: 'email', status: 'sent', sent_at: new Date(), read_at: null, created_at: new Date() },
       ];
-      await mockRepository.findAll.mockResolvedValue(mockNotifications);
+      mockRepository.count.mockResolvedValue(2);
+      mockRepository.findAll.mockResolvedValue(mockNotifications);
 
       const result = await service.getNotifications('u1', 10);
 
-      expect(result).toEqual(mockNotifications);
-      expect(mockRepository.findAll).toHaveBeenCalledWith({ userId: 'u1', limit: 10 });
+      expect(result.data).toEqual(mockNotifications);
+      expect(result.total).toBe(2);
+      expect(mockRepository.findAll).toHaveBeenCalledWith({ userId: 'u1', limit: 10, offset: 0 });
     });
 
     it('should return empty array when no notifications', async () => {
-      await mockRepository.findAll.mockResolvedValue([]);
+      mockRepository.count.mockResolvedValue(0);
+      mockRepository.findAll.mockResolvedValue([]);
 
       const result = await service.getNotifications('u1');
 
-      expect(result).toEqual([]);
+      expect(result.data).toEqual([]);
+      expect(result.total).toBe(0);
     });
   });
 
@@ -108,8 +113,8 @@ describe.skip('NotificationService', () => {
         status: 'read',
         read_at: new Date(),
       };
-      await mockRepository.findById.mockResolvedValue(existing);
-      await mockRepository.markAsRead.mockResolvedValue(readNotification);
+      mockRepository.findById.mockResolvedValue(existing);
+      mockRepository.markAsRead.mockResolvedValue(readNotification);
 
       const result = await service.markAsRead('n1');
 
@@ -118,7 +123,7 @@ describe.skip('NotificationService', () => {
     });
 
     it('should throw when notification not found', async () => {
-      await mockRepository.findById.mockResolvedValue(null);
+      mockRepository.findById.mockResolvedValue(null);
 
       await expect(service.markAsRead('non-existent')).rejects.toThrow(NotificationServiceError);
       await expect(service.markAsRead('non-existent')).rejects.toThrow('Notification not found');
@@ -127,7 +132,7 @@ describe.skip('NotificationService', () => {
 
   describe('getUnreadCount', () => {
     it('should return unread count', async () => {
-      await mockRepository.getUnreadCount.mockResolvedValue(5);
+      mockRepository.getUnreadCount.mockResolvedValue(5);
 
       const result = await service.getUnreadCount('u1');
 
@@ -136,7 +141,7 @@ describe.skip('NotificationService', () => {
     });
 
     it('should return 0 when no unread notifications', async () => {
-      await mockRepository.getUnreadCount.mockResolvedValue(0);
+      mockRepository.getUnreadCount.mockResolvedValue(0);
 
       const result = await service.getUnreadCount('u1');
 
@@ -146,7 +151,7 @@ describe.skip('NotificationService', () => {
 
   describe('broadcast', () => {
     it('should send notifications to multiple users', async () => {
-      await mockRepository.create.mockResolvedValue({
+      mockRepository.create.mockResolvedValue({
         id: 'n1', tenant_id: 't1', user_id: 'u1', type: 'alert', title: 'Broadcast', message: 'Hello',
         channel: 'in-app', status: 'pending', sent_at: null, read_at: null, created_at: new Date(),
       });

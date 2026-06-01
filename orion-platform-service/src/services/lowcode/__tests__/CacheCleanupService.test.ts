@@ -1,638 +1,268 @@
 /**
- * Test skeleton for lowcode service
- * Auto-generated - implement actual tests
+ * CacheCleanupService - 工作流缓存清理服务测试
+ *
+ * 覆盖：constructor, start/stop lifecycle, runIncrementalCleanup, runFullCleanup,
+ *        getStatus, triggerFullCleanup, error handling
  */
 
 import { CacheCleanupService } from '../CacheCleanupService';
-import { TaskTimeoutChecker } from '../TaskTimeoutChecker';
-import { TriggerManager } from '../TriggerManager';
-import { WorkflowDependencyAnalyzer } from '../WorkflowDependencyAnalyzer';
-import { WorkflowEngine } from '../WorkflowEngine';
-import { WorkflowInstanceManager } from '../WorkflowInstance';
-import { WorkflowDefinitionRepository } from '../WorkflowRepository';
-import { WorkflowInstanceRepository } from '../WorkflowRepository';
-import { WorkflowScheduler } from '../WorkflowScheduler';
 
+// ---- mocks ----
+
+const mockQuery = jest.fn();
+const mockTimerRepoCleanup = jest.fn();
+const mockInstanceCleanup = jest.fn();
+
+jest.mock('../../../repositories/WorkflowTimerRepository', () => ({
+  WorkflowTimerRepository: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('../../../repositories/WorkflowTaskRepository', () => ({
+  WorkflowTaskRepository: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('../WorkflowInstance', () => ({
+  WorkflowInstanceManager: jest.fn().mockImplementation(() => ({
+    repository: {
+      cleanupExpiredInstances: mockInstanceCleanup,
+    },
+  })),
+}));
+
+// ---- tests ----
 
 describe('CacheCleanupService', () => {
-  let cacheCleanupService: CacheCleanupService;
+  let service: CacheCleanupService;
+  let mockPool: any;
 
   beforeEach(() => {
-    cacheCleanupService = new CacheCleanupService();
+    jest.clearAllMocks();
+    mockInstanceCleanup.mockResolvedValue(0);
+
+    mockPool = {
+      query: mockQuery.mockResolvedValue({ rowCount: 0 }),
+    };
+
+    service = new CacheCleanupService(mockPool);
   });
 
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(cacheCleanupService).toBeDefined();
-    });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-    describe('start', () => {
-      it('should start successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
+  // ========== constructor ==========
+
+  describe('constructor', () => {
+    it('should create an instance', () => {
+      expect(service).toBeDefined();
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
+    it('should accept custom config', () => {
+      const custom = new CacheCleanupService(mockPool, {
+        incrementalIntervalMs: 30 * 60 * 1000,
+        timerRetentionDays: 7,
+        taskRetentionDays: 30,
+        instanceRetentionDays: 60,
       });
-    });
-
-    describe('stop', () => {
-      it('should stop successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
-    });
-
-    describe('clearInterval', () => {
-      it('should clearInterval successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
-    });
-
-    describe('runIncrementalCleanup', () => {
-      it('should runIncrementalCleanup successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
-    });
-
-    describe('runFullCleanup', () => {
-      it('should runFullCleanup successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
-    });
-
-    describe('getStatus', () => {
-      it('should getStatus successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
-    });
-
-    describe('triggerFullCleanup', () => {
-      it('should triggerFullCleanup successfully', async () => {
-        // TODO: implement test
-        expect(cacheCleanupService).toBeDefined();
-      });
-    });
-});
-
-describe('TaskTimeoutChecker', () => {
-  let taskTimeoutChecker: TaskTimeoutChecker;
-
-  beforeEach(() => {
-    taskTimeoutChecker = new TaskTimeoutChecker();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(taskTimeoutChecker).toBeDefined();
+      expect(custom).toBeDefined();
     });
   });
 
-    describe('start', () => {
-      it('should start successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
+  // ========== start / stop lifecycle ==========
+
+  describe('start', () => {
+    it('should start and set isRunning to true', async () => {
+      await service.start();
+
+      const status = service.getStatus();
+      expect(status.isRunning).toBe(true);
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
+    it('should run full cleanup on start', async () => {
+      await service.start();
+
+      // Full cleanup queries timers, tasks, and instances
+      expect(mockQuery).toHaveBeenCalled();
     });
 
-    describe('stop', () => {
-      it('should stop successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
-    });
+    it('should not start twice', async () => {
+      await service.start();
+      await service.start();
 
-    describe('clearInterval', () => {
-      it('should clearInterval successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
-    });
-
-    describe('checkTimedOutTasks', () => {
-      it('should checkTimedOutTasks successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
-    });
-
-    describe('for', () => {
-      it('should for successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
-    });
-
-    describe('getTimedOutTasks', () => {
-      it('should getTimedOutTasks successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
-    });
-
-    describe('switch', () => {
-      it('should switch successfully', async () => {
-        // TODO: implement test
-        expect(taskTimeoutChecker).toBeDefined();
-      });
-    });
-});
-
-describe('TriggerManager', () => {
-  let triggerManager: TriggerManager;
-
-  beforeEach(() => {
-    triggerManager = new TriggerManager();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(triggerManager).toBeDefined();
+      expect(service.getStatus().isRunning).toBe(true);
     });
   });
 
-    describe('initialize', () => {
-      it('should initialize successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
+  describe('stop', () => {
+    it('should stop and set isRunning to false', async () => {
+      await service.start();
+      await service.stop();
+
+      expect(service.getStatus().isRunning).toBe(false);
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
+    it('should do nothing if not running', async () => {
+      await service.stop();
 
-    describe('for', () => {
-      it('should for successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
-
-    describe('async', () => {
-      it('should async successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
-
-    describe('switch', () => {
-      it('should switch successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
-
-    describe('createTrigger', () => {
-      it('should createTrigger successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
-
-    describe('updateTrigger', () => {
-      it('should updateTrigger successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
-
-    describe('deleteTrigger', () => {
-      it('should deleteTrigger successfully', async () => {
-        // TODO: implement test
-        expect(triggerManager).toBeDefined();
-      });
-    });
-});
-
-describe('WorkflowDependencyAnalyzer', () => {
-  let workflowDependencyAnalyzer: WorkflowDependencyAnalyzer;
-
-  beforeEach(() => {
-    workflowDependencyAnalyzer = new WorkflowDependencyAnalyzer();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(workflowDependencyAnalyzer).toBeDefined();
+      expect(service.getStatus().isRunning).toBe(false);
     });
   });
 
-    describe('buildDependencyGraph', () => {
-      it('should buildDependencyGraph successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
+  // ========== runIncrementalCleanup ==========
+
+  describe('runIncrementalCleanup', () => {
+    it('should clean up expired timers and tasks', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 5 });
+
+      const results = await service.runIncrementalCleanup();
+
+      // Should have 2 results: timers + tasks (incremental does NOT clean instances)
+      expect(results).toHaveLength(2);
+      expect(results[0].type).toBe('expired_timers');
+      expect(results[1].type).toBe('expired_tasks');
     });
 
-    describe('for', () => {
-      it('should for successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
+    it('should return zero counts when nothing to clean', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 0 });
+
+      const results = await service.runIncrementalCleanup();
+
+      expect(results[0].deletedCount).toBe(0);
+      expect(results[1].deletedCount).toBe(0);
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
+    it('should handle errors gracefully', async () => {
+      mockQuery.mockRejectedValue(new Error('db error'));
+
+      const results = await service.runIncrementalCleanup();
+
+      // Errors are caught per-cleanup, returning 0 deleted
+      expect(results[0].deletedCount).toBe(0);
     });
 
-    describe('dfs', () => {
-      it('should dfs successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
-    });
+    it('should include duration in results', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 1 });
 
-    describe('analyze', () => {
-      it('should analyze successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
-    });
+      const results = await service.runIncrementalCleanup();
 
-    describe('checkDefinition', () => {
-      it('should checkDefinition successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
-    });
-
-    describe('getVisualizationData', () => {
-      it('should getVisualizationData successfully', async () => {
-        // TODO: implement test
-        expect(workflowDependencyAnalyzer).toBeDefined();
-      });
-    });
-});
-
-describe('WorkflowEngine', () => {
-  let workflowEngine: WorkflowEngine;
-
-  beforeEach(() => {
-    workflowEngine = new WorkflowEngine();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(workflowEngine).toBeDefined();
+      expect(results[0].durationMs).toBeGreaterThanOrEqual(0);
+      expect(results[1].durationMs).toBeGreaterThanOrEqual(0);
     });
   });
 
-    describe('createInstance', () => {
-      it('should createInstance successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
+  // ========== runFullCleanup ==========
+
+  describe('runFullCleanup', () => {
+    it('should clean up timers, tasks, and instances', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 3 });
+      mockInstanceCleanup.mockResolvedValue(10);
+
+      const results = await service.runFullCleanup();
+
+      // Should have 3 results: timers + tasks + instances
+      expect(results).toHaveLength(3);
+      expect(results[0].type).toBe('expired_timers');
+      expect(results[1].type).toBe('expired_tasks');
+      expect(results[2].type).toBe('expired_instances');
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
+    it('should handle instance cleanup errors', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 1 });
+      mockInstanceCleanup.mockRejectedValue(new Error('instance error'));
+
+      const results = await service.runFullCleanup();
+
+      expect(results[2].type).toBe('expired_instances');
+      expect(results[2].deletedCount).toBe(0);
     });
 
-    describe('execute', () => {
-      it('should execute successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
-    });
+    it('should use retention days from config for queries', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 0 });
+      mockInstanceCleanup.mockResolvedValue(0);
 
-    describe('while', () => {
-      it('should while successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
-    });
+      await service.runFullCleanup();
 
-    describe('suspend', () => {
-      it('should suspend successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
-    });
-
-    describe('resume', () => {
-      it('should resume successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
-    });
-
-    describe('resumeFromEvent', () => {
-      it('should resumeFromEvent successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
-    });
-
-    describe('terminate', () => {
-      it('should terminate successfully', async () => {
-        // TODO: implement test
-        expect(workflowEngine).toBeDefined();
-      });
-    });
-});
-
-describe('WorkflowInstanceManager', () => {
-  let workflowInstanceManager: WorkflowInstanceManager;
-
-  beforeEach(() => {
-    workflowInstanceManager = new WorkflowInstanceManager();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(workflowInstanceManager).toBeDefined();
+      // Verify the query was called (dates are computed based on config)
+      expect(mockQuery).toHaveBeenCalled();
     });
   });
 
-    describe('create', () => {
-      it('should create successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
+  // ========== getStatus ==========
+
+  describe('getStatus', () => {
+    it('should return current status', () => {
+      const status = service.getStatus();
+
+      expect(status).toHaveProperty('isRunning');
+      expect(status).toHaveProperty('config');
+      expect(status.isRunning).toBe(false);
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
+    it('should reflect running state after start', async () => {
+      await service.start();
 
-    describe('start', () => {
-      it('should start successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
-
-    describe('return', () => {
-      it('should return successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
-
-    describe('suspend', () => {
-      it('should suspend successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
-
-    describe('resume', () => {
-      it('should resume successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
-
-    describe('terminate', () => {
-      it('should terminate successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
-
-    describe('complete', () => {
-      it('should complete successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceManager).toBeDefined();
-      });
-    });
-});
-
-describe('WorkflowDefinitionRepository', () => {
-  let workflowDefinitionRepository: WorkflowDefinitionRepository;
-
-  beforeEach(() => {
-    workflowDefinitionRepository = new WorkflowDefinitionRepository();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(workflowDefinitionRepository).toBeDefined();
+      expect(service.getStatus().isRunning).toBe(true);
     });
   });
 
-    describe('create', () => {
-      it('should create successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
+  // ========== triggerFullCleanup ==========
 
-    describe('findById', () => {
-      it('should findById successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
+  describe('triggerFullCleanup', () => {
+    it('should manually trigger full cleanup', async () => {
+      mockQuery.mockResolvedValue({ rowCount: 2 });
+      mockInstanceCleanup.mockResolvedValue(1);
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
+      const results = await service.triggerFullCleanup();
 
-    describe('findByIds', () => {
-      it('should findByIds successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
-
-    describe('for', () => {
-      it('should for successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
-
-    describe('findAll', () => {
-      it('should findAll successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
-
-    describe('findByTenant', () => {
-      it('should findByTenant successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
-
-    describe('update', () => {
-      it('should update successfully', async () => {
-        // TODO: implement test
-        expect(workflowDefinitionRepository).toBeDefined();
-      });
-    });
-});
-
-describe('WorkflowInstanceRepository', () => {
-  let workflowInstanceRepository: WorkflowInstanceRepository;
-
-  beforeEach(() => {
-    workflowInstanceRepository = new WorkflowInstanceRepository();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(workflowInstanceRepository).toBeDefined();
+      expect(results).toHaveLength(3);
+      expect(results[0].deletedCount).toBe(2);
+      expect(results[2].deletedCount).toBe(1);
     });
   });
 
-    describe('create', () => {
-      it('should create successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
+  // ========== error handling in cleanup methods ==========
+
+  describe('error handling', () => {
+    it('should handle timer cleanup query failure', async () => {
+      mockQuery.mockRejectedValueOnce(new Error('timer query failed'));
+      mockQuery.mockResolvedValue({ rowCount: 0 });
+
+      const results = await service.runIncrementalCleanup();
+
+      expect(results[0].deletedCount).toBe(0);
+      expect(results[0].type).toBe('expired_timers');
     });
 
-    describe('findById', () => {
-      it('should findById successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
+    it('should handle task cleanup query failure', async () => {
+      mockQuery.mockResolvedValueOnce({ rowCount: 1 }); // timers ok
+      mockQuery.mockRejectedValueOnce(new Error('task query failed')); // tasks fail
+
+      const results = await service.runIncrementalCleanup();
+
+      expect(results[1].deletedCount).toBe(0);
+      expect(results[1].type).toBe('expired_tasks');
     });
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
-    });
+    it('should handle null rowCount gracefully', async () => {
+      mockQuery.mockResolvedValue({ rowCount: null });
 
-    describe('findByWorkflowId', () => {
-      it('should findByWorkflowId successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
-    });
+      const results = await service.runIncrementalCleanup();
 
-    describe('update', () => {
-      it('should update successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
-    });
-
-    describe('addHistory', () => {
-      it('should addHistory successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
-    });
-
-    describe('updateStatus', () => {
-      it('should updateStatus successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
-    });
-
-    describe('cleanupExpiredInstances', () => {
-      it('should cleanupExpiredInstances successfully', async () => {
-        // TODO: implement test
-        expect(workflowInstanceRepository).toBeDefined();
-      });
-    });
-});
-
-describe('WorkflowScheduler', () => {
-  let workflowScheduler: WorkflowScheduler;
-
-  beforeEach(() => {
-    workflowScheduler = new WorkflowScheduler();
-  });
-
-  describe('initialization', () => {
-    it('should be instantiated', () => {
-      expect(workflowScheduler).toBeDefined();
+      expect(results[0].deletedCount).toBe(0);
     });
   });
 
-    describe('start', () => {
-      it('should start successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
+  // ========== config defaults ==========
 
-    describe('if', () => {
-      it('should if successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
+  describe('config defaults', () => {
+    it('should use default config when none provided', () => {
+      const status = service.getStatus();
+      const config = status.config;
 
-    describe('for', () => {
-      it('should for successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
+      expect(config.incrementalIntervalMs).toBe(60 * 60 * 1000); // 1 hour
+      expect(config.timerRetentionDays).toBe(30);
+      expect(config.taskRetentionDays).toBe(90);
+      expect(config.instanceRetentionDays).toBe(90);
     });
-
-    describe('stop', () => {
-      it('should stop successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
-
-    describe('clearInterval', () => {
-      it('should clearInterval successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
-
-    describe('registerCronTrigger', () => {
-      it('should registerCronTrigger successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
-
-    describe('async', () => {
-      it('should async successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
-
-    describe('reload', () => {
-      it('should reload successfully', async () => {
-        // TODO: implement test
-        expect(workflowScheduler).toBeDefined();
-      });
-    });
+  });
 });

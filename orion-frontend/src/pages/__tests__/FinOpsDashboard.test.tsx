@@ -7,6 +7,12 @@ import { BrowserRouter } from 'react-router-dom';
 import { ChartProvider } from '@/components/charts';
 import FinOpsDashboard from '@/pages/FinOpsDashboard';
 
+vi.mock('@orion-mf/core', () => ({
+  EventBus: class { on = vi.fn(); off = vi.fn(); emit = vi.fn(); },
+  eventBus: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
+  loadSubApp: vi.fn(), getSubApp: vi.fn(), getPreloadStrategy: vi.fn(),
+}));
+
 vi.mock('@/api/finops', async () => {
   const actual = await vi.importActual<typeof import('@/api/finops')>('@/api/finops');
   return {

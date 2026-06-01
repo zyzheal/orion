@@ -4,22 +4,62 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-describe('microfront/config', () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
+const mockApps = [
+  {
+    key: 'dba',
+    name: '数据库管理',
+    routes: ['/dba'],
+    entry_dev: 'http://localhost:3002',
+    entry_prod: 'https://dba.orion.io',
+    css_isolation: 'shadow-dom',
+    status: 'enabled',
+    keep_alive: true,
+    preload: false,
+  },
+  {
+    key: 'knowledge',
+    name: '知识库',
+    routes: ['/knowledge'],
+    entry_dev: 'http://localhost:3003',
+    entry_prod: 'https://knowledge.orion.io',
+    css_isolation: 'shadow-dom',
+    status: 'enabled',
+    keep_alive: true,
+    preload: false,
+  },
+  {
+    key: 'visor',
+    name: '运维可视化',
+    routes: ['/visor'],
+    entry_dev: 'http://localhost:3004',
+    entry_prod: 'https://visor.orion.io',
+    css_isolation: 'shadow-dom',
+    status: 'enabled',
+    keep_alive: true,
+    preload: false,
+  },
+];
 
+vi.mock('@/stores/subappStore', () => ({
+  useSubAppStore: {
+    getState: vi.fn(() => ({
+      apps: mockApps,
+    })),
+  },
+}));
+
+describe('microfront/config', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   describe('re-exports from apps', () => {
-    it('should re-export subAppConfigs', async () => {
+    it('should re-export subAppConfigs as empty array (backward compat)', async () => {
       const configModule = await import('../config');
-      // config.ts exports from apps.ts, so subAppConfigs should be available
       expect(configModule.subAppConfigs).toBeDefined();
       expect(Array.isArray(configModule.subAppConfigs)).toBe(true);
-      expect(configModule.subAppConfigs.length).toBe(3);
+      // subAppConfigs is a static empty array for backward compatibility
+      // actual data comes from getSubAppConfigs() which reads from store
     });
 
     it('should re-export getSubAppConfig', async () => {
@@ -43,18 +83,20 @@ describe('microfront/config', () => {
     });
   });
 
-  describe('config values', () => {
-    it('should contain dba, knowledge, visor configs', async () => {
-      const { subAppConfigs } = await import('../config');
-      const keys = subAppConfigs.map((c) => c.key);
+  describe('config values from store', () => {
+    it('should contain dba, knowledge, visor configs from store', async () => {
+      const { getEnabledApps } = await import('../config');
+      const configs = getEnabledApps();
+      const keys = configs.map((c) => c.key);
       expect(keys).toContain('dba');
       expect(keys).toContain('knowledge');
       expect(keys).toContain('visor');
     });
 
     it('each config should have required fields', async () => {
-      const { subAppConfigs } = await import('../config');
-      subAppConfigs.forEach((config) => {
+      const { getEnabledApps } = await import('../config');
+      const configs = getEnabledApps();
+      configs.forEach((config) => {
         expect(config).toHaveProperty('name');
         expect(config).toHaveProperty('key');
         expect(config).toHaveProperty('path');
@@ -65,15 +107,17 @@ describe('microfront/config', () => {
     });
 
     it('should have keepAlive enabled for all apps', async () => {
-      const { subAppConfigs } = await import('../config');
-      subAppConfigs.forEach((config) => {
+      const { getEnabledApps } = await import('../config');
+      const configs = getEnabledApps();
+      configs.forEach((config) => {
         expect(config.keepAlive).toBe(true);
       });
     });
 
     it('should have preload disabled for all apps', async () => {
-      const { subAppConfigs } = await import('../config');
-      subAppConfigs.forEach((config) => {
+      const { getEnabledApps } = await import('../config');
+      const configs = getEnabledApps();
+      configs.forEach((config) => {
         expect(config.preload).toBe(false);
       });
     });

@@ -17,38 +17,91 @@ jest.mock('@kubernetes/client-node', () => ({
   CoreV1Api: jest.fn(),
 }));
 
-// Mock DatabasePool for testing
-const createMockDbPool = () => ({
-  query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
-    // Handle INSERT RETURNING
-    if (sql.includes('INSERT') && sql.includes('RETURNING')) {
-      return {
-        rows: [{
-          id: params?.[0] || 'key-1',
-          key_id: params?.[1] || 'jwt_key_1_abc',
-          key_hash: params?.[2] || 'hash',
-          key_strength: params?.[3] || '256-bit',
-          status: params?.[4] || 'pending',
-          created_at: new Date(),
-          activated_at: null,
-          expires_at: null,
-        }],
-        rowCount: 1,
-      };
-    }
-    // Return empty result for most queries
-    return { rows: [], rowCount: 0 };
-  }),
-  connect: jest.fn(),
-  transaction: jest.fn(),
-  checkHealth: jest.fn().mockResolvedValue({ status: 'up', latency: 1 }),
-  close: jest.fn(),
-  isHealthy: jest.fn().mockReturnValue(true),
-  getPoolSize: jest.fn().mockReturnValue(10),
-  getIdleCount: jest.fn().mockReturnValue(5),
-});
+// Helper to parse $N param references from SQL
+function extractParamValue(sql: string, paramName: string, params: any[]): any {
+  const match = sql.match(new RegExp(`(\\w+)\\s*=\\s*\\$${paramName}`));
+  if (!match) return undefined;
+  const idx = parseInt(paramName, 10) - 1;
+  return params[idx];
+}
 
-describe.skip('JwtKeyRotationService', () => {
+// Stateful mock db for JwtKeyRotationRepository queries
+let keyStore: Map<string, any>;
+
+function createMockDbPool() {
+  keyStore = new Map();
+  return {
+    query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      // INSERT ... RETURNING *
+      if (sql.includes('INSERT INTO jwt_key_rotation')) {
+        const colsMatch = sql.match(/\(([^)]+)\)/);
+        const cols = colsMatch ? colsMatch[1].split(', ').map((c) => c.trim()) : [];
+        const row: any = { id: keyStore.size + 1 };
+        cols.forEach((col, i) => {
+          row[col] = params?.[i];
+        });
+        row.created_at = new Date();
+        row.updated_at = new Date();
+        keyStore.set(row.key_id, row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // UPDATE ... WHERE key_id = $N RETURNING *
+      if (sql.includes('UPDATE jwt_key_rotation')) {
+        // Parse WHERE key_id = $N
+        const whereMatch = sql.match(/WHERE key_id = \$(\d+)/);
+        const keyIdIdx = whereMatch ? parseInt(whereMatch[1], 10) - 1 : params!.length - 1;
+        const keyId = params?.[keyIdIdx];
+        const existing = keyStore.get(keyId);
+        if (!existing) return { rows: [], rowCount: 0 };
+        // Parse SET clauses
+        const setMatch = sql.match(/SET (.+?) WHERE/);
+        if (setMatch) {
+          const assignments = setMatch[1].split(', ');
+          for (const assignment of assignments) {
+            const parts = assignment.split(' = ');
+            const col = parts[0].trim();
+            const paramRef = parts[1].trim();
+            const paramMatch = paramRef.match(/\$(\d+)/);
+            if (paramMatch) {
+              const paramIdx = parseInt(paramMatch[1], 10) - 1;
+              existing[col] = params?.[paramIdx];
+            }
+          }
+        }
+        existing.updated_at = new Date();
+        keyStore.set(keyId, existing);
+        return { rows: [existing], rowCount: 1 };
+      }
+      // SELECT ... WHERE status = ANY($1)
+      if (sql.includes('status = ANY')) {
+        const statuses = params?.[0] || [];
+        const rows = Array.from(keyStore.values()).filter((r) => statuses.includes(r.status));
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE key_id = $1
+      if (sql.includes('WHERE key_id = $1')) {
+        const keyId = params?.[0];
+        const row = keyStore.get(keyId);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // SELECT ... WHERE status = 'active'
+      if (sql.includes("WHERE status = 'active'")) {
+        const rows = Array.from(keyStore.values()).filter((r) => r.status === 'active');
+        return { rows, rowCount: rows.length };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+    connect: jest.fn(),
+    transaction: jest.fn(),
+    checkHealth: jest.fn().mockResolvedValue({ status: 'up', latency: 1 }),
+    close: jest.fn(),
+    isHealthy: jest.fn().mockReturnValue(true),
+    getPoolSize: jest.fn().mockReturnValue(10),
+    getIdleCount: jest.fn().mockReturnValue(5),
+  };
+}
+
+describe('JwtKeyRotationService', () => {
   let service: JwtKeyRotationService;
   let mockDbPool: ReturnType<typeof createMockDbPool>;
 
@@ -126,8 +179,8 @@ describe.skip('JwtKeyRotationService', () => {
       // First key should now be expiring
       const verificationKeys = service.getVerificationKeys();
       expect(verificationKeys).toHaveLength(2);
-      expect(verificationKeys.find(k => k.keyId === firstKey?.keyId)?.status).toBe('expiring');
-      expect(verificationKeys.find(k => k.keyId === newKey.keyId)?.status).toBe('active');
+      expect(verificationKeys.find((k) => k.keyId === firstKey?.keyId)?.status).toBe('expiring');
+      expect(verificationKeys.find((k) => k.keyId === newKey.keyId)?.status).toBe('active');
     });
 
     it('should throw error for non-existent key', async () => {
@@ -156,8 +209,8 @@ describe.skip('JwtKeyRotationService', () => {
 
       const keys = service.getVerificationKeys();
       expect(keys).toHaveLength(2);
-      expect(keys.some(k => k.status === 'active')).toBe(true);
-      expect(keys.some(k => k.status === 'expiring')).toBe(true);
+      expect(keys.some((k) => k.status === 'active')).toBe(true);
+      expect(keys.some((k) => k.status === 'expiring')).toBe(true);
     });
   });
 
@@ -209,7 +262,7 @@ describe.skip('JwtKeyRotationService', () => {
 
       // Previous key should be expiring
       const keys = service.getVerificationKeys();
-      const expiringKey = keys.find(k => k.keyId === key.keyId);
+      const expiringKey = keys.find((k) => k.keyId === key.keyId);
       expect(expiringKey?.status).toBe('expiring');
     });
   });
@@ -226,7 +279,7 @@ describe.skip('JwtKeyRotationService', () => {
         expect.objectContaining({
           keyId: key.keyId,
           status: 'active',
-        })
+        }),
       );
     });
 
@@ -281,7 +334,7 @@ describe.skip('JwtKeyRotationService', () => {
       await service.activateKey(newKey.keyId);
 
       const keys = service.getVerificationKeys();
-      const expiringKey = keys.find(k => k.keyId === firstKey?.keyId);
+      const expiringKey = keys.find((k) => k.keyId === firstKey?.keyId);
 
       // Expiring key should have expiresAt set
       expect(expiringKey?.expiresAt).toBeDefined();

@@ -8,7 +8,7 @@
 import { PluginRegistry } from '../PluginRegistry';
 import { PluginManifest, PluginStatus } from '../types';
 
-describe.skip('PluginRegistry', () => {
+describe('PluginRegistry', () => {
   let registry: PluginRegistry;
 
   const createManifest = (overrides: Partial<PluginManifest> = {}): PluginManifest => ({
@@ -197,12 +197,12 @@ describe.skip('PluginRegistry', () => {
     });
 
     it('should merge new config with existing', async () => {
-      const result = registry.updateConfig('test-plugin', { newKey: 'newValue' });
+      const result = await registry.updateConfig('test-plugin', { newKey: 'newValue' });
       expect(result!.config).toEqual({ existing: 'value', newKey: 'newValue' });
     });
 
     it('should return undefined for unknown plugin', async () => {
-      const result = registry.updateConfig('unknown', { key: 'value' });
+      const result = await registry.updateConfig('unknown', { key: 'value' });
       expect(result).toBeUndefined();
     });
   });
@@ -213,13 +213,13 @@ describe.skip('PluginRegistry', () => {
     });
 
     it('should remove a plugin', async () => {
-      const result = registry.remove('test-plugin');
+      const result = await registry.remove('test-plugin');
       expect(result).toBe(true);
       expect(registry.getPlugin('test-plugin')).toBeUndefined();
     });
 
     it('should return false for unknown plugin', async () => {
-      const result = registry.remove('unknown');
+      const result = await registry.remove('unknown');
       expect(result).toBe(false);
     });
   });
@@ -252,7 +252,7 @@ describe.skip('PluginRegistry', () => {
 
     it('should decrease after removal', async () => {
       await registry.register(createManifest({ name: 'a' }));
-      registry.remove('a');
+      await registry.remove('a');
 
       expect(registry.getPluginCount()).toBe(0);
     });
