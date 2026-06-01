@@ -744,7 +744,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Artifact Operations ====================
 
   // ==================== Digital Twin ====================
-  await registerWithRoleGuard(app, digitalTwinRoutes, '/digital-twins');
+  await registerWithRoleGuard(app, digitalTwinRoutes, '/digital-twins', { database: options.database });
 
   // ==================== API Governance ====================
   await registerWithRoleGuard(app, apiGovernanceRoutes, '/api-governance');
