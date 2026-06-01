@@ -2,6 +2,15 @@ import Fastify from 'fastify';
 import { FastifyInstance } from 'fastify';
 import canaryAnalysisRoutes from '../canary-analysis-routes';
 
+jest.mock('../../middleware/authMiddleware', () => ({
+  authenticateUser: async (req: any, _reply: any) => {
+    req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'], tenantId: '1' };
+  },
+}));
+jest.mock('../../middleware/requirePermission', () => ({
+  requirePermission: () => async (_req: any, _reply: any) => {},
+}));
+
 describe('Canary Analysis Metric Discovery & Model Retraining', () => {
   let app: FastifyInstance;
 

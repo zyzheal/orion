@@ -2,6 +2,15 @@ import Fastify from 'fastify';
 import { FastifyInstance } from 'fastify';
 import sbomRoutes from '../sbom-routes';
 
+jest.mock('../../middleware/authMiddleware', () => ({
+  authenticateUser: async (req: any, _reply: any) => {
+    req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'], tenantId: '1' };
+  },
+}));
+jest.mock('../../middleware/requirePermission', () => ({
+  requirePermission: () => async (_req: any, _reply: any) => {},
+}));
+
 describe('SBOM Compliance & Provenance Endpoints', () => {
   let app: FastifyInstance;
 

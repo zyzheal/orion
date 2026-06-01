@@ -19,7 +19,8 @@ class MockPool {
     // Mock flow config queries
     if (text.includes('approval_flow_configs')) {
       if (text.includes('INSERT INTO')) {
-        return { rows: [{ id: uuidv4() }], rowCount: 1 };
+        const id = uuidv4();
+        return { rows: [{ id, flow_id: params?.[2] || 'new-flow', tenant_id: params?.[1] || 'default', name: params?.[3] || 'New Flow', description: null, enabled: true, nodes: '[]', version: 1, created_at: new Date(), updated_at: new Date() }], rowCount: 1 };
       }
       if (text.includes('SELECT') && text.includes('WHERE flow_id')) {
         return { rows: [], rowCount: null };

@@ -22,7 +22,7 @@ describe('PluginRegistry', () => {
     ...overrides,
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     registry = new PluginRegistry();
   });
 
@@ -110,7 +110,7 @@ describe('PluginRegistry', () => {
   });
 
   describe('getPlugin', () => {
-    it('should return undefined for unknown plugin', () => {
+    it('should return undefined for unknown plugin', async () => {
       const result = registry.getPlugin('unknown');
       expect(result).toBeUndefined();
     });
@@ -132,31 +132,31 @@ describe('PluginRegistry', () => {
       await registry.register(createManifest({ name: 'plugin-c', tags: ['security', 'deploy'] }));
     });
 
-    it('should return all plugins by default', () => {
+    it('should return all plugins by default', async () => {
       const plugins = registry.listPlugins();
       expect(plugins.length).toBe(3);
     });
 
     it('should filter by status', async () => {
-      registry.updateStatus('plugin-a', 'enabled');
-      registry.updateStatus('plugin-b', 'disabled');
+      await registry.updateStatus('plugin-a', 'enabled');
+      await registry.updateStatus('plugin-b', 'disabled');
 
       const enabled = registry.listPlugins({ statusFilter: 'enabled' as PluginStatus });
       expect(enabled.length).toBe(1);
       expect(enabled[0].manifest.name).toBe('plugin-a');
     });
 
-    it('should filter by capability', () => {
+    it('should filter by capability', async () => {
       const plugins = registry.listPlugins({ capabilityFilter: 'custom' });
       expect(plugins.length).toBe(3);
     });
 
-    it('should filter by tags', () => {
+    it('should filter by tags', async () => {
       const plugins = registry.listPlugins({ tagFilter: ['security'] });
       expect(plugins.length).toBe(2);
     });
 
-    it('should return empty array for non-matching filter', () => {
+    it('should return empty array for non-matching filter', async () => {
       const plugins = registry.listPlugins({ tagFilter: ['nonexistent'] });
       expect(plugins.length).toBe(0);
     });
@@ -167,26 +167,26 @@ describe('PluginRegistry', () => {
       await registry.register(createManifest());
     });
 
-    it('should update plugin status', () => {
-      const result = registry.updateStatus('test-plugin', 'enabled');
+    it('should update plugin status', async () => {
+      const result = await registry.updateStatus('test-plugin', 'enabled');
       expect(result).toBeDefined();
       expect(result!.status).toBe('enabled');
     });
 
-    it('should set enabledDate when enabling', () => {
-      registry.updateStatus('test-plugin', 'enabled');
+    it('should set enabledDate when enabling', async () => {
+      await registry.updateStatus('test-plugin', 'enabled');
       const plugin = registry.getPlugin('test-plugin');
       expect(plugin!.enabledDate).toBeInstanceOf(Date);
     });
 
-    it('should set error message when status is error', () => {
-      registry.updateStatus('test-plugin', 'error', 'Something went wrong');
+    it('should set error message when status is error', async () => {
+      await registry.updateStatus('test-plugin', 'error', 'Something went wrong');
       const plugin = registry.getPlugin('test-plugin');
       expect(plugin!.error).toBe('Something went wrong');
     });
 
-    it('should return undefined for unknown plugin', () => {
-      const result = registry.updateStatus('unknown', 'enabled');
+    it('should return undefined for unknown plugin', async () => {
+      const result = await registry.updateStatus('unknown', 'enabled');
       expect(result).toBeUndefined();
     });
   });
@@ -196,12 +196,12 @@ describe('PluginRegistry', () => {
       await registry.register(createManifest(), { existing: 'value' });
     });
 
-    it('should merge new config with existing', () => {
+    it('should merge new config with existing', async () => {
       const result = registry.updateConfig('test-plugin', { newKey: 'newValue' });
       expect(result!.config).toEqual({ existing: 'value', newKey: 'newValue' });
     });
 
-    it('should return undefined for unknown plugin', () => {
+    it('should return undefined for unknown plugin', async () => {
       const result = registry.updateConfig('unknown', { key: 'value' });
       expect(result).toBeUndefined();
     });
@@ -212,13 +212,13 @@ describe('PluginRegistry', () => {
       await registry.register(createManifest());
     });
 
-    it('should remove a plugin', () => {
+    it('should remove a plugin', async () => {
       const result = registry.remove('test-plugin');
       expect(result).toBe(true);
       expect(registry.getPlugin('test-plugin')).toBeUndefined();
     });
 
-    it('should return false for unknown plugin', () => {
+    it('should return false for unknown plugin', async () => {
       const result = registry.remove('unknown');
       expect(result).toBe(false);
     });
@@ -229,17 +229,17 @@ describe('PluginRegistry', () => {
       await registry.register(createManifest());
     });
 
-    it('should return true for registered plugin', () => {
+    it('should return true for registered plugin', async () => {
       expect(registry.hasPlugin('test-plugin')).toBe(true);
     });
 
-    it('should return false for unknown plugin', () => {
+    it('should return false for unknown plugin', async () => {
       expect(registry.hasPlugin('unknown')).toBe(false);
     });
   });
 
   describe('getPluginCount', () => {
-    it('should return 0 when empty', () => {
+    it('should return 0 when empty', async () => {
       expect(registry.getPluginCount()).toBe(0);
     });
 

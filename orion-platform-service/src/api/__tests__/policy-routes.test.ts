@@ -4,6 +4,15 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import policyRoutes from '../policy-routes';
 
+jest.mock('../../middleware/authMiddleware', () => ({
+  authenticateUser: async (req: any, _reply: any) => {
+    req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'], tenantId: '1' };
+  },
+}));
+jest.mock('../../middleware/requirePermission', () => ({
+  requirePermission: () => async (_req: any, _reply: any) => {},
+}));
+
 describe('Policy Bundle & Test Endpoints', () => {
   let app: FastifyInstance;
 

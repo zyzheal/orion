@@ -147,7 +147,7 @@ describe('PipelineService.retryRun() - GAP-06', () => {
 
       const newRunId = await service.retryRun('run-001');
 
-      expect(newRunId).toBe('run-002');
+      expect(newRunId).toMatch(/^run-retry-/);
       expect(mockCreateRun).toHaveBeenCalledWith(
         expect.objectContaining({
           trigger_type: 'retry',
