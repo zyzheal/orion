@@ -50,7 +50,7 @@ describe('ReplicationLagMonitor', () => {
         monitor.once('check-complete', () => resolve());
       });
 
-      const statuses = monitor.getReplicaStatuses();
+      const statuses = await monitor.getReplicaStatuses();
       expect(statuses.size).toBe(1);
 
       const status = statuses.get('replica1.example.com:3306');
@@ -88,8 +88,8 @@ describe('ReplicationLagMonitor', () => {
         highLagMonitor.once('check-complete', () => resolve());
       });
 
-      expect(highLagMonitor.getMaxLag()).toBe(25);
-      expect(highLagMonitor.getAverageLag()).toBe(20);
+      expect(await highLagMonitor.getMaxLag()).toBe(25);
+      expect(await highLagMonitor.getAverageLag()).toBe(20);
 
       highLagMonitor.stop();
     });
@@ -307,7 +307,7 @@ describe('ReplicationLagMonitor', () => {
         monitor.once('check-complete', () => resolve());
       });
 
-      const status = monitor.getStatus();
+      const status = await monitor.getStatus();
 
       expect(status.isMonitoring).toBe(true);
       expect(status.currentLevel).toBe(DegradationLevel.LEVEL_0);

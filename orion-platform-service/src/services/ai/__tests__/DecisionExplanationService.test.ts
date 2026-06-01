@@ -24,8 +24,8 @@ describe('DecisionExplanationService', () => {
       { name: 'code_smell_count', value: 0.2, weight: 0.25, description: '代码异味数' },
     ];
 
-    it('should generate a complete decision explanation for pass', () => {
-      const explanation = service.explainDecision({
+    it('should generate a complete decision explanation for pass', async () => {
+      const explanation = await service.explainDecision({
         decisionId: 'dec-001',
         decisionType: 'code-review',
         decision: 'pass',
@@ -44,7 +44,7 @@ describe('DecisionExplanationService', () => {
       expect(explanation.timestamp).toBeInstanceOf(Date);
     });
 
-    it('should generate explanation for fail decision', () => {
+    it('should generate explanation for fail decision', async () => {
       const riskyFeatures: DecisionFeature[] = [
         { name: 'code_complexity', value: 0.9, weight: 0.2, description: '代码复杂度' },
         { name: 'test_coverage', value: 0.15, weight: 0.25, description: '测试覆盖率' },
@@ -52,7 +52,7 @@ describe('DecisionExplanationService', () => {
         { name: 'code_smell_count', value: 0.7, weight: 0.25, description: '代码异味数' },
       ];
 
-      const explanation = service.explainDecision({
+      const explanation = await service.explainDecision({
         decisionId: 'dec-002',
         decisionType: 'code-review',
         decision: 'fail',
@@ -65,8 +65,8 @@ describe('DecisionExplanationService', () => {
       expect(explanation.recommendations.length).toBeGreaterThan(0);
     });
 
-    it('should generate explanation for warn decision', () => {
-      const explanation = service.explainDecision({
+    it('should generate explanation for warn decision', async () => {
+      const explanation = await service.explainDecision({
         decisionId: 'dec-003',
         decisionType: 'risk-assessment',
         decision: 'warn',
@@ -83,8 +83,8 @@ describe('DecisionExplanationService', () => {
       expect(explanation.confidenceLevel).toBe('medium');
     });
 
-    it('should include context in metadata', () => {
-      const explanation = service.explainDecision({
+    it('should include context in metadata', async () => {
+      const explanation = await service.explainDecision({
         decisionId: 'dec-004',
         decisionType: 'code-review',
         decision: 'pass',
@@ -95,8 +95,8 @@ describe('DecisionExplanationService', () => {
       expect(explanation.metadata).toEqual({ userId: 'user-1', pipelineId: 'pipe-1' });
     });
 
-    it('should handle manual_review decision', () => {
-      const explanation = service.explainDecision({
+    it('should handle manual_review decision', async () => {
+      const explanation = await service.explainDecision({
         decisionId: 'dec-005',
         decisionType: 'diagnosis',
         decision: 'manual_review',
@@ -274,8 +274,8 @@ describe('DecisionExplanationService', () => {
   // ==================== explainBatch ====================
 
   describe('explainBatch', () => {
-    it('should explain multiple decisions', () => {
-      const results = service.explainBatch({
+    it('should explain multiple decisions', async () => {
+      const results = await service.explainBatch({
         decisionType: 'code-review',
         decisions: [
           {
@@ -302,7 +302,7 @@ describe('DecisionExplanationService', () => {
   // ==================== registerDecisionType ====================
 
   describe('registerDecisionType', () => {
-    it('should accept custom decision type rules', () => {
+    it('should accept custom decision type rules', async () => {
       service.registerDecisionType('custom-type', {
         thresholds: { pass: 80, warn: 60, fail: 40 },
         criticalFeatures: ['custom_feature'],
@@ -314,7 +314,7 @@ describe('DecisionExplanationService', () => {
         },
       });
 
-      const explanation = service.explainDecision({
+      const explanation = await service.explainDecision({
         decisionId: 'custom-1',
         decisionType: 'custom-type',
         decision: 'pass',
