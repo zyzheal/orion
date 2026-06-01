@@ -40,9 +40,9 @@ class InMemoryCache {
   private store = new Map<string, { value: string; expiresAt: number }>();
 
   async get(key: string): Promise<string | null> {
-    const entry = await this.store.get(
+    const entry = await this.store.get(key);
     if (!entry || Date.now() > entry.expiresAt) {
-      await this.store.delete(key);
+      this.store.delete(key);
       return null;
     }
     return entry.value;
@@ -97,7 +97,7 @@ describe('AuthorizationEngine Performance Benchmark', () => {
 
     if (withCache) {
       cacheService = new MockCacheService();
-      return new AuthorizationEngine(roleService, abacEngine, relationshipService, undefined, undefined, cacheService, 300);
+      return new AuthorizationEngine(roleService, abacEngine, relationshipService, undefined, undefined, undefined, undefined, cacheService, 300);
     }
     return new AuthorizationEngine(roleService, abacEngine, relationshipService);
   }
