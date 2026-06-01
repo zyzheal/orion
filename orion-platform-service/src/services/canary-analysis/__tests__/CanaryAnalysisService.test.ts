@@ -92,7 +92,7 @@ describe('CanaryAnalysisService', () => {
   describe('listRuns', () => {
     it('should list runs by deployment', async () => {
       const mockRuns = [
-        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: { canary: 10 }, status: 'running', startedAt: new Date() },
+        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: { canary: 10, baseline: 90 }, status: 'running', startedAt: new Date(), completedAt: undefined, confidence: undefined, decision: undefined, durationMs: undefined },
       ];
       mockRunRepo.findByDeployment.mockResolvedValue(mockRuns);
 
@@ -104,7 +104,7 @@ describe('CanaryAnalysisService', () => {
 
     it('should list runs by status', async () => {
       const mockRuns = [
-        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: {}, status: 'running', startedAt: new Date() },
+        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: { canary: 0, baseline: 0 }, status: 'running', startedAt: new Date(), completedAt: undefined, confidence: undefined, decision: undefined, durationMs: undefined },
       ];
       mockRunRepo.findByStatus.mockResolvedValue(mockRuns);
 

@@ -89,13 +89,13 @@ describe('PluginRegistry', () => {
     it('should reject a manifest with platform version incompatibility', async () => {
       const manifest = createManifest({ minPlatformVersion: '2.0.0' });
 
-      await expect(registry.register(manifest)).rejects.toThrow('requires platform version');
+      await expect(registry.register(manifest)).rejects.toThrow('Platform version below minimum required');
     });
 
     it('should reject a manifest exceeding max platform version', async () => {
       const manifest = createManifest({ maxPlatformVersion: '0.5.0' });
 
-      await expect(registry.register(manifest)).rejects.toThrow('requires platform version');
+      await expect(registry.register(manifest)).rejects.toThrow('Platform version above maximum supported');
     });
 
     it('should accept a manifest with compatible platform version range', async () => {

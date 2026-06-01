@@ -143,7 +143,7 @@ export class PluginLifecycleManager extends EventEmitter {
         await activationHook(pluginId, plugin.config);
       } catch (error) {
         this.handleError(pluginId, error);
-        throw new OrionError('Platform version below minimum required', ErrorCode.VALIDATION_ERROR);
+        throw error;
       }
     }
 
