@@ -139,6 +139,54 @@ describe('PipelineTemplateService', () => {
 
         expect(result!.name).toBe('updated-template');
       });
+
+      it('should update description field', async () => {
+        mockPool.query.mockResolvedValue({ rows: [{ id: 't1' }] });
+        await repository.update('t1', { description: 'new desc' });
+        const sql = mockPool.query.mock.calls[0][0];
+        expect(sql).toContain('description');
+      });
+
+      it('should update category field', async () => {
+        mockPool.query.mockResolvedValue({ rows: [{ id: 't1' }] });
+        await repository.update('t1', { category: 'new-cat' });
+        const sql = mockPool.query.mock.calls[0][0];
+        expect(sql).toContain('category');
+      });
+
+      it('should update tags field', async () => {
+        mockPool.query.mockResolvedValue({ rows: [{ id: 't1' }] });
+        await repository.update('t1', { tags: ['tag1'] });
+        const sql = mockPool.query.mock.calls[0][0];
+        expect(sql).toContain('tags');
+      });
+
+      it('should update yaml_definition and increment version', async () => {
+        mockPool.query.mockResolvedValue({ rows: [{ id: 't1' }] });
+        await repository.update('t1', { yaml_definition: 'new yaml' });
+        const sql = mockPool.query.mock.calls[0][0];
+        expect(sql).toContain('yaml_definition');
+        expect(sql).toContain('version = version + 1');
+      });
+
+      it('should update is_public field', async () => {
+        mockPool.query.mockResolvedValue({ rows: [{ id: 't1' }] });
+        await repository.update('t1', { is_public: true });
+        const sql = mockPool.query.mock.calls[0][0];
+        expect(sql).toContain('is_public');
+      });
+
+      it('should return existing when no fields to update', async () => {
+        mockPool.query.mockResolvedValue({ rows: [{ id: 't1', name: 'existing' }] });
+        const result = await repository.update('t1', {});
+        expect(result!.name).toBe('existing');
+      });
+
+      it('should return null when not found after update', async () => {
+        mockPool.query.mockResolvedValue({ rows: [] });
+        const result = await repository.update('missing', { name: 'new' });
+        expect(result).toBeNull();
+      });
     });
 
     describe('delete', () => {
@@ -310,6 +358,85 @@ describe('PipelineTemplateService', () => {
 
         expect(service['initialized']).toBe(true);
       });
+    });
+  });
+
+  describe('getTemplate - not found', () => {
+    it('should throw TEMPLATE_NOT_FOUND when template does not exist', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await expect(service.getTemplate('missing'))
+        .rejects.toThrow(PipelineTemplateServiceError);
+    });
+  });
+
+  describe('createTemplate - validation', () => {
+    it('should throw INVALID_YAML when yaml is empty', async () => {
+      await expect(service.createTemplate({
+        tenant_id: 't1',
+        name: 'test',
+        yaml_definition: '',
+      })).rejects.toThrow('YAML definition is required');
+    });
+
+    it('should throw INVALID_YAML when yaml is whitespace', async () => {
+      await expect(service.createTemplate({
+        tenant_id: 't1',
+        name: 'test',
+        yaml_definition: '   ',
+      })).rejects.toThrow('YAML definition is required');
+    });
+  });
+
+  describe('savePipelineAsTemplate', () => {
+    it('should save pipeline as template', async () => {
+      // Get pipeline
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'p1', config: { yamlDefinition: 'yaml content' } }],
+      });
+      // Create template
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 't1', name: 'saved-template' }],
+      });
+
+      const result = await service.savePipelineAsTemplate('p1', {
+        tenant_id: 't1',
+        name: 'saved-template',
+        category: 'custom',
+      });
+
+      expect(result.name).toBe('saved-template');
+    });
+
+    it('should throw PIPELINE_NOT_FOUND when pipeline does not exist', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      await expect(service.savePipelineAsTemplate('missing', {
+        tenant_id: 't1',
+        name: 'test',
+      })).rejects.toThrow('Pipeline not found: missing');
+    });
+  });
+
+  describe('getTemplatesByCategory', () => {
+    it('should return templates by category', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ total: 2 }] })
+        .mockResolvedValueOnce({ rows: [{ id: 't1' }, { id: 't2' }] });
+
+      const result = await service.getTemplatesByCategory('language');
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('searchTemplatesByTag', () => {
+    it('should return templates by tag', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ total: 1 }] })
+        .mockResolvedValueOnce({ rows: [{ id: 't1' }] });
+
+      const result = await service.searchTemplatesByTag('nodejs');
+      expect(result).toHaveLength(1);
     });
   });
 
