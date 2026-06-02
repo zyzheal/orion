@@ -1,5 +1,44 @@
 # Orion Design - Progress Log
 
+## 2026-06-02: ChatOps 模块 TDD 开发修复 — COMPLETED
+
+### 概述
+
+为 `orion-platform-service/src/services/chatops/` 模块进行全面的 TDD 开发修复，提升测试覆盖率。
+
+### 本次新增/改进的测试文件
+
+| 测试文件 | 测试数 | 改进内容 |
+|----------|--------|---------|
+| `RecommendationService.test.ts` | 25 | 新增 RealDataProvider 测试 (14 个)，覆盖率 48% → 100% |
+| `PermissionService.test.ts` | 66 | 新增 updateRole/createCommandPermission/updateCommandPermission/environmentPermission 等测试 (19 个)，覆盖率 53% → 96% |
+| `EventSubscriber.test.ts` | 38 | 新增 fallback 轮询/EventBus 错误处理/loadFromDB/retryFailedSubscriptions 等测试 (16 个)，覆盖率 60% → 92% |
+| `SSEConnectionManager.test.ts` | 23 | 新增心跳检测/DB 持久化失败等测试 (9 个)，覆盖率 80% → 94% |
+
+### 整体覆盖率
+
+| 指标 | 改进前 | 改进后 |
+|------|--------|--------|
+| 语句覆盖率 | ~80% | 92.55% |
+| 分支覆盖率 | ~65% | 76.97% |
+| 函数覆盖率 | ~75% | 88.45% |
+| 行覆盖率 | ~82% | 94.78% |
+| 测试套件数 | 22 | 22 |
+| 测试用例数 | ~512 | 566 |
+
+### 所有文件覆盖率 (全部 > 79%)
+
+- AlertStateService: 90.32% | CapabilityMappingService: 94.17% | ChatConfigService: 100%
+- CommandRouter: 97.43% | CommandService: 87.62% | CommandVersionService: 100%
+- DNDService: 100% | DashboardService: 96.22% | Errors: 100%
+- EventSubscriber: 92.14% | ExecutionService: 87.3% | IdempotencyService: 100%
+- InputValidator: 85.36% | Metrics: 98.92% | NotificationPreferenceService: 100%
+- PermissionService: 95.88% | PlatformConfigService: 97.36% | RateLimitService: 84.61%
+- RecommendationService: 100% | SSEConnectionManager: 94.2% | WebhookService: 82.75%
+- WebhookVerifier: 96.77%
+
+---
+
 ## 2026-05-21: QuickAnalyzer 检测器优化 — COMPLETED
 
 ### 优化内容

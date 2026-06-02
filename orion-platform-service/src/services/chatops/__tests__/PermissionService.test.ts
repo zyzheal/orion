@@ -272,6 +272,20 @@ describe('PermissionService', () => {
       expect(result.allowed).toBe(false);
       expect(result.deniedAt).toBe('resource_level');
     });
+
+    it('should handle audit log write failure gracefully', async () => {
+      // getRolePermissions succeeds
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ resource: 'chatops', action: 'read' }],
+      });
+      // Audit log INSERT fails
+      mockPool.query.mockRejectedValueOnce(new Error('Audit table missing'));
+
+      // Should not throw, just log warning
+      const result = await service.check('user-1', 'viewer', 'deploy');
+
+      expect(result.allowed).toBe(false);
+    });
   });
 
   // ==================== invalidateCache ====================
@@ -409,6 +423,95 @@ describe('PermissionService', () => {
     });
   });
 
+  describe('updateRole', () => {
+    it('should update role name and description', async () => {
+      // getRoleById -> SELECT role
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'r1', name: 'old-name' }],
+      });
+      // getRoleById -> SELECT permissions
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ permission: 'chatops:deploy' }],
+      });
+      // UPDATE
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getRoleById after update -> SELECT role
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'r1', name: 'new-name', description: 'Updated' }],
+      });
+      // getRoleById after update -> SELECT permissions
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ permission: 'chatops:deploy' }],
+      });
+
+      const result = await service.updateRole('r1', { name: 'new-name', description: 'Updated' });
+
+      expect(result).not.toBeNull();
+      expect(result.name).toBe('new-name');
+    });
+
+    it('should update permissions', async () => {
+      // getRoleById -> SELECT role
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'r1', name: 'deployer' }],
+      });
+      // getRoleById -> SELECT permissions
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ permission: 'chatops:deploy' }],
+      });
+      // DELETE old permissions
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT new permission 1
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT new permission 2
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getRoleById after update -> SELECT role
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'r1', name: 'deployer' }],
+      });
+      // getRoleById after update -> SELECT permissions
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ permission: 'chatops:restart' }, { permission: 'chatops:diagnose' }],
+      });
+
+      const result = await service.updateRole('r1', { permissions: ['chatops:restart', 'chatops:diagnose'] });
+
+      expect(result).not.toBeNull();
+      expect(result.permissions).toEqual(['chatops:restart', 'chatops:diagnose']);
+    });
+
+    it('should return null when role not found', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.updateRole('nonexistent', { name: 'test' });
+
+      expect(result).toBeNull();
+    });
+
+    it('should skip update when no fields provided', async () => {
+      // getRoleById -> SELECT role
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'r1', name: 'deployer' }],
+      });
+      // getRoleById -> SELECT permissions
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ permission: 'chatops:deploy' }],
+      });
+      // getRoleById after update -> SELECT role (no UPDATE query)
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'r1', name: 'deployer' }],
+      });
+      // getRoleById after update -> SELECT permissions
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ permission: 'chatops:deploy' }],
+      });
+
+      const result = await service.updateRole('r1', {});
+
+      expect(result).not.toBeNull();
+    });
+  });
+
   describe('deleteRole', () => {
     it('should delete role and return true', async () => {
       mockPool.query.mockResolvedValue({ rowCount: 1 });
@@ -465,6 +568,91 @@ describe('PermissionService', () => {
     });
   });
 
+  describe('createCommandPermission', () => {
+    it('should create command permission', async () => {
+      // INSERT
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getCommandPermission -> SELECT
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'uuid-1', command: 'deploy', capability: 'chatops:deploy', assigned_roles: [] }],
+      });
+
+      const result = await service.createCommandPermission({
+        command: 'deploy',
+        capability: 'chatops:deploy',
+      });
+
+      expect(result).not.toBeNull();
+      expect(result.command).toBe('deploy');
+    });
+
+    it('should create command permission with role assignments', async () => {
+      // INSERT command permission
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT role assignment
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getCommandPermission -> SELECT
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'uuid-1', command: 'deploy', capability: 'chatops:deploy', assigned_roles: ['r1'] }],
+      });
+
+      const result = await service.createCommandPermission({
+        command: 'deploy',
+        capability: 'chatops:deploy',
+        role_ids: ['r1'],
+      });
+
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe('updateCommandPermission', () => {
+    it('should update command permission fields', async () => {
+      // getCommandPermission -> SELECT
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'cp1', command: 'deploy', assigned_roles: [] }],
+      });
+      // UPDATE
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getCommandPermission after -> SELECT
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'cp1', command: 'deploy', description: 'Updated', assigned_roles: [] }],
+      });
+
+      const result = await service.updateCommandPermission('cp1', { description: 'Updated' });
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe('Updated');
+    });
+
+    it('should update role assignments', async () => {
+      // getCommandPermission -> SELECT
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'cp1', command: 'deploy', assigned_roles: [] }],
+      });
+      // DELETE old assignments
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT new assignment
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getCommandPermission after -> SELECT
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'cp1', command: 'deploy', assigned_roles: ['r2'] }],
+      });
+
+      const result = await service.updateCommandPermission('cp1', { role_ids: ['r2'] });
+
+      expect(result).not.toBeNull();
+    });
+
+    it('should return null when not found', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.updateCommandPermission('nonexistent', { description: 'test' });
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('deleteCommandPermission', () => {
     it('should delete and return true', async () => {
       mockPool.query.mockResolvedValue({ rowCount: 1 });
@@ -510,6 +698,201 @@ describe('PermissionService', () => {
       expect(result[0].assigned_roles).toEqual(['r1']);
       expect(result[0].allowed_commands).toEqual(['deploy']);
       expect(result[0].denied_commands).toEqual(['restart']);
+    });
+  });
+
+  describe('getEnvironmentPermission', () => {
+    it('should return environment permission with roles and commands', async () => {
+      // SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production' }],
+      });
+      // SELECT roles
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ role_id: 'r1' }],
+      });
+      // SELECT commands
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          { command: 'deploy', is_denied: false },
+          { command: 'restart', is_denied: true },
+        ],
+      });
+
+      const result = await service.getEnvironmentPermission('env1');
+
+      expect(result).not.toBeNull();
+      expect(result.environment).toBe('production');
+      expect(result.assigned_roles).toEqual(['r1']);
+      expect(result.allowed_commands).toEqual(['deploy']);
+      expect(result.denied_commands).toEqual(['restart']);
+    });
+
+    it('should return null when not found', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.getEnvironmentPermission('nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('createEnvironmentPermission', () => {
+    it('should create environment permission', async () => {
+      // INSERT env
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getEnvironmentPermission -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'uuid-1', environment: 'staging' }],
+      });
+      // getEnvironmentPermission -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // getEnvironmentPermission -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.createEnvironmentPermission({
+        environment: 'staging',
+        description: 'Staging environment',
+      });
+
+      expect(result).not.toBeNull();
+      expect(result.environment).toBe('staging');
+    });
+
+    it('should create with roles and commands', async () => {
+      // INSERT env
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT role assignment
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT allowed command
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT denied command
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getEnvironmentPermission -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'uuid-1', environment: 'production' }],
+      });
+      // getEnvironmentPermission -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ role_id: 'r1' }],
+      });
+      // getEnvironmentPermission -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          { command: 'deploy', is_denied: false },
+          { command: 'delete', is_denied: true },
+        ],
+      });
+
+      const result = await service.createEnvironmentPermission({
+        environment: 'production',
+        role_ids: ['r1'],
+        allowed_commands: ['deploy'],
+        denied_commands: ['delete'],
+      });
+
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe('updateEnvironmentPermission', () => {
+    it('should update environment fields', async () => {
+      // getEnvironmentPermission -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production' }],
+      });
+      // getEnvironmentPermission -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // getEnvironmentPermission -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // UPDATE
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getEnvironmentPermission after -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production', rate_limit: 50 }],
+      });
+      // getEnvironmentPermission after -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // getEnvironmentPermission after -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.updateEnvironmentPermission('env1', { rate_limit: 50 });
+
+      expect(result).not.toBeNull();
+    });
+
+    it('should update role assignments', async () => {
+      // getEnvironmentPermission -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production' }],
+      });
+      // getEnvironmentPermission -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({ rows: [{ role_id: 'r1' }] });
+      // getEnvironmentPermission -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // DELETE old role assignments
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT new role assignment
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getEnvironmentPermission after -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production' }],
+      });
+      // getEnvironmentPermission after -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ role_id: 'r2' }],
+      });
+      // getEnvironmentPermission after -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.updateEnvironmentPermission('env1', { role_ids: ['r2'] });
+
+      expect(result).not.toBeNull();
+    });
+
+    it('should update allowed and denied commands', async () => {
+      // getEnvironmentPermission -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production' }],
+      });
+      // getEnvironmentPermission -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // getEnvironmentPermission -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // DELETE old commands
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT allowed command
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // INSERT denied command
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+      // getEnvironmentPermission after -> SELECT env
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'env1', environment: 'production' }],
+      });
+      // getEnvironmentPermission after -> SELECT roles
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      // getEnvironmentPermission after -> SELECT commands
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          { command: 'deploy', is_denied: false },
+          { command: 'delete', is_denied: true },
+        ],
+      });
+
+      const result = await service.updateEnvironmentPermission('env1', {
+        allowed_commands: ['deploy'],
+        denied_commands: ['delete'],
+      });
+
+      expect(result).not.toBeNull();
+    });
+
+    it('should return null when not found', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.updateEnvironmentPermission('nonexistent', { rate_limit: 50 });
+
+      expect(result).toBeNull();
     });
   });
 
@@ -591,6 +974,26 @@ describe('PermissionService', () => {
 
       expect(result.allowed).toBe(true);
       expect(result.requiresApproval).toBe(true);
+    });
+
+    it('should deny when user has roles but no capability and is not admin', async () => {
+      // 1. capability mapping
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ capability_id: 'chatops:deploy', risk_level: 3, requires_approval: false, enabled: true }],
+      });
+      // 2. user roles (non-admin)
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ name: 'viewer' }],
+      });
+      // 3. role capability check - no explicit assignment
+      mockPool.query.mockResolvedValueOnce({ rowCount: 0 });
+
+      const result = await service.checkCommandPermission('user-1', 'deploy');
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('缺少 Capability 权限');
+      expect(result.capability).toBe('chatops:deploy');
+      expect(result.riskLevel).toBe(3);
     });
 
     it('should deny on database error', async () => {
