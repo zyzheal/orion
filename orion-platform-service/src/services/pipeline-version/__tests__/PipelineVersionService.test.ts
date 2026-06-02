@@ -298,4 +298,139 @@ describe('PipelineVersionService', () => {
       expect(error.name).toBe('PipelineVersionServiceError');
     });
   });
+
+  describe('getVersion - not found', () => {
+    it('should throw VERSION_NOT_FOUND when version does not exist', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await expect(service.getVersion('missing'))
+        .rejects.toThrow(PipelineVersionServiceError);
+    });
+  });
+
+  describe('removeTag', () => {
+    it('should remove tag from version', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: 'v1', pipeline_id: 'p1' }] })
+        .mockResolvedValueOnce({ rows: [{ tags: ['release'] }] });
+
+      const result = await service.removeTag('v1', 'stable');
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('rollback - invalid pipeline', () => {
+    it('should throw INVALID_PIPELINE when version belongs to different pipeline', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{ id: 'v1', pipeline_id: 'other-pipeline', tenant_id: 't1', yaml_definition: 'yaml', spec: {}, version: 1 }],
+      });
+
+      await expect(service.rollback('p1', 'v1'))
+        .rejects.toThrow('Version does not belong to this pipeline');
+    });
+  });
+
+  describe('setBaseline - invalid pipeline', () => {
+    it('should throw INVALID_PIPELINE when version belongs to different pipeline', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{ id: 'v1', pipeline_id: 'other-pipeline' }],
+      });
+
+      await expect(service.setBaseline('p1', 'v1', true))
+        .rejects.toThrow('Version does not belong to this pipeline');
+    });
+  });
+
+  describe('getBaseline', () => {
+    it('should return baseline version', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{ id: 'v1', is_baseline: true }],
+      });
+
+      const result = await service.getBaseline('p1');
+      expect(result).not.toBeNull();
+      expect(result!.is_baseline).toBe(true);
+    });
+
+    it('should return null when no baseline', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.getBaseline('p1');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('cleanupOldVersions', () => {
+    it('should return number of deleted versions', async () => {
+      mockPool.query.mockResolvedValue({ rowCount: 5 });
+
+      const result = await service.cleanupOldVersions('p1', 50);
+      expect(result).toBe(5);
+    });
+  });
+
+  describe('diffVersions - with stages', () => {
+    it('should detect added stages', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v1', pipeline_id: 'p1', spec: { stages: [{ name: 'build' }] } }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v2', pipeline_id: 'p1', spec: { stages: [{ name: 'build' }, { name: 'deploy' }] } }],
+        });
+
+      const result = await service.diffVersions('v1', 'v2');
+
+      expect(result.additions).toHaveLength(1);
+      expect(result.additions[0].path).toBe('stages.deploy');
+    });
+
+    it('should detect deleted stages', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v1', pipeline_id: 'p1', spec: { stages: [{ name: 'build' }, { name: 'test' }] } }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v2', pipeline_id: 'p1', spec: { stages: [{ name: 'build' }] } }],
+        });
+
+      const result = await service.diffVersions('v1', 'v2');
+
+      expect(result.deletions).toHaveLength(1);
+      expect(result.deletions[0].path).toBe('stages.test');
+    });
+
+    it('should detect modified stages', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v1', pipeline_id: 'p1', spec: { stages: [{ name: 'build', timeout: 100 }] } }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v2', pipeline_id: 'p1', spec: { stages: [{ name: 'build', timeout: 200 }] } }],
+        });
+
+      const result = await service.diffVersions('v1', 'v2');
+
+      expect(result.modifications).toHaveLength(1);
+      expect(result.modifications[0].path).toBe('stages.build');
+    });
+
+    it('should detect config changes', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v1', pipeline_id: 'p1', spec: { config: { key1: 'old', key3: 'val3' } } }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: 'v2', pipeline_id: 'p1', spec: { config: { key1: 'new', key2: 'val2' } } }],
+        });
+
+      const result = await service.diffVersions('v1', 'v2');
+
+      expect(result.additions.length).toBeGreaterThan(0);
+      expect(result.modifications.length).toBeGreaterThan(0);
+      expect(result.deletions.length).toBeGreaterThan(0);
+    });
+  });
+
 });
