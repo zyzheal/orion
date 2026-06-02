@@ -410,5 +410,315 @@ describe('TestGeneratorService', () => {
       const edgeCaseTest = response.tests.find(t => t.testType === 'edge_case');
       expect(edgeCaseTest).toBeDefined();
     });
+
+    it('should generate edge cases for string parameters', async () => {
+      const request = {
+        change: {
+          diff: `+function greet(name: string): string {\n  return "Hello " + name;\n}`,
+          filePath: 'greet.ts',
+          language: 'typescript',
+        },
+        strategy: {
+          edgeCaseTests: true,
+        },
+      };
+
+      const response = await service.generateTests(request);
+
+      const edgeCaseTest = response.tests.find(t => t.testType === 'edge_case');
+      expect(edgeCaseTest).toBeDefined();
+      expect(edgeCaseTest?.testCode).toContain('empty string');
+    });
+
+    it('should not generate edge cases for functions without parameters', async () => {
+      const request = {
+        change: {
+          diff: `+function getTime(): number {\n  return Date.now();\n}`,
+          filePath: 'time.ts',
+          language: 'typescript',
+        },
+        strategy: {
+          edgeCaseTests: true,
+        },
+      };
+
+      const response = await service.generateTests(request);
+
+      // Should only have unit test, no edge case test
+      const edgeCaseTests = response.tests.filter(t => t.testType === 'edge_case');
+      expect(edgeCaseTests.length).toBe(0);
+    });
+  });
+
+  describe('AI Gateway integration', () => {
+    it('should use AI gateway for enhancement when available', async () => {
+      const mockGateway = {
+        execute: jest.fn().mockResolvedValue({
+          success: true,
+          data: 'Additional test suggestions',
+          confidence: 0.9,
+        }),
+      };
+
+      service.setAIGateway(mockGateway);
+
+      const request = {
+        change: {
+          diff: `+function test(): void {}`,
+          filePath: 'test.ts',
+          language: 'typescript',
+        },
+      };
+
+      await service.generateTests(request);
+
+      expect(mockGateway.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scenario: 'test-generation',
+        })
+      );
+    });
+
+    it('should handle AI gateway failure gracefully', async () => {
+      const mockGateway = {
+        execute: jest.fn().mockRejectedValue(new Error('AI service unavailable')),
+      };
+
+      service.setAIGateway(mockGateway);
+
+      const request = {
+        change: {
+          diff: `+function test(): void {}`,
+          filePath: 'test.ts',
+          language: 'typescript',
+        },
+      };
+
+      // Should not throw even if AI fails
+      const response = await service.generateTests(request);
+      expect(response.tests.length).toBeGreaterThan(0);
+    });
+
+    it('should handle AI gateway returning unsuccessful response', async () => {
+      const mockGateway = {
+        execute: jest.fn().mockResolvedValue({
+          success: false,
+          error: 'Rate limited',
+        }),
+      };
+
+      service.setAIGateway(mockGateway);
+
+      const request = {
+        change: {
+          diff: `+function test(): void {}`,
+          filePath: 'test.ts',
+          language: 'typescript',
+        },
+      };
+
+      const response = await service.generateTests(request);
+      expect(response.tests.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('suggestCoverageImprovements edge cases', () => {
+    it('should not suggest line coverage improvement when already high', async () => {
+      const request = {
+        sourceFile: 'src/utils.ts',
+        language: 'typescript',
+        currentCoverage: {
+          lines: 90,
+          branches: 80,
+          functions: 90,
+        },
+      };
+
+      const response = await service.suggestCoverageImprovements(request);
+
+      // Should not have high-priority line coverage suggestion
+      const lineSuggestion = response.suggestions.find(
+        s => s.description.includes('unit tests') && s.priority === 'high'
+      );
+      expect(lineSuggestion).toBeUndefined();
+    });
+
+    it('should suggest integration tests for low function coverage', async () => {
+      const request = {
+        sourceFile: 'src/utils.ts',
+        language: 'typescript',
+        currentCoverage: {
+          lines: 90,
+          branches: 80,
+          functions: 50,
+        },
+      };
+
+      const response = await service.suggestCoverageImprovements(request);
+
+      const integrationSuggestion = response.suggestions.find(
+        s => s.type === 'integration'
+      );
+      expect(integrationSuggestion).toBeDefined();
+    });
+
+    it('should handle empty uncoveredLines', async () => {
+      const request = {
+        sourceFile: 'src/utils.ts',
+        language: 'typescript',
+        currentCoverage: {
+          lines: 40,
+          branches: 30,
+          functions: 50,
+        },
+        uncoveredLines: [],
+      };
+
+      const response = await service.suggestCoverageImprovements(request);
+
+      expect(response.suggestions.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('generation with existing tests', () => {
+    it('should consider existing tests in generation', async () => {
+      const request = {
+        change: {
+          diff: `+function add(a: number, b: number): number {\n  return a + b;\n}`,
+          filePath: 'math.ts',
+          language: 'typescript',
+        },
+        existingTests: `describe('add', () => { it('should add', () => { expect(add(1,2)).toBe(3); }); });`,
+      };
+
+      const response = await service.generateTests(request);
+
+      expect(response.tests.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('suggestCoverageImprovements with source content', () => {
+    it('should generate recommended tests for multiple symbols', async () => {
+      const request = {
+        sourceFile: 'src/utils.ts',
+        language: 'typescript',
+        currentCoverage: {
+          lines: 40,
+          branches: 30,
+          functions: 50,
+        },
+        sourceContent: `function add(a: number, b: number): number { return a + b; }\nfunction subtract(a: number, b: number): number { return a - b; }`,
+      };
+
+      const response = await service.suggestCoverageImprovements(request);
+
+      expect(response.recommendedTests.length).toBeGreaterThan(0);
+    });
+
+    it('should generate recommended tests without source content', async () => {
+      const request = {
+        sourceFile: 'src/utils.ts',
+        language: 'typescript',
+        currentCoverage: {
+          lines: 40,
+          branches: 30,
+          functions: 50,
+        },
+      };
+
+      const response = await service.suggestCoverageImprovements(request);
+
+      // Should still have suggestions but no recommended tests
+      expect(response.suggestions.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('generation with class symbols', () => {
+    it('should generate suggestions for new class', async () => {
+      const request = {
+        change: {
+          diff: `+class UserService {\n  getUser() { return null; }\n  createUser() { return null; }\n}`,
+          filePath: 'UserService.ts',
+          language: 'typescript',
+        },
+      };
+
+      const response = await service.generateTests(request);
+
+      // Should have integration test suggestion for new class
+      const integrationSuggestion = response.suggestions.find(
+        s => s.type === 'integration' && s.description.includes('class')
+      );
+      expect(integrationSuggestion).toBeDefined();
+    });
+  });
+
+  describe('generation with async functions', () => {
+    it('should suggest error handling tests for async functions', async () => {
+      const request = {
+        change: {
+          diff: `+async function fetchData(): Promise<Data> {\n  const res = await fetch('/api');\n  return res.json();\n}`,
+          filePath: 'api.ts',
+          language: 'typescript',
+        },
+      };
+
+      const response = await service.generateTests(request);
+
+      const errorSuggestion = response.suggestions.find(
+        s => s.type === 'error_case' && s.description.includes('async')
+      );
+      expect(errorSuggestion).toBeDefined();
+    });
+  });
+
+  describe('high complexity and risk', () => {
+    it('should suggest integration tests for high complexity changes', async () => {
+      // Create a diff that will result in high complexity
+      const request = {
+        change: {
+          diff: `+function complexLogic(a: number, b: number, c: number, d: number, e: number): number {
++  if (a > 0) {
++    if (b > 0) {
++      if (c > 0) {
++        if (d > 0) {
++          if (e > 0) {
++            return a + b + c + d + e;
++          }
++        }
++      }
++    }
++  }
++  return 0;
++}`,
+          filePath: 'complex.ts',
+          language: 'typescript',
+        },
+      };
+
+      const response = await service.generateTests(request);
+
+      expect(response.suggestions.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('generateSuggestions for modified symbols', () => {
+    it('should generate suggestions for code changes', async () => {
+      const request = {
+        change: {
+          diff: `@@ -1,3 +1,3 @@
+-function add(a: number, b: number): number { return a + b; }
++function add(a: number, b: number): number { return a + b + 1; }`,
+          filePath: 'math.ts',
+          language: 'typescript',
+        },
+      };
+
+      const response = await service.generateTests(request);
+
+      // Should generate some suggestions for the change
+      expect(response.suggestions).toBeDefined();
+      expect(Array.isArray(response.suggestions)).toBe(true);
+    });
   });
 });
