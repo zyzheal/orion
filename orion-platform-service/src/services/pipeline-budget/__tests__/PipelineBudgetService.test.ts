@@ -254,4 +254,201 @@ describe('PipelineBudgetService', () => {
       expect(error.name).toBe('PipelineBudgetServiceError');
     });
   });
+
+  describe('getBudgetUsage - alerts', () => {
+    it('should generate warning alert when time usage >= warningPercent', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{
+            time_budget: { maxDurationMs: 1000, warningPercent: 80, policy: 'warn' },
+          }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ duration_ms: 900 }], // 90% usage
+        });
+
+      const result = await repository.getBudgetUsage('run1', 'p1');
+
+      expect(result).not.toBeNull();
+      expect(result!.alerts).toHaveLength(1);
+      expect(result!.alerts[0].type).toBe('time');
+      expect(result!.alerts[0].level).toBe('warning');
+    });
+
+    it('should generate critical alert when time usage >= 100%', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{
+            time_budget: { maxDurationMs: 1000, warningPercent: 80, policy: 'block' },
+          }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ duration_ms: 1500 }], // 150% usage
+        });
+
+      const result = await repository.getBudgetUsage('run1', 'p1');
+
+      expect(result!.alerts).toHaveLength(1);
+      expect(result!.alerts[0].level).toBe('critical');
+    });
+
+    it('should return null when run not found', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ time_budget: { maxDurationMs: 1000 } }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await repository.getBudgetUsage('run-missing', 'p1');
+      expect(result).toBeNull();
+    });
+
+    it('should handle run with completed_at and started_at', async () => {
+      const start = new Date('2026-01-01T10:00:00Z');
+      const end = new Date('2026-01-01T11:00:00Z');
+
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ time_budget: { maxDurationMs: 7200000, warningPercent: 80 } }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: 'run1', duration_ms: null, started_at: start, completed_at: end }],
+        });
+
+      const result = await repository.getBudgetUsage('run1', 'p1');
+
+      expect(result).not.toBeNull();
+      expect(result!.time_used).toBe(3600000); // 1 hour
+    });
+  });
+
+  describe('checkBudgetExceeded', () => {
+    it('should return exceeded=true when time >= 100%', async () => {
+      // getBudget -> findByPipeline
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{
+          id: 'b1', pipeline_id: 'p1',
+          time_budget: { maxDurationMs: 1000, warningPercent: 80, policy: 'block' },
+        }],
+      });
+      // getBudgetUsage -> findByPipeline
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{
+          time_budget: { maxDurationMs: 1000, warningPercent: 80, policy: 'block' },
+        }],
+      });
+      // getBudgetUsage -> run query
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ duration_ms: 1500 }],
+      });
+
+      const result = await service.checkBudgetExceeded('run1', 'p1');
+
+      expect(result.exceeded).toBe(true);
+      expect(result.policy).toBe('block');
+    });
+
+    it('should return exceeded=false when no budget config', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.checkBudgetExceeded('run1', 'p1');
+
+      expect(result.exceeded).toBe(false);
+      expect(result.policy).toBeNull();
+    });
+
+    it('should return exceeded=false when usage below threshold', async () => {
+      // getBudget
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{
+          id: 'b1', pipeline_id: 'p1',
+          time_budget: { maxDurationMs: 10000, warningPercent: 80, policy: 'warn' },
+        }],
+      });
+      // getBudgetUsage -> findByPipeline
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{
+          time_budget: { maxDurationMs: 10000, warningPercent: 80 },
+        }],
+      });
+      // getBudgetUsage -> run query
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ duration_ms: 1000 }],
+      });
+
+      const result = await service.checkBudgetExceeded('run1', 'p1');
+
+      expect(result.exceeded).toBe(false);
+    });
+  });
+
+  describe('markBudgetExceeded', () => {
+    it('should update pipeline run with budget exceeded flag', async () => {
+      mockPool.query.mockResolvedValue({ rowCount: 1 });
+
+      await service.markBudgetExceeded('run1', 'block');
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE pipeline_runs'),
+        ['run1', 'block']
+      );
+    });
+  });
+
+  describe('getTenantBudgetDashboard', () => {
+    it('should return dashboard data for tenant', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{
+          id: 'b1',
+          tenant_id: 't1',
+          pipeline_id: 'p1',
+          pipeline_name: 'Build Pipeline',
+          time_budget: { maxDurationMs: 3600000 },
+          resource_budget: { maxCpuCoreHours: 100 },
+          cost_budget: { maxCostCents: 10000 },
+          created_at: new Date(),
+          updated_at: new Date(),
+        }],
+      });
+
+      const result = await service.getTenantBudgetDashboard('t1');
+
+      expect(result.pipelines).toHaveLength(1);
+      expect(result.pipelines[0].pipeline_name).toBe('Build Pipeline');
+      expect(result.totals.totalRuns).toBe(1);
+    });
+
+    it('should return empty dashboard when no budgets', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.getTenantBudgetDashboard('t1');
+
+      expect(result.pipelines).toHaveLength(0);
+      expect(result.totals.totalRuns).toBe(0);
+    });
+  });
+
+  describe('getHistoricalUsage', () => {
+    it('should return historical usage data', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{ avg_time: '1800000', sample_count: '5' }],
+      });
+
+      const result = await repository.getHistoricalUsage('p1', 10);
+
+      expect(result.avgTimeMs).toBe(1800000);
+      expect(result.sampleCount).toBe(5);
+    });
+
+    it('should handle null averages', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{ avg_time: null, sample_count: '0' }],
+      });
+
+      const result = await repository.getHistoricalUsage('p1');
+
+      expect(result.avgTimeMs).toBe(0);
+      expect(result.sampleCount).toBe(0);
+    });
+  });
 });

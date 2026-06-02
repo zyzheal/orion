@@ -48,6 +48,11 @@ describe('ApiMarketService', () => {
       findCredentialByClientId: jest.fn(),
       updateCredentialLastUsed: jest.fn(),
       listCredentialsByApp: jest.fn(),
+      updateApp: jest.fn(),
+      findSubscription: jest.fn(),
+      createSubscription: jest.fn(),
+      listSubscriptionsByApp: jest.fn(),
+      findCredentialById: jest.fn(),
     } as unknown as jest.Mocked<ApiMarketRepository>;
 
     service = new ApiMarketService(mockRepository);
@@ -258,6 +263,239 @@ describe('ApiMarketService', () => {
       const result = await service.validateApiKey('expired-client-id', 'secret');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getProduct', () => {
+    it('should return product by id', async () => {
+      const mockProduct = { id: 'prod-1', name: 'Test API' };
+      mockRepository.findProductById.mockResolvedValue(mockProduct as any);
+
+      const result = await service.getProduct('prod-1');
+      expect(result).toEqual(mockProduct);
+      expect(mockRepository.findProductById).toHaveBeenCalledWith('prod-1');
+    });
+
+    it('should return null when product not found', async () => {
+      mockRepository.findProductById.mockResolvedValue(null);
+      const result = await service.getProduct('missing');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getProductBySlug', () => {
+    it('should return product by slug', async () => {
+      const mockProduct = { id: 'prod-1', slug: 'test-api' };
+      mockRepository.findProductBySlug.mockResolvedValue(mockProduct as any);
+
+      const result = await service.getProductBySlug('test-api');
+      expect(result).toEqual(mockProduct);
+    });
+
+    it('should return null when slug not found', async () => {
+      mockRepository.findProductBySlug.mockResolvedValue(null);
+      const result = await service.getProductBySlug('missing');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateProduct', () => {
+    it('should update product fields', async () => {
+      const mockProduct = { id: 'prod-1', name: 'Updated' };
+      mockRepository.updateProduct.mockResolvedValue(mockProduct as any);
+
+      const result = await service.updateProduct('prod-1', { name: 'Updated' });
+      expect(result).toEqual(mockProduct);
+      expect(mockRepository.updateProduct).toHaveBeenCalledWith('prod-1', { name: 'Updated' });
+    });
+
+    it('should return null when product not found', async () => {
+      mockRepository.updateProduct.mockResolvedValue(null);
+      const result = await service.updateProduct('missing', { name: 'test' });
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('deleteProduct', () => {
+    it('should return true when deleted', async () => {
+      mockRepository.deleteProduct.mockResolvedValue(true);
+      expect(await service.deleteProduct('prod-1')).toBe(true);
+    });
+
+    it('should return false when not found', async () => {
+      mockRepository.deleteProduct.mockResolvedValue(false);
+      expect(await service.deleteProduct('missing')).toBe(false);
+    });
+  });
+
+  describe('publishProduct - update failure', () => {
+    it('should throw when update returns null', async () => {
+      mockRepository.findProductById.mockResolvedValue({ id: 'prod-1' } as any);
+      mockRepository.updateProduct.mockResolvedValue(null);
+
+      await expect(service.publishProduct('prod-1')).rejects.toThrow(ApiMarketError);
+    });
+  });
+
+  describe('listAppsByDeveloper', () => {
+    it('should return apps for developer', async () => {
+      const mockApps = [{ id: 'app-1' }, { id: 'app-2' }];
+      mockRepository.listAppsByDeveloper.mockResolvedValue(mockApps as any);
+
+      const result = await service.listAppsByDeveloper('dev-1');
+      expect(result).toHaveLength(2);
+      expect(mockRepository.listAppsByDeveloper).toHaveBeenCalledWith('dev-1');
+    });
+  });
+
+  describe('getApp', () => {
+    it('should return app by id', async () => {
+      const mockApp = { id: 'app-1', name: 'My App' };
+      mockRepository.findAppById.mockResolvedValue(mockApp as any);
+
+      const result = await service.getApp('app-1');
+      expect(result).toEqual(mockApp);
+    });
+
+    it('should return null when app not found', async () => {
+      mockRepository.findAppById.mockResolvedValue(null);
+      const result = await service.getApp('missing');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('generateApiKey - retry logic', () => {
+    it('should throw APP_NOT_FOUND when app does not exist', async () => {
+      mockRepository.findAppById.mockResolvedValue(null);
+
+      await expect(service.generateApiKey('missing-app', ['read']))
+        .rejects.toThrow(ApiMarketError);
+    });
+
+    it('should retry on unique constraint violation and succeed', async () => {
+      const mockApp = { id: 'app-1', status: 'active' };
+      mockRepository.findAppById.mockResolvedValue(mockApp as any);
+
+      // First call throws unique constraint error, second succeeds
+      mockRepository.createCredential
+        .mockRejectedValueOnce({ code: '23505', message: 'unique violation' })
+        .mockResolvedValueOnce({ id: 'cred-1' } as any);
+
+      const result = await service.generateApiKey('app-1', ['read']);
+      expect(result.clientId).toBeDefined();
+      expect(mockRepository.createCredential).toHaveBeenCalledTimes(2);
+    });
+
+    it('should throw after exhausting retries', async () => {
+      const mockApp = { id: 'app-1', status: 'active' };
+      mockRepository.findAppById.mockResolvedValue(mockApp as any);
+
+      // All 3 attempts throw unique constraint error - last attempt throws original error
+      const uniqueError = Object.assign(new Error('unique violation'), { code: '23505' });
+      mockRepository.createCredential.mockRejectedValue(uniqueError);
+
+      await expect(service.generateApiKey('app-1', ['read']))
+        .rejects.toThrow('unique violation');
+      expect(mockRepository.createCredential).toHaveBeenCalledTimes(3);
+    });
+
+    it('should throw non-unique errors immediately', async () => {
+      const mockApp = { id: 'app-1', status: 'active' };
+      mockRepository.findAppById.mockResolvedValue(mockApp as any);
+      mockRepository.createCredential.mockRejectedValue(new Error('DB connection failed'));
+
+      await expect(service.generateApiKey('app-1', ['read']))
+        .rejects.toThrow('DB connection failed');
+    });
+  });
+
+  describe('validateApiKey - wrong secret', () => {
+    it('should return null when secret does not match', async () => {
+      const mockCredential = {
+        id: 'cred-1',
+        app_id: 'app-1',
+        client_id: 'client-1',
+        client_secret_hash: 'different-hash',
+        scopes: ['read'],
+        rate_limit_per_min: 100,
+        expires_at: new Date(Date.now() + 86400000),
+      };
+      mockRepository.findCredentialByClientId.mockResolvedValue(mockCredential as any);
+
+      const result = await service.validateApiKey('client-1', 'wrong-secret');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('subscribe', () => {
+    it('should create subscription', async () => {
+      mockRepository.findSubscription.mockResolvedValue(null);
+      mockRepository.createSubscription.mockResolvedValue({ id: 'sub-1' } as any);
+
+      await service.subscribe('app-1', 'prod-1', 'basic', 5000);
+      expect(mockRepository.createSubscription).toHaveBeenCalledWith('app-1', 'prod-1', 'basic', 5000);
+    });
+
+    it('should throw when already subscribed', async () => {
+      mockRepository.findSubscription.mockResolvedValue({ id: 'sub-1' } as any);
+
+      await expect(service.subscribe('app-1', 'prod-1', 'basic'))
+        .rejects.toThrow(ApiMarketError);
+    });
+  });
+
+  describe('checkSubscription', () => {
+    it('should return true for active subscription', async () => {
+      mockRepository.findSubscription.mockResolvedValue({ status: 'active' } as any);
+      expect(await service.checkSubscription('app-1', 'prod-1')).toBe(true);
+    });
+
+    it('should return false for inactive subscription', async () => {
+      mockRepository.findSubscription.mockResolvedValue({ status: 'cancelled' } as any);
+      expect(await service.checkSubscription('app-1', 'prod-1')).toBe(false);
+    });
+
+    it('should return false when no subscription', async () => {
+      mockRepository.findSubscription.mockResolvedValue(null);
+      expect(await service.checkSubscription('app-1', 'prod-1')).toBe(false);
+    });
+  });
+
+  describe('listSubscriptions', () => {
+    it('should return subscriptions for app', async () => {
+      const mockSubs = [{ id: 'sub-1' }, { id: 'sub-2' }];
+      mockRepository.listSubscriptionsByApp.mockResolvedValue(mockSubs as any);
+
+      const result = await service.listSubscriptions('app-1');
+      expect(result).toHaveLength(2);
+      expect(mockRepository.listSubscriptionsByApp).toHaveBeenCalledWith('app-1');
+    });
+  });
+
+  describe('listApiKeys', () => {
+    it('should return credentials for app', async () => {
+      const mockCreds = [{ id: 'cred-1' }, { id: 'cred-2' }];
+      mockRepository.listCredentialsByApp.mockResolvedValue(mockCreds as any);
+
+      const result = await service.listApiKeys('app-1');
+      expect(result).toHaveLength(2);
+      expect(mockRepository.listCredentialsByApp).toHaveBeenCalledWith('app-1');
+    });
+  });
+
+  describe('createDeveloperApp - validation', () => {
+    it('should throw when app name is empty', async () => {
+      await expect(service.createDeveloperApp({
+        developerId: 'dev-1',
+        name: '',
+      })).rejects.toThrow(ApiMarketError);
+    });
+
+    it('should throw when app name is whitespace only', async () => {
+      await expect(service.createDeveloperApp({
+        developerId: 'dev-1',
+        name: '   ',
+      })).rejects.toThrow(ApiMarketError);
     });
   });
 });
