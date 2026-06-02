@@ -1,5 +1,62 @@
 # Orion Design - Progress Log
 
+## 2026-06-02: api-key + project 模块 TDD 测试补充
+
+### 概述
+
+为 api-key 和 project 模块补充 Repository 层测试，覆盖率从 33% 提升至 ~88%。
+
+### 本次新增的测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖率改进 |
+|------|----------|--------|-----------|
+| api-key | `ApiKeyRepository.test.ts` (NEW) | 22 | ApiKeyRepository: 100% |
+| project | `ProjectRepository.test.ts` (NEW) | 23 | ProjectRepository: 100% |
+
+### 关键技术点
+
+- 使用 `jest.fn()` mock `DatabasePool.query` 方法
+- 测试错误传播场景（connection refused, timeout, constraint violation 等）
+- 测试 slug 生成边界条件（特殊字符、数字、前后缀横线剥离）
+- 测试 update 同时更新 name+description 场景
+
+---
+
+## 2026-06-02: 多模块 TDD 开发修复 — Session 2
+
+### 概述
+
+继续 TDD 开发修复，本次覆盖 8 个服务模块，显著提升测试覆盖率。
+
+### 本次新增/改进的测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖率改进 |
+|------|----------|--------|-----------|
+| api-market | `ApiMarketService.test.ts` | 42 | 70% → 97% |
+| risk-engine | `PageRankService.test.ts` (NEW) | 26 | 0% → 100% |
+| serverless | `ServerlessService.test.ts` | 48 | 4% → 90% |
+| workbench | `WorkbenchService.test.ts` | 9 | 7% → 100% |
+| permission | `PermissionService.test.ts` | 18 | 9% → 100% |
+| pipeline-budget | `PipelineBudgetService.test.ts` | 26 | 63% → 99% |
+| pipeline-version | `PipelineVersionService.test.ts` | 32 | 65% → 100% |
+| pipeline-template | `PipelineTemplateService.test.ts` | 35 | 71% → 98% |
+| product-line | `ProductLineService.test.ts` | 37 | 78% → 90% |
+
+### 关键技术点
+
+- 使用 `jest.isolateModules()` 解决模块级状态泄漏问题（serverless）
+- 使用 SQL 内容感知 mock 替代顺序 mock 解决 `Promise.allSettled` 并行查询问题（workbench）
+- 发现 `PipelineTemplateService.mapRow` 始终返回 `parameters: []`，导致 required parameter 验证为死代码
+
+### Commits
+
+- `ed1e657d` test: improve TDD coverage for 6 service modules
+- `3f0a6f14` test: add PipelineVersionService coverage for diff, rollback, baseline
+- `b907e2bd` test: add PipelineTemplateService coverage for update, create, save
+- `3b6a108a` test: add ProductLineService coverage for fallback paths and complex updates
+
+---
+
 ## 2026-06-02: ChatOps 模块 TDD 开发修复 — COMPLETED
 
 ### 概述
@@ -3645,3 +3702,61 @@ expect(result.data.xxx).toBe(...); // 正确访问解包后的数据
 ### 覆盖率
 - config/ 目录：7 个源文件中 5 个有测试（ConfigVersionService 和 RedisConfigCache 需要数据库/Redis mock）
 - config-mgmt/ 目录：11 个源文件中 10 个有测试（ConfigRepository 和 ConfigVersionService 需要数据库）
+
+## 2026-06-02: 多模块 TDD 开发修复（第三批）
+
+### 概述
+
+为 9 个未覆盖源文件创建综合测试，提升模块测试覆盖率。
+
+### 新增测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖范围 |
+|------|---------|--------|---------|
+| chaos-engineering | ResilienceScoringService.test.ts | 18 | 调度/预部署验证/增强评分/分解/建议 |
+| config | RedisConfigCache.test.ts | 17 | 构造/内存缓存/mset/mget/delete/stats/clear/close |
+| monitoring | TracingService.test.ts | 26 | trace context解析/构建/span创建/查询/清理 |
+| degradation | AutoRecoveryService.test.ts | 22 | 降级标记/恢复尝试/统计/监控/事件 |
+| cross-domain-orchestration | DomainConnector.test.ts | 15 | 领域注册/调用/跨域事务/补偿/列表 |
+| capability | CapabilityService.test.ts | 20 | CRUD/角色映射/用户映射/权限检查/临时权限 |
+| escalation | EscalationScheduler.test.ts | 9 | 构造/启停/手动升级/工厂函数 |
+| diagnostic | DiagnosticService.test.ts | 8 | CRUD委托/错误处理 |
+| tenant | TenantValidatorMiddleware.test.ts | 5 | 构造/跳过路径/处理器生成 |
+
+### 整体测试状态
+
+- **测试套件**: 582 passed, 4 skipped, 0 failed
+- **测试用例**: 13645 passed, 62 skipped, 0 failed
+- **运行时间**: ~53s
+
+### 项目累计新增测试文件
+
+- 第一批 (ai-agents): 3 文件 (PerfOptAgent/PipelineYamlAgent/ReleaseNotesAgent)
+- 第二批 (build): 5 文件 (ArtifactRepository/BuildRepository/BuildxBuilderService/CacheStorageDriver/BaseBuildExecutor)
+- 第三批 (chatops): 4 文件改进 (RecommendationService/PermissionService/EventSubscriber/SSEConnectionManager)
+- 第四批 (多模块): 9 文件 (见上表)
+
+## 2026-06-02: 多模块 TDD 开发修复（第四批）
+
+### 概述
+
+为 types 和 queue 两个模块补充 TDD 测试用例，提升测试覆盖率。
+
+### 新增测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖范围 |
+|------|---------|--------|---------|
+| types | event-types.test.ts | 42 | ORION_STREAMS结构/ORION_CONSUMERS结构/TypedEnvelope类型/JetStreamConfig类型/ConsumerConfig类型 |
+| queue | QueueRepository.test.ts | 48 | enqueue/dequeue/retry/failWithRetry/getRetryableJobs/complete/fail/findById/list/countByStatus |
+
+### 覆盖率提升
+
+| 文件 | 语句覆盖率 | 分支覆盖率 | 行覆盖率 | 函数覆盖率 |
+|------|-----------|-----------|---------|-----------|
+| event-types.ts | 0% → 100% | - | 0% → 100% | 0% → 100% |
+| QueueRepository.ts | 0% → 100% | - | 0% → 100% | 0% → 100% |
+
+### 整体测试状态
+
+- **新增测试**: 90 个 (42 + 48)
+- **全部通过**: 133 个测试 (含已有 QueueService 测试 43 个)
