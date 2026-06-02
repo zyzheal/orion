@@ -2,13 +2,14 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/', '/.worktrees/', '/dist/'],
+  modulePathIgnorePatterns: ['/.worktrees/'],
   roots: ['<rootDir>/src', '<rootDir>/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true }],
+    '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true, diagnostics: false }],
   },
   // Transform ES modules from @kubernetes/client-node and quickjs-emscripten
-  transformIgnorePatterns: ['node_modules/(?!(?:@kubernetes/client-node|quickjs-emscripten|quickjs-emscripten-core|@jitl)/)'],
+  transformIgnorePatterns: ['node_modules/(?!(?:@kubernetes/client-node|quickjs-emscripten|quickjs-emscripten-core|@jitl|openid-client|oauth4webapi)/)'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

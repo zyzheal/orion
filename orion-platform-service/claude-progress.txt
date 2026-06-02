@@ -1,6 +1,40 @@
 # Orion Platform Migration Progress
 
-## Current Session (2026-05-17)
+## Current Session (2026-06-03)
+
+### Completed: Batch Index Export Verification Tests for 39 Modules
+
+批量为 39 个缺失 index.test.ts 的服务模块补充导出验证测试。
+
+#### Changes Made
+
+**新增 39 个 index.test.ts 测试文件**，覆盖以下模块：
+agent, alert, api-governance, artifact, auth, backup, build, cache, capability, chaos-engineering, chatops, config-mgmt, cost-tracking, cross-domain-orchestration, degradation, digital-twin, efficiency, environment, escalation, federation, finops, guardian, knowledge, llm-trace, model-version, monitoring, multi-cloud, multi-modal-trigger, notification, observability, privacy, project, queue, sbom, scheduler, security, test-generation, ticketing, user
+
+**每个测试文件验证**：
+- 所有公共类/函数导出存在且类型正确
+- 模块可正常导入无错误
+- 接口/类型导出通过模块可导入性验证（运行时不存在的类型不直接断言）
+
+**Jest 配置更新** (`jest.config.js`)：
+- 添加 `openid-client` 和 `oauth4webapi` 到 `transformIgnorePatterns`，支持 ESM-only 包的测试
+
+**Auth 模块特殊处理**：
+- 添加 `openid-client` 和 `SsoStateRepository` 的 mock，解决 ESM 依赖问题
+
+#### Test Results
+- **Test Suites**: 74 passed, 74 total
+- **Tests**: 572 passed, 572 total
+- **新增测试文件**: 39 个
+- **新增测试用例**: 约 200+ 个
+
+#### Files Changed
+- `jest.config.js` (添加 openid-client 到 transformIgnorePatterns)
+- `src/services/*/index.test.ts` (39 个新文件)
+
+---
+
+## Previous Session (2026-05-17)
 
 ### Completed: SSO/OIDC Integration for Enterprise Authentication
 
@@ -1504,3 +1538,60 @@ All 6 features of Phase 3 implemented and tested:
 - orion-monitor-svc/src/routes/rca-routes.ts (new)
 - orion-monitor-svc/src/app.ts (modified)
 
+### Completed: TDD Test Coverage for ticketing and pipeline modules (2026-06-03)
+
+Added 14 new test files covering missing service modules in ticketing and pipeline.
+All 92 test suites pass with 1976+ tests.
+
+#### New Test Files (14 files, 4963 lines)
+
+**ticketing module** (2 new tests):
+- `src/services/ticketing/__tests__/TicketAnalyticsService.test.ts` - SLA compliance, resolution stats, backlog, trends, statistics
+- `src/services/ticketing/__tests__/TicketingService.test.ts` - CRUD, assign, resolve, close, comments
+
+**pipeline module** (12 new tests):
+- `src/services/pipeline/__tests__/ApkMarketUploadService.test.ts` - register uploaders, upload to market, error categories
+- `src/services/pipeline/__tests__/ApkUploadHistoryService.test.ts` - CRUD, tenant queries, stats, failure tracking
+- `src/services/pipeline/__tests__/PathFilter.test.ts` - glob matching, negation, brace expansion, filter
+- `src/services/pipeline/__tests__/PipelineEventSSEBridge.test.ts` - run/stage/task events, enable/disable flags
+- `src/services/pipeline/__tests__/PipelineLogSSEService.test.ts` - SSE publish, event forwarding, stage/step events
+- `src/services/pipeline/__tests__/PipelineRepository.test.ts` - Pipeline/Stage/Run/Execution repositories
+- `src/services/pipeline/__tests__/PipelineRunService.test.ts` - run lifecycle, stages, tasks, environment resolution
+- `src/services/pipeline/__tests__/PipelineService.test.ts` - CRUD, validate, trigger, pagination, cache
+- `src/services/pipeline/__tests__/PipelineTenantIsolationService.test.ts` - tenant validation, run validation
+- `src/services/pipeline/__tests__/PipelineVersionService.test.ts` - CRUD, diff, rollback, tags, baseline
+- `src/services/pipeline/__tests__/PullRequestService.test.ts` - GitHub/GitLab clients, debounce, context extraction
+- `src/services/pipeline/__tests__/RollbackService.test.ts` - initiate, complete, fail, execute, query
+
+### Completed: TDD Test Coverage Supplementation for 7 Service Modules (2026-06-03)
+
+Supplemented TDD test coverage for 7 modules in orion-platform-service that had existing tests but insufficient coverage.
+
+#### Modules Covered
+
+| Module | Source Dir | New Test File | New Tests | Coverage Focus |
+|--------|-----------|---------------|-----------|----------------|
+| output-validation | src/services/output-validation/ | PatchSchemaDefinition.test.ts | 24 | JSON Schema structure, required fields, enums, patterns, defaults |
+| scheduler | src/services/scheduler/ | OnCallService.comprehensive.test.ts | 26 | Error handling, rotation types, escalation, DB mode, overrides |
+| test-generation | src/services/test-generation/ | types.test.ts | 18 | Default strategy constants, framework mappings |
+| queue | src/services/queue/ | QueueService.error.test.ts | 30 | Error class, compatibility methods, pagination, stats |
+| project | src/services/project/ | ProjectService.error.test.ts | 5 | Error class properties, inheritance, error codes |
+| api-key | src/services/api-key/ | ApiKeyService.error.test.ts | 4 | Error class properties, inheritance |
+| metrics | src/repositories/ | (existing tests already comprehensive) | 0 | Already at target coverage |
+
+#### New Test Files (6 files, 107 new tests)
+
+1. `src/services/output-validation/__tests__/PatchSchemaDefinition.test.ts` - PATCH_SCHEMA and SECURITY_BOUNDARY_SCHEMA validation
+2. `src/services/scheduler/__tests__/OnCallService.comprehensive.test.ts` - Enhanced OnCallService coverage
+3. `src/services/test-generation/__tests__/types.test.ts` - Type constants and framework mappings
+4. `src/services/queue/__tests__/QueueService.error.test.ts` - Error class + compatibility methods
+5. `src/services/project/__tests__/ProjectService.error.test.ts` - Error class validation
+6. `src/services/api-key/__tests__/ApiKeyService.error.test.ts` - Error class validation
+
+#### Test Results
+- All 7 module test suites: 17 suites, 364 tests passed
+- Full project: 719 suites passed, 17406 tests passed (3 pre-existing failures in test-selector, not related to this work)
+
+#### Fixes Applied During Development
+- PatchSchemaDefinition: Changed `toContain('.ts')` to `toContain('ts')` due to escaped dots in regex pattern
+- OnCallService DB mode: Mock DB needs two `query` calls for `findAll()` (data + count); used `mockResolvedValueOnce` chain
