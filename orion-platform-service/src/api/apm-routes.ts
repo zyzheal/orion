@@ -197,28 +197,4 @@ export default async function apmRoutes(
     }
   });
 
-  // ==================== Service Dependencies ====================
-
-  // GET /api/v1/apm/services/topology - Get service dependency topology
-  app.get('/services/topology', { onRequest: [authenticateUser, requirePermission({ resource: 'apm', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const result = await options.database!.query(
-        `SELECT
-          s1.service_name as source_service,
-          s2.service_name as target_service,
-          COUNT(*) as call_count,
-          AVG(s1.duration_ms) as avg_latency_ms,
-          SUM(CASE WHEN s1.status = 'error' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as error_rate
-        FROM spans s1
-        JOIN spans s2 ON s1.trace_id = s2.trace_id AND s1.span_id = s2.parent_span_id
-        WHERE s1.service_name != s2.service_name
-        GROUP BY s1.service_name, s2.service_name
-        ORDER BY call_count DESC`
-      );
-      return reply.send({ success: true, data: result.rows });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'TOPOLOGY_ERROR';
-      return reply.status(500).send({ error: 'TOPOLOGY_ERROR', message });
-    }
-  });
 }

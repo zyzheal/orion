@@ -1,5 +1,62 @@
 # Orion Platform Migration Progress
 
+## Current Session (2026-06-03) - Fix 13 Failing Route Tests
+
+### Completed: Fix 13 Route Registration Tests
+
+修复了 13 个路由测试文件，它们因 "Plugin must be a function or a promise. Received: 'undefined'" 和其他初始化错误而失败。
+
+#### 问题分类与修复
+
+**Group A: Named Export 误用 Default Import (6 个文件)**
+
+| 文件 | 导出方式 | 修复 |
+|------|---------|------|
+| product-line-routes | `export async function productLineRoutes(app, options)` | 改为 named import，直接调用函数 |
+| maintenance-window-routes | `export async function registerMaintenanceWindowRoutes(app, deps)` | 改为 named import，直接调用函数 |
+| secret-routes | `export async function registerSecretRoutes(app, deps)` | 改为 named import，直接调用函数 |
+| apk-upload-history-routes | `export async function registerApkUploadHistoryRoutes(app)` | 改为 named import，直接调用函数 |
+| ai-agent-routes | `export function registerAIAgentRoutes(app)` | 改为 named import，直接调用函数 |
+| internal-library-routes | `export async function internalLibraryRoutes(app, options)` | 改为 named import，直接调用函数 |
+
+**Group B: Default Export 但服务初始化失败 (7 个文件)**
+
+| 文件 | 失败原因 | 修复方式 |
+|------|---------|---------|
+| auth-enhanced-routes | JwtKeyRotationService.initialize() 写 DB 失败 | Mock JwtKeyRotationService 和 TokenBlacklistService (EventEmitter) |
+| apm-routes | `/services/topology` 重复注册 | 删除源码中的重复路由 |
+| ticketing-routes | TicketService 构造函数需要 TicketingRepository | Mock TicketService/TicketingService/TicketingRepository |
+| self-healing-routes | 传入 `{}` 但需要 database | Mock SelfHealingRepository 和 SelfHealingService |
+| chatops-routes | CommandService.seedDefaults() 调用 findAll 失败 | Mock CommandService 和所有相关服务 |
+| mcp-routes | SSE 端点保持连接导致超时 | Mock McpServer，SSE 测试用 Promise.race 超时 |
+| sso-unified-routes | openid-client ESM 导入失败 | Mock SsoService 和相关服务模块 |
+
+#### 附加修复
+- `src/api/apm-routes.ts`: 删除了重复的 `/services/topology` 路由定义（行 200-223）
+
+#### 测试结果
+- **修复前**: 13 个测试文件全部失败 (0 passed)
+- **修复后**: 13 个测试文件全部通过 (75 tests passed)
+- **全量路由测试**: 136 suites, 643 tests passed, 0 regressions
+
+#### Files Changed
+- `src/api/__tests__/product-line-routes.test.ts` (fix import)
+- `src/api/__tests__/auth-enhanced-routes.test.ts` (mock services)
+- `src/api/__tests__/maintenance-window-routes.test.ts` (fix import)
+- `src/api/__tests__/secret-routes.test.ts` (fix import)
+- `src/api/__tests__/apm-routes.test.ts` (mock services)
+- `src/api/__tests__/ticketing-routes.test.ts` (mock services)
+- `src/api/__tests__/apk-upload-history-routes.test.ts` (fix import)
+- `src/api/__tests__/ai-agent-routes.test.ts` (fix import)
+- `src/api/__tests__/self-healing-routes.test.ts` (mock services)
+- `src/api/__tests__/internal-library-routes.test.ts` (fix import)
+- `src/api/__tests__/chatops-routes.test.ts` (mock services)
+- `src/api/__tests__/mcp-routes.test.ts` (mock services + SSE timeout fix)
+- `src/api/__tests__/sso-unified-routes.test.ts` (mock services)
+- `src/api/apm-routes.ts` (remove duplicate route)
+
+---
+
 ## Current Session (2026-06-03) - Controller TDD Tests
 
 ### Completed: src/api/controllers/ TDD Test Coverage
