@@ -330,9 +330,9 @@ describe('UEBAService', () => {
       const denies = [
         { ...makeDenyEntry('user-1', 1), evaluated_at: '2026-05-18T03:00:00Z' },
         { ...makeDenyEntry('user-1', 2), evaluated_at: '2026-05-18T01:00:00Z' },
-        makeDenyEntry('user-1', 3), // working hours
-        makeDenyEntry('user-1', 4), // working hours
-        makeDenyEntry('user-1', 5), // working hours
+        { ...makeDenyEntry('user-1', 3), evaluated_at: '2026-05-18T10:00:00Z' }, // working hours
+        { ...makeDenyEntry('user-1', 4), evaluated_at: '2026-05-18T14:00:00Z' }, // working hours
+        { ...makeDenyEntry('user-1', 5), evaluated_at: '2026-05-18T16:00:00Z' }, // working hours
       ];
 
       mockAuditRepo.queryByUser.mockResolvedValue(denies);

@@ -80,6 +80,7 @@ describe('DualEngineRepository', () => {
   let repo: DualEngineRepository;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     db = createMockDb();
     repo = new DualEngineRepository(db as any);
   });

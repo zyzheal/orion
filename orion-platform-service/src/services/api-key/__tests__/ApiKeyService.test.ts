@@ -25,6 +25,7 @@ describe('ApiKeyService', () => {
       create: jest.fn(),
       delete: jest.fn(),
       updateLastUsed: jest.fn(),
+      findByHash: jest.fn(),
     } as unknown as jest.Mocked<ApiKeyRepository>;
 
     service = new ApiKeyService(mockRepository);
@@ -135,6 +136,88 @@ describe('ApiKeyService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('verifyKey', () => {
+    it('should return key record for valid non-expired key', async () => {
+      const mockKey: ApiKey = {
+        id: 'key-1',
+        tenant_id: 't1',
+        user_id: 'u1',
+        name: 'test-key',
+        key_hash: 'mock-hash-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        permissions: ['read'],
+        expires_at: null,
+        last_used_at: null,
+        created_at: new Date(),
+      };
+      mockRepository.findByHash.mockResolvedValue(mockKey);
+      mockRepository.updateLastUsed.mockResolvedValue(undefined);
+
+      const result = await service.verifyKey('raw-key-value');
+
+      expect(result).not.toBeNull();
+      expect(result?.keyId).toBe('key-1');
+      expect(mockRepository.updateLastUsed).toHaveBeenCalledWith('key-1');
+    });
+
+    it('should return null for non-existent key', async () => {
+      mockRepository.findByHash.mockResolvedValue(null);
+
+      const result = await service.verifyKey('invalid-key');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null and delete expired key', async () => {
+      const expiredKey: ApiKey = {
+        id: 'key-expired',
+        tenant_id: 't1',
+        user_id: 'u1',
+        name: 'expired',
+        key_hash: 'hash',
+        permissions: ['read'],
+        expires_at: new Date(Date.now() - 86400000), // yesterday
+        last_used_at: null,
+        created_at: new Date(),
+      };
+      mockRepository.findByHash.mockResolvedValue(expiredKey);
+      mockRepository.delete.mockResolvedValue(true);
+
+      const result = await service.verifyKey('expired-key');
+
+      expect(result).toBeNull();
+      expect(mockRepository.delete).toHaveBeenCalledWith('key-expired');
+    });
+
+    it('should not delete key with no expiration', async () => {
+      const validKey: ApiKey = {
+        id: 'key-valid',
+        tenant_id: 't1',
+        user_id: 'u1',
+        name: 'valid',
+        key_hash: 'hash',
+        permissions: ['read'],
+        expires_at: null,
+        last_used_at: null,
+        created_at: new Date(),
+      };
+      mockRepository.findByHash.mockResolvedValue(validKey);
+
+      await service.verifyKey('valid-key');
+
+      expect(mockRepository.delete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('ApiKeyServiceError', () => {
+  it('should have correct name and code', () => {
+    const error = new ApiKeyServiceError('test error', 'TEST_CODE');
+    expect(error.name).toBe('ApiKeyServiceError');
+    expect(error.code).toBe('TEST_CODE');
+    expect(error.message).toBe('test error');
+    expect(error).toBeInstanceOf(Error);
+  });
 });
 
 describe('ApiKeyRepository', () => {
@@ -241,6 +324,29 @@ describe('ApiKeyRepository', () => {
       const sql = mockDb.query.mock.calls[0][0];
       expect(sql).toContain('UPDATE api_keys SET last_used_at = NOW()');
       expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('last_used_at'), ['k1']);
+    });
+  });
+
+  describe('findByHash', () => {
+    it('should return key when hash matches', async () => {
+      const mockRow = { id: 'k1', key_hash: 'abc123' };
+      mockDb.query.mockResolvedValue({ rows: [mockRow] });
+
+      const result = await repository.findByHash('abc123');
+
+      expect(result).toEqual(mockRow);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        'SELECT * FROM api_keys WHERE key_hash = $1',
+        ['abc123']
+      );
+    });
+
+    it('should return null when hash not found', async () => {
+      mockDb.query.mockResolvedValue({ rows: [] });
+
+      const result = await repository.findByHash('non-existent');
+
+      expect(result).toBeNull();
     });
   });
 });

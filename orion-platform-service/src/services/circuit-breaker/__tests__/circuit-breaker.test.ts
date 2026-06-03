@@ -53,9 +53,12 @@ function createMockDb() {
         }
       }
 
-      // Simulate SELECT
+      // Simulate SELECT (with optional target_key filter)
       if (text.includes('SELECT') && text.includes('circuit_breaker_configs')) {
-        const rows = tables.get('circuit_breaker_configs') || [];
+        let rows = tables.get('circuit_breaker_configs') || [];
+        if (text.includes('target_key') && params?.[0]) {
+          rows = rows.filter((r: any) => r.target_key === params[0]);
+        }
         return { rows, rowCount: rows.length };
       }
 
@@ -162,6 +165,14 @@ describe('CircuitBreakerService', () => {
           throw new Error('test error');
         })
       ).rejects.toThrow('test error');
+    });
+
+    test('should handle non-Error thrown values', async () => {
+      await expect(
+        service.execute('test:svc', async () => {
+          throw 'string error';
+        })
+      ).rejects.toBe('string error');
     });
 
     test('should open circuit after repeated failures', async () => {
@@ -314,6 +325,29 @@ describe('CircuitBreakerService', () => {
       const state = await service.getState('test:disable');
       expect(state).toBeNull();
     });
+
+    test('should re-enable from DB config', async () => {
+      await service.register('test:enable', {
+        failureThreshold: 5,
+        recoveryTimeoutMs: 60000,
+      });
+
+      // Disable removes from registry but keeps DB config
+      await service.disable('test:enable');
+      expect(await service.getState('test:enable')).toBeNull();
+
+      // Enable should re-create from DB config
+      await service.enable('test:enable');
+      const state = await service.getState('test:enable');
+      expect(state).not.toBeNull();
+      expect(state!.state).toBe('closed');
+    });
+
+    test('should throw error on enable when no DB config exists', async () => {
+      // Use a fresh service with no registered configs
+      const freshService = createService();
+      await expect(freshService.enable('nonexistent')).rejects.toThrow();
+    });
   });
 
   // ─── Test 7: Events ────────────────────────────────────────────────────────
@@ -342,6 +376,64 @@ describe('CircuitBreakerService', () => {
       // Should have events
       const events = await service.getEvents('test:events');
       expect(events.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ─── Test 8: getAllStates / getAllConfigs ─────────────────────────────────
+
+  describe('getAllStates', () => {
+    test('should return all persisted states', async () => {
+      await service.register('test:states', {
+        failureThreshold: 5,
+        recoveryTimeoutMs: 60000,
+      });
+
+      const states = await service.getAllStates();
+      expect(states.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getAllConfigs', () => {
+    test('should return all enabled configs', async () => {
+      await service.register('test:configs', {
+        failureThreshold: 5,
+        recoveryTimeoutMs: 60000,
+      });
+
+      const configs = await service.getAllConfigs();
+      expect(configs.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ─── Test 9: getOrCreate with DB config ──────────────────────────────────
+
+  describe('getOrCreate with DB config', () => {
+    test('should use DB config when available and enabled', async () => {
+      // Use a separate mock DB so we can control the table state
+      const mockDb = createMockDb();
+      const configRepo = new CircuitBreakerConfigRepository(mockDb);
+      const stateRepo = new CircuitBreakerStateRepository(mockDb);
+      const eventRepo = new CircuitBreakerEventRepository(mockDb);
+      const svc = new CircuitBreakerService(configRepo, stateRepo, eventRepo);
+
+      // Register to create DB config (enabled=true)
+      await svc.register('test:dbconfig', {
+        failureThreshold: 10,
+        recoveryTimeoutMs: 120000,
+        successThreshold: 3,
+      });
+
+      // Create a second service instance that shares the same mock DB
+      // but has an empty registry - simulates restart scenario
+      const svc2 = new CircuitBreakerService(configRepo, stateRepo, eventRepo);
+
+      // getOrCreate on svc2 should find the DB config and register it
+      const breaker = await svc2.getOrCreate('test:dbconfig');
+      expect(breaker).toBeDefined();
+
+      const state = await svc2.getState('test:dbconfig');
+      expect(state).not.toBeNull();
+      expect(state!.state).toBe('closed');
     });
   });
 });

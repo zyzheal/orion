@@ -320,6 +320,33 @@ describe('PipelineTemplateService', () => {
 
         expect(result.pipeline_id).toBe('p1');
       });
+
+      it('应该替换 $PARAM 占位符', async () => {
+        mockPool.query
+          .mockResolvedValueOnce({
+            rows: [{
+              id: 't1',
+              yaml_definition: 'image: $IMAGE_NAME',
+              parameters: [],
+              name: 'template',
+              tenant_id: 'tenant1',
+              tags: [],
+              version: 1,
+            }],
+          })
+          .mockResolvedValueOnce({
+            rows: [{ id: 'p1' }],
+          });
+
+        const result = await service.instantiateTemplate({
+          template_id: 't1',
+          name: 'pipeline',
+          tenant_id: 'tenant1',
+          params: { IMAGE_NAME: 'my-app' },
+        });
+
+        expect(result.pipeline_id).toBe('p1');
+      });
     });
 
     describe('updateTemplate', () => {

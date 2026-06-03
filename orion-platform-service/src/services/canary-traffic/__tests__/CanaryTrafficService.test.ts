@@ -45,13 +45,11 @@ let canaryCounter = 0;
 describe('CanaryTrafficService', () => {
   let service: CanaryTrafficService;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     jest.clearAllMocks();
     canaryCounter++;
     // Use in-memory mode (no DB)
     service = new CanaryTrafficService();
-    // Clear module-level Map to ensure test isolation
-    await service.clearAllDeployments();
   });
 
   // ==================== Constructor ====================

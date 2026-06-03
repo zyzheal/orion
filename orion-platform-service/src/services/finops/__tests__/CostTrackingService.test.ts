@@ -162,11 +162,15 @@ describe('CostTrackingService', () => {
 
   describe('getCostTrend', () => {
     beforeEach(() => {
+      // Use dates at fixed UTC noon, each on separate days, all safely in the past
       const now = new Date();
-      const d1 = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-      const d2 = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
-      const d3 = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
-      const d4 = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+      const y = now.getUTCFullYear();
+      const m = now.getUTCMonth();
+      const d = now.getUTCDate();
+      const d1 = new Date(Date.UTC(y, m, d - 5, 12, 0, 0));
+      const d2 = new Date(Date.UTC(y, m, d - 4, 12, 0, 0));
+      const d3 = new Date(Date.UTC(y, m, d - 3, 12, 0, 0));
+      const d4 = new Date(Date.UTC(y, m, d - 2, 12, 0, 0));
 
       service.trackProjectCost({
         projectId: 'proj-001',

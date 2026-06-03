@@ -277,6 +277,90 @@ function makeMockRepository() {
         .map(([category, count]) => ({ category, count }))
         .sort((a, b) => b.count - a.count);
     }),
+
+    // Execution mocks
+    createExecution: jest.fn(async (input) => ({
+      id: `exec-${Date.now()}`,
+      tenant_id: input.tenant_id,
+      skill_id: input.skill_id,
+      instance_id: input.instance_id ?? null,
+      capability: input.capability ?? null,
+      status: 'pending',
+      input: input.input || {},
+      output: null,
+      error_message: null,
+      duration_ms: null,
+      triggered_by: input.triggered_by ?? null,
+      trigger_mode: input.trigger_mode || 'manual',
+      metadata: input.metadata || {},
+      started_at: new Date(),
+      completed_at: null,
+      created_at: new Date(),
+    })),
+
+    updateExecution: jest.fn(async (id, input) => ({
+      id,
+      tenant_id: 't1',
+      skill_id: 's1',
+      instance_id: null,
+      capability: null,
+      status: input.status || 'completed',
+      input: {},
+      output: input.output ?? null,
+      error_message: input.error_message ?? null,
+      duration_ms: input.duration_ms ?? null,
+      triggered_by: null,
+      trigger_mode: 'manual',
+      metadata: {},
+      started_at: new Date(),
+      completed_at: input.completed_at ?? new Date(),
+      created_at: new Date(),
+    })),
+
+    findExecutionById: jest.fn(async (id) => {
+      if (id === 'exec-existing') {
+        return {
+          id,
+          tenant_id: 't1',
+          skill_id: 's1',
+          instance_id: null,
+          capability: null,
+          status: 'pending',
+          input: {},
+          output: null,
+          error_message: null,
+          duration_ms: null,
+          triggered_by: null,
+          trigger_mode: 'manual',
+          metadata: {},
+          started_at: new Date(),
+          completed_at: null,
+          created_at: new Date(),
+        };
+      }
+      return null;
+    }),
+
+    findExecutionsBySkill: jest.fn(async () => ({ executions: [], total: 0 })),
+    findExecutionsByTenant: jest.fn(async () => ({ executions: [], total: 0 })),
+
+    // Audit log mocks
+    createAuditLog: jest.fn(async (input) => ({
+      id: `audit-${Date.now()}`,
+      skill_id: input.skill_id,
+      action: input.action,
+      actor_id: input.actor_id ?? null,
+      actor_name: input.actor_name ?? null,
+      old_status: input.old_status ?? null,
+      new_status: input.new_status ?? null,
+      reason: input.reason ?? null,
+      changes: input.changes ?? null,
+      created_at: new Date(),
+    })),
+
+    findAuditLogs: jest.fn(async () => ({ logs: [], total: 0 })),
+    findAllAuditLogs: jest.fn(async () => ({ logs: [], total: 0 })),
+    findPendingReview: jest.fn(async () => ({ skills: [], total: 0 })),
   } as unknown as jest.Mocked<SkillRepository>;
 
   return { repo, skills, versions, reviews, instances };
@@ -1203,6 +1287,269 @@ describe('SkillService', () => {
     it('SkillServiceError should have custom code', () => {
       const err = new SkillServiceError('validation failed', 'INVALID_INPUT');
       expect(err.code).toBe('INVALID_INPUT');
+    });
+  });
+
+  // ==================== Execution ====================
+
+  describe('executeSkill', () => {
+    it('should execute a skill and return completed execution', async () => {
+      const { repo, skills } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      skill.status = 'published';
+      skills.set(skill.id, skill);
+
+      const result = await service.executeSkill(skill.id, {
+        tenantId: 't1',
+        userId: 'u1',
+        capability: 'ai.code-gen',
+      });
+
+      expect(result).toBeDefined();
+      expect(repo.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({ skill_id: skill.id })
+      );
+      expect(repo.createExecution).toHaveBeenCalled();
+      expect(repo.createAuditLog).toHaveBeenCalled();
+    });
+
+    it('should throw when skill not found', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+
+      await expect(service.executeSkill('missing', { tenantId: 't1' }))
+        .rejects.toThrow('Skill not found');
+    });
+
+    it('should verify instance belongs to tenant', async () => {
+      const { repo, skills } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      skill.status = 'published';
+      skills.set(skill.id, skill);
+
+      // Mock findInstanceByIdAndTenant to return null for wrong tenant
+      repo.findInstanceByIdAndTenant.mockResolvedValueOnce(null);
+
+      await expect(service.executeSkill(skill.id, {
+        tenantId: 't1',
+        instanceId: 'inst-1',
+      })).rejects.toThrow('Skill instance not found or not accessible');
+    });
+  });
+
+  describe('getExecutions', () => {
+    it('should return paginated executions', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      repo.findExecutionsBySkill.mockResolvedValueOnce({ executions: [{ id: 'e1' } as any], total: 1 });
+
+      const result = await service.getExecutions('s1', 't1');
+      expect(result.executions).toHaveLength(1);
+      expect(result.totalPages).toBe(1);
+    });
+  });
+
+  describe('getAllExecutions', () => {
+    it('should return all executions for tenant', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      repo.findExecutionsByTenant.mockResolvedValueOnce({ executions: [], total: 0 });
+
+      const result = await service.getAllExecutions('t1');
+      expect(result.executions).toHaveLength(0);
+    });
+  });
+
+  describe('updateExecution', () => {
+    it('should update execution status', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+
+      const result = await service.updateExecution('exec-existing', { status: 'completed' });
+      expect(result.status).toBe('completed');
+    });
+
+    it('should throw when execution not found', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+
+      await expect(service.updateExecution('missing', { status: 'completed' }))
+        .rejects.toThrow('Execution not found');
+    });
+  });
+
+  // ==================== Review Workflow ====================
+
+  describe('submitForReview', () => {
+    it('should submit draft skill for review', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+
+      const result = await service.submitForReview(skill.id, 'u1');
+      expect(result.status).toBe('review');
+      expect(repo.createAuditLog).toHaveBeenCalled();
+    });
+
+    it('should throw when skill is not draft', async () => {
+      const { repo, skills } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      skill.status = 'published';
+      skills.set(skill.id, skill);
+
+      await expect(service.submitForReview(skill.id, 'u1'))
+        .rejects.toThrow('Only draft skills can be submitted for review');
+    });
+  });
+
+  describe('approveSkill', () => {
+    it('should approve skill under review', async () => {
+      const { repo, skills } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      skill.status = 'review';
+      skills.set(skill.id, skill);
+
+      const result = await service.approveSkill(skill.id, 'u1', 'Looks good');
+      expect(result.status).toBe('published');
+    });
+
+    it('should throw when skill is not under review', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+
+      await expect(service.approveSkill(skill.id, 'u1'))
+        .rejects.toThrow('Only skills under review or rejected can be approved');
+    });
+  });
+
+  describe('rejectSkill', () => {
+    it('should reject skill back to draft', async () => {
+      const { repo, skills } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      skill.status = 'review';
+      skills.set(skill.id, skill);
+
+      const result = await service.rejectSkill(skill.id, 'u1', 'Needs work');
+      expect(result.status).toBe('draft');
+    });
+
+    it('should throw when reason is empty', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+
+      await expect(service.rejectSkill('s1', 'u1', ''))
+        .rejects.toThrow('Rejection reason is required');
+    });
+
+    it('should throw when skill is not under review', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+
+      await expect(service.rejectSkill(skill.id, 'u1', 'reason'))
+        .rejects.toThrow('Only skills under review can be rejected');
+    });
+  });
+
+  describe('archiveSkill', () => {
+    it('should archive skill', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+
+      const result = await service.archiveSkill(skill.id, 'u1', 'No longer needed');
+      expect(result.status).toBe('uninstalled');
+    });
+
+    it('should throw when skill is already archived', async () => {
+      const { repo, skills } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      skill.status = 'uninstalled';
+      skills.set(skill.id, skill);
+
+      await expect(service.archiveSkill(skill.id, 'u1'))
+        .rejects.toThrow('Skill is already archived');
+    });
+  });
+
+  describe('getPendingReview', () => {
+    it('should return skills pending review', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      repo.findPendingReview.mockResolvedValueOnce({ skills: [{ id: 's1' } as any], total: 1 });
+
+      const result = await service.getPendingReview();
+      expect(result.skills).toHaveLength(1);
+    });
+  });
+
+  describe('getAuditLog', () => {
+    it('should return audit log for skill', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      const skill = await repo.create(makeSampleSkillInput());
+      repo.findAuditLogs.mockResolvedValueOnce({ logs: [{ id: 'a1' } as any], total: 1 });
+
+      const result = await service.getAuditLog(skill.id);
+      expect(result.logs).toHaveLength(1);
+    });
+  });
+
+  describe('getAllAuditLogs', () => {
+    it('should return all audit logs', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      repo.findAllAuditLogs.mockResolvedValueOnce({ logs: [{ id: 'a1' } as any], total: 1 });
+
+      const result = await service.getAllAuditLogs();
+      expect(result.logs).toHaveLength(1);
+    });
+  });
+
+  // ==================== Additional Instance Tests ====================
+
+  describe('listInstancesByTenant', () => {
+    it('should return instances for tenant', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+
+      const result = await service.listInstancesByTenant('t1');
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('deleteInstance with failure', () => {
+    it('should throw when delete fails', async () => {
+      const { repo, instances } = makeMockRepository();
+      const service = new SkillService(repo);
+      const instance = await repo.createInstance({
+        skill_id: 's1',
+        tenant_id: 't1',
+        name: 'test',
+      });
+      // Mock delete to return false
+      repo.deleteInstance.mockResolvedValueOnce(false);
+
+      await expect(service.deleteInstance(instance.id))
+        .rejects.toThrow('Failed to delete instance');
+    });
+  });
+
+  describe('unlockVersion not found', () => {
+    it('should throw when version not found', async () => {
+      const { repo } = makeMockRepository();
+      const service = new SkillService(repo);
+      repo.unlockVersion.mockResolvedValueOnce(null);
+
+      await expect(service.unlockVersion('missing'))
+        .rejects.toThrow('Skill version not found');
     });
   });
 });
