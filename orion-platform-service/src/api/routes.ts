@@ -171,6 +171,9 @@ import integrationRoutes from './integration-routes';
 import efficiencyRoutes from './efficiency-routes';
 import chaosRoutes from './chaos-routes';
 
+// Dual Engine Routes (AST + LLM)
+import { dualEngineRoutes } from './dual-engine-routes';
+
 // Services needed for route registration
 import { DependencyCoordinationService } from '../services/pipeline/DependencyCoordinationService';
 import { PipelineService } from '../services/pipeline/PipelineService';
@@ -1261,4 +1264,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Chaos Engineering ====================
   await registerWithRoleGuard(app, chaosRoutes, '/chaos', { database: options.database });
+
+  // ==================== Dual Engine (AST + LLM) ====================
+  await registerWithRoleGuard(app, dualEngineRoutes, '/dual-engine', { database: options.database });
 }
