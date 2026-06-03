@@ -175,145 +175,22 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('detectCorrelation', () => {
-    // NOTE: detectCorrelation, analyzeCorrelations, calculateImpact, getNodeHealth
-    // are not implemented in AlertCorrelationService. These tests are skipped
-    // until the methods are added to the implementation.
-    it.skip('should detect same source correlation', () => {
-      const alert1 = createAlert('alert-1', 'app-001', AlertSourceType.APPLICATION);
-      const alert2 = createAlert('alert-2', 'app-001', AlertSourceType.APPLICATION);
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('same_source');
-      expect(result?.confidence).toBe(0.9);
-    });
-
-    it.skip('should detect dependency correlation', () => {
-      const alert1 = createAlert('alert-1', 'db-001', AlertSourceType.DATABASE);
-      const alert2 = createAlert('alert-2', 'app-001', AlertSourceType.APPLICATION);
-
-      const result = (correlation as any).detectCorrelation?.(alert2, alert1);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('dependency');
-    });
-
-    it.skip('should detect common dependency correlation', () => {
-      const alert1 = createAlert('alert-1', 'app-001', AlertSourceType.APPLICATION);
-      const alert2 = createAlert('alert-2', 'app-002', AlertSourceType.APPLICATION);
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('common_dependency');
-    });
-
-    it.skip('should detect temporal correlation', () => {
-      correlation.setTopology({
-        nodes: [
-          { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1', status: 'healthy' },
-          { id: 'node-002', type: AlertSourceType.NODE, name: 'Server-2', status: 'healthy' },
-        ],
-        edges: [],
-      });
-
-      const now = new Date();
-      const alert1: Alert = {
-        id: 'alert-1',
-        fingerprint: 'fp-1',
-        name: 'Alert-1',
-        severity: AlertSeverity.HIGH,
-        status: AlertStatus.FIRING,
-        sourceType: AlertSourceType.NODE,
-        sourceId: 'node-001',
-        sourceName: 'node-001',
-        labels: {},
-        annotations: {},
-        value: 80,
-        threshold: 70,
-        startsAt: now,
-        tenantId: 'tenant-001',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const alert2: Alert = {
-        ...alert1,
-        id: 'alert-2',
-        sourceId: 'node-002',
-        sourceName: 'node-002',
-        startsAt: new Date(now.getTime() + 2 * 60 * 1000),
-      };
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('temporal');
-    });
-
-    it.skip('should return no correlation for unrelated alerts', () => {
-      correlation.setTopology({
-        nodes: [
-          { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1', status: 'healthy' },
-          { id: 'node-002', type: AlertSourceType.NODE, name: 'Server-2', status: 'healthy' },
-        ],
-        edges: [],
-      });
-
-      const now = new Date();
-      const alert1: Alert = {
-        id: 'alert-1',
-        fingerprint: 'fp-1',
-        name: 'Alert-1',
-        severity: AlertSeverity.HIGH,
-        status: AlertStatus.FIRING,
-        sourceType: AlertSourceType.NODE,
-        sourceId: 'node-001',
-        sourceName: 'node-001',
-        labels: {},
-        annotations: {},
-        value: 80,
-        threshold: 70,
-        startsAt: now,
-        tenantId: 'tenant-001',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const alert2: Alert = {
-        ...alert1,
-        id: 'alert-2',
-        sourceId: 'node-002',
-        sourceName: 'node-002',
-        startsAt: new Date(now.getTime() + 10 * 60 * 1000),
-      };
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(false);
-      expect(result?.correlationType).toBe('none');
-    });
+    // TODO: detectCorrelation method is not implemented in AlertCorrelationService.
+    // These tests are marked as todo until the method is added to the implementation.
+    // Expected signature: detectCorrelation(alert1: Alert, alert2: Alert) => CorrelationResult
+    // Expected CorrelationResult: { correlated: boolean, correlationType: string, confidence?: number }
+    it.todo('should detect same source correlation');
+    it.todo('should detect dependency correlation');
+    it.todo('should detect common dependency correlation');
+    it.todo('should detect temporal correlation');
+    it.todo('should return no correlation for unrelated alerts');
   });
 
   describe('analyzeCorrelations', () => {
-    it.skip('should analyze all alerts and return correlation results', () => {
-      const alerts: Alert[] = [
-        createAlert('alert-db', 'db-001', AlertSourceType.DATABASE),
-        createAlert('alert-app1', 'app-001', AlertSourceType.APPLICATION),
-        createAlert('alert-app2', 'app-002', AlertSourceType.APPLICATION),
-      ];
-
-      const results = (correlation as any).analyzeCorrelations?.(alerts);
-
-      expect(results).toHaveLength(3);
-
-      const app1Result = results.find((r: any) => r.alertId === 'alert-app1');
-      expect(app1Result!.correlatedAlertIds).toContain('alert-db');
-
-      const app2Result = results.find((r: any) => r.alertId === 'alert-app2');
-      expect(app2Result!.correlatedAlertIds).toContain('alert-db');
-    });
+    // TODO: analyzeCorrelations method is not implemented in AlertCorrelationService.
+    // Expected signature: analyzeCorrelations(alerts: Alert[]) => CorrelationResult[]
+    // Expected CorrelationResult: { alertId: string, correlatedAlertIds: string[] }
+    it.todo('should analyze all alerts and return correlation results');
   });
 
   describe('updateNodeHealth', () => {
@@ -335,15 +212,10 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('calculateImpact', () => {
-    it.skip('should calculate direct and indirect impact', () => {
-      const alert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE);
-
-      const impact = (correlation as any).calculateImpact?.(alert);
-
-      expect(impact?.directImpact).toContain('app-001');
-      expect(impact?.directImpact).toContain('app-002');
-      expect(impact?.totalImpactCount).toBeGreaterThan(0);
-    });
+    // TODO: calculateImpact method is not implemented in AlertCorrelationService.
+    // Expected signature: calculateImpact(alert: Alert) => ImpactResult
+    // Expected ImpactResult: { directImpact: string[], totalImpactCount: number }
+    it.todo('should calculate direct and indirect impact');
   });
 
   describe('getNodeHealth', () => {

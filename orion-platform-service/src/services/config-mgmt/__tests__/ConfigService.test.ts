@@ -666,12 +666,7 @@ describe('ConfigService', () => {
       expect(config.id).toBeDefined();
     });
 
-    it.skip('should allow setting event publisher after construction', async () => {
-      // setEventPublisher not yet implemented on ConfigService
-      const serviceWithoutPublisher = new ConfigService();
-      // serviceWithoutPublisher.setEventPublisher(mockEventPublisher);
-      // await serviceWithoutPublisher.createConfig({ key: 'test.key', value: 'value', environment: 'dev', createdBy: 'admin' });
-      // expect(mockEventPublisher.publish).toHaveBeenCalled();
-    });
+    it.todo('should allow setting event publisher after construction');
+    // TODO: setEventPublisher not yet implemented on ConfigService
   });
 });

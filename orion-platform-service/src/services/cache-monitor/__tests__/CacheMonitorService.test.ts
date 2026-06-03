@@ -267,25 +267,27 @@ describe('CacheMonitorService', () => {
       });
     });
 
-    // NOTE: recordCacheHit and recordCacheMiss are not implemented as service methods
-    // (only exist as repository methods). These tests are skipped.
-    describe.skip('recordCacheHit', () => {
+    describe('recordCacheEvent', () => {
       it('应该记录缓存命中', async () => {
         mockPool.query.mockResolvedValue({ rows: [] });
 
-        await service.recordCacheHit('c1', 'tenant1', 50);
+        await service.recordCacheEvent('c1', 'tenant1', 'hit', 50);
 
-        expect(mockPool.query).toHaveBeenCalled();
+        expect(mockPool.query).toHaveBeenCalledWith(
+          expect.stringContaining('INSERT INTO'),
+          expect.arrayContaining(['c1', 'tenant1', 1, 0])
+        );
       });
-    });
 
-    describe.skip('recordCacheMiss', () => {
       it('应该记录缓存未命中', async () => {
         mockPool.query.mockResolvedValue({ rows: [] });
 
-        await service.recordCacheMiss('c1', 'tenant1');
+        await service.recordCacheEvent('c1', 'tenant1', 'miss');
 
-        expect(mockPool.query).toHaveBeenCalled();
+        expect(mockPool.query).toHaveBeenCalledWith(
+          expect.stringContaining('INSERT INTO'),
+          expect.arrayContaining(['c1', 'tenant1', 0, 1])
+        );
       });
     });
   });

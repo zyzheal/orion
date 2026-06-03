@@ -212,7 +212,9 @@ export class AdaptiveTimeoutService {
 
       await this.pool.query('COMMIT');
     } catch (err) {
-      await this.pool.query('ROLLBACK').catch(() => {});
+      if (this.pool) {
+        await this.pool.query('ROLLBACK').catch(() => {});
+      }
       logger.error('[AdaptiveTimeout] Failed to record execution:', err);
     }
   }
