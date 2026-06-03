@@ -1,6 +1,170 @@
 # Orion Platform Migration Progress
 
-## Current Session (2026-06-03)
+## Current Session (2026-06-03) - Controller TDD Tests
+
+### Completed: src/api/controllers/ TDD Test Coverage
+
+为 `src/api/controllers/` 目录下全部 67 个控制器文件创建了 TDD 测试（含 1 个已有的 CmdbController 测试）。
+
+#### 测试统计
+- **测试文件**: 66 个新增 (CmdbController 已有)
+- **测试套件**: 66 passed
+- **测试用例**: 1280 passed
+- **运行时间**: ~1.6s
+
+#### 增强测试（核心控制器，含完整 mock 和边界测试）
+
+| 控制器 | 测试数 | 覆盖重点 |
+|--------|--------|---------|
+| PipelineController | 18 | CRUD, validate, 400/404/409/500 错误处理 |
+| DeployController | 15 | deploy, rollback, cancel, 400 验证, 404 not found |
+| UserController | 21 | list, create, update, delete, authenticate, changePassword |
+| TaskController | 10 | getById, getLog, retry (状态检查, 最大重试) |
+| SessionController | 14 | create, verify, revoke, cleanup, refreshToken |
+| SkillController | 13 | list, create, update, delete, install, rate, execute |
+| MetricsController | 12 | record, query, getStats (参数验证, 400/500) |
+| EnvironmentController | 19 | CRUD, updateStatus, lock/unlock, 400 验证 |
+| PolicyController | 11 | CRUD, evaluate, history, 400/404 错误 |
+| RoleController | 12 | list, create, update, delete (tenantId 验证) |
+
+#### 基础测试（65 个控制器，每个方法 2 个测试）
+
+所有剩余控制器均有基础测试覆盖：
+- 成功路径：验证 reply.send 或 reply.status 被调用
+- 错误路径：验证空 body/params 时不崩溃
+
+#### Files Created
+- `src/api/controllers/__tests__/*.test.ts` (65 个新文件)
+
+---
+
+## Previous Session (2026-06-03) - Models TDD Tests
+
+### Completed: src/models/ TDD Test Coverage
+
+为 `src/models/` 目录下全部 37 个源文件创建了 TDD 测试。
+
+#### 测试统计
+- **测试文件**: 37 个 (与源文件 1:1 对应)
+- **测试套件**: 37 passed
+- **测试用例**: 286 passed
+- **运行时间**: ~1.7s
+
+#### 测试覆盖的模型分类
+
+**工厂函数测试 (32 个文件有 create/update/lifecycle 函数)**:
+- AgentProfile: createAgentProfile, updateAgentProfile
+- AgentRun: createAgentRun, addDecision, completeDecision, failDecision, completeRun, failRun, cancelRun, createAgentApproval
+- BuildArtifact: createArtifact, recordArtifactDownload, ArtifactType, ArtifactStorageType
+- ArtifactOps: createArtifactOperation, createRetentionPolicy, createScanResult
+- ArtifactVersion: createArtifactVersion
+- Build: createBuild, BuildStatus enum
+- BuildCache: generateCacheKey, createBuildCacheConfig, updateBuildCacheConfig, createCacheEntry, recordCacheHit
+- BuilderImage: createBuilderImage, updateBuilderImage, isImageAvailable
+- BuildLog: createBuildLog, appendLogEntry, appendLogEntries, completeBuildLog, createLogEntry, parseLogLine
+- BuildPod: createBuildPod, updatePodStatus, isPodTerminal, isPodSuccessful
+- CanaryAnalysis: createCanaryAnalysisRun, createCanaryMetricResult, createCanaryMLResult, createCanaryAnalysisConfig, createCanaryDecision
+- ChangeIntelligence: computeRiskLevel, createChangeIntelligenceReport, createAffectedService, createRiskFactor, createHistoricalMatch
+- ChatOps: createChatOpsCommand, createChatOpsExecution, createChatOpsSession, createChatOpsAuditLog
+- CostRecord: createBudget, createCostRecord, createAlertRule, createModelPricing
+- DataPipeline: createDataPipeline, createPipelineExecution
+- DeploymentStrategy: createDeploymentStrategy, createDeploymentStepTracker, createHealthCheckResult
+- Environment: createEnvironment, mergeVariables
+- EphemeralEnvironment: createEphemeralEnvironment, markRunning, markIdle, markTearingDown, markDestroyed, wakeEnvironment
+- IacWorkspace: createIaCWorkspace, createIaCPlan, createIaCStateVersion, createIaCModule
+- Pipeline: createPipeline, PipelineStatus enum
+- PipelineRun: createPipelineRun, startPipelineRun, completePipelineRun, cancelPipelineRun
+- PolicyDefinition: createPolicyDefinition, createPolicyBundle, createPolicyEvaluation, createPolicyViolation, createPolicyOverride
+- QualityGate: createQualityGate
+- Runner: createRunner, isRunnerAvailable, getRunnerUtilization, isRunnerStale
+- RunnerJob: createRunnerJob, startRunnerJob, completeRunnerJob, failRunnerJob
+- SbomDocument: createSbomDocument, createSbomPackage, createSbomAttestation, createSbomVulnerabilityResult, createSbomWaiver
+- SkillPackage: createSkillPackage, createSkillVersion, createSkillReview
+- Stage: createStage, startStage, completeStage, failStage, skipStage, canRetryStage, incrementStageRetry
+- SubPipeline: createSubPipelineInvocation, startSubPipeline, completeSubPipeline, failSubPipeline, cancelSubPipeline
+- Task: createTask, startTask, completeTask, failTask, appendTaskLog, canRetryTask, incrementTaskRetry
+- TestReport: createTestReport, createTestCase
+
+**纯类型定义兼容性测试 (5 个文件)**:
+- Artifact (Registry): ArtifactType, ArtifactStatus enums, interface compatibility
+- ExtendedArtifact: 所有接口类型兼容性验证
+- InternalLibrary: 所有接口类型兼容性验证
+- Job: JobPriority enum, 接口类型兼容性验证
+- PluginAuditLog: action/outcome 类型兼容性验证
+- ProductLine: 所有复杂嵌套接口类型兼容性验证
+
+#### Files Created
+- `src/models/__tests__/AgentProfile.test.ts`
+- `src/models/__tests__/AgentRun.test.ts`
+- `src/models/__tests__/Artifact.test.ts`
+- `src/models/__tests__/ArtifactOps.test.ts`
+- `src/models/__tests__/ArtifactVersion.test.ts`
+- `src/models/__tests__/Build.test.ts`
+- `src/models/__tests__/BuildArtifact.test.ts`
+- `src/models/__tests__/BuildCache.test.ts`
+- `src/models/__tests__/BuilderImage.test.ts`
+- `src/models/__tests__/BuildLog.test.ts`
+- `src/models/__tests__/BuildPod.test.ts`
+- `src/models/__tests__/CanaryAnalysis.test.ts`
+- `src/models/__tests__/ChangeIntelligence.test.ts`
+- `src/models/__tests__/ChatOps.test.ts`
+- `src/models/__tests__/CostRecord.test.ts`
+- `src/models/__tests__/DataPipeline.test.ts`
+- `src/models/__tests__/DeploymentStrategy.test.ts`
+- `src/models/__tests__/Environment.test.ts`
+- `src/models/__tests__/EphemeralEnvironment.test.ts`
+- `src/models/__tests__/ExtendedArtifact.test.ts`
+- `src/models/__tests__/IacWorkspace.test.ts`
+- `src/models/__tests__/InternalLibrary.test.ts`
+- `src/models/__tests__/Job.test.ts`
+- `src/models/__tests__/Pipeline.test.ts`
+- `src/models/__tests__/PipelineRun.test.ts`
+- `src/models/__tests__/PluginAuditLog.test.ts`
+- `src/models/__tests__/PolicyDefinition.test.ts`
+- `src/models/__tests__/ProductLine.test.ts`
+- `src/models/__tests__/QualityGate.test.ts`
+- `src/models/__tests__/Runner.test.ts`
+- `src/models/__tests__/RunnerJob.test.ts`
+- `src/models/__tests__/SbomDocument.test.ts`
+- `src/models/__tests__/SkillPackage.test.ts`
+- `src/models/__tests__/Stage.test.ts`
+- `src/models/__tests__/SubPipeline.test.ts`
+- `src/models/__tests__/Task.test.ts`
+- `src/models/__tests__/TestReport.test.ts`
+
+---
+
+## Previous Session (2026-06-03) - Fix Skipped Tests
+
+### Completed: Fix 3 Skipped Test Files
+
+修复了 3 个测试文件中被跳过的测试，使其与实际实现匹配。
+
+#### Changes Made
+
+1. **CacheMonitorService.test.ts** - `describe.skip('recordCacheHit')` 和 `describe.skip('recordCacheMiss')`
+   - 原因: 测试调用 `service.recordCacheHit()` 和 `service.recordCacheMiss()`，但 Service 层实际暴露的是 `recordCacheEvent(cacheId, tenantId, eventType, latencySavedMs)` 方法
+   - 修复: 将两个 `describe.skip` 合并为一个 `describe('recordCacheEvent')`，使用实际存在的 API，添加两个测试（hit 和 miss）
+
+2. **AdaptiveTimeoutService.test.ts** - `it.skip('should do nothing when db is not available')`
+   - 原因: `recordExecution` 的 catch 块调用 `this.pool.query('ROLLBACK')` 时，当 pool 为 null 会抛出 TypeError
+   - 修复: 在 catch 块中添加 `if (this.pool)` 空值检查（源码 bug 修复），然后启用测试
+
+3. **ConfigService.test.ts** - `it.skip('should allow setting event publisher after construction')`
+   - 原因: `setEventPublisher` 方法尚未在 ConfigService 上实现
+   - 修复: 改为 `it.todo` 并添加 TODO 注释
+
+#### Files Changed
+- `src/services/cache-monitor/__tests__/CacheMonitorService.test.ts` (rewrite skipped tests)
+- `src/services/pipeline/AdaptiveTimeoutService.ts` (fix null pool bug in catch block)
+- `src/services/pipeline/__tests__/AdaptiveTimeoutService.test.ts` (unskip test)
+- `src/services/config-mgmt/__tests__/ConfigService.test.ts` (skip -> todo)
+
+#### Test Results
+- **Test Suites**: 4 passed, 4 total
+- **Tests**: 122 passed, 1 todo, 123 total
+
+---
 
 ### Completed: Batch Index Export Verification Tests for 39 Modules
 
