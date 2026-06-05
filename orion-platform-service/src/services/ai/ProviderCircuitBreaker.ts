@@ -24,6 +24,7 @@ import {
   ProviderCBMetricsRepository,
   ProviderCBRequestHistoryRepository,
 } from '../../repositories/ProviderCircuitBreakerRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -199,7 +200,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
         stateCount: stateEntities.length,
       });
     } catch (error) {
-      logger.error({ msg: 'Failed to restore ProviderCircuitBreaker state from DB', error });
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore ProviderCircuitBreaker state from DB', error });
     }
   }
 
@@ -363,7 +364,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
       }).then(() => {
         // Prune old records
         return this.historyRepo!.pruneOldRecords(providerId, new Date(cutoff));
-      }).catch(err => logger.error({ msg: 'Failed to persist request history', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist request history', error: err }));
     }
 
     // Persist metrics to DB
@@ -382,7 +383,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
           p95Latency: currentMetrics.p95Latency,
           lastFailureTime: currentMetrics.lastFailureTime,
           lastSuccessTime: currentMetrics.lastSuccessTime,
-        }).catch(err => logger.error({ msg: 'Failed to persist metrics', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
       }
     }
 
@@ -401,7 +402,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
           lastStateChangeTime: currentState.lastStateChangeTime,
           halfOpenProbeCount: currentState.halfOpenProbeCount,
           openStartTime: this.openStartTimes.get(providerId),
-        }).catch(err => logger.error({ msg: 'Failed to persist provider state', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist provider state', error: err }));
       }
     }
   }
@@ -447,7 +448,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
         successCount: 0,
         lastStateChangeTime: now,
         halfOpenProbeCount: 0,
-      }).catch(err => logger.error({ msg: 'Failed to persist provider reset', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist provider reset', error: err }));
     }
 
     // Reset metrics in DB
@@ -462,7 +463,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
         successRate: 0,
         avgLatency: 0,
         p95Latency: 0,
-      }).catch(err => logger.error({ msg: 'Failed to persist metrics reset', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics reset', error: err }));
     }
   }
 
@@ -625,7 +626,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
         lastStateChangeTime: stateDetail.lastStateChangeTime,
         halfOpenProbeCount: stateDetail.halfOpenProbeCount,
         openStartTime: this.openStartTimes.get(providerId),
-      }).catch(err => logger.error({ msg: 'Failed to persist provider state transition', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist provider state transition', error: err }));
     }
   }
 

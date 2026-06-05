@@ -9,6 +9,7 @@
 import { ChatOpsRecommendation } from './EventSubscriber';
 import { DatabasePool } from '../database';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LRecommendation-LService' });
 

@@ -12,6 +12,7 @@
 
 import pino from 'pino';
 import { PipelineService } from './PipelineService';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -50,7 +51,7 @@ export class PipelineTenantIsolationService {
     }
 
     if (!this.pipelineService) {
-      logger.warn({ pipelineId }, 'PipelineService unavailable for tenant validation, allowing');
+      logger.warn({ traceId: getCurrentTraceId(), pipelineId }, 'PipelineService unavailable for tenant validation, allowing');
       return { valid: true };
     }
 

@@ -26,6 +26,7 @@ import {
   PluginSandboxConfig,
 } from './types';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -85,7 +86,7 @@ export class PluginService extends EventEmitter {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      logger.warn('Plugin service already initialized');
+      logger.warn({ traceId: getCurrentTraceId() }, 'Plugin service already initialized');
       return;
     }
 

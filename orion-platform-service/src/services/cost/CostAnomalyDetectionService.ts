@@ -7,6 +7,7 @@
 import pino from 'pino';
 import { DatabasePool } from '../database';
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -490,7 +491,7 @@ export class CostAnomalyDetectionService {
         ],
       );
     } catch (err: any) {
-      logger.warn({ error: err.message }, 'Failed to store cost anomaly');
+      logger.warn({ traceId: getCurrentTraceId(), error: err.message }, 'Failed to store cost anomaly');
     }
   }
 
@@ -525,7 +526,7 @@ export class CostAnomalyDetectionService {
       `);
       logger.info('cost_records and cost_anomalies tables ensured');
     } catch (err: any) {
-      logger.warn({ error: err.message }, 'Could not ensure cost tables (may need migration)');
+      logger.warn({ traceId: getCurrentTraceId(), error: err.message }, 'Could not ensure cost tables (may need migration)');
     }
   }
 }

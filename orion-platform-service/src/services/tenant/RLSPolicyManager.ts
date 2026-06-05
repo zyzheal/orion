@@ -10,6 +10,7 @@
 
 import pino from 'pino';
 import { OrionError } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -390,7 +391,7 @@ export class RLSPolicyManager {
    */
   disable(): void {
     this.enabled = false;
-    logger.warn('[RLSPolicyManager] Disabled');
+    logger.warn({ traceId: getCurrentTraceId() }, '[RLSPolicyManager] Disabled');
   }
 
   /**

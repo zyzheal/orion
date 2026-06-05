@@ -10,6 +10,7 @@ import { AlertSourceType } from './AlertTypes';
 import type { AlertTopologyNode, AlertTopologyEdge, RootCauseAnalysis } from './AlertTypes';
 import { AlertCorrelationGroupRepository, AlertCorrelationGroupEntity } from '../../repositories/AlertCorrelationGroupRepository';
 import { AlertTopologyNodeRepository, AlertTopologyNodeEntity } from '../../repositories/AlertTopologyNodeRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -481,7 +482,7 @@ export class AlertCorrelationService {
             childrenIds: [],
           } as any);
         } catch (err) {
-          logger.warn({ err, nodeId: node.id }, 'Failed to persist topology node, using memory');
+          logger.warn({ traceId: getCurrentTraceId(), err, nodeId: node.id }, 'Failed to persist topology node, using memory');
           this.topologyNodesMemory.set(node.id, topoNode);
         }
       } else {
@@ -689,7 +690,7 @@ export class AlertCorrelationService {
           recommendedAction: group.recommendedAction ?? null,
         } as any);
       } catch (err) {
-        logger.warn({ err, groupId: group.id }, 'Failed to persist group, using memory');
+        logger.warn({ traceId: getCurrentTraceId(), err, groupId: group.id }, 'Failed to persist group, using memory');
         this.groupsMemory.set(group.id, group);
       }
     } else {
@@ -716,7 +717,7 @@ export class AlertCorrelationService {
           recommendedAction: group.recommendedAction ?? undefined,
         });
       } catch (err) {
-        logger.warn({ err, groupId: group.id }, 'Failed to update group in repository');
+        logger.warn({ traceId: getCurrentTraceId(), err, groupId: group.id }, 'Failed to update group in repository');
       }
     }
   }

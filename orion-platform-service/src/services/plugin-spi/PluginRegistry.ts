@@ -23,6 +23,7 @@ import {
   PluginSecurityLevel,
 } from './types';
 import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -76,7 +77,7 @@ export class PluginRegistry {
           manifest: manifest as any,
         });
       } catch (err) {
-        logger.warn({ pluginId: manifest.name, error: err }, 'Failed to persist plugin to repository');
+        logger.warn({ traceId: getCurrentTraceId(), pluginId: manifest.name, error: err }, 'Failed to persist plugin to repository');
       }
     }
 
@@ -224,7 +225,7 @@ export class PluginRegistry {
           await this.repository.updateStatus(entity.id, status, error);
         }
       } catch (err) {
-        logger.warn({ pluginId: name, error: err }, 'Failed to persist status update to repository');
+        logger.warn({ traceId: getCurrentTraceId(), pluginId: name, error: err }, 'Failed to persist status update to repository');
       }
     }
 
@@ -250,7 +251,7 @@ export class PluginRegistry {
           await this.repository.updateConfig(entity.id, config);
         }
       } catch (err) {
-        logger.warn({ pluginId: name, error: err }, 'Failed to persist config update to repository');
+        logger.warn({ traceId: getCurrentTraceId(), pluginId: name, error: err }, 'Failed to persist config update to repository');
       }
     }
 
@@ -271,7 +272,7 @@ export class PluginRegistry {
             await this.repository.delete(entity.id);
           }
         } catch (err) {
-          logger.warn({ pluginId: name, error: err }, 'Failed to remove plugin from repository');
+          logger.warn({ traceId: getCurrentTraceId(), pluginId: name, error: err }, 'Failed to remove plugin from repository');
         }
       }
       logger.info({ pluginId: name }, 'Plugin removed from registry');
@@ -433,7 +434,7 @@ export class PluginRegistry {
         try {
           handler(data);
         } catch (error) {
-          logger.error({ event, error }, 'Error in event handler');
+          logger.error({ traceId: getCurrentTraceId(), event, error }, 'Error in event handler');
         }
       }
     }

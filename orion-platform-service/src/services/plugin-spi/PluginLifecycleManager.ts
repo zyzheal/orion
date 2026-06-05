@@ -26,6 +26,7 @@ import {
 } from './types';
 import { PluginDependencyResolver } from './PluginDependencyResolver';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -426,7 +427,7 @@ export class PluginLifecycleManager extends EventEmitter {
   private handleError(pluginId: string, error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
     this.registry.updateStatus(pluginId, 'error', message);
-    logger.error({ pluginId, error: message }, 'Plugin lifecycle error');
+    logger.error({ traceId: getCurrentTraceId(), pluginId, error: message }, 'Plugin lifecycle error');
     this.emit('plugin:error', { pluginId, error: message });
   }
 }

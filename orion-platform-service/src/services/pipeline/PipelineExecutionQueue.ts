@@ -10,6 +10,7 @@
 
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'pipeline-execution-queue' });
 
@@ -154,7 +155,7 @@ export class PipelineExecutionQueue extends EventEmitter {
 
       // 执行
       this.executeRun(next).catch((err) => {
-        logger.error({ runId: next.runId, error: err }, 'Pipeline execution error');
+        logger.error({ traceId: getCurrentTraceId(), runId: next.runId, error: err }, 'Pipeline execution error');
       });
     }
   }
@@ -243,6 +244,6 @@ export class PipelineExecutionQueue extends EventEmitter {
       item.reject(new Error('Queue cleared by administrator'));
     }
     this.queue = [];
-    logger.warn({ clearedCount: count }, 'Pipeline execution queue cleared');
+    logger.warn({ traceId: getCurrentTraceId(), clearedCount: count }, 'Pipeline execution queue cleared');
   }
 }

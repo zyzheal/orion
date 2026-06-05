@@ -3,6 +3,7 @@
 
 import pino from 'pino';
 import { OrionError } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -253,7 +254,7 @@ export class AIDiagnosisService {
       // A proper implementation would add a findByErrorPattern method to the repository
       return [];
     } catch (error: any) {
-      logger.warn({ error: error.message }, 'Failed to find similar incidents');
+      logger.warn({ traceId: getCurrentTraceId(), error: error.message }, 'Failed to find similar incidents');
       return [];
     }
   }

@@ -19,6 +19,7 @@ import { EventBusService, EventBusError } from '../event-bus-service';
 import { ChatOpsRecommendationRepository } from '../../repositories/ChatOpsRecommendationRepository';
 import { ChatOpsSubscriptionFailureRepository } from '../../repositories/ChatOpsSubscriptionFailureRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LEvent-LSubscriber' });
 

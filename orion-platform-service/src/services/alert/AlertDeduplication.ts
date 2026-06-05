@@ -18,6 +18,7 @@ import {
   AlertStatus,
 } from './AlertTypes';
 import { AlertDeduplicationGroupRepository, AlertDeduplicationGroupEntity } from '../../repositories/AlertDeduplicationGroupRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -410,7 +411,7 @@ export class AlertDeduplication {
           suppressionReason: group.suppressionReason ?? null,
         } as any);
       } catch (err) {
-        logger.warn({ err, fingerprint: group.fingerprint }, 'Failed to persist dedup group, using memory');
+        logger.warn({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to persist dedup group, using memory');
         this.alertGroupsMemory.set(group.fingerprint, group);
       }
     } else {
@@ -432,7 +433,7 @@ export class AlertDeduplication {
           suppressionReason: group.suppressionReason ?? null,
         } as any);
       } catch (err) {
-        logger.warn({ err, fingerprint: group.fingerprint }, 'Failed to update dedup group in repository');
+        logger.warn({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to update dedup group in repository');
         this.alertGroupsMemory.set(group.fingerprint, group);
       }
     } else {

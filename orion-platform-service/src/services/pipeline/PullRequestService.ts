@@ -9,6 +9,7 @@
 
 import pino from 'pino';
 import { OrionError } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'pull-request-service' });
 
@@ -74,7 +75,7 @@ export class GitHubPRClient implements PRApiClient {
       await this.request('POST', url, body);
       logger.info({ pr: context.prNumber, status: status.state }, 'GitHub check status updated');
     } catch (error) {
-      logger.error({ error }, 'Failed to update GitHub check status');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to update GitHub check status');
     }
   }
 
@@ -85,7 +86,7 @@ export class GitHubPRClient implements PRApiClient {
       await this.request('POST', url, { body: comment.body });
       logger.info({ pr: context.prNumber }, 'GitHub PR comment posted');
     } catch (error) {
-      logger.error({ error }, 'Failed to post GitHub PR comment');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to post GitHub PR comment');
     }
   }
 
@@ -145,7 +146,7 @@ export class GitLabPRClient implements PRApiClient {
       await this.request('POST', url, body);
       logger.info({ pr: context.prNumber, status: status.state }, 'GitLab check status updated');
     } catch (error) {
-      logger.error({ error }, 'Failed to update GitLab check status');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to update GitLab check status');
     }
   }
 
@@ -157,7 +158,7 @@ export class GitLabPRClient implements PRApiClient {
       await this.request('POST', url, { body: comment.body });
       logger.info({ pr: context.prNumber }, 'GitLab MR comment posted');
     } catch (error) {
-      logger.error({ error }, 'Failed to post GitLab MR comment');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to post GitLab MR comment');
     }
   }
 
@@ -238,7 +239,7 @@ export class PullRequestService {
   ): Promise<void> {
     const client = this.clients.get(context.provider);
     if (!client) {
-      logger.warn({ provider: context.provider }, 'No PR client registered for provider');
+      logger.warn({ traceId: getCurrentTraceId(), provider: context.provider }, 'No PR client registered for provider');
       return;
     }
 
@@ -262,7 +263,7 @@ export class PullRequestService {
   async postComment(context: PRContext, comment: PRComment): Promise<void> {
     const client = this.clients.get(context.provider);
     if (!client) {
-      logger.warn({ provider: context.provider }, 'No PR client registered for provider');
+      logger.warn({ traceId: getCurrentTraceId(), provider: context.provider }, 'No PR client registered for provider');
       return;
     }
 

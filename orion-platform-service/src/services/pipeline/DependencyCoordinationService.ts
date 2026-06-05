@@ -14,6 +14,7 @@
 
 import { PipelineDependencyRepository } from '../../repositories/PipelineDependencyRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'dependency-coordination-service' });
 
@@ -79,7 +80,7 @@ export class DependencyCoordinationService {
           'default'
         );
       } catch (err) {
-        logger.warn({ err, pipelineId }, 'Failed to persist dependency to database');
+        logger.warn({ traceId: getCurrentTraceId(), err, pipelineId }, 'Failed to persist dependency to database');
       }
     }
 
@@ -95,7 +96,7 @@ export class DependencyCoordinationService {
       try {
         await this.repository.deleteByPipelineId(pipelineId);
       } catch (err) {
-        logger.warn({ err, pipelineId }, 'Failed to delete dependency from database');
+        logger.warn({ traceId: getCurrentTraceId(), err, pipelineId }, 'Failed to delete dependency from database');
       }
     }
     return this.dependencies.delete(pipelineId);
@@ -125,7 +126,7 @@ export class DependencyCoordinationService {
           return dep;
         }
       } catch (err) {
-        logger.warn({ err, pipelineId }, 'Failed to load dependency from database');
+        logger.warn({ traceId: getCurrentTraceId(), err, pipelineId }, 'Failed to load dependency from database');
       }
     }
 
@@ -151,7 +152,7 @@ export class DependencyCoordinationService {
           }
         }
       } catch (err) {
-        logger.warn({ err }, 'Failed to load dependencies from database');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to load dependencies from database');
       }
     }
     return Array.from(this.dependencies.values());

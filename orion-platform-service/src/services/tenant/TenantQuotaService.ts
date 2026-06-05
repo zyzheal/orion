@@ -15,6 +15,7 @@
 import { EventEmitter } from 'events';
 import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'TenantQuotaService' });
 
@@ -131,7 +132,7 @@ export class TenantQuotaService extends EventEmitter {
       this.usageLoadedFromDb = true;
     } catch (err) {
       // DB 不可用时不阻塞，降级为纯内存模式
-      logger.warn({ err }, '[TenantQuotaService] Failed to load usage from DB, using in-memory only');
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[TenantQuotaService] Failed to load usage from DB, using in-memory only');
       this.usageLoadedFromDb = true; // 避免重复尝试
     }
   }
@@ -159,7 +160,7 @@ export class TenantQuotaService extends EventEmitter {
       }
       // 若实体不存在（未调用 setQuota），跳过持久化，使用量仅保留在内存中
     } catch (err) {
-      logger.warn({ err, tenantId }, '[TenantQuotaService] Failed to persist usage to DB');
+      logger.warn({ traceId: getCurrentTraceId(), err, tenantId }, '[TenantQuotaService] Failed to persist usage to DB');
     }
   }
 
@@ -174,7 +175,7 @@ export class TenantQuotaService extends EventEmitter {
         await this.repository.update(entity.id, { usage: {} });
       }
     } catch (err) {
-      logger.warn({ err, tenantId }, '[TenantQuotaService] Failed to reset usage in DB');
+      logger.warn({ traceId: getCurrentTraceId(), err, tenantId }, '[TenantQuotaService] Failed to reset usage in DB');
     }
   }
 
@@ -200,7 +201,7 @@ export class TenantQuotaService extends EventEmitter {
         }
       }
     } catch (err) {
-      logger.warn({ err }, '[TenantQuotaService] Failed to cleanup expired usage in DB');
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[TenantQuotaService] Failed to cleanup expired usage in DB');
     }
   }
 
@@ -514,7 +515,7 @@ export class TenantQuotaService extends EventEmitter {
     };
 
     this.emit('quota:alert', alert);
-    logger.warn({ tenantId, resourceType, currentUsage, quotaLimit, thresholdPercent: thresholdPercent.toFixed(1) },
+    logger.warn({ traceId: getCurrentTraceId(), tenantId, resourceType, currentUsage, quotaLimit, thresholdPercent: thresholdPercent.toFixed(1) },
       '[TenantQuotaService] Quota alert');
   }
 

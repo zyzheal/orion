@@ -33,6 +33,7 @@ import {
 import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LSelf-LHealing-LService' });
 

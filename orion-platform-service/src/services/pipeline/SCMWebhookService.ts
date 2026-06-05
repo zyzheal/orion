@@ -12,6 +12,7 @@ import pino from 'pino';
 import { PipelineEngine } from '../../engine/PipelineEngine';
 import { TriggerType } from '../../models/PipelineRun';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -82,7 +83,7 @@ export class SCMWebhookService {
    */
   validateGitHubSignature(payload: string, signature: string): boolean {
     if (!this.secretToken) {
-      logger.warn('SCM_WEBHOOK_SECRET not set, skipping GitHub signature validation');
+      logger.warn({ traceId: getCurrentTraceId() }, 'SCM_WEBHOOK_SECRET not set, skipping GitHub signature validation');
       return true; // Skip validation if no secret configured
     }
 
@@ -110,7 +111,7 @@ export class SCMWebhookService {
    */
   validateGitLabToken(token: string): boolean {
     if (!this.secretToken) {
-      logger.warn('SCM_WEBHOOK_SECRET not set, skipping GitLab token validation');
+      logger.warn({ traceId: getCurrentTraceId() }, 'SCM_WEBHOOK_SECRET not set, skipping GitLab token validation');
       return true;
     }
 
@@ -311,7 +312,7 @@ export class SCMWebhookService {
     for (const pipelineId of matchedPipelines) {
       try {
         if (!this.pipelineEngine) {
-          logger.warn({ pipelineId }, 'Pipeline engine not available, skipping trigger');
+          logger.warn({ traceId: getCurrentTraceId(), pipelineId }, 'Pipeline engine not available, skipping trigger');
           continue;
         }
 

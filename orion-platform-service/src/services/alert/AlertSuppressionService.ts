@@ -30,6 +30,7 @@ import { MaintenanceWindowRepository, MaintenanceWindowEntity } from '../../repo
 import { KnownIssueRepository, KnownIssueEntity } from '../../repositories/KnownIssueRepository';
 import { AlertActiveAlertRepository, AlertActiveAlertEntity } from '../../repositories/AlertActiveAlertRepository';
 import { SuppressionLogRepository } from '../../repositories/SuppressionLogRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -672,7 +673,7 @@ export class AlertSuppressionService {
       this.maintenanceWindowRepository['db'].query(
         `INSERT INTO maintenance_windows (id, tenant_id, name, start_time, end_time, affected_services, created_at) VALUES (gen_random_uuid(), 'default', $1, $2, $3, $4, $5) RETURNING *`,
         [window.name, window.startTime, window.endTime, window.scope?.sourceTypes ?? [], new Date()],
-      ).catch(err => logger.error({ err }, 'Failed to persist maintenance window'));
+      ).catch(err => logger.error({ traceId: getCurrentTraceId(), err }, 'Failed to persist maintenance window'));
     }
 
     logger.info({ windowId: newWindow.id, name: newWindow.name }, 'Maintenance window added');
@@ -688,7 +689,7 @@ export class AlertSuppressionService {
     // 如果有数据库，也删除
     if (this.maintenanceWindowRepository) {
       this.maintenanceWindowRepository.delete(windowId).catch(err =>
-        logger.error({ err, windowId }, 'Failed to delete maintenance window from db')
+        logger.error({ traceId: getCurrentTraceId(), err, windowId }, 'Failed to delete maintenance window from db')
       );
     }
 
@@ -733,7 +734,7 @@ export class AlertSuppressionService {
       this.knownIssueRepository['db'].query(
         `INSERT INTO known_issues (id, tenant_id, title, description, fingerprint, resolved, created_at) VALUES (gen_random_uuid(), 'default', $1, $2, $3, false, $4) RETURNING *`,
         [issue.title, issue.description ?? null, issue.fingerprintPattern ?? 'unknown', new Date()],
-      ).catch(err => logger.error({ err }, 'Failed to persist known issue'));
+      ).catch(err => logger.error({ traceId: getCurrentTraceId(), err }, 'Failed to persist known issue'));
     }
 
     logger.info({ issueId: newIssue.id, title: newIssue.title }, 'Known issue added');
@@ -755,7 +756,7 @@ export class AlertSuppressionService {
     // 如果有数据库，也更新
     if (this.knownIssueRepository) {
       this.knownIssueRepository.resolve(issueId).catch(err =>
-        logger.error({ err, issueId }, 'Failed to resolve known issue in db')
+        logger.error({ traceId: getCurrentTraceId(), err, issueId }, 'Failed to resolve known issue in db')
       );
     }
 
@@ -961,7 +962,7 @@ export class AlertSuppressionService {
           loggedAt: new Date(),
         } as any);
       } catch (err) {
-        logger.error({ err, alertId }, 'Failed to persist suppression log');
+        logger.error({ traceId: getCurrentTraceId(), err, alertId }, 'Failed to persist suppression log');
       }
     } else {
       this.suppressionLogMemory.push({
@@ -1038,7 +1039,7 @@ export class AlertSuppressionService {
           knownIssueId: alert.knownIssueId ?? null,
         } as any);
       } catch (err) {
-        logger.error({ err, alertId: alert.id }, 'Failed to persist active alert, falling back to memory');
+        logger.error({ traceId: getCurrentTraceId(), err, alertId: alert.id }, 'Failed to persist active alert, falling back to memory');
         this.activeAlertsMemory.set(alert.id, alert);
       }
     } else {

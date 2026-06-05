@@ -23,6 +23,7 @@ import {
   EmbeddingCacheEntry,
 } from './vector-types';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -368,7 +369,7 @@ export class CodeEmbeddingService {
    */
   private async callClaude(text: string): Promise<number[]> {
     // Claude doesn't have dedicated embedding API yet, use hash fallback
-    logger.warn('Claude embedding not yet available, using hash fallback');
+    logger.warn({ traceId: getCurrentTraceId() }, 'Claude embedding not yet available, using hash fallback');
     return this.hashEmbedding(text);
   }
 

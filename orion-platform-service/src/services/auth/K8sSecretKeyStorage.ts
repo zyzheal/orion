@@ -2,6 +2,7 @@
 import { KubeConfig, CoreV1Api } from '@kubernetes/client-node';
 import pino from 'pino';
 import type { JwtKey } from './JwtKeyRotationService';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -113,7 +114,7 @@ export class K8sSecretKeyStorage {
    */
   async storeKey(key: JwtKey): Promise<void> {
     if (!this.available || !this.k8sApi) {
-      logger.warn('[K8sSecretStorage] K8s not available, skipping secret storage');
+      logger.warn({ traceId: getCurrentTraceId() }, '[K8sSecretStorage] K8s not available, skipping secret storage');
       return;
     }
 

@@ -37,6 +37,7 @@ import {
   CostRecordFindFilter,
   CostSummaryParams,
 } from '../../repositories/CostRepositories';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 export interface BudgetListFilter {
   type?: string;

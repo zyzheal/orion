@@ -15,6 +15,7 @@ import {
   UpdateDeploymentInput,
   CreateDeploymentEventInput
 } from './DeployRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 export interface ListDeploymentsOptions {
   page?: number;

@@ -7,6 +7,7 @@
 
 import { CostEvent, CostEventType } from './types';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LCost-LEvent-LPublisher' });
 

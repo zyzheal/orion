@@ -22,6 +22,7 @@ import {
   BuiltInStrategyId,
 } from './types';
 import { HealingStrategyRepository, HealingStrategyEntity } from '../../repositories/HealingStrategyRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'healing-strategy-engine' });
 
@@ -36,7 +37,7 @@ export class HealingStrategyEngine {
     }
     // Register built-in strategies (non-blocking, seeds DB if available)
     this.registerBuiltInStrategies().catch(err => {
-      logger.warn({ err }, 'Failed to register built-in strategies');
+      logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to register built-in strategies');
     });
   }
 
@@ -80,7 +81,7 @@ export class HealingStrategyEngine {
           });
         }
       } catch (err) {
-        logger.warn({ err, strategyId: strategy.id }, 'Failed to persist strategy to DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, strategyId: strategy.id }, 'Failed to persist strategy to DB');
       }
     }
   }
@@ -95,7 +96,7 @@ export class HealingStrategyEngine {
       try {
         return await this.repository.delete(strategyId);
       } catch (err) {
-        logger.warn({ err, strategyId }, 'Failed to delete strategy from DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to delete strategy from DB');
       }
     }
 
@@ -120,7 +121,7 @@ export class HealingStrategyEngine {
           return strategy;
         }
       } catch (err) {
-        logger.warn({ err, strategyId }, 'Failed to get strategy from DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to get strategy from DB');
       }
     }
 
@@ -136,7 +137,7 @@ export class HealingStrategyEngine {
         const { entities } = await this.repository.findAll({ limit: 1000 });
         return entities.map(e => this.entityToStrategy(e));
       } catch (err) {
-        logger.warn({ err }, 'Failed to get strategies from DB, falling back to memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to get strategies from DB, falling back to memory');
       }
     }
     return Array.from(this.strategies.values());
@@ -158,7 +159,7 @@ export class HealingStrategyEngine {
         const result = await this.repository.enableStrategy(strategyId);
         return !!result;
       } catch (err) {
-        logger.warn({ err, strategyId }, 'Failed to enable strategy in DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to enable strategy in DB');
       }
     }
 
@@ -181,7 +182,7 @@ export class HealingStrategyEngine {
         const result = await this.repository.disableStrategy(strategyId);
         return !!result;
       } catch (err) {
-        logger.warn({ err, strategyId }, 'Failed to disable strategy in DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to disable strategy in DB');
       }
     }
 
@@ -358,7 +359,7 @@ export class HealingStrategyEngine {
             });
           }
         } catch (err) {
-          logger.warn({ err, strategyId: strategy.id }, 'Failed to seed built-in strategy to DB');
+          logger.warn({ traceId: getCurrentTraceId(), err, strategyId: strategy.id }, 'Failed to seed built-in strategy to DB');
         }
       }
     }

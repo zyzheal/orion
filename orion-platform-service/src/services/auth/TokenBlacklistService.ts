@@ -7,6 +7,7 @@ import {
   BlacklistedTokenRepository,
   BlacklistedTokenEntity,
 } from '../../repositories/BlacklistedTokenRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -127,7 +128,7 @@ export class TokenBlacklistService extends EventEmitter {
   /** Warm the in-memory cache with recent entries from the database */
   private async warmCache(): Promise<void> {
     if (!this.repository) {
-      logger.warn('[TokenBlacklist] No database connection, skipping cache warm');
+      logger.warn({ traceId: getCurrentTraceId() }, '[TokenBlacklist] No database connection, skipping cache warm');
       return;
     }
 

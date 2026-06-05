@@ -14,6 +14,7 @@ import { TenantInfo, tenantContext } from './TenantContext';
 import { TenantIsolationService } from './TenantIsolationService';
 import { RLSPolicyManager } from './RLSPolicyManager';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

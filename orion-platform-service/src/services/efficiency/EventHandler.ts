@@ -32,6 +32,7 @@ import {
   EfficiencyDeploymentRecordEntity,
 } from '../../repositories/EfficiencyDeploymentRecordRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LEvent-LHandler' });
 
@@ -576,7 +577,7 @@ export class EfficiencyEventHandler {
    */
   private async subscribeToPipelineEvents(): Promise<void> {
     if (!this.eventBus) {
-      logger.warn('[EfficiencyEventHandler] EventBus not configured, skipping pipeline subscription');
+      logger.warn({ traceId: getCurrentTraceId() }, '[EfficiencyEventHandler] EventBus not configured, skipping pipeline subscription');
       return;
     }
 
@@ -610,7 +611,7 @@ export class EfficiencyEventHandler {
    */
   private async subscribeToDeploymentEvents(): Promise<void> {
     if (!this.eventBus) {
-      logger.warn('[EfficiencyEventHandler] EventBus not configured, skipping deployment subscription');
+      logger.warn({ traceId: getCurrentTraceId() }, '[EfficiencyEventHandler] EventBus not configured, skipping deployment subscription');
       return;
     }
 

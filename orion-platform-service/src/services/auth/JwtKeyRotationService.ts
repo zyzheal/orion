@@ -5,6 +5,7 @@ import pino from 'pino';
 import { JwtKeyRotationRepository, JwtKeyEntity } from '../../repositories/JwtKeyRotationRepository';
 import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

@@ -63,6 +63,7 @@ import {
   TicketAssignment,
 } from './types';
 import type { DispatchMetrics, AssignmentSuccessMetrics, TimeToAssignmentStats, EngineerPerformance } from './DispatchAnalytics';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 /**
  * Default ticketing configuration
@@ -1391,7 +1392,7 @@ export class TicketService extends EventEmitter {
               logger.error({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Error processing NATS message', error);
             }
           }
-        })().catch((err) => logger.error({ err }, 'NATS subscription failed'));
+        })().catch((err) => logger.error({ traceId: getCurrentTraceId(), err }, 'NATS subscription failed'));
       }
 
       this.natsUnsubscribe = async () => {

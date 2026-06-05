@@ -17,6 +17,7 @@ interface RawEntityEscalation {
 import { OnCallAssignmentRepository, OnCallAssignmentEntity } from '../../repositories/OnCallAssignmentRepository';
 import { OnCallOverrideRepository, OnCallOverrideEntity } from '../../repositories/OnCallOverrideRepository';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -117,7 +118,7 @@ export class OnCallService {
             endTime: assignment.endTime,
           });
         } catch (err) {
-          logger.warn({ err }, 'Failed to persist assignment, falling back to in-memory');
+          logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist assignment, falling back to in-memory');
         }
       }
       this.assignments.set(assignment.id, assignment);
@@ -177,7 +178,7 @@ export class OnCallService {
     }
 
     // No assignment covers current time - use fallback but flag it
-    logger.warn({ scheduleId, scheduleName: schedule.name }, 'No active assignment found, using fallback');
+    logger.warn({ traceId: getCurrentTraceId(), scheduleId, scheduleName: schedule.name }, 'No active assignment found, using fallback');
     return {
       isOnCall: false,
       primaryUserId: schedule.teamMembers[0],
@@ -247,7 +248,7 @@ export class OnCallService {
           reason,
         });
       } catch (err) {
-        logger.warn({ err }, 'Failed to persist override, falling back to in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist override, falling back to in-memory');
       }
     }
     this.overrides.set(override.id, override);

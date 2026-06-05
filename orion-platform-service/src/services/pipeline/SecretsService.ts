@@ -16,6 +16,7 @@ import * as crypto from 'crypto';
 import { SecretRepository, SecretEntity, SecretScope, SecretCreateInput } from '../../repositories/SecretRepository';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'secrets-service' });
 
@@ -201,7 +202,7 @@ export class SecretsService {
       const value = this.decrypt(entity.encryptedValue);
       return this.toSecretValue({ ...entity, decryptedValue: value } as any);
     } catch (error) {
-      logger.error({ tenantId, name, error }, 'Failed to decrypt secret');
+      logger.error({ traceId: getCurrentTraceId(), tenantId, name, error }, 'Failed to decrypt secret');
       throw new OrionError(`Failed to decrypt secret "${name}": ${(error as Error).message}`, 'OPERATION_FAILED')
     }
   }
@@ -373,14 +374,14 @@ export class SecretsService {
             resolvedValue = resolvedValue.replace(ref, defaultValue);
           } else {
             unresolvedRefs.push(name);
-            logger.warn({ tenantId, secretName: name }, 'Secret reference not resolved');
+            logger.warn({ traceId: getCurrentTraceId(), tenantId, secretName: name }, 'Secret reference not resolved');
           }
         } catch (error) {
           if (defaultValue !== undefined) {
             resolvedValue = resolvedValue.replace(ref, defaultValue);
           } else {
             unresolvedRefs.push(name);
-            logger.error({ tenantId, secretName: name, error }, 'Error resolving secret reference');
+            logger.error({ traceId: getCurrentTraceId(), tenantId, secretName: name, error }, 'Error resolving secret reference');
           }
         }
       }
@@ -486,7 +487,7 @@ export class SecretsService {
       if (process.env.NODE_ENV === 'production') {
         throw new OrionError('ORION_SECRET_ENCRYPTION_KEY is required in production', ErrorCode.VALIDATION_ERROR);
       }
-      logger.warn('No encryption key provided, using fallback (development only)');
+      logger.warn({ traceId: getCurrentTraceId() }, 'No encryption key provided, using fallback (development only)');
       return crypto.createHash('sha256').update('orion-dev-fallback-key-do-not-use-in-production').digest();
     }
 

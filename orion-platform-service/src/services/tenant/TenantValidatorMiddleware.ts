@@ -12,6 +12,7 @@ import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
 import { TenantIsolationService } from './TenantIsolationService';
 import { createTenantContext, TenantInfo } from './TenantContext';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

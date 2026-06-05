@@ -34,6 +34,7 @@ import {
   ChatOpsExecutionEntity,
   ChatOpsAuditLogEntity,
 } from '../../repositories/ChatOpsRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 /** ARCH-004: 事件发布结果 */
 interface EventPublishResult {

@@ -12,6 +12,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { HealingAuditRepository } from '../../repositories/HealingAuditRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LSelf-LHealing-LGuardian' });
 

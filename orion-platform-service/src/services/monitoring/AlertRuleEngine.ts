@@ -22,6 +22,7 @@ import {
 import {
   MonitoringAlertInstanceRepository,
 } from '../../repositories/MonitoringAlertInstanceRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LAlert-LRule-LEngine' });
 

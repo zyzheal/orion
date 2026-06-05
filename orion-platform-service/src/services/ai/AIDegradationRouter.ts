@@ -21,6 +21,7 @@ import {
   AIDegradationConfigRepository,
   AIDegradationResultCacheRepository,
 } from '../../repositories/AIDegradationConfigRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -191,7 +192,7 @@ export class AIDegradationRouter {
       }
       logger.info({ msg: 'AIDegradationRouter state restored from DB', configCount: entities.length });
     } catch (error) {
-      logger.error({ msg: 'Failed to restore AIDegradationRouter state from DB', error });
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore AIDegradationRouter state from DB', error });
     }
   }
 
@@ -213,7 +214,7 @@ export class AIDegradationRouter {
         cacheTtl: config.cacheTTL || 300000,
         notifyOnDegradation: config.notifyOnDegradation || false,
         defaultResponse: config.defaultResponse as Record<string, unknown>,
-      }).catch(err => logger.error({ msg: 'Failed to persist degradation config', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist degradation config', error: err }));
     }
   }
 
@@ -495,7 +496,7 @@ export class AIDegradationRouter {
         scenario,
         resultJson: result as unknown as Record<string, unknown>,
         expiresAt: new Date(expiresAt),
-      }).catch(err => logger.error({ msg: 'Failed to persist degradation cache', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist degradation cache', error: err }));
     }
   }
 
@@ -521,7 +522,7 @@ export class AIDegradationRouter {
     // Persist to DB
     if (this.cacheRepo) {
       this.cacheRepo.deleteByScenario(scenario).catch(err =>
-        logger.error({ msg: 'Failed to clear scenario cache from DB', error: err })
+        logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to clear scenario cache from DB', error: err })
       );
     }
   }

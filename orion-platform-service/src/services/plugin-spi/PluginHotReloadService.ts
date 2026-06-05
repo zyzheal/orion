@@ -17,6 +17,7 @@ import { PluginManifest, PluginInfo } from './types';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
 import { PluginVersionSnapshotRepository } from '../../repositories/PluginVersionSnapshotRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -124,7 +125,7 @@ export class PluginHotReloadService extends EventEmitter {
     // Browser detection - use any to avoid TS errors in Node.js
     const isBrowser = typeof (globalThis as any).window !== 'undefined';
     if (isBrowser || typeof (global as any).require === 'undefined') {
-      logger.warn('File watching not available in browser environment');
+      logger.warn({ traceId: getCurrentTraceId() }, 'File watching not available in browser environment');
       return;
     }
 
@@ -135,7 +136,7 @@ export class PluginHotReloadService extends EventEmitter {
       try {
         // 检查路径是否存在
         if (!fs.existsSync(watchPath)) {
-          logger.warn({ watchPath }, 'Watch path does not exist');
+          logger.warn({ traceId: getCurrentTraceId(), watchPath }, 'Watch path does not exist');
           continue;
         }
 
@@ -150,13 +151,13 @@ export class PluginHotReloadService extends EventEmitter {
 
         // 监听器错误处理
         watcher.on('error', (error: Error) => {
-          logger.error({ watchPath, error: error.message }, 'Watcher error');
+          logger.error({ traceId: getCurrentTraceId(), watchPath, error: error.message }, 'Watcher error');
         });
 
         this.watchers.set(watchPath, watcher);
         logger.info({ watchPath }, 'Started watching plugin directory');
       } catch (error) {
-        logger.error({ watchPath, error }, 'Failed to start watcher');
+        logger.error({ traceId: getCurrentTraceId(), watchPath, error }, 'Failed to start watcher');
       }
     }
   }
@@ -170,7 +171,7 @@ export class PluginHotReloadService extends EventEmitter {
         watcher.close();
         this.watchers.delete(path);
       } catch (error) {
-        logger.error({ path, error }, 'Failed to close watcher');
+        logger.error({ traceId: getCurrentTraceId(), path, error }, 'Failed to close watcher');
       }
     }
 
@@ -195,7 +196,7 @@ export class PluginHotReloadService extends EventEmitter {
     // 从文件路径推断插件 ID
     const pluginId = this.extractPluginId(watchPath, filename);
     if (!pluginId) {
-      logger.warn({ filename }, 'Could not determine plugin ID from file path');
+      logger.warn({ traceId: getCurrentTraceId(), filename }, 'Could not determine plugin ID from file path');
       return;
     }
 
@@ -210,7 +211,7 @@ export class PluginHotReloadService extends EventEmitter {
       const timeout = setTimeout(() => {
         this.pendingReloads.delete(pluginId);
         this.hotReload(pluginId).catch(error => {
-          logger.error({ pluginId, error }, 'Hot reload failed');
+          logger.error({ traceId: getCurrentTraceId(), pluginId, error }, 'Hot reload failed');
         });
       }, this.config.reloadDelay);
 
@@ -307,7 +308,7 @@ export class PluginHotReloadService extends EventEmitter {
 
       return newPlugin;
     } catch (error) {
-      logger.error({ pluginId, error }, 'Hot reload failed');
+      logger.error({ traceId: getCurrentTraceId(), pluginId, error }, 'Hot reload failed');
 
       this.emit('hotreload:failed', {
         type: 'failed',
@@ -357,7 +358,7 @@ export class PluginHotReloadService extends EventEmitter {
 
             return manifest;
           } catch (error) {
-            logger.warn({ manifestPath, error }, 'Failed to load manifest');
+            logger.warn({ traceId: getCurrentTraceId(), manifestPath, error }, 'Failed to load manifest');
           }
         }
       }
@@ -386,7 +387,7 @@ export class PluginHotReloadService extends EventEmitter {
           checksum: e.checksum || undefined,
         }));
       } catch (err) {
-        logger.warn({ pluginId, error: err }, 'Failed to read snapshots from repository for rollback, falling back to in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), pluginId, error: err }, 'Failed to read snapshots from repository for rollback, falling back to in-memory');
       }
     }
 
@@ -428,7 +429,7 @@ export class PluginHotReloadService extends EventEmitter {
 
       return result;
     } catch (error) {
-      logger.error({ pluginId, error }, 'Rollback failed');
+      logger.error({ traceId: getCurrentTraceId(), pluginId, error }, 'Rollback failed');
       throw error;
     }
   }
@@ -472,7 +473,7 @@ export class PluginHotReloadService extends EventEmitter {
         // Prune old snapshots
         await this.snapshotRepository.pruneOldSnapshots(pluginId, this.maxSnapshots);
       } catch (err) {
-        logger.warn({ pluginId, error: err }, 'Failed to persist snapshot to repository');
+        logger.warn({ traceId: getCurrentTraceId(), pluginId, error: err }, 'Failed to persist snapshot to repository');
       }
     }
 
@@ -510,7 +511,7 @@ export class PluginHotReloadService extends EventEmitter {
           checksum: e.checksum || undefined,
         }));
       } catch (err) {
-        logger.warn({ pluginId, error: err }, 'Failed to read version history from repository, falling back to in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), pluginId, error: err }, 'Failed to read version history from repository, falling back to in-memory');
       }
     }
 

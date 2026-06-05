@@ -17,6 +17,7 @@ import * as path from 'path';
 import pino from 'pino';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactRecordRepository } from '../../repositories/ArtifactRecordRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -202,7 +203,7 @@ export class ArtifactService {
         const entities = await this.recordRepository.findByRunId(runId);
         return entities.map(e => this.entityToRecord(e));
       } catch (err) {
-        logger.warn({ err, runId }, 'Failed to list artifacts from PostgreSQL');
+        logger.warn({ traceId: getCurrentTraceId(), err, runId }, 'Failed to list artifacts from PostgreSQL');
       }
     }
 
@@ -244,7 +245,7 @@ export class ArtifactService {
         const entities = await this.recordRepository.findByStage(runId, stageId);
         return entities.map(e => this.entityToRecord(e));
       } catch (err) {
-        logger.warn({ err, runId, stageId }, 'Failed to list stage artifacts from PostgreSQL');
+        logger.warn({ traceId: getCurrentTraceId(), err, runId, stageId }, 'Failed to list stage artifacts from PostgreSQL');
       }
     }
 
@@ -346,7 +347,7 @@ export class ArtifactService {
               description: `Passed from stage ${fromStageId}`,
             });
           } catch (err) {
-            logger.warn({ err, runId, toStageId }, 'Failed to persist passed artifact record');
+            logger.warn({ traceId: getCurrentTraceId(), err, runId, toStageId }, 'Failed to persist passed artifact record');
           }
         }
 
@@ -384,7 +385,7 @@ export class ArtifactService {
       try {
         await this.recordRepository.deleteByRunId(runId);
       } catch (err) {
-        logger.warn({ err, runId }, 'Failed to delete artifact records from PostgreSQL');
+        logger.warn({ traceId: getCurrentTraceId(), err, runId }, 'Failed to delete artifact records from PostgreSQL');
       }
     }
     logger.info({ runId }, 'Artifact run cleaned up');
@@ -425,7 +426,7 @@ export class ArtifactService {
           logger.info({ removed: deleted }, 'Cleaned up expired artifact records from PostgreSQL');
         }
       } catch (err) {
-        logger.warn({ err }, 'Failed to cleanup expired artifacts from PostgreSQL');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to cleanup expired artifacts from PostgreSQL');
       }
     }
   }
@@ -472,7 +473,7 @@ export class ArtifactService {
           return this.entityToRecord(entity);
         }
       } catch (err) {
-        logger.warn({ err, runId, stageId, name }, 'Failed to find artifact in PostgreSQL');
+        logger.warn({ traceId: getCurrentTraceId(), err, runId, stageId, name }, 'Failed to find artifact in PostgreSQL');
       }
     }
 

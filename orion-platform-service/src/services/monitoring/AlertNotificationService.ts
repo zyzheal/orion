@@ -33,6 +33,7 @@ import {
   WebhookChannelConfig,
   SlackChannelConfig,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
@@ -495,7 +496,7 @@ export class AlertNotificationService {
       this.notificationHistoryRepo?.create(this.notificationRecordToEntity(record) as any).catch((err: any) =>
         logger.warn('[AlertNotificationService] Failed to persist escalation notification:', err)
       );
-    })().catch((err) => logger.error({ err }, 'Notification step failed'));
+    })().catch((err) => logger.error({ traceId: getCurrentTraceId(), err }, 'Notification step failed'));
 
     // Schedule next step
     if (state.currentStep < policy.steps.length - 1) {

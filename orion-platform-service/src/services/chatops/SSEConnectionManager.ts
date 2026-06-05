@@ -15,6 +15,7 @@ import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
 import pino from 'pino';
 import { ChatOpsSSEConnectionRepository } from '../../repositories/ChatOpsSSEConnectionRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LS-LS-LE-LConnection-LManager' });
 

@@ -20,6 +20,7 @@ import {
 } from './types';
 import { OrionError, ErrorCode } from '../../errors';
 import { HealingActionResultRepository } from '../../repositories/HealingActionResultRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'healing-action-executor' });
 
@@ -100,7 +101,7 @@ class K8sClientManager {
       this.lastHealthCheck = now;
       return true;
     } catch (error: any) {
-      logger.warn({ err: error.message }, 'K8s health check failed');
+      logger.warn({ traceId: getCurrentTraceId(), err: error.message }, 'K8s health check failed');
       this.isHealthy = false;
       this.lastHealthCheck = now;
       return false;
@@ -369,7 +370,7 @@ export class HealingActionExecutor {
         rollbackSuccess: result.rollbackSuccess || null,
       });
     } catch (err) {
-      logger.warn({ err }, 'Failed to persist healing action result to DB');
+      logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist healing action result to DB');
     }
   }
 

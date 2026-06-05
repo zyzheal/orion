@@ -19,6 +19,7 @@
 
 import pino from 'pino';
 import { PromptSecurity, ThreatType, PromptThreat, PromptAnalysis } from './PromptSecurity';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -403,7 +404,7 @@ export class PromptInjectionDetector {
 
     // 8. 记录日志（如果启用）
     if (this.config.logAllDetections && threats.length > 0) {
-      logger.warn({
+      logger.warn({ traceId: getCurrentTraceId(),
         msg: 'Prompt injection detected',
         promptLength: prompt.length,
         riskScore,

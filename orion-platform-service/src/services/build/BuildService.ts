@@ -15,6 +15,7 @@ import {
   CreateBuildEnvironmentInput,
   UpdateBuildInput
 } from './BuildRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 export interface ListBuildsOptions {
   page?: number;

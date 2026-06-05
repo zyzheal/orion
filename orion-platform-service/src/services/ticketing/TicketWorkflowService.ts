@@ -26,6 +26,7 @@ import { AssignmentRuleRepository } from '../../repositories/AssignmentRuleRepos
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LTicket-LWorkflow-LService' });
 

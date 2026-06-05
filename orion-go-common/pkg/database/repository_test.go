@@ -52,3 +52,30 @@ func TestConfig_Defaults(t *testing.T) {
 		t.Error("expected non-zero ConnMaxIdleTime")
 	}
 }
+
+func TestValidateIdentifier(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"simple table", "users", false},
+		{"underscore table", "token_blacklist", false},
+		{"schema dotted", "public.users", false},
+		{"numeric start", "1users", true},
+		{"space", "users DROP", true},
+		{"semicolon", "users;DROP", true},
+		{"quotes", "users\"", true},
+		{"empty", "", true},
+		{"hyphen", "user-table", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateIdentifier(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIdentifier(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}

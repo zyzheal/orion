@@ -26,6 +26,7 @@ import { RunnerJob, RunnerJobCreateInput } from '../../models/RunnerJob';
 import { PostgresRunnerRepository, RunnerRepository } from '../../repositories/RunnerRepository';
 import { PostgresRunnerJobRepository, RunnerJobRepository } from '../../repositories/RunnerJobRepository';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'runner-pool-service' });
 
@@ -99,7 +100,7 @@ export class RunnerPoolService {
 
     const updated = await this.runnerRepo.updateHeartbeat(runnerId);
     if (!updated) {
-      logger.warn({ runnerId }, 'Heartbeat received for unknown runner');
+      logger.warn({ traceId: getCurrentTraceId(), runnerId }, 'Heartbeat received for unknown runner');
       return false;
     }
 
@@ -221,7 +222,7 @@ export class RunnerPoolService {
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         const errorMsg = `Runner HTTP ${response.status}: ${errorText || response.statusText}`;
-        logger.error({ runnerId, jobId: job.id, status: response.status }, errorMsg);
+        logger.error({ traceId: getCurrentTraceId(), runnerId, jobId: job.id, status: response.status }, errorMsg);
 
         // Mark job as failed
         await this.jobRepo.markFailed(job.id, errorMsg);
@@ -247,7 +248,7 @@ export class RunnerPoolService {
       // Mark job as failed
       await this.jobRepo.markFailed(job.id, errorMessage);
 
-      logger.error({ runnerId, jobId: job.id, error }, 'Failed to dispatch task to runner');
+      logger.error({ traceId: getCurrentTraceId(), runnerId, jobId: job.id, error }, 'Failed to dispatch task to runner');
       throw error;
     }
   }
@@ -298,7 +299,7 @@ export class RunnerPoolService {
     await this.jobRepo.markFailed(jobId, error);
     await this.releaseRunner(runnerId);
 
-    logger.error({ jobId, runnerId, error }, 'Job failed and runner released');
+    logger.error({ traceId: getCurrentTraceId(), jobId, runnerId, error }, 'Job failed and runner released');
   }
 
   // ==================== Monitoring ====================
@@ -336,7 +337,7 @@ export class RunnerPoolService {
     }
 
     if (count > 0) {
-      logger.warn({ count }, 'Marked stale runners as offline');
+      logger.warn({ traceId: getCurrentTraceId(), count }, 'Marked stale runners as offline');
     }
 
     return count;

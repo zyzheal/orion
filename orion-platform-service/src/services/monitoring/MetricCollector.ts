@@ -20,6 +20,7 @@ const logger = pino({ name: 'LMetric-LCollector' });
 import {
   MetricStorageRepository,
 } from './MetricStorageRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 /**
  * Custom metric registration parameters

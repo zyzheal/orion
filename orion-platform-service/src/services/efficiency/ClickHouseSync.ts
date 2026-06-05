@@ -20,6 +20,7 @@ import {
   PipelineCompletionRecord,
   DeploymentRecord,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 /**
  * ClickHouse 连接配置
@@ -162,7 +163,7 @@ export class ClickHouseSync extends EventEmitter {
         },
       };
     } catch {
-      logger.warn('[ClickHouseSync] @clickhouse/client not available, running in degraded mode');
+      logger.warn({ traceId: getCurrentTraceId() }, '[ClickHouseSync] @clickhouse/client not available, running in degraded mode');
       return null;
     }
   }

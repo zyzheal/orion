@@ -28,6 +28,7 @@ import {
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
 import { SsoStateRepository } from '../../repositories/SsoStateRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -137,7 +138,7 @@ export class SsoService {
       logger.info('[SsoService] Using PostgreSQL-backed state store');
     } else {
       this.stateStore = new InMemorySsoStateStore();
-      logger.warn('[SsoService] Using in-memory state store (not suitable for production)');
+      logger.warn({ traceId: getCurrentTraceId() }, '[SsoService] Using in-memory state store (not suitable for production)');
     }
   }
 
@@ -152,7 +153,7 @@ export class SsoService {
     }
 
     if (!config.issuerUrl || !config.clientId || !config.clientSecret) {
-      logger.warn('[SsoService] SSO enabled but missing required config');
+      logger.warn({ traceId: getCurrentTraceId() }, '[SsoService] SSO enabled but missing required config');
       return;
     }
 

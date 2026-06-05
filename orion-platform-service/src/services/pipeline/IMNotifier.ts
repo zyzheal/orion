@@ -18,6 +18,7 @@
 import { PipelineRun } from '../../models/PipelineRun';
 import { IMNotificationChannelRepository } from '../../repositories/IMNotificationChannelRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -90,7 +91,7 @@ export class IMNotifier {
    */
   async registerChannel(config: IMNotificationConfig): Promise<void> {
     if (!this.channelRepository) {
-      logger.warn('No channel repository configured, skipping channel persistence');
+      logger.warn({ traceId: getCurrentTraceId() }, 'No channel repository configured, skipping channel persistence');
       return;
     }
 
@@ -128,7 +129,7 @@ export class IMNotifier {
         name: e.name,
       }));
     } catch (err) {
-      logger.error({ err }, 'Failed to load IM notification channels from PostgreSQL');
+      logger.error({ traceId: getCurrentTraceId(), err }, 'Failed to load IM notification channels from PostgreSQL');
       return [];
     }
   }
@@ -149,7 +150,7 @@ export class IMNotifier {
         name: e.name,
       }));
     } catch (err) {
-      logger.error({ err, platform }, 'Failed to load IM channels by platform from PostgreSQL');
+      logger.error({ traceId: getCurrentTraceId(), err, platform }, 'Failed to load IM channels by platform from PostgreSQL');
       return [];
     }
   }
@@ -159,7 +160,7 @@ export class IMNotifier {
    */
   async removeChannel(channelId: string): Promise<void> {
     if (!this.channelRepository) {
-      logger.warn('No channel repository configured');
+      logger.warn({ traceId: getCurrentTraceId() }, 'No channel repository configured');
       return;
     }
 
@@ -167,7 +168,7 @@ export class IMNotifier {
       await this.channelRepository.delete(channelId);
       logger.info({ channelId }, 'IM notification channel removed');
     } catch (err) {
-      logger.error({ err, channelId }, 'Failed to remove IM notification channel');
+      logger.error({ traceId: getCurrentTraceId(), err, channelId }, 'Failed to remove IM notification channel');
     }
   }
 
@@ -178,7 +179,7 @@ export class IMNotifier {
   async sendNotification(config: IMNotificationConfig, payload: IMNotificationPayload): Promise<void> {
     const adapter = this.adapters.get(config.type);
     if (!adapter) {
-      logger.warn({ platform: config.type }, 'IM adapter not found, skipping notification');
+      logger.warn({ traceId: getCurrentTraceId(), platform: config.type }, 'IM adapter not found, skipping notification');
       return;
     }
 

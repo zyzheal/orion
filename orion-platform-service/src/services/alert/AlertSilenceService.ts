@@ -10,6 +10,7 @@
 import pino from 'pino';
 import { BaseRepository } from '../../db/base-repository';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -347,7 +348,7 @@ export class AlertSilenceService {
             return false;
           }
         } catch {
-          logger.warn({ matcher }, '[AlertSilenceService] Invalid regex in matcher');
+          logger.warn({ traceId: getCurrentTraceId(), matcher }, '[AlertSilenceService] Invalid regex in matcher');
           return false;
         }
       }

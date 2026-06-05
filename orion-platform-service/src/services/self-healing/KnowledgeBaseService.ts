@@ -9,6 +9,7 @@
 
 import pino from 'pino';
 import { KnowledgeBasePatternRepository, KnowledgeBasePatternEntity } from '../../repositories/KnowledgeBasePatternRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -381,7 +382,7 @@ export class KnowledgeBaseService {
       this.repository = new KnowledgeBasePatternRepository(db);
     }
     this.loadKnowledgeBase().catch(err => {
-      logger.warn({ err }, '[KnowledgeBase] Failed to load knowledge base');
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[KnowledgeBase] Failed to load knowledge base');
     });
   }
 
@@ -427,14 +428,14 @@ export class KnowledgeBaseService {
               related_patterns: pattern.relatedPatterns ? JSON.stringify(pattern.relatedPatterns) : null,
             });
           } catch (err) {
-            logger.warn({ err, id: pattern.id }, '[KnowledgeBase] Failed to seed pattern');
+            logger.warn({ traceId: getCurrentTraceId(), err, id: pattern.id }, '[KnowledgeBase] Failed to seed pattern');
           }
         }
 
         logger.info({ count: KNOWLEDGE_BASE.length }, '[KnowledgeBase] Seeded to DB');
       } catch (err) {
         // DB unavailable, load from built-in constants
-        logger.warn({ err }, '[KnowledgeBase] DB unavailable, loading from constants');
+        logger.warn({ traceId: getCurrentTraceId(), err }, '[KnowledgeBase] DB unavailable, loading from constants');
         for (const pattern of KNOWLEDGE_BASE) {
           this.patterns.set(pattern.id, pattern);
           this.indexPattern(pattern);
@@ -592,7 +593,7 @@ export class KnowledgeBaseService {
           return pattern;
         }
       } catch (err) {
-        logger.warn({ err, id }, '[KnowledgeBase] Failed to get pattern from DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, id }, '[KnowledgeBase] Failed to get pattern from DB');
       }
     }
 
@@ -608,7 +609,7 @@ export class KnowledgeBaseService {
         const { entities } = await this.repository.findAll({ limit: 10000 });
         return entities.map(e => this.entityToPattern(e));
       } catch (err) {
-        logger.warn({ err }, '[KnowledgeBase] Failed to get patterns from DB, falling back to memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, '[KnowledgeBase] Failed to get patterns from DB, falling back to memory');
       }
     }
     return Array.from(this.patterns.values());
@@ -657,7 +658,7 @@ export class KnowledgeBaseService {
           });
         }
       } catch (err) {
-        logger.warn({ err, id: pattern.id }, '[KnowledgeBase] Failed to persist pattern to DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, id: pattern.id }, '[KnowledgeBase] Failed to persist pattern to DB');
       }
     }
 
@@ -684,7 +685,7 @@ export class KnowledgeBaseService {
       try {
         await this.repository.updateSuccessRate(patternId, pattern.successRate, pattern.avgRecoveryTime);
       } catch (err) {
-        logger.warn({ err, patternId }, '[KnowledgeBase] Failed to update pattern success rate in DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, patternId }, '[KnowledgeBase] Failed to update pattern success rate in DB');
       }
     }
 
@@ -703,7 +704,7 @@ export class KnowledgeBaseService {
         const entities = await this.repository.findByCategory(category);
         return entities.map(e => this.entityToPattern(e));
       } catch (err) {
-        logger.warn({ err, category }, '[KnowledgeBase] Failed to get patterns by category from DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, category }, '[KnowledgeBase] Failed to get patterns by category from DB');
       }
     }
     return Array.from(this.patterns.values()).filter(
@@ -734,7 +735,7 @@ export class KnowledgeBaseService {
           averageRecoveryTime: averages.avgRecoveryTime,
         };
       } catch (err) {
-        logger.warn({ err }, '[KnowledgeBase] Failed to get stats from DB, falling back to memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, '[KnowledgeBase] Failed to get stats from DB, falling back to memory');
       }
     }
 

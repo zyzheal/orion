@@ -24,6 +24,7 @@ import {
 import { QualityGateRepository } from '../../repositories/QualityGateRepository';
 import { QualityGateResultRepository } from '../../repositories/QualityGateResultRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

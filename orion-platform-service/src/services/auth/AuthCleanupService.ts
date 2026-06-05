@@ -18,6 +18,7 @@ import { TokenBlacklistService } from '../auth/TokenBlacklistService';
 import { TracingService } from '../monitoring/TracingService';
 import { DatabaseProfiler } from '../monitoring/DatabaseProfiler';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

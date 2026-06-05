@@ -21,6 +21,7 @@ import { OrionError, ErrorCode } from '../../errors';
 import { RuleEngineRuleSetRepository } from '../../repositories/RuleEngineRuleSetRepository';
 import { RuleEngineAuditLogRepository } from '../../repositories/RuleEngineAuditLogRepository';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -88,7 +89,7 @@ export class RuleEngine {
       }
       logger.info({ msg: 'RuleEngine state restored from DB', ruleSetCount: entities.length });
     } catch (error) {
-      logger.error({ msg: 'Failed to restore RuleEngine state from DB', error });
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore RuleEngine state from DB', error });
     }
   }
 
@@ -907,7 +908,7 @@ export class RuleEngine {
         rulesJson: ruleSet.rules as unknown as unknown[],
         defaultAction: ruleSet.defaultAction as unknown as Record<string, unknown>,
         enabled: ruleSet.enabled,
-      }).catch(err => logger.error({ msg: 'Failed to persist rule set', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist rule set', error: err }));
     }
   }
 
@@ -942,7 +943,7 @@ export class RuleEngine {
         rulesJson: ruleSet.rules as unknown as unknown[],
         defaultAction: ruleSet.defaultAction as unknown as Record<string, unknown>,
         enabled: ruleSet.enabled,
-      }).catch(err => logger.error({ msg: 'Failed to persist rule set', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist rule set', error: err }));
     }
   }
 
@@ -992,7 +993,7 @@ export class RuleEngine {
           input_json: input,
           result_json: result as unknown as Record<string, unknown>,
           event_time: new Date(),
-        }).catch(err => logger.error({ msg: 'Failed to persist audit log', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist audit log', error: err }));
       }
     }
 

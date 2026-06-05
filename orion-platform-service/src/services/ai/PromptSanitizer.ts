@@ -12,6 +12,7 @@
 import pino from 'pino';
 import { ExtendedPromptThreat, ExtendedThreatType } from './PromptInjectionDetector';
 import { ThreatType } from './PromptSecurity';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -201,7 +202,7 @@ export class PromptSanitizer {
 
     for (const threat of sortedThreats) {
       if (iterations >= this.config.maxIterations) {
-        logger.warn('Sanitization iteration limit reached');
+        logger.warn({ traceId: getCurrentTraceId() }, 'Sanitization iteration limit reached');
         break;
       }
 

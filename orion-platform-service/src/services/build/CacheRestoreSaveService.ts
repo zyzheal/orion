@@ -10,6 +10,7 @@
 
 import pino from 'pino';
 import { CacheStorageDriver, LocalCacheStorageDriver } from './CacheStorageDriver';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'cache-restore-save-service' });
 
@@ -105,7 +106,7 @@ export class CacheRestoreSaveService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage }, 'Cache restore failed');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Cache restore failed');
 
       return {
         restored: false,
@@ -159,7 +160,7 @@ export class CacheRestoreSaveService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage }, 'Cache save failed');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Cache save failed');
 
       return {
         saved: false,

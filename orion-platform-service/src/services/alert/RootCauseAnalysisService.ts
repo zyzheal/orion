@@ -15,6 +15,7 @@ import { AlertCorrelationService, Alert, AlertGroup } from './AlertCorrelationSe
 import { RcaResultRepository, RcaResultEntity } from '../../repositories/RcaResultRepository';
 import { ServiceDependencyRepository, ServiceDependencyEntity } from '../../repositories/ServiceDependencyRepository';
 import { TimelineEventRepository, TimelineEventEntity } from '../../repositories/TimelineEventRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -152,7 +153,7 @@ export class RootCauseAnalysisService {
             dep.service, 'default', dep.dependsOn, dep.dependencyType,
           );
         } catch (err) {
-          logger.warn({ err, service: dep.service }, 'Failed to persist default dependency, using memory');
+          logger.warn({ traceId: getCurrentTraceId(), err, service: dep.service }, 'Failed to persist default dependency, using memory');
           this.dependencyGraphMemory.set(dep.service, dep);
         }
       }
@@ -245,7 +246,7 @@ export class RootCauseAnalysisService {
 
       return result;
     } catch (error) {
-      logger.error({ analysisId, error }, '[RootCauseAnalysisService] RCA failed');
+      logger.error({ traceId: getCurrentTraceId(), analysisId, error }, '[RootCauseAnalysisService] RCA failed');
 
       const failedResult: RcaResult = {
         analysisId,
@@ -578,7 +579,7 @@ export class RootCauseAnalysisService {
           } as any);
         }
       } catch (err) {
-        logger.warn({ err, deploymentId }, 'Failed to persist timeline events, using memory');
+        logger.warn({ traceId: getCurrentTraceId(), err, deploymentId }, 'Failed to persist timeline events, using memory');
         this.timelineEventsMemory.set(deploymentId, filtered);
       }
     } else {
@@ -907,7 +908,7 @@ export class RootCauseAnalysisService {
           completedAt: result.completedAt,
         } as any);
       } catch (err) {
-        logger.warn({ err, analysisId: result.analysisId }, 'Failed to persist RCA result, using memory');
+        logger.warn({ traceId: getCurrentTraceId(), err, analysisId: result.analysisId }, 'Failed to persist RCA result, using memory');
         this.analysisResultsMemory.set(result.analysisId, result);
       }
     } else {

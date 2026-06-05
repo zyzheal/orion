@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
 import { SSEConnectionManager, SSEConnection } from '../chatops/SSEConnectionManager';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LPipeline-LLog-LS-LS-LE-LService' });
 

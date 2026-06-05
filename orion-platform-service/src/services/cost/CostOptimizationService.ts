@@ -15,6 +15,7 @@ import {
   CostSummaryParams,
 } from '../../repositories/CostRepositories';
 import type { DatabasePool } from '../database';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -394,7 +395,7 @@ export class CostOptimizationService {
         costByModule: summary.costByModule,
       };
     } catch (error) {
-      logger.warn({ error }, '[CostOptimization] Failed to get cost metrics');
+      logger.warn({ traceId: getCurrentTraceId(), error }, '[CostOptimization] Failed to get cost metrics');
       return {
         totalCost: 0,
         totalInputTokens: 0,

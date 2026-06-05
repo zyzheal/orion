@@ -17,6 +17,7 @@ import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LConfig-LChange-LService' });
 

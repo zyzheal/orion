@@ -19,6 +19,7 @@ const ldap = {} as any;
 type Client = any;
 import pino from 'pino';
 import crypto from 'crypto';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -66,7 +67,7 @@ export class LdapService {
     }
 
     if (!this.config.url || !this.config.bindDn || !this.config.bindPassword) {
-      logger.warn('[LdapService] LDAP enabled but missing required config');
+      logger.warn({ traceId: getCurrentTraceId() }, '[LdapService] LDAP enabled but missing required config');
       return;
     }
 
@@ -113,7 +114,7 @@ export class LdapService {
    */
   async authenticate(username: string, password: string): Promise<LdapUserProfile | null> {
     if (!this.connected || !this.client) {
-      logger.warn('[LdapService] LDAP not connected');
+      logger.warn({ traceId: getCurrentTraceId() }, '[LdapService] LDAP not connected');
       return null;
     }
 

@@ -19,6 +19,7 @@ import {
   ICloudCostAdapter,
   CostCollectionSchedule,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 /**
  * AWS Cost Explorer 适配器（Mock 实现）

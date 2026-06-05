@@ -364,6 +364,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
           tenantContextStorage.enterWith({
             dbClient: client,
             tenantId: tenant.tenantId,
+            traceId: (request as any).traceId || '',
+            spanId: (request as any).spanId || '',
           });
         } catch (error) {
           // set_config 失败 → 拒绝请求（安全失败模式）

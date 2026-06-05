@@ -15,6 +15,7 @@ import { CronExpressionParser } from 'cron-parser';
 import pino from 'pino';
 import { TriggerRepository, type TriggerEntity } from '../../repositories/TriggerRepository';
 import { PathFilter } from './PathFilter';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const pathFilter = new PathFilter();
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -178,7 +179,7 @@ export class PipelineTriggerService {
       }
       logger.info({ count: activeTriggers.length }, 'Loaded active triggers from PostgreSQL');
     } catch (error) {
-      logger.error({ error }, 'Failed to load triggers from PostgreSQL on startup');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to load triggers from PostgreSQL on startup');
     }
   }
 

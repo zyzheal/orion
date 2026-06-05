@@ -8,6 +8,7 @@ import pino from 'pino';
 import { DatabasePool } from '../database';
 
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -302,7 +303,7 @@ export class CostBudgetGuardService {
         ],
       );
     } catch (err: any) {
-      logger.warn({ error: err.message }, 'Failed to log budget guard evaluation');
+      logger.warn({ traceId: getCurrentTraceId(), error: err.message }, 'Failed to log budget guard evaluation');
     }
   }
 
@@ -339,7 +340,7 @@ export class CostBudgetGuardService {
       `);
       logger.info('budget_guards tables ensured');
     } catch (err: any) {
-      logger.warn({ error: err.message }, 'Could not ensure budget_guards tables (may need migration)');
+      logger.warn({ traceId: getCurrentTraceId(), error: err.message }, 'Could not ensure budget_guards tables (may need migration)');
     }
   }
 }

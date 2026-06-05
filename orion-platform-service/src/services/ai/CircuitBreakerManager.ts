@@ -29,6 +29,7 @@ import {
   CBManagerScenarioStateRepository,
   CBManagerProviderRepository,
 } from '../../repositories/CircuitBreakerManagerRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -217,7 +218,7 @@ export class CircuitBreakerManager extends EventEmitter {
         scenarioCount: scenarioEntities.length,
       });
     } catch (error) {
-      logger.error({ msg: 'Failed to restore CircuitBreakerManager state from DB', error });
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore CircuitBreakerManager state from DB', error });
     }
   }
 
@@ -265,7 +266,7 @@ export class CircuitBreakerManager extends EventEmitter {
         lastFailureTime: state.lastFailureTime,
         lastStateChangeTime: state.lastStateChangeTime,
         halfOpenAttempts: state.halfOpenAttempts,
-      }).catch(err => logger.error({ msg: 'Failed to persist scenario state', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist scenario state', error: err }));
     }
   }
 
@@ -491,7 +492,7 @@ export class CircuitBreakerManager extends EventEmitter {
           successCount: 0,
           lastStateChangeTime: currentState.lastStateChangeTime,
           halfOpenAttempts: 0,
-        }).catch(err => logger.error({ msg: 'Failed to persist scenario state reset', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist scenario state reset', error: err }));
       }
     }
   }
@@ -579,7 +580,7 @@ export class CircuitBreakerManager extends EventEmitter {
           priority: provider.priority,
           enabled: provider.enabled,
           configJson: provider.config,
-        }).catch(err => logger.error({ msg: 'Failed to persist provider', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist provider', error: err }));
       }
     }
   }
@@ -595,7 +596,7 @@ export class CircuitBreakerManager extends EventEmitter {
     // Persist to DB
     if (this.providerRepo) {
       this.providerRepo.deleteByProviderId(providerId).catch(err =>
-        logger.error({ msg: 'Failed to remove provider from DB', error: err })
+        logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to remove provider from DB', error: err })
       );
     }
   }
@@ -624,7 +625,7 @@ export class CircuitBreakerManager extends EventEmitter {
           priority: provider.priority,
           enabled,
           configJson: provider.config,
-        }).catch(err => logger.error({ msg: 'Failed to persist provider enabled state', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist provider enabled state', error: err }));
       }
     }
   }

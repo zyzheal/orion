@@ -10,6 +10,7 @@ import { ArtifactRegistryServiceImpl } from '../artifact/ArtifactRegistryService
 import { ArtifactRegistryService } from '../../models/Artifact';
 import { ArtifactType } from '../../models/Artifact';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const execAsync = promisify(exec);
@@ -130,7 +131,7 @@ export class BuildxBuilderService {
       }
 
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         options
       }, 'Multi-arch build failed');
@@ -225,7 +226,7 @@ export class BuildxBuilderService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errors.push(errorMessage);
 
-      logger.error({ error: errorMessage }, 'Native multi-arch build failed');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Native multi-arch build failed');
 
       return {
         success: false,
@@ -357,7 +358,7 @@ export class BuildxBuilderService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errors.push(errorMessage);
       
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         platform: options.platform
       }, 'Platform build failed');
@@ -400,7 +401,7 @@ export class BuildxBuilderService {
       }, 'Images pushed successfully');
 
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         imageName: options.imageName
       }, 'Failed to push images');
@@ -446,7 +447,7 @@ export class BuildxBuilderService {
       }, 'Artifacts saved to registry');
 
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         imageName: options.imageName
       }, 'Failed to save artifacts to registry');
@@ -485,7 +486,7 @@ export class BuildxBuilderService {
       await execAsync(`docker buildx rm ${name} --force`);
       logger.info({ name }, 'Buildx builder cleaned up');
     } catch (error) {
-      logger.warn({
+      logger.warn({ traceId: getCurrentTraceId(),
         error,
         name
       }, 'Failed to cleanup buildx builder');
@@ -604,7 +605,7 @@ export class BuildxBuilderService {
       const { stdout } = await execAsync('docker buildx ls');
       return this.parseBuildersList(stdout);
     } catch (error) {
-      logger.error({ error }, 'Failed to get builders');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to get builders');
       throw error;
     }
   }
@@ -618,7 +619,7 @@ export class BuildxBuilderService {
       const match = stdout.match(/(?<=Name: )\S+/);
       return match ? match[0] : null;
     } catch (error) {
-      logger.error({ error }, 'Failed to get current builder');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to get current builder');
       return null;
     }
   }

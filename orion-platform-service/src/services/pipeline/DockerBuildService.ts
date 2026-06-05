@@ -7,6 +7,7 @@
 
 import { spawn, ChildProcess } from 'child_process';
 import pino from 'pino';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'docker-build-service' });
 
@@ -180,7 +181,7 @@ export class DockerBuildService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage }, 'Docker build error');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Docker build error');
 
       return {
         success: false,
@@ -236,7 +237,7 @@ export class DockerBuildService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage }, 'Docker push error');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Docker push error');
 
       return {
         success: false,
@@ -315,7 +316,7 @@ export class DockerBuildService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage }, 'Docker scan error');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Docker scan error');
 
       return {
         success: false,

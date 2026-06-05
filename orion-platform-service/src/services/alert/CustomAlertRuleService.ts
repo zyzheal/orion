@@ -11,6 +11,7 @@
 import pino from 'pino';
 import { BaseRepository, FindAllOptions, FindAllResult } from '../../db/base-repository';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -693,7 +694,7 @@ export class CustomAlertRuleService {
         );
         sent++;
       } catch (error) {
-        logger.error({ channelType: channel.type, error }, '[CustomAlertRuleService] Failed to send notification');
+        logger.error({ traceId: getCurrentTraceId(), channelType: channel.type, error }, '[CustomAlertRuleService] Failed to send notification');
       }
     }
     return sent;

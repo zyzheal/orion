@@ -10,6 +10,7 @@ import pino from 'pino';
 import { EnvironmentRepository, EnvironmentEntity } from '../../repositories/EnvironmentRepository';
 import { createEnvironment, mergeVariables, type EnvironmentCreateInput, type EnvironmentUpdateInput } from '../../models/Environment';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -149,7 +150,7 @@ export class EnvironmentService {
     const env = await this.repository.findByTenantAndName(tenantId, environmentName);
     if (!env) {
       // If environment not found, return pipeline variables as-is
-      logger.warn({ tenantId, environmentName }, 'Environment not found, returning pipeline variables only');
+      logger.warn({ traceId: getCurrentTraceId(), tenantId, environmentName }, 'Environment not found, returning pipeline variables only');
       return {
         variables: pipelineVariables,
         environment: {

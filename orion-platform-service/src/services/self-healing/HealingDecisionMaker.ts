@@ -23,6 +23,7 @@ import {
   IncidentSeverity,
   IncidentType,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LHealing-LDecision-LMaker' });
 

@@ -32,6 +32,7 @@ import { OrionError, ErrorCode } from '../../errors';
 import { AIGatewayMetricsRepository } from '../../repositories/AIGatewayMetricsRepository';
 import { AIGatewayCircuitStateRepository } from '../../repositories/AIGatewayCircuitStateRepository';
 import { AIGatewayRequestHistoryRepository } from '../../repositories/AIGatewayRequestHistoryRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -201,7 +202,7 @@ export class AIGateway {
       await this.degradationRouter.restoreState();
       await this.circuitBreakerManager.restoreState();
     } catch (error) {
-      logger.error({ msg: 'Failed to restore AIGateway state from DB', error });
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore AIGateway state from DB', error });
     }
   }
 
@@ -298,7 +299,7 @@ export class AIGateway {
 
         // 记录安全事件
         if (this.promptSecurityConfig.logSecurityEvents && securityAnalysis.threats.length > 0) {
-          logger.warn({
+          logger.warn({ traceId: getCurrentTraceId(),
             msg: 'Prompt security threat detected',
             scenario,
             userId: request.context?.userId,
@@ -313,7 +314,7 @@ export class AIGateway {
         // 高风险：拒绝请求
         if (securityAnalysis.riskScore >= this.promptSecurityConfig.riskThresholdHigh) {
           if (this.promptSecurityConfig.rejectOnHighRisk) {
-            logger.error({
+            logger.error({ traceId: getCurrentTraceId(),
               msg: 'Prompt rejected due to high security risk',
               scenario,
               riskScore: securityAnalysis.riskScore,
@@ -582,7 +583,7 @@ export class AIGateway {
       }).then(() => {
         // Prune old records to keep window size
         return this.requestHistoryRepo!.pruneOldRecords(scenario, this.config.windowSize);
-      }).catch(err => logger.error({ msg: 'Failed to persist request history', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist request history', error: err }));
     }
 
     // Persist metrics to DB
@@ -597,7 +598,7 @@ export class AIGateway {
         p95Latency: updatedMetrics.p95Latency,
         errorRate: updatedMetrics.errorRate,
         lastErrorTime: updatedMetrics.lastErrorTime,
-      }).catch(err => logger.error({ msg: 'Failed to persist metrics', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
     }
   }
 
@@ -643,7 +644,7 @@ export class AIGateway {
         request_time: new Date(),
       }).then(() => {
         return this.requestHistoryRepo!.pruneOldRecords(scenario, this.config.windowSize);
-      }).catch(err => logger.error({ msg: 'Failed to persist request history', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist request history', error: err }));
     }
 
     // Persist metrics to DB
@@ -658,7 +659,7 @@ export class AIGateway {
         p95Latency: updatedMetrics.p95Latency,
         errorRate: updatedMetrics.errorRate,
         lastErrorTime: updatedMetrics.lastErrorTime,
-      }).catch(err => logger.error({ msg: 'Failed to persist metrics', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
     }
 
     // Persist circuit state to DB
@@ -671,7 +672,7 @@ export class AIGateway {
         lastFailureTime: circuitState.lastFailureTime,
         lastStateChangeTime: circuitState.lastStateChangeTime,
         halfOpenAttempts: circuitState.halfOpenAttempts,
-      }).catch(err => logger.error({ msg: 'Failed to persist circuit state', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
     }
   }
 
@@ -697,7 +698,7 @@ export class AIGateway {
           lastFailureTime: state.lastFailureTime,
           lastStateChangeTime: state.lastStateChangeTime,
           halfOpenAttempts: state.halfOpenAttempts,
-        }).catch(err => logger.error({ msg: 'Failed to persist circuit state', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
       }
     }
   }
@@ -723,7 +724,7 @@ export class AIGateway {
           lastFailureTime: state.lastFailureTime,
           lastStateChangeTime: state.lastStateChangeTime,
           halfOpenAttempts: state.halfOpenAttempts,
-        }).catch(err => logger.error({ msg: 'Failed to persist circuit state', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
       }
     }
   }
@@ -755,7 +756,7 @@ export class AIGateway {
           lastFailureTime: state.lastFailureTime,
           lastStateChangeTime: state.lastStateChangeTime,
           halfOpenAttempts: state.halfOpenAttempts,
-        }).catch(err => logger.error({ msg: 'Failed to persist circuit state', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
       }
     }
   }
@@ -786,7 +787,7 @@ export class AIGateway {
         successCount: 0,
         lastStateChangeTime: state.lastStateChangeTime,
         halfOpenAttempts: 0,
-      }).catch(err => logger.error({ msg: 'Failed to persist circuit state', error: err }));
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
     }
   }
 
@@ -863,7 +864,7 @@ export class AIGateway {
           avgLatency: 0,
           p95Latency: 0,
           errorRate: 0,
-        }).catch(err => logger.error({ msg: 'Failed to persist metrics', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
       }
       if (this.circuitStateRepo) {
         this.circuitStateRepo.upsertByScenario({
@@ -873,7 +874,7 @@ export class AIGateway {
           successCount: 0,
           lastStateChangeTime: new Date(),
           halfOpenAttempts: 0,
-        }).catch(err => logger.error({ msg: 'Failed to persist circuit state', error: err }));
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
       }
     }
   }

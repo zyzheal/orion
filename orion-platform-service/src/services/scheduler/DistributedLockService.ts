@@ -5,6 +5,7 @@
 
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -78,7 +79,7 @@ export class DistributedLockService {
         }
       } catch (error) {
         lastError = error as Error;
-        logger.warn({
+        logger.warn({ traceId: getCurrentTraceId(),
           key,
           attempt: attempt + 1,
           error: (error as Error).message
@@ -113,10 +114,10 @@ export class DistributedLockService {
       if (result === 1) {
         logger.info({ lockKey, lockValue }, 'Lock released successfully');
       } else {
-        logger.warn({ lockKey, lockValue }, 'Failed to release lock - lock not found or value mismatch');
+        logger.warn({ traceId: getCurrentTraceId(), lockKey, lockValue }, 'Failed to release lock - lock not found or value mismatch');
       }
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         lockKey,
         lockValue,
         error: (error as Error).message
@@ -148,7 +149,7 @@ export class DistributedLockService {
       
       return null;
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         key,
         error: (error as Error).message
       }, 'Failed to try lock');
@@ -165,7 +166,7 @@ export class DistributedLockService {
       const result = await this.redis.exists(lockKey);
       return result === 1;
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         key,
         error: (error as Error).message
       }, 'Failed to check lock');
@@ -189,7 +190,7 @@ export class DistributedLockService {
         return { exists: true, ttl: result * 1000 };
       }
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         key,
         error: (error as Error).message
       }, 'Failed to get lock info');
@@ -217,7 +218,7 @@ export class DistributedLockService {
         throw new OrionError('Failed to renew lock - lock may have expired', ErrorCode.OPERATION_FAILED);
       }
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         key: lock.key,
         error: (error as Error).message
       }, 'Failed to renew lock');
@@ -254,7 +255,7 @@ export class DistributedLockService {
         url: process.env.REDIS_URL || 'redis://localhost:6379'
       });
     } catch (error) {
-      logger.warn('Redis client not available, using mock implementation');
+      logger.warn({ traceId: getCurrentTraceId() }, 'Redis client not available, using mock implementation');
       return this.createMockRedisClient();
     }
   }

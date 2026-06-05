@@ -14,6 +14,7 @@ import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 import { CronExecutionRepository, CronExecutionEntity } from '../../repositories/CronExecutionRepository';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -69,7 +70,7 @@ export class CronSchedulerService {
 
   async start(): Promise<void> {
     if (this.running) {
-      logger.warn('CronSchedulerService already running');
+      logger.warn({ traceId: getCurrentTraceId() }, 'CronSchedulerService already running');
       return;
     }
     this.running = true;
@@ -84,13 +85,13 @@ export class CronSchedulerService {
         }
         logger.info({ count: enabledJobs.length }, 'CronSchedulerService restored jobs from DB');
       } catch (err) {
-        logger.error({ err }, 'CronSchedulerService failed to restore jobs from DB');
+        logger.error({ traceId: getCurrentTraceId(), err }, 'CronSchedulerService failed to restore jobs from DB');
       }
     }
 
     this.intervalId = setInterval(() => {
       this.checkAndExecuteJobs().catch((err) => {
-        logger.error({ err }, 'Scheduler tick error');
+        logger.error({ traceId: getCurrentTraceId(), err }, 'Scheduler tick error');
       });
     }, DEFAULT_TICK_MS);
     logger.info({ tickMs: DEFAULT_TICK_MS }, 'CronSchedulerService started');
@@ -141,7 +142,7 @@ export class CronSchedulerService {
         nextRunAt: cronJob.nextRunAt ? new Date(cronJob.nextRunAt) : null,
         createdAt: now,
       }).catch((err) => {
-        logger.warn({ err, jobId: cronJob.id }, 'Failed to persist cron job, using in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), err, jobId: cronJob.id }, 'Failed to persist cron job, using in-memory');
       });
     }
 
@@ -155,7 +156,7 @@ export class CronSchedulerService {
         const result = await this.cronJobRepository.findAll();
         return result.entities.map((e) => this.mapEntityToJob(e));
       } catch (err) {
-        logger.warn({ err }, 'DB getJobs failed, falling back to in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'DB getJobs failed, falling back to in-memory');
       }
     }
     return Array.from(this.jobs.values());
@@ -171,7 +172,7 @@ export class CronSchedulerService {
   removeJob(id: string): void {
     if (this.cronJobRepository) {
       this.cronJobRepository.delete(id).catch((err) => {
-        logger.warn({ err, jobId: id }, 'Failed to remove cron job from DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, jobId: id }, 'Failed to remove cron job from DB');
       });
     }
     this.jobs.delete(id);
@@ -185,7 +186,7 @@ export class CronSchedulerService {
   enableJob(id: string): void {
     const job = this.jobs.get(id);
     if (!job) {
-      logger.warn({ jobId: id }, 'enableJob: job not found');
+      logger.warn({ traceId: getCurrentTraceId(), jobId: id }, 'enableJob: job not found');
       return;
     }
     job.enabled = true;
@@ -195,7 +196,7 @@ export class CronSchedulerService {
 
     if (this.cronJobRepository) {
       this.cronJobRepository.update(id, { enabled: true }).catch((err) => {
-        logger.warn({ err, jobId: id }, 'Failed to enable cron job in DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, jobId: id }, 'Failed to enable cron job in DB');
       });
     }
     logger.info({ jobId: id }, 'Cron job enabled');
@@ -207,7 +208,7 @@ export class CronSchedulerService {
   disableJob(id: string): void {
     const job = this.jobs.get(id);
     if (!job) {
-      logger.warn({ jobId: id }, 'disableJob: job not found');
+      logger.warn({ traceId: getCurrentTraceId(), jobId: id }, 'disableJob: job not found');
       return;
     }
     job.enabled = false;
@@ -217,7 +218,7 @@ export class CronSchedulerService {
 
     if (this.cronJobRepository) {
       this.cronJobRepository.update(id, { enabled: false }).catch((err) => {
-        logger.warn({ err, jobId: id }, 'Failed to disable cron job in DB');
+        logger.warn({ traceId: getCurrentTraceId(), err, jobId: id }, 'Failed to disable cron job in DB');
       });
     }
     logger.info({ jobId: id }, 'Cron job disabled');
@@ -256,7 +257,7 @@ export class CronSchedulerService {
           status: 'running',
         });
       } catch (err) {
-        logger.warn({ err }, 'Failed to persist execution record');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist execution record');
       }
     }
 
@@ -280,7 +281,7 @@ export class CronSchedulerService {
       // Persist completion
       if (this.executionRepository) {
         await this.executionRepository.complete(executionId, 'completed', { output }).catch((err) => {
-          logger.warn({ err }, 'Failed to persist execution completion');
+          logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist execution completion');
         });
       }
       if (this.cronJobRepository) {
@@ -290,7 +291,7 @@ export class CronSchedulerService {
           'success',
           job.nextRunAt ? new Date(job.nextRunAt) : new Date(),
         ).catch((err) => {
-          logger.warn({ err }, 'Failed to update job lastRun in DB');
+          logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to update job lastRun in DB');
         });
       }
 
@@ -308,7 +309,7 @@ export class CronSchedulerService {
 
       if (this.executionRepository) {
         await this.executionRepository.complete(executionId, 'failed', undefined, execution.error).catch((err) => {
-          logger.warn({ err }, 'Failed to persist execution failure');
+          logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist execution failure');
         });
       }
       if (this.cronJobRepository) {
@@ -318,11 +319,11 @@ export class CronSchedulerService {
           'failed',
           job.nextRunAt ? new Date(job.nextRunAt) : new Date(),
         ).catch((err) => {
-          logger.warn({ err }, 'Failed to update job lastRun in DB');
+          logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to update job lastRun in DB');
         });
       }
 
-      logger.error({ jobId: job.id, executionId, error: execution.error }, 'Cron job execution failed');
+      logger.error({ traceId: getCurrentTraceId(), jobId: job.id, executionId, error: execution.error }, 'Cron job execution failed');
     } finally {
       this.runningJobIds.delete(job.id);
     }
@@ -368,7 +369,7 @@ export class CronSchedulerService {
       if (this.shouldExecuteJob(job, now)) {
         logger.info({ jobId: job.id, name: job.name, now: now.toISOString() }, 'Scheduler tick: executing job');
         this.runJob(job).catch((err) => {
-          logger.error({ err, jobId: job.id }, 'Unhandled error during scheduler tick execution');
+          logger.error({ traceId: getCurrentTraceId(), err, jobId: job.id }, 'Unhandled error during scheduler tick execution');
         });
       }
     }
@@ -392,7 +393,7 @@ export class CronSchedulerService {
       // If the previous scheduled time is within the poll interval (60s + 5s tolerance), execute
       return diff < DEFAULT_TICK_MS + 5_000;
     } catch {
-      logger.warn({ jobId: job.id, schedule: job.schedule }, 'Invalid cron expression, skipping');
+      logger.warn({ traceId: getCurrentTraceId(), jobId: job.id, schedule: job.schedule }, 'Invalid cron expression, skipping');
       return false;
     }
   }
@@ -406,7 +407,7 @@ export class CronSchedulerService {
       const iso = next.toISOString();
       return iso ?? undefined;
     } catch {
-      logger.warn({ expression }, 'Invalid cron expression');
+      logger.warn({ traceId: getCurrentTraceId(), expression }, 'Invalid cron expression');
       return undefined;
     }
   }
