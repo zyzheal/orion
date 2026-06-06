@@ -89,6 +89,7 @@ const mockTicketingRepository = {
   getAvailableEngineers: jest.fn().mockResolvedValue([]),
   findEngineerProfileById: jest.fn().mockResolvedValue(null),
   count: jest.fn().mockImplementation(() => Promise.resolve(mockTickets.length)),
+  getDb: jest.fn().mockReturnValue(undefined),
 };
 
 function clearMockTickets() {
