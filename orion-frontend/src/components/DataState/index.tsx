@@ -1,7 +1,7 @@
 import React from 'react';
 import { Spin, Result, Empty, Button } from 'antd';
 import { LoadingOutlined, SyncOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 export interface DataStateProps {
   loading: boolean;
@@ -33,7 +33,7 @@ export const DataState: React.FC<DataStateProps> = ({
     return (
       <div style={{ textAlign: 'center', padding: '48px 0' }}>
         <Spin indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />} size="large" />
-        <div style={{ marginTop: 12, color: colors.neutral[600] }}>{loadingText}</div>
+        <div style={{ marginTop: spacing[3], color: colors.neutral[600] }}>{loadingText}</div>
       </div>
     );
   }

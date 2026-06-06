@@ -8,7 +8,7 @@ import React from 'react';
 import { Timeline as AntTimeline } from 'antd';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -116,7 +116,7 @@ function OrionTimeline({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: spacing.sm,
               marginBottom: 4,
               flexWrap: 'wrap',
             }}
@@ -185,7 +185,7 @@ function OrionTimeline({
       />
 
       {hasMore && showMore && (
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
+        <div style={{ textAlign: 'center', marginTop: spacing.md }}>
           <a
             onClick={onShowMore}
             style={{

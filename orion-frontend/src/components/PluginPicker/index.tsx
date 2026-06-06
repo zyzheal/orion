@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Input, Tabs, Card, Tag, Button, Spin, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { getBuiltInPlugins, searchMarketplace } from '../../api/pluginApi';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Search } = Input;
 
@@ -143,13 +143,13 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
   const renderPluginGrid = (plugins: PluginItem[]) => {
     const filtered = filterPlugins(plugins);
     if (filtered.length === 0) {
-      return <div style={{ color: colors.neutral[500], textAlign: 'center', padding: 24 }}>No plugins found</div>;
+      return <div style={{ color: colors.neutral[500], textAlign: 'center', padding: spacing.lg }}>No plugins found</div>;
     }
     const grouped = groupByCategory(filtered);
     return Object.entries(grouped).map(([category, items]) => (
-      <div key={category} style={{ marginBottom: 16 }}>
+      <div key={category} style={{ marginBottom: spacing.md }}>
         <h4 style={{ margin: '0 0 8px' }}>{category}</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.sm }}>
           {items.map(renderPluginCard)}
         </div>
       </div>
@@ -170,12 +170,12 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
     {
       key: 'remote',
       label: 'Remote',
-      children: <div style={{ padding: 24, textAlign: 'center', color: colors.neutral[500] }}>Remote plugin installation by URL (coming soon)</div>,
+      children: <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Remote plugin installation by URL (coming soon)</div>,
     },
     {
       key: 'custom',
       label: 'Custom Script',
-      children: <div style={{ padding: 24, textAlign: 'center', color: colors.neutral[500] }}>Use Inline Script Editor to write custom scripts</div>,
+      children: <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Use Inline Script Editor to write custom scripts</div>,
     },
   ];
 
@@ -194,7 +194,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
             style={{ width: 300 }}
           />
           <div>
-            <Button onClick={onClose} style={{ marginRight: 8 }}>
+            <Button onClick={onClose} style={{ marginRight: spacing.sm }}>
               Cancel
             </Button>
             <Button type="primary" onClick={handleAdd} disabled={!selectedPlugin}>
@@ -209,7 +209,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
         <Tabs items={tabsItems} defaultActiveKey="builtin" />
       </Spin>
       {selectedPlugin && (
-        <div style={{ marginTop: 16, padding: 12, background: colors.neutral[100], borderRadius: 4 }}>
+        <div style={{ marginTop: spacing.md, padding: spacing[3], background: colors.neutral[100], borderRadius: 4 }}>
           <strong>Selected: {selectedPlugin.name}</strong>
           <div>Version: {selectedPlugin.version}</div>
         </div>

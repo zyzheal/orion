@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { colors } from '@/tokens/colors';
 import { useSubAppStore } from '@/stores/subappStore';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -95,7 +96,7 @@ const SubAppCard: React.FC<SubAppCardProps> = ({ app, onClick }) => (
       cursor: 'pointer',
       transition: 'all 0.2s',
       display: 'flex',
-      gap: 12,
+      gap: spacing[3],
       alignItems: 'center',
     }}
     onMouseEnter={(e) => {
@@ -255,7 +256,7 @@ export const SubAppLauncher: React.FC & { Trigger: React.FC<SubAppTriggerProps> 
             padding: '16px',
           }}
         >
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 12, display: 'block' }}>
+          <Text type="secondary" style={{ fontSize: 12, marginBottom: spacing[3], display: 'block' }}>
             点击图标进入相应的子系统
           </Text>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

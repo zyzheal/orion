@@ -4,6 +4,7 @@ import { UserOutlined, RobotOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { ActionCard } from './ActionCard';
 import type { ExtendedAction } from '@/components/ChatOps/types';
+import { spacing } from '@/tokens';
 
 export interface ChatMessageData {
   id: string;
@@ -52,7 +53,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         display: 'flex',
         flexDirection: isUser ? 'row-reverse' : 'row',
         alignItems: 'flex-end',
-        gap: 8,
+        gap: spacing.sm,
         padding: compact ? '1px 16px' : '6px 16px',
         marginTop: compact ? 0 : 6,
       }}

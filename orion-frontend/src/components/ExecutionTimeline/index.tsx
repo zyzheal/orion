@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Timeline as AntTimeline, Tag, Button, Space, Spin } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 export interface TimelineStep {
   id: string;
@@ -85,14 +85,14 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
               onClick={() => setSelectedStep(step)}
             >
               <strong>{step.stepName}</strong>
-              <Tag color={getStatusColor(step.status)} style={{ marginLeft: 8 }}>{step.status}</Tag>
-              <span style={{ marginLeft: 8, color: colors.neutral[500] }}>{formatDuration(step.durationMs)}</span>
+              <Tag color={getStatusColor(step.status)} style={{ marginLeft: spacing.sm }}>{step.status}</Tag>
+              <span style={{ marginLeft: spacing.sm, color: colors.neutral[500] }}>{formatDuration(step.durationMs)}</span>
             </div>
           ),
         }))}
       />
       {selectedStep && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <h4>Step Details</h4>
           <p><strong>Name:</strong> {selectedStep.stepName}</p>
           <p><strong>Status:</strong> {selectedStep.status}</p>
@@ -100,7 +100,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
           {selectedStep.durationMs && <p><strong>Duration:</strong> {formatDuration(selectedStep.durationMs)}</p>}
           {selectedStep.errorMessage && <p><strong>Error:</strong> {selectedStep.errorMessage}</p>}
           {diagnosis && (
-            <div style={{ marginTop: 8, padding: 8, background: colors.primary[50], borderRadius: 4 }}>
+            <div style={{ marginTop: spacing.sm, padding: spacing.sm, background: colors.primary[50], borderRadius: 4 }}>
               <h5>AI Diagnosis</h5>
               <p><strong>Root Cause:</strong> {diagnosis.rootCause}</p>
               <p><strong>Suggested Fix:</strong> {diagnosis.suggestedFix}</p>

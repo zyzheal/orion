@@ -7,7 +7,7 @@
 import React, { useMemo } from 'react';
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -108,9 +108,9 @@ function MetricCard({
   const sizeConfig = useMemo(() => {
     switch (size) {
       case 'small':
-        return { titleSize: 12, valueSize: 20, padding: 16 };
+        return { titleSize: 12, valueSize: 20, padding: spacing.md };
       case 'large':
-        return { titleSize: 16, valueSize: 36, padding: 24 };
+        return { titleSize: 16, valueSize: 36, padding: spacing.lg };
       default:
         return { titleSize: 14, valueSize: 28, padding: 20 };
     }
@@ -202,7 +202,7 @@ function MetricCard({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 12,
+          marginBottom: spacing[3],
         }}
       >
         <span
@@ -232,7 +232,7 @@ function MetricCard({
           display: 'flex',
           alignItems: 'baseline',
           gap: 4,
-          marginBottom: 8,
+          marginBottom: spacing.sm,
         }}
       >
         <span
@@ -284,7 +284,7 @@ function MetricCard({
       {footer && (
         <div
           style={{
-            marginTop: 12,
+            marginTop: spacing[3],
             paddingTop: 12,
             borderTop: '1px solid var(--border-light, colors.neutral[200])',
             fontSize: 12,

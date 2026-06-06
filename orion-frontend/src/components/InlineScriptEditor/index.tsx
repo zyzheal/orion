@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Radio, Select, Input, Tag, message, Card, Space } from 'antd';
+import { spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -79,7 +80,7 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
 
   return (
     <Card title="Inline Script Editor" size="small">
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Space>
           <span>Level:</span>
           <Radio.Group value={level} onChange={(e) => setLevel(e.target.value)} buttonStyle="solid">
@@ -88,12 +89,12 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
             <Radio.Button value="advanced">Advanced</Radio.Button>
           </Radio.Group>
         </Space>
-        <Tag color={level === 'safe' ? 'green' : level === 'standard' ? 'blue' : 'red'} style={{ marginLeft: 8 }}>
+        <Tag color={level === 'safe' ? 'green' : level === 'standard' ? 'blue' : 'red'} style={{ marginLeft: spacing.sm }}>
           {level === 'safe' ? 'WASM' : level === 'standard' ? 'Process Pool' : 'Container (Approval Required)'}
         </Tag>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <span>Language: </span>
         <Select value={language} onChange={setLanguage} style={{ width: 150 }}>
           <Select.Option value="javascript">JavaScript</Select.Option>
@@ -105,12 +106,12 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
         value={code}
         onChange={(e) => setCode(e.target.value)}
         rows={8}
-        style={{ fontFamily: 'monospace', fontSize: 13, marginBottom: 16 }}
+        style={{ fontFamily: 'monospace', fontSize: 13, marginBottom: spacing.md }}
         placeholder="Enter script code..."
       />
 
       {scanResult && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <strong>Security Scan: </strong>
           {scanResult.valid ? (
             <Tag color="green">No violations detected</Tag>
@@ -120,7 +121,7 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <span>Quick Templates: </span>
         <Space>
           {quickTemplates.map((t) => (
@@ -131,18 +132,18 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
         </Space>
       </div>
 
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: spacing.md }}>
         <Button onClick={handleScan} loading={loading}>Security Scan</Button>
         <Button onClick={handleDryRun} loading={loading}>Dry Run Test</Button>
       </Space>
 
       {level === 'advanced' && (
-        <Card size="small" title="Level 3 Approval" style={{ marginBottom: 16 }}>
-          <Input.TextArea placeholder="Reason for requiring advanced access..." rows={2} style={{ marginBottom: 8 }} />
+        <Card size="small" title="Level 3 Approval" style={{ marginBottom: spacing.md }}>
+          <Input.TextArea placeholder="Reason for requiring advanced access..." rows={2} style={{ marginBottom: spacing.sm }} />
           <Button onClick={handleRequestApproval} disabled={!code.trim()}>
             Submit for Approval
           </Button>
-          {approvalStatus && <Tag color="orange" style={{ marginLeft: 8 }}>Status: {approvalStatus}</Tag>}
+          {approvalStatus && <Tag color="orange" style={{ marginLeft: spacing.sm }}>Status: {approvalStatus}</Tag>}
         </Card>
       )}
 

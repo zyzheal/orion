@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { Tag, Tooltip, Popconfirm, message, Space } from 'antd';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 // ---- Types ----
 
@@ -134,7 +135,7 @@ const EnvironmentLockBadge: React.FC<EnvironmentLockBadgeProps> = ({
       {lockInfo.lockedAt && <div><strong>锁定时间:</strong> {dayjs(lockInfo.lockedAt).format('YYYY-MM-DD HH:mm:ss')}</div>}
       {lockInfo.reason && <div><strong>锁定原因:</strong> {lockInfo.reason}</div>}
       {showActions && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: spacing.sm }}>
           <Popconfirm
             title="确认解锁环境?"
             description="解锁后将允许向此环境部署应用"

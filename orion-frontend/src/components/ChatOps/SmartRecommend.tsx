@@ -11,6 +11,7 @@ import { CloseOutlined } from '@ant-design/icons';
 import { useChatOpsStore } from '@/stores/chatOpsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -43,7 +44,7 @@ export const SmartRecommend: React.FC = () => {
   return (
     <div
       style={{
-        marginBottom: 16,
+        marginBottom: spacing.md,
       }}
     >
       <div
@@ -51,7 +52,7 @@ export const SmartRecommend: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 8,
+          marginBottom: spacing.sm,
         }}
       >
         <Text type="secondary" style={{ fontSize: 11 }}>
@@ -65,7 +66,7 @@ export const SmartRecommend: React.FC = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: spacing.sm,
               padding: '8px 10px',
               background: colors.light.bg.primary,
               borderRadius: 8,

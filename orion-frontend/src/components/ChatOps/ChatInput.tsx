@@ -4,6 +4,7 @@ import { SendOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { useChatOpsStore } from '@/stores/chatOpsStore';
 import { useCommandSuggestions } from './hooks/useCommandSuggestions';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 export const ChatInput: React.FC = () => {
   const [input, setInput] = useState('');
@@ -113,7 +114,7 @@ export const ChatInput: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'flex-end',
-          gap: 8,
+          gap: spacing.sm,
         }}
       >
         <div

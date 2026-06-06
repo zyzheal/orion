@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { useMenuConfigStore, type MenuModuleConfig, type MenuChildConfig } from '@/stores/menuConfigStore';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -74,7 +75,7 @@ const AddChildModal: React.FC<AddChildModalProps> = ({ open, onClose, onAdd, mod
       okText="添加"
       cancelText="取消"
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           name="label"
           label="菜单名称"
@@ -136,8 +137,8 @@ const MoveChildModal: React.FC<MoveChildModalProps> = ({ open, onClose, onMove, 
       okText="移动"
       cancelText="取消"
     >
-      <div style={{ marginTop: 16 }}>
-        <Text style={{ marginBottom: 8, display: 'block' }}>
+      <div style={{ marginTop: spacing.md }}>
+        <Text style={{ marginBottom: spacing.sm, display: 'block' }}>
           将 <Tag color="blue">{child.label}</Tag> 从 <Tag>{fromModuleKey}</Tag> 移动到：
         </Text>
         <Select
@@ -215,13 +216,13 @@ const ModuleEditor: React.FC<{
       style={{
         background: isDark ? 'rgba(255,255,255,0.03)' : 'colors.neutral[50]',
         borderRadius: 10,
-        padding: 16,
-        marginBottom: 12,
+        padding: spacing.md,
+        marginBottom: spacing[3],
         border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
       }}
     >
       {/* 模块头部 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: hasChildren ? 12 : 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3], marginBottom: hasChildren ? 12 : 0 }}>
         <Tag color="blue" style={{ margin: 0, fontSize: 12, minWidth: 28, textAlign: 'center' }}>
           {moduleOrder}
         </Tag>
@@ -241,7 +242,7 @@ const ModuleEditor: React.FC<{
 
       {/* 描述和系统信息 */}
       {hasChildren && (
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: spacing[3], marginBottom: spacing[3] }}>
           <Input
             value={module.description || ''}
             onChange={(e) => onUpdateModule({ description: e.target.value })}
@@ -413,7 +414,7 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
         },
       }}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: spacing[3] }}>
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             恢复默认
           </Button>
@@ -426,7 +427,7 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
         </div>
       }
     >
-      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: spacing.sm }}>
         自定义导航菜单的模块名称、描述及子菜单项
       </Text>
       <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 20 }}>

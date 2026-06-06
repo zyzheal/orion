@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { Card } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // Module-level flag to ensure the deprecation warning is printed only once
 // across the entire lifetime of the application, regardless of how many
@@ -90,7 +90,7 @@ function CardPanel({
   };
 
   const headerExtra = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
       {extra}
       {collapsible && (
         <span

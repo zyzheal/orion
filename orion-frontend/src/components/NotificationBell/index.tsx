@@ -27,6 +27,7 @@ import type { MockNotification } from '@/pages/__mocks__/mockNotificationData';
 import { colors } from '@/tokens/colors';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
@@ -177,7 +178,7 @@ export const NotificationBell: React.FC = () => {
                     padding: '0 6px',
                     lineHeight: '18px',
                     borderRadius: 4,
-                    marginLeft: 8,
+                    marginLeft: spacing.sm,
                   }}
                 >
                   {priorityLabelMap[item.priority]}

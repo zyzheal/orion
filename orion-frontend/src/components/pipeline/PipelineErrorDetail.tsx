@@ -164,7 +164,7 @@ const PipelineErrorDetail: React.FC<PipelineErrorDetailProps> = ({ runId, onRetr
       >
         <div style={{ textAlign: 'center', padding: spacing[3] }}>
           <Spin size="small" />
-          <Text type="secondary" style={{ marginLeft: 8 }}>
+          <Text type="secondary" style={{ marginLeft: spacing.sm }}>
             正在分析错误原因...
           </Text>
         </div>

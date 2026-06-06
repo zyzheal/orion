@@ -17,6 +17,7 @@ import { SmartRecommend } from '../SmartRecommend';
 import { MessageArea } from '../MessageArea';
 import { ChatInput } from '../ChatInput';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -216,7 +217,7 @@ export const ChatPanel: React.FC = () => {
           }}
         >
           {/* Welcome Section */}
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ textAlign: 'center', marginBottom: spacing.md }}>
             <div
               style={{
                 width: 48,
@@ -244,7 +245,7 @@ export const ChatPanel: React.FC = () => {
           <SmartRecommend />
           {/* Quick Questions Grid */}
           {enabledQuestions.length > 0 && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text type="secondary" style={{ fontSize: 12, marginBottom: 10, display: 'block' }}>
                 你可以问我：
               </Text>

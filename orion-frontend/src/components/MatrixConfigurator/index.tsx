@@ -30,7 +30,7 @@ import {
   BlockOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -386,11 +386,11 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           message="矩阵构建可以对多个维度进行组合，一次运行所有组合"
           description="例如：3 个 Node.js 版本 × 2 个操作系统 = 6 个并行任务"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
 
         <Text strong>快速选择预设模板：</Text>
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: spacing[3] }}>
           <Space wrap>
             {PRESET_TEMPLATES.map((preset) => (
               <Button
@@ -409,7 +409,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
 
   // 维度列表
   const dimensionRows = dimensions.map((dim, index) => (
-    <Space key={index} style={{ width: '100%', marginBottom: 8 }} align="start">
+    <Space key={index} style={{ width: '100%', marginBottom: spacing.sm }} align="start">
       <Input
         value={dim.key}
         onChange={(e) => handleUpdateDimensionKey(index, e.target.value)}
@@ -479,11 +479,11 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
       }
     >
       {/* 预设模板 */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           快速预设：
         </Text>
-        <Space wrap style={{ marginLeft: 8 }}>
+        <Space wrap style={{ marginLeft: spacing.sm }}>
           {PRESET_TEMPLATES.map((preset) => (
             <Button
               key={preset.label}
@@ -498,13 +498,13 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
       </div>
 
       {/* 维度列表 */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         {dimensionRows}
       </div>
 
       {/* 维度值预览 */}
       {dimensionTags.length > 0 && (
-        <div style={{ marginBottom: 12 }}>{dimensionTags}</div>
+        <div style={{ marginBottom: spacing[3] }}>{dimensionTags}</div>
       )}
 
       {/* 组合数预览 */}
@@ -519,7 +519,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
             </Space>
           }
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -535,7 +535,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           rowClassName={(record: MatrixCombination) =>
             record.excluded ? 'matrix-excluded-row' : ''
           }
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -545,7 +545,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           type="warning"
           message={`组合数较多：共 ${totalCount} 个组合，${excludedCount} 个被排除，${effectiveCount} 个将执行`}
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -569,7 +569,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           <Card
             key={exIndex}
             size="small"
-            style={{ marginBottom: 8 }}
+            style={{ marginBottom: spacing.sm }}
             extra={
               <Button
                 type="text"
@@ -621,7 +621,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           block
           icon={<PlusOutlined />}
           onClick={handleAddExclusion}
-          style={{ marginTop: 8 }}
+          style={{ marginTop: spacing.sm }}
           disabled={
             dimensions.some((d) => !d.key || d.values.length === 0)
           }

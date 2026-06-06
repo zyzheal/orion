@@ -12,7 +12,7 @@ import {
   CloseCircleOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -125,7 +125,7 @@ function OrionModal({
   return (
     <AntModal
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           {customIcon || iconMap[type]}
           <span>{title}</span>
         </div>

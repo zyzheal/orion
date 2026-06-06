@@ -15,6 +15,7 @@ import { injectAuthState } from '@/microfront/config';
 import { Result, Button, Progress, Skeleton, Space, Tag } from 'antd';
 import { CheckCircleOutlined, LoadingOutlined, CloudServerOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const SubAppRouteDynamic: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -371,18 +372,18 @@ const SubAppRouteDynamic: React.FC = () => {
           }}
         >
           <div style={{ width: '100%', maxWidth: 400 }}>
-            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
               <Skeleton.Avatar active size={48} shape="square" />
               <div style={{ flex: 1 }}>
-                <Skeleton.Input active style={{ width: '60%', marginBottom: 8 }} />
+                <Skeleton.Input active style={{ width: '60%', marginBottom: spacing.sm }} />
                 <Skeleton.Input active style={{ width: '40%' }} />
               </div>
             </div>
             <Skeleton active paragraph={{ rows: 6 }} />
             <div
               style={{
-                marginTop: 24,
-                padding: 16,
+                marginTop: spacing.lg,
+                padding: spacing.md,
                 background: colors.light.bg.secondary,
                 borderRadius: 8,
               }}
@@ -393,7 +394,7 @@ const SubAppRouteDynamic: React.FC = () => {
                     从缓存加载 (已保持会话)
                   </Tag>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
                   <Progress
                     percent={loadProgress}
                     status={loadProgress === 100 ? 'success' : 'active'}
@@ -405,7 +406,7 @@ const SubAppRouteDynamic: React.FC = () => {
                     {loadStage}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.neutral[500] }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.neutral[500] }}>
                   <CloudServerOutlined />
                   <span style={{ fontSize: 12 }}>
                     {appConfig?.name || subAppKey}

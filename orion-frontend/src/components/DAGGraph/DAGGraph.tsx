@@ -38,7 +38,7 @@ const tooltipStyles = `
   }
 `;
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   CheckCircleOutlined,
@@ -120,7 +120,7 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
       color={colors.neutral[0]}
       title={
         <div style={{ minWidth: 160 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid colors.neutral[200]` }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: spacing.sm, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid colors.neutral[200]` }}>
             <Space size={6}>
               <Badge
                 count={data.index + 1}
@@ -198,7 +198,7 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
 
         {/* Node Content — 居中 */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, justifyContent: 'center' }}>
             <Badge
               count={data.index + 1}
               style={{

@@ -126,9 +126,9 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
     <Tooltip
       title={
         <div style={{ padding: 4 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>{config.name}</div>
+          <div style={{ fontWeight: 600, marginBottom: spacing.sm }}>{config.name}</div>
           {config.description && (
-            <div style={{ color: colors.neutral[500], marginBottom: 8, fontSize: 12 }}>
+            <div style={{ color: colors.neutral[500], marginBottom: spacing.sm, fontSize: 12 }}>
               {config.description}
             </div>
           )}

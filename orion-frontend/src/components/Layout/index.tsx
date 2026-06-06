@@ -36,6 +36,7 @@ import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
 import { getIcon } from './iconMap';
 import { prefetchSubApp } from '@/utils/subappPreload';
+import { spacing } from '@/tokens';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -408,7 +409,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 12,
+            gap: spacing[3],
             cursor: 'pointer',
             padding: '8px 12px',
             borderRadius: 8,
@@ -462,7 +463,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* 右侧区域：控制台 + 主题 + 用户 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           {/* 菜单配置入口（仅管理员） */}
           {isAdmin && (
             <Button
@@ -526,7 +527,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: spacing.sm,
                 cursor: 'pointer',
                 padding: '4px 8px',
                 borderRadius: 8,
@@ -617,7 +618,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                             fontSize: 12,
                             fontWeight: 600,
                             color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
-                            marginBottom: 8,
+                            marginBottom: spacing.sm,
                             paddingLeft: 4,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px',
@@ -636,7 +637,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                 style={{
                                   display: 'flex',
                                   alignItems: 'flex-start',
-                                  gap: 12,
+                                  gap: spacing[3],
                                   padding: '10px 12px',
                                   borderRadius: 8,
                                   cursor: 'pointer',

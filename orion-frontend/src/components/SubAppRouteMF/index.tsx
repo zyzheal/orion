@@ -10,7 +10,7 @@ import { loadSubApp, getSubApp } from '@orion-mf/core';
 import type { SubAppInstance } from '@orion-mf/core';
 import { getSubAppConfig } from '@/microfront/apps';
 import { Loading } from '@/components/Loading';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // Orion-MF 配置接口
 interface OrionMFConfig {
@@ -193,13 +193,13 @@ const SubAppRouteMF: React.FC = () => {
         <div
           style={{
             maxWidth: 500,
-            padding: 24,
+            padding: spacing.lg,
             background: 'white',
             borderRadius: 8,
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           }}
         >
-          <h3 style={{ color: colors.error[500], marginBottom: 16 }}>子应用加载失败</h3>
+          <h3 style={{ color: colors.error[500], marginBottom: spacing.md }}>子应用加载失败</h3>
           <pre
             style={{
               textAlign: 'left',
@@ -208,9 +208,9 @@ const SubAppRouteMF: React.FC = () => {
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               background: colors.neutral[100],
-              padding: 12,
+              padding: spacing[3],
               borderRadius: 4,
-              marginBottom: 16,
+              marginBottom: spacing.md,
             }}
           >
             {error}
@@ -221,7 +221,7 @@ const SubAppRouteMF: React.FC = () => {
           <p style={{ color: colors.neutral[500], fontSize: 14 }}>
             入口: {mfConfig.remoteEntry}
           </p>
-          <div style={{ marginTop: 24 }}>
+          <div style={{ marginTop: spacing.lg }}>
             <button
               onClick={() => {
                 setError(null);

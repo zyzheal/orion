@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Layout as AntLayout } from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -143,7 +144,7 @@ function PageLayout({
         {/* Main content area */}
         <AntLayout.Content
           style={{
-            padding: 24,
+            padding: spacing.lg,
             minHeight: 'calc(100vh - 64px)',
             background: 'var(--bg-secondary, colors.neutral[50])',
           }}
@@ -152,7 +153,7 @@ function PageLayout({
           {breadcrumb && (
             <div
               style={{
-                marginBottom: 16,
+                marginBottom: spacing.md,
                 padding: '12px 16px',
                 background: 'var(--bg-elevated, colors.neutral[0])',
                 borderRadius: 'var(--radius-md, 6px)',
@@ -167,7 +168,7 @@ function PageLayout({
             style={{
               background: 'var(--bg-elevated, colors.neutral[0])',
               borderRadius: 'var(--radius-md, 6px)',
-              padding: 24,
+              padding: spacing.lg,
               minHeight: 'calc(100vh - 160px)',
               boxShadow: 'var(--shadow-card, 0 1px 2px rgba(0,0,0,0.03))',
             }}
@@ -179,7 +180,7 @@ function PageLayout({
           {footer && (
             <div
               style={{
-                marginTop: 16,
+                marginTop: spacing.md,
                 textAlign: 'center',
                 color: 'var(--text-tertiary, colors.neutral[500])',
                 fontSize: 12,

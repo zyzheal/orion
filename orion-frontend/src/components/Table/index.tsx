@@ -11,7 +11,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Table as AntTable, Pagination, Input, Space, Button } from 'antd';
 import { SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -140,7 +140,7 @@ function OrionTable<T extends object>({
 
         if (col.filterable) {
           antCol.filterDropdown = () => (
-            <div style={{ padding: 8 }}>
+            <div style={{ padding: spacing.sm }}>
               <Input
                 placeholder={`Search ${col.title}`}
                 value={filterValues[col.key] || ''}
@@ -152,7 +152,7 @@ function OrionTable<T extends object>({
                   }
                 }}
                 onPressEnter={() => setFilterVisible({ ...filterVisible, [col.key]: false })}
-                style={{ marginBottom: 8, display: 'block' }}
+                style={{ marginBottom: spacing.sm, display: 'block' }}
                 size="small"
                 prefix={<SearchOutlined />}
               />
@@ -286,10 +286,10 @@ function OrionTable<T extends object>({
       {columns.some((c) => c.filterable) && (
         <div
           style={{
-            marginBottom: 12,
+            marginBottom: spacing[3],
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: 8,
+            gap: spacing.sm,
           }}
         >
           {hasActiveFilters && (
@@ -326,7 +326,7 @@ function OrionTable<T extends object>({
       {(clientPagination || externalPagination) && (
         <div
           style={{
-            marginTop: 16,
+            marginTop: spacing.md,
             display: 'flex',
             justifyContent: 'flex-end',
           }}
