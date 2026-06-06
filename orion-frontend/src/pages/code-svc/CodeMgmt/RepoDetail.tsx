@@ -336,7 +336,7 @@ const RepoDetail: React.FC = () => {
       label: `分支 (${branches.length})`,
       children: (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -361,7 +361,7 @@ const RepoDetail: React.FC = () => {
       label: `Pull Requests (${pullRequests.length})`,
       children: (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreatePrModal(true)}>
               创建 Pull Request
             </Button>
@@ -392,16 +392,16 @@ const RepoDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/code-mgmt')}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FolderOpenOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FolderOpenOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {repoName || id}
           </Title>
           <Text type="secondary">仓库详情</Text>

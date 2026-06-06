@@ -271,11 +271,11 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
                     children: (
                       <div>
                         <Text strong>{h.nodeName}</Text>
-                        <Tag color={actionColors[h.action]} style={{ marginLeft: 8 }}>
+                        <Tag color={actionColors[h.action]} style={{ marginLeft: spacing.sm }}>
                           {actionText[h.action] || h.action}
                         </Tag>
                         {h.duration && (
-                          <Text type="secondary" style={{ marginLeft: 8 }}>
+                          <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                             {h.duration}ms
                           </Text>
                         )}

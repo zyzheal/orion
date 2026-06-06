@@ -17,7 +17,7 @@ import {
 import CapabilityList from './CapabilityList';
 import RoleCapabilityMapping from './RoleCapabilityMapping';
 import UserCapabilityMapping from './UserCapabilityMapping';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
@@ -64,9 +64,9 @@ const CapabilityManagement: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <SafetyCertificateOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <SafetyCertificateOutlined style={{ marginRight: spacing.sm, color: colors.purple[500] }} />
           能力管理
         </Title>
         <Paragraph type="secondary">管理系统的能力单元、角色能力分配和用户能力覆盖</Paragraph>

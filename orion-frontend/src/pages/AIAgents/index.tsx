@@ -19,7 +19,7 @@ import { aiAgentApi } from '@/api/ai-agents';
 import AgentList from './AgentList';
 import AgentDetail from './AgentDetail';
 import AuditLogViewer from './AuditLogViewer';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
@@ -183,15 +183,15 @@ const AIAgentsManagement: React.FC = () => {
       {/* 页面标题 */}
       <div
         style={{
-          marginBottom: 24,
+          marginBottom: spacing.lg,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <RobotOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing.sm, color: colors.purple[500] }} />
             AI Agent 管理
           </Title>
           <Paragraph type="secondary">
@@ -237,7 +237,7 @@ const AIAgentsManagement: React.FC = () => {
       <Modal
         title={
           <span>
-            <PlayCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            <PlayCircleOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             执行 Agent: {selectedAgent?.config?.name || selectedAgent?.id}
           </span>
         }
@@ -246,7 +246,7 @@ const AIAgentsManagement: React.FC = () => {
         footer={null}
         width={600}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             label="输入参数 (JSON)"
             name="input"
@@ -277,7 +277,7 @@ const AIAgentsManagement: React.FC = () => {
             size="small"
             title="执行结果"
             style={{
-              marginTop: 16,
+              marginTop: spacing.md,
               backgroundColor: executionResult.success
                 ? colors.light.bg.secondary
                 : colors.error[50],

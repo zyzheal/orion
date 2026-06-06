@@ -263,16 +263,16 @@ const DashboardCore: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           工作台
         </Title>
         <Text type="secondary">平台运行概览 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
       </div>
 
       {/* KPI Cards */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <DashboardLayout columns={4} gap={16}>
           {state.kpis.map((metric) => (
             <MetricCard
@@ -328,7 +328,7 @@ const DashboardCore: React.FC = () => {
                       style={{
                         fontSize: 28,
                         color: action.color,
-                        marginBottom: 8,
+                        marginBottom: spacing.sm,
                       }}
                     >
                       {quickActionIcons[action.icon]}

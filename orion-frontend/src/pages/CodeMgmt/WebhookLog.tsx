@@ -200,12 +200,12 @@ const WebhookLog: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Webhook 日志
           </Title>
           <Text type="secondary">共 {displayEvents.length} 条 Webhook 事件记录</Text>
@@ -216,7 +216,7 @@ const WebhookLog: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -291,7 +291,7 @@ const WebhookLog: React.FC = () => {
                 value={JSON.stringify(selectedEvent.payload, null, 2)}
                 readOnly
                 rows={15}
-                style={{ fontFamily: 'monospace', fontSize: spacing[3], marginTop: 8 }}
+                style={{ fontFamily: 'monospace', fontSize: spacing[3], marginTop: spacing.sm }}
               />
             </div>
           </Space>

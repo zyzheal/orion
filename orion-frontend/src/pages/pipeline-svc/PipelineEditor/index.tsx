@@ -486,7 +486,7 @@ const PipelineEditor: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
@@ -501,7 +501,7 @@ const PipelineEditor: React.FC = () => {
                 返回列表
               </Button>
               <Title level={2} style={{ marginBottom: 0, display: 'flex', alignItems: 'center' }}>
-                <EditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                <EditOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 {id ? '编辑 Pipeline' : '创建 Pipeline'}
               </Title>
             </Space>
@@ -555,7 +555,7 @@ const PipelineEditor: React.FC = () => {
       </div>
 
       {/* Pipeline 基本信息 */}
-      <Card style={{ marginBottom: 24 }} title="基本信息">
+      <Card style={{ marginBottom: spacing.lg }} title="基本信息">
         <Form form={form} layout="inline" requiredMark>
           <Form.Item
             label="名称"
@@ -667,7 +667,7 @@ const PipelineEditor: React.FC = () => {
 
       {/* DAG 依赖关系可视化 */}
       {dagPreviewVisible && stages.length > 0 && (
-        <Card style={{ marginTop: 24 }} title="DAG 依赖关系">
+        <Card style={{ marginTop: spacing.lg }} title="DAG 依赖关系">
           <Alert
             type={validateDAG(stages).valid ? 'success' : 'error'}
             message={validateDAG(stages).valid ? '依赖关系有效，无循环依赖' : '依赖关系存在问题'}
@@ -677,14 +677,14 @@ const PipelineEditor: React.FC = () => {
                 : validateDAG(stages).errors.join('; ')
             }
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           />
           <DAGGraph stages={stages} height={350} showMiniMap={false} />
         </Card>
       )}
 
       {/* Stage 类型说明 */}
-      <Card style={{ marginTop: 24 }} title="阶段类型说明">
+      <Card style={{ marginTop: spacing.lg }} title="阶段类型说明">
         <Space wrap>
           {STAGE_TYPES.map((type) => (
             <Tag

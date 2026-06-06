@@ -48,7 +48,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { api } from '@/api/client';
 import type { Deployment, HealthCheckResult } from '@/api/deployments';
 import { getDeployments, cancelDeployment, rollbackDeployment } from '@/api/deployments';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -805,12 +805,12 @@ const DeployPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CloudUploadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             部署发布
           </Title>
           <Text type="secondary">管理部署任务、部署窗口、渐进式部署和紧急部署</Text>
@@ -840,7 +840,7 @@ const DeployPage: React.FC = () => {
       </div>
 
       {/* Stats Panel */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={5}>
           <StatCard title="总部署数" value={stats.total} icon={<RocketOutlined />} />
         </Col>
@@ -871,7 +871,7 @@ const DeployPage: React.FC = () => {
           key="deployments"
         >
           <Card>
-            <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+            <div style={{ marginBottom: spacing.md, display: 'flex', gap: spacing[3] }}>
               <Input.Search
                 placeholder="搜索应用、版本..."
                 onSearch={setSearchQuery}
@@ -953,7 +953,7 @@ const DeployPage: React.FC = () => {
               description="生产环境仅允许在部署窗口内执行部署（工作日 10:00-16:00）。紧急部署可绕过窗口限制，但需要审批。"
               type="info"
               showIcon
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             />
             <AntTable<DeployWindow>
               columns={[
@@ -1118,7 +1118,7 @@ const DeployPage: React.FC = () => {
 
       {/* Emergency Deploy Modal */}
       <Modal
-        title={<><ThunderboltOutlined style={{ marginRight: 8, color: colors.error[400] }} />紧急部署</>}
+        title={<><ThunderboltOutlined style={{ marginRight: spacing.sm, color: colors.error[400] }} />紧急部署</>}
         open={emergencyModalVisible}
         onCancel={() => setEmergencyModalVisible(false)}
         footer={null}
@@ -1130,7 +1130,7 @@ const DeployPage: React.FC = () => {
           description="此操作需要审批并记录审计日志，请确认紧急部署的必要性"
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
         <Form form={emergencyForm} layout="vertical">
           <Form.Item name="appName" label="应用名称" rules={[{ required: true, message: '请输入应用名称' }]}>
@@ -1168,7 +1168,7 @@ const DeployPage: React.FC = () => {
 
       {/* Deploy Window Create Modal */}
       <Modal
-        title={<><ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />创建部署窗口</>}
+        title={<><ClockCircleOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />创建部署窗口</>}
         open={deployWindowModalVisible}
         onCancel={() => setDeployWindowModalVisible(false)}
         onOk={() => deployWindowForm.submit()}
@@ -1223,7 +1223,7 @@ const DeployPage: React.FC = () => {
 
       {/* Progressive Deploy Create Modal */}
       <Modal
-        title={<><RiseOutlined style={{ marginRight: 8, color: colors.success[500] }} />创建渐进式部署</>}
+        title={<><RiseOutlined style={{ marginRight: spacing.sm, color: colors.success[500] }} />创建渐进式部署</>}
         open={progressiveDeployModalVisible}
         onCancel={() => setProgressiveDeployModalVisible(false)}
         onOk={() => progressiveDeployForm.submit()}
@@ -1236,7 +1236,7 @@ const DeployPage: React.FC = () => {
           description="流量将按 Canary (5%) → 25% → 50% → 75% → 100% 逐步推进，每个阶段需要确认后推进到下一阶段"
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
         <Form form={progressiveDeployForm} layout="vertical" onFinish={handleCreateProgressiveDeploy}>
           <Form.Item name="appName" label="应用名称" rules={[{ required: true, message: '请输入应用名称' }]}>
@@ -1307,7 +1307,7 @@ const DeployPage: React.FC = () => {
                          stage.status === 'running' ? '进行中' :
                          stage.status === 'failed' ? '失败' : '等待中'}
                       </Tag>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                      <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         流量 {stage.trafficPercent}%
                       </Text>
                       {stage.startedAt && (
@@ -1420,7 +1420,7 @@ const DeployPage: React.FC = () => {
 
             {/* Deployment Stages */}
             {selectedDeployment.stages && selectedDeployment.stages.length > 0 && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>部署阶段</Title>
                 <Steps
                   direction="vertical"
@@ -1439,7 +1439,7 @@ const DeployPage: React.FC = () => {
                           {statusLabelMap[stage.status] || stage.status}
                         </Tag>
                         {stage.duration && (
-                          <Text type="secondary" style={{ marginLeft: 8 }}>
+                          <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                             {stage.duration}s
                           </Text>
                         )}
@@ -1458,7 +1458,7 @@ const DeployPage: React.FC = () => {
 
             {/* Health Checks */}
             {selectedDeployment.healthChecks && selectedDeployment.healthChecks.length > 0 && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>健康检查</Title>
                 <Timeline>
                   {selectedDeployment.healthChecks.map((check: HealthCheckResult, idx: number) => (
@@ -1467,7 +1467,7 @@ const DeployPage: React.FC = () => {
                       color={check.status === 'healthy' ? 'green' : check.status === 'unhealthy' ? 'red' : 'orange'}
                     >
                       <Text strong>{check.name}</Text>
-                      <Tag color={check.status === 'healthy' ? 'green' : 'orange'} style={{ marginLeft: 8 }}>
+                      <Tag color={check.status === 'healthy' ? 'green' : 'orange'} style={{ marginLeft: spacing.sm }}>
                         {check.status}
                       </Tag>
                       {check.message && (

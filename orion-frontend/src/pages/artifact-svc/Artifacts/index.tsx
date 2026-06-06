@@ -18,7 +18,7 @@ import {
   Card,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -457,12 +457,12 @@ const ArtifactManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <InboxOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <InboxOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 制品管理
               </Title>
               <Text type="secondary">管理制品仓库、生命周期晋升、标签和安全扫描</Text>
@@ -493,7 +493,7 @@ const ArtifactManagement: React.FC = () => {
 
           {/* Artifact List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -625,7 +625,7 @@ const ArtifactManagement: React.FC = () => {
             width={480}
           >
             {selectedArtifact && (
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: spacing.md }}>
                 <Text>
                   当前制品: <Text strong>{selectedArtifact.name}</Text> ({selectedArtifact.version})
                 </Text>

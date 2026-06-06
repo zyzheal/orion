@@ -267,12 +267,12 @@ const CodeOwnersPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <TeamOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TeamOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             CODEOWNERS
           </Title>
           <Text type="secondary">配置代码仓库的 CODEOWNERS 文件，定义文件/目录的负责人</Text>
@@ -298,7 +298,7 @@ const CodeOwnersPage: React.FC = () => {
       </div>
 
       {/* Repo selector */}
-      <Card style={{ marginBottom: 16 }} size="small">
+      <Card style={{ marginBottom: spacing.md }} size="small">
         <Space>
           <Text strong>选择仓库:</Text>
           <Select
@@ -360,7 +360,7 @@ const CodeOwnersPage: React.FC = () => {
       {/* Validation result */}
       {validationResult && (
         <Alert
-          style={{ marginTop: 16 }}
+          style={{ marginTop: spacing.md }}
           type={validationResult.valid ? 'success' : 'error'}
           message={validationResult.valid ? '验证通过' : '验证失败'}
           description={validationResult.message}
@@ -370,7 +370,7 @@ const CodeOwnersPage: React.FC = () => {
 
       {/* Recommendations table */}
       {recommendations.length > 0 && (
-        <Card title="推荐审批人" style={{ marginTop: 16 }}>
+        <Card title="推荐审批人" style={{ marginTop: spacing.md }}>
           <Table
             columns={recommendationColumns}
             dataSource={recommendations}

@@ -50,6 +50,7 @@ import {
 } from '@/api/users';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -620,12 +621,12 @@ const UserManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-            <UserOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <UserOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 用户管理
               </Title>
               <Text type="secondary">管理系统用户、角色分配和账户状态</Text>
@@ -645,7 +646,7 @@ const UserManagement: React.FC = () => {
           </div>
 
           {/* Stats Panel */}
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card size="small" style={{ marginBottom: spacing.md }}>
             <Row gutter={16}>
               <Col span={6}>
                 <Statistic title="用户总数" value={stats.total} prefix={<UserOutlined />} />
@@ -678,7 +679,7 @@ const UserManagement: React.FC = () => {
 
           {/* User List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -798,7 +799,7 @@ const UserManagement: React.FC = () => {
             width={480}
           >
             {selectedUser && (
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: spacing.md }}>
                 <Text>
                   用户: <Text strong>{selectedUser.name || selectedUser.username}</Text> (
                   {selectedUser.username})
@@ -857,7 +858,7 @@ const UserManagement: React.FC = () => {
             destroyOnClose
           >
             {detailItems}
-            <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
+            <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm }}>
               <Button
                 icon={<EditOutlined />}
                 onClick={() => {

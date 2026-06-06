@@ -206,12 +206,12 @@ const PipelineList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Pipeline 列表
           </Title>
           <Text type="secondary">共 {filteredPipelines.length} 个 Pipeline</Text>
@@ -227,7 +227,7 @@ const PipelineList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

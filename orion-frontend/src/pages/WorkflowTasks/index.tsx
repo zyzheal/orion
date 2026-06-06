@@ -45,6 +45,7 @@ import {
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -415,7 +416,7 @@ const WorkflowTasksPage: React.FC = () => {
 
         {/* Form Data */}
         {t.form_data && Object.keys(t.form_data).length > 0 && (
-          <Card size="small" title="表单数据" style={{ marginTop: 16 }}>
+          <Card size="small" title="表单数据" style={{ marginTop: spacing.md }}>
             <Descriptions column={1} size="small">
               {Object.entries(t.form_data).map(([key, value]) => (
                 <Descriptions.Item key={key} label={key}>
@@ -428,7 +429,7 @@ const WorkflowTasksPage: React.FC = () => {
 
         {/* Action buttons */}
         {t.status === 'pending' && (
-          <Space style={{ marginTop: 16 }}>
+          <Space style={{ marginTop: spacing.md }}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -439,7 +440,7 @@ const WorkflowTasksPage: React.FC = () => {
           </Space>
         )}
         {t.status === 'assigned' && (
-          <Space style={{ marginTop: 16 }}>
+          <Space style={{ marginTop: spacing.md }}>
             <Button
               type="primary"
               icon={<SendOutlined />}
@@ -469,12 +470,12 @@ const WorkflowTasksPage: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <ProjectOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <ProjectOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 工作流任务
               </Title>
               <Text type="secondary">管理工作流中的人工任务，包括认领和完成</Text>
@@ -485,7 +486,7 @@ const WorkflowTasksPage: React.FC = () => {
           </div>
 
           {/* Stats Panel */}
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card size="small" style={{ marginBottom: spacing.md }}>
             <Space size="large">
               <Space>
                 <Text type="secondary">总计:</Text>
@@ -517,7 +518,7 @@ const WorkflowTasksPage: React.FC = () => {
 
           {/* Filters */}
           <Card>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
               <Select
                 style={{ width: 140 }}
                 value={statusFilter}
@@ -573,7 +574,7 @@ const WorkflowTasksPage: React.FC = () => {
             width={480}
             destroyOnClose
           >
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text type="secondary">
                 确认要认领此任务吗？认领后您将成为该任务的处理人。
               </Text>
@@ -597,7 +598,7 @@ const WorkflowTasksPage: React.FC = () => {
             width={520}
             destroyOnClose
           >
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text type="secondary">
                 完成任务后将唤醒挂起的工作流实例，请填写必要的表单数据。
               </Text>

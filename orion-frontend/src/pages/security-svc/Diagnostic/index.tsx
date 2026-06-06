@@ -62,8 +62,8 @@ const DiagnosticLayout: React.FC = () => {
       >
         {!collapsed && (
           <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
-            <Title level={2} style={{ marginBottom: 8, color: colors.primary[500] }}>
-              <ToolOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm, color: colors.primary[500] }}>
+              <ToolOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               Diagnostic
             </Title>
           </div>

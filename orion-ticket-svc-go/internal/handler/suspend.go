@@ -26,7 +26,7 @@ func (h *SuspendHandler) CreateSuspend(c *gin.Context) {
 
 	record, err := h.svc.CreateSuspend(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -37,7 +37,7 @@ func (h *SuspendHandler) CreateSuspend(c *gin.Context) {
 func (h *SuspendHandler) ActivateSuspend(c *gin.Context) {
 	record, err := h.svc.ActivateSuspend(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": record})
@@ -47,7 +47,7 @@ func (h *SuspendHandler) ActivateSuspend(c *gin.Context) {
 func (h *SuspendHandler) EndSuspend(c *gin.Context) {
 	record, err := h.svc.EndSuspend(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": record})
@@ -57,7 +57,7 @@ func (h *SuspendHandler) EndSuspend(c *gin.Context) {
 func (h *SuspendHandler) CancelSuspend(c *gin.Context) {
 	record, err := h.svc.CancelSuspend(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": record})
@@ -68,7 +68,7 @@ func (h *SuspendHandler) ListSuspensions(c *gin.Context) {
 	status := c.Query("status")
 	records, err := h.svc.ListSuspensions(c.Request.Context(), status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": records, "count": len(records)})
@@ -78,7 +78,7 @@ func (h *SuspendHandler) ListSuspensions(c *gin.Context) {
 func (h *SuspendHandler) GetSuspend(c *gin.Context) {
 	record, err := h.svc.GetSuspend(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "suspension not found"})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": record})
@@ -88,7 +88,7 @@ func (h *SuspendHandler) GetSuspend(c *gin.Context) {
 func (h *SuspendHandler) GetEngineerSuspensions(c *gin.Context) {
 	records, err := h.svc.GetEngineerSuspensions(c.Request.Context(), c.Param("engineerId"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": records, "count": len(records)})
@@ -98,7 +98,7 @@ func (h *SuspendHandler) GetEngineerSuspensions(c *gin.Context) {
 func (h *SuspendHandler) GetEngineerSuspendImpact(c *gin.Context) {
 	impact, err := h.svc.GetSuspendImpact(c.Request.Context(), c.Param("engineerId"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": impact})

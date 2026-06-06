@@ -253,7 +253,7 @@ const ExecutiveDashboard: React.FC = () => {
           subTitle={
             <div>
               <div>效能仪表盘 API 尚未返回数据。</div>
-              <div style={{ marginTop: 8, fontSize: 12, color: colors.neutral[500] }}>
+              <div style={{ marginTop: spacing.sm, fontSize: 12, color: colors.neutral[500] }}>
                 请确认后端 <code>orion-ticket-svc</code> 服务已正确部署并返回数据。
               </div>
             </div>
@@ -273,7 +273,7 @@ const ExecutiveDashboard: React.FC = () => {
           subTitle={
             <div>
               <div>效能仪表盘依赖后端 <code>orion-ticket-svc</code> 微服务，该服务当前未部署或未启动。</div>
-              <div style={{ marginTop: 8, fontSize: 12, color: colors.neutral[500] }}>
+              <div style={{ marginTop: spacing.sm, fontSize: 12, color: colors.neutral[500] }}>
                 请确认后端服务已启动后刷新页面，或联系运维人员检查服务状态。
               </div>
             </div>
@@ -284,7 +284,7 @@ const ExecutiveDashboard: React.FC = () => {
             </Button>
           }
         />
-        <Card title="工单量趋势（近14天）" style={{ marginTop: 16 }}>
+        <Card title="工单量趋势（近14天）" style={{ marginTop: spacing.md }}>
           <Empty description="暂无趋势数据" />
         </Card>
       </div>
@@ -308,16 +308,16 @@ const ExecutiveDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FundOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FundOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             总览看板
           </Title>
           <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
 
       {/* KPI Cards - 8 cards in a 4x2 grid */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {kpiMetrics.map((metric) => (
           <Col xs={24} sm={12} lg={8} xl={6} key={metric.title}>
             <StatCard
@@ -342,7 +342,7 @@ const ExecutiveDashboard: React.FC = () => {
       </Row>
 
       {/* Trend Charts Section */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {/* Ticket Volume Trend */}
         <Col xs={24} xl={12}>
           <CardPanel title="工单量趋势（近14天）" extra={<Tag color="blue">30天数据</Tag>}>
@@ -380,7 +380,7 @@ const ExecutiveDashboard: React.FC = () => {
       </Row>
 
       {/* Team Ranking Section */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {/* Top Performers */}
         <Col xs={24} xl={14}>
           <CardPanel title="团队排名 - 优秀工程师" extra={<Tag color="gold">Top 5</Tag>}>
@@ -403,7 +403,7 @@ const ExecutiveDashboard: React.FC = () => {
               )}
               height={200}
             />
-            <div style={{ marginTop: 8, padding: `0 ${spacing[2]}` }}>
+            <div style={{ marginTop: spacing.sm, padding: `0 ${spacing[2]}` }}>
               {(teamRanking?.bottomPerformers || []).map((member: any) => (
                 <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
                   <Text type="warning" style={{ fontSize: spacing[3] }}>
@@ -418,9 +418,9 @@ const ExecutiveDashboard: React.FC = () => {
       </Row>
 
       {/* Alerts Section */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="告警中心" extra={<Tag color="red">需立即处理</Tag>}>
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
             <Col xs={24} sm={8}>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <GaugeChart

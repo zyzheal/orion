@@ -26,7 +26,7 @@ import {
   DeleteOutlined,
   ScanOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   getReviewRules,
   createReviewRule,
@@ -209,11 +209,11 @@ const AIReviewRules: React.FC = () => {
   const tableData = filteredData.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             评审规则
           </Title>
           <Text type="secondary">管理 AI 代码评审规则</Text>
@@ -224,7 +224,7 @@ const AIReviewRules: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <Input
             placeholder="搜索规则名称或描述"

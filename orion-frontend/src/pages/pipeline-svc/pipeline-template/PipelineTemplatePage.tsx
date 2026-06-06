@@ -373,8 +373,8 @@ const PipelineTemplatePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             Pipeline 模板
           </Title>

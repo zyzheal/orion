@@ -127,14 +127,14 @@ const Console: React.FC = () => {
       {/* 页面标题 */}
       <div
         style={{
-          marginBottom: 24,
+          marginBottom: spacing.lg,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ControlOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
             系统控制台
           </Title>
@@ -156,12 +156,12 @@ const Console: React.FC = () => {
           description={error}
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
       {/* 统计卡片区 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
           <Card hoverable onClick={() => window.location.href = '/console/plugins'}>
             <Statistic
@@ -174,7 +174,7 @@ const Console: React.FC = () => {
               percent={stats.totalPlugins > 0 ? (stats.activePlugins / stats.totalPlugins) * 100 : 0}
               strokeColor={colors.primary[500]}
               size="small"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: spacing[3] }}
               format={() => `${stats.activePlugins} 个运行中`}
             />
           </Card>
@@ -191,7 +191,7 @@ const Console: React.FC = () => {
               percent={stats.totalFlags > 0 ? (stats.enabledFlags / stats.totalFlags) * 100 : 0}
               strokeColor={colors.purple[500]}
               size="small"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: spacing[3] }}
               format={() => `${stats.enabledFlags} 个已启用`}
             />
           </Card>
@@ -204,7 +204,7 @@ const Console: React.FC = () => {
               prefix={<UserOutlined />}
               valueStyle={{ color: colors.primary[500] }}
             />
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Tag color="blue">管理用户 →</Tag>
             </div>
           </Card>
@@ -218,7 +218,7 @@ const Console: React.FC = () => {
               prefix={<SafetyCertificateOutlined />}
               valueStyle={{ color: colors.success[500] }}
             />
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Tag color="success">运行正常</Tag>
             </div>
           </Card>

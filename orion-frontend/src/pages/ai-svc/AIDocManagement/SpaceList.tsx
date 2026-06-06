@@ -226,12 +226,12 @@ const SpaceList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FolderOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FolderOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             知识库
           </Title>
           <Text type="secondary">管理知识库空间</Text>
@@ -251,7 +251,7 @@ const SpaceList: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

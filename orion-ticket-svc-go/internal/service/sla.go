@@ -43,7 +43,7 @@ func (s *SLAService) CreateTarget(ctx context.Context, req *models.CreateSLATarg
 		target.ID = fmt.Sprintf("sla-%d", time.Now().UnixMilli())
 	}
 
-	if err := s.slaRepo.CreateTarget(target); err != nil {
+	if err := s.slaRepo.CreateTarget(ctx, target); err != nil {
 		return nil, err
 	}
 	return target, nil
@@ -51,7 +51,7 @@ func (s *SLAService) CreateTarget(ctx context.Context, req *models.CreateSLATarg
 
 // CreateRecordForTicket creates an SLA record when a ticket is created
 func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priority string) error {
-	target, err := s.slaRepo.GetTargetByPriority(priority)
+	target, err := s.slaRepo.GetTargetByPriority(ctx, priority)
 	if err != nil {
 		return nil // no SLA target for this priority, skip
 	}
@@ -66,42 +66,42 @@ func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priori
 		ResolutionDeadlineAt: now.Add(time.Duration(target.TargetResolutionTimeMs) * time.Millisecond),
 	}
 
-	return s.slaRepo.CreateRecord(record)
+	return s.slaRepo.CreateRecord(ctx, record)
 }
 
 // GetTicketSLA returns the SLA record for a ticket
 func (s *SLAService) GetTicketSLA(ctx context.Context, ticketID string) (*models.SLARecord, error) {
-	return s.slaRepo.GetRecordByTicket(ticketID)
+	return s.slaRepo.GetRecordByTicket(ctx, ticketID)
 }
 
 // MarkResponded marks a ticket as responded (SLA response met)
 func (s *SLAService) MarkResponded(ctx context.Context, ticketID string) error {
-	record, err := s.slaRepo.GetRecordByTicket(ticketID)
+	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
 	if err != nil {
 		return nil // no SLA record
 	}
 	record.RespondedAt = timePtr(time.Now())
-	return s.slaRepo.UpdateRecord(record)
+	return s.slaRepo.UpdateRecord(ctx, record)
 }
 
 // MarkResolved marks a ticket as resolved (SLA resolution met)
 func (s *SLAService) MarkResolved(ctx context.Context, ticketID string) error {
-	record, err := s.slaRepo.GetRecordByTicket(ticketID)
+	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
 	if err != nil {
 		return nil
 	}
 	record.ResolvedAt = timePtr(time.Now())
-	return s.slaRepo.UpdateRecord(record)
+	return s.slaRepo.UpdateRecord(ctx, record)
 }
 
 // PauseSLA pauses SLA tracking for a ticket
 func (s *SLAService) PauseSLA(ctx context.Context, ticketID, reason string) error {
-	return s.slaRepo.PauseRecord(ticketID, reason)
+	return s.slaRepo.PauseRecord(ctx, ticketID, reason)
 }
 
 // UnpauseSLA resumes SLA tracking
 func (s *SLAService) UnpauseSLA(ctx context.Context, ticketID string) error {
-	return s.slaRepo.UnpauseRecord(ticketID)
+	return s.slaRepo.UnpauseRecord(ctx, ticketID)
 }
 
 // CheckBreaches checks all pending SLA records for breaches
@@ -109,7 +109,7 @@ func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, err
 	_, span := otel.Tracer().Start(ctx, "SLAService.CheckBreaches")
 	defer span.End()
 
-	records, err := s.slaRepo.FindPendingRecords()
+	records, err := s.slaRepo.FindPendingRecords(ctx, )
 	if err != nil {
 		return nil, err
 	}
@@ -120,12 +120,12 @@ func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, err
 		if now.After(rec.ResolutionDeadlineAt) {
 			rec.Breached = true
 			rec.BreachType = "resolution"
-			s.slaRepo.UpdateRecord(&rec)
+			s.slaRepo.UpdateRecord(ctx, &rec)
 			breached = append(breached, rec)
 		} else if rec.RespondedAt == nil && now.After(rec.ResponseDeadlineAt) {
 			rec.Breached = true
 			rec.BreachType = "response"
-			s.slaRepo.UpdateRecord(&rec)
+			s.slaRepo.UpdateRecord(ctx, &rec)
 			breached = append(breached, rec)
 		}
 	}
@@ -141,7 +141,7 @@ func (s *SLAService) GetComplianceReport(ctx context.Context, start, end time.Ti
 	if end.IsZero() {
 		end = time.Now()
 	}
-	return s.slaRepo.GetComplianceReport(start, end)
+	return s.slaRepo.GetComplianceReport(ctx, start, end)
 }
 
 func timePtr(t time.Time) *time.Time {

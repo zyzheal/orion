@@ -46,7 +46,7 @@ import {
   type OrchestrationStep,
   type CreateOrchestrationInput,
 } from '@/api/orchestration';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -374,13 +374,13 @@ const OrchestrationPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BranchesOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <BranchesOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BranchesOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <BranchesOutlined style={{ marginRight: spacing.sm }} />
             跨域编排
           </Title>
           <Text type="secondary">管理服务编排工作流和依赖关系</Text>
@@ -396,7 +396,7 @@ const OrchestrationPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="工作流总数" value={stats.total} />
@@ -432,7 +432,7 @@ const OrchestrationPage: React.FC = () => {
       </Row>
 
       {/* Workflow List */}
-      <Card title="编排工作流" style={{ marginBottom: 24 }}>
+      <Card title="编排工作流" style={{ marginBottom: spacing.lg }}>
         <Table
           columns={workflowColumns}
           dataSource={flows}
@@ -508,7 +508,7 @@ const OrchestrationPage: React.FC = () => {
             </Descriptions>
 
             {/* Steps */}
-            <Card title="步骤详情" size="small" style={{ marginTop: 16 }}>
+            <Card title="步骤详情" size="small" style={{ marginTop: spacing.md }}>
               <Table
                 columns={dependencyColumns}
                 dataSource={detailFlow.steps || []}

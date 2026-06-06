@@ -168,12 +168,12 @@ const ExecutionDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             执行监控
           </Title>
           <Text type="secondary">最近命令执行记录与状态跟踪</Text>
@@ -183,7 +183,7 @@ const ExecutionDashboard: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总执行" value={executions.length} />
@@ -217,7 +217,7 @@ const ExecutionDashboard: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}

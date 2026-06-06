@@ -34,6 +34,7 @@ import {
   deleteTimeoutConfig,
 } from '@/api/approval';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 interface TimeoutConfigProps {
   configs: ApprovalTimeoutConfig[];
@@ -228,7 +229,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
   return (
     <div>
       {/* 操作栏 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <span style={{ color: colors.neutral[500], fontSize: 13 }}>
           共 {configs.length} 个超时配置
         </span>
@@ -264,7 +265,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
         width={560}
         destroyOnClose
       >
-        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item name="resourceType" label="资源类型">
             <Select
               placeholder="留空为全局默认配置"
@@ -330,7 +331,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
         width={560}
         destroyOnClose
       >
-        <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="defaultTimeoutHours"
             label="默认超时时间 (小时)"

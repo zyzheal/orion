@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   MedicineBoxOutlined,
   HistoryOutlined,
@@ -44,8 +44,8 @@ const SelfHealingLayout: React.FC = () => {
         style={{ borderRight: `1px solid ${colors.light.border.light}` }}
       >
         <div style={{ padding: '16px 12px' }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <MedicineBoxOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <MedicineBoxOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {collapsed ? 'SH' : 'Self-Healing'}
           </Title>
           {!collapsed && <Text type="secondary">自动化故障恢复与自愈系统</Text>}

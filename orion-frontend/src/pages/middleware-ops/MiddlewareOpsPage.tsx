@@ -23,6 +23,7 @@ import {
   type MiddlewareInstance, type ConnectionPool, type MessageQueueStats, type MiddlewareAlert,
 } from '@/api/middleware-ops';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 // API 响应包装接口
 interface ListResponse<T> { data?: T[] }
@@ -121,10 +122,10 @@ const InstancesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             中间件实例
           </Title>
           <Text type="secondary">管理 Redis/Kafka/MySQL/RabbitMQ 等中间件实例</Text>
@@ -197,10 +198,10 @@ const ConnectionPoolsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <LinkOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <LinkOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             连接池监控
           </Title>
           <Text type="secondary">各中间件连接池使用情况</Text>
@@ -244,10 +245,10 @@ const MessageQueuesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             消息队列
           </Title>
           <Text type="secondary">Kafka/RabbitMQ 消息队列监控</Text>
@@ -318,10 +319,10 @@ const AlertsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <WarningOutlined style={{ marginRight: 12, color: colors.error[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <WarningOutlined style={{ marginRight: spacing[3], color: colors.error[500] }} />
             中间件告警
           </Title>
           <Text type="secondary">连接池耗尽/消息积压/高延迟等告警</Text>
@@ -362,14 +363,14 @@ const MiddlewareOpsPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Health Summary */}
       {healthSummary && (
-        <Card style={{ marginBottom: 16 }}>
+        <Card style={{ marginBottom: spacing.md }}>
           <Row gutter={16} align="middle">
             <Col span={8}>
-              <Title level={3} style={{ marginBottom: 16 }}>
-                <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={3} style={{ marginBottom: spacing.md }}>
+                <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 中间件健康总览
               </Title>
             </Col>

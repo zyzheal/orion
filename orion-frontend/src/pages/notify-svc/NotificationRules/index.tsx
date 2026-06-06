@@ -281,7 +281,7 @@ const IMNotificationsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, textAlign: 'right' }}>
+      <div style={{ marginBottom: spacing.md, textAlign: 'right' }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新建 IM 通知
         </Button>
@@ -362,8 +362,8 @@ const NotificationRules: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             通知规则管理
           </Title>
           <Text type="secondary">管理平台 Webhook 与 IM 通知规则</Text>

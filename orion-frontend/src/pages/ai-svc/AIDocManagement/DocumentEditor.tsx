@@ -16,7 +16,7 @@ import {
   Col,
 } from 'antd';
 import { SaveOutlined, HistoryOutlined, ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import StatusBadge from '@/components/StatusBadge';
 import { getDocs, updateDoc, type Document } from '@/api/ai-docs';
@@ -174,8 +174,8 @@ const DocumentEditor: React.FC = () => {
   if (!selectedDoc) {
     return (
       <div style={{ padding: 0 }}>
-        <Title level={2} style={{ marginBottom: 16 }}>
-          <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <Title level={2} style={{ marginBottom: spacing.md }}>
+          <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           文档编辑器
         </Title>
         <Card title="选择要编辑的文档" loading={loading}>
@@ -184,7 +184,7 @@ const DocumentEditor: React.FC = () => {
               key={doc.id}
               size="small"
               hoverable
-              style={{ marginBottom: 8, cursor: 'pointer' }}
+              style={{ marginBottom: spacing.sm, cursor: 'pointer' }}
               onClick={() => handleSelectDoc(doc)}
             >
               <Space>
@@ -206,7 +206,7 @@ const DocumentEditor: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <Space>
@@ -227,7 +227,7 @@ const DocumentEditor: React.FC = () => {
         </Space>
       </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Input
             value={title}
@@ -255,7 +255,7 @@ const DocumentEditor: React.FC = () => {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={24}
-              style={{ border: 'none', padding: 16, resize: 'none', fontFamily: 'monospace' }}
+              style={{ border: 'none', padding: spacing.md, resize: 'none', fontFamily: 'monospace' }}
               placeholder="输入 Markdown 内容..."
             />
           </Card>

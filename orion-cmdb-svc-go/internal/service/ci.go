@@ -42,12 +42,12 @@ func (s *CIService) Create(ctx context.Context, tenantID string, req *models.Cre
 		Attributes: req.Attributes,
 	}
 
-	if err := s.ciRepo.Create(item); err != nil {
+	if err := s.ciRepo.Create(ctx, item); err != nil {
 		return nil, err
 	}
 
 	// Audit log
-	s.auditRepo.Create(&models.CIAuditLog{
+	s.auditRepo.Create(ctx, &models.CIAuditLog{
 		ID:       uuid.New().String(),
 		TenantID: tenantID,
 		CIID:     item.ID,
@@ -63,7 +63,7 @@ func (s *CIService) GetByID(ctx context.Context, id, tenantID string) (*models.C
 	_, span := otel.Tracer().Start(ctx, "CIService.GetByID")
 	defer span.End()
 
-	return s.ciRepo.GetByID(id, tenantID)
+	return s.ciRepo.GetByID(ctx, id, tenantID)
 }
 
 func (s *CIService) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.CIItem, int, error) {
@@ -77,14 +77,14 @@ func (s *CIService) List(ctx context.Context, tenantID string, q models.ListQuer
 		q.PageSize = 20
 	}
 
-	return s.ciRepo.List(tenantID, q)
+	return s.ciRepo.List(ctx, tenantID, q)
 }
 
 func (s *CIService) Update(ctx context.Context, tenantID string, id string, req *models.UpdateCIRequest, actor string) (*models.CIItem, error) {
 	_, span := otel.Tracer().Start(ctx, "CIService.Update")
 	defer span.End()
 
-	item, err := s.ciRepo.GetByID(id, tenantID)
+	item, err := s.ciRepo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +113,11 @@ func (s *CIService) Update(ctx context.Context, tenantID string, id string, req 
 		item.Attributes = *req.Attributes
 	}
 
-	if err := s.ciRepo.Update(item); err != nil {
+	if err := s.ciRepo.Update(ctx, item); err != nil {
 		return nil, err
 	}
 
-	s.auditRepo.Create(&models.CIAuditLog{
+	s.auditRepo.Create(ctx, &models.CIAuditLog{
 		ID:       uuid.New().String(),
 		TenantID: tenantID,
 		CIID:     item.ID,
@@ -135,9 +135,9 @@ func (s *CIService) Delete(ctx context.Context, tenantID, id, actor string) erro
 	defer span.End()
 
 	// Delete relations first
-	_ = s.relRepo.DeleteByCI(tenantID, id)
+	_ = s.relRepo.DeleteByCI(ctx, tenantID, id)
 
-	s.auditRepo.Create(&models.CIAuditLog{
+	s.auditRepo.Create(ctx, &models.CIAuditLog{
 		ID:       uuid.New().String(),
 		TenantID: tenantID,
 		CIID:     id,
@@ -145,19 +145,19 @@ func (s *CIService) Delete(ctx context.Context, tenantID, id, actor string) erro
 		Actor:    actor,
 	})
 
-	return s.ciRepo.Delete(id, tenantID)
+	return s.ciRepo.Delete(ctx, id, tenantID)
 }
 
 func (s *CIService) GetTopology(ctx context.Context, tenantID, ciID string) (*models.TopologyNode, error) {
 	_, span := otel.Tracer().Start(ctx, "CIService.GetTopology")
 	defer span.End()
 
-	item, err := s.ciRepo.GetByID(ciID, tenantID)
+	item, err := s.ciRepo.GetByID(ctx, ciID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	rels, err := s.relRepo.ListByCI(tenantID, ciID)
+	rels, err := s.relRepo.ListByCI(ctx, tenantID, ciID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,10 +182,10 @@ func (s *CIService) CreateRelation(ctx context.Context, tenantID string, req *mo
 	defer span.End()
 
 	// Verify source and target exist
-	if _, err := s.ciRepo.GetByID(req.SourceCIID, tenantID); err != nil {
+	if _, err := s.ciRepo.GetByID(ctx, req.SourceCIID, tenantID); err != nil {
 		return nil, err
 	}
-	if _, err := s.ciRepo.GetByID(req.TargetCIID, tenantID); err != nil {
+	if _, err := s.ciRepo.GetByID(ctx, req.TargetCIID, tenantID); err != nil {
 		return nil, err
 	}
 
@@ -197,7 +197,7 @@ func (s *CIService) CreateRelation(ctx context.Context, tenantID string, req *mo
 		RelationType: req.RelationType,
 	}
 
-	if err := s.relRepo.Create(rel); err != nil {
+	if err := s.relRepo.Create(ctx, rel); err != nil {
 		return nil, err
 	}
 
@@ -208,7 +208,7 @@ func (s *CIService) DeleteRelation(ctx context.Context, tenantID, id string, act
 	_, span := otel.Tracer().Start(ctx, "CIService.DeleteRelation")
 	defer span.End()
 
-	return s.relRepo.Delete(id, tenantID)
+	return s.relRepo.Delete(ctx, id, tenantID)
 }
 
 func (s *CIService) Count(ctx context.Context, tenantID string) (int, error) {

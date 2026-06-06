@@ -53,7 +53,7 @@ func (s *DispatchService) RegisterEngineer(ctx context.Context, req *models.Regi
 		OnCall:       req.OnCall,
 	}
 
-	if err := s.engineerRepo.CreateEngineer(ep); err != nil {
+	if err := s.engineerRepo.CreateEngineer(ctx, ep); err != nil {
 		return nil, fmt.Errorf("failed to register engineer: %w", err)
 	}
 	return ep, nil
@@ -61,12 +61,12 @@ func (s *DispatchService) RegisterEngineer(ctx context.Context, req *models.Regi
 
 // ListEngineers returns all registered engineers
 func (s *DispatchService) ListEngineers(ctx context.Context) ([]models.EngineerProfile, error) {
-	return s.engineerRepo.ListEngineers()
+	return s.engineerRepo.ListEngineers(ctx)
 }
 
 // GetEngineer returns a single engineer
 func (s *DispatchService) GetEngineer(ctx context.Context, id string) (*models.EngineerProfile, error) {
-	return s.engineerRepo.GetEngineer(id)
+	return s.engineerRepo.GetEngineer(ctx, id)
 }
 
 // AutoDispatch finds the best engineer for a ticket and assigns it
@@ -74,7 +74,7 @@ func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, 
 	_, span := otel.Tracer().Start(ctx, "DispatchService.AutoDispatch")
 	defer span.End()
 
-	ticket, err := s.ticketRepo.GetByID(ticketID, tenantID)
+	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("ticket not found: %w", err)
 	}
@@ -82,7 +82,7 @@ func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, 
 	match, err := s.FindBestEngineer(ctx, ticket)
 	if err != nil {
 		// Enqueue for later
-		s.engineerRepo.Enqueue(ticketID, tenantID, ticket.Priority)
+		s.engineerRepo.Enqueue(ctx, ticketID, tenantID, ticket.Priority)
 		return nil, fmt.Errorf("no available engineer, enqueued: %w", err)
 	}
 
@@ -95,15 +95,15 @@ func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, 
 		Score:      match.Score,
 	}
 
-	if err := s.engineerRepo.CreateRecord(record); err != nil {
+	if err := s.engineerRepo.CreateRecord(ctx, record); err != nil {
 		return nil, err
 	}
 
 	// Update ticket assignment
-	s.ticketRepo.UpdateAssignee(ticketID, tenantID, match.EngineerID)
-	s.ticketRepo.UpdateStatus(ticketID, tenantID, models.StatusAssigned)
-	s.engineerRepo.IncrementLoad(match.EngineerID)
-	s.engineerRepo.RemoveFromQueue(ticketID)
+	s.ticketRepo.UpdateAssignee(ctx, ticketID, tenantID, match.EngineerID)
+	s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, models.StatusAssigned)
+	s.engineerRepo.IncrementLoad(ctx, match.EngineerID)
+	s.engineerRepo.RemoveFromQueue(ctx, ticketID)
 
 	return record, nil
 }
@@ -114,7 +114,7 @@ func (s *DispatchService) ManualDispatch(ctx context.Context, ticketID, tenantID
 	defer span.End()
 
 	// Verify engineer exists
-	_, err := s.engineerRepo.GetEngineer(engineerID)
+	_, err := s.engineerRepo.GetEngineer(ctx, engineerID)
 	if err != nil {
 		return nil, fmt.Errorf("engineer not found: %w", err)
 	}
@@ -128,21 +128,21 @@ func (s *DispatchService) ManualDispatch(ctx context.Context, ticketID, tenantID
 		Reason:     reason,
 	}
 
-	if err := s.engineerRepo.CreateRecord(record); err != nil {
+	if err := s.engineerRepo.CreateRecord(ctx, record); err != nil {
 		return nil, err
 	}
 
-	s.ticketRepo.UpdateAssignee(ticketID, tenantID, engineerID)
-	s.ticketRepo.UpdateStatus(ticketID, tenantID, models.StatusAssigned)
-	s.engineerRepo.IncrementLoad(engineerID)
-	s.engineerRepo.RemoveFromQueue(ticketID)
+	s.ticketRepo.UpdateAssignee(ctx, ticketID, tenantID, engineerID)
+	s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, models.StatusAssigned)
+	s.engineerRepo.IncrementLoad(ctx, engineerID)
+	s.engineerRepo.RemoveFromQueue(ctx, ticketID)
 
 	return record, nil
 }
 
 // FindBestEngineer scores all available engineers and returns the best match
 func (s *DispatchService) FindBestEngineer(ctx context.Context, ticket *models.Ticket) (*models.DispatchMatch, error) {
-	engineers, err := s.engineerRepo.ListEngineers()
+	engineers, err := s.engineerRepo.ListEngineers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +182,12 @@ func (s *DispatchService) FindBestEngineer(ctx context.Context, ticket *models.T
 
 // CalculateDispatchScore calculates the dispatch score for a ticket-engineer pair
 func (s *DispatchService) CalculateDispatchScore(ctx context.Context, ticketID, tenantID, engineerID string) (*models.DispatchMatch, error) {
-	ticket, err := s.ticketRepo.GetByID(ticketID, tenantID)
+	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("ticket not found: %w", err)
 	}
 
-	engineer, err := s.engineerRepo.GetEngineer(engineerID)
+	engineer, err := s.engineerRepo.GetEngineer(ctx, engineerID)
 	if err != nil {
 		return nil, fmt.Errorf("engineer not found: %w", err)
 	}
@@ -294,11 +294,11 @@ func (s *DispatchService) GetWeights() models.DispatchWeights {
 // Queue management
 
 func (s *DispatchService) GetQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error) {
-	return s.engineerRepo.GetQueueStatus()
+	return s.engineerRepo.GetQueueStatus(ctx, )
 }
 
 func (s *DispatchService) GetQueueEntries(ctx context.Context) ([]models.DispatchQueueEntry, error) {
-	return s.engineerRepo.Dequeue(100)
+	return s.engineerRepo.Dequeue(ctx, 100)
 }
 
 func (s *DispatchService) GetMetrics(ctx context.Context, start, end time.Time) (*models.DispatchMetrics, error) {
@@ -308,11 +308,11 @@ func (s *DispatchService) GetMetrics(ctx context.Context, start, end time.Time) 
 	if end.IsZero() {
 		end = time.Now()
 	}
-	return s.engineerRepo.GetMetrics(start, end)
+	return s.engineerRepo.GetMetrics(ctx, start, end)
 }
 
 func (s *DispatchService) GetLoadBalanceReport(ctx context.Context) (*models.LoadBalanceReport, error) {
-	engineers, err := s.engineerRepo.ListEngineers()
+	engineers, err := s.engineerRepo.ListEngineers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -354,22 +354,22 @@ func (s *DispatchService) GetLoadBalanceReport(ctx context.Context) (*models.Loa
 
 // Rules
 
-func (s *DispatchService) AddRule(rule *models.DispatchRule) error {
-	return s.engineerRepo.CreateRule(rule)
+func (s *DispatchService) AddRule(ctx context.Context, rule *models.DispatchRule) error {
+	return s.engineerRepo.CreateRule(ctx, rule)
 }
 
-func (s *DispatchService) GetRules() ([]models.DispatchRule, error) {
-	return s.engineerRepo.ListRules()
+func (s *DispatchService) GetRules(ctx context.Context) ([]models.DispatchRule, error) {
+	return s.engineerRepo.ListRules(ctx)
 }
 
-func (s *DispatchService) RemoveRule(id string) error {
-	return s.engineerRepo.DeleteRule(id)
+func (s *DispatchService) RemoveRule(ctx context.Context, id string) error {
+	return s.engineerRepo.DeleteRule(ctx, id)
 }
 
 // Performance
 
 func (s *DispatchService) GetEngineerPerformance(ctx context.Context, engineerID string) (*models.EngineerPerformance, error) {
-	eng, err := s.engineerRepo.GetEngineer(engineerID)
+	eng, err := s.engineerRepo.GetEngineer(ctx, engineerID)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +385,7 @@ func (s *DispatchService) GetEngineerPerformance(ctx context.Context, engineerID
 }
 
 func (s *DispatchService) GetAllPerformances(ctx context.Context) ([]models.EngineerPerformance, error) {
-	engineers, err := s.engineerRepo.ListEngineers()
+	engineers, err := s.engineerRepo.ListEngineers(ctx)
 	if err != nil {
 		return nil, err
 	}

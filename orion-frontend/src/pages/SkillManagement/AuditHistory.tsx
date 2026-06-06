@@ -232,12 +232,12 @@ const AuditHistory: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             审核历史
           </Title>
           <Text type="secondary">所有技能相关的审核操作记录</Text>
@@ -248,7 +248,7 @@ const AuditHistory: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总记录数" value={total} suffix="条" />
@@ -286,7 +286,7 @@ const AuditHistory: React.FC = () => {
       </Row>
 
       {/* Filters */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space size="middle" wrap>
           <span>操作类型：</span>
           <Select
@@ -301,7 +301,7 @@ const AuditHistory: React.FC = () => {
               })),
             ]}
           />
-          <span style={{ marginLeft: 16 }}>日期范围：</span>
+          <span style={{ marginLeft: spacing.md }}>日期范围：</span>
           <RangePicker
             value={dateRange}
             onChange={(dates) =>
@@ -374,7 +374,7 @@ const AuditHistory: React.FC = () => {
               </div>
               {selectedLog.details && (
                 <Card title="详细信息" size="small">
-                  <pre style={{ fontSize: 12, background: colors.neutral[100], padding: 8, borderRadius: 4 }}>
+                  <pre style={{ fontSize: 12, background: colors.neutral[100], padding: spacing.sm, borderRadius: 4 }}>
                     {JSON.stringify(selectedLog.details, null, 2)}
                   </pre>
                 </Card>

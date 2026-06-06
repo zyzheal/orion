@@ -59,6 +59,7 @@ import {
   type AuditRule,
 } from '@/api/dba';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -510,7 +511,7 @@ const DbaPage: React.FC = () => {
   const ordersTab = (
     <div>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="工单总数" value={orderStats.total} prefix={<OrderedListOutlined />} />
@@ -546,7 +547,7 @@ const DbaPage: React.FC = () => {
       </Row>
 
       {/* Filter and Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Space>
           <Select
             style={{ width: 140 }}
@@ -637,7 +638,7 @@ const DbaPage: React.FC = () => {
   const dataSourcesTab = (
     <div>
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadDataSources} loading={dsLoading}>
             刷新
@@ -653,7 +654,7 @@ const DbaPage: React.FC = () => {
         {dataSources.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: 40 }}>
             <DatabaseOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-            <p style={{ marginTop: 16, color: colors.neutral[500] }}>暂无数据源，请添加</p>
+            <p style={{ marginTop: spacing.md, color: colors.neutral[500] }}>暂无数据源，请添加</p>
           </Card>
         ) : (
           <Row gutter={[16, 16]}>
@@ -693,13 +694,13 @@ const DbaPage: React.FC = () => {
                     </Popconfirm>,
                   ]}
                 >
-                  <div style={{ marginBottom: 8 }}>
+                  <div style={{ marginBottom: spacing.sm }}>
                     <Space>
                       <DatabaseOutlined style={{ color: colors.primary[500] }} />
                       <Text strong>{ds.name}</Text>
                     </Space>
                   </div>
-                  <div style={{ marginBottom: 8 }}>
+                  <div style={{ marginBottom: spacing.sm }}>
                     <Badge
                       status={
                         ds.status === 'online'
@@ -798,7 +799,7 @@ const DbaPage: React.FC = () => {
 
   const auditRulesTab = (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
         <Button icon={<ReloadOutlined />} onClick={loadAuditRules} loading={ruleLoading}>
           刷新
         </Button>
@@ -853,10 +854,10 @@ const DbaPage: React.FC = () => {
       ) : (
         <>
           {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Title level={2} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-              <DatabaseOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <div style={{ marginBottom: spacing.lg }}>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <DatabaseOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               数据库管理
             </Title>
             <Text type="secondary">管理SQL工单、数据源和审计规则</Text>

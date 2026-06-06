@@ -8,6 +8,7 @@ import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getHealingHistory } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -108,16 +109,16 @@ const HealingHistory: React.FC = () => {
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <Title level={3} style={{ marginBottom: spacing.md }}>
         愈合历史
       </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
         查看自愈合历史记录和结果
       </Text>
 
       {/* Filter Bar */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <Input
             placeholder="搜索应用名称"

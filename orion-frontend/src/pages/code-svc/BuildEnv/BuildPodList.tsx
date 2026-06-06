@@ -243,12 +243,12 @@ const BuildPodList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Build Pods
           </Title>
           <Text type="secondary">{filteredPods.length} build pods</Text>
@@ -258,7 +258,7 @@ const BuildPodList: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

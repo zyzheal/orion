@@ -48,7 +48,7 @@ import {
   type RunnerJob,
 } from '@/api/runners';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
@@ -131,7 +131,7 @@ const RegisterRunnerModal: React.FC<RegisterModalProps> = ({ visible, onCancel, 
       cancelText="取消"
       width={520}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           name="name"
           label="Runner 名称"
@@ -232,12 +232,12 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
       width={640}
     >
       {/* Basic Info */}
-      <Descriptions bordered column={2} size="small" style={{ marginBottom: 24 }}>
+      <Descriptions bordered column={2} size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions.Item label="状态" span={2}>
           <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
           {stale && (
             <Tooltip title="心跳超时超过 5 分钟">
-              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ marginLeft: 8 }}>
+              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ marginLeft: spacing.sm }}>
                 心跳超时
               </Tag>
             </Tooltip>
@@ -250,7 +250,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
         <Descriptions.Item label="当前任务">{runner.currentJobs}</Descriptions.Item>
         <Descriptions.Item label="最大并发">{runner.maxConcurrent}</Descriptions.Item>
         <Descriptions.Item label="利用率" span={2}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <div
               style={{
                 width: 120,
@@ -287,7 +287,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
       </Descriptions>
 
       {/* Recent Jobs */}
-      <Title level={5} style={{ marginBottom: 12 }}>
+      <Title level={5} style={{ marginBottom: spacing[3] }}>
         最近任务
       </Title>
       {jobsLoading ? (
@@ -595,12 +595,12 @@ const RunnerManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Runner 资源池
           </Title>
           <Text type="secondary">
@@ -628,7 +628,7 @@ const RunnerManagement: React.FC = () => {
       </div>
 
       {/* Search and filter */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

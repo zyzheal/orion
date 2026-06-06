@@ -8,7 +8,7 @@ const { Text } = Typography;
 import { ApiOutlined, LinkOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import { type SPIExtensionPoint, statusColorMap, statusLabelMap, spiTypeLabelMap } from './types';
 import dayjs from 'dayjs';
 
@@ -157,7 +157,7 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
 
   return (
     <>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={onSearchChange}
           onFilter={onFilterChange}

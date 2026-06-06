@@ -191,12 +191,12 @@ const BuildLogList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Build Logs
           </Title>
           <Text type="secondary">{filteredLogs.length} build logs</Text>
@@ -206,7 +206,7 @@ const BuildLogList: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

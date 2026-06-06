@@ -28,7 +28,7 @@ import {
   DeleteOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import Table from '@/components/Table';
 import { useAuthStore } from '@/stores/authStore';
 import { getSecrets, createSecret, updateSecret, deleteSecret, type Secret, type SecretScope, type CreateSecretInput } from '@/api/secrets';
@@ -316,11 +316,11 @@ const ApkCredentialsManagement: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <KeyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <KeyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             APK 上传凭证管理
           </Title>
           <Text type="secondary">
@@ -337,7 +337,7 @@ const ApkCredentialsManagement: React.FC = () => {
         description="所有凭证都以加密形式存储在后端。在 Pipeline 配置中引用时，请使用 Secret 语法：${secrets.apk-{market}-credentials}"
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       />
 
       <Card>
@@ -383,7 +383,7 @@ const ApkCredentialsManagement: React.FC = () => {
           description={`请填写 ${getMarketName(selectedMarket)} 的开发者凭证信息。这些信息将加密存储。`}
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
 
         <Form
@@ -452,7 +452,7 @@ const ApkCredentialsManagement: React.FC = () => {
           description="请重新填写凭证信息。原有凭证内容无法显示，需要重新输入。更新后原有凭证将失效。"
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
 
         <Form

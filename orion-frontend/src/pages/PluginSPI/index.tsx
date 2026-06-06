@@ -254,7 +254,7 @@ const PluginSPIPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
             Plugin SPI
           </Title>

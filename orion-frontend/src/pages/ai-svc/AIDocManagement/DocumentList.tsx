@@ -294,12 +294,12 @@ const DocumentListPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             文档管理
           </Title>
           <Text type="secondary">知识库文档浏览与管理</Text>
@@ -319,7 +319,7 @@ const DocumentListPage: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -414,12 +414,12 @@ const DocumentListPage: React.FC = () => {
       >
         {viewingDoc && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Tag color="blue">{getSpaceName(viewingDoc.spaceId)}</Tag>
               <StatusBadge status={viewingDoc.status === 'archived' ? 'cancelled' : viewingDoc.status === 'published' ? 'success' : 'pending'} />
               <Tag>v{viewingDoc.version}</Tag>
             </Space>
-            <Space size={4} style={{ marginBottom: 16 }}>
+            <Space size={4} style={{ marginBottom: spacing.md }}>
               {viewingDoc.tags.map((t) => (
                 <Tag key={t}>{t}</Tag>
               ))}
@@ -428,7 +428,7 @@ const DocumentListPage: React.FC = () => {
               style={{
                 whiteSpace: 'pre-wrap',
                 background: colors.neutral[50],
-                padding: 16,
+                padding: spacing.md,
                 borderRadius: 4,
               }}
             >

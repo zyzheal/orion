@@ -6,6 +6,7 @@ import { Modal, Form, Input, Select, Switch, Space, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { createAgentProfile } from '@/api/agents';
 import { ROLE_OPTIONS } from './constants';
+import { spacing } from '@/tokens';
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -79,7 +80,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       width={700}
       data-testid="create-agent-modal"
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           label="Agent 名称"
           name="name"

@@ -267,12 +267,12 @@ const DeploymentList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             部署管理
           </Title>
           <Text type="secondary">共 {filteredDeployments.length} 条部署记录</Text>
@@ -283,7 +283,7 @@ const DeploymentList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

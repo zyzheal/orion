@@ -10,6 +10,7 @@ import {
   message, Space, Statistic, Row, Col, Progress, Tabs,
   Badge as AntBadge, Descriptions
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   ClusterOutlined, CloudServerOutlined, SwapOutlined,
   PlusOutlined, ReloadOutlined, SettingOutlined,
@@ -152,9 +153,9 @@ const FederationAdvancedPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="Total Clusters" value={clusters.length} prefix={<CloudServerOutlined />} />

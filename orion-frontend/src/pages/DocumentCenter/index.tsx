@@ -15,7 +15,7 @@ import SyncPanel from './SyncPanel';
 import type { DocType } from './DocTree';
 import { getDocs } from '@/api/knowledge';
 import type { KnowledgeDoc } from '@/api/knowledge';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
@@ -52,10 +52,10 @@ const DocumentCenter: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             文档中心
           </Title>
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>浏览、搜索和管理项目设计文档、规范和运维手册</Paragraph>
@@ -63,7 +63,7 @@ const DocumentCenter: React.FC = () => {
         <SyncPanel visible={syncVisible} onClose={() => setSyncVisible(false)} />
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
+      <div style={{ display: 'flex', gap: spacing.md }}>
         <Card style={{ width: 260, flexShrink: 0 }} styles={{ body: { padding: '12px' } }}>
           <DocTree
             selectedType={selectedType}

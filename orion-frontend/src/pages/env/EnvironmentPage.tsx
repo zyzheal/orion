@@ -56,6 +56,7 @@ import {
 import EnvironmentLockBadge from '@/components/environment/EnvironmentLockBadge';
 import dayjs from 'dayjs';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -586,12 +587,12 @@ const EnvironmentPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             环境管理
           </Title>
           <Text type="secondary">管理项目的部署环境、休眠状态、TTL 配置和环境模板</Text>
@@ -611,7 +612,7 @@ const EnvironmentPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <StatCard title="总环境数" value={stats.total} icon={<CloudServerOutlined />} />
         </Col>
@@ -628,7 +629,7 @@ const EnvironmentPage: React.FC = () => {
 
       {/* Environment List */}
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -791,7 +792,7 @@ const EnvironmentPage: React.FC = () => {
 
             {/* TTL & Hibernate Info */}
             {selectedEnv.config && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>高级配置</Title>
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="自动休眠">
@@ -821,12 +822,12 @@ const EnvironmentPage: React.FC = () => {
 
             {/* Raw Config */}
             {selectedEnv.config && Object.keys(selectedEnv.config).length > 0 && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>环境配置</Title>
                 <pre
                   style={{
                     background: colors.neutral[100],
-                    padding: 16,
+                    padding: spacing.md,
                     borderRadius: 4,
                     fontSize: 13,
                     overflow: 'auto',
@@ -839,7 +840,7 @@ const EnvironmentPage: React.FC = () => {
             )}
 
             {/* Quick status actions */}
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: spacing.lg }}>
               <Title level={5}>快捷操作</Title>
               <Space wrap>
                 {selectedEnv.status !== 'active' && (

@@ -270,16 +270,16 @@ const ManagerDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 16 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <TeamOutlined style={{ marginRight: 12, color: COLORS.info }} />
+        <div style={{ marginBottom: spacing.md }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TeamOutlined style={{ marginRight: spacing[3], color: COLORS.info }} />
             经理看板
           </Title>
           <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
 
       {/* Team Overview Cards */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
@@ -333,7 +333,7 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Week-over-Week Comparison */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="环比变化（vs 上周）" extra={<Tag color="cyan">周环比</Tag>}>
           <Row gutter={[16, 16]}>
             {wowMetrics.map((metric) => {
@@ -359,7 +359,7 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Team Performance Chart */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel
           title="团队绩效分布"
           extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
@@ -375,7 +375,7 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Member Metrics Table */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel
           title="成员效能明细"
           extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}

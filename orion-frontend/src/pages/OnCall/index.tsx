@@ -57,6 +57,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -473,7 +474,7 @@ const OnCallManagement: React.FC = () => {
           bordered
           size="small"
           title="基本信息"
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
         >
           <Descriptions.Item label="排班名称">{schedule.name}</Descriptions.Item>
           <Descriptions.Item label="轮换方式">
@@ -514,7 +515,7 @@ const OnCallManagement: React.FC = () => {
         </Title>
         {assignments.length > 0 ? (
           <Timeline
-            style={{ marginBottom: 24 }}
+            style={{ marginBottom: spacing.lg }}
             items={assignments.map((a, idx) => {
               const isCurrent = oncall?.primaryUserId === a.userId;
               return {
@@ -551,7 +552,7 @@ const OnCallManagement: React.FC = () => {
             })}
           />
         ) : (
-          <Empty description="暂无排班记录" style={{ marginBottom: 24 }} />
+          <Empty description="暂无排班记录" style={{ marginBottom: spacing.lg }} />
         )}
 
         {/* Escalation Rules */}
@@ -560,11 +561,11 @@ const OnCallManagement: React.FC = () => {
             <Title level={5}>
               <TeamOutlined /> 升级规则
             </Title>
-            <Descriptions column={1} bordered size="small" style={{ marginBottom: 24 }}>
+            <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.lg }}>
               {schedule.escalations.map((rule) => (
                 <Descriptions.Item key={rule.level} label={`第 ${rule.level} 级`}>
                   {rule.timeoutMinutes} 分钟未响应时升级至:
-                  <Space style={{ marginLeft: 8 }}>
+                  <Space style={{ marginLeft: spacing.sm }}>
                     {rule.targets.map((t) => (
                       <Tag key={t}>{resolveUserName(t)}</Tag>
                     ))}
@@ -620,12 +621,12 @@ const OnCallManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <ClockCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <ClockCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 OnCall 值班管理
               </Title>
               <Text type="secondary">管理值班排班、轮换分配和代班设置</Text>
@@ -725,7 +726,7 @@ const OnCallManagement: React.FC = () => {
             destroyOnClose
           >
             {selectedSchedule && (
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: spacing.md }}>
                 <Text>
                   当前排班: <Text strong>{selectedSchedule.name}</Text>
                 </Text>

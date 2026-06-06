@@ -48,6 +48,7 @@ import {
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -350,12 +351,12 @@ const QueueManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <InboxOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <InboxOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             队列管理
           </Title>
           <Text type="secondary">管理异步任务队列，监控任务执行状态</Text>
@@ -382,7 +383,7 @@ const QueueManagement: React.FC = () => {
 
       {/* Stats Panel */}
       {stats && (
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card size="small" style={{ marginBottom: spacing.md }}>
           <Row gutter={16}>
             <Col span={6}>
               <Statistic
@@ -421,7 +422,7 @@ const QueueManagement: React.FC = () => {
       )}
 
       {/* Filter bar */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Space>
           <Text>状态筛选:</Text>
           <Select
@@ -436,7 +437,7 @@ const QueueManagement: React.FC = () => {
               { label: '已失败', value: 'failed' },
             ]}
           />
-          <Text style={{ marginLeft: 16 }}>队列筛选:</Text>
+          <Text style={{ marginLeft: spacing.md }}>队列筛选:</Text>
           <Select
             style={{ width: 160 }}
             value={queueFilter}
@@ -593,7 +594,7 @@ const QueueManagement: React.FC = () => {
               <Descriptions.Item label="重试次数">{selectedJob.attempts}</Descriptions.Item>
               <Descriptions.Item label="创建时间" span={2}>
                 {dayjs(selectedJob.created_at).format('YYYY-MM-DD HH:mm:ss')}
-                <Text type="secondary" style={{ marginLeft: 8 }}>
+                <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                   ({dayjs(selectedJob.created_at).fromNow()})
                 </Text>
               </Descriptions.Item>
@@ -601,7 +602,7 @@ const QueueManagement: React.FC = () => {
                 <pre
                   style={{
                     background: colors.neutral[100],
-                    padding: 12,
+                    padding: spacing[3],
                     borderRadius: 4,
                     fontSize: 12,
                     fontFamily: 'monospace',
@@ -617,7 +618,7 @@ const QueueManagement: React.FC = () => {
 
             {/* Action buttons for processing jobs */}
             {selectedJob.status === 'processing' && (
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: spacing.md }}>
                 <Space>
                   <Popconfirm
                     title="确认标记为完成?"

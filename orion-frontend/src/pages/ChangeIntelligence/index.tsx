@@ -259,12 +259,12 @@ const ChangeIntelligence: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BranchesOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BranchesOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI 变更智能
           </Title>
           <Text type="secondary">语义影响面分析与风险评分</Text>
@@ -284,7 +284,7 @@ const ChangeIntelligence: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="分析总数" value={reports.length} />
@@ -317,7 +317,7 @@ const ChangeIntelligence: React.FC = () => {
 
       {/* Reports Table */}
       <Card title="变更智能报告">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -366,7 +366,7 @@ const ChangeIntelligence: React.FC = () => {
       >
         {selectedReport && (
           <>
-            <Descriptions bordered column={3} style={{ marginBottom: 24 }}>
+            <Descriptions bordered column={3} style={{ marginBottom: spacing.lg }}>
               <Descriptions.Item label="PR ID">{selectedReport.prId}</Descriptions.Item>
               <Descriptions.Item label="仓库">{selectedReport.repoId}</Descriptions.Item>
               <Descriptions.Item label="Commit">
@@ -399,10 +399,10 @@ const ChangeIntelligence: React.FC = () => {
 
             {/* SHAP Factors */}
             {selectedReport.shapFactors && selectedReport.shapFactors.length > 0 && (
-              <Card title="SHAP 风险因子" size="small" style={{ marginBottom: 16 }}>
+              <Card title="SHAP 风险因子" size="small" style={{ marginBottom: spacing.md }}>
                 {selectedReport.shapFactors.map(
                   (f: { factor: string; value: number; contribution: number }, i: number) => (
-                    <Row key={i} style={{ marginBottom: 8 }}>
+                    <Row key={i} style={{ marginBottom: spacing.sm }}>
                       <Col span={6}>
                         <Text strong>{f.factor}</Text>
                       </Col>
@@ -442,8 +442,8 @@ const ChangeIntelligence: React.FC = () => {
 
             {/* Blast Radius Visualization */}
             {blastRadius && (
-              <Card title="影响面图谱" size="small" style={{ marginBottom: 16 }}>
-                <div style={{ minHeight: 200, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <Card title="影响面图谱" size="small" style={{ marginBottom: spacing.md }}>
+                <div style={{ minHeight: 200, display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
                   {blastRadius.nodes.map((node) => (
                     <Tag
                       key={node.id}

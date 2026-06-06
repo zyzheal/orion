@@ -35,6 +35,7 @@ import {
   TimeoutStatus,
 } from '@/api/task-timeout';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -221,9 +222,9 @@ const TaskTimeoutsPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <FieldTimeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <FieldTimeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           任务超时管理
         </Title>
         <Text type="secondary">
@@ -232,11 +233,11 @@ const TaskTimeoutsPage: React.FC = () => {
       </div>
 
       {/* 统计卡片和操作 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} md={6}>
           <Card
             style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 16 }}
+            bodyStyle={{ padding: spacing.md }}
           >
             <Statistic
               title="待处理超时任务"
@@ -260,7 +261,7 @@ const TaskTimeoutsPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card
             style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 16 }}
+            bodyStyle={{ padding: spacing.md }}
           >
             <Statistic
               title="检查器状态"
@@ -283,7 +284,7 @@ const TaskTimeoutsPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card
             style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 16 }}
+            bodyStyle={{ padding: spacing.md }}
           >
             <Statistic
               title="已处理事件数"
@@ -295,7 +296,7 @@ const TaskTimeoutsPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card
             style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 16, textAlign: 'center' }}
+            bodyStyle={{ padding: spacing.md, textAlign: 'center' }}
           >
             <div style={{ paddingTop: 8 }}>
               <Button
@@ -307,7 +308,7 @@ const TaskTimeoutsPage: React.FC = () => {
               >
                 立即检查
               </Button>
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: spacing.sm }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   手动触发超时检查
                 </Text>
@@ -319,7 +320,7 @@ const TaskTimeoutsPage: React.FC = () => {
 
       {/* 说明信息 */}
       <Card
-        style={{ marginBottom: 24, borderRadius: 12 }}
+        style={{ marginBottom: spacing.lg, borderRadius: 12 }}
         bodyStyle={{ padding: '12px 16px' }}
       >
         <Space>

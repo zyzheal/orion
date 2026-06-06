@@ -54,6 +54,7 @@ import {
   type GraphEdge,
 } from '@/api/graph';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -448,7 +449,7 @@ const GraphPage: React.FC = () => {
           关闭
         </Button>
       }
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: spacing.md }}
     >
       <Descriptions size="small" column={2} bordered>
         <Descriptions.Item label="服务ID">{selectedService.id}</Descriptions.Item>
@@ -465,9 +466,9 @@ const GraphPage: React.FC = () => {
       </Descriptions>
 
       {selectedService.upstreamDependencies.length > 0 && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Text strong>上游依赖:</Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: spacing.sm }}>
             {selectedService.upstreamDependencies.map((dep) => (
               <Tag key={dep.id} color={serviceStatusColorMap[dep.status]} style={{ marginBottom: 4 }}>
                 {dep.name}
@@ -478,9 +479,9 @@ const GraphPage: React.FC = () => {
       )}
 
       {selectedService.downstreamDependencies.length > 0 && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Text strong>下游依赖:</Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: spacing.sm }}>
             {selectedService.downstreamDependencies.map((dep) => (
               <Tag key={dep.id} color={serviceStatusColorMap[dep.status]} style={{ marginBottom: 4 }}>
                 {dep.name}
@@ -497,7 +498,7 @@ const GraphPage: React.FC = () => {
   const dependenciesTab = (
     <div>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="服务总数" value={services.length} prefix={<DeploymentUnitOutlined />} />
@@ -536,7 +537,7 @@ const GraphPage: React.FC = () => {
       {serviceDetailView}
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">服务依赖关系概览</Text>
         <Button icon={<ReloadOutlined />} onClick={loadServices} loading={svcLoading}>
           刷新
@@ -589,7 +590,7 @@ const GraphPage: React.FC = () => {
   const infrastructureTab = (
     <div>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="节点总数" value={infraTopology.nodes.length} prefix={<ShareAltOutlined />} />
@@ -625,7 +626,7 @@ const GraphPage: React.FC = () => {
       </Row>
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
         <Button icon={<ReloadOutlined />} onClick={loadInfrastructure} loading={infraLoading}>
           刷新
         </Button>
@@ -636,7 +637,7 @@ const GraphPage: React.FC = () => {
         {infraTopology.nodes.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: 40 }}>
             <ShareAltOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-            <p style={{ marginTop: 16, color: colors.neutral[500] }}>暂无基础设施数据</p>
+            <p style={{ marginTop: spacing.md, color: colors.neutral[500] }}>暂无基础设施数据</p>
           </Card>
         ) : (
           <>
@@ -651,7 +652,7 @@ const GraphPage: React.FC = () => {
 
             {/* Edge List */}
             {infraTopology.edges.length > 0 && (
-              <Card title="连接关系" size="small" style={{ marginTop: 16 }}>
+              <Card title="连接关系" size="small" style={{ marginTop: spacing.md }}>
                 <div style={{ maxHeight: 300, overflow: 'auto' }}>
                   {infraTopology.edges.map((edge: GraphEdge) => {
                     const sourceNode = infraTopology.nodes.find((n) => n.id === edge.source);
@@ -664,7 +665,7 @@ const GraphPage: React.FC = () => {
                           borderBottom: `1px solid ${colors.neutral[100]}`,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 8,
+                          gap: spacing.sm,
                         }}
                       >
                         <Tag color="blue">{sourceNode?.name ?? edge.source}</Tag>
@@ -686,7 +687,7 @@ const GraphPage: React.FC = () => {
   const impactTab = (
     <div>
       {/* Service Selector */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Space>
           <Text strong>选择要分析的服务:</Text>
           <Select
@@ -717,7 +718,7 @@ const GraphPage: React.FC = () => {
         {impactData && (
           <>
             {/* Summary */}
-            <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Row gutter={16} style={{ marginBottom: spacing.md }}>
               <Col span={6}>
                 <Card size="small">
                   <Statistic title="总影响服务" value={impactData.summary.totalImpacted} />
@@ -760,7 +761,7 @@ const GraphPage: React.FC = () => {
                 type="error"
                 showIcon
                 icon={<WarningOutlined />}
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               />
             )}
 
@@ -773,7 +774,7 @@ const GraphPage: React.FC = () => {
                 </Space>
               }
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             >
               {impactData.directlyImpacted.length === 0 ? (
                 <Text type="secondary">无直接影响</Text>
@@ -816,7 +817,7 @@ const GraphPage: React.FC = () => {
         {!impactData && !impactLoading && (
           <Card style={{ textAlign: 'center', padding: 60 }}>
             <ThunderboltOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-            <p style={{ marginTop: 16, color: colors.neutral[500] }}>
+            <p style={{ marginTop: spacing.md, color: colors.neutral[500] }}>
               请选择一个服务并点击"分析影响"来查看故障影响范围
             </p>
           </Card>
@@ -828,7 +829,7 @@ const GraphPage: React.FC = () => {
   const cypherTab = (
     <div>
       {/* Query Form */}
-      <Card title="Cypher 查询" size="small" style={{ marginBottom: 16 }}>
+      <Card title="Cypher 查询" size="small" style={{ marginBottom: spacing.md }}>
         <Form form={queryForm} layout="vertical">
           <Form.Item
             name="cypherQuery"
@@ -860,7 +861,7 @@ const GraphPage: React.FC = () => {
           description={queryError}
           type="error"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -903,7 +904,7 @@ const GraphPage: React.FC = () => {
       {!queryResult && !queryError && (
         <Card style={{ textAlign: 'center', padding: 60 }}>
           <CodeOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-          <Paragraph type="secondary" style={{ marginTop: 16 }}>
+          <Paragraph type="secondary" style={{ marginTop: spacing.md }}>
             输入 Cypher 查询语句并执行
           </Paragraph>
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -965,21 +966,21 @@ const GraphPage: React.FC = () => {
       ) : (
         <>
           {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Title level={2} style={{ marginBottom: 8 }}>
-            <ShareAltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-              <ShareAltOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <div style={{ marginBottom: spacing.lg }}>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ShareAltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <ShareAltOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               图数据库服务
             </Title>
             <Text type="secondary">
               服务依赖可视化、基础设施拓扑与影响分析 (Neo4j)
             </Text>
             {health && (
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: spacing.sm }}>
                 <Tag color={health.status === 'healthy' ? 'green' : health.status === 'degraded' ? 'orange' : 'red'}>
                   {health.status}
                 </Tag>
-                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>
                   节点: {health.nodeCount} | 边: {health.edgeCount}
                   {health.lastChecked && ` | 最后检查: ${health.lastChecked}`}
                 </Text>

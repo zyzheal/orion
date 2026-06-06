@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Internal Library Management Page
@@ -428,12 +428,12 @@ const InternalLibraryManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <BookOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <BookOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 二方库管理
               </Title>
               <Text type="secondary">管理内部二方库的生命周期、版本发布和依赖追踪</Text>
@@ -457,7 +457,7 @@ const InternalLibraryManagement: React.FC = () => {
 
           {/* Library List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -647,7 +647,7 @@ const InternalLibraryManagement: React.FC = () => {
             destroyOnClose
           >
             {selectedLib && (
-              <Descriptions size="small" style={{ marginBottom: 16 }} column={3} bordered>
+              <Descriptions size="small" style={{ marginBottom: spacing.md }} column={3} bordered>
                 <Descriptions.Item label="名称">
                   <Text code>{selectedLib.name}</Text>
                 </Descriptions.Item>

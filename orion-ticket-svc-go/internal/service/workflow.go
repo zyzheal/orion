@@ -25,7 +25,7 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 	_, span := otel.Tracer().Start(ctx, "WorkflowService.TransitionStatus")
 	defer span.End()
 
-	ticket, err := s.ticketRepo.GetByID(ticketID, tenantID)
+	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ticket not found: %w", err)
 	}
@@ -57,12 +57,12 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 		Reason:      reason,
 	}
 
-	if err := s.workflowRepo.Create(history); err != nil {
+	if err := s.workflowRepo.Create(ctx, history); err != nil {
 		return nil, nil, fmt.Errorf("failed to record workflow: %w", err)
 	}
 
 	// Update ticket status
-	if err := s.ticketRepo.UpdateStatus(ticketID, tenantID, toStatus); err != nil {
+	if err := s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, toStatus); err != nil {
 		return nil, nil, fmt.Errorf("failed to update status: %w", err)
 	}
 
@@ -75,5 +75,5 @@ func (s *WorkflowService) GetWorkflowHistory(ctx context.Context, ticketID strin
 	_, span := otel.Tracer().Start(ctx, "WorkflowService.GetWorkflowHistory")
 	defer span.End()
 
-	return s.workflowRepo.ListByTicket(ticketID)
+	return s.workflowRepo.ListByTicket(ctx, ticketID)
 }

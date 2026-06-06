@@ -129,7 +129,7 @@ const TraceOverview: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: spacing[6] }}>
         <Col span={6}>
           <Card>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: spacing.sm }}>
               <Text type="secondary">今日调用</Text>
             </div>
             <Title level={2} style={{ margin: 0, color: colors.primary[600] }}>
@@ -142,7 +142,7 @@ const TraceOverview: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: spacing.sm }}>
               <Text type="secondary">输入 Token</Text>
             </div>
             <Title level={2} style={{ margin: 0 }}>
@@ -152,7 +152,7 @@ const TraceOverview: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: spacing.sm }}>
               <Text type="secondary">输出 Token</Text>
             </div>
             <Title level={2} style={{ margin: 0 }}>
@@ -162,7 +162,7 @@ const TraceOverview: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: spacing.sm }}>
               <Text type="secondary">今日成本</Text>
             </div>
             <Title level={2} style={{ margin: 0, color: colors.error[600] }}>

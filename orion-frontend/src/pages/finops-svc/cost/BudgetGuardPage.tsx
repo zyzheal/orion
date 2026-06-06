@@ -546,8 +546,8 @@ const BudgetGuardPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SafetyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Budget Guard
           </Title>
           <Text type="secondary">

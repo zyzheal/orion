@@ -65,7 +65,7 @@ import type {
   OptimizationRecommendation,
   BudgetForecast,
 } from '@/types/finops';
-import { colors, radius, componentRadius } from '@/tokens';
+import { colors, radius, componentRadius, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -384,7 +384,7 @@ const FinOpsPage: React.FC = () => {
     return (
       <div>
         {/* Summary Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
           <Col xs={24} sm={12} lg={6}>
             <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
               <Statistic
@@ -445,7 +445,7 @@ const FinOpsPage: React.FC = () => {
         <Card
           title="成本分解"
           bordered={false}
-          style={{ borderRadius: 12, marginBottom: 16 }}
+          style={{ borderRadius: 12, marginBottom: spacing.md }}
           extra={
             <Button icon={<ExportOutlined />} onClick={handleExportReport}>
               导出报表
@@ -523,7 +523,7 @@ const FinOpsPage: React.FC = () => {
   function renderBudgetTab() {
     return (
       <div>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Text type="secondary">
             管理项目/租户/团队的预算配置
           </Text>
@@ -651,7 +651,7 @@ const FinOpsPage: React.FC = () => {
           <Form
             form={budgetForm}
             layout="vertical"
-            style={{ marginTop: 24 }}
+            style={{ marginTop: spacing.lg }}
           >
             <Form.Item
               name="entityType"
@@ -711,7 +711,7 @@ const FinOpsPage: React.FC = () => {
   function renderForecastTab() {
     return (
       <div>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <Space>
             <Button
               icon={<ReloadOutlined />}
@@ -803,7 +803,7 @@ const FinOpsPage: React.FC = () => {
   function renderRecommendationsTab() {
     return (
       <div>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Text type="secondary">
             系统自动识别的成本优化机会
           </Text>
@@ -976,12 +976,12 @@ const FinOpsPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             FinOps 成本管理
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>

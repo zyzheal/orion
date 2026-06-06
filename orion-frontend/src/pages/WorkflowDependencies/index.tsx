@@ -49,6 +49,7 @@ import {
   type CircularDependencyPath,
 } from '@/api/workflow-dependency';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -137,7 +138,7 @@ const WorkflowDependenciesPage: React.FC = () => {
       key={index}
       size="small"
       style={{
-        marginBottom: 12,
+        marginBottom: spacing[3],
         borderLeft: `3px solid ${colors.error[500]}`,
       }}
     >
@@ -180,11 +181,11 @@ const WorkflowDependenciesPage: React.FC = () => {
     return (
       <div style={{ maxHeight: 400, overflow: 'auto' }}>
         {cycleNodes.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Text strong style={{ color: colors.error[500] }}>
               循环中的工作流 ({cycleNodes.length})
             </Text>
-            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ marginTop: spacing.sm, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {cycleNodes.map((node) => (
                 <Tooltip key={node.id} title={`ID: ${node.id}`}>
                   <Tag
@@ -204,7 +205,7 @@ const WorkflowDependenciesPage: React.FC = () => {
         {normalNodes.length > 0 && (
           <div>
             <Text type="secondary">正常工作流 ({normalNodes.length})</Text>
-            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ marginTop: spacing.sm, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {normalNodes.slice(0, 50).map((node) => (
                 <Tooltip key={node.id} title={`ID: ${node.id}`}>
                   <Tag
@@ -261,7 +262,7 @@ const WorkflowDependenciesPage: React.FC = () => {
               borderBottom: `1px solid ${colors.neutral[100]}`,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: spacing.sm,
               flexWrap: 'wrap',
             }}
           >
@@ -289,7 +290,7 @@ const WorkflowDependenciesPage: React.FC = () => {
   const overviewTab = (
     <div>
       {/* Stats Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card size="small">
             <Statistic
@@ -340,7 +341,7 @@ const WorkflowDependenciesPage: React.FC = () => {
           type="success"
           showIcon
           icon={<SafetyOutlined />}
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
         />
       ) : (
         <Alert
@@ -349,7 +350,7 @@ const WorkflowDependenciesPage: React.FC = () => {
           type="error"
           showIcon
           icon={<WarningOutlined />}
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
         />
       )}
 
@@ -458,21 +459,21 @@ const WorkflowDependenciesPage: React.FC = () => {
               <Text>循环依赖汇总</Text>
             </Space>
           }
-          style={{ marginTop: 16 }}
+          style={{ marginTop: spacing.md }}
         >
           {vizData.cycles.map((cycle, index) => (
             <div
               key={index}
               style={{
                 padding: '8px 12px',
-                marginBottom: 8,
+                marginBottom: spacing.sm,
                 background: colors.error[50],
                 borderRadius: 6,
                 borderLeft: `3px solid ${colors.error[500]}`,
               }}
             >
               <Text strong>循环 #{index + 1}:</Text>
-              <span style={{ marginLeft: 8 }}>
+              <span style={{ marginLeft: spacing.sm }}>
                 {cycle.names.join(' → ')}
               </span>
             </div>
@@ -484,7 +485,7 @@ const WorkflowDependenciesPage: React.FC = () => {
 
   const checkTab = (
     <div>
-      <Card title="单工作流循环检测" style={{ marginBottom: 24 }}>
+      <Card title="单工作流循环检测" style={{ marginBottom: spacing.lg }}>
         <Form layout="inline">
           <Form.Item label="工作流定义 ID" style={{ width: 300 }}>
             <Input
@@ -506,7 +507,7 @@ const WorkflowDependenciesPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
-        <Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
+        <Paragraph type="secondary" style={{ marginTop: spacing[3], marginBottom: 0 }}>
           输入要检查的工作流定义 ID，系统将分析其依赖链，判断是否存在循环依赖。
         </Paragraph>
       </Card>
@@ -526,7 +527,7 @@ const WorkflowDependenciesPage: React.FC = () => {
               type={checkResult.isSafe ? 'success' : 'error'}
               showIcon
               icon={checkResult.isSafe ? <SafetyOutlined /> : <WarningOutlined />}
-              style={{ marginBottom: 24 }}
+              style={{ marginBottom: spacing.lg }}
             />
 
             <Row gutter={16}>
@@ -567,7 +568,7 @@ const WorkflowDependenciesPage: React.FC = () => {
                         key={index}
                         style={{
                           padding: '8px',
-                          marginBottom: 8,
+                          marginBottom: spacing.sm,
                           background: colors.error[50],
                           borderRadius: 6,
                           borderLeft: `3px solid ${colors.error[500]}`,
@@ -641,21 +642,21 @@ const WorkflowDependenciesPage: React.FC = () => {
       ) : (
         <>
           {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <NodeIndexOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <div style={{ marginBottom: spacing.lg }}>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <NodeIndexOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               工作流依赖分析
             </Title>
             <Text type="secondary">
               检测工作流定义之间的循环依赖，支持依赖关系可视化
             </Text>
             {graphData && (
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: spacing.sm }}>
                 <Badge
                   status={graphData.isSafe ? 'success' : 'error'}
                   text={graphData.isSafe ? '无循环依赖' : `存在 ${graphData.cycles.length} 个循环`}
                 />
-                <Text type="secondary" style={{ marginLeft: 16, fontSize: 12 }}>
+                <Text type="secondary" style={{ marginLeft: spacing.md, fontSize: 12 }}>
                   定义: {graphData.totalDefinitions} | 边: {graphData.totalEdges}
                 </Text>
               </div>

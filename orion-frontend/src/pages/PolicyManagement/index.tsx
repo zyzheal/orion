@@ -386,12 +386,12 @@ const PolicyManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             OPA 策略管理
           </Title>
           <Text type="secondary">策略即代码，统一治理全链路</Text>
@@ -421,7 +421,7 @@ const PolicyManagement: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="策略总数" value={policies.length} />
@@ -465,7 +465,7 @@ const PolicyManagement: React.FC = () => {
             label: '策略列表',
             children: (
               <>
-                <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: spacing.md }}>
                   <SearchFilterBar
                     onSearch={setSearchQuery}
                     onFilter={setFilters}

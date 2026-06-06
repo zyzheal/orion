@@ -142,12 +142,12 @@ const RepoList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CodeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             代码仓库
           </Title>
           <Text type="secondary">管理所有代码仓库、分支和 Pull Request</Text>
@@ -159,7 +159,7 @@ const RepoList: React.FC = () => {
 
       {/* Adapter filter buttons */}
       {adapters.length > 0 && (
-        <Space wrap style={{ marginBottom: 24 }}>
+        <Space wrap style={{ marginBottom: spacing.lg }}>
           <Text strong>Adapter:</Text>
           {adapters.map((adapter) => (
             <Button

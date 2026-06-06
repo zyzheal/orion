@@ -26,7 +26,7 @@ import {
   List,
   Empty,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   PlusOutlined,
@@ -85,7 +85,7 @@ const renderChangeItem = (change: {
       key={change.path}
       style={{
         padding: '8px 12px',
-        marginBottom: 8,
+        marginBottom: spacing.sm,
         borderRadius: 4,
         background: colors.neutral[50],
         borderLeft: `3px solid ${colorMap[change.operation] || colors.neutral[400]}`,
@@ -450,7 +450,7 @@ const ConfigManagementPage: React.FC = () => {
       children: (
         <>
           {/* Summary Cards */}
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={4}>
               <Card>
                 <Statistic title="配置总数" value={configs.length} />
@@ -516,7 +516,7 @@ const ConfigManagementPage: React.FC = () => {
           </Row>
 
           {/* GitOps Status */}
-          <Card title="GitOps 同步状态" style={{ marginBottom: 24 }}>
+          <Card title="GitOps 同步状态" style={{ marginBottom: spacing.lg }}>
             <Row gutter={16}>
               <Col span={6}>
                 <Text type="secondary">状态:</Text>{' '}
@@ -584,7 +584,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={sourceEnv}
                   onChange={setSourceEnv}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={ENVIRONMENTS.map((e) => ({ label: e, value: e }))}
                 />
               </Col>
@@ -596,15 +596,15 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={targetEnv}
                   onChange={setTargetEnv}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={ENVIRONMENTS.map((e) => ({ label: e, value: e }))}
                 />
               </Col>
             </Row>
 
             {envDiffResult && (
-              <div style={{ marginTop: 16 }}>
-                <Row gutter={16} style={{ marginBottom: 16 }}>
+              <div style={{ marginTop: spacing.md }}>
+                <Row gutter={16} style={{ marginBottom: spacing.md }}>
                   <Col span={6}>
                     <Statistic
                       title="配置总数"
@@ -640,7 +640,7 @@ const ConfigManagementPage: React.FC = () => {
 
                 {envDiffResult.differences.length > 0 && (
                   <>
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
                       差异详情 ({envDiffResult.differences.length} 项)
                     </Text>
                     {envDiffResult.differences.map((change) => renderChangeItem(change as { path: string; operation: 'add' | 'remove' | 'update'; oldValue?: unknown; newValue?: unknown }))}
@@ -650,7 +650,7 @@ const ConfigManagementPage: React.FC = () => {
                 {(envDiffResult.onlyInSource?.length > 0 ||
                   envDiffResult.onlyInTarget?.length > 0) && (
                   <>
-                    <Text strong style={{ display: 'block', marginTop: 16, marginBottom: 8 }}>
+                    <Text strong style={{ display: 'block', marginTop: spacing.md, marginBottom: spacing.sm }}>
                       仅存在于一侧的配置项
                     </Text>
                     {envDiffResult.onlyInSource?.map((key) => (
@@ -678,14 +678,14 @@ const ConfigManagementPage: React.FC = () => {
                       message="两个环境的配置完全一致"
                       type="success"
                       showIcon
-                      style={{ marginTop: 8 }}
+                      style={{ marginTop: spacing.sm }}
                     />
                   )}
               </div>
             )}
 
             {!envDiffResult && (
-              <Empty description="请选择环境并点击对比" style={{ marginTop: 16 }} />
+              <Empty description="请选择环境并点击对比" style={{ marginTop: spacing.md }} />
             )}
           </Card>
 
@@ -709,7 +709,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={versionDiffConfigId || undefined}
                   onChange={setVersionDiffConfigId}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={configSelectOptions}
                   placeholder="选择配置项"
                   showSearch
@@ -723,7 +723,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={versionA}
                   onChange={setVersionA}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={versionOptions}
                 />
               </Col>
@@ -732,7 +732,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={versionB}
                   onChange={setVersionB}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={versionOptions}
                 />
               </Col>
@@ -741,8 +741,8 @@ const ConfigManagementPage: React.FC = () => {
             {versionDiffResult &&
               versionDiffResult.changes &&
               versionDiffResult.changes.length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                <div style={{ marginTop: spacing.md }}>
+                  <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
                     变更项 ({versionDiffResult.changes.length} 项)
                   </Text>
                   {versionDiffResult.changes.map((change) => renderChangeItem(change))}
@@ -754,11 +754,11 @@ const ConfigManagementPage: React.FC = () => {
                   message="两个版本的配置完全一致"
                   type="success"
                   showIcon
-                  style={{ marginTop: 16 }}
+                  style={{ marginTop: spacing.md }}
                 />
               )}
             {!versionDiffResult && (
-              <Empty description="请选择配置项和版本并点击对比" style={{ marginTop: 16 }} />
+              <Empty description="请选择配置项和版本并点击对比" style={{ marginTop: spacing.md }} />
             )}
           </Card>
 
@@ -778,7 +778,7 @@ const ConfigManagementPage: React.FC = () => {
           >
             {diffReport && (
               <>
-                <Row gutter={16} style={{ marginBottom: 16 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.md }}>
                   <Col span={8}>
                     <Statistic
                       title="配置总数"
@@ -884,7 +884,7 @@ const ConfigManagementPage: React.FC = () => {
                 }
                 type={driftResult.driftDetected ? 'warning' : 'success'}
                 showIcon
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               />
 
               {driftResult.driftDetected && driftResult.items && driftResult.items.length > 0 && (
@@ -958,9 +958,9 @@ const ConfigManagementPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: colors.neutral[0], minHeight: '100vh' }}>
+    <div style={{ padding: spacing.lg, background: colors.neutral[0], minHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
           <Title level={2}>配置管理</Title>
           <Text type="secondary">GitOps 工作流、变更审批、差异分析、漂移检测</Text>

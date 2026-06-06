@@ -30,7 +30,7 @@ func NewMockTicketRepository() *MockTicketRepository {
 	return &MockTicketRepository{Tickets: make(map[string]*models.Ticket)}
 }
 
-func (m *MockTicketRepository) Create(ticket *models.Ticket) error {
+func (m *MockTicketRepository) Create(ctx context.Context, ticket *models.Ticket) error {
 	if m.CreateFn != nil {
 		return m.CreateFn(ticket)
 	}
@@ -38,7 +38,7 @@ func (m *MockTicketRepository) Create(ticket *models.Ticket) error {
 	return nil
 }
 
-func (m *MockTicketRepository) GetByID(id, tenantID string) (*models.Ticket, error) {
+func (m *MockTicketRepository) GetByID(ctx context.Context, id, tenantID string) (*models.Ticket, error) {
 	if m.GetByIDFn != nil {
 		return m.GetByIDFn(id, tenantID)
 	}
@@ -49,7 +49,7 @@ func (m *MockTicketRepository) GetByID(id, tenantID string) (*models.Ticket, err
 	return t, nil
 }
 
-func (m *MockTicketRepository) List(tenantID string, q models.ListQuery) ([]models.Ticket, int, error) {
+func (m *MockTicketRepository) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error) {
 	if m.ListFn != nil {
 		return m.ListFn(tenantID, q)
 	}
@@ -62,7 +62,7 @@ func (m *MockTicketRepository) List(tenantID string, q models.ListQuery) ([]mode
 	return result, len(result), nil
 }
 
-func (m *MockTicketRepository) Update(ticket *models.Ticket) error {
+func (m *MockTicketRepository) Update(ctx context.Context, ticket *models.Ticket) error {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ticket)
 	}
@@ -70,7 +70,7 @@ func (m *MockTicketRepository) Update(ticket *models.Ticket) error {
 	return nil
 }
 
-func (m *MockTicketRepository) Delete(id, tenantID string) error {
+func (m *MockTicketRepository) Delete(ctx context.Context, id, tenantID string) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(id, tenantID)
 	}
@@ -78,7 +78,7 @@ func (m *MockTicketRepository) Delete(id, tenantID string) error {
 	return nil
 }
 
-func (m *MockTicketRepository) UpdateStatus(id, tenantID, status string) error {
+func (m *MockTicketRepository) UpdateStatus(ctx context.Context, id, tenantID, status string) error {
 	if m.UpdateStatusFn != nil {
 		return m.UpdateStatusFn(id, tenantID, status)
 	}
@@ -88,7 +88,7 @@ func (m *MockTicketRepository) UpdateStatus(id, tenantID, status string) error {
 	return nil
 }
 
-func (m *MockTicketRepository) UpdateAssignee(id, tenantID, assignedTo string) error {
+func (m *MockTicketRepository) UpdateAssignee(ctx context.Context, id, tenantID, assignedTo string) error {
 	if m.UpdateAssigneeFn != nil {
 		return m.UpdateAssigneeFn(id, tenantID, assignedTo)
 	}
@@ -121,7 +121,7 @@ func NewMockCommentRepository() *MockCommentRepository {
 	return &MockCommentRepository{Comments: make(map[string][]models.TicketComment)}
 }
 
-func (m *MockCommentRepository) Create(comment *models.TicketComment) error {
+func (m *MockCommentRepository) Create(ctx context.Context, comment *models.TicketComment) error {
 	if m.CreateFn != nil {
 		return m.CreateFn(comment)
 	}
@@ -129,11 +129,11 @@ func (m *MockCommentRepository) Create(comment *models.TicketComment) error {
 	return nil
 }
 
-func (m *MockCommentRepository) ListByTicket(ticketID string) ([]models.TicketComment, error) {
+func (m *MockCommentRepository) ListByTicket(ctx context.Context, ticketID string) ([]models.TicketComment, error) {
 	return m.Comments[ticketID], nil
 }
 
-func (m *MockCommentRepository) Delete(id, ticketID string) error {
+func (m *MockCommentRepository) Delete(ctx context.Context, id, ticketID string) error {
 	comments := m.Comments[ticketID]
 	for i, c := range comments {
 		if c.ID == id {
@@ -154,7 +154,7 @@ func NewMockWorkflowRepository() *MockWorkflowRepository {
 	return &MockWorkflowRepository{}
 }
 
-func (m *MockWorkflowRepository) Create(history *models.WorkflowHistory) error {
+func (m *MockWorkflowRepository) Create(ctx context.Context, history *models.WorkflowHistory) error {
 	if m.CreateFn != nil {
 		return m.CreateFn(history)
 	}
@@ -162,7 +162,7 @@ func (m *MockWorkflowRepository) Create(history *models.WorkflowHistory) error {
 	return nil
 }
 
-func (m *MockWorkflowRepository) ListByTicket(ticketID string) ([]models.WorkflowHistory, error) {
+func (m *MockWorkflowRepository) ListByTicket(ctx context.Context, ticketID string) ([]models.WorkflowHistory, error) {
 	var result []models.WorkflowHistory
 	for _, h := range m.History {
 		if h.TicketID == ticketID {
@@ -183,7 +183,7 @@ func NewMockAssignmentRuleRepository() *MockAssignmentRuleRepository {
 	return &MockAssignmentRuleRepository{}
 }
 
-func (m *MockAssignmentRuleRepository) Create(rule *models.AssignmentRule) error {
+func (m *MockAssignmentRuleRepository) Create(ctx context.Context, rule *models.AssignmentRule) error {
 	if m.CreateFn != nil {
 		return m.CreateFn(rule)
 	}
@@ -191,11 +191,11 @@ func (m *MockAssignmentRuleRepository) Create(rule *models.AssignmentRule) error
 	return nil
 }
 
-func (m *MockAssignmentRuleRepository) List() ([]models.AssignmentRule, error) {
+func (m *MockAssignmentRuleRepository) List(ctx context.Context, ) ([]models.AssignmentRule, error) {
 	return m.Rules, nil
 }
 
-func (m *MockAssignmentRuleRepository) Delete(id string) error {
+func (m *MockAssignmentRuleRepository) Delete(ctx context.Context, id string) error {
 	for i, r := range m.Rules {
 		if r.ID == id {
 			m.Rules = append(m.Rules[:i], m.Rules[i+1:]...)
@@ -205,7 +205,7 @@ func (m *MockAssignmentRuleRepository) Delete(id string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockAssignmentRuleRepository) FindMatching(category, priority string) (*models.AssignmentRule, error) {
+func (m *MockAssignmentRuleRepository) FindMatching(ctx context.Context, category, priority string) (*models.AssignmentRule, error) {
 	if m.FindMatchingFn != nil {
 		return m.FindMatchingFn(category, priority)
 	}
@@ -243,12 +243,12 @@ func NewMockRelationRepository() *MockRelationRepository {
 	return &MockRelationRepository{}
 }
 
-func (m *MockRelationRepository) Create(relation *models.TicketRelation) error {
+func (m *MockRelationRepository) Create(ctx context.Context, relation *models.TicketRelation) error {
 	m.Relations = append(m.Relations, *relation)
 	return nil
 }
 
-func (m *MockRelationRepository) ListByTicket(ticketID string) ([]models.TicketRelation, error) {
+func (m *MockRelationRepository) ListByTicket(ctx context.Context, ticketID string) ([]models.TicketRelation, error) {
 	var result []models.TicketRelation
 	for _, r := range m.Relations {
 		if r.TicketID == ticketID {
@@ -258,7 +258,7 @@ func (m *MockRelationRepository) ListByTicket(ticketID string) ([]models.TicketR
 	return result, nil
 }
 
-func (m *MockRelationRepository) Delete(id string) error {
+func (m *MockRelationRepository) Delete(ctx context.Context, id string) error {
 	for i, r := range m.Relations {
 		if r.ID == id {
 			m.Relations = append(m.Relations[:i], m.Relations[i+1:]...)
@@ -268,7 +268,7 @@ func (m *MockRelationRepository) Delete(id string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockRelationRepository) Exists(ticketID, relatedTicketID, relationType string) (bool, error) {
+func (m *MockRelationRepository) Exists(ctx context.Context, ticketID, relatedTicketID, relationType string) (bool, error) {
 	for _, r := range m.Relations {
 		if r.TicketID == ticketID && r.RelatedTicketID == relatedTicketID && r.RelationType == relationType {
 			return true, nil
@@ -277,7 +277,7 @@ func (m *MockRelationRepository) Exists(ticketID, relatedTicketID, relationType 
 	return false, nil
 }
 
-func (m *MockRelationRepository) FindSimilar(ticketID string, limit int) ([]models.TicketRelation, error) {
+func (m *MockRelationRepository) FindSimilar(ctx context.Context, ticketID string, limit int) ([]models.TicketRelation, error) {
 	var result []models.TicketRelation
 	for _, r := range m.Relations {
 		if r.TicketID == ticketID {
@@ -300,16 +300,16 @@ func NewMockSLARepository() *MockSLARepository {
 	return &MockSLARepository{}
 }
 
-func (m *MockSLARepository) CreateTarget(target *models.SLATarget) error {
+func (m *MockSLARepository) CreateTarget(ctx context.Context, target *models.SLATarget) error {
 	m.Targets = append(m.Targets, *target)
 	return nil
 }
 
-func (m *MockSLARepository) ListTargets() ([]models.SLATarget, error) {
+func (m *MockSLARepository) ListTargets(ctx context.Context, ) ([]models.SLATarget, error) {
 	return m.Targets, nil
 }
 
-func (m *MockSLARepository) GetTargetByPriority(priority string) (*models.SLATarget, error) {
+func (m *MockSLARepository) GetTargetByPriority(ctx context.Context, priority string) (*models.SLATarget, error) {
 	for _, t := range m.Targets {
 		if t.Priority == priority && t.Enabled {
 			return &t, nil
@@ -318,7 +318,7 @@ func (m *MockSLARepository) GetTargetByPriority(priority string) (*models.SLATar
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *MockSLARepository) DeleteTarget(id string) error {
+func (m *MockSLARepository) DeleteTarget(ctx context.Context, id string) error {
 	for i, t := range m.Targets {
 		if t.ID == id {
 			m.Targets = append(m.Targets[:i], m.Targets[i+1:]...)
@@ -328,12 +328,12 @@ func (m *MockSLARepository) DeleteTarget(id string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockSLARepository) CreateRecord(record *models.SLARecord) error {
+func (m *MockSLARepository) CreateRecord(ctx context.Context, record *models.SLARecord) error {
 	m.Records = append(m.Records, *record)
 	return nil
 }
 
-func (m *MockSLARepository) GetRecordByTicket(ticketID string) (*models.SLARecord, error) {
+func (m *MockSLARepository) GetRecordByTicket(ctx context.Context, ticketID string) (*models.SLARecord, error) {
 	for i := range m.Records {
 		if m.Records[i].TicketID == ticketID {
 			return &m.Records[i], nil
@@ -342,7 +342,7 @@ func (m *MockSLARepository) GetRecordByTicket(ticketID string) (*models.SLARecor
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *MockSLARepository) UpdateRecord(record *models.SLARecord) error {
+func (m *MockSLARepository) UpdateRecord(ctx context.Context, record *models.SLARecord) error {
 	for i, r := range m.Records {
 		if r.ID == record.ID {
 			m.Records[i] = *record
@@ -352,7 +352,7 @@ func (m *MockSLARepository) UpdateRecord(record *models.SLARecord) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockSLARepository) FindBreachedRecords() ([]models.SLARecord, error) {
+func (m *MockSLARepository) FindBreachedRecords(ctx context.Context, ) ([]models.SLARecord, error) {
 	var result []models.SLARecord
 	for _, r := range m.Records {
 		if r.Breached && r.ResolvedAt == nil {
@@ -362,7 +362,7 @@ func (m *MockSLARepository) FindBreachedRecords() ([]models.SLARecord, error) {
 	return result, nil
 }
 
-func (m *MockSLARepository) FindPendingRecords() ([]models.SLARecord, error) {
+func (m *MockSLARepository) FindPendingRecords(ctx context.Context, ) ([]models.SLARecord, error) {
 	var result []models.SLARecord
 	for _, r := range m.Records {
 		if !r.Breached && r.ResolvedAt == nil && !r.Paused {
@@ -372,7 +372,7 @@ func (m *MockSLARepository) FindPendingRecords() ([]models.SLARecord, error) {
 	return result, nil
 }
 
-func (m *MockSLARepository) PauseRecord(ticketID, reason string) error {
+func (m *MockSLARepository) PauseRecord(ctx context.Context, ticketID, reason string) error {
 	for i, r := range m.Records {
 		if r.TicketID == ticketID {
 			m.Records[i].Paused = true
@@ -385,7 +385,7 @@ func (m *MockSLARepository) PauseRecord(ticketID, reason string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockSLARepository) UnpauseRecord(ticketID string) error {
+func (m *MockSLARepository) UnpauseRecord(ctx context.Context, ticketID string) error {
 	for i, r := range m.Records {
 		if r.TicketID == ticketID {
 			m.Records[i].Paused = false
@@ -397,7 +397,7 @@ func (m *MockSLARepository) UnpauseRecord(ticketID string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockSLARepository) GetComplianceReport(start, end time.Time) (*models.SLAComplianceReport, error) {
+func (m *MockSLARepository) GetComplianceReport(ctx context.Context, start, end time.Time) (*models.SLAComplianceReport, error) {
 	report := &models.SLAComplianceReport{ByPriority: make(map[string]models.SLAPriorityStats)}
 	for _, r := range m.Records {
 		report.TotalTickets++
@@ -423,12 +423,12 @@ func NewMockDispatchRepository() *MockDispatchRepository {
 	return &MockDispatchRepository{}
 }
 
-func (m *MockDispatchRepository) CreateEngineer(ep *models.EngineerProfile) error {
+func (m *MockDispatchRepository) CreateEngineer(ctx context.Context, ep *models.EngineerProfile) error {
 	m.Engineers = append(m.Engineers, *ep)
 	return nil
 }
 
-func (m *MockDispatchRepository) UpdateEngineer(ep *models.EngineerProfile) error {
+func (m *MockDispatchRepository) UpdateEngineer(ctx context.Context, ep *models.EngineerProfile) error {
 	for i, e := range m.Engineers {
 		if e.ID == ep.ID {
 			m.Engineers[i] = *ep
@@ -438,7 +438,7 @@ func (m *MockDispatchRepository) UpdateEngineer(ep *models.EngineerProfile) erro
 	return fmt.Errorf("not found")
 }
 
-func (m *MockDispatchRepository) GetEngineer(id string) (*models.EngineerProfile, error) {
+func (m *MockDispatchRepository) GetEngineer(ctx context.Context, id string) (*models.EngineerProfile, error) {
 	for _, e := range m.Engineers {
 		if e.ID == id {
 			return &e, nil
@@ -447,11 +447,11 @@ func (m *MockDispatchRepository) GetEngineer(id string) (*models.EngineerProfile
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *MockDispatchRepository) ListEngineers() ([]models.EngineerProfile, error) {
+func (m *MockDispatchRepository) ListEngineers(ctx context.Context, ) ([]models.EngineerProfile, error) {
 	return m.Engineers, nil
 }
 
-func (m *MockDispatchRepository) IncrementLoad(engineerID string) error {
+func (m *MockDispatchRepository) IncrementLoad(ctx context.Context, engineerID string) error {
 	for i, e := range m.Engineers {
 		if e.ID == engineerID {
 			m.Engineers[i].CurrentLoad++
@@ -461,7 +461,7 @@ func (m *MockDispatchRepository) IncrementLoad(engineerID string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockDispatchRepository) DecrementLoad(engineerID string) error {
+func (m *MockDispatchRepository) DecrementLoad(ctx context.Context, engineerID string) error {
 	for i, e := range m.Engineers {
 		if e.ID == engineerID && m.Engineers[i].CurrentLoad > 0 {
 			m.Engineers[i].CurrentLoad--
@@ -471,12 +471,12 @@ func (m *MockDispatchRepository) DecrementLoad(engineerID string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockDispatchRepository) CreateRecord(rec *models.DispatchRecord) error {
+func (m *MockDispatchRepository) CreateRecord(ctx context.Context, rec *models.DispatchRecord) error {
 	m.Records = append(m.Records, *rec)
 	return nil
 }
 
-func (m *MockDispatchRepository) GetRecordByTicket(ticketID string) (*models.DispatchRecord, error) {
+func (m *MockDispatchRepository) GetRecordByTicket(ctx context.Context, ticketID string) (*models.DispatchRecord, error) {
 	for _, r := range m.Records {
 		if r.TicketID == ticketID {
 			return &r, nil
@@ -485,7 +485,7 @@ func (m *MockDispatchRepository) GetRecordByTicket(ticketID string) (*models.Dis
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *MockDispatchRepository) ListRecordsByEngineer(engineerID string, limit int) ([]models.DispatchRecord, error) {
+func (m *MockDispatchRepository) ListRecordsByEngineer(ctx context.Context, engineerID string, limit int) ([]models.DispatchRecord, error) {
 	var result []models.DispatchRecord
 	for _, r := range m.Records {
 		if r.EngineerID == engineerID {
@@ -498,16 +498,16 @@ func (m *MockDispatchRepository) ListRecordsByEngineer(engineerID string, limit 
 	return result, nil
 }
 
-func (m *MockDispatchRepository) CreateRule(rule *models.DispatchRule) error {
+func (m *MockDispatchRepository) CreateRule(ctx context.Context, rule *models.DispatchRule) error {
 	m.Rules = append(m.Rules, *rule)
 	return nil
 }
 
-func (m *MockDispatchRepository) ListRules() ([]models.DispatchRule, error) {
+func (m *MockDispatchRepository) ListRules(ctx context.Context, ) ([]models.DispatchRule, error) {
 	return m.Rules, nil
 }
 
-func (m *MockDispatchRepository) DeleteRule(id string) error {
+func (m *MockDispatchRepository) DeleteRule(ctx context.Context, id string) error {
 	for i, r := range m.Rules {
 		if r.ID == id {
 			m.Rules = append(m.Rules[:i], m.Rules[i+1:]...)
@@ -517,14 +517,14 @@ func (m *MockDispatchRepository) DeleteRule(id string) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockDispatchRepository) Enqueue(ticketID, tenantID, priority string) error {
+func (m *MockDispatchRepository) Enqueue(ctx context.Context, ticketID, tenantID, priority string) error {
 	m.Queue = append(m.Queue, models.DispatchQueueEntry{
 		TicketID: ticketID, TenantID: tenantID, Priority: priority,
 	})
 	return nil
 }
 
-func (m *MockDispatchRepository) Dequeue(limit int) ([]models.DispatchQueueEntry, error) {
+func (m *MockDispatchRepository) Dequeue(ctx context.Context, limit int) ([]models.DispatchQueueEntry, error) {
 	if limit > len(m.Queue) {
 		limit = len(m.Queue)
 	}
@@ -533,7 +533,7 @@ func (m *MockDispatchRepository) Dequeue(limit int) ([]models.DispatchQueueEntry
 	return result, nil
 }
 
-func (m *MockDispatchRepository) RemoveFromQueue(ticketID string) error {
+func (m *MockDispatchRepository) RemoveFromQueue(ctx context.Context, ticketID string) error {
 	for i, e := range m.Queue {
 		if e.TicketID == ticketID {
 			m.Queue = append(m.Queue[:i], m.Queue[i+1:]...)
@@ -543,7 +543,7 @@ func (m *MockDispatchRepository) RemoveFromQueue(ticketID string) error {
 	return nil
 }
 
-func (m *MockDispatchRepository) UpdateQueueEntry(ticketID, lastError string, attempts int) error {
+func (m *MockDispatchRepository) UpdateQueueEntry(ctx context.Context, ticketID, lastError string, attempts int) error {
 	for i, e := range m.Queue {
 		if e.TicketID == ticketID {
 			m.Queue[i].LastError = lastError
@@ -554,11 +554,11 @@ func (m *MockDispatchRepository) UpdateQueueEntry(ticketID, lastError string, at
 	return nil
 }
 
-func (m *MockDispatchRepository) GetQueueStatus() (*models.DispatchQueueStatus, error) {
+func (m *MockDispatchRepository) GetQueueStatus(ctx context.Context, ) (*models.DispatchQueueStatus, error) {
 	return &models.DispatchQueueStatus{PendingCount: len(m.Queue)}, nil
 }
 
-func (m *MockDispatchRepository) GetMetrics(start, end time.Time) (*models.DispatchMetrics, error) {
+func (m *MockDispatchRepository) GetMetrics(ctx context.Context, start, end time.Time) (*models.DispatchMetrics, error) {
 	metrics := &models.DispatchMetrics{}
 	for _, r := range m.Records {
 		metrics.TotalDispatches++
@@ -580,12 +580,12 @@ func NewMockSuspendRepository() *MockSuspendRepository {
 	return &MockSuspendRepository{}
 }
 
-func (m *MockSuspendRepository) Create(rec *models.SuspendRecord) error {
+func (m *MockSuspendRepository) Create(ctx context.Context, rec *models.SuspendRecord) error {
 	m.Records = append(m.Records, *rec)
 	return nil
 }
 
-func (m *MockSuspendRepository) GetByID(id string) (*models.SuspendRecord, error) {
+func (m *MockSuspendRepository) GetByID(ctx context.Context, id string) (*models.SuspendRecord, error) {
 	for _, r := range m.Records {
 		if r.ID == id {
 			return &r, nil
@@ -594,7 +594,7 @@ func (m *MockSuspendRepository) GetByID(id string) (*models.SuspendRecord, error
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *MockSuspendRepository) Update(rec *models.SuspendRecord) error {
+func (m *MockSuspendRepository) Update(ctx context.Context, rec *models.SuspendRecord) error {
 	for i, r := range m.Records {
 		if r.ID == rec.ID {
 			m.Records[i] = *rec
@@ -604,7 +604,7 @@ func (m *MockSuspendRepository) Update(rec *models.SuspendRecord) error {
 	return fmt.Errorf("not found")
 }
 
-func (m *MockSuspendRepository) ListByStatus(status string) ([]models.SuspendRecord, error) {
+func (m *MockSuspendRepository) ListByStatus(ctx context.Context, status string) ([]models.SuspendRecord, error) {
 	var result []models.SuspendRecord
 	for _, r := range m.Records {
 		if r.Status == status {
@@ -614,7 +614,7 @@ func (m *MockSuspendRepository) ListByStatus(status string) ([]models.SuspendRec
 	return result, nil
 }
 
-func (m *MockSuspendRepository) ListByEngineer(engineerID string) ([]models.SuspendRecord, error) {
+func (m *MockSuspendRepository) ListByEngineer(ctx context.Context, engineerID string) ([]models.SuspendRecord, error) {
 	var result []models.SuspendRecord
 	for _, r := range m.Records {
 		if r.EngineerID == engineerID {
@@ -624,7 +624,7 @@ func (m *MockSuspendRepository) ListByEngineer(engineerID string) ([]models.Susp
 	return result, nil
 }
 
-func (m *MockSuspendRepository) FindActiveByEngineer(engineerID string) (*models.SuspendRecord, error) {
+func (m *MockSuspendRepository) FindActiveByEngineer(ctx context.Context, engineerID string) (*models.SuspendRecord, error) {
 	for _, r := range m.Records {
 		if r.EngineerID == engineerID && r.Status == "active" {
 			return &r, nil
@@ -633,7 +633,7 @@ func (m *MockSuspendRepository) FindActiveByEngineer(engineerID string) (*models
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *MockSuspendRepository) CountPendingByEngineer(engineerID string) (int, error) {
+func (m *MockSuspendRepository) CountPendingByEngineer(ctx context.Context, engineerID string) (int, error) {
 	count := 0
 	for _, r := range m.Records {
 		if r.EngineerID == engineerID && r.Status == "pending" {
@@ -643,7 +643,7 @@ func (m *MockSuspendRepository) CountPendingByEngineer(engineerID string) (int, 
 	return count, nil
 }
 
-func (m *MockSuspendRepository) CountActiveByEngineer(engineerID string) (int, error) {
+func (m *MockSuspendRepository) CountActiveByEngineer(ctx context.Context, engineerID string) (int, error) {
 	count := 0
 	for _, r := range m.Records {
 		if r.EngineerID == engineerID && r.Status == "active" {
@@ -662,12 +662,12 @@ func NewMockTransferRepository() *MockTransferRepository {
 	return &MockTransferRepository{}
 }
 
-func (m *MockTransferRepository) Create(rec *models.TransferRecord) error {
+func (m *MockTransferRepository) Create(ctx context.Context, rec *models.TransferRecord) error {
 	m.Records = append(m.Records, *rec)
 	return nil
 }
 
-func (m *MockTransferRepository) ListByTicket(ticketID string) ([]models.TransferRecord, error) {
+func (m *MockTransferRepository) ListByTicket(ctx context.Context, ticketID string) ([]models.TransferRecord, error) {
 	var result []models.TransferRecord
 	for _, r := range m.Records {
 		if r.TicketID == ticketID {
@@ -677,7 +677,7 @@ func (m *MockTransferRepository) ListByTicket(ticketID string) ([]models.Transfe
 	return result, nil
 }
 
-func (m *MockTransferRepository) GetStats(start, end time.Time) (map[string]any, error) {
+func (m *MockTransferRepository) GetStats(ctx context.Context, start, end time.Time) (map[string]any, error) {
 	stats := make(map[string]any)
 	stats["total_transfers"] = len(m.Records)
 	stats["avg_hold_duration_ms"] = 0
@@ -699,29 +699,29 @@ func NewMockAnalyticsRepository() *MockAnalyticsRepository {
 	}
 }
 
-func (m *MockAnalyticsRepository) GetTicketStats(tenantID string) (*models.TicketStatistics, error) {
+func (m *MockAnalyticsRepository) GetTicketStats(ctx context.Context, tenantID string) (*models.TicketStatistics, error) {
 	return m.Stats, nil
 }
 
-func (m *MockAnalyticsRepository) GetResolutionStats(tenantID string) (*models.ResolutionStats, error) {
+func (m *MockAnalyticsRepository) GetResolutionStats(ctx context.Context, tenantID string) (*models.ResolutionStats, error) {
 	return &models.ResolutionStats{
 		ByPriority: make(map[string]float64),
 		ByCategory: make(map[string]float64),
 	}, nil
 }
 
-func (m *MockAnalyticsRepository) GetBacklogAnalysis(tenantID string) (*models.BacklogAnalysis, error) {
+func (m *MockAnalyticsRepository) GetBacklogAnalysis(ctx context.Context, tenantID string) (*models.BacklogAnalysis, error) {
 	return &models.BacklogAnalysis{
 		ByPriority: make(map[string]int),
 		ByCategory: make(map[string]int),
 	}, nil
 }
 
-func (m *MockAnalyticsRepository) GetTrendData(tenantID string, days int, granularity string) ([]models.TrendPoint, error) {
+func (m *MockAnalyticsRepository) GetTrendData(ctx context.Context, tenantID string, days int, granularity string) ([]models.TrendPoint, error) {
 	return nil, nil
 }
 
-func (m *MockAnalyticsRepository) GetExecutiveDashboard(tenantID string, start, end time.Time) (*models.ExecutiveDashboard, error) {
+func (m *MockAnalyticsRepository) GetExecutiveDashboard(ctx context.Context, tenantID string, start, end time.Time) (*models.ExecutiveDashboard, error) {
 	return &models.ExecutiveDashboard{
 		ByPriority: make(map[string]int),
 		ByCategory: make(map[string]int),

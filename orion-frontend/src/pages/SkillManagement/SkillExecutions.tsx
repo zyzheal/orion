@@ -271,11 +271,11 @@ const SkillExecutions: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Space style={{ marginBottom: 8 }}>
+          <Space style={{ marginBottom: spacing.sm }}>
             <Button
               type="text"
               icon={<ArrowLeftOutlined />}
@@ -284,8 +284,8 @@ const SkillExecutions: React.FC = () => {
               返回
             </Button>
           </Space>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             执行历史 {skill && <Text type="secondary">- {skill.name}</Text>}
           </Title>
           <Text type="secondary">查看技能执行的详细记录和结果</Text>
@@ -301,7 +301,7 @@ const SkillExecutions: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总执行次数" value={total} suffix="次" />
@@ -346,7 +346,7 @@ const SkillExecutions: React.FC = () => {
       </Row>
 
       {/* Filters */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space size="middle" wrap>
           <span>状态筛选：</span>
           <Select
@@ -362,7 +362,7 @@ const SkillExecutions: React.FC = () => {
               { label: '超时', value: 'timeout' },
             ]}
           />
-          <span style={{ marginLeft: 16 }}>能力筛选：</span>
+          <span style={{ marginLeft: spacing.md }}>能力筛选：</span>
           <Select
             style={{ width: 140 }}
             value={capabilityFilter}
@@ -372,7 +372,7 @@ const SkillExecutions: React.FC = () => {
               ...capabilities.map((c) => ({ label: c, value: c })),
             ]}
           />
-          <span style={{ marginLeft: 16 }}>日期范围：</span>
+          <span style={{ marginLeft: spacing.md }}>日期范围：</span>
           <RangePicker
             value={dateRange}
             onChange={(dates) =>
@@ -447,21 +447,21 @@ const SkillExecutions: React.FC = () => {
             </Descriptions>
 
             {selectedExecution.errorMessage && (
-              <Card style={{ marginTop: 16 }} title="错误信息" size="small">
+              <Card style={{ marginTop: spacing.md }} title="错误信息" size="small">
                 <Text type="danger" style={{ whiteSpace: 'pre-wrap' }}>
                   {selectedExecution.errorMessage}
                 </Text>
               </Card>
             )}
 
-            <Card style={{ marginTop: 16 }} title="输入参数" size="small">
-              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: 8, borderRadius: 4 }}>
+            <Card style={{ marginTop: spacing.md }} title="输入参数" size="small">
+              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: spacing.sm, borderRadius: 4 }}>
                 {JSON.stringify(selectedExecution.input, null, 2)}
               </pre>
             </Card>
 
-            <Card style={{ marginTop: 16 }} title="输出结果" size="small">
-              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: 8, borderRadius: 4 }}>
+            <Card style={{ marginTop: spacing.md }} title="输出结果" size="small">
+              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: spacing.sm, borderRadius: 4 }}>
                 {JSON.stringify(selectedExecution.output, null, 2)}
               </pre>
             </Card>

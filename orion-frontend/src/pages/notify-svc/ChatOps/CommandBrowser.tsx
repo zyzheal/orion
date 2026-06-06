@@ -149,11 +149,11 @@ const CommandBrowser: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             命令浏览
           </Title>
           <Text type="secondary">ChatOps 命令目录与使用文档</Text>
@@ -164,7 +164,7 @@ const CommandBrowser: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -192,7 +192,7 @@ const CommandBrowser: React.FC = () => {
       >
         {selectedCommand && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Text strong style={{ fontSize: spacing[4] }}>
                 /{selectedCommand.name}
               </Text>
@@ -246,14 +246,14 @@ const CommandBrowser: React.FC = () => {
               </>
             )}
 
-            <Title level={5} style={{ marginTop: 16 }}>
+            <Title level={5} style={{ marginTop: spacing.md }}>
               使用示例
             </Title>
             {selectedCommand.examples.map((example, index) => (
               <Card
                 key={index}
                 size="small"
-                style={{ marginBottom: 8, background: colors.neutral[50] }}
+                style={{ marginBottom: spacing.sm, background: colors.neutral[50] }}
               >
                 <Text code>{example}</Text>
               </Card>

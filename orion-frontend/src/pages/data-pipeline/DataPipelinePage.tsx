@@ -43,7 +43,7 @@ import {
   type PipelineStatus,
   type DataLineage,
 } from '@/api/data-pipeline';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -314,13 +314,13 @@ const DataPipelinePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ApartmentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <DatabaseOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ApartmentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <DatabaseOutlined style={{ marginRight: spacing.sm }} />
             数据管道
           </Title>
           <Text type="secondary">ETL 管道管理、数据流监控和转换规则</Text>
@@ -336,7 +336,7 @@ const DataPipelinePage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="管道总数" value={stats.total} />
@@ -459,13 +459,13 @@ const DataPipelinePage: React.FC = () => {
               <Descriptions.Item label="目标">{selectedPipeline.destination?.type}</Descriptions.Item>
             </Descriptions>
 
-            <Card title="血缘关系" size="small" style={{ marginTop: 16 }}>
+            <Card title="血缘关系" size="small" style={{ marginTop: spacing.md }}>
               {lineageLoading ? (
                 <div style={{ textAlign: 'center', padding: '48px 0' }}>加载中...</div>
               ) : lineageData ? (
                 <div>
                   {/* Source Node */}
-                  <Card size="small" style={{ marginBottom: 8, borderColor: colors.primary[500] }}>
+                  <Card size="small" style={{ marginBottom: spacing.sm, borderColor: colors.primary[500] }}>
                     <Space>
                       <DatabaseOutlined style={{ color: colors.primary[500] }} />
                       <Text strong>Source: {lineageData.nodes.find((n) => n.type === 'source')?.name || '-'}</Text>
@@ -479,7 +479,7 @@ const DataPipelinePage: React.FC = () => {
                         <ApiOutlined style={{ color: colors.warning[500] }} />
                       </div>
                       {lineageData.nodes.filter((n) => n.type === 'transform').map((node) => (
-                        <Card key={node.id} size="small" style={{ marginBottom: 8, marginLeft: 24, borderColor: colors.warning[500] }}>
+                        <Card key={node.id} size="small" style={{ marginBottom: spacing.sm, marginLeft: 24, borderColor: colors.warning[500] }}>
                           <Space>
                             <ApiOutlined style={{ color: colors.warning[500] }} />
                             <Text>{node.name}</Text>
@@ -502,12 +502,12 @@ const DataPipelinePage: React.FC = () => {
 
                   {/* Edges */}
                   {lineageData.edges.length > 0 && (
-                    <Card title="连接关系" size="small" style={{ marginTop: 16 }}>
+                    <Card title="连接关系" size="small" style={{ marginTop: spacing.md }}>
                       {lineageData.edges.map((edge, idx) => (
                         <div key={idx} style={{ marginBottom: 4 }}>
                           <Text type="secondary">
                             {edge.from} → {edge.to}
-                            <Tag style={{ marginLeft: 8 }}>{edge.dataType}</Tag>
+                            <Tag style={{ marginLeft: spacing.sm }}>{edge.dataType}</Tag>
                           </Text>
                         </div>
                       ))}

@@ -12,7 +12,7 @@ import {
   deleteWorkflow,
   type WorkflowDefinition,
 } from '@/api/workflow';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const statusMap: Record<string, { color: string; text: string }> = {
   active: { color: colors.success[500], text: '已启用' },
@@ -136,7 +136,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
         <Button type="primary" icon={<PlusOutlined />} block onClick={() => setCreateModalOpen(true)}>
           新建工作流
         </Button>
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Empty description="暂无工作流" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </div>
       </div>
@@ -152,13 +152,13 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
       <Input
         prefix={<SearchOutlined />}
         placeholder="搜索工作流..."
-        style={{ marginTop: 12, marginBottom: 8 }}
+        style={{ marginTop: spacing[3], marginBottom: spacing.sm }}
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
 
       <Select
-        style={{ width: '100%', marginBottom: 12 }}
+        style={{ width: '100%', marginBottom: spacing[3] }}
         value={statusFilter}
         onChange={setStatusFilter}
         options={[

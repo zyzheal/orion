@@ -162,7 +162,7 @@ const EphemeralEnvDetail: React.FC = () => {
 
   if (!env) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
         {loading ? (
           <Text>Loading...</Text>
         ) : (
@@ -324,7 +324,7 @@ const EphemeralEnvDetail: React.FC = () => {
   return (
     <div style={{ padding: 0 }} data-testid="ephemeral-env-detail-page">
       {/* Breadcrumb / back */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Button
           type="link"
           icon={<ArrowLeftOutlined />}
@@ -338,7 +338,7 @@ const EphemeralEnvDetail: React.FC = () => {
       {/* Status banner */}
       <Card
         style={{
-          marginBottom: 24,
+          marginBottom: spacing.lg,
           borderLeft: `4px solid ${
             env.status === 'running'
               ? colors.success[500]
@@ -356,8 +356,8 @@ const EphemeralEnvDetail: React.FC = () => {
           <div>
             <Space direction="vertical" size={4}>
               <Space align="center">
-                <Title level={2} style={{ marginBottom: 8 }}>
-                  <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                <Title level={2} style={{ marginBottom: spacing.sm }}>
+                  <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                   {env.namespace}
                 </Title>
                 <StatusBadge
@@ -410,7 +410,7 @@ const EphemeralEnvDetail: React.FC = () => {
           <Alert
             type="warning"
             showIcon
-            style={{ marginTop: 16 }}
+            style={{ marginTop: spacing.md }}
             message={`自动销毁时间: ${dayjs(env.autoDestroyAt).format('YYYY-MM-DD HH:mm')}`}
             description={`该环境将在 ${dayjs(env.autoDestroyAt).fromNow()} 自动销毁`}
           />
@@ -418,7 +418,7 @@ const EphemeralEnvDetail: React.FC = () => {
       </Card>
 
       {/* Environment info */}
-      <Card title="环境信息" size="small" style={{ marginBottom: 24 }}>
+      <Card title="环境信息" size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions column={3} size="small" bordered>
           <Descriptions.Item label="环境 ID">
             <Text code style={{ fontSize: spacing[2] }}>
@@ -498,7 +498,7 @@ const EphemeralEnvDetail: React.FC = () => {
           </Space>
         }
         size="small"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       >
         {services.length > 0 ? (
           <AntTable
@@ -524,7 +524,7 @@ const EphemeralEnvDetail: React.FC = () => {
           </Space>
         }
         size="small"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       >
         <Timeline events={timelineEvents} mode="left" />
       </Card>
@@ -567,8 +567,8 @@ const EphemeralEnvDetail: React.FC = () => {
             </Descriptions>
             <div
               style={{
-                marginTop: 16,
-                padding: 12,
+                marginTop: spacing.md,
+                padding: spacing[3],
                 background: colors.success[50],
                 borderRadius: 6,
                 textAlign: 'center',

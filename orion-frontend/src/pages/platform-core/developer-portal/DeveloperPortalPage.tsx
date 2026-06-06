@@ -60,7 +60,7 @@ import {
   CategoryInfo,
 } from '../../../api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -440,13 +440,13 @@ const DeveloperPortalPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CodeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <ApiOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <ApiOutlined style={{ marginRight: spacing.sm }} />
             开发者门户
           </Title>
           <Text type="secondary">API 文档、SDK 下载、入门指南与开发者资源</Text>
@@ -477,12 +477,12 @@ const DeveloperPortalPage: React.FC = () => {
           showIcon
           closable
           onClose={() => setError(null)}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
       {/* Search Bar */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
         <Row gutter={16} align="middle">
           <Col span={12}>
             <Search
@@ -509,7 +509,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Card>
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="文档总数" value={stats.total} />
@@ -545,11 +545,11 @@ const DeveloperPortalPage: React.FC = () => {
         <Card
           title={
             <>
-              <StarOutlined style={{ marginRight: 8, color: colors.warning[500] }} />
+              <StarOutlined style={{ marginRight: spacing.sm, color: colors.warning[500] }} />
               热门文档
             </>
           }
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
           bodyStyle={{ padding: '12px 24px' }}
         >
           <Space wrap>
@@ -615,7 +615,7 @@ const DeveloperPortalPage: React.FC = () => {
       <Modal
         title={
           <>
-            <CloudUploadOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            <CloudUploadOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             创建文档
           </>
         }
@@ -699,7 +699,7 @@ const DeveloperPortalPage: React.FC = () => {
       <Drawer
         title={
           <>
-            <EditOutlined style={{ marginRight: 8 }} />
+            <EditOutlined style={{ marginRight: spacing.sm }} />
             编辑文档
           </>
         }

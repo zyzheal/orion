@@ -56,13 +56,13 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 		CreatedBy:   createdBy,
 	}
 
-	if err := s.repo.Create(ticket); err != nil {
+	if err := s.repo.Create(ctx, ticket); err != nil {
 		return nil, err
 	}
 
 	// Record workflow entry for initial status
 	if s.workflow != nil {
-		s.workflow.workflowRepo.Create(&models.WorkflowHistory{
+		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
 			ID:         uuid.New().String(),
 			TicketID:   ticket.ID,
 			FromStatus: "",
@@ -78,10 +78,10 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 
 	// Check assignment rules
 	if s.ruleRepo != nil {
-		rule, _ := s.ruleRepo.FindMatching(ticket.Type, ticket.Priority)
+		rule, _ := s.ruleRepo.FindMatching(ctx, ticket.Type, ticket.Priority)
 		if rule != nil {
-			s.repo.UpdateAssignee(ticket.ID, tenantID, rule.Assignee)
-			s.repo.UpdateStatus(ticket.ID, tenantID, models.StatusAssigned)
+			s.repo.UpdateAssignee(ctx, ticket.ID, tenantID, rule.Assignee)
+			s.repo.UpdateStatus(ctx, ticket.ID, tenantID, models.StatusAssigned)
 			ticket.AssignedTo = rule.Assignee
 			ticket.Status = models.StatusAssigned
 		}
@@ -93,7 +93,7 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 func (s *TicketService) GetByID(ctx context.Context, id, tenantID string) (*models.Ticket, error) {
 	_, span := otel.Tracer().Start(ctx, "TicketService.GetByID")
 	defer span.End()
-	return s.repo.GetByID(id, tenantID)
+	return s.repo.GetByID(ctx, id, tenantID)
 }
 
 func (s *TicketService) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error) {
@@ -106,19 +106,19 @@ func (s *TicketService) List(ctx context.Context, tenantID string, q models.List
 	if q.PageSize <= 0 {
 		q.PageSize = 20
 	}
-	return s.repo.List(tenantID, q)
+	return s.repo.List(ctx, tenantID, q)
 }
 
 func (s *TicketService) Update(ctx context.Context, ticket *models.Ticket) error {
 	_, span := otel.Tracer().Start(ctx, "TicketService.Update")
 	defer span.End()
-	return s.repo.Update(ticket)
+	return s.repo.Update(ctx, ticket)
 }
 
 func (s *TicketService) Delete(ctx context.Context, id, tenantID string) error {
 	_, span := otel.Tracer().Start(ctx, "TicketService.Delete")
 	defer span.End()
-	return s.repo.Delete(id, tenantID)
+	return s.repo.Delete(ctx, id, tenantID)
 }
 
 func (s *TicketService) Resolve(ctx context.Context, id, tenantID, performedBy string) error {
@@ -129,14 +129,14 @@ func (s *TicketService) Resolve(ctx context.Context, id, tenantID, performedBy s
 		_, _, err := s.workflow.TransitionStatus(ctx, id, tenantID, models.StatusResolved, performedBy, "")
 		return err
 	}
-	return s.repo.UpdateStatus(id, tenantID, "resolved")
+	return s.repo.UpdateStatus(ctx, id, tenantID, "resolved")
 }
 
 func (s *TicketService) Assign(ctx context.Context, id, tenantID, assignedTo string) error {
 	_, span := otel.Tracer().Start(ctx, "TicketService.Assign")
 	defer span.End()
 
-	if err := s.repo.UpdateAssignee(id, tenantID, assignedTo); err != nil {
+	if err := s.repo.UpdateAssignee(ctx, id, tenantID, assignedTo); err != nil {
 		return err
 	}
 
@@ -166,7 +166,7 @@ func (s *TicketService) AddComment(ctx context.Context, ticketID, tenantID strin
 	_, span := otel.Tracer().Start(ctx, "TicketService.AddComment")
 	defer span.End()
 
-	if _, err := s.repo.GetByID(ticketID, tenantID); err != nil {
+	if _, err := s.repo.GetByID(ctx, ticketID, tenantID); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func (s *TicketService) AddComment(ctx context.Context, ticketID, tenantID strin
 		IsInternal: req.IsInternal,
 	}
 
-	if err := s.comment.Create(comment); err != nil {
+	if err := s.comment.Create(ctx, comment); err != nil {
 		return nil, err
 	}
 	return comment, nil
@@ -188,10 +188,10 @@ func (s *TicketService) ListComments(ctx context.Context, ticketID, tenantID str
 	_, span := otel.Tracer().Start(ctx, "TicketService.ListComments")
 	defer span.End()
 
-	if _, err := s.repo.GetByID(ticketID, tenantID); err != nil {
+	if _, err := s.repo.GetByID(ctx, ticketID, tenantID); err != nil {
 		return nil, err
 	}
-	return s.comment.ListByTicket(ticketID)
+	return s.comment.ListByTicket(ctx, ticketID)
 }
 
 func (s *TicketService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -200,7 +200,7 @@ func (s *TicketService) Count(ctx context.Context, tenantID string) (int, error)
 
 // Escalate escalates a ticket's priority
 func (s *TicketService) Escalate(ctx context.Context, ticketID, tenantID, escalatedBy, reason string) (*models.Ticket, error) {
-	ticket, err := s.repo.GetByID(ticketID, tenantID)
+	ticket, err := s.repo.GetByID(ctx, ticketID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -215,13 +215,13 @@ func (s *TicketService) Escalate(ctx context.Context, ticketID, tenantID, escala
 		ticket.Priority = "critical"
 	}
 
-	if err := s.repo.Update(ticket); err != nil {
+	if err := s.repo.Update(ctx, ticket); err != nil {
 		return nil, err
 	}
 
 	// Record in workflow
 	if s.workflow != nil {
-		s.workflow.workflowRepo.Create(&models.WorkflowHistory{
+		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
 			ID:          uuid.New().String(),
 			TicketID:    ticketID,
 			FromStatus:  ticket.Status,
@@ -241,8 +241,8 @@ func (s *TicketService) Close(ctx context.Context, ticketID, tenantID, performed
 		return ticket, err
 	}
 
-	if err := s.repo.UpdateStatus(ticketID, tenantID, "closed"); err != nil {
+	if err := s.repo.UpdateStatus(ctx, ticketID, tenantID, "closed"); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(ticketID, tenantID)
+	return s.repo.GetByID(ctx, ticketID, tenantID)
 }

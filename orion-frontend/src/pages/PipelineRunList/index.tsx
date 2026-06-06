@@ -368,12 +368,12 @@ const PipelineRunList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipelineName ? `${pipelineName} - 运行历史` : 'Pipeline 运行历史'}
           </Title>
           <Text type="secondary">
@@ -397,7 +397,7 @@ const PipelineRunList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

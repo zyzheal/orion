@@ -7,6 +7,7 @@ import { Modal, Form, Input, Space, message } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { executePlugin, type PluginExecutionResult } from '@/api/plugins';
 import { type ApiPlugin } from './types';
+import { spacing } from '@/tokens';
 
 // ============================================================================
 // Props
@@ -74,7 +75,7 @@ const PluginLifecycleModal: React.FC<PluginLifecycleModalProps> = ({
       width={700}
       data-testid="execute-plugin-modal"
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           label="任务 ID"
           name="taskId"

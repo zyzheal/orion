@@ -206,8 +206,8 @@ const AuditLogViewer: React.FC = () => {
 
   if (apiError && logs.length === 0) {
     return (
-      <div style={{ padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ padding: spacing.md }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.lg }}>
           <Space>
             <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>导出</Button>
             <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
@@ -221,13 +221,13 @@ const AuditLogViewer: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: spacing.md }}>
       <div
         style={{
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <Space>
@@ -240,7 +240,7 @@ const AuditLogViewer: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总执行数" value={stats?.totalExecutions || logs.length} />
@@ -271,7 +271,7 @@ const AuditLogViewer: React.FC = () => {
         </Col>
       </Row>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <span style={{ fontSize: spacing[3] }}>日期范围：</span>
           <RangePicker
@@ -287,7 +287,7 @@ const AuditLogViewer: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -315,12 +315,12 @@ const AuditLogViewer: React.FC = () => {
                     平台分布
                   </Space>
                 }
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               >
                 {stats.platformBreakdown?.map((item, index) => (
                   <div
                     key={index}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Tag>{item.platform}</Tag>
                     <Text>{item.count} 次</Text>
@@ -338,7 +338,7 @@ const AuditLogViewer: React.FC = () => {
                 {stats.topCommands?.map((item, index) => (
                   <div
                     key={index}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Text code>/{item.command}</Text>
                     <Text>{item.count} 次</Text>

@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Notification Settings - Channel preferences, DND schedule, auto-approve rules
@@ -71,9 +71,9 @@ const NotificationSettingsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-            <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           通知设置
         </Title>
         <Text type="secondary">配置确认通知渠道和自动化规则</Text>
@@ -87,7 +87,7 @@ const NotificationSettingsPage: React.FC = () => {
           <Text type="secondary">选择接收确认通知的渠道，支持多选</Text>
         </Card>
 
-        <Card title="免打扰时段" style={{ marginTop: 16 }}>
+        <Card title="免打扰时段" style={{ marginTop: spacing.md }}>
           <Form.Item name="dndStart" label="开始时间" initialValue={dayjs('22:00', 'HH:mm')}>
             <TimePicker format="HH:mm" style={{ width: 120 }} />
           </Form.Item>
@@ -97,7 +97,7 @@ const NotificationSettingsPage: React.FC = () => {
           <Text type="secondary">免打扰时段内不发送通知（P0 除外）</Text>
         </Card>
 
-        <Card title="自动确认规则" style={{ marginTop: 16 }}>
+        <Card title="自动确认规则" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="autoApproveP3"
             label="自动确认 P3 请求"
@@ -112,7 +112,7 @@ const NotificationSettingsPage: React.FC = () => {
           <Text type="secondary">开启后，P3 请求将在超时后自动确认</Text>
         </Card>
 
-        <Form.Item style={{ marginTop: 24 }}>
+        <Form.Item style={{ marginTop: spacing.lg }}>
           <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
             保存设置
           </Button>

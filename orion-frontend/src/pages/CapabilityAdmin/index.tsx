@@ -31,6 +31,7 @@ import {
   SendOutlined,
 } from '@ant-design/icons';
 import { capabilityApi } from '@/api/capability';
+import { spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -431,7 +432,7 @@ export const CapabilityAdmin: React.FC = () => {
   ];
 
   return (
-    <div className="capability-admin" style={{ padding: 16 }}>
+    <div className="capability-admin" style={{ padding: spacing.md }}>
       <Tabs
         defaultActiveKey="capabilities"
         items={tabItems}

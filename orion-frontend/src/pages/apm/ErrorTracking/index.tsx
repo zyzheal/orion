@@ -9,6 +9,7 @@ import { Typography, Card, Table, Button, Tag, Space, message, Spin, Select, Mod
 import { WarningOutlined, ReloadOutlined, FilterOutlined, EyeOutlined, CodeOutlined } from '@ant-design/icons';
 import { apmApi, type TraceSummary } from '@/api/apm';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -88,11 +89,11 @@ const ApmErrorTrackingPage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ padding: spacing.lg }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <WarningOutlined style={{ marginRight: 12, color: colors.error[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <WarningOutlined style={{ marginRight: spacing[3], color: colors.error[500] }} />
               错误追踪
             </Title>
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>应用错误采集与堆栈分析（共 {errors.length} 个错误）</Text>
@@ -113,9 +114,9 @@ const ApmErrorTrackingPage: React.FC = () => {
         </div>
 
         {/* Error Trend Summary */}
-        <Card title="错误时间分布" style={{ marginBottom: 16 }}>
+        <Card title="错误时间分布" style={{ marginBottom: spacing.md }}>
           {errorTrend.length > 0 ? (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'end', height: 80 }}>
+            <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'end', height: 80 }}>
               {errorTrend.map(([hour, count]) => (
                 <div key={hour} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
                   <span style={{ fontSize: 10, color: colors.neutral[500] }}>{count}</span>
@@ -150,7 +151,7 @@ const ApmErrorTrackingPage: React.FC = () => {
         <Modal
           title={
             <span>
-              <CodeOutlined style={{ marginRight: 8, color: colors.error[500] }} />
+              <CodeOutlined style={{ marginRight: spacing.sm, color: colors.error[500] }} />
               Trace 详情
             </span>
           }

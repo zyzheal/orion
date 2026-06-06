@@ -264,12 +264,12 @@ const BranchPolicyList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BranchesOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BranchesOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             分支策略
           </Title>
           <Text type="secondary">管理分支保护策略和合并规则</Text>
@@ -305,7 +305,7 @@ const BranchPolicyList: React.FC = () => {
         onOk={() => form.submit()}
         width={600}
       >
-        <Form form={form} onFinish={handleSave} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} onFinish={handleSave} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             label="分支匹配模式"
             name="branchPattern"

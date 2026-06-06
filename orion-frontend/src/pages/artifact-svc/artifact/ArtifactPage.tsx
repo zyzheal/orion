@@ -41,7 +41,7 @@ import {
   type ArtifactStats as ArtifactStatsType,
 } from '@/api/artifacts';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -384,12 +384,12 @@ const ArtifactPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ContainerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ContainerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             构建制品
           </Title>
           <Text type="secondary">管理构建制品仓库、多架构信息和存储统计</Text>
@@ -410,7 +410,7 @@ const ArtifactPage: React.FC = () => {
 
       {/* Stats Panel */}
       {stats && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <StatsCard title="总制品数" value={stats.total} icon={<DatabaseOutlined />} />
           </Col>
@@ -437,7 +437,7 @@ const ArtifactPage: React.FC = () => {
 
       {/* Storage Distribution */}
       {stats && (
-        <Card title="阶段分布" style={{ marginBottom: 24 }}>
+        <Card title="阶段分布" style={{ marginBottom: spacing.lg }}>
           <Row gutter={16}>
             {Object.entries(stats.byStage || {}).map(([stage, count]) => {
               const total = stats.total || 1;
@@ -448,7 +448,7 @@ const ArtifactPage: React.FC = () => {
                     <Tag color={stageColorMap[stage] || 'default'}>
                       {stageLabelMap[stage] || stage}
                     </Tag>
-                    <div style={{ marginTop: 8 }}>
+                    <div style={{ marginTop: spacing.sm }}>
                       <Progress
                         type="circle"
                         percent={Math.round(percent)}
@@ -467,7 +467,7 @@ const ArtifactPage: React.FC = () => {
 
       {/* Artifact List */}
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', gap: spacing[3] }}>
           <Input.Search
             placeholder="搜索制品..."
             value={searchQuery}
@@ -602,7 +602,7 @@ const ArtifactPage: React.FC = () => {
 
             {/* Security Info */}
             {selectedArtifact.security && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>安全扫描结果</Title>
                 <Descriptions column={4} bordered size="small">
                   <Descriptions.Item label="Critical">
@@ -623,7 +623,7 @@ const ArtifactPage: React.FC = () => {
 
             {/* Build Info */}
             {selectedArtifact.build && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>构建信息</Title>
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="Pipeline Run">

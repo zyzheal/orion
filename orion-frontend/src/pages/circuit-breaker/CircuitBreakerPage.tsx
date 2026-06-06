@@ -384,7 +384,7 @@ const CircuitBreakerPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.error[500] }} />
             熔断器管理
           </Title>

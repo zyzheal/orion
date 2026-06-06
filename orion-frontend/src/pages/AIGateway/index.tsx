@@ -14,7 +14,7 @@ import {
   Progress,
   message,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ThunderboltOutlined,
   SafetyOutlined,
@@ -182,10 +182,10 @@ const AIGatewayPage: React.FC = () => {
   return (
     <DashboardLayout padding={24} columns={4}>
       {/* Header - spans all columns */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, gridColumn: '1 / -1' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg, gridColumn: '1 / -1' }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI 网关管理
           </Title>
           <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
@@ -232,7 +232,7 @@ const AIGatewayPage: React.FC = () => {
       </Card>
 
       {/* Gateway Status - spans all columns */}
-      <Card title="网关状态" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
+      <Card title="网关状态" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
         <Space size="large">
           <div>
             <Text type="secondary">网关状态:</Text>{' '}
@@ -256,18 +256,18 @@ const AIGatewayPage: React.FC = () => {
       </Card>
 
       {/* Health Table - spans all columns */}
-      <Card title="场景健康监控" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
+      <Card title="场景健康监控" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
         <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
       </Card>
 
       {/* Rules Info - spans all columns */}
-      <Card title="规则引擎" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
+      <Card title="规则引擎" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
           {rules ? (
             <div>
               <Text>内置降级规则覆盖 {rules.scenarios?.length || 15} 个 AI 场景</Text>
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginTop: spacing[3] }}>
                 {rules.scenarios?.map((s: string) => (
-                  <Tag key={s} style={{ marginBottom: 8 }}>
+                  <Tag key={s} style={{ marginBottom: spacing.sm }}>
                     {s}
                   </Tag>
                 ))}

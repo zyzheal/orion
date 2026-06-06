@@ -446,7 +446,7 @@ const NotificationCenter: React.FC = () => {
 
   // Render stats row
   const renderStatsRow = () => (
-    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+    <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
       <Col xs={12} sm={6}>
         <Card size="small" style={{ textAlign: 'center' }}>
           <Statistic
@@ -515,11 +515,11 @@ const NotificationCenter: React.FC = () => {
     return (
       <List.Item
         style={{
-          padding: 16,
+          padding: spacing.md,
           background: bgColor,
           borderLeft,
           borderRadius: 8,
-          marginBottom: 8,
+          marginBottom: spacing.sm,
           cursor: 'pointer',
           transition: 'all 0.2s',
         }}
@@ -537,7 +537,7 @@ const NotificationCenter: React.FC = () => {
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Title row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
               <Text
                 strong={!item.read}
                 style={{
@@ -578,7 +578,7 @@ const NotificationCenter: React.FC = () => {
             </Paragraph>
 
             {/* Meta row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
               <Text type="secondary" style={{ fontSize: spacing[3] }}>
                 {item.sender}
               </Text>
@@ -603,7 +603,7 @@ const NotificationCenter: React.FC = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 {item.actions && item.actions.length > 0 && (
-                  <Space style={{ marginBottom: 8 }}>
+                  <Space style={{ marginBottom: spacing.sm }}>
                     {item.actions.map((action, idx) => (
                       <Button
                         key={idx}
@@ -669,12 +669,12 @@ const NotificationCenter: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             通知中心
           </Title>
           <Text type="secondary">共 {notifications.length} 条通知</Text>
@@ -724,12 +724,12 @@ const NotificationCenter: React.FC = () => {
           key: tab.key,
           label: tab.label,
         }))}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       />
 
       {/* Pagination - Top */}
       {total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '8px 12px', background: colors.neutral[50], borderRadius: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, padding: '8px 12px', background: colors.neutral[50], borderRadius: 8 }}>
           <span style={{ fontSize: 13, color: colors.neutral[600] }}>
             共 {total} 条通知，第 {currentPage} 页
           </span>
@@ -757,7 +757,7 @@ const NotificationCenter: React.FC = () => {
 
       {/* Pagination - Bottom */}
       {total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24, marginBottom: 16, padding: '16px 0', borderTop: '1px solid colors.neutral[200]' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: spacing.lg, marginBottom: spacing.md, padding: '16px 0', borderTop: '1px solid colors.neutral[200]' }}>
           <Pagination
             current={currentPage}
             total={total}
@@ -786,7 +786,7 @@ const NotificationCenter: React.FC = () => {
         width={560}
         destroyOnClose
       >
-        <Form form={broadcastForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={broadcastForm} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="title"
             label="标题"
@@ -865,13 +865,13 @@ const NotificationCenter: React.FC = () => {
           <div>
             {/* Channel Settings */}
             <Title level={5}>通知渠道</Title>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>邮件通知</Text>
@@ -886,7 +886,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>声音提醒</Text>
@@ -901,7 +901,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>桌面推送</Text>
@@ -923,7 +923,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>工单分配</Text>
@@ -938,7 +938,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>工单升级</Text>
@@ -953,7 +953,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>SLA 警告</Text>
@@ -968,7 +968,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>SLA 违约</Text>
@@ -983,7 +983,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>Pipeline 完成</Text>
@@ -998,7 +998,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>系统告警</Text>
@@ -1013,7 +1013,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>评论提及</Text>
@@ -1028,7 +1028,7 @@ const NotificationCenter: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: spacing[3],
                 }}
               >
                 <Text>转派请求</Text>

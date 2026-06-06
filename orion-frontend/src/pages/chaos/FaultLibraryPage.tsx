@@ -26,6 +26,7 @@ import {
   DatabaseOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -190,13 +191,13 @@ export default function FaultLibraryPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <BugOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <BugOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         故障库
       </Title>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Row gutter={16} align="middle">
           <Col span={8}>
             <Input

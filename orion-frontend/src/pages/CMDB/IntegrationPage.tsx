@@ -25,7 +25,7 @@ import {
   StopOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import { getHosts, getK8sResources, getCICDResources, startK8sSync, stopK8sSync, type HostInfo, type K8sResource, type CICDResource } from '@/api/cmdb';
 
@@ -152,7 +152,7 @@ const IntegrationPage: React.FC = () => {
       {isInitialLoading && <PageSkeleton cards={3} rows={8} />}
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={4}>集成资源</Title>
               <Text type="secondary">主机、K8s、CI/CD 资源同步状态</Text>
@@ -167,7 +167,7 @@ const IntegrationPage: React.FC = () => {
             </Space>
           </div>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={8}>
               <Card><Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} /></Card>
             </Col>

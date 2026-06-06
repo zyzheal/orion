@@ -17,7 +17,7 @@ import {
   ReloadOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -233,12 +233,12 @@ const InceptionPage: React.FC = () => {
   // ==================== Render ====================
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={16}>
           <h2 style={{ margin: 0 }}>
-            <SafetyCertificateOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            <SafetyCertificateOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             SQL 审计引擎 (Inception)
           </h2>
         </Col>
@@ -280,7 +280,7 @@ const InceptionPage: React.FC = () => {
                 fontFamily: 'monospace',
                 fontSize: 14,
                 minHeight: 200,
-                marginBottom: 16,
+                marginBottom: spacing.md,
               }}
             />
             <Space wrap>
@@ -334,7 +334,7 @@ const InceptionPage: React.FC = () => {
               {/* Audit Results */}
               {resultTab === 'audit' && auditResult && (
                 <div>
-                  <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: spacing.md }}>
                     <Space>
                       <span>风险等级:</span>
                       <RiskBadge level={auditResult.riskLevel} />
@@ -343,8 +343,8 @@ const InceptionPage: React.FC = () => {
 
                   {/* Errors Table */}
                   {auditResult.errors.length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      <h4 style={{ color: colors.error[500], marginBottom: 8 }}>错误 ({auditResult.errors.length})</h4>
+                    <div style={{ marginBottom: spacing.md }}>
+                      <h4 style={{ color: colors.error[500], marginBottom: spacing.sm }}>错误 ({auditResult.errors.length})</h4>
                       <Table
                         bordered
                         size="small"
@@ -363,7 +363,7 @@ const InceptionPage: React.FC = () => {
                   {/* Warnings Table */}
                   {auditResult.warnings.length > 0 && (
                     <div>
-                      <h4 style={{ color: colors.warning[500], marginBottom: 8 }}>警告 ({auditResult.warnings.length})</h4>
+                      <h4 style={{ color: colors.warning[500], marginBottom: spacing.sm }}>警告 ({auditResult.warnings.length})</h4>
                       <Table
                         bordered
                         size="small"
@@ -388,7 +388,7 @@ const InceptionPage: React.FC = () => {
               {/* Parse Results */}
               {resultTab === 'parse' && parseResult && (
                 <div>
-                  <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
+                  <Descriptions bordered size="small" column={1} style={{ marginBottom: spacing.md }}>
                     <Descriptions.Item label="SQL 类型">{parseResult.type}</Descriptions.Item>
                     <Descriptions.Item label="解析状态">
                       {parseResult.success ? (
@@ -400,13 +400,13 @@ const InceptionPage: React.FC = () => {
                   </Descriptions>
                   {parseResult.formatted && (
                     <div>
-                      <h4 style={{ marginBottom: 8 }}>格式化后的 SQL</h4>
+                      <h4 style={{ marginBottom: spacing.sm }}>格式化后的 SQL</h4>
                       <pre
                         style={{
                           fontFamily: 'monospace',
                           fontSize: 13,
                           background: colors.neutral[100],
-                          padding: 12,
+                          padding: spacing[3],
                           borderRadius: 4,
                           maxHeight: 300,
                           overflow: 'auto',
@@ -422,7 +422,7 @@ const InceptionPage: React.FC = () => {
               {/* Execute Results */}
               {resultTab === 'execute' && executeResult && (
                 <div>
-                  <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
+                  <Descriptions bordered size="small" column={1} style={{ marginBottom: spacing.md }}>
                     <Descriptions.Item label="执行状态">
                       {executeResult.success ? (
                         <Tag color="green">成功</Tag>
@@ -436,14 +436,14 @@ const InceptionPage: React.FC = () => {
                   </Descriptions>
 
                   {executeResult.message && (
-                    <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: spacing.md }}>
                       <Tag color="blue">{executeResult.message}</Tag>
                     </div>
                   )}
 
                   {executeResult.result && executeResult.result.length > 0 && (
                     <div>
-                      <h4 style={{ marginBottom: 8 }}>查询结果 ({executeResult.result.length} 条)</h4>
+                      <h4 style={{ marginBottom: spacing.sm }}>查询结果 ({executeResult.result.length} 条)</h4>
                       <Table
                         bordered
                         size="small"
@@ -467,13 +467,13 @@ const InceptionPage: React.FC = () => {
 
       {/* History Section */}
       <Card
-        title={<><HistoryOutlined style={{ marginRight: 8 }} />审计历史</>}
+        title={<><HistoryOutlined style={{ marginRight: spacing.sm }} />审计历史</>}
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => loadHistory(pagination.current, pagination.pageSize)}>
             刷新
           </Button>
         }
-        style={{ marginTop: 16 }}
+        style={{ marginTop: spacing.md }}
       >
         <Table
           columns={historyColumns}

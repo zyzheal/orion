@@ -50,6 +50,7 @@ import {
   ResilienceScore,
 } from '../../../api/chaos';
 import type { ColumnsType } from 'antd/es/table';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -281,12 +282,12 @@ const ChaosEngineering: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             混沌工程
           </Title>
           <Text type="secondary">故障注入实验与系统弹性测试</Text>
@@ -312,7 +313,7 @@ const ChaosEngineering: React.FC = () => {
           showIcon
           closable
           onClose={() => setError(null)}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -325,7 +326,7 @@ const ChaosEngineering: React.FC = () => {
           showIcon
           closable
           onClose={() => setRunError(null)}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -333,11 +334,11 @@ const ChaosEngineering: React.FC = () => {
       <Card
         title={
           <>
-            <SafetyOutlined style={{ marginRight: 8 }} />
+            <SafetyOutlined style={{ marginRight: spacing.sm }} />
             系统弹性评分
           </>
         }
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       >
         <Row gutter={24}>
           <Col span={6}>
@@ -351,7 +352,7 @@ const ChaosEngineering: React.FC = () => {
                     ? 'normal'
                     : 'exception'
               }
-              style={{ marginTop: 8 }}
+              style={{ marginTop: spacing.sm }}
             />
           </Col>
           <Col span={6}>
@@ -390,7 +391,7 @@ const ChaosEngineering: React.FC = () => {
       </Card>
 
       {/* Experiment Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="实验总数" value={stats.total} />
@@ -432,7 +433,7 @@ const ChaosEngineering: React.FC = () => {
           description="存在生产环境的混沌实验，执行前请确认影响范围"
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -440,7 +441,7 @@ const ChaosEngineering: React.FC = () => {
       <Card
         title={
           <>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+            <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
             混沌实验列表
           </>
         }
@@ -475,7 +476,7 @@ const ChaosEngineering: React.FC = () => {
       <Modal
         title={
           <>
-            <ExperimentOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            <ExperimentOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             创建混沌实验
           </>
         }
@@ -491,7 +492,7 @@ const ChaosEngineering: React.FC = () => {
           description="请确保实验范围正确，生产环境实验需要额外审批"
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
         <Form form={form} layout="vertical" onFinish={handleCreateExperiment}>
           <Form.Item
@@ -609,7 +610,7 @@ const ChaosEngineering: React.FC = () => {
                   return (
                     <div key={i}>
                       <Tag color={cfg.color}>{cfg.label}</Tag>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                      <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         持续 {f.duration || 60}s | 严重程度 {f.severity || 'medium'}
                       </Text>
                     </div>

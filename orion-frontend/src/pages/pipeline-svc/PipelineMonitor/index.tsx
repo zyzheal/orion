@@ -632,7 +632,7 @@ const PipelineMonitor: React.FC = () => {
             color: colors.neutral[900],
           }}
         >
-          <RadarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <RadarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           运行监控
         </h2>
         <CardPanel>
@@ -674,7 +674,7 @@ const PipelineMonitor: React.FC = () => {
               color: colors.neutral[900],
             }}
           >
-            <RadarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <RadarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             运行监控
           </h2>
           {/* 实时监控指示器 */}
@@ -799,7 +799,7 @@ const PipelineMonitor: React.FC = () => {
         <CardPanel
           title={
             <span>
-              <LineChartOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+              <LineChartOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               运行趋势
             </span>
           }

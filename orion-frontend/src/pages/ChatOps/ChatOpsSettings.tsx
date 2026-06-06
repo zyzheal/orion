@@ -40,7 +40,7 @@ import {
   type PlatformConfig,
 } from '@/api/chatops';
 import { useChatOpsConfigStore } from '@/stores/chatOpsConfigStore';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -99,7 +99,7 @@ const QuestionConfigTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">配置 ChatOps 启动时展示的问答卡片</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleReset}>恢复默认</Button>
@@ -108,7 +108,7 @@ const QuestionConfigTab: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
         {questions.map((q) => (
           <Card
             key={q.key}
@@ -134,7 +134,7 @@ const QuestionConfigTab: React.FC = () => {
               </Space>
             }
           >
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: spacing[3], flexWrap: 'wrap' }}>
               <Input
                 value={q.title}
                 onChange={(e) => updateQuestion(q.key, { title: e.target.value })}
@@ -199,7 +199,7 @@ const CommandConfigTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">配置 ChatOps 底部快捷命令</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleReset}>恢复默认</Button>
@@ -208,7 +208,7 @@ const CommandConfigTab: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
         {commands.map((cmd) => (
           <Card
             key={cmd.key}
@@ -234,7 +234,7 @@ const CommandConfigTab: React.FC = () => {
               </Space>
             }
           >
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: spacing[3] }}>
               <Input
                 value={cmd.label}
                 onChange={(e) => updateCommand(cmd.key, { label: e.target.value })}
@@ -333,7 +333,7 @@ const PlatformConfigTab: React.FC = () => {
                 {platformLabels[platform.platform]}
               </Space>
             }
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
             extra={
               <Form.Item
                 name={`platform_${index}_enabled`}
@@ -470,10 +470,10 @@ const NotificationDNDTab: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
       {/* 全局设置 */}
       <Form form={form} layout="vertical" style={{ maxWidth: 700 }}>
-        <Card title="全局设置" style={{ marginBottom: 16 }}>
+        <Card title="全局设置" style={{ marginBottom: spacing.md }}>
           <Form.Item name="defaultPlatform" label="默认平台" initialValue="dingtalk">
             <Select
               options={[

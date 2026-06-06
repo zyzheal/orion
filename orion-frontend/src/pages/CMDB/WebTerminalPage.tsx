@@ -27,7 +27,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { getHosts, type HostInfo } from '@/api/cmdb';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 import '@xterm/xterm/css/xterm.css';
 
@@ -304,7 +304,7 @@ const WebTerminalPage: React.FC = () => {
   return (
     <div>
       {/* Toolbar */}
-      <Card size="small" style={{ marginBottom: 12 }}>
+      <Card size="small" style={{ marginBottom: spacing[3] }}>
         <Space>
           <Select
             style={{ width: 220 }}
@@ -342,14 +342,14 @@ const WebTerminalPage: React.FC = () => {
 
       {/* Tabs */}
       {activeTabs.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: spacing.sm, flexWrap: 'wrap' }}>
           {activeTabs.map((tab) => (
             <div
               key={tab.id}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: spacing.sm,
                 padding: '4px 12px',
                 background: tab.id === activeTabId ? colors.primary[500] : colors.neutral[100],
                 color: tab.id === activeTabId ? colors.neutral[0] : colors.neutral[700],
@@ -404,7 +404,7 @@ const WebTerminalPage: React.FC = () => {
 
       {/* 快捷提示 */}
       {activeTabs.length === 0 && (
-        <Card size="small" style={{ marginTop: 16 }}>
+        <Card size="small" style={{ marginTop: spacing.md }}>
           <Text type="secondary">提示：</Text>
           <Space direction="vertical" size={4}>
             <Text type="secondary">• 选择目标主机后点击「连接」按钮即可打开 SSH 终端</Text>

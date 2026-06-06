@@ -343,7 +343,7 @@ const TestSelector: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ExperimentOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />
             Test Selector
           </Title>

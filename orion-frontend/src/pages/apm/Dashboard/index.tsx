@@ -7,6 +7,7 @@ import { Typography, Card, Table, Row, Col, Statistic, Button, Tag, message, Spi
 import { DashboardOutlined, ReloadOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { apmApi, type TraceSummary, type ServiceInfo } from '@/api/apm';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -79,11 +80,11 @@ const ApmDashboardPage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ padding: spacing.lg }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               APM 性能仪表盘
             </Title>
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>应用性能监控与分布式链路追踪</Text>
@@ -92,7 +93,7 @@ const ApmDashboardPage: React.FC = () => {
         </div>
 
         {/* Overview Stats */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <Card>
               <Statistic title="总 Trace 数" value={traces.length} prefix={<ClockCircleOutlined />} />
@@ -116,7 +117,7 @@ const ApmDashboardPage: React.FC = () => {
         </Row>
 
         {/* Recent Traces */}
-        <Card title="最近链路" style={{ marginBottom: 16 }}>
+        <Card title="最近链路" style={{ marginBottom: spacing.md }}>
           <Table columns={traceColumns} dataSource={traces} rowKey="traceId" pagination={{ pageSize: 10 }} size="small"
             locale={{ emptyText: traces.length === 0 ? '暂无链路数据' : undefined }} />
         </Card>

@@ -232,12 +232,12 @@ const SkillMarketplace: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             技能市场
           </Title>
           <Text type="secondary">浏览和安装社区共享的技能包</Text>
@@ -250,7 +250,7 @@ const SkillMarketplace: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -291,14 +291,14 @@ const SkillMarketplace: React.FC = () => {
       >
         {selectedSkill && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
               <StatusBadge status={(selectedSkill.status as string) === 'active' ? 'success' : (selectedSkill.status as string) === 'inactive' ? 'cancelled' : (selectedSkill.status as string) === 'error' ? 'failed' : 'pending'} size="small" />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>
             <Text>{selectedSkill.description}</Text>
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text strong>标签: </Text>
               <Space size={4}>
                 {selectedSkill.tags.map((tag) => (
@@ -306,15 +306,15 @@ const SkillMarketplace: React.FC = () => {
                 ))}
               </Space>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text strong>作者: </Text>
               <Text>{selectedSkill.author}</Text>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text strong>版本: </Text>
               <Text>v{selectedSkill.version}</Text>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text strong>发布时间: </Text>
               <Text type="secondary">
                 {dayjs(selectedSkill.createdAt).format('YYYY-MM-DD HH:mm')}

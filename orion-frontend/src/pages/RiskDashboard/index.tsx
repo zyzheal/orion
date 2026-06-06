@@ -289,16 +289,16 @@ const RiskDashboardPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <WarningOutlined style={{ marginRight: 8, color: colors.warning[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <WarningOutlined style={{ marginRight: spacing.sm, color: colors.warning[500] }} />
           风险管理
         </Title>
         <Text type="secondary">风险评估、健康检查、风险事件监控</Text>
       </div>
 
       {/* Summary Cards */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} lg={8} xl={6}>
             <CardPanel>
@@ -324,7 +324,7 @@ const RiskDashboardPage: React.FC = () => {
       </div>
 
       {/* Risk Status */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="系统风险状态">
           <Space size="large">
             <div>
@@ -338,7 +338,7 @@ const RiskDashboardPage: React.FC = () => {
       </div>
 
       {/* Charts Row */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={14}>
             <CardPanel>
@@ -365,7 +365,7 @@ const RiskDashboardPage: React.FC = () => {
       </div>
 
       {/* Assessment Table */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="风险评估记录">
           <Table<RiskAssessment>
             columns={columns}
@@ -448,7 +448,7 @@ const RiskDashboardPage: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <Title level={5} style={{ marginTop: 24 }}>
+            <Title level={5} style={{ marginTop: spacing.lg }}>
               风险因素
             </Title>
             <Timeline>

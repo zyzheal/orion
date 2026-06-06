@@ -29,7 +29,7 @@ import {
   FileTextOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -262,7 +262,7 @@ const ConnectLogTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Space>
           <Select
             style={{ width: 120 }}
@@ -401,7 +401,7 @@ const FileLogTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
         <Button icon={<ReloadOutlined />} onClick={() => setLogs(mockFileLogs)}>
           刷新
         </Button>
@@ -447,7 +447,7 @@ const AuditLogPage: React.FC = () => {
   return (
     <div>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={8}>
           <Card size="small">
             <Statistic title="连接日志" value={mockConnectLogs.length} prefix={<ClockCircleOutlined />} />

@@ -161,8 +161,8 @@ const ROIFeatureReport: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <LineChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             ROI 报告
           </Title>
           <Text type="secondary">AI 功能投资回报分析与优化建议</Text>
@@ -183,7 +183,7 @@ const ROIFeatureReport: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -235,7 +235,7 @@ const ROIFeatureReport: React.FC = () => {
             各功能 ROI 分析
           </Space>
         }
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       >
         <AntTable
           columns={featureColumns}

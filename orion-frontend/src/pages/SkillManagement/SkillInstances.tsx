@@ -304,11 +304,11 @@ const SkillInstances: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Space style={{ marginBottom: 8 }}>
+          <Space style={{ marginBottom: spacing.sm }}>
             <Button
               type="text"
               icon={<ArrowLeftOutlined />}
@@ -317,8 +317,8 @@ const SkillInstances: React.FC = () => {
               返回
             </Button>
           </Space>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             实例管理 {skill && <Text type="secondary">- {skill.name}</Text>}
           </Title>
           <Text type="secondary">管理技能的运行实例，支持多租户和项目级别隔离</Text>
@@ -334,7 +334,7 @@ const SkillInstances: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card>
             <Statistic title="实例总数" value={instances.length} suffix="个" />

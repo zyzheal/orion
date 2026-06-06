@@ -247,13 +247,13 @@ const MonitoringAlerts: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <BellOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <BellOutlined style={{ marginRight: spacing.sm }} />
             告警列表
           </Title>
           <Text type="secondary">共 {filteredAlerts.length} 条告警</Text>
@@ -263,7 +263,7 @@ const MonitoringAlerts: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -291,7 +291,7 @@ const MonitoringAlerts: React.FC = () => {
       >
         {selectedAlert && (
           <>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text type="secondary">告警:</Text> <Text strong>{selectedAlert.ruleName}</Text>
               <br />
               <Tag color={severityConfig[selectedAlert.severity]?.color}>

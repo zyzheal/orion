@@ -311,8 +311,8 @@ const BudgetManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             预算管理
           </Title>
           <Text type="secondary">创建和管理 AI 调用预算</Text>
@@ -331,7 +331,7 @@ const BudgetManagement: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总预算" value={budgets.length} />
@@ -367,7 +367,7 @@ const BudgetManagement: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

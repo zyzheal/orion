@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Supply Chain Security Page
@@ -158,11 +158,11 @@ const SupplyChainPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <TruckOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TruckOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <SecurityScanOutlined /> Supply Chain Security
           </Title>
           <Text type="secondary">SBOM management, vulnerability scanning, and compliance</Text>
@@ -178,7 +178,7 @@ const SupplyChainPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="SBOM Documents" value={documents.length} />
@@ -209,7 +209,7 @@ const SupplyChainPage: React.FC = () => {
       </Row>
 
       {/* SBOM Documents */}
-      <Card title={<><FileTextOutlined /> SBOM Documents</>} style={{ marginBottom: 24 }}>
+      <Card title={<><FileTextOutlined /> SBOM Documents</>} style={{ marginBottom: spacing.lg }}>
         <Table
           columns={docColumns}
           dataSource={documents}

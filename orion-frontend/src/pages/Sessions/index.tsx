@@ -315,8 +315,8 @@ const SessionManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ClockCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ClockCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Session Management
           </Title>
           <Text type="secondary">用户会话管理</Text>

@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { useSubAppStore, SubAppConfig, SubAppConfigHistory } from '@/stores/subappStore';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -320,15 +321,15 @@ const SubAppManagement: React.FC = () => {
       {/* Page Header */}
       <div
         style={{
-          marginBottom: 24,
+          marginBottom: spacing.lg,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SettingOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SettingOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             子应用管理
           </Title>
           <Text type="secondary">配置和管理微前端子应用，无需代码修改即可接入新子系统</Text>
@@ -344,7 +345,7 @@ const SubAppManagement: React.FC = () => {
         description="子应用配置通过页面管理，保存后立即生效。3个子应用已预配置：数据库管理、知识库、监控中心。"
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       />
 
       {/* Table */}
@@ -370,7 +371,7 @@ const SubAppManagement: React.FC = () => {
         width={600}
         okText={isEditing ? '保存' : '创建'}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="显示名称"

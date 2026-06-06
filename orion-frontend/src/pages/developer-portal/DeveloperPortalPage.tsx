@@ -82,7 +82,7 @@ import {
   PlaygroundExecuteRequest,
 } from '../../api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -1098,10 +1098,10 @@ const DeveloperPortalPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CodeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             开发者门户
           </Title>
           <Text type="secondary">API 文档、Mock 服务、SDK 生成、订阅管理与在线调试</Text>
@@ -1142,13 +1142,13 @@ const DeveloperPortalPage: React.FC = () => {
       </div>
 
       {/* Main Tabs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} style={{ marginBottom: 16 }} />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} style={{ marginBottom: spacing.md }} />
 
       {/* ==================== Tab: API Documents ==================== */}
       {activeTab === TAB_KEYS.DOCS && (
         <>
           {/* Stats */}
-          <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.md }}>
             <Col span={4}><Card size="small"><Statistic title="文档总数" value={docStats.total} /></Card></Col>
             <Col span={4}><Card size="small"><Statistic title="已发布" value={docStats.published} valueStyle={{ color: colors.success[500] }} /></Card></Col>
             <Col span={4}><Card size="small"><Statistic title="草稿" value={docStats.draft} valueStyle={{ color: colors.neutral[500] }} /></Card></Col>
@@ -1158,7 +1158,7 @@ const DeveloperPortalPage: React.FC = () => {
           </Row>
 
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Search
                 placeholder="搜索文档..."
                 allowClear
@@ -1183,7 +1183,7 @@ const DeveloperPortalPage: React.FC = () => {
       {/* ==================== Tab: Mock Service ==================== */}
       {activeTab === TAB_KEYS.MOCK && (
         <>
-          <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.md }}>
             <Col span={8}><Card size="small"><Statistic title="规则总数" value={mockStats.total} /></Card></Col>
             <Col span={8}><Card size="small"><Statistic title="已启用" value={mockStats.enabled} valueStyle={{ color: colors.success[500] }} /></Card></Col>
             <Col span={8}><Card size="small"><Statistic title="已禁用" value={mockStats.disabled} valueStyle={{ color: colors.neutral[500] }} /></Card></Col>
@@ -1205,7 +1205,7 @@ const DeveloperPortalPage: React.FC = () => {
       {/* ==================== Tab: SDK Generator ==================== */}
       {activeTab === TAB_KEYS.SDK && (
         <>
-          <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.md }}>
             <Col span={6}><Card size="small"><Statistic title="任务总数" value={sdkStats.total} /></Card></Col>
             <Col span={6}><Card size="small"><Statistic title="已完成" value={sdkStats.completed} valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} /></Card></Col>
             <Col span={6}><Card size="small"><Statistic title="生成中" value={sdkStats.pending} valueStyle={{ color: colors.primary[500] }} prefix={<SyncOutlined spin />} /></Card></Col>
@@ -1228,7 +1228,7 @@ const DeveloperPortalPage: React.FC = () => {
       {/* ==================== Tab: Subscriptions ==================== */}
       {activeTab === TAB_KEYS.SUBSCRIPTIONS && (
         <>
-          <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.md }}>
             <Col span={5}><Card size="small"><Statistic title="订阅总数" value={subStats.totalSubscriptions} /></Card></Col>
             <Col span={5}><Card size="small"><Statistic title="已通过" value={subStats.approved} valueStyle={{ color: colors.success[500] }} /></Card></Col>
             <Col span={5}><Card size="small"><Statistic title="待审批" value={subStats.pending} valueStyle={{ color: colors.warning[500] }} prefix={<ClockCircleOutlined />} /></Card></Col>
@@ -1252,7 +1252,7 @@ const DeveloperPortalPage: React.FC = () => {
       {/* ==================== Tab: Playground ==================== */}
       {activeTab === TAB_KEYS.PLAYGROUND && (
         <>
-          <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.md }}>
             <Col span={8}><Card size="small"><Statistic title="保存的请求" value={pgStats.totalRequests} /></Card></Col>
             <Col span={8}><Card size="small"><Statistic title="总执行次数" value={pgStats.totalExecutions} /></Card></Col>
             <Col span={8}><Card size="small"><Statistic title="平均延迟" value={pgStats.avgLatency} suffix="ms" /></Card></Col>
@@ -1261,7 +1261,7 @@ const DeveloperPortalPage: React.FC = () => {
           <Row gutter={16}>
             {/* Request Form */}
             <Col span={12}>
-              <Card title={<><SendOutlined style={{ marginRight: 8 }} />请求构建器</>} style={{ marginBottom: 16 }}>
+              <Card title={<><SendOutlined style={{ marginRight: spacing.sm }} />请求构建器</>} style={{ marginBottom: spacing.md }}>
                 <Form form={playgroundForm} layout="vertical" onFinish={handleExecutePlayground} initialValues={{ method: 'GET', bodyType: 'json' }}>
                   <Row gutter={12}>
                     <Col span={6}>
@@ -1305,8 +1305,8 @@ const DeveloperPortalPage: React.FC = () => {
             {/* Response */}
             <Col span={12}>
               <Card
-                title={<><ThunderboltOutlined style={{ marginRight: 8 }} />响应结果</>}
-                style={{ marginBottom: 16 }}
+                title={<><ThunderboltOutlined style={{ marginRight: spacing.sm }} />响应结果</>}
+                style={{ marginBottom: spacing.md }}
                 extra={playgroundResult && (
                   <Space>
                     <Tag color={playgroundResult.response.statusCode < 300 ? 'green' : playgroundResult.response.statusCode < 400 ? 'blue' : 'red'}>
@@ -1324,13 +1324,13 @@ const DeveloperPortalPage: React.FC = () => {
                 ) : playgroundResult ? (
                   <div>
                     <Divider style={{ margin: '8px 0' }}>响应 Headers</Divider>
-                    <div style={{ marginBottom: 8 }}>
+                    <div style={{ marginBottom: spacing.sm }}>
                       {Object.entries(playgroundResult.response.headers).map(([k, v]) => (
                         <Tag key={k} style={{ marginBottom: 4 }}><Text code style={{ fontSize: 11 }}>{k}: {v}</Text></Tag>
                       ))}
                     </div>
                     <Divider style={{ margin: '8px 0' }}>响应 Body</Divider>
-                    <pre style={{ background: colors.light.bg.tertiary, padding: 12, borderRadius: 8, maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
+                    <pre style={{ background: colors.light.bg.tertiary, padding: spacing[3], borderRadius: 8, maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
                       {playgroundResult.response.body}
                     </pre>
                   </div>
@@ -1342,7 +1342,7 @@ const DeveloperPortalPage: React.FC = () => {
           </Row>
 
           {/* Saved Requests */}
-          <Card title={<><HistoryOutlined style={{ marginRight: 8 }} />保存的请求</>}>
+          <Card title={<><HistoryOutlined style={{ marginRight: spacing.sm }} />保存的请求</>}>
             <Table
               columns={pgColumns}
               dataSource={playgroundRequests}
@@ -1359,7 +1359,7 @@ const DeveloperPortalPage: React.FC = () => {
       {/* ==================== Modals & Drawers ==================== */}
 
       {/* Create Document Modal */}
-      <Modal title={<><CloudUploadOutlined style={{ marginRight: 8, color: colors.primary[500] }} />创建文档</>} open={createDocModal} onCancel={() => setCreateDocModal(false)} onOk={() => createDocForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
+      <Modal title={<><CloudUploadOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />创建文档</>} open={createDocModal} onCancel={() => setCreateDocModal(false)} onOk={() => createDocForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
         <Form form={createDocForm} layout="vertical" onFinish={handleCreateDoc}>
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}><Input placeholder="如: Orion Pipeline API 参考" /></Form.Item>
           <Form.Item name="slug" label="URL 别名" rules={[{ required: true, message: '请输入 URL 别名' }]}><Input placeholder="如: pipeline-api-reference" /></Form.Item>
@@ -1375,7 +1375,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Modal>
 
       {/* Edit Document Drawer */}
-      <Drawer title={<><EditOutlined style={{ marginRight: 8 }} />编辑文档</>} open={editDocDrawer} onClose={() => setEditDocDrawer(false)} width={720} destroyOnClose extra={<Space>
+      <Drawer title={<><EditOutlined style={{ marginRight: spacing.sm }} />编辑文档</>} open={editDocDrawer} onClose={() => setEditDocDrawer(false)} width={720} destroyOnClose extra={<Space>
         {selectedDoc && (selectedDoc.published ? <Button onClick={() => handleUnpublish(selectedDoc.id)}>取消发布</Button> : <Button type="primary" onClick={() => handlePublish(selectedDoc.id)}>发布</Button>)}
         <Button onClick={() => editDocForm.submit()} loading={loading} type="primary">保存</Button>
       </Space>}>
@@ -1433,7 +1433,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Modal>
 
       {/* Create Mock Rule Modal */}
-      <Modal title={<><ExperimentOutlined style={{ marginRight: 8 }} />添加 Mock 规则</>} open={createMockModal} onCancel={() => setCreateMockModal(false)} onOk={() => createMockForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
+      <Modal title={<><ExperimentOutlined style={{ marginRight: spacing.sm }} />添加 Mock 规则</>} open={createMockModal} onCancel={() => setCreateMockModal(false)} onOk={() => createMockForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
         <Form form={createMockForm} layout="vertical" onFinish={handleCreateMock}>
           <Form.Item name="name" label="规则名称" rules={[{ required: true }]}><Input placeholder="如: 用户列表 Mock" /></Form.Item>
           <Form.Item name="description" label="描述"><Input placeholder="规则描述" /></Form.Item>
@@ -1452,7 +1452,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Modal>
 
       {/* Edit Mock Rule Modal */}
-      <Modal title={<><EditOutlined style={{ marginRight: 8 }} />编辑 Mock 规则</>} open={editMockModal} onCancel={() => setEditMockModal(false)} onOk={() => editMockForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
+      <Modal title={<><EditOutlined style={{ marginRight: spacing.sm }} />编辑 Mock 规则</>} open={editMockModal} onCancel={() => setEditMockModal(false)} onOk={() => editMockForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
         <Form form={editMockForm} layout="vertical" onFinish={handleEditMock}>
           <Form.Item name="name" label="规则名称" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="description" label="描述"><Input /></Form.Item>
@@ -1471,7 +1471,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Modal>
 
       {/* Create SDK Task Modal */}
-      <Modal title={<><CodeOutlined style={{ marginRight: 8 }} />生成 SDK</>} open={createSdkModal} onCancel={() => setCreateSdkModal(false)} onOk={() => createSdkForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
+      <Modal title={<><CodeOutlined style={{ marginRight: spacing.sm }} />生成 SDK</>} open={createSdkModal} onCancel={() => setCreateSdkModal(false)} onOk={() => createSdkForm.submit()} confirmLoading={loading} width={720} destroyOnClose>
         <Form form={createSdkForm} layout="vertical" onFinish={handleCreateSdk}>
           <Form.Item name="name" label="任务名称" rules={[{ required: true }]}><Input placeholder="如: Orion Pipeline SDK" /></Form.Item>
           <Row gutter={16}>
@@ -1495,7 +1495,7 @@ const DeveloperPortalPage: React.FC = () => {
             </Descriptions>
             {selectedSdk.status === 'completed' && selectedSdk.output ? (
               <Card size="small" title="生成的代码">
-                <pre style={{ background: colors.light.bg.tertiary, padding: 16, borderRadius: 8, maxHeight: 500, overflow: 'auto', fontSize: 12, lineHeight: 1.5 }}>
+                <pre style={{ background: colors.light.bg.tertiary, padding: spacing.md, borderRadius: 8, maxHeight: 500, overflow: 'auto', fontSize: 12, lineHeight: 1.5 }}>
                   {selectedSdk.output}
                 </pre>
               </Card>
@@ -1509,7 +1509,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Drawer>
 
       {/* Create Subscription Modal */}
-      <Modal title={<><KeyOutlined style={{ marginRight: 8 }} />申请 API 订阅</>} open={createSubModal} onCancel={() => setCreateSubModal(false)} onOk={() => createSubForm.submit()} confirmLoading={loading} width={600} destroyOnClose>
+      <Modal title={<><KeyOutlined style={{ marginRight: spacing.sm }} />申请 API 订阅</>} open={createSubModal} onCancel={() => setCreateSubModal(false)} onOk={() => createSubForm.submit()} confirmLoading={loading} width={600} destroyOnClose>
         <Form form={createSubForm} layout="vertical" onFinish={handleCreateSub}>
           <Form.Item name="apiName" label="API 名称" rules={[{ required: true }]}><Input placeholder="如: Pipeline API" /></Form.Item>
           <Row gutter={16}>

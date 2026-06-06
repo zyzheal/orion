@@ -176,15 +176,15 @@ const DeploymentDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/deployments')}>
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <RocketOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             部署详情: {deployment.appName}
           </Title>
@@ -338,7 +338,7 @@ const DeploymentDetail: React.FC = () => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 12,
+                      gap: spacing[3],
                       padding: '12px 16px',
                       background:
                         check.status === 'healthy'

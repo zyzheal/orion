@@ -543,12 +543,12 @@ const PipelineDetail: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline.name}
           </Title>
           <Space size="middle" wrap>
@@ -592,7 +592,7 @@ const PipelineDetail: React.FC = () => {
       </div>
 
       {/* Pipeline info card */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
         <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
           <Descriptions.Item label="状态">
             <StatusBadge status={pipeline.status} size="small" />
@@ -639,7 +639,7 @@ const PipelineDetail: React.FC = () => {
           key="stages"
         >
           {/* Stage timeline visualization */}
-          <Card style={{ marginBottom: 24 }} title="执行阶段">
+          <Card style={{ marginBottom: spacing.lg }} title="执行阶段">
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               {/* Stage progress bar */}
               <div
@@ -729,12 +729,12 @@ const PipelineDetail: React.FC = () => {
 
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: spacing.sm }}>
                   {pipeline.stages.map((stage: any, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
-                      style={{ marginBottom: 8 }}
+                      style={{ marginBottom: spacing.sm }}
                       title={
                         <Space>
                           <StatusBadge status={stage.status} size="small" />
@@ -776,7 +776,7 @@ const PipelineDetail: React.FC = () => {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 8,
+                                gap: spacing.sm,
                                 fontSize: spacing[3],
                               }}
                             >
@@ -812,12 +812,12 @@ const PipelineDetail: React.FC = () => {
           key="logs"
         >
           {/* Log viewer */}
-          <Card style={{ marginBottom: 24 }} title="日志输出">
+          <Card style={{ marginBottom: spacing.lg }} title="日志输出">
             <div
               style={{
                 background: colors.neutral[900],
                 borderRadius: 6,
-                padding: 16,
+                padding: spacing.md,
                 fontFamily: 'Menlo, Monaco, "Courier New", monospace',
                 fontSize: spacing[3],
                 lineHeight: 1.6,
@@ -827,13 +827,13 @@ const PipelineDetail: React.FC = () => {
               }}
             >
               {pipeline.stages?.map((stage: any) => (
-                <div key={stage.name} style={{ marginBottom: 16 }}>
+                <div key={stage.name} style={{ marginBottom: spacing.md }}>
                   {/* Stage header */}
                   <div
                     style={{
                       color: stageStatusColors[stage.status],
                       fontWeight: 600,
-                      marginBottom: 8,
+                      marginBottom: spacing.sm,
                       borderBottom: '1px solid colors.neutral[800]',
                       paddingBottom: 4,
                     }}
@@ -844,7 +844,7 @@ const PipelineDetail: React.FC = () => {
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
                     stage.logs.map((log: any, index: number) => (
-                      <div key={index} style={{ paddingLeft: 16 }}>
+                      <div key={index} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
                         ) : log.includes('passed') ||
@@ -857,7 +857,7 @@ const PipelineDetail: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
+                    <div style={{ paddingLeft: spacing.md, color: colors.neutral[500] }}>
                       {stage.status === 'pending' ? '[Waiting to start...]' : '[No logs available]'}
                     </div>
                   )}
@@ -889,7 +889,7 @@ const PipelineDetail: React.FC = () => {
           key="dag"
         >
           {/* DAG visualization */}
-          <Card style={{ marginBottom: 24 }} title="依赖关系图">
+          <Card style={{ marginBottom: spacing.lg }} title="依赖关系图">
             {pipeline.stages && pipeline.stages.length > 0 ? (
               <DAGGraph
                 stages={pipeline.stages.map((stage: any, idx: number) => ({
@@ -928,7 +928,7 @@ const PipelineDetail: React.FC = () => {
           }
           key="runs"
         >
-          <Card style={{ marginBottom: 24 }} title={`运行历史 (${runs.length} 条)`}>
+          <Card style={{ marginBottom: spacing.lg }} title={`运行历史 (${runs.length} 条)`}>
             <Table
               dataSource={runs}
               loading={runsLoading}
@@ -1021,8 +1021,8 @@ const PipelineDetail: React.FC = () => {
           key="outputs"
         >
           {/* Task outputs / variable propagation table */}
-          <Card style={{ marginBottom: 24 }} title="任务输出与变量传播">
-            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          <Card style={{ marginBottom: spacing.lg }} title="任务输出与变量传播">
+            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
               以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
             </Text>
             <TaskOutputsTable />

@@ -48,6 +48,7 @@ import {
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -426,7 +427,7 @@ const ApprovalManagement: React.FC = () => {
         </Descriptions>
 
         {/* Approval Progress */}
-        <Card size="small" title="审批进度" style={{ marginTop: 16 }}>
+        <Card size="small" title="审批进度" style={{ marginTop: spacing.md }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Progress
               percent={approvalProgress(a)}
@@ -447,7 +448,7 @@ const ApprovalManagement: React.FC = () => {
         </Card>
 
         {/* Approver List */}
-        <Card size="small" title="审批人列表" style={{ marginTop: 16 }}>
+        <Card size="small" title="审批人列表" style={{ marginTop: spacing.md }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             {a.approverIds.map((uid: string) => {
               const hasApproved = a.approvals.includes(uid);
@@ -489,7 +490,7 @@ const ApprovalManagement: React.FC = () => {
 
         {/* Comment History */}
         {a.comments && a.comments.length > 0 && (
-          <Card size="small" title="审批评论" style={{ marginTop: 16 }}>
+          <Card size="small" title="审批评论" style={{ marginTop: spacing.md }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               {a.comments.map((c: ApprovalComment, idx: number) => (
                 <div
@@ -534,7 +535,7 @@ const ApprovalManagement: React.FC = () => {
 
         {/* Metadata */}
         {a.metadata && Object.keys(a.metadata).length > 0 && (
-          <Card size="small" title="元数据" style={{ marginTop: 16 }}>
+          <Card size="small" title="元数据" style={{ marginTop: spacing.md }}>
             <Descriptions column={2} size="small">
               {Object.entries(a.metadata).map(([key, value]) => (
                 <Descriptions.Item key={key} label={key}>
@@ -547,7 +548,7 @@ const ApprovalManagement: React.FC = () => {
 
         {/* Action buttons for pending items */}
         {a.status === 'pending' && (
-          <Space style={{ marginTop: 16 }}>
+          <Space style={{ marginTop: spacing.md }}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -584,12 +585,12 @@ const ApprovalManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <CheckCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 审批管理
               </Title>
               <Text type="secondary">管理多级审批流程，包括创建、审批和跟踪</Text>
@@ -609,7 +610,7 @@ const ApprovalManagement: React.FC = () => {
           </div>
 
           {/* Stats Panel */}
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card size="small" style={{ marginBottom: spacing.md }}>
             <Space size="large">
               <Space>
                 <Text type="secondary">总计:</Text>
@@ -641,7 +642,7 @@ const ApprovalManagement: React.FC = () => {
 
           {/* Filters */}
           <Card>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
               <Input.Search
                 placeholder="搜索审批标题、描述或申请人..."
                 allowClear
@@ -752,7 +753,7 @@ const ApprovalManagement: React.FC = () => {
                   : undefined,
             }}
           >
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: spacing.sm }}>
               <Text type="secondary">
                 {commentAction === 'approve'
                   ? '确认通过该审批？可填写评论理由（可选）。'

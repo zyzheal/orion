@@ -267,7 +267,7 @@ const CapabilityMappingTab: React.FC = () => {
   return (
     <div>
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
-        <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Space>
             <Input
               prefix={<SearchOutlined />}
@@ -568,9 +568,9 @@ const ApprovalConfigTab: React.FC = () => {
       {/* 审批配置 */}
       <Card
         bodyStyle={{ padding: '0 24px 24px' }}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       >
-        <div style={{ paddingTop: 20, marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
+        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
           <Space>
             <SafetyOutlined style={{ color: colors.purple[500], fontSize: 18 }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
@@ -599,7 +599,7 @@ const ApprovalConfigTab: React.FC = () => {
       <Card
         bodyStyle={{ padding: '0 24px 24px' }}
       >
-        <div style={{ paddingTop: 20, marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
+        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
           <Space>
             <TeamOutlined style={{ color: colors.primary[500], fontSize: 18 }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
@@ -900,7 +900,7 @@ const AdminSettings: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: spacing.md }}>
       {/* 功能标签页 */}
       <Card bodyStyle={{ padding: '16px 24px' }}>
         <Tabs

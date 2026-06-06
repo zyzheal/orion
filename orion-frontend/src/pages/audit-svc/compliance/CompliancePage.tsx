@@ -54,7 +54,7 @@ import {
   type ComplianceScore,
   type AuditPlan,
 } from '@/api/compliance';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // API 响应包装接口
 interface AuditLogResponse { data?: { entries?: AuditLogEntry[] } }
@@ -476,13 +476,13 @@ const CompliancePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <SecurityScanOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <SecurityScanOutlined style={{ marginRight: spacing.sm }} />
             安全与合规
           </Title>
           <Text type="secondary">合规策略管理、审计日志链验证和完整性报告</Text>
@@ -507,7 +507,7 @@ const CompliancePage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -550,7 +550,7 @@ const CompliancePage: React.FC = () => {
 
       {/* Chain Info */}
       {chainInfo && (
-        <Card title="审计日志链状态" style={{ marginTop: 16 }}>
+        <Card title="审计日志链状态" style={{ marginTop: spacing.md }}>
           <Row gutter={24}>
             <Col span={8}>
               <Statistic title="总条目数" value={chainInfo.totalEntries} />

@@ -7,6 +7,7 @@ import {
   Typography, Card, Table, Tag, Space, Button, Modal, Form, Input,
   Select, message, Row, Col, Switch, Drawer,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   BellOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
   ReloadOutlined, FileTextOutlined,
@@ -101,7 +102,7 @@ const TemplatesDrawer: React.FC<{
       onClose={onClose}
       width={800}
     >
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: spacing.md }}>
         <Text>按类别筛选：</Text>
         <Select
           style={{ width: 120 }}
@@ -286,16 +287,16 @@ const AlertRulesPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           告警规则管理
         </Title>
         <Text type="secondary">管理和配置自定义告警规则，支持从模板快速创建</Text>
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Space>
             <Text type="secondary">共 {rules.length} 条规则</Text>
           </Space>

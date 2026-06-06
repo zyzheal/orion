@@ -230,12 +230,12 @@ const ModuleRegistry: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BlockOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BlockOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             模块注册
           </Title>
           <Text type="secondary">IaC 模块浏览与版本管理</Text>
@@ -255,7 +255,7 @@ const ModuleRegistry: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

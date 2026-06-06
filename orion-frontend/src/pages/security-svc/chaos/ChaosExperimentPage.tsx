@@ -30,6 +30,7 @@ import {
   ExperimentOutlined,} from '@ant-design/icons';
 import { chaosApi, resilienceApi, type ChaosExperiment } from '@/api/chaos';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -147,11 +148,11 @@ const ChaosExperimentPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ExperimentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <ThunderboltOutlined /> Chaos Experiments
           </Title>
           <Text type="secondary">Manage chaos experiments and resilience scoring</Text>
@@ -167,7 +168,7 @@ const ChaosExperimentPage: React.FC = () => {
       </div>
 
       {/* Resilience Score Card */}
-      <Card title={<><SafetyOutlined /> Resilience Score</>} style={{ marginBottom: 24 }}>
+      <Card title={<><SafetyOutlined /> Resilience Score</>} style={{ marginBottom: spacing.lg }}>
         <Row gutter={24}>
           <Col span={6}>
             <Statistic title="Score" value={score?.score ?? 0} suffix="/ 100" />

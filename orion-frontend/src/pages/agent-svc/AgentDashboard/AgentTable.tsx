@@ -164,10 +164,10 @@ const AgentTable: React.FC<AgentTableProps> = ({
 
   return (
     <div>
-      <Typography.Title level={5} style={{ marginBottom: 12 }}>
+      <Typography.Title level={5} style={{ marginBottom: spacing[3] }}>
         Agent Profiles
       </Typography.Title>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={onSearch}
           onFilter={onFilter}

@@ -26,7 +26,7 @@ import {
   Row,
   Col,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
   ReloadOutlined,
@@ -494,12 +494,12 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BankOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BankOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             租户管理
           </Title>
           <Text type="secondary">
@@ -535,7 +535,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       </div>
 
       {/* P2 修复: 搜索和筛选区域 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Row gutter={16} align="middle">
           <Col>
             <Input.Search
@@ -695,7 +695,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
             </Space>
           </Divider>
           {/* P2-5 修复: 模板选择 */}
-          <Form.Item label="选择模板" style={{ marginBottom: 16 }}>
+          <Form.Item label="选择模板" style={{ marginBottom: spacing.md }}>
             <Space>
               {QUOTA_TEMPLATES.map((template) => (
                 <Button

@@ -117,6 +117,7 @@ func TestDispatchService_ManualDispatch(t *testing.T) {
 
 func TestDispatchService_AddRule(t *testing.T) {
 	svc, repo := newTestDispatchService()
+	ctx := context.Background()
 
 	rule := &models.DispatchRule{
 		ID:         "rule-1",
@@ -126,7 +127,7 @@ func TestDispatchService_AddRule(t *testing.T) {
 		Priority:   10,
 	}
 
-	err := svc.AddRule(rule)
+	err := svc.AddRule(ctx, rule)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -137,12 +138,13 @@ func TestDispatchService_AddRule(t *testing.T) {
 
 func TestDispatchService_RemoveRule(t *testing.T) {
 	svc, repo := newTestDispatchService()
+	ctx := context.Background()
 
 	repo.Rules = []models.DispatchRule{
 		{ID: "rule-1", Name: "Test"},
 	}
 
-	err := svc.RemoveRule("rule-1")
+	err := svc.RemoveRule(ctx, "rule-1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -153,8 +155,9 @@ func TestDispatchService_RemoveRule(t *testing.T) {
 
 func TestDispatchService_RemoveRule_NotFound(t *testing.T) {
 	svc, _ := newTestDispatchService()
+	ctx := context.Background()
 
-	err := svc.RemoveRule("nonexistent")
+	err := svc.RemoveRule(ctx, "nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent rule")
 	}
@@ -259,13 +262,14 @@ func TestDispatchService_GetMetrics(t *testing.T) {
 
 func TestDispatchService_GetRules(t *testing.T) {
 	svc, repo := newTestDispatchService()
+	ctx := context.Background()
 
 	repo.Rules = []models.DispatchRule{
 		{ID: "rule-1", Name: "A"},
 		{ID: "rule-2", Name: "B"},
 	}
 
-	rules, err := svc.GetRules()
+	rules, err := svc.GetRules(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

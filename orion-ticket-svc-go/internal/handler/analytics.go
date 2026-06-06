@@ -22,7 +22,7 @@ func (h *AnalyticsHandler) GetStatistics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStatistics(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})
@@ -33,7 +33,7 @@ func (h *AnalyticsHandler) GetResolutionStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetResolutionStats(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})
@@ -44,7 +44,7 @@ func (h *AnalyticsHandler) GetBacklogAnalysis(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	analysis, err := h.svc.GetBacklogAnalysis(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": analysis})
@@ -58,7 +58,7 @@ func (h *AnalyticsHandler) GetTrendReport(c *gin.Context) {
 
 	report, err := h.svc.GetTrendReport(c.Request.Context(), tenantID, days, granularity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": report})
@@ -72,7 +72,7 @@ func (h *AnalyticsHandler) GetExecutiveDashboard(c *gin.Context) {
 
 	dash, err := h.svc.GetExecutiveDashboard(c.Request.Context(), tenantID, start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": dash})
@@ -86,7 +86,7 @@ func (h *AnalyticsHandler) GetManagerDashboard(c *gin.Context) {
 
 	dash, err := h.svc.GetManagerDashboard(c.Request.Context(), tenantID, start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": dash})
@@ -99,7 +99,7 @@ func (h *AnalyticsHandler) GetEngineerDashboard(c *gin.Context) {
 
 	dash, err := h.svc.GetEngineerDashboard(c.Request.Context(), c.Param("engineerId"), start, end)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": dash})
@@ -112,7 +112,7 @@ func (h *AnalyticsHandler) GetEfficiencyScore(c *gin.Context) {
 
 	score, err := h.svc.GetEfficiencyScore(c.Request.Context(), c.Param("engineerId"), start, end)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": score})
@@ -128,7 +128,7 @@ func (h *AnalyticsHandler) ComparePeriods(c *gin.Context) {
 
 	comparison, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, currentStart, currentEnd, previousStart, previousEnd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": comparison})
@@ -158,7 +158,7 @@ func (h *AnalyticsHandler) ExportBIData(c *gin.Context) {
 	data, err := h.svc.ExportBIData(c.Request.Context(), tenantID, req.Dataset, req.Granularity,
 		parseTime(req.PeriodStart), parseTime(req.PeriodEnd))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": data})
@@ -180,7 +180,7 @@ func (h *AnalyticsHandler) GetTimeTrend(c *gin.Context) {
 
 	trend, err := h.svc.GetTimeTrend(c.Request.Context(), tenantID, metric, start, end, granularity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": trend})
@@ -203,7 +203,7 @@ func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
 
 	record, holdMs, err := h.svc.TransferTicket(c.Request.Context(), ticketID, tenantID, req.ToEngineerID, req.InitiatedBy, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -214,7 +214,7 @@ func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
 func (h *AnalyticsHandler) GetTransferHistory(c *gin.Context) {
 	history, err := h.svc.GetTransferHistory(c.Request.Context(), c.Param("ticketId"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": history, "count": len(history)})
@@ -227,7 +227,7 @@ func (h *AnalyticsHandler) GetTransferStats(c *gin.Context) {
 
 	stats, err := h.svc.GetTransferStats(c.Request.Context(), start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})

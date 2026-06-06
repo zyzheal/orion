@@ -27,7 +27,7 @@ import {
   toggleAlertRule,
 } from '@/api/monitoring';
 import type { AlertRule } from '@/api/monitoring';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -244,13 +244,13 @@ const MonitoringRules: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <OrderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <AlertOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <OrderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <AlertOutlined style={{ marginRight: spacing.sm }} />
             告警规则
           </Title>
           <Text type="secondary">共 {rules.length} 条规则</Text>
@@ -265,7 +265,7 @@ const MonitoringRules: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

@@ -402,7 +402,7 @@ const UserCapabilityMapping: React.FC = () => {
           <div>
             <div style={{ fontWeight: 500 }}>
               {record.name}
-              <Text type="secondary" style={{ marginLeft: 8, fontSize: spacing[3] }}>
+              <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: spacing[3] }}>
                 ({record.username})
               </Text>
             </div>

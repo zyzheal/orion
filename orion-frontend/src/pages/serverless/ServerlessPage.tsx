@@ -38,6 +38,7 @@ import {
   type TriggerType,
 } from '@/api/serverless';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -298,10 +299,10 @@ const FunctionsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <CloudUploadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Serverless 函数
           </Title>
           <Text type="secondary">管理无服务器函数的创建、部署、调用与监控</Text>
@@ -388,7 +389,7 @@ const FunctionsTab: React.FC = () => {
       {/* Invoke Modal */}
       <Modal title="调用函数" open={invokeModalOpen} onCancel={() => setInvokeModalOpen(false)} onOk={() => invokeForm.submit()} confirmLoading={invokeLoading}>
         <Text>函数: <strong>{currentFn?.name}</strong></Text>
-        <Form form={invokeForm} layout="vertical" onFinish={handleInvoke} style={{ marginTop: 16 }}>
+        <Form form={invokeForm} layout="vertical" onFinish={handleInvoke} style={{ marginTop: spacing.md }}>
           <Form.Item label="Payload (JSON)" name="payload">
             <Input.TextArea rows={4} placeholder='{"key": "value"}' />
           </Form.Item>
@@ -423,7 +424,7 @@ const FunctionsTab: React.FC = () => {
         {currentFn && (
           <div>
             <Paragraph>即将部署 <strong>{currentFn.name}</strong> (v{currentFn.version + 1})</Paragraph>
-            <Descriptions column={1} bordered size="small" style={{ marginBottom: 16 }}>
+            <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="函数">{currentFn.name}</Descriptions.Item>
               <Descriptions.Item label="当前版本">v{currentFn.version}</Descriptions.Item>
               <Descriptions.Item label="部署后版本">v{currentFn.version + 1}</Descriptions.Item>
@@ -556,10 +557,10 @@ const TriggersTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             事件触发器
           </Title>
           <Text type="secondary">管理函数的触发条件：HTTP、定时、事件、消息队列等</Text>
@@ -650,10 +651,10 @@ const MetricsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Serverless 指标
           </Title>
           <Text type="secondary">函数运行指标、错误率与自动扩缩容建议</Text>
@@ -662,7 +663,7 @@ const MetricsTab: React.FC = () => {
       </div>
 
       {aggregate && (
-        <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.md }}>
           <Col span={4}><Card><Statistic title="函数总数" value={aggregate.totalFunctions} /></Card></Col>
           <Col span={4}><Card><Statistic title="已部署" value={aggregate.deployedFunctions} valueStyle={{ color: colors.success[500] }} /></Card></Col>
           <Col span={4}><Card><Statistic title="总调用" value={aggregate.totalInvocations} /></Card></Col>
@@ -715,7 +716,7 @@ const ServerlessPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Tabs defaultActiveKey="functions" items={tabItems} size="large" />
     </div>
   );

@@ -149,7 +149,7 @@ const CommandBrowser: React.FC = () => {
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: spacing.md,
         }}
       >
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
@@ -165,7 +165,7 @@ const CommandBrowser: React.FC = () => {
           />
         ) : (
           <>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -195,7 +195,7 @@ const CommandBrowser: React.FC = () => {
       >
         {selectedCommand && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Text strong style={{ fontSize: spacing[4] }}>
                 /{selectedCommand.name}
               </Text>
@@ -249,14 +249,14 @@ const CommandBrowser: React.FC = () => {
               </>
             )}
 
-            <span style={{ fontSize: 14, fontWeight: 600, marginTop: 16, display: 'block' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, marginTop: spacing.md, display: 'block' }}>
               使用示例
             </span>
             {selectedCommand.examples.map((example, index) => (
               <Card
                 key={index}
                 size="small"
-                style={{ marginBottom: 8, background: colors.neutral[50] }}
+                style={{ marginBottom: spacing.sm, background: colors.neutral[50] }}
               >
                 <Text code>{example}</Text>
               </Card>

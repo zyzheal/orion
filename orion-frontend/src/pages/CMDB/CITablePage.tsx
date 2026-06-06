@@ -447,7 +447,7 @@ const CITablePage: React.FC = () => {
           rowKey="id"
           pagination={false}
           size="small"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
           locale={{ emptyText: '暂无下游关联' }}
         />
 

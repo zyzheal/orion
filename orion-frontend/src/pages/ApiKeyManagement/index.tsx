@@ -155,8 +155,8 @@ const ApiKeyManagement: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <KeyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <KeyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             API Key 管理
           </Title>
           <Text type="secondary">API Key Management</Text>

@@ -469,8 +469,8 @@ const BackupManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SaveOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SaveOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Backup Management
           </Title>
           <Text type="secondary">数据备份与恢复</Text>
@@ -606,7 +606,7 @@ const BackupManagement: React.FC = () => {
               description="恢复备份将覆盖当前数据。此操作不可逆，请确认后再执行。"
               type="warning"
               showIcon
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             />
             <Card size="small">
               <Space direction="vertical" size={8}>

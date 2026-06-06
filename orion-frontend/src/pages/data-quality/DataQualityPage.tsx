@@ -32,6 +32,7 @@ import {
   DatabaseOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -245,13 +246,13 @@ export default function DataQualityPage() {
   const avgPassRate = totalRules > 0 ? Math.round(rules.reduce((s, r) => s + r.pass_rate, 0) / totalRules) : 0;
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         数据质量平台
       </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="质量规则" value={totalRules} prefix={<SafetyCertificateOutlined />} />

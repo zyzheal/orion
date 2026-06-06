@@ -343,8 +343,8 @@ const RateLimitingPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <LockOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LockOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.warning[500] }} />
             限流管理
           </Title>

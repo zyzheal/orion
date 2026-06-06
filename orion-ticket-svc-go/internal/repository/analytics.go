@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -17,22 +18,22 @@ func NewAnalyticsRepository(db *sqlx.DB) *AnalyticsRepository {
 	return &AnalyticsRepository{db: db}
 }
 
-func (r *AnalyticsRepository) GetTicketStats(tenantID string) (*models.TicketStatistics, error) {
+func (r *AnalyticsRepository) GetTicketStats(ctx context.Context, tenantID string) (*models.TicketStatistics, error) {
 	stats := &models.TicketStatistics{
 		ByPriority: make(map[string]int),
 		ByCategory: make(map[string]int),
 	}
 
-	if err := r.db.Get(&stats.TotalTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1", tenantID); err != nil {
+	if err := r.db.GetContext(ctx, &stats.TotalTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1", tenantID); err != nil {
 		return nil, fmt.Errorf("total tickets: %w", err)
 	}
-	r.db.Get(&stats.OpenTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'open'", tenantID)
-	r.db.Get(&stats.AssignedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'assigned'", tenantID)
-	r.db.Get(&stats.InProgressTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'in-progress'", tenantID)
-	r.db.Get(&stats.ResolvedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'resolved'", tenantID)
-	r.db.Get(&stats.ClosedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'closed'", tenantID)
+	r.db.GetContext(ctx, &stats.OpenTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'open'", tenantID)
+	r.db.GetContext(ctx, &stats.AssignedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'assigned'", tenantID)
+	r.db.GetContext(ctx, &stats.InProgressTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'in-progress'", tenantID)
+	r.db.GetContext(ctx, &stats.ResolvedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'resolved'", tenantID)
+	r.db.GetContext(ctx, &stats.ClosedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'closed'", tenantID)
 
-	r.db.Get(&stats.AvgResolutionMs,
+	r.db.GetContext(ctx, &stats.AvgResolutionMs,
 		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000), 0)
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL`, tenantID)
 
@@ -63,17 +64,17 @@ func (r *AnalyticsRepository) GetTicketStats(tenantID string) (*models.TicketSta
 	return stats, nil
 }
 
-func (r *AnalyticsRepository) GetResolutionStats(tenantID string) (*models.ResolutionStats, error) {
+func (r *AnalyticsRepository) GetResolutionStats(ctx context.Context, tenantID string) (*models.ResolutionStats, error) {
 	stats := &models.ResolutionStats{
 		ByPriority: make(map[string]float64),
 		ByCategory: make(map[string]float64),
 	}
 
-	if err := r.db.Get(&stats.TotalResolved,
+	if err := r.db.GetContext(ctx, &stats.TotalResolved,
 		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL", tenantID); err != nil {
 		return nil, fmt.Errorf("total resolved: %w", err)
 	}
-	r.db.Get(&stats.AvgResolutionMs,
+	r.db.GetContext(ctx, &stats.AvgResolutionMs,
 		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000), 0)
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL`, tenantID)
 
@@ -94,13 +95,13 @@ func (r *AnalyticsRepository) GetResolutionStats(tenantID string) (*models.Resol
 	return stats, nil
 }
 
-func (r *AnalyticsRepository) GetBacklogAnalysis(tenantID string) (*models.BacklogAnalysis, error) {
+func (r *AnalyticsRepository) GetBacklogAnalysis(ctx context.Context, tenantID string) (*models.BacklogAnalysis, error) {
 	analysis := &models.BacklogAnalysis{
 		ByPriority: make(map[string]int),
 		ByCategory: make(map[string]int),
 	}
 
-	if err := r.db.Get(&analysis.TotalOpen,
+	if err := r.db.GetContext(ctx, &analysis.TotalOpen,
 		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open', 'assigned', 'in-progress')", tenantID); err != nil {
 		return nil, fmt.Errorf("total open: %w", err)
 	}
@@ -119,13 +120,13 @@ func (r *AnalyticsRepository) GetBacklogAnalysis(tenantID string) (*models.Backl
 	}
 
 	// Stale (older than 7 days with no update)
-	r.db.Get(&analysis.StaleCount,
+	r.db.GetContext(ctx, &analysis.StaleCount,
 		`SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open', 'assigned') AND updated_at < NOW() - INTERVAL '7 days'`, tenantID)
 
 	return analysis, nil
 }
 
-func (r *AnalyticsRepository) GetTrendData(tenantID string, days int, granularity string) ([]models.TrendPoint, error) {
+func (r *AnalyticsRepository) GetTrendData(ctx context.Context, tenantID string, days int, granularity string) ([]models.TrendPoint, error) {
 	var points []models.TrendPoint
 
 	rows, err := r.db.Query(
@@ -147,7 +148,7 @@ func (r *AnalyticsRepository) GetTrendData(tenantID string, days int, granularit
 }
 
 // Executive dashboard aggregation
-func (r *AnalyticsRepository) GetExecutiveDashboard(tenantID string, start, end time.Time) (*models.ExecutiveDashboard, error) {
+func (r *AnalyticsRepository) GetExecutiveDashboard(ctx context.Context, tenantID string, start, end time.Time) (*models.ExecutiveDashboard, error) {
 	dash := &models.ExecutiveDashboard{
 		PeriodStart: start,
 		PeriodEnd:   end,
@@ -155,15 +156,15 @@ func (r *AnalyticsRepository) GetExecutiveDashboard(tenantID string, start, end 
 		ByCategory:  make(map[string]int),
 	}
 
-	if err := r.db.Get(&dash.TotalTickets,
+	if err := r.db.GetContext(ctx, &dash.TotalTickets,
 		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND created_at BETWEEN $2 AND $3", tenantID, start, end); err != nil {
 		return nil, fmt.Errorf("total tickets: %w", err)
 	}
-	r.db.Get(&dash.OpenTickets,
+	r.db.GetContext(ctx, &dash.OpenTickets,
 		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open','assigned','in-progress') AND created_at BETWEEN $2 AND $3", tenantID, start, end)
-	r.db.Get(&dash.ResolvedTickets,
+	r.db.GetContext(ctx, &dash.ResolvedTickets,
 		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('resolved','closed') AND created_at BETWEEN $2 AND $3", tenantID, start, end)
-	r.db.Get(&dash.AvgResolutionMs,
+	r.db.GetContext(ctx, &dash.AvgResolutionMs,
 		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000), 0)
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL AND created_at BETWEEN $2 AND $3`, tenantID, start, end)
 
@@ -181,7 +182,7 @@ func (r *AnalyticsRepository) GetExecutiveDashboard(tenantID string, start, end 
 	}
 
 	// Trend data
-	dash.TrendData, _ = r.GetTrendData(tenantID, int(end.Sub(start).Hours()/24), "day")
+	dash.TrendData, _ = r.GetTrendData(ctx, tenantID, int(end.Sub(start).Hours()/24), "day")
 
 	return dash, nil
 }

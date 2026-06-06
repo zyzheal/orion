@@ -402,7 +402,7 @@ const ModuleManagerPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ClusterOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             模块管理
           </Title>

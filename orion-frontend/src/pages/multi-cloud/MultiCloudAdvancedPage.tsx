@@ -24,7 +24,7 @@ import {
   ScheduleOutlined, CheckCircleOutlined, CloseCircleOutlined,
   WarningOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Panel } = Collapse;
 const { Title, Text } = Typography;
@@ -260,12 +260,12 @@ const MultiCloudAdvancedPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: colors.light.bg.secondary, minHeight: '100vh' }}>
+    <div style={{ padding: spacing.lg, background: colors.light.bg.secondary, minHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CloudOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             多云进阶管理
           </Title>
           <Text type="secondary">合规检查、资源调度、跨区容灾、成本优化、网络编排</Text>
@@ -281,7 +281,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${colors.primary[500]}` }}>
             <Statistic title="云账号" value={accounts.length} prefix={<CloudOutlined style={{ color: colors.primary[500] }} />} />
@@ -341,7 +341,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
               >
                 {complianceReport ? (
                   <>
-                    <Row gutter={16} style={{ marginBottom: 24 }}>
+                    <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                       <Col span={6}>
                         <Card size="small" style={{ textAlign: 'center', borderRadius: 8 }}>
                           <Progress
@@ -350,7 +350,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                             strokeColor={complianceReport.score >= 80 ? colors.success[500] : complianceReport.score >= 60 ? colors.warning[500] : colors.error[500]}
                             format={(percent) => `${percent}%`}
                           />
-                          <div style={{ marginTop: 8 }}>
+                          <div style={{ marginTop: spacing.sm }}>
                             <Text strong>合规评分</Text>
                           </div>
                         </Card>
@@ -396,7 +396,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                   </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <AuditOutlined style={{ fontSize: 48, color: colors.neutral[300], marginBottom: 16 }} />
+                    <AuditOutlined style={{ fontSize: 48, color: colors.neutral[300], marginBottom: spacing.md }} />
                     <div>
                       <Text type="secondary">点击"执行合规检查"按钮开始检查云资源合规性</Text>
                     </div>
@@ -514,14 +514,14 @@ const MultiCloudAdvancedPage: React.FC = () => {
                         </Descriptions>
 
                         {scheduleResult.alternatives.length > 0 && (
-                          <div style={{ marginTop: 16 }}>
+                          <div style={{ marginTop: spacing.md }}>
                             <Text strong>备选方案</Text>
                             <Table
                               dataSource={scheduleResult.alternatives}
                               rowKey={(r) => `${r.provider}-${r.region}`}
                               size="small"
                               pagination={false}
-                              style={{ marginTop: 8 }}
+                              style={{ marginTop: spacing.sm }}
                               columns={[
                                 { title: '厂商', dataIndex: 'provider', render: (v: string) => <Tag>{v.toUpperCase()}</Tag> },
                                 { title: '区域', dataIndex: 'region' },
@@ -533,7 +533,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                       </>
                     ) : (
                       <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                        <ScheduleOutlined style={{ fontSize: 48, color: colors.neutral[300], marginBottom: 16 }} />
+                        <ScheduleOutlined style={{ fontSize: 48, color: colors.neutral[300], marginBottom: spacing.md }} />
                         <div><Text type="secondary">填写左侧参数并提交，生成资源调度决策</Text></div>
                       </div>
                     )}
@@ -580,23 +580,23 @@ const MultiCloudAdvancedPage: React.FC = () => {
                 style={{ borderRadius: 12 }}
                 extra={<Button icon={<PlusOutlined />} onClick={() => setDrModal(true)}>Create DR Plan</Button>}
               >
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
                     <Card title="RPO (Recovery Point Objective)" size="small" style={{ borderRadius: 8 }}>
                       <Progress type="dashboard" percent={95} format={() => '5 min'} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Target: {'<'} 10 min</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Target: {'<'} 10 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="RTO (Recovery Time Objective)" size="small" style={{ borderRadius: 8 }}>
                       <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor={colors.warning[500]} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Target: {'<'} 30 min</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Target: {'<'} 30 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="DR Readiness" size="small" style={{ borderRadius: 8 }}>
                       <Progress type="dashboard" percent={88} strokeColor={colors.success[500]} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Status: Ready</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Status: Ready</p>
                     </Card>
                   </Col>
                 </Row>
@@ -623,7 +623,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
             label: <><DollarOutlined /> Cost Optimization</>,
             children: (
               <Card title="Multi-Cloud Cost Optimization" style={{ borderRadius: 12 }}>
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
                     <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid #FF9900` }}>
                       <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: colors.primary[500] }} />
@@ -689,7 +689,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                     Unified policy across 5 cloud accounts
                   </Descriptions.Item>
                 </Descriptions>
-                <Card size="small" title="Network Topology" style={{ marginTop: 16, borderRadius: 8 }}>
+                <Card size="small" title="Network Topology" style={{ marginTop: spacing.md, borderRadius: 8 }}>
                   <Row gutter={16}>
                     <Col span={8}>
                       <Card size="small" title="AWS VPC" style={{ borderRadius: 8 }}>

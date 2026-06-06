@@ -62,7 +62,7 @@ func (s *SuspendService) CreateSuspend(ctx context.Context, req *models.CreateSu
 		CreatedBy:           req.CreatedBy,
 	}
 
-	if err := s.suspendRepo.Create(record); err != nil {
+	if err := s.suspendRepo.Create(ctx, record); err != nil {
 		return nil, err
 	}
 	return record, nil
@@ -73,7 +73,7 @@ func (s *SuspendService) ActivateSuspend(ctx context.Context, suspendID string) 
 	_, span := otel.Tracer().Start(ctx, "SuspendService.ActivateSuspend")
 	defer span.End()
 
-	record, err := s.suspendRepo.GetByID(suspendID)
+	record, err := s.suspendRepo.GetByID(ctx, suspendID)
 	if err != nil {
 		return nil, fmt.Errorf("suspension not found: %w", err)
 	}
@@ -85,15 +85,15 @@ func (s *SuspendService) ActivateSuspend(ctx context.Context, suspendID string) 
 	record.Status = "active"
 	record.ActivatedAt = timePtr(time.Now())
 
-	if err := s.suspendRepo.Update(record); err != nil {
+	if err := s.suspendRepo.Update(ctx, record); err != nil {
 		return nil, err
 	}
 
 	// Mark engineer as unavailable
-	eng, _ := s.dispatchRepo.GetEngineer(record.EngineerID)
+	eng, _ := s.dispatchRepo.GetEngineer(ctx, record.EngineerID)
 	if eng != nil {
 		eng.Availability = models.AvailabilityUnavailable
-		s.dispatchRepo.UpdateEngineer(eng)
+		s.dispatchRepo.UpdateEngineer(ctx, eng)
 	}
 
 	return record, nil
@@ -101,7 +101,7 @@ func (s *SuspendService) ActivateSuspend(ctx context.Context, suspendID string) 
 
 // EndSuspend ends an active suspension
 func (s *SuspendService) EndSuspend(ctx context.Context, suspendID string) (*models.SuspendRecord, error) {
-	record, err := s.suspendRepo.GetByID(suspendID)
+	record, err := s.suspendRepo.GetByID(ctx, suspendID)
 	if err != nil {
 		return nil, fmt.Errorf("suspension not found: %w", err)
 	}
@@ -113,15 +113,15 @@ func (s *SuspendService) EndSuspend(ctx context.Context, suspendID string) (*mod
 	record.Status = "ended"
 	record.EndedAt = timePtr(time.Now())
 
-	if err := s.suspendRepo.Update(record); err != nil {
+	if err := s.suspendRepo.Update(ctx, record); err != nil {
 		return nil, err
 	}
 
 	// Restore engineer availability
-	eng, _ := s.dispatchRepo.GetEngineer(record.EngineerID)
+	eng, _ := s.dispatchRepo.GetEngineer(ctx, record.EngineerID)
 	if eng != nil {
 		eng.Availability = models.AvailabilityAvailable
-		s.dispatchRepo.UpdateEngineer(eng)
+		s.dispatchRepo.UpdateEngineer(ctx, eng)
 	}
 
 	return record, nil
@@ -129,7 +129,7 @@ func (s *SuspendService) EndSuspend(ctx context.Context, suspendID string) (*mod
 
 // CancelSuspend cancels a pending suspension
 func (s *SuspendService) CancelSuspend(ctx context.Context, suspendID string) (*models.SuspendRecord, error) {
-	record, err := s.suspendRepo.GetByID(suspendID)
+	record, err := s.suspendRepo.GetByID(ctx, suspendID)
 	if err != nil {
 		return nil, fmt.Errorf("suspension not found: %w", err)
 	}
@@ -141,7 +141,7 @@ func (s *SuspendService) CancelSuspend(ctx context.Context, suspendID string) (*
 	record.Status = "cancelled"
 	record.CancelledAt = timePtr(time.Now())
 
-	if err := s.suspendRepo.Update(record); err != nil {
+	if err := s.suspendRepo.Update(ctx, record); err != nil {
 		return nil, err
 	}
 	return record, nil
@@ -149,28 +149,28 @@ func (s *SuspendService) CancelSuspend(ctx context.Context, suspendID string) (*
 
 // GetSuspend returns a suspension by ID
 func (s *SuspendService) GetSuspend(ctx context.Context, suspendID string) (*models.SuspendRecord, error) {
-	return s.suspendRepo.GetByID(suspendID)
+	return s.suspendRepo.GetByID(ctx, suspendID)
 }
 
 // ListSuspensions lists suspensions by status
 func (s *SuspendService) ListSuspensions(ctx context.Context, status string) ([]models.SuspendRecord, error) {
-	return s.suspendRepo.ListByStatus(status)
+	return s.suspendRepo.ListByStatus(ctx, status)
 }
 
 // GetEngineerSuspensions returns all suspensions for an engineer
 func (s *SuspendService) GetEngineerSuspensions(ctx context.Context, engineerID string) ([]models.SuspendRecord, error) {
-	return s.suspendRepo.ListByEngineer(engineerID)
+	return s.suspendRepo.ListByEngineer(ctx, engineerID)
 }
 
 // GetSuspendImpact returns the impact of an engineer's suspension
 func (s *SuspendService) GetSuspendImpact(ctx context.Context, engineerID string) (*models.SuspendImpact, error) {
-	record, err := s.suspendRepo.FindActiveByEngineer(engineerID)
+	record, err := s.suspendRepo.FindActiveByEngineer(ctx, engineerID)
 	if err != nil {
 		return nil, fmt.Errorf("engineer not currently suspended")
 	}
 
-	pending, _ := s.suspendRepo.CountPendingByEngineer(engineerID)
-	active, _ := s.suspendRepo.CountActiveByEngineer(engineerID)
+	pending, _ := s.suspendRepo.CountPendingByEngineer(ctx, engineerID)
+	active, _ := s.suspendRepo.CountActiveByEngineer(ctx, engineerID)
 
 	impact := &models.SuspendImpact{
 		EngineerID:       engineerID,

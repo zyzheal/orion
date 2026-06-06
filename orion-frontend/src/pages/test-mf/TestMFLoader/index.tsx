@@ -10,7 +10,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Card, Button, Space, Typography, message, Divider } from 'antd';
 import { RocketOutlined, SyncOutlined, DeleteOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 // 动态加载 orion-mf
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -168,9 +168,9 @@ const TestMFLoader: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: spacing.lg, maxWidth: 1200, margin: '0 auto' }}>
       <Title level={2}>
-        <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         Orion-MF 微前端框架测试
       </Title>
 
@@ -178,7 +178,7 @@ const TestMFLoader: React.FC = () => {
         Phase 0: 并行运行验证 - 验证 orion-mf 框架加载子应用的能力
       </Paragraph>
 
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
         <Title level={4}>测试说明</Title>
         <Paragraph>
           本页面用于验证 orion-mf 框架能否正常加载子应用。
@@ -199,7 +199,7 @@ const TestMFLoader: React.FC = () => {
         </Alert>
       </Card>
 
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
         <Space direction="vertical" style={{ width: '100%' }}>
           <Title level={4}>子应用加载测试</Title>
           <Space wrap>
@@ -227,7 +227,7 @@ const TestMFLoader: React.FC = () => {
           </Space>
 
           {testResults.length > 0 && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text strong>测试结果：</Text>
               <ul>
                 {testResults.map((result) => (
@@ -265,11 +265,11 @@ const TestMFLoader: React.FC = () => {
         <div
           ref={containerRef}
           style={{
-            marginTop: 16,
+            marginTop: spacing.md,
             minHeight: 200,
             border: '1px dashed colors.neutral[300]',
             borderRadius: 8,
-            padding: 16,
+            padding: spacing.md,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -305,7 +305,7 @@ const Alert: React.FC<{
         borderRadius: 6,
         padding: '12px 16px',
         color: style.text,
-        marginTop: 16,
+        marginTop: spacing.md,
       }}
     >
       {children}

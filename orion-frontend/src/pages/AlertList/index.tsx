@@ -409,18 +409,18 @@ const AlertList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             监控告警
           </Title>
           <Text type="secondary">共 {alerts.length} 条告警记录</Text>
           {/* Active alert summary */}
           {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Space size={12}>
                 {severityCounts.critical > 0 && (
                   <Tag color="red" style={{ fontWeight: 600 }}>
@@ -460,7 +460,7 @@ const AlertList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -526,7 +526,7 @@ const AlertList: React.FC = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: spacing[3],
                 padding: '12px 16px',
                 background:
                   selectedAlert.severity === 'critical'

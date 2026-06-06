@@ -24,6 +24,7 @@ import {
   Timeline,
   Progress,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   EyeOutlined,
   ReloadOutlined,
@@ -234,7 +235,7 @@ const AlertRulesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">管理和配置自定义告警规则</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
@@ -407,7 +408,7 @@ const SilenceRulesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">配置告警静默规则，在维护期间抑制告警通知</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
@@ -641,7 +642,7 @@ const RootCauseAnalysisTab: React.FC = () => {
                   {selectedAnalysis.timeline.map((item, i) => (
                     <Timeline.Item key={i}>
                       <Text strong>{item.service}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                      <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         {new Date(item.timestamp).toLocaleTimeString()}
                       </Text>
                       <div>{item.event}</div>
@@ -735,7 +736,7 @@ const ServiceHealthTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">查看各服务的健康状态和关键指标</Text>
         <Button icon={<ReloadOutlined />} onClick={loadHealth} loading={loading}>刷新</Button>
       </div>
@@ -762,9 +763,9 @@ const ObservabilityPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <EyeOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <EyeOutlined style={{ marginRight: spacing.sm }} />
           全栈可观测性
         </Title>
         <Text type="secondary">自定义告警规则、根因分析和静默规则管理</Text>

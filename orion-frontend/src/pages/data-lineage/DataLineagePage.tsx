@@ -27,6 +27,7 @@ import {
   CloudServerOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -164,13 +165,13 @@ export default function DataLineagePage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <BranchesOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <BranchesOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         数据血缘
       </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -255,7 +256,7 @@ export default function DataLineagePage() {
       {selectedNode && (
         <Card
           title={`血缘详情: ${selectedNode.name}`}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: spacing.md }}
           extra={<Button size="small" onClick={() => setSelectedNode(null)}>关闭</Button>}
         >
           <Row gutter={16}>

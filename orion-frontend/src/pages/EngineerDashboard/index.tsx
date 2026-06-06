@@ -233,9 +233,9 @@ const EngineerDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ToolOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ToolOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             个人看板
           </Title>
           <Text type="secondary">
@@ -245,13 +245,13 @@ const EngineerDashboard: React.FC = () => {
         </div>
 
       {/* Personal Overview Card */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel>
           <Row gutter={[24, 16]} align="middle">
             {/* Left: Name, Rank, Grade */}
             <Col xs={24} sm={8} md={6}>
               <Space direction="vertical" size={8}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
                   <div
                     style={{
                       width: 56,
@@ -341,7 +341,7 @@ const EngineerDashboard: React.FC = () => {
       </div>
 
       {/* Personal Trend Chart */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="个人趋势（近14天）" extra={<Tag color="cyan">解决数 & 耗时</Tag>}>
           <TrendLineChart
             title=""
@@ -354,7 +354,7 @@ const EngineerDashboard: React.FC = () => {
       </div>
 
       {/* Strengths & Weaknesses */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {/* Strengths */}
         <Col xs={24} xl={12}>
           <CardPanel title="优势领域" extra={<RiseOutlined style={{ color: COLORS.success }} />}>
@@ -366,7 +366,7 @@ const EngineerDashboard: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 8,
+                      marginBottom: spacing.sm,
                     }}
                   >
                     <Tag color={COLORS.success}>{categoryName(s.category)}</Tag>
@@ -406,7 +406,7 @@ const EngineerDashboard: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 8,
+                      marginBottom: spacing.sm,
                     }}
                   >
                     <Tag color={w.slaComplianceRate < 0.6 ? 'error' : 'warning'}>
@@ -427,7 +427,7 @@ const EngineerDashboard: React.FC = () => {
                     unit="%"
                     thresholds={{ warning: 70, danger: 60 }}
                   />
-                  <div style={{ marginTop: 8 }}>
+                  <div style={{ marginTop: spacing.sm }}>
                     <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       <WarningOutlined style={{ marginRight: 4 }} />
                       建议: {w.suggestion}
@@ -441,7 +441,7 @@ const EngineerDashboard: React.FC = () => {
       </Row>
 
       {/* Ability Distribution */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="能力分布">
           <BarChart
             title="各类别熟练度"
@@ -455,7 +455,7 @@ const EngineerDashboard: React.FC = () => {
       </div>
 
       {/* Active Tickets */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel
           title="活跃工单"
           extra={

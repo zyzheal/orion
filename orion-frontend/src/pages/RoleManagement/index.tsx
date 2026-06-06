@@ -38,7 +38,7 @@ import {
   PERMISSION_GROUPS,
 } from '@/api/roles';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -243,11 +243,11 @@ const RoleManagement: React.FC = () => {
       const groupPerms = group.permissions.filter((p) => role.permissions.includes(p.value));
       if (groupPerms.length === 0) return null;
       return (
-        <div key={group.group} style={{ marginBottom: 16 }}>
+        <div key={group.group} style={{ marginBottom: spacing.md }}>
           <Text strong style={{ fontSize: 13 }}>
             {group.group}
           </Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: spacing.sm }}>
             <Space wrap>
               {groupPerms.map((p) => (
                 <Tag key={p.value} color={getPermissionColor(p.value)}>
@@ -280,12 +280,12 @@ const RoleManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <TeamOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <TeamOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 角色管理
               </Title>
               <Text type="secondary">管理系统角色及其权限分配 (RBAC)</Text>
@@ -312,7 +312,7 @@ const RoleManagement: React.FC = () => {
             <Input.Search
               placeholder="搜索角色名称或描述..."
               allowClear
-              style={{ marginBottom: 16, maxWidth: 400 }}
+              style={{ marginBottom: spacing.md, maxWidth: 400 }}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Table
@@ -353,11 +353,11 @@ const RoleManagement: React.FC = () => {
                 <Form.Item name="permissions" valuePropName={undefined} noStyle>
                   {PERMISSION_GROUPS.map((group) => {
                     return (
-                      <div key={group.group} style={{ marginBottom: 16 }}>
+                      <div key={group.group} style={{ marginBottom: spacing.md }}>
                         <Text strong style={{ fontSize: 13 }}>
                           {group.group}
                         </Text>
-                        <Checkbox.Group style={{ width: '100%', marginTop: 8, marginLeft: 0 }}>
+                        <Checkbox.Group style={{ width: '100%', marginTop: spacing.sm, marginLeft: 0 }}>
                           <div
                             style={{
                               display: 'grid',
@@ -390,7 +390,7 @@ const RoleManagement: React.FC = () => {
           >
             {selectedRole && (
               <>
-                <Descriptions column={2} bordered size="small" style={{ marginBottom: 24 }}>
+                <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
                   <Descriptions.Item label="角色名称">{selectedRole.name}</Descriptions.Item>
                   <Descriptions.Item label="系统角色">
                     {selectedRole.is_system ? <Tag color="gold">是</Tag> : <Tag>否</Tag>}
@@ -417,7 +417,7 @@ const RoleManagement: React.FC = () => {
                 </Descriptions>
 
                 <Divider>权限列表</Divider>
-                <div style={{ marginBottom: 24 }}>{renderPermissionGroup(selectedRole)}</div>
+                <div style={{ marginBottom: spacing.lg }}>{renderPermissionGroup(selectedRole)}</div>
 
                 <Divider>关联用户</Divider>
                 {renderAssignedUsers(selectedRole.id)}

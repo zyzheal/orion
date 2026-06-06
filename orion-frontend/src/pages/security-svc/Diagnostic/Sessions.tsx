@@ -277,13 +277,13 @@ const DiagnosticSessions: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <SearchOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <SearchOutlined style={{ marginRight: spacing.sm }} />
             诊断会话
           </Title>
           <Text type="secondary">共 {sessions.length} 个会话</Text>
@@ -302,7 +302,7 @@ const DiagnosticSessions: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -384,7 +384,7 @@ const DiagnosticSessions: React.FC = () => {
             <div>
               <Text type="secondary">触发类型:</Text>{' '}
               <Tag color="purple">{sessionDetail.triggerType}</Tag>
-              <Text type="secondary" style={{ marginLeft: 16 }}>
+              <Text type="secondary" style={{ marginLeft: spacing.md }}>
                 触发器ID:
               </Text>{' '}
               <Text code>{sessionDetail.triggerId}</Text>
@@ -411,13 +411,13 @@ const DiagnosticSessions: React.FC = () => {
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
                     <div
                       key={idx}
-                      style={{ padding: 12, background: isDark ? 'rgba(255,255,255,0.05)' : colors.neutral[50], borderRadius: 6 }}
+                      style={{ padding: spacing[3], background: isDark ? 'rgba(255,255,255,0.05)' : colors.neutral[50], borderRadius: 6 }}
                     >
                       <Space>
                         <Tag color="purple">{symptom.type}</Tag>
                         <Text strong>{symptom.source}</Text>
                       </Space>
-                      <div style={{ marginTop: 8 }}>
+                      <div style={{ marginTop: spacing.sm }}>
                         <Text>{symptom.description}</Text>
                       </div>
                     </div>

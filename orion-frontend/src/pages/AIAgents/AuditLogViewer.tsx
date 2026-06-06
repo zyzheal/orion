@@ -7,6 +7,7 @@ import React from 'react';
 import { Table, Tag, Typography, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { AuditLogEntry } from '@/api/ai-agents';
+import { spacing } from '@/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -100,7 +101,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading }) => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Paragraph type="secondary">
           共 {logs.length} 条审计日志
         </Paragraph>

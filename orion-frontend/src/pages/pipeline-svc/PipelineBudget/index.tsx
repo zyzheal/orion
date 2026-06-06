@@ -39,7 +39,7 @@ import {
   CheckCircleOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import { pipelineBudgetApi, BudgetConfig, BudgetUsage } from '../../../api/pipeline-budget';
 
 const { Title, Text } = Typography;
@@ -134,12 +134,12 @@ const PipelineBudget: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             流水线预算
           </Title>
           <Text type="secondary">配置和管理流水线的资源预算限制</Text>
@@ -155,7 +155,7 @@ const PipelineBudget: React.FC = () => {
           description="请在 URL 中包含 pipelineId 参数，例如: /pipelines/xxx/budget"
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
@@ -166,7 +166,7 @@ const PipelineBudget: React.FC = () => {
             <Card
               title={
                 <>
-                  <SaveOutlined style={{ marginRight: 8 }} />
+                  <SaveOutlined style={{ marginRight: spacing.sm }} />
                   预算配置
                 </>
               }
@@ -188,7 +188,7 @@ const PipelineBudget: React.FC = () => {
                       时间预算
                     </>
                   }
-                  style={{ marginBottom: 16 }}
+                  style={{ marginBottom: spacing.md }}
                 >
                   <Row gutter={16}>
                     <Col span={12}>
@@ -248,7 +248,7 @@ const PipelineBudget: React.FC = () => {
                       成本预算
                     </>
                   }
-                  style={{ marginBottom: 16 }}
+                  style={{ marginBottom: spacing.md }}
                 >
                   <Row gutter={16}>
                     <Col span={12}>
@@ -329,7 +329,7 @@ const PipelineBudget: React.FC = () => {
                 </Card>
 
                 {/* Submit */}
-                <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
+                <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing[3] }}>
                   <Button type="primary" htmlType="submit" loading={saving} icon={<SaveOutlined />}>
                     保存配置
                   </Button>
@@ -345,14 +345,14 @@ const PipelineBudget: React.FC = () => {
             <Card
               title={
                 <>
-                  <BarChartOutlined style={{ marginRight: 8 }} />
+                  <BarChartOutlined style={{ marginRight: spacing.sm }} />
                   预算使用情况
                 </>
               }
             >
               {/* Alerts */}
               {usage?.alerts && usage.alerts.length > 0 && (
-                <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }} size={8}>
+                <Space direction="vertical" style={{ width: '100%', marginBottom: spacing.md }} size={8}>
                   {usage.alerts.map((alert: any, i: number) => {
                     const cfg = alertLevelConfig[alert.level] || alertLevelConfig.info;
                     return (
@@ -377,7 +377,7 @@ const PipelineBudget: React.FC = () => {
                   description="当前未触发任何预算告警"
                   type="success"
                   showIcon
-                  style={{ marginBottom: 16 }}
+                  style={{ marginBottom: spacing.md }}
                 />
               )}
 
@@ -394,7 +394,7 @@ const PipelineBudget: React.FC = () => {
                           ? 'normal'
                           : 'success'
                     }
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: spacing.sm }}
                   />
                 </Col>
                 <Col span={12}>
@@ -408,14 +408,14 @@ const PipelineBudget: React.FC = () => {
                           ? 'normal'
                           : 'success'
                     }
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: spacing.sm }}
                   />
                 </Col>
               </Row>
 
               {/* Budget Summary */}
               {config && (
-                <Descriptions column={1} size="small" style={{ marginTop: 16 }} bordered>
+                <Descriptions column={1} size="small" style={{ marginTop: spacing.md }} bordered>
                   <Descriptions.Item label="时间预算">
                     {config.time_budget?.maxDurationMs
                       ? `${Math.round(config.time_budget.maxDurationMs / 60000)} 分钟`

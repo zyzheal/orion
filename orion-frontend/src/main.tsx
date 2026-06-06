@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, Empty } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import AppRouter from './router';
 import { useAppStore } from './stores/appStore';
@@ -111,6 +111,12 @@ const AppContent: React.FC = () => {
     <ConfigProvider
       locale={zhCN}
       theme={getAntdThemeConfig({ algorithm: isDark ? 'dark' : 'default' })}
+      renderEmpty={() => (
+        <Empty
+          description="暂无数据"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )}
     >
       <AppRouter />
     </ConfigProvider>

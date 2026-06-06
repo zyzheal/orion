@@ -12,6 +12,7 @@ import {
   CloudResourceEntity,
 } from '../../repositories/MultiCloudRepository';
 import { DatabasePool } from '../database';
+import { NotFoundError } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -402,7 +403,7 @@ export class MultiCloudManagerService {
   async syncResources(tenantId: string, accountId: string): Promise<ResourceSyncJob> {
     const account = await this.getProvider(accountId);
     if (!account || account.tenant_id !== tenantId) {
-      throw new Error('Cloud account not found');
+      throw new NotFoundError('Cloud account not found');
     }
 
     const jobId = `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

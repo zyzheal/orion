@@ -390,18 +390,18 @@ const TicketDetail: React.FC = () => {
   return (
     <div style={{ padding: 0 }} data-testid="ticket-detail-page">
       {/* Top section: Back, Title, Badges */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Button
           type="link"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/tickets')}
-          style={{ padding: 0, marginBottom: 8 }}
+          style={{ padding: 0, marginBottom: spacing.sm }}
           data-testid="back-to-tickets"
         >
           返回工单列表
         </Button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3], flexWrap: 'wrap' }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             {ticket.id}
           </Title>
@@ -416,7 +416,7 @@ const TicketDetail: React.FC = () => {
       </div>
 
       {/* Action bar */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Space wrap>
           {canAssign && (
             <Button
@@ -469,7 +469,7 @@ const TicketDetail: React.FC = () => {
         {/* Left column (main) */}
         <Col span={16}>
           {/* Description */}
-          <Card title="工单描述" size="small" style={{ marginBottom: 16 }}>
+          <Card title="工单描述" size="small" style={{ marginBottom: spacing.md }}>
             <Paragraph>{ticket.description}</Paragraph>
           </Card>
 
@@ -482,7 +482,7 @@ const TicketDetail: React.FC = () => {
               </Space>
             }
             size="small"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Space wrap>
               {Object.entries(ticket.tags).map(([key, value]) => (
@@ -498,10 +498,10 @@ const TicketDetail: React.FC = () => {
             <Card
               title="SLA 信息"
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
               data-testid="sla-section"
             >
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: spacing[3] }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text>已用时间: {sla.elapsed}</Text>
                   <Text>总时限: {sla.total}</Text>
@@ -550,7 +550,7 @@ const TicketDetail: React.FC = () => {
                 </Space>
               }
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             >
               {relations.map((rel) => (
                 <div
@@ -558,7 +558,7 @@ const TicketDetail: React.FC = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     padding: '8px 0',
                     borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
@@ -591,7 +591,7 @@ const TicketDetail: React.FC = () => {
                 </Space>
               }
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             >
               {transfers.map((t) => (
                 <div
@@ -599,7 +599,7 @@ const TicketDetail: React.FC = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     padding: '8px 0',
                     borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
@@ -626,7 +626,7 @@ const TicketDetail: React.FC = () => {
         {/* Right column (sidebar) */}
         <Col span={8}>
           {/* Info card */}
-          <Card title="基本信息" size="small" style={{ marginBottom: 16 }}>
+          <Card title="基本信息" size="small" style={{ marginBottom: spacing.md }}>
             <Descriptions column={1} size="small">
               <Descriptions.Item label="分类">
                 {categoryLabels[ticket.category] || ticket.category}
@@ -651,7 +651,7 @@ const TicketDetail: React.FC = () => {
           </Card>
 
           {/* Assignment card */}
-          <Card title="负责人" size="small" style={{ marginBottom: 16 }}>
+          <Card title="负责人" size="small" style={{ marginBottom: spacing.md }}>
             {ticket.assignee ? (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Space>
@@ -668,9 +668,9 @@ const TicketDetail: React.FC = () => {
 
           {/* Escalation info */}
           {ticket.escalationLevel > 0 && (
-            <Card title="升级信息" size="small" style={{ marginBottom: 16 }}>
+            <Card title="升级信息" size="small" style={{ marginBottom: spacing.md }}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                   <ExclamationCircleOutlined style={{ color: colors.error[400] }} />
                   <Text strong>当前级别: L{ticket.escalationLevel}</Text>
                 </div>

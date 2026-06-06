@@ -30,7 +30,7 @@ import {
   EyeOutlined,
   PushpinOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import { pipelineVersionsApi } from '@/api/pipeline-versions';
 import type { PipelineVersion, VersionDiff, DiffItem } from '@/api/pipeline-versions';
@@ -59,7 +59,7 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
 
   return (
     <div>
-      <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
+      <Text type="secondary" style={{ marginBottom: spacing[3], display: 'block' }}>
         {diff.summary}
       </Text>
       <Tabs
@@ -75,14 +75,14 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
                   key={idx}
                   style={{
                     padding: '8px 12px',
-                    marginBottom: 8,
+                    marginBottom: spacing.sm,
                     background: color === 'green' ? colors.success[50] : color === 'red' ? colors.error[50] : colors.primary[50],
                     borderRadius: 4,
                     borderLeft: `3px solid ${color === 'green' ? colors.success[500] : color === 'red' ? colors.error[500] : colors.primary[500]}`,
                   }}
                 >
                   <Tag color={color}>{item.type}</Tag>
-                  <Text strong style={{ marginLeft: 8 }}>{item.path}</Text>
+                  <Text strong style={{ marginLeft: spacing.sm }}>{item.path}</Text>
                   {item.oldValue !== undefined && item.oldValue !== null && (
                     <div style={{ marginTop: 4 }}>
                       <Text type="secondary">旧值: </Text>
@@ -412,12 +412,12 @@ const PipelineVersionPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <TagsOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TagsOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             流水线版本管理
           </Title>
           <Text type="secondary">管理流水线定义的版本、对比差异、回退操作和标签管理</Text>
@@ -503,12 +503,12 @@ const PipelineVersionPage: React.FC = () => {
 
             {/* YAML Definition */}
             {selectedVersion.yaml_definition && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>YAML 定义</Title>
                 <pre
                   style={{
                     background: colors.neutral[100],
-                    padding: 16,
+                    padding: spacing.md,
                     borderRadius: 4,
                     fontSize: 13,
                     overflow: 'auto',
@@ -521,7 +521,7 @@ const PipelineVersionPage: React.FC = () => {
             )}
 
             {/* Quick Actions */}
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: spacing.lg }}>
               <Title level={5}>快捷操作</Title>
               <Space wrap>
                 <Button icon={<RollbackOutlined />} onClick={() => openRollbackModal(selectedVersion)}>
@@ -550,7 +550,7 @@ const PipelineVersionPage: React.FC = () => {
         width={900}
         destroyOnClose
       >
-        <Form form={diffForm} layout="inline" style={{ marginBottom: 16 }}>
+        <Form form={diffForm} layout="inline" style={{ marginBottom: spacing.md }}>
           <Form.Item name="sourceVersion" label="源版本" rules={[{ required: true, message: '请选择源版本' }]}>
             <Select options={versionOptions} style={{ width: 240 }} placeholder="选择源版本" />
           </Form.Item>
@@ -577,13 +577,13 @@ const PipelineVersionPage: React.FC = () => {
       >
         {selectedVersion && (
           <div>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text>
                 即将回退到 <Text strong>v{selectedVersion.version}</Text>
                 {selectedVersion.change_summary && ` (${selectedVersion.change_summary})`}
               </Text>
             </div>
-            <Descriptions column={1} bordered size="small" style={{ marginBottom: 16 }}>
+            <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="版本 ID">{selectedVersion.id}</Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(selectedVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}
@@ -620,7 +620,7 @@ const PipelineVersionPage: React.FC = () => {
         destroyOnClose
       >
         {selectedVersion && (
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: spacing[3] }}>
             <Text>当前标签: </Text>
             <Space wrap size={4}>
               {selectedVersion.tags?.map((tag) => <Tag key={tag}>{tag}</Tag>)}

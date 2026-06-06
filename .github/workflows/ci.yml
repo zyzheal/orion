@@ -501,6 +501,30 @@ jobs:
         run: npm run build
         working-directory: orion-dba/frontend
 
+  # ==================== Orion AI Service (Python) ====================
+
+  orion-ai-service-test:
+    name: Orion AI Service Tests
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: orion-ai-service/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: orion-ai-service
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+        working-directory: orion-ai-service
+
   # ==================== Orion Knowledge Backend (Go) ====================
 
   orion-knowledge-backend-build:

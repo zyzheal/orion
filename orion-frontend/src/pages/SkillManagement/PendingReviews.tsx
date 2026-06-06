@@ -281,12 +281,12 @@ const PendingReviews: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             待审核技能
           </Title>
           <Text type="secondary">管理员审核提交的技能包，确保质量和合规性</Text>
@@ -297,7 +297,7 @@ const PendingReviews: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -338,7 +338,7 @@ const PendingReviews: React.FC = () => {
       </Row>
 
       {/* Filter */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <span>分类筛选：</span>
           <Select
@@ -389,10 +389,10 @@ const PendingReviews: React.FC = () => {
       >
         {reviewingSkill && (
           <div>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text strong>技能：</Text>
               <Text>{reviewingSkill.name}</Text>
-              <Tag style={{ marginLeft: 8 }}>v{reviewingSkill.version}</Tag>
+              <Tag style={{ marginLeft: spacing.sm }}>v{reviewingSkill.version}</Tag>
             </div>
 
             <Form form={reviewForm} layout="vertical">

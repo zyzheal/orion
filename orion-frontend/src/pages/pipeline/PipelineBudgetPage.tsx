@@ -34,6 +34,7 @@ import pipelineBudgetApi from '@/api/pipeline-budget';
 import type { BudgetConfig, BudgetUsage, BudgetAlert, BudgetEstimate } from '@/api/pipeline-budget';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -110,7 +111,7 @@ const UsageCard: React.FC<{
         status={statusColor}
         strokeColor={strokeColor}
         size="small"
-        style={{ marginTop: 8 }}
+        style={{ marginTop: spacing.sm }}
       />
       <Text type="secondary" style={{ fontSize: 12 }}>
         已用: {used}{unit}
@@ -295,12 +296,12 @@ const PipelineBudgetPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             流水线预算
           </Title>
           <Text type="secondary">配置和执行流水线的预算限制，监控资源使用</Text>
@@ -336,7 +337,7 @@ const PipelineBudgetPage: React.FC = () => {
 
       {/* Usage Monitor Cards */}
       {budgetUsage && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <UsageCard
               title="时间预算"
@@ -378,7 +379,7 @@ const PipelineBudgetPage: React.FC = () => {
 
       {/* Alerts */}
       {alerts.length > 0 && (
-        <Card title={<><WarningOutlined style={{ marginRight: 8 }} />预算告警</>} style={{ marginBottom: 24 }}>
+        <Card title={<><WarningOutlined style={{ marginRight: spacing.sm }} />预算告警</>} style={{ marginBottom: spacing.lg }}>
           <AntTable<BudgetAlert>
             columns={alertColumns}
             dataSource={alerts}
@@ -391,14 +392,14 @@ const PipelineBudgetPage: React.FC = () => {
 
       {/* Budget Config Summary */}
       {budgetConfig && (
-        <Card title="当前预算配置" style={{ marginBottom: 24 }}>
+        <Card title="当前预算配置" style={{ marginBottom: spacing.lg }}>
           <Descriptions column={3} bordered size="small">
             <Descriptions.Item label="最大执行时间">
               {formatDuration(budgetConfig.time_budget?.maxDurationMs || 0)}
             </Descriptions.Item>
             <Descriptions.Item label="时间告警阈值">
               {budgetConfig.time_budget?.warningPercent}%
-              <Tag color={policyColorMap[budgetConfig.time_budget?.policy || 'warn']} style={{ marginLeft: 8 }}>
+              <Tag color={policyColorMap[budgetConfig.time_budget?.policy || 'warn']} style={{ marginLeft: spacing.sm }}>
                 {policyLabelMap[budgetConfig.time_budget?.policy || 'warn']}
               </Tag>
             </Descriptions.Item>
@@ -410,7 +411,7 @@ const PipelineBudgetPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="资源告警阈值">
               {budgetConfig.resource_budget?.warningPercent}%
-              <Tag color={policyColorMap[budgetConfig.resource_budget?.policy || 'warn']} style={{ marginLeft: 8 }}>
+              <Tag color={policyColorMap[budgetConfig.resource_budget?.policy || 'warn']} style={{ marginLeft: spacing.sm }}>
                 {policyLabelMap[budgetConfig.resource_budget?.policy || 'warn']}
               </Tag>
             </Descriptions.Item>
@@ -419,7 +420,7 @@ const PipelineBudgetPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="成本告警阈值">
               {budgetConfig.cost_budget?.warningPercent}%
-              <Tag color={policyColorMap[budgetConfig.cost_budget?.policy || 'warn']} style={{ marginLeft: 8 }}>
+              <Tag color={policyColorMap[budgetConfig.cost_budget?.policy || 'warn']} style={{ marginLeft: spacing.sm }}>
                 {policyLabelMap[budgetConfig.cost_budget?.policy || 'warn']}
               </Tag>
             </Descriptions.Item>
@@ -429,7 +430,7 @@ const PipelineBudgetPage: React.FC = () => {
 
       {/* Budget Estimate */}
       <Card
-        title={<><CalculatorOutlined style={{ marginRight: 8 }} />预算预估</>}
+        title={<><CalculatorOutlined style={{ marginRight: spacing.sm }} />预算预估</>}
         extra={
           <Space>
             <Select

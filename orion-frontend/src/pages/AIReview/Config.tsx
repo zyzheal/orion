@@ -62,11 +62,11 @@ const AIReviewConfig: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             评审配置
           </Title>
           <Text type="secondary">配置 AI Review 的模型、提示模板和评审范围</Text>
@@ -137,7 +137,7 @@ const AIReviewConfig: React.FC = () => {
       </Card>
 
       {/* Config Tips */}
-      <Card title="配置说明" style={{ marginTop: 16 }}>
+      <Card title="配置说明" style={{ marginTop: spacing.md }}>
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           <li>
             <Text strong>AI 模型：</Text>选择用于代码评审的 AI

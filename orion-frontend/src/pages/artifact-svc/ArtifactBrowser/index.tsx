@@ -14,7 +14,7 @@ import { Typography, Card, Drawer, message, Form } from 'antd';
 import { ReloadOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 import VersionTable, { type VersionFilters } from './VersionTable';
 import TraceabilityChainView from './TraceabilityChainView';
@@ -307,12 +307,12 @@ const ArtifactBrowser: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <FolderOpenOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <FolderOpenOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 制品版本浏览器
               </Title>
               <Text type="secondary">

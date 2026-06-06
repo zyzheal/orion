@@ -29,7 +29,7 @@ import {
   EnvironmentOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import { chatopsAdminApi } from '@/api/chatops-admin';
 
@@ -145,7 +145,7 @@ const RoleManagementTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">管理 ChatOps 命令执行权限角色</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>

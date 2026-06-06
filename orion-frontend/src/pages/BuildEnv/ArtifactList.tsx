@@ -266,12 +266,12 @@ const ArtifactList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ContainerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ContainerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Artifacts
           </Title>
           <Text type="secondary">{filteredArtifacts.length} artifacts</Text>
@@ -286,7 +286,7 @@ const ArtifactList: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

@@ -239,12 +239,12 @@ const MonitoringMetrics: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <LineChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             指标管理
           </Title>
           <Text type="secondary">共 {metrics.length} 个指标</Text>
@@ -266,7 +266,7 @@ const MonitoringMetrics: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           filters={filterDefs}
@@ -289,7 +289,7 @@ const MonitoringMetrics: React.FC = () => {
             <span>
               暂无指标
               <br />
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)} style={{ marginTop: 8 }}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)} style={{ marginTop: spacing.sm }}>
                 注册指标
               </Button>
             </span>
@@ -383,7 +383,7 @@ const MonitoringMetrics: React.FC = () => {
         {summaryData && (
           <>
             <Title level={5}>统计摘要</Title>
-            <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }}>
+            <Space direction="vertical" style={{ width: '100%', marginBottom: spacing.lg }}>
               <Space size="large">
                 <div>
                   <Text type="secondary">平均:</Text>

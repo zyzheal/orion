@@ -135,8 +135,8 @@ const PluginManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             插件管理
           </Title>
           <Text type="secondary">共 {plugins.length} 个插件</Text>

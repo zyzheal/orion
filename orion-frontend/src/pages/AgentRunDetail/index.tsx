@@ -146,7 +146,7 @@ const AgentRunDetail: React.FC = () => {
 
   if (!run) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
         {loading ? (
           <Text>Loading...</Text>
         ) : (
@@ -199,7 +199,7 @@ const AgentRunDetail: React.FC = () => {
   return (
     <div style={{ padding: 0 }} data-testid="agent-run-detail-page">
       {/* Breadcrumb / back */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Button
           type="link"
           icon={<ArrowLeftOutlined />}
@@ -213,7 +213,7 @@ const AgentRunDetail: React.FC = () => {
       {/* Status banner */}
       <Card
         style={{
-          marginBottom: 24,
+          marginBottom: spacing.lg,
           borderLeft: `4px solid ${
             run.status === 'completed'
               ? colors.success[500]
@@ -229,7 +229,7 @@ const AgentRunDetail: React.FC = () => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <Space style={{ marginBottom: 8 }}>
+            <Space style={{ marginBottom: spacing.sm }}>
               <Title level={4} style={{ margin: 0 }}>
                 运行 {run.id.slice(0, 8)}...
               </Title>
@@ -269,7 +269,7 @@ const AgentRunDetail: React.FC = () => {
         </div>
 
         {/* Progress bar */}
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Space>
             <Text style={{ fontSize: spacing[3] }}>进度</Text>
             <Progress
@@ -289,7 +289,7 @@ const AgentRunDetail: React.FC = () => {
       </Card>
 
       {/* Run metadata */}
-      <Card title="运行信息" size="small" style={{ marginBottom: 24 }}>
+      <Card title="运行信息" size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions column={3} size="small">
           <Descriptions.Item label="运行 ID">
             <Text code>{run.id}</Text>
@@ -317,7 +317,7 @@ const AgentRunDetail: React.FC = () => {
             <pre
               style={{
                 background: colors.neutral[50],
-                padding: 12,
+                padding: spacing[3],
                 borderRadius: 4,
                 fontSize: spacing[3],
                 overflow: 'auto',
@@ -339,7 +339,7 @@ const AgentRunDetail: React.FC = () => {
           </Space>
         }
         size="small"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       >
         {decisions.length > 0 ? (
           <Timeline events={timelineEvents} mode="left" />
@@ -350,7 +350,7 @@ const AgentRunDetail: React.FC = () => {
 
       {/* Decision details (collapsible) */}
       {decisions.length > 0 && (
-        <Card title="决策详情" size="small" style={{ marginBottom: 24 }}>
+        <Card title="决策详情" size="small" style={{ marginBottom: spacing.lg }}>
           <Collapse accordion>
             {decisions
               .sort((a, b) => a.stepNumber - b.stepNumber)
@@ -378,7 +378,7 @@ const AgentRunDetail: React.FC = () => {
                           margin: 0,
                           fontSize: spacing[3],
                           background: colors.neutral[50],
-                          padding: 8,
+                          padding: spacing.sm,
                           borderRadius: 4,
                         }}
                       >
@@ -392,7 +392,7 @@ const AgentRunDetail: React.FC = () => {
                             margin: 0,
                             fontSize: spacing[3],
                             background: colors.neutral[50],
-                            padding: 8,
+                            padding: spacing.sm,
                             borderRadius: 4,
                           }}
                         >
@@ -407,7 +407,7 @@ const AgentRunDetail: React.FC = () => {
                             margin: 0,
                             fontSize: spacing[3],
                             background: colors.neutral[50],
-                            padding: 8,
+                            padding: spacing.sm,
                             borderRadius: 4,
                           }}
                         >
@@ -450,10 +450,10 @@ const AgentRunDetail: React.FC = () => {
             </Space>
           }
           size="small"
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
         >
           {approvals.map((approval) => (
-            <Card key={approval.id} size="small" style={{ marginBottom: 8 }}>
+            <Card key={approval.id} size="small" style={{ marginBottom: spacing.sm }}>
               <Descriptions column={2} size="small">
                 <Descriptions.Item label="操作">{approval.action}</Descriptions.Item>
                 <Descriptions.Item label="状态">
@@ -511,7 +511,7 @@ const AgentRunDetail: React.FC = () => {
               }
               type="success"
               showIcon
-              style={{ marginBottom: 12 }}
+              style={{ marginBottom: spacing[3] }}
             />
           )}
           {run.result.summary && <Paragraph>{run.result.summary as string}</Paragraph>}
@@ -521,13 +521,13 @@ const AgentRunDetail: React.FC = () => {
               description={run.result.errorMessage as string}
               type="error"
               showIcon
-              style={{ marginBottom: 12 }}
+              style={{ marginBottom: spacing[3] }}
             />
           )}
           <pre
             style={{
               background: colors.neutral[50],
-              padding: 12,
+              padding: spacing[3],
               borderRadius: 4,
               fontSize: spacing[3],
               overflow: 'auto',

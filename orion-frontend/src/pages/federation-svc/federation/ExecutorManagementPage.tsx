@@ -29,6 +29,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -203,11 +204,11 @@ const ExecutorManagementPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} /> Executor Management
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} /> Executor Management
           </Title>
           <Text type="secondary">Executor registration, heartbeat monitoring, and health dashboard</Text>
         </div>
@@ -219,7 +220,7 @@ const ExecutorManagementPage: React.FC = () => {
 
       {/* Dashboard Stats */}
       {dashboard && (
-        <Row gutter={24} style={{ marginBottom: 24 }}>
+        <Row gutter={24} style={{ marginBottom: spacing.lg }}>
           <Col span={6}><Card><Statistic title="Total Executors" value={dashboard.total_executors} prefix={<DashboardOutlined />} /></Card></Col>
           <Col span={6}><Card><Statistic title="Online" value={dashboard.online_executors} valueStyle={{ color: colors.success[500] }} /></Card></Col>
           <Col span={6}><Card><Statistic title="Degraded" value={dashboard.degraded_executors} valueStyle={{ color: colors.warning[500] }} /></Card></Col>
@@ -229,7 +230,7 @@ const ExecutorManagementPage: React.FC = () => {
 
       {/* Utilization Summary */}
       {dashboard && (
-        <Card title="Resource Utilization" style={{ marginBottom: 24 }}>
+        <Card title="Resource Utilization" style={{ marginBottom: spacing.lg }}>
           <Row gutter={24}>
             <Col span={12}>
               <Text>CPU Usage (avg)</Text>

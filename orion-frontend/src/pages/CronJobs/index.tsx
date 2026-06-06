@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import { getCronJobs, createCronJob, deleteCronJob, executeCronJob, CronJob, CronJobInput } from '@/api/cron';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -167,11 +168,11 @@ const CronJobsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ScheduleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ScheduleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             定时任务
           </Title>
           <Text type="secondary">管理和调度周期性执行的任务</Text>
@@ -181,7 +182,7 @@ const CronJobsPage: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总任务数" value={stats.total} prefix={<ClockCircleOutlined />} />

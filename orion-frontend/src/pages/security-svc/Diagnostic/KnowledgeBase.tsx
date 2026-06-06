@@ -245,13 +245,13 @@ const DiagnosticKnowledgeBase: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            <BookOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <BookOutlined style={{ marginRight: spacing.sm }} />
             知识库
           </Title>
           <Text type="secondary">共 {patterns.length} 个诊断模式</Text>
@@ -268,7 +268,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
 
       {/* Stats */}
       {stats && (
-        <Card style={{ marginBottom: 16 }}>
+        <Card style={{ marginBottom: spacing.md }}>
           <Row gutter={16}>
             <Col span={8}>
               <Statistic
@@ -292,7 +292,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
             </Col>
           </Row>
           {stats.categories && (
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: spacing[3] }}>
               <Space wrap>
                 {Object.entries(stats.categories).map(([cat, count]) => (
                   <Tag key={cat} color={categoryConfig[cat]?.color || 'default'}>
@@ -305,7 +305,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         </Card>
       )}
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={handleSearch}
           onFilter={handleFilter}

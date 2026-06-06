@@ -23,8 +23,8 @@ func Load() *Config {
 		Port:       port,
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     dbPort,
-		DBUser:     getEnv("DB_USER", "orion"),
-		DBPassword: getEnv("DB_PASSWORD", "orion"),
+		DBUser:     requireEnv("DB_USER"),
+		DBPassword: requireEnv("DB_PASSWORD"),
 		DBName:     getEnv("DB_NAME", "orion_inception"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 	}
@@ -35,4 +35,11 @@ func getEnv(key, defaultValue string) string {
 		return v
 	}
 	return defaultValue
+}
+
+func requireEnv(key string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	panic("required environment variable not set: " + key)
 }

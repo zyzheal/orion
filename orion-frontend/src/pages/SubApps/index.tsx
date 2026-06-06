@@ -157,18 +157,18 @@ const SubApps: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 16,
+                  marginBottom: spacing.md,
                 }}
               >
                 <div style={{ fontSize: spacing[8], color: app.color }}>{app.icon}</div>
               </div>
 
-              <Title level={4} style={{ marginBottom: 8 }}>
+              <Title level={4} style={{ marginBottom: spacing.sm }}>
                 {app.name}
               </Title>
 
               {app.tags.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
+                <div style={{ marginBottom: spacing[3] }}>
                   {app.tags.map((tag) => (
                     <Tag key={tag} color={app.color} style={{ marginRight: 4 }}>
                       {tag}
@@ -183,7 +183,7 @@ const SubApps: React.FC = () => {
                   flex: 1,
                   fontSize: spacing[4],
                   lineHeight: 1.6,
-                  marginBottom: 24,
+                  marginBottom: spacing.lg,
                 }}
               >
                 {app.description}
@@ -236,8 +236,8 @@ const SubApps: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 32 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ marginBottom: spacing.xl }}>
         <Title level={2}>子系统导航</Title>
         <Paragraph type="secondary" style={{ fontSize: spacing[4] }}>
           Orion 平台采用微前端架构，以下为集成的子系统应用。点击卡片进入相应子系统。

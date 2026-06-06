@@ -15,7 +15,7 @@ import ApprovalRecordTable from './ApprovalRecordTable';
 import TimeoutConfig from './TimeoutConfig';
 import { getApprovalFlows, getApprovals, getTimeoutConfigs } from '@/api/approval';
 import type { ApprovalFlowConfig, ApprovalChainInfo, ApprovalTimeoutConfig } from '@/api/approval';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
@@ -97,9 +97,9 @@ const ApprovalManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <SettingOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <SettingOutlined style={{ marginRight: spacing.sm, color: colors.purple[500] }} />
           审批流程管理
         </Title>
         <Paragraph type="secondary">配置审批流程、查看审批记录和管理超时策略</Paragraph>

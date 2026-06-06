@@ -215,7 +215,7 @@ const EventRegistryPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             Event Registry
           </Title>
           <Text type="secondary">事件触发器注册表 - 管理事件类型、订阅和触发规则</Text>

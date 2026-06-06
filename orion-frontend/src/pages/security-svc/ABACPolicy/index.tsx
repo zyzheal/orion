@@ -8,7 +8,7 @@ import { Card, Table, Tag, Button, Space, Modal, Form, Input, Select, Switch, me
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getAllPolicies, createPolicy, updatePolicy, deletePolicy, togglePolicy, type AbacPolicy } from '@/api/abac-policy';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -168,7 +168,7 @@ const ABACPolicyManagement: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Card title="ABAC 策略管理" extra={
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchPolicies}>刷新</Button>
@@ -222,7 +222,7 @@ const ABACPolicyManagement: React.FC = () => {
             <p><strong>优先级:</strong> {selectedPolicy.priority}</p>
             <p><strong>状态:</strong> {selectedPolicy.enabled ? '启用' : '禁用'}</p>
             <p><strong>条件:</strong></p>
-            <pre style={{ background: colors.neutral[100], padding: 12, borderRadius: 4 }}>{JSON.stringify(selectedPolicy.conditions, null, 2)}</pre>
+            <pre style={{ background: colors.neutral[100], padding: spacing[3], borderRadius: 4 }}>{JSON.stringify(selectedPolicy.conditions, null, 2)}</pre>
           </>
         )}
       </Drawer>

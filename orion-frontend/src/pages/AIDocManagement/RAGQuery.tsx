@@ -99,9 +99,9 @@ const RAGQueryPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-            <SearchOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SearchOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           RAG 查询
         </Title>
         <Text type="secondary">基于知识库的问答检索</Text>
@@ -110,13 +110,13 @@ const RAGQueryPage: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card title="对话" style={{ minHeight: 500 }}>
-            <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
+            <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: spacing.md }}>
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   style={{
-                    marginBottom: 16,
-                    padding: 12,
+                    marginBottom: spacing.md,
+                    padding: spacing[3],
                     borderRadius: 8,
                     background: msg.role === 'user' ? colors.info[50] : colors.neutral[50],
                   }}
@@ -205,7 +205,7 @@ const RAGQueryPage: React.FC = () => {
                             percent={source.relevanceScore * 100}
                             size="small"
                             strokeColor="colors.primary[500]"
-                            style={{ marginTop: 8 }}
+                            style={{ marginTop: spacing.sm }}
                           />
                         </div>
                       ),

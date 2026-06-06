@@ -69,8 +69,8 @@ const SkillSubmission: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: spacing[6] }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           技能提交
         </Title>
         <Text type="secondary">提交新的技能包到社区市场</Text>

@@ -15,7 +15,7 @@ import {
   PlusOutlined, ReloadOutlined, DollarOutlined,
   SwapOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Panel } = Collapse;
 
@@ -117,9 +117,9 @@ const MultiCloudAdvancedPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="Cloud Accounts" value={accounts.length} prefix={<CloudOutlined />} />
@@ -190,23 +190,23 @@ const MultiCloudAdvancedPage: React.FC = () => {
                 title="Cross-Region Disaster Recovery"
                 extra={<Button icon={<PlusOutlined />} onClick={() => setDrModal(true)}>Create DR Plan</Button>}
               >
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
                     <Card title="RPO (Recovery Point Objective)" size="small">
                       <Progress type="dashboard" percent={95} format={() => '5 min'} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Target: {'<'} 10 min</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Target: {'<'} 10 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="RTO (Recovery Time Objective)" size="small">
                       <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor={colors.warning[500]} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Target: {'<'} 30 min</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Target: {'<'} 30 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="DR Readiness" size="small">
                       <Progress type="dashboard" percent={88} strokeColor={colors.success[500]} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: colors.neutral[500] }}>Status: Ready</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Status: Ready</p>
                     </Card>
                   </Col>
                 </Row>
@@ -233,7 +233,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
             label: <><DollarOutlined /> Cost Optimization</>,
             children: (
               <Card title="Multi-Cloud Cost Optimization">
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
                     <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: colors.primary[500] }} />
                   </Col>
@@ -293,7 +293,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                     Unified policy across 5 cloud accounts
                   </Descriptions.Item>
                 </Descriptions>
-                <Card size="small" title="Network Topology" style={{ marginTop: 16 }}>
+                <Card size="small" title="Network Topology" style={{ marginTop: spacing.md }}>
                   <Row gutter={16}>
                     <Col span={8}>
                       <Card size="small" title="AWS VPC">

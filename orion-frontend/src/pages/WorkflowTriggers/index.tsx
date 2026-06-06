@@ -252,7 +252,7 @@ const WorkflowTriggers: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
-            <ThunderboltOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            <ThunderboltOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             工作流触发器
           </h2>
           <Text type="secondary">Workflow Trigger Management</Text>

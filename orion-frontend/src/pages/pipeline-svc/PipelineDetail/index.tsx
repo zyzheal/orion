@@ -227,8 +227,8 @@ const PipelineDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button
@@ -240,13 +240,13 @@ const PipelineDetail: React.FC = () => {
           返回列表
         </Button>
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline.name} #{pipeline.runNumber}
           </Title>
           <Text type="secondary">
             {pipeline.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
+              <Tag color="default" style={{ marginRight: spacing.sm }}>
                 {pipeline.commit}
               </Tag>
             )}
@@ -310,7 +310,7 @@ const PipelineDetail: React.FC = () => {
       </CardPanel>
 
       {/* Tabbed content: Stages / Logs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: spacing.md }}>
         <TabPane
           tab={
             <Space>
@@ -411,12 +411,12 @@ const PipelineDetail: React.FC = () => {
 
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: spacing.sm }}>
                   {pipeline.stages.map((stage: any, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
-                      style={{ marginBottom: 8 }}
+                      style={{ marginBottom: spacing.sm }}
                       title={
                         <Space>
                           <StatusBadge status={stage.status} size="small" />
@@ -458,7 +458,7 @@ const PipelineDetail: React.FC = () => {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 8,
+                                gap: spacing.sm,
                                 fontSize: spacing[3],
                               }}
                             >
@@ -499,7 +499,7 @@ const PipelineDetail: React.FC = () => {
               style={{
                 background: colors.neutral[900],
                 borderRadius: 6,
-                padding: 16,
+                padding: spacing.md,
                 fontFamily: 'Menlo, Monaco, "Courier New", monospace',
                 fontSize: spacing[3],
                 lineHeight: 1.6,
@@ -509,13 +509,13 @@ const PipelineDetail: React.FC = () => {
               }}
             >
               {pipeline.stages?.map((stage: any) => (
-                <div key={stage.name} style={{ marginBottom: 16 }}>
+                <div key={stage.name} style={{ marginBottom: spacing.md }}>
                   {/* Stage header */}
                   <div
                     style={{
                       color: stageStatusColors[stage.status],
                       fontWeight: 600,
-                      marginBottom: 8,
+                      marginBottom: spacing.sm,
                       borderBottom: '1px solid colors.neutral[800]',
                       paddingBottom: 4,
                     }}
@@ -526,7 +526,7 @@ const PipelineDetail: React.FC = () => {
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
                     stage.logs.map((log: any, index: number) => (
-                      <div key={index} style={{ paddingLeft: 16 }}>
+                      <div key={index} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
                         ) : log.includes('passed') ||
@@ -539,7 +539,7 @@ const PipelineDetail: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
+                    <div style={{ paddingLeft: spacing.md, color: colors.neutral[500] }}>
                       {stage.status === 'pending' ? '[Waiting to start...]' : '[No logs available]'}
                     </div>
                   )}

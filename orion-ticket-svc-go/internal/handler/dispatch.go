@@ -28,7 +28,7 @@ func (h *DispatchHandler) RegisterEngineer(c *gin.Context) {
 
 	engineer, err := h.svc.RegisterEngineer(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -39,7 +39,7 @@ func (h *DispatchHandler) RegisterEngineer(c *gin.Context) {
 func (h *DispatchHandler) ListEngineers(c *gin.Context) {
 	engineers, err := h.svc.ListEngineers(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": engineers, "count": len(engineers)})
@@ -49,7 +49,7 @@ func (h *DispatchHandler) ListEngineers(c *gin.Context) {
 func (h *DispatchHandler) GetEngineer(c *gin.Context) {
 	engineer, err := h.svc.GetEngineer(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "engineer not found"})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": engineer})
@@ -70,7 +70,7 @@ func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
 
 	record, err := h.svc.AutoDispatch(c.Request.Context(), id, tenantID, req.AssignedBy)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 
@@ -93,23 +93,11 @@ func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
 
 	record, err := h.svc.ManualDispatch(c.Request.Context(), id, tenantID, req.EngineerID, GetUserID(c), req.Reason)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": record})
-}
-
-// GetBestMatch GET /api/v1/tickets/:id/dispatch/best-match
-func (h *DispatchHandler) GetBestMatch(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-
-	// Get ticket first (need to import ticket repo or pass through)
-	_ = tenantID
-	_ = id
-
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "use POST /dispatch/auto instead"})
 }
 
 // CalculateDispatchScore POST /api/v1/tickets/dispatch/score
@@ -127,7 +115,7 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 
 	match, err := h.svc.CalculateDispatchScore(c.Request.Context(), req.TicketID, tenantID, req.EngineerID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 
@@ -138,7 +126,7 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 func (h *DispatchHandler) GetDispatchQueueStatus(c *gin.Context) {
 	status, err := h.svc.GetQueueStatus(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": status})
@@ -148,7 +136,7 @@ func (h *DispatchHandler) GetDispatchQueueStatus(c *gin.Context) {
 func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
 	entries, err := h.svc.GetQueueEntries(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": entries, "count": len(entries)})
@@ -170,8 +158,8 @@ func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 		Priority:   req.Priority,
 	}
 
-	if err := h.svc.AddRule(rule); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.svc.AddRule(c.Request.Context(), rule); err != nil {
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -180,9 +168,9 @@ func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 
 // GetDispatchRules GET /api/v1/tickets/dispatch/rules
 func (h *DispatchHandler) GetDispatchRules(c *gin.Context) {
-	rules, err := h.svc.GetRules()
+	rules, err := h.svc.GetRules(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": rules, "count": len(rules)})
@@ -190,8 +178,8 @@ func (h *DispatchHandler) GetDispatchRules(c *gin.Context) {
 
 // RemoveDispatchRule DELETE /api/v1/tickets/dispatch/rules/:ruleId
 func (h *DispatchHandler) RemoveDispatchRule(c *gin.Context) {
-	if err := h.svc.RemoveRule(c.Param("ruleId")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "rule not found"})
+	if err := h.svc.RemoveRule(c.Request.Context(), c.Param("ruleId")); err != nil {
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "rule removed"})
@@ -201,7 +189,7 @@ func (h *DispatchHandler) RemoveDispatchRule(c *gin.Context) {
 func (h *DispatchHandler) GetLoadBalanceReport(c *gin.Context) {
 	report, err := h.svc.GetLoadBalanceReport(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": report})
@@ -227,7 +215,7 @@ func (h *DispatchHandler) GetDispatchWeights(c *gin.Context) {
 func (h *DispatchHandler) GetDispatchMetrics(c *gin.Context) {
 	metrics, err := h.svc.GetMetrics(c.Request.Context(), time.Time{}, time.Time{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": metrics})
@@ -237,7 +225,7 @@ func (h *DispatchHandler) GetDispatchMetrics(c *gin.Context) {
 func (h *DispatchHandler) GetEngineerPerformance(c *gin.Context) {
 	perf, err := h.svc.GetEngineerPerformance(c.Request.Context(), c.Param("engineerId"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "engineer not found"})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": perf})
@@ -247,7 +235,7 @@ func (h *DispatchHandler) GetEngineerPerformance(c *gin.Context) {
 func (h *DispatchHandler) GetAllEngineerPerformances(c *gin.Context) {
 	perfs, err := h.svc.GetAllPerformances(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": perfs})

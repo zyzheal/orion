@@ -354,7 +354,7 @@ const DashboardNew: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* 顶部统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             title="Pipeline 总数"
@@ -381,7 +381,7 @@ const DashboardNew: React.FC = () => {
           <Card
             title="待处理任务"
             extra={<Button type="link">查看全部</Button>}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Table
               columns={taskColumns}
@@ -417,7 +417,7 @@ const DashboardNew: React.FC = () => {
                 查看全部
               </Button>
             }
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Row gutter={[12, 12]}>
               {dashboardLinks.map((link) => (
@@ -454,7 +454,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 系统健康状态 */}
-          <Card title="系统健康状态" style={{ marginBottom: 16 }}>
+          <Card title="系统健康状态" style={{ marginBottom: spacing.md }}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {systemHealth.map((item) => (
                 <div
@@ -485,7 +485,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 快速操作 */}
-          <Card title="快速操作" style={{ marginBottom: 16 }}>
+          <Card title="快速操作" style={{ marginBottom: spacing.md }}>
             <Row gutter={[12, 12]}>
               {quickActions.map((action) => (
                 <Col span={12} key={action.name}>
@@ -503,7 +503,7 @@ const DashboardNew: React.FC = () => {
                       transition: 'all 0.3s',
                     }}
                   >
-                    <div style={{ fontSize: 28, color: action.color, marginBottom: 8 }}>
+                    <div style={{ fontSize: 28, color: action.color, marginBottom: spacing.sm }}>
                       {action.icon}
                     </div>
                     <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>
@@ -515,12 +515,12 @@ const DashboardNew: React.FC = () => {
 
           {/* 公告/提醒 */}
           <Card title="系统提醒">
-            <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: 8 }}>
-              <WarningOutlined style={{ color: colors.warning[500], marginRight: 8 }} />
+            <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+              <WarningOutlined style={{ color: colors.warning[500], marginRight: spacing.sm }} />
               Event Bus 延迟较高，请检查 NATS 服务
             </Paragraph>
             <Paragraph type="secondary" style={{ fontSize: spacing[3] }}>
-              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: 8 }} />
+              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: spacing.sm }} />
               所有子系统运行正常
             </Paragraph>
           </Card>

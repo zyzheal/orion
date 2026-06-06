@@ -304,7 +304,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       ) : (
         <>
           {/* Queue Status Summary */}
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card size="small" style={{ marginBottom: spacing.md }}>
             <Row gutter={16}>
               <Col span={6}>
                 <Statistic
@@ -355,13 +355,13 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
 
           {/* Queue Entries */}
           {queueTickets.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 8,
+                  marginBottom: spacing.sm,
                 }}
               >
                 <Title level={5} style={{ margin: 0 }}>
@@ -391,8 +391,8 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
           {/* Engineer Availability */}
           {engineers.length > 0 && (
             <div>
-              <Title level={5} style={{ marginBottom: 8 }}>
-                <UserOutlined style={{ marginRight: 8 }} />
+              <Title level={5} style={{ marginBottom: spacing.sm }}>
+                <UserOutlined style={{ marginRight: spacing.sm }} />
                 工程师可用性
               </Title>
               <Space direction="vertical" style={{ width: '100%' }}>
@@ -406,7 +406,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
                       style={{ marginBottom: 4 }}
                       data-testid={`engineer-card-${engineer.id}`}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
                         <Badge status={availConfig.status} text={engineer.name} />
                         <Tag color={availConfig.color}>{availConfig.label}</Tag>
                         <div style={{ flex: 1, maxWidth: 200 }}>

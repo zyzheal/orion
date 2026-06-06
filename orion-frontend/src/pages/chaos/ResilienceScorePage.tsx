@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { resilienceApi, ResilienceScore } from '@/api/chaos';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title } = Typography;
 
@@ -115,13 +116,13 @@ export default function ResilienceScorePage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <SafetyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <SafetyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         弹性评分
       </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic

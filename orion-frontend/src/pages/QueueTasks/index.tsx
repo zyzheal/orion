@@ -30,6 +30,7 @@ import {
 } from '@ant-design/icons';
 import { listJobs, enqueueJob, completeJob, failJob, getQueueStats, QueueJob, EnqueueInput, JobStatus, QueueStats } from '@/api/queue';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -171,11 +172,11 @@ const QueueTasksPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <UnorderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <UnorderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             任务队列
           </Title>
           <Text type="secondary">管理队列任务状态、手动入队和完成标记</Text>
@@ -200,7 +201,7 @@ const QueueTasksPage: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="待处理" value={stats.pending} valueStyle={{ color: colors.neutral[500] }} />

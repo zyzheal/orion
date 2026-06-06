@@ -16,7 +16,7 @@ import {
   Descriptions,
   message,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   ReloadOutlined,
@@ -161,13 +161,13 @@ const AuditLogPage: React.FC = () => {
   return (
     <DashboardLayout>
       {isInitialLoading ? (
-        <div style={{ padding: 24 }}>
+        <div style={{ padding: spacing.lg }}>
           <PageSkeleton cards={3} rows={10} />
         </div>
       ) : (
-        <div style={{ padding: 24 }}>
+        <div style={{ padding: spacing.lg }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={2}>审计日志</Title>
               <Text type="secondary">不可逆审计链、完整性验证</Text>
@@ -186,7 +186,7 @@ const AuditLogPage: React.FC = () => {
           </div>
 
           {/* Summary Cards */}
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={6}>
               <Card>
                 <Statistic
@@ -226,17 +226,17 @@ const AuditLogPage: React.FC = () => {
           </Row>
 
           {/* Chain Hash Info */}
-          <Card title="链信息" style={{ marginBottom: 24 }}>
+          <Card title="链信息" style={{ marginBottom: spacing.lg }}>
             <Row gutter={16}>
               <Col span={12}>
                 <Text type="secondary">创世 Hash:</Text>
-                <Text code style={{ marginLeft: 8 }} copyable>
+                <Text code style={{ marginLeft: spacing.sm }} copyable>
                   {chainInfo?.genesisHash || 'N/A'}
                 </Text>
               </Col>
               <Col span={12}>
                 <Text type="secondary">最新链 Hash:</Text>
-                <Text code style={{ marginLeft: 8 }} copyable>
+                <Text code style={{ marginLeft: spacing.sm }} copyable>
                   {chainInfo?.lastChainHash || 'N/A'}
                 </Text>
               </Col>

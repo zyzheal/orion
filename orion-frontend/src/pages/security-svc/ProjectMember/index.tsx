@@ -8,6 +8,7 @@ import { Card, Table, Tag, Button, Space, Modal, Form, Input, Select, message } 
 import { PlusOutlined, DeleteOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getProjectMembers, addProjectMember, removeProjectMember, type ProjectMember } from '@/api/project-member';
+import { spacing } from '@/tokens';
 
 const { Option } = Select;
 
@@ -103,7 +104,7 @@ const ProjectMemberManagement: React.FC<Props> = ({ projectId: propProjectId }) 
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Card
         title="项目成员管理"
         extra={

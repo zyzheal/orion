@@ -8,7 +8,7 @@ import { Card, Table, Tag, Select, Button, Space, Statistic, Row, Col, message, 
 import { ReloadOutlined, FilterOutlined, BarChartOutlined, WarningOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { queryDeniedLogs, queryDeniedStats, getAnomalies, getHighRiskUsers, type AuditLogEntry, type AuditStats, type UEBAAnomaly, type UEBARiskUser } from '@/api/permission-audit';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Option } = Select;
 
@@ -156,8 +156,8 @@ const PermissionAudit: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -214,7 +214,7 @@ const PermissionAudit: React.FC = () => {
             </Button>
           </Space>
         }
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       >
         <Table
           dataSource={stats}
@@ -235,7 +235,7 @@ const PermissionAudit: React.FC = () => {
               <Badge count={anomalies.length} style={{ backgroundColor: colors.error[500] }} />
             </Space>
           }
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           {anomalies.map((anomaly, index) => {
             const severityColor: Record<string, string> = {
@@ -258,7 +258,7 @@ const PermissionAudit: React.FC = () => {
                 }
                 description={`用户: ${anomaly.userId} | 类型: ${anomaly.alertType} | 检测时间: ${new Date(anomaly.timestamp).toLocaleString('zh-CN')}`}
                 showIcon
-                style={{ marginBottom: 8 }}
+                style={{ marginBottom: spacing.sm }}
               />
             );
           })}
@@ -275,7 +275,7 @@ const PermissionAudit: React.FC = () => {
             </Space>
           }
           extra={<Tag color="purple">{riskUsers.length} 位高风险用户</Tag>}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           <Table
             dataSource={riskUsers}

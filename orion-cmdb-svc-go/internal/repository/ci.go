@@ -18,25 +18,25 @@ func NewCIRepository(db *sqlx.DB) *CIRepository {
 	return &CIRepository{db: db}
 }
 
-func (r *CIRepository) Create(item *models.CIItem) error {
+func (r *CIRepository) Create(ctx context.Context, item *models.CIItem) error {
 	query := `INSERT INTO ci_items (id, tenant_id, name, ci_type, status, owner, attributes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := r.db.Exec(query,
+	_, err := r.db.ExecContext(ctx, query,
 		item.ID, item.TenantID, item.Name, item.CIType, item.Status, item.Owner, item.Attributes,
 	)
 	return err
 }
 
-func (r *CIRepository) GetByID(id, tenantID string) (*models.CIItem, error) {
+func (r *CIRepository) GetByID(ctx context.Context, id, tenantID string) (*models.CIItem, error) {
 	var item models.CIItem
-	err := r.db.Get(&item, "SELECT * FROM ci_items WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	err := r.db.GetContext(ctx, &item, "SELECT * FROM ci_items WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &item, nil
 }
 
-func (r *CIRepository) List(tenantID string, q models.ListQuery) ([]models.CIItem, int, error) {
+func (r *CIRepository) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.CIItem, int, error) {
 	var items []models.CIItem
 	var total int
 
@@ -66,14 +66,14 @@ func (r *CIRepository) List(tenantID string, q models.ListQuery) ([]models.CIIte
 	}
 
 	countQuery := "SELECT COUNT(*) FROM ci_items " + where
-	err := r.db.Get(&total, countQuery, args...)
+	err := r.db.GetContext(ctx, &total, countQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	offset := (q.Page - 1) * q.PageSize
 	listQuery := "SELECT * FROM ci_items " + where + fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d OFFSET %d", q.PageSize, offset)
-	err = r.db.Select(&items, listQuery, args...)
+	err = r.db.SelectContext(ctx, &items, listQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -81,17 +81,17 @@ func (r *CIRepository) List(tenantID string, q models.ListQuery) ([]models.CIIte
 	return items, total, nil
 }
 
-func (r *CIRepository) Update(item *models.CIItem) error {
+func (r *CIRepository) Update(ctx context.Context, item *models.CIItem) error {
 	query := `UPDATE ci_items SET name=$1, ci_type=$2, status=$3, owner=$4, attributes=$5, updated_at=NOW()
 		WHERE id=$6 AND tenant_id=$7`
-	_, err := r.db.Exec(query,
+	_, err := r.db.ExecContext(ctx, query,
 		item.Name, item.CIType, item.Status, item.Owner, item.Attributes, item.ID, item.TenantID,
 	)
 	return err
 }
 
-func (r *CIRepository) Delete(id, tenantID string) error {
-	_, err := r.db.Exec("DELETE FROM ci_items WHERE id = $1 AND tenant_id = $2", id, tenantID)
+func (r *CIRepository) Delete(ctx context.Context, id, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM ci_items WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
 

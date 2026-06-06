@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   FolderOutlined,
   BranchesOutlined,
@@ -81,7 +81,7 @@ const CodeMgmtLayout: React.FC = () => {
       <Layout>
         <Content
           style={{
-            padding: 24,
+            padding: spacing.lg,
             margin: 0,
             minHeight: 280,
             background: colors.light.bg.primary,

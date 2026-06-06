@@ -32,6 +32,11 @@ jobs:
         service:
           - orion-ticket-svc-go
           - orion-api-gateway-go
+          - orion-cmdb-svc-go
+          - orion-monitor-svc-go
+          - orion-pipeline-svc-go
+          - orion-build-svc-go
+          - orion-deploy-svc-go
     steps:
       - uses: actions/checkout@v4
 

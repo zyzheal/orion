@@ -31,7 +31,7 @@ import {
   type TimeRangeType,
   type TopCommand,
 } from '@/api/chatops';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -108,8 +108,8 @@ export default function ChatDashboard() {
 
   if (apiError && !stats) {
     return (
-      <div style={{ padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ padding: spacing.md }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>刷新</Button>
         </div>
         <Card>
@@ -161,9 +161,9 @@ export default function ChatDashboard() {
   };
 
   const renderTopCommands = (commands: TopCommand[]) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
       {commands.map((cmd, index) => (
-        <div key={cmd.command} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div key={cmd.command} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <span
             style={{
               display: 'inline-flex',
@@ -188,8 +188,8 @@ export default function ChatDashboard() {
   );
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+    <div style={{ padding: spacing.md }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
         <Space>
           <Select
             value={timeRange}
@@ -207,7 +207,7 @@ export default function ChatDashboard() {
         <Skeleton active paragraph={{ rows: 8 }} />
       ) : stats ? (
         <>
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
             <Col span={6}>
               <MetricCard
                 title="总执行数"
@@ -248,7 +248,7 @@ export default function ChatDashboard() {
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
             <Col xs={24} sm={24} md={12} lg={12}>
               <Card title="活跃度趋势">
                 {stats.trends.length === 0 ? (
@@ -284,7 +284,7 @@ export default function ChatDashboard() {
                 <Text type="secondary">还没有执行记录，开始第一次对话吧</Text>
               </Empty>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                 {stats.recentExecutions.map((exec) => (
                   <div
                     key={exec.id}
@@ -297,15 +297,15 @@ export default function ChatDashboard() {
                     }}
                   >
                     <Text code>/{exec.commandId}</Text>
-                    <Tag style={{ marginLeft: 8 }}>{exec.platform}</Tag>
+                    <Tag style={{ marginLeft: spacing.sm }}>{exec.platform}</Tag>
                     <Text style={{ marginLeft: 'auto' }}>{exec.userId}</Text>
                     <Tag
                       color={exec.status === 'completed' ? 'green' : exec.status === 'failed' ? 'red' : 'orange'}
-                      style={{ marginLeft: 8 }}
+                      style={{ marginLeft: spacing.sm }}
                     >
                       {exec.status}
                     </Tag>
-                    <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                    <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>
                       {dayjs(exec.startTime).fromNow()}
                     </Text>
                   </div>

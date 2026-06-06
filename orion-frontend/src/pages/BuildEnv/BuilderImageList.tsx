@@ -295,12 +295,12 @@ const BuilderImageList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <PictureOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <PictureOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Builder Images
           </Title>
           <Text type="secondary">{filteredImages.length} builder images</Text>
@@ -315,7 +315,7 @@ const BuilderImageList: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -345,7 +345,7 @@ const BuilderImageList: React.FC = () => {
         okText={editingImage ? 'Update' : 'Create'}
         width={520}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="Name"

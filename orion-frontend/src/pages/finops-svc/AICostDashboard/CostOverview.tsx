@@ -199,8 +199,8 @@ const CostOverview: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             成本总览
           </Title>
           <Text type="secondary">AI 模型调用成本与资源使用统计</Text>
@@ -261,7 +261,7 @@ const CostOverview: React.FC = () => {
       </Row>
 
       {/* 7-Day Trend Chart */}
-      <Card title="7 日趋势" style={{ marginBottom: 24 }}>
+      <Card title="7 日趋势" style={{ marginBottom: spacing.lg }}>
         {dashboard?.dailyTrend && dashboard.dailyTrend.length > 0 ? (
           <ReactECharts option={trendChartOption} style={{ height: 300 }} />
         ) : (
@@ -284,7 +284,7 @@ const CostOverview: React.FC = () => {
       <Row gutter={16}>
         {/* Top Tenants Chart */}
         <Col span={8}>
-          <Card title="Top 租户" size="small" style={{ marginBottom: 16 }}>
+          <Card title="Top 租户" size="small" style={{ marginBottom: spacing.md }}>
             {dashboard?.topTenants && dashboard.topTenants.length > 0 ? (
               <ReactECharts option={tenantChartOption} style={{ height: 200 }} />
             ) : (
@@ -313,7 +313,7 @@ const CostOverview: React.FC = () => {
 
         {/* Top Users */}
         <Col span={8}>
-          <Card title="Top 用户" size="small" style={{ marginBottom: 16 }}>
+          <Card title="Top 用户" size="small" style={{ marginBottom: spacing.md }}>
             <AntTable<{ userId: string; cost: number }>
               columns={userColumns}
               dataSource={dashboard?.topUsers || []}
@@ -326,7 +326,7 @@ const CostOverview: React.FC = () => {
 
         {/* Model Distribution */}
         <Col span={8}>
-          <Card title="模型分布" size="small" style={{ marginBottom: 16 }}>
+          <Card title="模型分布" size="small" style={{ marginBottom: spacing.md }}>
             {dashboard?.modelDistribution && dashboard.modelDistribution.length > 0 ? (
               <ReactECharts option={modelDistOption} style={{ height: 200 }} />
             ) : (
@@ -347,7 +347,7 @@ const CostOverview: React.FC = () => {
 
       {/* Model Pricing */}
       {pricing.length > 0 && (
-        <Card title="模型定价" style={{ marginTop: 16 }}>
+        <Card title="模型定价" style={{ marginTop: spacing.md }}>
           <AntTable
             columns={[
               {

@@ -7,7 +7,7 @@ import { Typography, Space, Tag, Badge, Button, Tooltip } from 'antd';
 import { BlockOutlined, CheckCircleOutlined, SafetyOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import { type PluginRegistration, pluginStatusColorMap, pluginStatusLabelMap } from './types';
 import dayjs from 'dayjs';
 
@@ -163,7 +163,7 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
 
   return (
     <>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={onSearchChange}
           onFilter={onFilterChange}

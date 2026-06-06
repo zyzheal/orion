@@ -21,6 +21,7 @@ import {
   Col,
   Progress,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   RobotOutlined,
   ClockCircleOutlined,
@@ -363,7 +364,7 @@ const AdaptiveTimeoutTab: React.FC = () => {
               </Card>
             </Col>
           </Row>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <Text type="secondary">样本数: {timeoutConfig.sampleSize}</Text>
           </div>
         </Card>
@@ -605,9 +606,9 @@ const AutonomousPipelinePage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <RobotOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <RobotOutlined style={{ marginRight: spacing.sm }} />
           自治流水线
         </Title>
         <Text type="secondary">错误分类、自适应超时配置和自动重试管理</Text>

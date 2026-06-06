@@ -30,6 +30,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -181,13 +182,13 @@ export default function AutoVectorizePage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         自动向量化
       </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic

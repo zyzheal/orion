@@ -20,7 +20,7 @@ import {
 import { PlusOutlined, ReloadOutlined, EditOutlined, ThunderboltOutlined,} from '@ant-design/icons';
 import { getStrategies, createStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -190,11 +190,11 @@ const StrategyList: React.FC = () => {
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             策略列表
           </Title>
           <Text type="secondary">管理自愈合策略</Text>
@@ -204,7 +204,7 @@ const StrategyList: React.FC = () => {
         </Button>
       </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData}>
             刷新

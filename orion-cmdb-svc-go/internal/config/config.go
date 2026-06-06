@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -30,7 +31,8 @@ type DatabaseConfig struct {
 }
 
 func (d DatabaseConfig) DSN() string {
-	return "host=" + d.Host + " port=" + strconv.Itoa(d.Port) + " user=" + d.User + " password=" + d.Password + " dbname=" + d.DBName + " sslmode=" + d.SSLMode
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode)
 }
 
 type RedisConfig struct {
@@ -52,12 +54,17 @@ type JWTConfig struct {
 func Load() (*Config, error) {
 	cfg := Config{
 		Server:    ServerConfig{Port: 8082, Mode: "debug"},
-		Database:  DatabaseConfig{Host: "localhost", Port: 5432, User: "orion", Password: "orion", DBName: "orion_cmdb", SSLMode: "disable"},
+		Database:  DatabaseConfig{Host: "localhost", Port: 5432, SSLMode: "disable"},
 		Redis:     RedisConfig{Addr: "localhost:6379", DB: 0},
 		Otel:      OtelConfig{Enabled: false, Endpoint: "localhost:4318", ServiceName: "orion-cmdb-svc"},
-		JWT:       JWTConfig{Secret: "orion-jwt-secret-change-me"},
 	}
 
+	// Load config file first (lower priority)
+	if data, err := os.ReadFile("config.yaml"); err == nil {
+		_ = yaml.Unmarshal(data, &cfg)
+	}
+
+	// Override from env vars (higher priority)
 	if v := os.Getenv("GIN_MODE"); v != "" {
 		cfg.Server.Mode = v
 	}
@@ -94,8 +101,15 @@ func Load() (*Config, error) {
 		cfg.JWT.Secret = v
 	}
 
-	if data, err := os.ReadFile("config.yaml"); err == nil {
-		_ = yaml.Unmarshal(data, &cfg)
+	// Validate required config
+	if cfg.Database.User == "" || cfg.Database.Password == "" {
+		return nil, fmt.Errorf("database credentials required: set DB_USER and DB_PASSWORD")
+	}
+	if cfg.Database.DBName == "" {
+		return nil, fmt.Errorf("database name required: set DB_NAME")
+	}
+	if cfg.JWT.Secret == "" || cfg.JWT.Secret == "orion-jwt-secret-change-me" {
+		return nil, fmt.Errorf("JWT_SECRET required: set JWT_SECRET env var (default is insecure)")
 	}
 
 	return &cfg, nil

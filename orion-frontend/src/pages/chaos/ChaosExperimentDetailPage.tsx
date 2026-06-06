@@ -33,6 +33,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { chaosApi, ChaosExperiment, ChaosRun } from '@/api/chaos';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -178,20 +179,20 @@ export default function ChaosExperimentDetailPage() {
   const cfg = statusConfig[experiment.status] || statusConfig.draft;
 
   return (
-    <div style={{ padding: 24 }}>
-      <Space style={{ marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <Space style={{ marginBottom: spacing.md }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/chaos-experiments')}>
           返回列表
         </Button>
       </Space>
 
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         {experiment.name}
-        <Tag color={cfg.color} icon={cfg.icon} style={{ marginLeft: 12 }}>{cfg.label}</Tag>
+        <Tag color={cfg.color} icon={cfg.icon} style={{ marginLeft: spacing[3] }}>{cfg.label}</Tag>
       </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={18}>
           <Card>
             <Descriptions bordered size="small" column={3}>
@@ -210,7 +211,7 @@ export default function ChaosExperimentDetailPage() {
             </Descriptions>
 
             {experiment.description && (
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: spacing.md }}>
                 <Text type="secondary">{experiment.description}</Text>
               </div>
             )}
@@ -252,7 +253,7 @@ export default function ChaosExperimentDetailPage() {
         </Col>
       </Row>
 
-      <Card title="故障配置" style={{ marginBottom: 16 }}>
+      <Card title="故障配置" style={{ marginBottom: spacing.md }}>
         {(experiment.faults || []).length === 0 ? (
           <Empty description="无故障配置" />
         ) : (

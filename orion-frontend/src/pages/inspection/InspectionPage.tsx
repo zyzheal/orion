@@ -23,6 +23,7 @@ import {
   type InspectionRule, type InspectionTask, type InspectionReport,
 } from '@/api/inspection';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -122,10 +123,10 @@ const RulesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             巡检规则
           </Title>
           <Text type="secondary">配置自动化巡检规则，定时检测系统健康状态</Text>
@@ -151,7 +152,7 @@ const RulesTab: React.FC = () => {
               <Select.Option value="custom">自定义</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item label="条件" style={{ display: 'flex', gap: 8 }}>
+          <Form.Item label="条件" style={{ display: 'flex', gap: spacing.sm }}>
             <Form.Item name="operator" initialValue="gt" style={{ marginBottom: 0, width: 100 }}>
               <Select>
                 <Select.Option value="gt">大于</Select.Option>
@@ -222,10 +223,10 @@ const TasksTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             巡检任务
           </Title>
           <Text type="secondary">巡检任务执行记录与结果</Text>
@@ -283,10 +284,10 @@ const ReportsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             巡检报告
           </Title>
           <Text type="secondary">系统健康巡检报告汇总</Text>
@@ -329,13 +330,13 @@ const InspectionPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Health Score Overview */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Row gutter={16} align="middle">
           <Col span={8}>
-            <Title level={3} style={{ marginBottom: 16 }}>
-              <SafetyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={3} style={{ marginBottom: spacing.md }}>
+              <SafetyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               系统健康评分
             </Title>
           </Col>

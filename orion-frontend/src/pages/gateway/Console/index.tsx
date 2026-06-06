@@ -497,8 +497,8 @@ const Console: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
           <ControlOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
           系统控制台
         </Title>
@@ -506,7 +506,7 @@ const Console: React.FC = () => {
       </div>
 
       {/* 统计卡片区 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -519,7 +519,7 @@ const Console: React.FC = () => {
               percent={(stats.activePlugins / stats.totalPlugins) * 100}
               strokeColor={colors.primary[500]}
               size="small"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: spacing[3] }}
               format={() => `${stats.activePlugins} 个运行中`}
             />
           </Card>
@@ -532,7 +532,7 @@ const Console: React.FC = () => {
               prefix={<UserOutlined />}
               valueStyle={{ color: colors.success[500] }}
             />
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Tag color="green">{stats.onlineUsers} 在线</Tag>
             </div>
           </Card>
@@ -550,7 +550,7 @@ const Console: React.FC = () => {
               percent={67}
               strokeColor={colors.purple[500]}
               size="small"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: spacing[3] }}
               format={() => '负载 67%'}
             />
           </Card>
@@ -564,7 +564,7 @@ const Console: React.FC = () => {
               prefix={<SafetyCertificateOutlined />}
               valueStyle={{ color: colors.success[500] }}
             />
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Tag color="success">运行正常</Tag>
             </div>
           </Card>
@@ -583,7 +583,7 @@ const Console: React.FC = () => {
             }
             key="plugins"
           >
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Space>
                 <Button type="primary" icon={<PlusOutlined />}>
                   安装插件
@@ -609,7 +609,7 @@ const Console: React.FC = () => {
             }
             key="config"
           >
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Alert
                 message="配置说明"
                 description="修改带“需重启”标签的配置项后，需要重启服务才能生效"
@@ -634,7 +634,7 @@ const Console: React.FC = () => {
             }
             key="users"
           >
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Space>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
                   添加用户

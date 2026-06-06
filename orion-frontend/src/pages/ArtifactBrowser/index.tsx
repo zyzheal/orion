@@ -29,6 +29,7 @@ import {
   type TraceabilityChain,
   type VersionDiff,
 } from '@/api/artifactVersions';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -307,12 +308,12 @@ const ArtifactBrowser: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <FolderOpenOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <FolderOpenOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 制品版本浏览器
               </Title>
               <Text type="secondary">

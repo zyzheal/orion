@@ -10,7 +10,7 @@ import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -80,7 +80,7 @@ const BuildPodDetail: React.FC = () => {
           type="link"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/console/build-env/pods')}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           Back to Pods
         </Button>
@@ -97,10 +97,10 @@ const BuildPodDetail: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: 24,
+            marginBottom: spacing.lg,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
             <Button
               type="link"
               icon={<ArrowLeftOutlined />}
@@ -108,8 +108,8 @@ const BuildPodDetail: React.FC = () => {
             >
               Back
             </Button>
-            <Title level={2} style={{ marginBottom: 8 }}>
-            <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
             {pod && <StatusBadge status={pod.status as StatusType} size="small" />}
@@ -134,7 +134,7 @@ const BuildPodDetail: React.FC = () => {
         </div>
 
         {pod && (
-          <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
+          <Descriptions bordered column={2} style={{ marginBottom: spacing.lg }}>
             <Descriptions.Item label="Pod ID">{pod.id}</Descriptions.Item>
             <Descriptions.Item label="Namespace">{pod.namespace}</Descriptions.Item>
             <Descriptions.Item label="Run ID">{pod.runId}</Descriptions.Item>
@@ -154,7 +154,7 @@ const BuildPodDetail: React.FC = () => {
           </Descriptions>
         )}
 
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Title level={4}>Build Logs</Title>
           {logIds.length > 0 ? (
             <Space direction="vertical" style={{ width: '100%' }}>

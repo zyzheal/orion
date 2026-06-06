@@ -35,7 +35,7 @@ import ReactFlow, {
   type OnEdgesChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import { getTopology, type TopologyData, type TopologyNode, type TopologyEdge } from '@/api/cmdb';
 
@@ -131,7 +131,7 @@ const CINode: React.FC<{ data: CINodeData }> = ({ data }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <span style={{ color: iconColor, fontSize: 16 }}>{typeIconMap[data.type]}</span>
         <Text strong ellipsis={{ tooltip: data.label }} style={{ maxWidth: 140 }}>
           {data.label}
@@ -198,7 +198,7 @@ const TopologyPage: React.FC = () => {
       {isInitialLoading && <PageSkeleton rows={6} />}
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={4}>拓扑图</Title>
               <Text type="secondary">可视化资源配置依赖关系</Text>

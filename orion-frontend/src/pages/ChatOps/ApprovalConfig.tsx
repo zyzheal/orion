@@ -34,6 +34,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -221,7 +222,7 @@ export const GlobalSettingsTab: React.FC = () => {
         description="配置 ChatOps 审批流程的全局开关和模式"
         type="info"
         showIcon
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       <Card style={{ maxWidth: 700 }}>
@@ -246,7 +247,7 @@ export const GlobalSettingsTab: React.FC = () => {
               <Radio.Button value="relaxed">宽松模式</Radio.Button>
               <Radio.Button value="log_only">仅记录模式</Radio.Button>
             </Radio.Group>
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: spacing[3] }}>
               <Text type="secondary">{modeDescriptions[settings.approvalMode]}</Text>
             </div>
           </Form.Item>
@@ -403,7 +404,7 @@ const CapabilityApprovalTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">配置各能力域的审批规则</Text>
         <Space>
           <Button onClick={handleBatchEnable}>批量启用</Button>
@@ -580,7 +581,7 @@ const ApproverConfigTab: React.FC = () => {
         description="配置各角色的默认审批人。首期只支持角色级审批人配置，排班功能后续实现。"
         type="info"
         showIcon
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       <Table
@@ -590,9 +591,9 @@ const ApproverConfigTab: React.FC = () => {
         pagination={false}
       />
 
-      <Card style={{ marginTop: 24, maxWidth: 700 }} title="审批值班表">
+      <Card style={{ marginTop: spacing.lg, maxWidth: 700 }} title="审批值班表">
         <Text type="secondary">排班功能开发中，敬请期待...</Text>
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Descriptions column={3} size="small">
             <Descriptions.Item label="时间段">09:00-18:00</Descriptions.Item>
             <Descriptions.Item label="周一">张三</Descriptions.Item>
@@ -617,7 +618,7 @@ const TimeoutStrategyTab: React.FC = () => {
         description="配置审批超时后的自动处理策略"
         type="info"
         showIcon
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       <Card style={{ maxWidth: 700 }} title="超时策略">
@@ -659,7 +660,7 @@ const TimeoutStrategyTab: React.FC = () => {
           </Descriptions.Item>
         </Descriptions>
 
-        <div style={{ marginTop: 24 }}>
+        <div style={{ marginTop: spacing.lg }}>
           <Button type="primary" icon={<SaveOutlined />}>
             保存超时策略
           </Button>
@@ -680,7 +681,7 @@ const EmergencyFlowTab: React.FC = () => {
         description="配置紧急情况下的跳过审批流程"
         type="warning"
         showIcon
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       <Card style={{ maxWidth: 700 }} title="紧急流程设置">
@@ -700,7 +701,7 @@ const EmergencyFlowTab: React.FC = () => {
                 message="紧急流程说明"
                 description="启用后，具有紧急权限的用户可以通过特殊标记跳过审批流程。紧急操作会被记录并发送通知给管理员。"
                 type="info"
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               />
 
               <Form.Item label="紧急权限角色">

@@ -31,7 +31,7 @@ func (h *RelationHandler) AddRelation(c *gin.Context) {
 		ticketID, req.RelatedTicketID, req.RelationType,
 		req.CreatedBy, req.Description, req.Confidence)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h *RelationHandler) AddRelation(c *gin.Context) {
 func (h *RelationHandler) GetRelations(c *gin.Context) {
 	relations, err := h.svc.GetRelations(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": relations, "count": len(relations)})
@@ -55,7 +55,7 @@ func (h *RelationHandler) FindRelatedTickets(c *gin.Context) {
 
 	related, err := h.svc.FindRelatedTickets(c.Request.Context(), c.Param("id"), maxResults, minConfidence)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": related, "count": len(related)})
@@ -67,7 +67,7 @@ func (h *RelationHandler) DetectDuplicates(c *gin.Context) {
 
 	duplicates, err := h.svc.DetectDuplicates(c.Request.Context(), c.Param("id"), threshold)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": duplicates, "count": len(duplicates)})
@@ -85,7 +85,7 @@ func (h *RelationHandler) CorrelateRootCause(c *gin.Context) {
 
 	correlation, err := h.svc.CorrelateRootCause(c.Request.Context(), req.TicketIDs)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": correlation})

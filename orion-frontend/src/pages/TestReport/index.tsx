@@ -196,13 +196,13 @@ const TestReportPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FileSearchOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileSearchOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             测试报告
           </Title>
           <Text type="secondary">Run: {runId}</Text>
@@ -215,7 +215,7 @@ const TestReportPage: React.FC = () => {
 
       {/* Summary */}
       {summary && (
-        <Card style={{ marginBottom: 24 }}>
+        <Card style={{ marginBottom: spacing.lg }}>
           <Row gutter={16}>
             <Col span={4}>
               <Statistic title="总计" value={summary.totalTests} prefix={<FileTextOutlined />} />
@@ -291,7 +291,7 @@ const TestReportPage: React.FC = () => {
                     <Descriptions
                       size="small"
                       column={3}
-                      style={{ marginBottom: 16 }}
+                      style={{ marginBottom: spacing.md }}
                       bordered
                     >
                       <Descriptions.Item label="报告">{selectedReport.suiteName}</Descriptions.Item>
@@ -300,7 +300,7 @@ const TestReportPage: React.FC = () => {
                     </Descriptions>
 
                     {selectedReport.coverage && (
-                      <Card title="覆盖率" size="small" style={{ marginBottom: 16 }}>
+                      <Card title="覆盖率" size="small" style={{ marginBottom: spacing.md }}>
                         <Row gutter={16}>
                           <Col span={6}>
                             <Statistic title="行覆盖率" value={selectedReport.coverage.lines} precision={1} suffix="%" />
@@ -318,7 +318,7 @@ const TestReportPage: React.FC = () => {
                       </Card>
                     )}
 
-                    <Space style={{ marginBottom: 16 }}>
+                    <Space style={{ marginBottom: spacing.md }}>
                       <Search
                         placeholder="搜索用例名称"
                         value={caseSearch}

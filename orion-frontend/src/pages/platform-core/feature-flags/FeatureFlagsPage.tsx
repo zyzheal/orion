@@ -428,8 +428,8 @@ const FeatureFlagsPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <FlagOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FlagOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />
             特性开关管理
           </Title>

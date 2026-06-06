@@ -22,6 +22,7 @@ import {
   type CapacityMetric, type CapacityForecast, type CapacityAlert, type CapacityReport, type Bottleneck,
 } from '@/api/capacity';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -118,10 +119,10 @@ const OverviewTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             容量概览
           </Title>
           <Text type="secondary">资源使用瓶颈与容量预警</Text>
@@ -133,7 +134,7 @@ const OverviewTab: React.FC = () => {
       </div>
 
       {/* Bottlenecks */}
-      <Card title="瓶颈分析" style={{ marginBottom: 16 }}>
+      <Card title="瓶颈分析" style={{ marginBottom: spacing.md }}>
         <Table columns={bottleneckColumns} dataSource={bottlenecks} rowKey={(r) => `${r.resourceId}-${r.metricName}`} pagination={false} size="small"
           locale={{ emptyText: bottlenecks.length === 0 ? '暂无瓶颈数据' : undefined }} />
       </Card>
@@ -186,10 +187,10 @@ const ForecastTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <RiseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <RiseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             容量预测
           </Title>
           <Text type="secondary">资源使用趋势预测与耗尽时间估算</Text>
@@ -261,10 +262,10 @@ const MetricsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             资源指标
           </Title>
           <Text type="secondary">各资源类型的容量指标数据</Text>
@@ -352,10 +353,10 @@ const ReportsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             容量报告
           </Title>
           <Text type="secondary">容量规划报告汇总</Text>
@@ -383,7 +384,7 @@ const CapacityPlanningPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Tabs defaultActiveKey="overview" items={tabItems} size="large" />
     </div>
   );

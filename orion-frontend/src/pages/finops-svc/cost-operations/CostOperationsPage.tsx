@@ -23,6 +23,7 @@ import {
   Alert,
   Progress,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   DollarOutlined,
   ReloadOutlined,
@@ -253,7 +254,7 @@ const CostOverviewTab: React.FC = () => {
               <Progress
                 percent={Math.round(overview.budgetUsagePercent)}
                 size="small"
-                style={{ marginTop: 8 }}
+                style={{ marginTop: spacing.sm }}
                 strokeColor={
                   overview.budgetUsagePercent > 90
                     ? colors.error[400]
@@ -357,7 +358,7 @@ const AnomalyDetectionTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">自动检测成本异常波动</Text>
         <Button icon={<ReloadOutlined />} onClick={loadAnomalies} loading={loading}>刷新</Button>
       </div>
@@ -499,7 +500,7 @@ const OptimizationTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
           <Text type="secondary">AI 驱动的成本优化建议</Text>
           <Select
@@ -685,7 +686,7 @@ const BudgetTab: React.FC = () => {
 
         {gateResult && (
           <Alert
-            style={{ marginTop: 16 }}
+            style={{ marginTop: spacing.md }}
             message={gateResult.passed ? '预算检查通过' : '预算检查未通过'}
             description={`${gateResult.reason} (预估: ¥${gateResult.estimated.toFixed(2)}, 预算: ¥${gateResult.limit.toFixed(2)})`}
             type={gateResult.passed ? 'success' : 'error'}
@@ -696,7 +697,7 @@ const BudgetTab: React.FC = () => {
 
       {/* Budgets List */}
       <div>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Text type="secondary">配置和管理预算</Text>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={loadBudgets} loading={loading}>刷新</Button>
@@ -779,9 +780,9 @@ const CostOperationsPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           成本运营
         </Title>
         <Text type="secondary">预算门禁、成本趋势分析、异常检测与优化建议</Text>

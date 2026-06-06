@@ -7,6 +7,7 @@ import { Typography, Card, Table, Button, Tag, Space, message, Spin, InputNumber
 import { ScheduleOutlined, ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import { apmApi, type SlowQuery, type QueryPatternStats } from '@/api/apm';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -98,11 +99,11 @@ const ApmSlowRequestsPage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ padding: spacing.lg }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <ScheduleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <ScheduleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               慢请求分析
             </Title>
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>追踪慢请求与 SQL 查询模式分析</Text>
@@ -114,7 +115,7 @@ const ApmSlowRequestsPage: React.FC = () => {
         </div>
 
         {/* Slow Query Ranking */}
-        <Card title={<><BarChartOutlined /> 慢请求排行</>} style={{ marginBottom: 16 }}>
+        <Card title={<><BarChartOutlined /> 慢请求排行</>} style={{ marginBottom: spacing.md }}>
           <Table columns={queryColumns} dataSource={slowQueries} rowKey="id" pagination={{ pageSize: 10 }} size="small"
             locale={{ emptyText: slowQueries.length === 0 ? '暂无慢请求数据' : undefined }} />
         </Card>

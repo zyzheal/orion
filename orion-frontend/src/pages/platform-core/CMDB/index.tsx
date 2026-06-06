@@ -23,7 +23,7 @@ import {
   Descriptions,
   Tabs,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import ReactFlow, {
   Background,
@@ -306,10 +306,10 @@ const CITablePage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 配置项管理
               </Title>
               <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
@@ -329,7 +329,7 @@ const CITablePage: React.FC = () => {
           </div>
 
           {/* Summary */}
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={6}>
               <Card>
                 <Statistic title="配置项总数" value={cis.length} />
@@ -661,7 +661,7 @@ const CINode: React.FC<{ data: CINodeData }> = ({ data }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {/* 节点头部：类型图标 + 名称 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <span style={{ color: iconColor, fontSize: 16 }}>{typeIconMap[data.type]}</span>
         <Text strong ellipsis={{ tooltip: data.label }} style={{ maxWidth: 140 }}>
           {data.label}
@@ -764,7 +764,7 @@ const TopologyPage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={4}>拓扑图</Title>
               <Text type="secondary">可视化资源配置依赖关系</Text>
@@ -984,7 +984,7 @@ const IntegrationPage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={4}>集成资源</Title>
               <Text type="secondary">主机、K8s、CI/CD 资源同步状态</Text>
@@ -994,7 +994,7 @@ const IntegrationPage: React.FC = () => {
             </Button>
           </div>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={8}>
               <Card>
                 <Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} />
@@ -1020,7 +1020,7 @@ const IntegrationPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Card title="主机列表" style={{ marginBottom: 16 }} loading={loading}>
+          <Card title="主机列表" style={{ marginBottom: spacing.md }} loading={loading}>
             <Table
               columns={hostColumns}
               dataSource={hosts}

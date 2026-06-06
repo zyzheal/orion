@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Select, Space, message } from 'antd';
 import { CloudDownloadOutlined } from '@ant-design/icons';
 import { getAvailablePlugins, installPlugin, type Plugin } from '@/api/plugins';
+import { spacing } from '@/tokens';
 
 // ============================================================================
 // Props
@@ -85,7 +86,7 @@ const PluginCreateModal: React.FC<PluginCreateModalProps> = ({ open, onCancel, o
       cancelText="取消"
       data-testid="install-plugin-modal"
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           label="选择插件"
           name="pluginId"

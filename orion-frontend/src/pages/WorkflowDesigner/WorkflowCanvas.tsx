@@ -25,7 +25,7 @@ import {
   type WorkflowNode,
   type WorkflowEdge,
 } from '@/api/workflow';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -930,7 +930,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
     return (
       <div>
-        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text strong style={{ fontSize: 13 }}>输入变量映射</Text>
           <Button
             type="link"
@@ -950,7 +950,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
         {/* 新增映射表单 - 仅编辑模式且点击添加时显示 */}
         {editMode && newMappingSourceNode && (
-          <div style={{ marginBottom: 8, padding: 8, background: colors.light.bg.secondary, borderRadius: 6 }}>
+          <div style={{ marginBottom: spacing.sm, padding: spacing.sm, background: colors.light.bg.secondary, borderRadius: 6 }}>
             <Space size={8} style={{ width: '100%' }}>
               <Select
                 value={newMappingSourceNode}
@@ -1007,7 +1007,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
         {/* 查看模式下显示自动继承的上游变量 */}
         {!editMode && inputMappings.length === 0 && (
-          <div style={{ marginTop: 8, fontSize: 12 }}>
+          <div style={{ marginTop: spacing.sm, fontSize: 12 }}>
             <Text type="secondary">自动继承的上游变量：</Text>
             <div style={{ marginTop: 4 }}>
               {workflow?.edges
@@ -1066,8 +1066,8 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
     ];
 
     return (
-      <div style={{ marginTop: 12 }}>
-        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ marginTop: spacing[3] }}>
+        <div style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text strong style={{ fontSize: 13 }}>输出变量定义</Text>
           <Button
             type="link"
@@ -1083,7 +1083,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
         {/* 新增输出变量表单 - 仅编辑模式且点击添加时显示 */}
         {editMode && newOutputName !== undefined && (
-          <div style={{ marginBottom: 8, padding: 8, background: colors.light.bg.secondary, borderRadius: 6 }}>
+          <div style={{ marginBottom: spacing.sm, padding: spacing.sm, background: colors.light.bg.secondary, borderRadius: 6 }}>
             <Space size={8} style={{ width: '100%' }}>
               <Input
                 value={newOutputName}
@@ -1127,7 +1127,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
         {/* 查看模式下显示默认输出 */}
         {!editMode && outputVariables.length === 0 && (
-          <div style={{ marginTop: 8, fontSize: 12 }}>
+          <div style={{ marginTop: spacing.sm, fontSize: 12 }}>
             <Text type="secondary">默认输出：</Text>
             <Tag>{selectedNode?.name}.output</Tag>
           </div>
@@ -1614,7 +1614,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       >
         {editingEdge && (
           <>
-            <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions column={1} size="small" style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="源节点">
                 {(() => {
                   const src = workflow?.nodes?.find((n) => n.id === editingEdge.source);

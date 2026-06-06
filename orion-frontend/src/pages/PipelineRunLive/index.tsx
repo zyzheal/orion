@@ -148,7 +148,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
           fontSize: spacing[3],
         }}
       >
-        <LoadingOutlined style={{ fontSize: 24, marginBottom: 12 }} />
+        <LoadingOutlined style={{ fontSize: 24, marginBottom: spacing[3] }} />
         <div>等待日志推送...</div>
         <Text type="secondary" style={{ fontSize: spacing[2] }}>
           SSE 连接建立后将实时显示日志
@@ -163,7 +163,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
       style={{
         background: colors.neutral[900],
         borderRadius: 6,
-        padding: 12,
+        padding: spacing[3],
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
         fontSize: 12,
         lineHeight: 1.6,
@@ -175,7 +175,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
       {logs.map((log) => {
         const textColor = logLevelColors[log.level] || colors.neutral[300];
         return (
-          <div key={log.id} style={{ display: 'flex', gap: 8 }}>
+          <div key={log.id} style={{ display: 'flex', gap: spacing.sm }}>
             <span style={{ color: colors.neutral[500], flexShrink: 0, userSelect: 'none' }}>
               {formatTime(log.timestamp)}
             </span>
@@ -234,7 +234,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
 
   if (stages.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 24, color: colors.neutral[500] }}>
+      <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[500] }}>
         <Text>暂无阶段数据</Text>
       </div>
     );
@@ -321,7 +321,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
           key={stage.id || index}
           size="small"
           style={{
-            marginBottom: 8,
+            marginBottom: spacing.sm,
             borderColor:
               stage.id === currentStageId && stage.status === 'running'
                 ? colors.primary[300]
@@ -351,7 +351,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     fontSize: spacing[3],
                   }}
                 >
@@ -573,12 +573,12 @@ const PipelineRunLive: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <CloudUploadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline?.name || 'Pipeline'} 实时执行
           </Title>
           <Space size="middle" wrap>
@@ -608,7 +608,7 @@ const PipelineRunLive: React.FC = () => {
       </div>
 
       {/* Run metadata */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Descriptions column={4} size="small" labelStyle={{ width: 80 }}>
           <Descriptions.Item label="Pipeline">
             <Text strong>{pipeline?.name || '-'}</Text>
@@ -660,7 +660,7 @@ const PipelineRunLive: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label="提交">
             {pipeline?.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
+              <Tag color="default" style={{ marginRight: spacing.sm }}>
                 {pipeline.commit}
               </Tag>
             )}
@@ -673,8 +673,8 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          marginBottom: 16,
+          gap: spacing.sm,
+          marginBottom: spacing.md,
           padding: '8px 12px',
           background: colors.light.bg.tertiary,
           borderRadius: 6,
@@ -737,7 +737,7 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: '380px 1fr',
-          gap: 16,
+          gap: spacing.md,
           alignItems: 'start',
         }}
       >

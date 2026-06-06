@@ -41,6 +41,7 @@ import {
   getTeams,
 } from '@/api/efficiency';
 import type { TeamMetrics } from '@/api/efficiency';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -102,13 +103,13 @@ const DORAMetricsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">DORA 四大核心指标</Text>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
       </div>
 
       {/* Metric Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -117,7 +118,7 @@ const DORAMetricsTab: React.FC = () => {
               suffix="次/周"
               prefix={<ThunderboltOutlined />}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')]}>
                 {getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')}
               </Tag>
@@ -133,7 +134,7 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: (dora.leadTime || 0) <= 24 ? colors.success[500] : colors.warning[500] }}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.leadTime, 'leadTimeForChanges')]}>
                 {getLevel(dora.leadTime, 'leadTimeForChanges')}
               </Tag>
@@ -149,7 +150,7 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: (dora.mttr || 0) <= 60 ? colors.success[500] : colors.error[400] }}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.mttr, 'meanTimeToRecovery')]}>
                 {getLevel(dora.mttr, 'meanTimeToRecovery')}
               </Tag>
@@ -165,7 +166,7 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<WarningOutlined />}
               valueStyle={{ color: (dora.changeFailureRate || 0) <= 5 ? colors.success[500] : colors.error[400] }}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.changeFailureRate, 'changeFailureRate')]}>
                 {getLevel(dora.changeFailureRate, 'changeFailureRate')}
               </Tag>
@@ -189,7 +190,7 @@ const DORAMetricsTab: React.FC = () => {
             </Col>
           </Row>
           {dashboardData.summary.totalDeployments && dashboardData.summary.totalDeployments > 0 && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text type="secondary">成功率: </Text>
               <Progress
                 percent={Math.round(((dashboardData.summary.successfulDeployments || 0) / dashboardData.summary.totalDeployments) * 100)}
@@ -295,7 +296,7 @@ const DeveloperProfileTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Text type="secondary">开发者画像基于近期活动数据自动生成，用于识别效能瓶颈和优势</Text>
       </div>
       <Alert
@@ -303,7 +304,7 @@ const DeveloperProfileTab: React.FC = () => {
         description="开发者画像基于 Git 提交、PR 评审、Bug 修复等公开数据生成，仅用于团队效能分析，不作个人绩效考评依据"
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       />
       <Table columns={columns} dataSource={profiles} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
     </div>
@@ -460,9 +461,9 @@ const EfficiencyPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
           效能运营
         </Title>
         <Text type="secondary">DORA 指标面板、开发者画像和效能瓶颈分析</Text>

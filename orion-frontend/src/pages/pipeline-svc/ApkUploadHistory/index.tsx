@@ -20,7 +20,7 @@ import {
   ReloadOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import { useAuthStore } from '@/stores/authStore';
 import {
   getApkUploadHistory,
@@ -184,17 +184,17 @@ const ApkUploadHistoryPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-          <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           APK 上传历史
         </Title>
         <Text type="secondary">查看和管理 APK 上传到各应用市场的历史记录</Text>
       </div>
 
       {/* Statistics */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总上传次数" value={displayStats.total} />
@@ -233,7 +233,7 @@ const ApkUploadHistoryPage: React.FC = () => {
       {recentFailures.length > 0 && (
         <Card
           title="最近失败的上传"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
           extra={
             <Button icon={<ReloadOutlined />} onClick={loadRecentFailures}>
               刷新
@@ -265,7 +265,7 @@ const ApkUploadHistoryPage: React.FC = () => {
       )}
 
       {/* Filters */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <Select
             placeholder="筛选市场"

@@ -246,9 +246,9 @@ const WorkbenchPage: React.FC = () => {
   if (loading && !data) {
     return (
       <div style={{ padding: 0 }}>
-        <div style={{ marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             个人工作台
           </Title>
         </div>
@@ -283,9 +283,9 @@ const WorkbenchPage: React.FC = () => {
   if (isEmpty && !loading) {
     return (
       <div style={{ padding: 0 }}>
-        <div style={{ marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             个人工作台
           </Title>
           <Text type="secondary" style={{ marginLeft: spacing[2] }}>
@@ -465,16 +465,16 @@ const WorkbenchPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Page header */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             个人工作台
           </Title>
           <Text type="secondary">
             统一运维视角 — 我的流水线 + 我的告警 + 我的工单 + 我的部署
             {' '}
-            <ClockCircleOutlined style={{ marginLeft: 8 }} />
+            <ClockCircleOutlined style={{ marginLeft: spacing.sm }} />
             最后刷新: {dayjs(lastRefresh).format('HH:mm:ss')}
           </Text>
         </div>
@@ -489,7 +489,7 @@ const WorkbenchPage: React.FC = () => {
 
       <DataState loading={loading} error={error} empty={false} retry={fetchData}>
         {/* Summary Stat Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
           {/* Pipeline success rate */}
           <Col xs={12} sm={12} md={6}>
             <Card size="small">

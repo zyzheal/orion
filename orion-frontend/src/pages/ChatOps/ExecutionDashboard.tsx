@@ -161,8 +161,8 @@ const ExecutionDashboard: React.FC = () => {
 
   if (apiError && executions.length === 0) {
     return (
-      <div style={{ padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ padding: spacing.md }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
         </div>
         <Card>
@@ -173,13 +173,13 @@ const ExecutionDashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: spacing.md }}>
       <div
         style={{
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: spacing.md,
         }}
       >
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
@@ -187,7 +187,7 @@ const ExecutionDashboard: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总执行" value={executions.length} />
@@ -221,7 +221,7 @@ const ExecutionDashboard: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}

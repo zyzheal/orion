@@ -20,7 +20,7 @@ import {
 } from 'antd';
 import { type ApiPlugin, type PluginConfig, categoryLabels, healthStatusLabels } from './types';
 import { healthConfig } from './constants';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -79,7 +79,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       data-testid="plugin-detail-drawer"
     >
       {/* Plugin metadata */}
-      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: 24 }}>
+      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions.Item label="插件名称">{plugin.name}</Descriptions.Item>
         <Descriptions.Item label="当前版本">{plugin.version}</Descriptions.Item>
         {plugin.latestVersion && (
@@ -121,7 +121,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
         form={form}
         layout="vertical"
         initialValues={plugin.config || {}}
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       >
         {plugin.configSchema &&
           Object.entries(plugin.configSchema).map(([key, field]) => (
@@ -160,7 +160,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       {plugin.permissions && plugin.permissions.length > 0 && (
         <>
           <Title level={5}>权限列表</Title>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Space wrap>
               {plugin.permissions.map((perm) => (
                 <Tag key={perm} color="geekblue">

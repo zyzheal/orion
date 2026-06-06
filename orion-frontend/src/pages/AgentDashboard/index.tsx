@@ -8,7 +8,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, message, Modal } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
@@ -192,12 +192,12 @@ const AgentDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Agent 编排
           </Title>
           <Text type="secondary">

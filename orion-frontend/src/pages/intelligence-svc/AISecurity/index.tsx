@@ -538,8 +538,8 @@ const AISecurityPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SecurityScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SecurityScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Security
           </Title>
           <Text type="secondary">AI 安全策略</Text>
@@ -762,7 +762,7 @@ const AISecurityPage: React.FC = () => {
           description="策略评估将运行预定义的测试用例，验证每个安全策略是否按预期工作。评估过程可能需要几分钟。"
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
         <Title level={5}>最近评估结果</Title>
         <AntTable

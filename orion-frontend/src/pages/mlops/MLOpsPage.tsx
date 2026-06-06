@@ -35,6 +35,7 @@ import {
   type MLExperiment, type MLModel, type TrainingJob, type MLOpsMetrics, type MLExperimentRun,
 } from '@/api/mlops';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -91,10 +92,10 @@ const MetricsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             MLOps 概览
           </Title>
           <Text type="secondary">实验、模型和训练任务的汇总指标</Text>
@@ -102,7 +103,7 @@ const MetricsTab: React.FC = () => {
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总实验数" value={metrics.totalExperiments} />
@@ -290,10 +291,10 @@ const ExperimentsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <ExperimentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             实验管理
           </Title>
           <Text type="secondary">跟踪和管理 ML 实验</Text>
@@ -456,10 +457,10 @@ const ModelRegistryTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <CloudUploadOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             模型注册
           </Title>
           <Text type="secondary">管理 ML 模型版本和生命周期</Text>
@@ -566,10 +567,10 @@ const TrainingJobsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <SyncOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <SyncOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             训练任务
           </Title>
           <Text type="secondary">管理 ML 模型训练任务</Text>
@@ -613,12 +614,12 @@ const MLOpsPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16, color: colors.neutral[900] }}>
-        <ExperimentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md, color: colors.neutral[900] }}>
+        <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         MLOps 平台
       </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
         管理 ML 模型的全生命周期：实验跟踪、模型注册、训练调度和模型部署
       </Text>
       <Tabs defaultActiveKey="overview" items={tabItems} size="large" />

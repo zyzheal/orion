@@ -20,7 +20,7 @@ import { DesktopOutlined, ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined
 import { getSession, completeSession, getSessionComplexity } from '@/api/diagnostic';
 import type { DiagnosticSymptom } from '@/api/diagnostic';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -134,7 +134,7 @@ const DiagnosticSessionDetail: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
@@ -143,8 +143,8 @@ const DiagnosticSessionDetail: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             会话详情
           </Title>
           <Text type="secondary" code>
@@ -164,7 +164,7 @@ const DiagnosticSessionDetail: React.FC = () => {
       </div>
 
       {/* Session Info */}
-      <Card title="会话信息" style={{ marginBottom: 16 }}>
+      <Card title="会话信息" style={{ marginBottom: spacing.md }}>
         <Descriptions column={3} size="small">
           <Descriptions.Item label="状态">
             <Tag color={statusConfig[session.status]?.color}>
@@ -189,7 +189,7 @@ const DiagnosticSessionDetail: React.FC = () => {
 
       {/* Complexity */}
       {complexity && (
-        <Card title="复杂度分析" style={{ marginBottom: 16 }}>
+        <Card title="复杂度分析" style={{ marginBottom: spacing.md }}>
           <Descriptions column={3} size="small">
             <Descriptions.Item label="复杂度等级">
               <Tag

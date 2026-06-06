@@ -64,7 +64,7 @@ import {
 } from '@/api/product-lines';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -174,7 +174,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
           <BranchesOutlined /> 分支环境解析工具
         </Space>
       }
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: spacing.md }}
     >
       <Space wrap>
         <Select
@@ -196,7 +196,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
         </Button>
       </Space>
       {result && (
-        <Descriptions size="small" style={{ marginTop: 12 }} column={3} bordered>
+        <Descriptions size="small" style={{ marginTop: spacing[3] }} column={3} bordered>
           <Descriptions.Item label="目标环境">
             {result.env ? (
               <Tag color="blue">{result.env}</Tag>
@@ -846,7 +846,7 @@ const ProductLineManagement: React.FC = () => {
         label: '发布列车',
         children: (
           <div>
-            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginBottom: spacing[3], display: 'flex', justifyContent: 'space-between' }}>
               <Text type="secondary">管理定时发布列车</Text>
               <Button
                 type="primary"
@@ -872,7 +872,7 @@ const ProductLineManagement: React.FC = () => {
         label: 'Hotfix 通道',
         children: (
           <div>
-            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginBottom: spacing[3], display: 'flex', justifyContent: 'space-between' }}>
               <Text type="secondary">管理紧急修复通道</Text>
               <Button
                 type="primary"
@@ -912,12 +912,12 @@ const ProductLineManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={2} style={{ marginBottom: 8 }}>
-                <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 多分支产品线
               </Title>
               <Text type="secondary">管理产品线的分支策略、环境映射、发布列车和紧急修复通道</Text>
@@ -941,7 +941,7 @@ const ProductLineManagement: React.FC = () => {
 
           {/* Product Line List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}

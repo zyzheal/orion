@@ -51,7 +51,7 @@ import {
   type UploadTask,
   type ScriptTemplate as ScriptTemplateType,
 } from '@/api/visor-exec';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -358,7 +358,7 @@ const CommandExecTab: React.FC = () => {
 
   return (
     <div>
-      <Card title="执行命令" size="small" style={{ marginBottom: 16 }}>
+      <Card title="执行命令" size="small" style={{ marginBottom: spacing.md }}>
         <Form form={form} layout="vertical">
           <Form.Item
             name="hosts"
@@ -398,7 +398,7 @@ const CommandExecTab: React.FC = () => {
         </Form>
       </Card>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
         <Button icon={<ReloadOutlined />} onClick={() => setExecRecords(mockExecRecords)}>
           刷新
         </Button>
@@ -423,7 +423,7 @@ const CommandExecTab: React.FC = () => {
       >
         {selectedRecord && (
           <div>
-            <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+            <Descriptions bordered size="small" column={2} style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="执行ID">{selectedRecord.id}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={statusColorMap[selectedRecord.status]}>
@@ -446,9 +446,9 @@ const CommandExecTab: React.FC = () => {
             </Descriptions>
 
             {selectedRecord.output && (
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: spacing.md }}>
                 <Text strong>标准输出:</Text>
-                <pre style={{ background: colors.neutral[50], padding: 12, borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: 8 }}>
+                <pre style={{ background: colors.neutral[50], padding: spacing[3], borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: spacing.sm }}>
                   {selectedRecord.output}
                 </pre>
               </div>
@@ -456,7 +456,7 @@ const CommandExecTab: React.FC = () => {
             {selectedRecord.errorOutput && (
               <div>
                 <Text strong type="danger">标准错误:</Text>
-                <pre style={{ background: colors.error[50], padding: 12, borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: 8 }}>
+                <pre style={{ background: colors.error[50], padding: spacing[3], borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: spacing.sm }}>
                   {selectedRecord.errorOutput}
                 </pre>
               </div>
@@ -569,7 +569,7 @@ const ScriptTemplateTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">预定义脚本模板，快速选择常用命令</Text>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
           新建模板
@@ -744,7 +744,7 @@ const CronJobTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">定时任务管理，支持 Cron 表达式配置</Text>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
           新建任务
@@ -910,7 +910,7 @@ const FileUploadTab: React.FC = () => {
   return (
     <div>
       {/* Upload Form */}
-      <Card title="文件上传" size="small" style={{ marginBottom: 16 }}>
+      <Card title="文件上传" size="small" style={{ marginBottom: spacing.md }}>
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Space>
             <Text>目标主机：</Text>
@@ -944,7 +944,7 @@ const FileUploadTab: React.FC = () => {
       </Card>
 
       {/* Upload Tasks */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text strong>上传任务列表</Text>
         <Button icon={<ReloadOutlined />} onClick={() => setUploadTasks(mockUploadTasks)}>刷新</Button>
       </div>
@@ -1006,7 +1006,7 @@ const BatchExecPage: React.FC = () => {
 
   return (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="执行总数" value={execStats.total} prefix={<ClockCircleOutlined />} />

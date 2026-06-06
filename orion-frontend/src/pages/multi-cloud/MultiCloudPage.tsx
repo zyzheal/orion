@@ -49,7 +49,7 @@ import {
   type CloudResource,
   type ResourceStatistics,
 } from '@/api/multi-cloud';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -366,9 +366,9 @@ const MultiCloudPage: React.FC = () => {
 
   // Dashboard overview section
   const renderDashboard = () => (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom: spacing.lg }}>
       {/* Stats Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={4}>
           <Card
             size="small"
@@ -458,7 +458,7 @@ const MultiCloudPage: React.FC = () => {
       </Row>
 
       {/* Provider Distribution + Cost Trend */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={12}>
           <Card
             title="云厂商资源分布"
@@ -468,7 +468,7 @@ const MultiCloudPage: React.FC = () => {
             {providerDistribution.length > 0 ? (
               <div>
                 {providerDistribution.map((item) => (
-                  <div key={item.provider} style={{ marginBottom: 16 }}>
+                  <div key={item.provider} style={{ marginBottom: spacing.md }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <Space>
                         <CloudOutlined style={{ color: providerIconColors[item.provider] || colors.neutral[500] }} />
@@ -503,7 +503,7 @@ const MultiCloudPage: React.FC = () => {
               </Button>
             }
           >
-            <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: 8, padding: '0 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: spacing.sm, padding: '0 8px' }}>
               {costTrend.map((item, index) => {
                 const height = maxCost > 0 ? (item.cost / maxCost) * 140 : 0;
                 const isCurrent = index === costTrend.length - 1;
@@ -532,7 +532,7 @@ const MultiCloudPage: React.FC = () => {
 
       {/* Resource Type Distribution */}
       {resourceTypeDistribution.length > 0 && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={24}>
             <Card title="资源类型分布" size="small" style={{ borderRadius: 12 }}>
               <Row gutter={16}>
@@ -561,7 +561,7 @@ const MultiCloudPage: React.FC = () => {
                           borderTop: `2px solid ${typeColorsMap[item.type] || colors.neutral[300]}`,
                         }}
                       >
-                        <div style={{ fontSize: 24, color: typeColorsMap[item.type], marginBottom: 8 }}>
+                        <div style={{ fontSize: 24, color: typeColorsMap[item.type], marginBottom: spacing.sm }}>
                           {typeIcons[item.type] || <HddOutlined />}
                         </div>
                         <Statistic
@@ -619,12 +619,12 @@ const MultiCloudPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: colors.light.bg.secondary, minHeight: '100vh' }}>
+    <div style={{ padding: spacing.lg, background: colors.light.bg.secondary, minHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CloudOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             多云管理
           </Title>
           <Text type="secondary">统一管理多云账号、资源跟踪、成本分析和跨云编排</Text>
@@ -693,7 +693,7 @@ const MultiCloudPage: React.FC = () => {
         footer={null}
         width={700}
       >
-        <Form form={costForm} layout="inline" onFinish={handleCostCompare} style={{ marginBottom: 16 }}>
+        <Form form={costForm} layout="inline" onFinish={handleCostCompare} style={{ marginBottom: spacing.md }}>
           <Form.Item label="VM 数量" name="vm_count" initialValue={1}>
             <Input type="number" style={{ width: 80 }} />
           </Form.Item>

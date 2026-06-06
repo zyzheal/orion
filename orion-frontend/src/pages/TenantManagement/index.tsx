@@ -23,7 +23,7 @@ import {
   Empty,
   Popconfirm,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   TeamOutlined,
@@ -399,9 +399,9 @@ const TenantManagementPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: spacing.lg }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
             <Title level={2} style={{ marginBottom: 4 }}>租户管理</Title>
             <Text type="secondary">
@@ -422,7 +422,7 @@ const TenantManagementPage: React.FC = () => {
         </div>
 
         {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <Card>
               <Statistic
@@ -482,7 +482,7 @@ const TenantManagementPage: React.FC = () => {
               </Tooltip>
             </Space>
           }
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
         >
           {usageItems.length > 0 ? (
             <Row gutter={[24, 24]}>
@@ -490,13 +490,13 @@ const TenantManagementPage: React.FC = () => {
                 const percent = getUsagePercent(item.usage);
                 return (
                   <Col span={8} key={item.label}>
-                    <div style={{ marginBottom: 8 }}>
+                    <div style={{ marginBottom: spacing.sm }}>
                       <Space>
                         <span style={{ color: item.color }}>{item.icon}</span>
                         <Text type="secondary">{item.label}</Text>
                       </Space>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.sm }}>
                       <span style={{ fontWeight: 'bold', fontSize: 20, color: getUsageColor(percent) }}>
                         {item.usage.used}
                       </span>
@@ -510,7 +510,7 @@ const TenantManagementPage: React.FC = () => {
                     />
                     {/* P2-4: Trend indicator */}
                     {item.trend && (
-                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ marginTop: spacing.sm, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                         <Space size={4}>
                           {item.trend.direction === 'up' && (
                             <ArrowUpOutlined style={{ color: colors.error[500], fontSize: 12 }} />
@@ -563,7 +563,7 @@ const TenantManagementPage: React.FC = () => {
               Namespace 池状态
             </Space>
           }
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: spacing.lg }}
         >
           <Row gutter={16}>
             <Col span={6}>
@@ -583,7 +583,7 @@ const TenantManagementPage: React.FC = () => {
               <Tag color="orange">{poolStatus?.reservedNamespaces || 0}</Tag>
             </Col>
           </Row>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <Progress
               percent={poolStatus?.utilizationPercent || 0}
               strokeColor={{
@@ -644,7 +644,7 @@ const TenantManagementPage: React.FC = () => {
           confirmLoading={quotaUpdating}
           width={600}
         >
-          <Descriptions size="small" column={1} style={{ marginBottom: 16 }}>
+          <Descriptions size="small" column={1} style={{ marginBottom: spacing.md }}>
             <Descriptions.Item label="说明">
               配额控制租户可使用的资源上限。修改后立即生效，影响 Pipeline 创建、运行、Runner 部署等。
             </Descriptions.Item>

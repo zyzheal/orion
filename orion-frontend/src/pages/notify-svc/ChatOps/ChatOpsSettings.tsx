@@ -1,5 +1,5 @@
 import { SettingOutlined } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * ChatOps Settings - Platform config, notification preferences, DND settings
@@ -199,9 +199,9 @@ const ChatOpsSettings: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-            <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           设置
         </Title>
         <Text type="secondary">ChatOps 平台配置与 Webhook 管理</Text>
@@ -218,7 +218,7 @@ const ChatOpsSettings: React.FC = () => {
                 {platformLabels[platform.platform]}
               </Space>
             }
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
             extra={
               <Form.Item
                 name={`platform_${index}_enabled`}
@@ -260,7 +260,7 @@ const ChatOpsSettings: React.FC = () => {
 
       {/* 全局设置 */}
       <Form form={form} layout="vertical" style={{ maxWidth: 700 }}>
-        <Card title="全局设置" style={{ marginBottom: 16 }}>
+        <Card title="全局设置" style={{ marginBottom: spacing.md }}>
           <Form.Item name="defaultPlatform" label="默认平台" initialValue="dingtalk">
             <Select
               options={[

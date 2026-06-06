@@ -24,6 +24,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { apmApi, type ServiceDependency } from '@/api/apm';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -137,11 +138,11 @@ const ServiceTopologyPage: React.FC = () => {
   const nodeTypes = {
     serviceNode: ({ data }: { data: ServiceNodeData }) => (
       <div style={{ padding: '8px 12px', minWidth: 160 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 6 }}>
           <DeploymentUnitOutlined style={{ color: (data as any).isError ? colors.error[500] : colors.primary[500] }} />
           <Text strong style={{ fontSize: 13 }}>{data.name}</Text>
         </div>
-        <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
+        <div style={{ display: 'flex', gap: spacing.sm, fontSize: 11 }}>
           <Tag style={{ margin: 0, padding: '0 6px', fontSize: 10 }}>
             <ClockCircleOutlined /> {data.avgLatency}ms
           </Tag>
@@ -159,11 +160,11 @@ const ServiceTopologyPage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ padding: spacing.lg }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <DeploymentUnitOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <DeploymentUnitOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               服务依赖拓扑
             </Title>
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>服务间调用关系与依赖拓扑可视化</Text>
@@ -172,7 +173,7 @@ const ServiceTopologyPage: React.FC = () => {
         </div>
 
         {/* Stats Overview */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <Card>
               <Statistic title="服务数" value={nodes.length} prefix={<DeploymentUnitOutlined />} />
@@ -240,7 +241,7 @@ const ServiceTopologyPage: React.FC = () => {
         </Card>
 
         {/* Legend */}
-        <Card size="small" style={{ marginTop: 16 }}>
+        <Card size="small" style={{ marginTop: spacing.md }}>
           <Space>
             <Text type="secondary">图例：</Text>
             <Tag color={colors.primary[500]}>正常服务</Tag>

@@ -39,6 +39,7 @@ import { colors } from '@/tokens/colors';
 import { radius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
 import type { ColumnsType } from 'antd/es/table';
+import { spacing } from '@/tokens';
 
 // API 响应包装接口
 interface ApiResponse<T> { data?: T }
@@ -567,7 +568,7 @@ export const UserSettingsPage: React.FC = () => {
             boxShadow: shadows.card,
           }}
         >
-          <Space style={{ marginBottom: 16 }}>
+          <Space style={{ marginBottom: spacing.md }}>
             <Button
               type="primary"
               onClick={handleCreateToken}
@@ -595,14 +596,14 @@ export const UserSettingsPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
-      <Title level={3} style={{ marginBottom: 24 }}>
+      <Title level={3} style={{ marginBottom: spacing.lg }}>
         个人设置
       </Title>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
         items={tabItems}
-        style={{ marginTop: 16 }}
+        style={{ marginTop: spacing.md }}
       />
     </div>
   );

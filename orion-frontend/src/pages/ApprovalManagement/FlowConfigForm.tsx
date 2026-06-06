@@ -36,6 +36,7 @@ import {
   updateApprovalFlow,
 } from '@/api/approval';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const {} = Collapse;
 
@@ -344,7 +345,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
   return (
     <div>
       {/* 操作栏 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <span style={{ color: colors.neutral[500], fontSize: 13 }}>
           共 {flows.length} 个审批流程
         </span>
@@ -383,7 +384,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
         width={720}
         destroyOnClose
       >
-        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="流程名称"
@@ -495,7 +496,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
         width={560}
         destroyOnClose
       >
-        <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="流程名称"

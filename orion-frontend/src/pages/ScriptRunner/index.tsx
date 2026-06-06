@@ -19,6 +19,7 @@ import {
 import { PlayCircleOutlined, SafetyOutlined, CodeOutlined } from '@ant-design/icons';
 import { scanScript, executeScript, ScriptConfig, ScriptScanResult, ScriptExecutionResult, ScriptLanguage, ScriptLevel } from '@/api/scripts';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -88,18 +89,18 @@ const ScriptRunnerPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <CodeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           在线脚本执行
         </Title>
         <Text type="secondary">在线编写、执行和安全扫描脚本代码</Text>
       </div>
 
-      <Card title="脚本配置" style={{ marginBottom: 16 }}>
+      <Card title="脚本配置" style={{ marginBottom: spacing.md }}>
         <Form form={form} layout="vertical" initialValues={{ language: 'javascript', level: 'safe' }}>
-          <Space style={{ marginBottom: 16 }} wrap>
+          <Space style={{ marginBottom: spacing.md }} wrap>
             <Form.Item name="language" label="语言" style={{ marginBottom: 0, width: 160 }}>
               <Select options={languageOptions} />
             </Form.Item>
@@ -135,8 +136,8 @@ const ScriptRunnerPage: React.FC = () => {
       </Card>
 
       {scanResult && (
-        <Card title="安全扫描结果" style={{ marginBottom: 16 }}>
-          <Space style={{ marginBottom: 12 }}>
+        <Card title="安全扫描结果" style={{ marginBottom: spacing.md }}>
+          <Space style={{ marginBottom: spacing[3] }}>
             <Tag color={scanResult.passed ? 'success' : 'error'}>
               {scanResult.passed ? '通过' : '未通过'}
             </Tag>
@@ -153,7 +154,7 @@ const ScriptRunnerPage: React.FC = () => {
                   {scanResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
                 </ul>
               }
-              style={{ marginBottom: 8 }}
+              style={{ marginBottom: spacing.sm }}
             />
           )}
           {scanResult.errors.length > 0 && (
@@ -172,7 +173,7 @@ const ScriptRunnerPage: React.FC = () => {
 
       {execResult && (
         <Card title="执行结果">
-          <Space style={{ marginBottom: 12 }}>
+          <Space style={{ marginBottom: spacing[3] }}>
             <Tag color={execResult.success ? 'success' : 'error'}>
               {execResult.success ? '执行成功' : '执行失败'}
             </Tag>
@@ -187,7 +188,7 @@ const ScriptRunnerPage: React.FC = () => {
             </Card>
           )}
           {execResult.error && (
-            <Alert type="error" message="错误信息" description={execResult.error} style={{ marginTop: 12 }} />
+            <Alert type="error" message="错误信息" description={execResult.error} style={{ marginTop: spacing[3] }} />
           )}
         </Card>
       )}

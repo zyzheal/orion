@@ -164,13 +164,13 @@ const ArtifactVersionPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/artifacts')}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <TagOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TagOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Artifact 版本管理
           </Title>
           <Text type="secondary">共 {total} 个版本</Text>
@@ -181,7 +181,7 @@ const ArtifactVersionPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
         <Row gutter={16}>
           <Col span={6}>
             <Statistic title="总版本数" value={total} />
@@ -236,7 +236,7 @@ const ArtifactVersionPage: React.FC = () => {
             <Text strong>追溯链</Text>
 
             {chain.pipelineRun && (
-              <Timeline style={{ marginTop: 16 }}>
+              <Timeline style={{ marginTop: spacing.md }}>
                 <Timeline.Item color="blue">
                   <Text strong>构建完成</Text>
                   <br />
@@ -259,7 +259,7 @@ const ArtifactVersionPage: React.FC = () => {
 
             <Divider />
             <Text strong>存储路径</Text>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text code>{selectedVersion.storagePath}</Text>
             </div>
           </>

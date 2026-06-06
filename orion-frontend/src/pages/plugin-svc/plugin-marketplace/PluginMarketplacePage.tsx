@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Plugin Marketplace Page
@@ -151,11 +151,11 @@ const PluginMarketplacePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ShopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ShopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <AppstoreOutlined /> Plugin Marketplace
           </Title>
           <Text type="secondary">Browse and install plugins to extend platform capabilities</Text>

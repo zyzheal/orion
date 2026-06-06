@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Configuration Management Page
@@ -203,11 +203,11 @@ const ConfigMgmtPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <SettingOutlined /> Configuration Management
           </Title>
           <Text type="secondary">GitOps config, environment diffs, and approval workflows</Text>
@@ -224,7 +224,7 @@ const ConfigMgmtPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card><Statistic title="Total Configs" value={stats?.total ?? configs.length} /></Card>
         </Col>
@@ -255,7 +255,7 @@ const ConfigMgmtPage: React.FC = () => {
               label: 'Environment Diff',
               children: (
                 <div>
-                  <Form form={diffForm} layout="inline" onFinish={handleCompare} style={{ marginBottom: 16 }}>
+                  <Form form={diffForm} layout="inline" onFinish={handleCompare} style={{ marginBottom: spacing.md }}>
                     <Form.Item label="Source" name="sourceEnv" rules={[{ required: true }]}>
                       <Select
                         options={[

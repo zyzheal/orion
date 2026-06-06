@@ -20,7 +20,7 @@ import type { StageConfig, MatrixBuildConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -387,7 +387,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'sub-pipeline' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
                 <Form.Item
                   label="选择流水线"
                   name="subPipelineId"
@@ -466,7 +466,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'buildx' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space>🏷️ 多架构构建配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>🏷️ 多架构构建配置</Space>}>
                 <Form.Item
                   label="镜像名称"
                   name="buildxImageName"
@@ -519,7 +519,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'container' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space>📦 容器运行配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📦 容器运行配置</Space>}>
                 <Form.Item
                   label="容器镜像"
                   name="containerImage"
@@ -605,7 +605,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate>
           {(formInstance) =>
             formInstance.getFieldValue('cacheEnabled') && (
-              <Card size="small" style={{ marginBottom: 16 }}>
+              <Card size="small" style={{ marginBottom: spacing.md }}>
                 <Form.Item
                   label="缓存 Key"
                   name="cacheKey"
@@ -658,7 +658,7 @@ const StageModal: React.FC<StageModalProps> = ({
           构建产物 (Artifact)
         </Divider>
 
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card size="small" style={{ marginBottom: spacing.md }}>
           <Form.Item label="上传路径" required>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {artifactPaths.map((path, index) => (
@@ -701,7 +701,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate>
           <Card
             size="small"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
             extra={
               <Space>
                 <span>启用矩阵构建</span>

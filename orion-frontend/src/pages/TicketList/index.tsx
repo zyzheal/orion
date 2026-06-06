@@ -465,12 +465,12 @@ const TicketList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <OrderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <OrderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             工单管理
           </Title>
           <Text type="secondary">共 {filteredTickets.length} 个工单</Text>
@@ -496,8 +496,8 @@ const TicketList: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
         data-testid="ticket-summary-cards"
       >
@@ -532,7 +532,7 @@ const TicketList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

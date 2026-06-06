@@ -254,12 +254,12 @@ const MonitoringChannels: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <MailOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <MailOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             通知渠道
           </Title>
           <Text type="secondary">管理告警通知渠道与升级策略</Text>
@@ -271,7 +271,7 @@ const MonitoringChannels: React.FC = () => {
 
       <Tabs defaultActiveKey="channels">
         <TabPane tab={`通知渠道 (${channels.length})`} key="channels">
-          <div style={{ marginBottom: 16, textAlign: 'right' }}>
+          <div style={{ marginBottom: spacing.md, textAlign: 'right' }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -290,7 +290,7 @@ const MonitoringChannels: React.FC = () => {
           />
         </TabPane>
         <TabPane tab={`升级策略 (${escalationPolicies.length})`} key="escalation">
-          <div style={{ marginBottom: 16, textAlign: 'right' }}>
+          <div style={{ marginBottom: spacing.md, textAlign: 'right' }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}

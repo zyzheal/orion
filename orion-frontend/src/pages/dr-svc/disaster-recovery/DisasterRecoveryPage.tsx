@@ -44,7 +44,7 @@ import {
   type DRPlan,
   type FailoverTest,
 } from '@/api/disaster-recovery';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -213,11 +213,11 @@ const DisasterRecoveryPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SyncOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SyncOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <SafetyCertificateOutlined /> Disaster Recovery
           </Title>
           <Text type="secondary">Backup management, restore operations, and recovery drills</Text>
@@ -233,7 +233,7 @@ const DisasterRecoveryPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card><Statistic title="Total Backups" value={stats?.total ?? 0} /></Card>
         </Col>
@@ -379,7 +379,7 @@ const DisasterRecoveryPage: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
         )}
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Text type="danger">Warning: Restoring will overwrite current data. This action cannot be undone.</Text>
         </div>
       </Modal>

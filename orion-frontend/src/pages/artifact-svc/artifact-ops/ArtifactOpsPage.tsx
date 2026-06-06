@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Artifact Operations Page
@@ -160,11 +160,11 @@ const ArtifactOpsPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ToolOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ToolOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <BoxPlotOutlined /> Artifact Operations
           </Title>
           <Text type="secondary">Artifact lifecycle management, promotion, and security</Text>
@@ -181,7 +181,7 @@ const ArtifactOpsPage: React.FC = () => {
 
       {/* Stats */}
       {stats && (
-        <Row gutter={24} style={{ marginBottom: 24 }}>
+        <Row gutter={24} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <Card><Statistic title="Total Artifacts" value={stats.total} /></Card>
           </Col>

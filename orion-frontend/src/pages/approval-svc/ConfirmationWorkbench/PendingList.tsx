@@ -298,12 +298,12 @@ const PendingList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ClockCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ClockCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             确认工作台
           </Title>
           <Text type="secondary">待确认的 AI 操作建议</Text>
@@ -313,7 +313,7 @@ const PendingList: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -345,7 +345,7 @@ const PendingList: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -372,7 +372,7 @@ const PendingList: React.FC = () => {
       >
         {selectedConfirmation && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Tag color={priorityColorMap[selectedConfirmation.priority]}>
                 {selectedConfirmation.priority}
               </Tag>

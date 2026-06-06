@@ -351,7 +351,7 @@ const MetricsDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <LineChartOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             Metrics Overview
           </Title>

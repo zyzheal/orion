@@ -23,7 +23,7 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -327,12 +327,12 @@ const SecretsManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Secrets 管理
           </Title>
           <Text type="secondary">
@@ -357,7 +357,7 @@ const SecretsManagement: React.FC = () => {
       </div>
 
       {/* Search and Filter Bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -457,7 +457,7 @@ const SecretsManagement: React.FC = () => {
               即将编辑 Secret: <Text strong>{editingSecret.name}</Text>
             </Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
+            <Text type="secondary" style={{ fontSize: 12, marginTop: spacing.sm, display: 'block' }}>
               注意：更新 Secret 值后，所有引用该 Secret 的 Pipeline 在下一次运行时将使用新的值。
               旧值将被永久删除。
             </Text>

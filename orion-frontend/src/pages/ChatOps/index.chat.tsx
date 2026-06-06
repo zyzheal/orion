@@ -186,9 +186,9 @@ export default function ChatOpsChat() {
   };
 
   return (
-    <div style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column', padding: 16 }}>
+    <div style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column', padding: spacing.md }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
         <Space>
           {tools.length > 0 && (
             <Tag color="blue">{tools.length} 个可用工具</Tag>
@@ -228,7 +228,7 @@ export default function ChatOpsChat() {
 
         {/* Quick Actions */}
         {messages.length <= 1 && (
-          <Space wrap style={{ marginTop: 12, marginBottom: 8 }}>
+          <Space wrap style={{ marginTop: spacing[3], marginBottom: spacing.sm }}>
             {QUICK_ACTIONS.map((action) => (
               <Button key={action} size="small" onClick={() => handleSend(action)}>
                 {action}
@@ -238,7 +238,7 @@ export default function ChatOpsChat() {
         )}
 
         {/* Input */}
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: spacing.sm }}>
           <Space.Compact style={{ width: '100%' }}>
             <TextArea
               value={input}

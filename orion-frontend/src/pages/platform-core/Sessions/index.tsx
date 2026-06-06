@@ -316,8 +316,8 @@ const SessionManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             会话管理
           </Title>
           <Text type="secondary">用户会话管理</Text>

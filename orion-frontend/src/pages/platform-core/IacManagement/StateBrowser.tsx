@@ -192,12 +192,12 @@ const StateBrowser: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             状态浏览
           </Title>
           <Text type="secondary">IaC 状态版本历史与资源查看</Text>
@@ -220,7 +220,7 @@ const StateBrowser: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="状态版本数" value={stateVersions.length} />
@@ -330,7 +330,7 @@ const StateBrowser: React.FC = () => {
         </p>
         <Text type="secondary">工作空间: {selectedWsName}</Text>
         <div
-          style={{ marginTop: 16, padding: 16, background: colors.neutral[50], borderRadius: 4 }}
+          style={{ marginTop: spacing.md, padding: spacing.md, background: colors.neutral[50], borderRadius: 4 }}
         >
           <Text>差异对比结果将在此显示</Text>
         </div>

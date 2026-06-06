@@ -41,7 +41,7 @@ import {
   type PolicyViolation,
 } from '@/api/policies';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -375,12 +375,12 @@ const QualityGatePage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CheckSquareOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CheckSquareOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             质量门禁
           </Title>
           <Text type="secondary">管理质量门禁策略、违规处理和豁免申请</Text>
@@ -403,7 +403,7 @@ const QualityGatePage: React.FC = () => {
       </div>
 
       {/* Stats Panel */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <StatCard
             title="总策略数"
@@ -438,14 +438,14 @@ const QualityGatePage: React.FC = () => {
       </Row>
 
       {/* Gate Pass Rate */}
-      <Card title="门禁通过率趋势" style={{ marginBottom: 24 }}>
+      <Card title="门禁通过率趋势" style={{ marginBottom: spacing.lg }}>
         <Row gutter={24}>
           <Col span={8}>
             <Statistic title="通过率" value={stats.total > 0 ? ((stats.total - stats.openViolations) / stats.total * 100).toFixed(1) : 100} suffix="%" />
             <Progress
               percent={stats.total > 0 ? Math.round(((stats.total - stats.openViolations) / stats.total) * 100) : 100}
               status={stats.blocked > 0 ? 'exception' : 'success'}
-              style={{ marginTop: 8 }}
+              style={{ marginTop: spacing.sm }}
             />
           </Col>
           <Col span={8}>
@@ -481,7 +481,7 @@ const QualityGatePage: React.FC = () => {
               label: `违规记录 (${stats.openViolations})`,
               children: (
                 <>
-                  <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+                  <div style={{ marginBottom: spacing.md, display: 'flex', gap: spacing[3] }}>
                     <Input.Search
                       placeholder="搜索违规记录..."
                       onSearch={setSearchQuery}
@@ -553,12 +553,12 @@ const QualityGatePage: React.FC = () => {
           </Form.Item>
         </Form>
         {gateResult && (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <Title level={5}>评估结果</Title>
             <pre
               style={{
                 background: colors.neutral[100],
-                padding: 16,
+                padding: spacing.md,
                 borderRadius: 4,
                 fontSize: 13,
                 overflow: 'auto',
@@ -581,7 +581,7 @@ const QualityGatePage: React.FC = () => {
         destroyOnClose
       >
         {selectedViolation && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Descriptions column={1} size="small" bordered>
               <Descriptions.Item label="策略">{selectedViolation.policyName}</Descriptions.Item>
               <Descriptions.Item label="违规消息">{selectedViolation.message}</Descriptions.Item>

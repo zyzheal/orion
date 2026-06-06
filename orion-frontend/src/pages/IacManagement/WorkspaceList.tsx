@@ -295,8 +295,8 @@ const WorkspaceList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <LayoutOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LayoutOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             工作空间
           </Title>
           <Text type="secondary">管理 IaC 工作空间</Text>

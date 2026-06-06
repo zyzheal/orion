@@ -23,6 +23,7 @@ import {
   type IaCWorkspace, type IaCPlan, type IaCResourceChange, type IaCModule,
 } from '@/api/iac';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -139,10 +140,10 @@ const WorkspaceTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <CloudOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <CloudOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             IaC 工作区
           </Title>
           <Text type="secondary">管理基础设施即代码工作区，支持 Terraform/Pulumi/CloudFormation</Text>
@@ -234,10 +235,10 @@ const ResourcesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <DeploymentUnitOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <DeploymentUnitOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             基础设施资源
           </Title>
           <Text type="secondary">查看工作区管理的基础设施资源</Text>
@@ -302,10 +303,10 @@ const ModulesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             模块注册表
           </Title>
           <Text type="secondary">可复用的 IaC 模块库</Text>
@@ -386,10 +387,10 @@ const PlansTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             变更计划
           </Title>
           <Text type="secondary">基础设施变更计划与资源预览</Text>
@@ -416,7 +417,7 @@ const IacPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Tabs defaultActiveKey="workspaces" items={tabItems} size="large" />
     </div>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   CloudServerOutlined,
   FileTextOutlined,
@@ -35,7 +35,7 @@ const IacManagementLayout: React.FC = () => {
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Content style={{ padding: 24, background: colors.light.bg.primary }}>
+      <Content style={{ padding: spacing.lg, background: colors.light.bg.primary }}>
         <Outlet />
       </Content>
     </Layout>

@@ -21,6 +21,7 @@ import {
 } from '@/api/observability';
 import PageSkeleton from '@/components/PageSkeleton';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -127,14 +128,14 @@ const DependencyGraphTab: React.FC = () => {
               </Space>
             }
             type="info"
-            style={{ marginTop: 12 }}
+            style={{ marginTop: spacing[3] }}
           />
         )}
       </Card>
 
       {/* Dependency Table */}
       <Card title="服务依赖关系">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <Button icon={<ReloadOutlined />} onClick={loadGraph} loading={loading}>刷新</Button>
         </div>
         <Table columns={columns} dataSource={deps} rowKey="service" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
@@ -304,8 +305,8 @@ const TimelineTab: React.FC = () => {
             {timeline.events.map((event, i) => (
               <Timeline.Item key={i} color={getEventColor(event.severity)}>
                 <Text strong>{event.service}</Text>
-                <Tag style={{ marginLeft: 8 }}>{event.eventType}</Tag>
-                <Text type="secondary" style={{ marginLeft: 8 }}>
+                <Tag style={{ marginLeft: spacing.sm }}>{event.eventType}</Tag>
+                <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                   {new Date(event.timestamp).toLocaleString()}
                 </Text>
                 <div style={{ marginTop: 4 }}>{event.description}</div>
@@ -435,7 +436,7 @@ const RCAAnalysisTab: React.FC = () => {
       </Card>
 
       <Card title="根因分析列表">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <Button icon={<ReloadOutlined />} onClick={loadAnalyses} loading={loading}>刷新</Button>
         </div>
         <Table columns={columns} dataSource={analyses} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
@@ -483,7 +484,7 @@ const RCAAnalysisTab: React.FC = () => {
                   {selectedAnalysis.timeline.map((item, i) => (
                     <Timeline.Item key={i}>
                       <Text strong>{item.service}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                      <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         {new Date(item.timestamp).toLocaleTimeString()}
                       </Text>
                       <div>{item.event}</div>
@@ -518,9 +519,9 @@ const RootCausePage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
           根因分析中心
         </Title>
         <Text type="secondary">

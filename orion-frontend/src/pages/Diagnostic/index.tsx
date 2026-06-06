@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   FileTextOutlined,
@@ -62,7 +62,7 @@ const DiagnosticLayout: React.FC = () => {
       <Layout>
         <Content
           style={{
-            padding: 24,
+            padding: spacing.lg,
             margin: 0,
             minHeight: 280,
             background: colors.light.bg.primary,

@@ -212,7 +212,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
         )}
 
         {/* Category and Priority row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
           <Form.Item
             label="工单分类"
             name="category"
@@ -230,7 +230,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
             name="priority"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Radio.Group data-testid="create-ticket-priority" style={{ display: 'flex', gap: 8 }}>
+            <Radio.Group data-testid="create-ticket-priority" style={{ display: 'flex', gap: spacing.sm }}>
               {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
                 <Radio.Button
                   key={p}

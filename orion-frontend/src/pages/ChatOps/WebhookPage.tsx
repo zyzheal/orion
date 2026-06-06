@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, Switch, message, Popconfirm, Tooltip, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, LinkOutlined, FileTextOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { chatopsAdminApi } from '@/api/chatops-admin';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -209,7 +209,7 @@ const WebhookPage: React.FC = () => {
   return (
     <div>
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
-        <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
             <LinkOutlined style={{ color: colors.purple[500], fontSize: 18 }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>Webhook 管理</span>

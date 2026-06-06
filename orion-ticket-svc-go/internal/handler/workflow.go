@@ -29,7 +29,7 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 
 	ticket, history, err := h.svc.TransitionStatus(c.Request.Context(), id, tenantID, req.ToStatus, req.PerformedBy, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h *WorkflowHandler) GetWorkflowHistory(c *gin.Context) {
 
 	history, err := h.svc.GetWorkflowHistory(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *WorkflowHandler) EscalateTicket(c *gin.Context) {
 
 	ticket, err := h.svc.Escalate(c.Request.Context(), id, tenantID, req.EscalatedBy, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *WorkflowHandler) CloseTicket(c *gin.Context) {
 
 	ticket, err := h.svc.Close(c.Request.Context(), id, tenantID, req.PerformedBy, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 

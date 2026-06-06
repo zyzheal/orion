@@ -182,8 +182,8 @@ const PipelineVersionHistory: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <HistoryOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <HistoryOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             版本历史
           </Title>
           <Text type="secondary">

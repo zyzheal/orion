@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getAllHealth, AIGatewayHealth } from '@/api/ai-gateway';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -59,17 +60,17 @@ export default function AIDashboard() {
     : 0;
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 8 }}>
-        <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.sm }}>
+        <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         AI 能力平台
       </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: spacing.lg }}>
         AI 驱动的研发效能提升，让工具链更智能
       </Text>
 
       {/* Stats Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={8}>
           <Card size="small">
             <Statistic
@@ -124,7 +125,7 @@ export default function AIDashboard() {
       {/* Health Status */}
       {healthData.length > 0 && (
         <>
-          <Title level={3} style={{ marginTop: 24, marginBottom: 16 }}>
+          <Title level={3} style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
             场景健康状态
           </Title>
           <Row gutter={[16, 16]}>

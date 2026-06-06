@@ -21,7 +21,7 @@ import { getHealingHistory, createIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -163,11 +163,11 @@ const IncidentList: React.FC = () => {
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <UnorderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <UnorderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             事件列表
           </Title>
           <Text type="secondary">管理自愈合事件</Text>
@@ -178,7 +178,7 @@ const IncidentList: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <Select
             placeholder="严重程度"

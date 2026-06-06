@@ -1,4 +1,4 @@
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 /**
  * Alert Config - Rule creation, severity levels, notification channels
@@ -247,9 +247,9 @@ const AlertConfig: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           告警设置
         </Title>
         <Text type="secondary">配置成本告警规则与通知</Text>
@@ -262,7 +262,7 @@ const AlertConfig: React.FC = () => {
             活跃告警
           </Space>
         }
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       >
         <Table
           columns={alertColumns}

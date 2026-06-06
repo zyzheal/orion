@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -17,7 +18,7 @@ func NewAssignmentRuleRepository(db *sqlx.DB) *AssignmentRuleRepository {
 	return &AssignmentRuleRepository{db: db}
 }
 
-func (r *AssignmentRuleRepository) Create(rule *models.AssignmentRule) error {
+func (r *AssignmentRuleRepository) Create(ctx context.Context, rule *models.AssignmentRule) error {
 	categoriesJSON, err := json.Marshal(rule.Categories)
 	if err != nil {
 		return fmt.Errorf("marshal categories: %w", err)
@@ -28,14 +29,14 @@ func (r *AssignmentRuleRepository) Create(rule *models.AssignmentRule) error {
 	}
 	query := `INSERT INTO assignment_rules (id, name, categories, assignee, priorities, enabled, "order")
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err = r.db.Exec(query,
+	_, err = r.db.ExecContext(ctx, query,
 		rule.ID, rule.Name, string(categoriesJSON), rule.Assignee,
 		string(prioritiesJSON), rule.Enabled, rule.Order,
 	)
 	return err
 }
 
-func (r *AssignmentRuleRepository) List() ([]models.AssignmentRule, error) {
+func (r *AssignmentRuleRepository) List(ctx context.Context) ([]models.AssignmentRule, error) {
 	rows, err := r.db.Query(`SELECT id, name, categories, assignee, priorities, enabled, "order", created_at FROM assignment_rules ORDER BY "order", name`)
 	if err != nil {
 		return nil, err
@@ -61,8 +62,8 @@ func (r *AssignmentRuleRepository) List() ([]models.AssignmentRule, error) {
 	return rules, nil
 }
 
-func (r *AssignmentRuleRepository) Delete(id string) error {
-	result, err := r.db.Exec("DELETE FROM assignment_rules WHERE id = $1", id)
+func (r *AssignmentRuleRepository) Delete(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, "DELETE FROM assignment_rules WHERE id = $1", id)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func (r *AssignmentRuleRepository) Delete(id string) error {
 	return nil
 }
 
-func (r *AssignmentRuleRepository) FindMatching(category, priority string) (*models.AssignmentRule, error) {
+func (r *AssignmentRuleRepository) FindMatching(ctx context.Context, category, priority string) (*models.AssignmentRule, error) {
 	rows, err := r.db.Query(
 		`SELECT id, name, categories, assignee, priorities, enabled, "order", created_at
 		FROM assignment_rules WHERE enabled = true ORDER BY "order"`)

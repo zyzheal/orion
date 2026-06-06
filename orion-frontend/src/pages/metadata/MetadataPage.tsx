@@ -20,6 +20,7 @@ import {
   type CatalogItem, type LineageRelation,
 } from '@/api/metadata';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -101,10 +102,10 @@ const CatalogTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             数据资产目录
           </Title>
           <Text type="secondary">管理所有数据资产的元数据信息</Text>
@@ -214,10 +215,10 @@ const LineageTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            <PartitionOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={3} style={{ marginBottom: spacing.sm }}>
+            <PartitionOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             数据血缘
           </Title>
           <Text type="secondary">追踪数据资产间的流转和依赖关系</Text>
@@ -266,7 +267,7 @@ const MetadataPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Tabs defaultActiveKey="catalog" items={tabItems} size="large" />
     </div>
   );

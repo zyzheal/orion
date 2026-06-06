@@ -48,6 +48,7 @@ import {
   type SearchResult,
 } from '@/api/pandawiki';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -350,7 +351,7 @@ const PandawikiPage: React.FC = () => {
   const spacesTab = (
     <div>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={12}>
           <Card size="small">
             <Statistic
@@ -373,7 +374,7 @@ const PandawikiPage: React.FC = () => {
       </Row>
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Space>
           <Button
             icon={<ReloadOutlined />}
@@ -437,7 +438,7 @@ const PandawikiPage: React.FC = () => {
   const documentsTab = (
     <div>
       {/* Space Selector */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Space>
           <Text strong>选择知识库空间:</Text>
           <Select
@@ -463,7 +464,7 @@ const PandawikiPage: React.FC = () => {
       {selectedSpaceId ? (
         <>
           {/* Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -517,7 +518,7 @@ const PandawikiPage: React.FC = () => {
       ) : (
         <Card style={{ textAlign: 'center', padding: 40 }}>
           <BookOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-          <p style={{ marginTop: 16, color: colors.neutral[500] }}>
+          <p style={{ marginTop: spacing.md, color: colors.neutral[500] }}>
             请先选择一个知识库空间
           </p>
         </Card>
@@ -528,7 +529,7 @@ const PandawikiPage: React.FC = () => {
   const searchTab = (
     <div>
       {/* Search Box */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Space style={{ width: '100%' }}>
           <Input
             style={{ flex: 1, maxWidth: 500 }}
@@ -561,7 +562,7 @@ const PandawikiPage: React.FC = () => {
       {/* Search Results */}
       {searchResults.length > 0 ? (
         <div>
-          <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
+          <Text type="secondary" style={{ marginBottom: spacing[3], display: 'block' }}>
             找到 {searchResults.length} 条结果
           </Text>
           <List
@@ -596,7 +597,7 @@ const PandawikiPage: React.FC = () => {
       ) : searching ? null : (
         <Card style={{ textAlign: 'center', padding: 40 }}>
           <SearchOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-          <p style={{ marginTop: 16, color: colors.neutral[500] }}>
+          <p style={{ marginTop: spacing.md, color: colors.neutral[500] }}>
             输入关键词开始搜索知识库
           </p>
         </Card>
@@ -643,9 +644,9 @@ const PandawikiPage: React.FC = () => {
       ) : (
         <>
           {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <BookOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <div style={{ marginBottom: spacing.lg }}>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <BookOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               PandaWiki 知识库
             </Title>
             <Text type="secondary">管理知识库空间、文档和全文搜索</Text>

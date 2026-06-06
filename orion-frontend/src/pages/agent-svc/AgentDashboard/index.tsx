@@ -28,6 +28,7 @@ import AgentRunList from './AgentRunList';
 import AgentDetailDrawer from './AgentDetailDrawer';
 import CreateAgentModal from './CreateAgentModal';
 import TriggerRunModal from './TriggerRunModal';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -192,12 +193,12 @@ const AgentDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Agent 编排
           </Title>
           <Text type="secondary">

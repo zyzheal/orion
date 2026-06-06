@@ -164,12 +164,12 @@ const TenantManagementPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: spacing.lg }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <BankOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <BankOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               租户管理
             </Title>
             <Text type="secondary">多租户隔离、配额管理、Namespace 池</Text>
@@ -188,7 +188,7 @@ const TenantManagementPage: React.FC = () => {
         </div>
 
         {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <Card>
               <Statistic title="租户 ID" value={quota?.tenantId || 0} prefix={<TeamOutlined />} />
@@ -232,11 +232,11 @@ const TenantManagementPage: React.FC = () => {
         </Row>
 
         {/* Quota Progress */}
-        <Card title="配额使用情况" style={{ marginBottom: 24 }}>
+        <Card title="配额使用情况" style={{ marginBottom: spacing.lg }}>
           <Row gutter={[24, 24]}>
             {quotaItems.map((item) => (
               <Col span={8} key={item.label}>
-                <div style={{ marginBottom: 8 }}>
+                <div style={{ marginBottom: spacing.sm }}>
                   <Text type="secondary">{item.label}</Text>
                 </div>
                 <div style={{ fontWeight: 'bold', fontSize: spacing[5] }}>
@@ -248,7 +248,7 @@ const TenantManagementPage: React.FC = () => {
         </Card>
 
         {/* Pool Utilization */}
-        <Card title="Namespace 池状态" style={{ marginBottom: 24 }}>
+        <Card title="Namespace 池状态" style={{ marginBottom: spacing.lg }}>
           <Row gutter={16}>
             <Col span={8}>
               <Text type="secondary">总数量:</Text>{' '}
@@ -263,7 +263,7 @@ const TenantManagementPage: React.FC = () => {
               <Tag color="blue">{poolStatus?.allocatedNamespaces || 0}</Tag>
             </Col>
           </Row>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <Progress
               percent={poolStatus?.utilizationPercent || 0}
               strokeColor={{

@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ScanOutlined,
   HistoryOutlined,
@@ -44,8 +44,8 @@ const AIReviewLayout: React.FC = () => {
         style={{ borderRight: `1px solid ${colors.light.border.light}` }}
       >
         <div style={{ padding: '16px 12px' }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {collapsed ? 'AI' : 'AI Review'}
           </Title>
           {!collapsed && <Text type="secondary">AI 驱动的智能代码评审</Text>}

@@ -54,6 +54,7 @@ import {
   type ResourceUsage,
 } from '@/api/visor';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -465,7 +466,7 @@ const VisorPage: React.FC = () => {
   const hostsTab = (
     <div>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
             <Statistic title="主机总数" value={hostStats.total} prefix={<CloudServerOutlined />} />
@@ -497,7 +498,7 @@ const VisorPage: React.FC = () => {
       </Row>
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadHosts} loading={hostLoading}>
             刷新
@@ -564,7 +565,7 @@ const VisorPage: React.FC = () => {
   const scriptsTab = (
     <div>
       {/* Script Execution Form */}
-      <Card title="执行脚本" size="small" style={{ marginBottom: 16 }}>
+      <Card title="执行脚本" size="small" style={{ marginBottom: spacing.md }}>
         <Form form={scriptForm} layout="vertical">
           <Form.Item
             name="hostId"
@@ -603,7 +604,7 @@ const VisorPage: React.FC = () => {
       </Card>
 
       {/* Script History */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
         <Button icon={<ReloadOutlined />} onClick={loadScripts} loading={scriptLoading}>
           刷新
         </Button>
@@ -632,7 +633,7 @@ const VisorPage: React.FC = () => {
       >
         {scriptResult && (
           <div>
-            <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+            <Descriptions bordered size="small" column={2} style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="执行ID">{scriptResult.id.slice(0, 8)}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={scriptStatusColorMap[scriptResult.status]}>
@@ -645,12 +646,12 @@ const VisorPage: React.FC = () => {
               <Descriptions.Item label="开始时间">{scriptResult.startedAt || '-'}</Descriptions.Item>
             </Descriptions>
             {scriptResult.stdout && (
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: spacing.sm }}>
                 <Text strong>标准输出:</Text>
                 <pre
                   style={{
                     background: colors.neutral[50],
-                    padding: 12,
+                    padding: spacing[3],
                     borderRadius: 4,
                     fontSize: 12,
                     maxHeight: 200,
@@ -667,7 +668,7 @@ const VisorPage: React.FC = () => {
                 <pre
                   style={{
                     background: colors.error[50],
-                    padding: 12,
+                    padding: spacing[3],
                     borderRadius: 4,
                     fontSize: 12,
                     maxHeight: 200,
@@ -687,7 +688,7 @@ const VisorPage: React.FC = () => {
   const resourcesTab = (
     <div>
       {/* Filter */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Space>
           <Select
             style={{ width: 140 }}
@@ -712,7 +713,7 @@ const VisorPage: React.FC = () => {
         {Object.keys(filteredResourcesByHost).length === 0 ? (
           <Card style={{ textAlign: 'center', padding: 40 }}>
             <DashboardOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-            <p style={{ marginTop: 16, color: colors.neutral[500] }}>暂无资源监控数据</p>
+            <p style={{ marginTop: spacing.md, color: colors.neutral[500] }}>暂无资源监控数据</p>
           </Card>
         ) : (
           <Row gutter={[16, 16]}>
@@ -736,7 +737,7 @@ const VisorPage: React.FC = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: 12,
+                          marginBottom: spacing[3],
                         }}
                       >
                         <Space>
@@ -811,10 +812,10 @@ const VisorPage: React.FC = () => {
       ) : (
         <>
           {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Title level={2} style={{ marginBottom: 8 }}>
-            <MonitorOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-              <CloudServerOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <div style={{ marginBottom: spacing.lg }}>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <MonitorOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <CloudServerOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               运维可视化
             </Title>
             <Text type="secondary">主机管理、脚本执行与资源监控</Text>

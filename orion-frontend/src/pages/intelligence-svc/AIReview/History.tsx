@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Card, Table, Tag, Space, Button, Input, Select, message } from 'antd';
 import { SearchOutlined, ReloadOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons';
 import { getReviewHistory } from '@/api/ai-review';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -140,17 +140,17 @@ const AIReviewHistory: React.FC = () => {
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 8 }}>
-        <ScanOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.sm }}>
+        <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         评审历史
       </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
         查看所有 AI 评审记录
       </Text>
 
       {/* Filter Bar */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <Input
             placeholder="搜索仓库 ID"

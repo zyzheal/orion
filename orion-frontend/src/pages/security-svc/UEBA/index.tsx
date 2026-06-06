@@ -8,7 +8,7 @@ import { Card, Table, Tag, Button, Space, Row, Col, Statistic, Input, Select, me
 import { ReloadOutlined, WarningOutlined, UserOutlined, AlertOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getHighRiskUsers, getAnomalies, type UEBAStats, type AnomalyAlert } from '@/api/ueba';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Option } = Select;
 
@@ -121,8 +121,8 @@ const UEBAPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card>
             <Statistic title="高风险用户" value={risks.length} prefix={<WarningOutlined />} valueStyle={{ color: colors.error[400] }} />
@@ -140,7 +140,7 @@ const UEBAPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Card title="异常告警" extra={<Space><Select value={hours} onChange={setHours} style={{ width: 100 }}><Option value={6}>6小时</Option><Option value={24}>24小时</Option><Option value={72}>3天</Option><Option value={168}>7天</Option></Select><Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button></Space>} style={{ marginBottom: 16 }}>
+      <Card title="异常告警" extra={<Space><Select value={hours} onChange={setHours} style={{ width: 100 }}><Option value={6}>6小时</Option><Option value={24}>24小时</Option><Option value={72}>3天</Option><Option value={168}>7天</Option></Select><Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button></Space>} style={{ marginBottom: spacing.md }}>
         <Table dataSource={alerts} columns={alertColumns} rowKey="timestamp" pagination={false} loading={loading} size="small" />
       </Card>
 

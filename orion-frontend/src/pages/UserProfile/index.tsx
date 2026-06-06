@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons';
 import { userApi, UserProfile as UserProfileType, UserActivity, UserTeam } from '@/api/user';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -107,16 +108,16 @@ export default function UserProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        <UserOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+    <div style={{ padding: spacing.lg }}>
+      <Title level={2} style={{ marginBottom: spacing.md }}>
+        <UserOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         个人中心
       </Title>
 
@@ -124,9 +125,9 @@ export default function UserProfilePage() {
         {/* Profile Card */}
         <Col xs={24} md={8}>
           <Card>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ textAlign: 'center', marginBottom: spacing.lg }}>
               <Avatar size={80} icon={<UserOutlined />} src={profile?.avatar} />
-              <Title level={4} style={{ marginTop: 12, marginBottom: 4 }}>
+              <Title level={4} style={{ marginTop: spacing[3], marginBottom: 4 }}>
                 {profile?.username || '未知用户'}
               </Title>
               <Tag color={ROLE_COLORS[profile?.role || ''] || 'default'}>
@@ -155,7 +156,7 @@ export default function UserProfilePage() {
               type="primary"
               icon={<EditOutlined />}
               block
-              style={{ marginTop: 16 }}
+              style={{ marginTop: spacing.md }}
               onClick={handleEdit}
             >
               编辑资料

@@ -331,15 +331,15 @@ const SbomDetail: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div style={{ padding: 0 }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: spacing.lg }}>
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate('/sbom')}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             返回
           </Button>
-          <Title level={2} style={{ marginBottom: 8 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <SafetyOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             SBOM 详情
           </Title>
@@ -347,7 +347,7 @@ const SbomDetail: React.FC = () => {
         </div>
 
         {doc && (
-          <Card style={{ marginBottom: 24 }}>
+          <Card style={{ marginBottom: spacing.lg }}>
             <Descriptions title="文档信息" bordered column={3}>
               <Descriptions.Item label="Document ID">{doc.documentId}</Descriptions.Item>
               <Descriptions.Item label="格式">{doc.format}</Descriptions.Item>
@@ -365,7 +365,7 @@ const SbomDetail: React.FC = () => {
                 {doc.expiresAt ? dayjs(doc.expiresAt).format('YYYY-MM-DD') : '-'}
               </Descriptions.Item>
             </Descriptions>
-            <Space style={{ marginTop: 16 }}>
+            <Space style={{ marginTop: spacing.md }}>
               <Button icon={<DownloadOutlined />} onClick={handleDownload}>
                 下载 {doc.format.toUpperCase()}
               </Button>
@@ -378,7 +378,7 @@ const SbomDetail: React.FC = () => {
 
         {/* Attestation */}
         {attestation && (
-          <Card title="签名证明" style={{ marginBottom: 24 }}>
+          <Card title="签名证明" style={{ marginBottom: spacing.lg }}>
             <Descriptions bordered column={2}>
               <Descriptions.Item label="签名类型">{attestation.attestationType}</Descriptions.Item>
               <Descriptions.Item label="验证状态">
@@ -397,7 +397,7 @@ const SbomDetail: React.FC = () => {
         )}
 
         {/* Package List */}
-        <Card title={`包清单 (${packages.length})`} style={{ marginBottom: 24 }}>
+        <Card title={`包清单 (${packages.length})`} style={{ marginBottom: spacing.lg }}>
           <AntTable
             columns={packageColumns}
             dataSource={packages}
@@ -408,7 +408,7 @@ const SbomDetail: React.FC = () => {
         </Card>
 
         {/* Vulnerability Scan Results */}
-        <Card title="漏洞扫描结果" style={{ marginBottom: 24 }}>
+        <Card title="漏洞扫描结果" style={{ marginBottom: spacing.lg }}>
           {vulnResults.length > 0 ? (
             <AntTable columns={vulnColumns} dataSource={vulnResults} rowKey="id" size="small" />
           ) : (

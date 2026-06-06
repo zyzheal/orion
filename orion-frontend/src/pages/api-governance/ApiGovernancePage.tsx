@@ -20,7 +20,7 @@ import {
   WarningOutlined, BranchesOutlined, StopOutlined,
   VerifiedOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -345,9 +345,9 @@ const ApiGovernancePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Governance Report */}
-      <Card loading={loading} style={{ marginBottom: 24 }}>
+      <Card loading={loading} style={{ marginBottom: spacing.lg }}>
         <Row gutter={16}>
           <Col span={6}>
             <Statistic
@@ -486,7 +486,7 @@ const ApiGovernancePage: React.FC = () => {
                   <p style={{ color: colors.neutral[500] }}>No verification results yet. Use the Verify button on a contract to start.</p>
                 ) : (
                   verificationResults.map((result, idx) => (
-                    <Card key={idx} size="small" style={{ marginBottom: 8 }}>
+                    <Card key={idx} size="small" style={{ marginBottom: spacing.sm }}>
                       <Descriptions column={2} size="small">
                         <Descriptions.Item label="Contract">{result.contractId.slice(0, 16)}...</Descriptions.Item>
                         <Descriptions.Item label="Result">
@@ -496,7 +496,7 @@ const ApiGovernancePage: React.FC = () => {
                         <Descriptions.Item label="Verified At">{new Date(result.verifiedAt).toLocaleString()}</Descriptions.Item>
                       </Descriptions>
                       {result.violations.length > 0 && (
-                        <div style={{ marginTop: 8 }}>
+                        <div style={{ marginTop: spacing.sm }}>
                           <strong>Violations:</strong>
                           <ul>
                             {result.violations.map((v, i) => <li key={i}>{v}</li>)}

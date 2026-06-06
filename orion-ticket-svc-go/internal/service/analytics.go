@@ -39,17 +39,17 @@ func NewAnalyticsService(
 func (s *AnalyticsService) GetStatistics(ctx context.Context, tenantID string) (*models.TicketStatistics, error) {
 	_, span := otel.Tracer().Start(ctx, "AnalyticsService.GetStatistics")
 	defer span.End()
-	return s.analyticsRepo.GetTicketStats(tenantID)
+	return s.analyticsRepo.GetTicketStats(ctx, tenantID)
 }
 
 // GetResolutionStats returns resolution statistics
 func (s *AnalyticsService) GetResolutionStats(ctx context.Context, tenantID string) (*models.ResolutionStats, error) {
-	return s.analyticsRepo.GetResolutionStats(tenantID)
+	return s.analyticsRepo.GetResolutionStats(ctx, tenantID)
 }
 
 // GetBacklogAnalysis returns backlog analysis
 func (s *AnalyticsService) GetBacklogAnalysis(ctx context.Context, tenantID string) (*models.BacklogAnalysis, error) {
-	return s.analyticsRepo.GetBacklogAnalysis(tenantID)
+	return s.analyticsRepo.GetBacklogAnalysis(ctx, tenantID)
 }
 
 // GetTrendReport returns trend data
@@ -61,7 +61,7 @@ func (s *AnalyticsService) GetTrendReport(ctx context.Context, tenantID string, 
 		granularity = "day"
 	}
 
-	dataPoints, err := s.analyticsRepo.GetTrendData(tenantID, days, granularity)
+	dataPoints, err := s.analyticsRepo.GetTrendData(ctx, tenantID, days, granularity)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (s *AnalyticsService) GetExecutiveDashboard(ctx context.Context, tenantID s
 		end = time.Now()
 	}
 
-	return s.analyticsRepo.GetExecutiveDashboard(tenantID, start, end)
+	return s.analyticsRepo.GetExecutiveDashboard(ctx, tenantID, start, end)
 }
 
 // GetManagerDashboard returns the manager dashboard
@@ -118,8 +118,8 @@ func (s *AnalyticsService) GetManagerDashboard(ctx context.Context, tenantID str
 		end = time.Now()
 	}
 
-	stats, _ := s.analyticsRepo.GetTicketStats(tenantID)
-	trendData, _ := s.analyticsRepo.GetTrendData(tenantID, int(end.Sub(start).Hours()/24), "day")
+	stats, _ := s.analyticsRepo.GetTicketStats(ctx, tenantID)
+	trendData, _ := s.analyticsRepo.GetTrendData(ctx, tenantID, int(end.Sub(start).Hours()/24), "day")
 
 	return &models.ManagerDashboard{
 		PeriodStart:     start,
@@ -139,7 +139,7 @@ func (s *AnalyticsService) GetEngineerDashboard(ctx context.Context, engineerID 
 		end = time.Now()
 	}
 
-	eng, err := s.dispatchRepo.GetEngineer(engineerID)
+	eng, err := s.dispatchRepo.GetEngineer(ctx, engineerID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (s *AnalyticsService) GetEngineerDashboard(ctx context.Context, engineerID 
 
 // GetEfficiencyScore returns an engineer's efficiency score
 func (s *AnalyticsService) GetEfficiencyScore(ctx context.Context, engineerID string, start, end time.Time) (*models.EfficiencyScore, error) {
-	eng, err := s.dispatchRepo.GetEngineer(engineerID)
+	eng, err := s.dispatchRepo.GetEngineer(ctx, engineerID)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (s *AnalyticsService) GetEfficiencyScore(ctx context.Context, engineerID st
 
 // ComparePeriods compares metrics between two time periods
 func (s *AnalyticsService) ComparePeriods(ctx context.Context, tenantID string, currentStart, currentEnd, previousStart, previousEnd time.Time) (*models.PeriodComparison, error) {
-	currentStats, _ := s.analyticsRepo.GetTicketStats(tenantID)
+	currentStats, _ := s.analyticsRepo.GetTicketStats(ctx, tenantID)
 	// For a proper comparison we'd need per-period queries; simplified here
 	current := models.PeriodStats{
 		PeriodStart:     currentStart,
@@ -232,16 +232,16 @@ func (s *AnalyticsService) ExportBIData(ctx context.Context, tenantID, dataset, 
 
 	switch dataset {
 	case "tickets":
-		stats, _ := s.analyticsRepo.GetTicketStats(tenantID)
+		stats, _ := s.analyticsRepo.GetTicketStats(ctx, tenantID)
 		result["data"] = stats
 	case "sla":
-		report, _ := s.slaRepo.GetComplianceReport(start, end)
+		report, _ := s.slaRepo.GetComplianceReport(ctx, start, end)
 		result["data"] = report
 	case "dispatch":
-		metrics, _ := s.dispatchRepo.GetMetrics(start, end)
+		metrics, _ := s.dispatchRepo.GetMetrics(ctx, start, end)
 		result["data"] = metrics
 	case "efficiency":
-		engineers, _ := s.dispatchRepo.ListEngineers()
+		engineers, _ := s.dispatchRepo.ListEngineers(ctx)
 		result["data"] = engineers
 	}
 
@@ -265,7 +265,7 @@ func (s *AnalyticsService) GetTimeTrend(ctx context.Context, tenantID, metric st
 		days = 30
 	}
 
-	return s.analyticsRepo.GetTrendData(tenantID, days, granularity)
+	return s.analyticsRepo.GetTrendData(ctx, tenantID, days, granularity)
 }
 
 // Transfer operations
@@ -276,7 +276,7 @@ func (s *AnalyticsService) TransferTicket(ctx context.Context, ticketID, tenantI
 	defer span.End()
 
 	// Get current ticket
-	ticket, err := s.ticketRepo.GetByID(ticketID, tenantID)
+	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -293,7 +293,7 @@ func (s *AnalyticsService) TransferTicket(ctx context.Context, ticketID, tenantI
 		Reason:         reason,
 	}
 
-	if err := s.transferRepo.Create(record); err != nil {
+	if err := s.transferRepo.Create(ctx, record); err != nil {
 		return nil, 0, err
 	}
 
@@ -302,7 +302,7 @@ func (s *AnalyticsService) TransferTicket(ctx context.Context, ticketID, tenantI
 
 // GetTransferHistory returns transfer history for a ticket
 func (s *AnalyticsService) GetTransferHistory(ctx context.Context, ticketID string) ([]models.TransferRecord, error) {
-	return s.transferRepo.ListByTicket(ticketID)
+	return s.transferRepo.ListByTicket(ctx, ticketID)
 }
 
 // GetTransferStats returns transfer statistics
@@ -313,5 +313,5 @@ func (s *AnalyticsService) GetTransferStats(ctx context.Context, start, end time
 	if end.IsZero() {
 		end = time.Now()
 	}
-	return s.transferRepo.GetStats(start, end)
+	return s.transferRepo.GetStats(ctx, start, end)
 }

@@ -394,7 +394,7 @@ const BuildCachePage: React.FC = () => {
       label: `Cache Configs (${configs.length})`,
       children: (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing[3] }}>
             <Space>
               <Button
                 icon={<ReloadOutlined />}
@@ -425,7 +425,7 @@ const BuildCachePage: React.FC = () => {
       label: `Cache Entries (${entries.length})`,
       children: (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing[3] }}>
             <Space>
               <Button
                 icon={<ReloadOutlined />}
@@ -460,12 +460,12 @@ const BuildCachePage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Build Cache
           </Title>
           <Text type="secondary">Manage cache configurations and cached build artifacts</Text>
@@ -489,7 +489,7 @@ const BuildCachePage: React.FC = () => {
         okText={editingConfig ? 'Update' : 'Create'}
         width={560}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="Name"

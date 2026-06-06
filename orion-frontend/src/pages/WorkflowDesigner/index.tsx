@@ -13,7 +13,7 @@ import {
 import WorkflowList from './WorkflowList';
 import WorkflowCanvas from './WorkflowCanvas';
 import ExecutionHistory from './ExecutionHistory';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
@@ -25,12 +25,12 @@ const WorkflowDesigner: React.FC = () => {
       key: 'designer',
       label: (
         <span>
-          <BranchesOutlined style={{ marginRight: 8 }} />
+          <BranchesOutlined style={{ marginRight: spacing.sm }} />
           工作流设计
         </span>
       ),
       children: (
-        <div style={{ display: 'flex', gap: 16, height: 600 }}>
+        <div style={{ display: 'flex', gap: spacing.md, height: 600 }}>
           <Card style={{ width: 300, flexShrink: 0, overflow: 'auto' }}>
             <WorkflowList onSelect={(id) => setSelectedWorkflowId(id)} />
           </Card>
@@ -44,7 +44,7 @@ const WorkflowDesigner: React.FC = () => {
       key: 'history',
       label: (
         <span>
-          <HistoryOutlined style={{ marginRight: 8 }} />
+          <HistoryOutlined style={{ marginRight: spacing.sm }} />
           执行历史
         </span>
       ),
@@ -58,9 +58,9 @@ const WorkflowDesigner: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          <DragOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <DragOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           工作流设计器
         </Title>
         <Paragraph type="secondary">可视化设计和管理工作流流程，支持审批、条件分支和自动化节点</Paragraph>

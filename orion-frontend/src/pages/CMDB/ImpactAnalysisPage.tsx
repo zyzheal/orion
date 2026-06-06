@@ -153,7 +153,7 @@ const ImpactAnalysisPage: React.FC = () => {
             </Button>
           </div>
 
-          <Card style={{ marginBottom: 16 }}>
+          <Card style={{ marginBottom: spacing.md }}>
             <Space>
               <Text>选择配置项：</Text>
               <Select

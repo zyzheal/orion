@@ -184,7 +184,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
           )}
         </Space>
       }
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: spacing.md }}
       styles={{ body: { padding: 0 } }}
     >
       {error && (
@@ -242,7 +242,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
                     style={{
                       color: colors.neutral[500],
                       userSelect: 'none',
-                      marginRight: 8,
+                      marginRight: spacing.sm,
                       display: 'inline-block',
                       width: 40,
                       textAlign: 'right',
@@ -260,7 +260,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
                   style={{
                     color: colors.neutral[500],
                     userSelect: 'none',
-                    marginRight: 8,
+                    marginRight: spacing.sm,
                     display: 'inline-block',
                     width: 40,
                     textAlign: 'right',

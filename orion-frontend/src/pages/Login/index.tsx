@@ -11,7 +11,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { getEnabledSsoProviders } from '@/api/auth';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -117,7 +117,7 @@ const Login: React.FC = () => {
 
         {/* 顶部 Logo */}
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
             <img src="/logo.svg" alt="Orion" style={{ width: 40, height: 40 }} />
             <span style={{ fontSize: 22, fontWeight: 700, color: colors.neutral[0], letterSpacing: '0.5px' }}>
               Orion Platform
@@ -134,7 +134,7 @@ const Login: React.FC = () => {
               fontSize: 36,
               fontWeight: 700,
               lineHeight: 1.3,
-              marginBottom: 16,
+              marginBottom: spacing.md,
               letterSpacing: '-0.5px',
             }}
           >
@@ -268,7 +268,7 @@ const Login: React.FC = () => {
                 fontSize: 28,
                 fontWeight: 700,
                 color: colors.light.text.primary,
-                marginBottom: 8,
+                marginBottom: spacing.sm,
                 letterSpacing: '-0.3px',
               }}
             >
@@ -291,10 +291,10 @@ const Login: React.FC = () => {
             <Form.Item
               name="username"
               rules={[{ required: true, message: '请输入用户名' }]}
-              style={{ marginBottom: 24 }}
+              style={{ marginBottom: spacing.lg }}
             >
               <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, color: colors.light.text.secondary, marginBottom: 8, display: 'block' }}>
+                <Text style={{ fontSize: 13, fontWeight: 500, color: colors.light.text.secondary, marginBottom: spacing.sm, display: 'block' }}>
                   用户名
                 </Text>
                 <Input
@@ -314,10 +314,10 @@ const Login: React.FC = () => {
             <Form.Item
               name="password"
               rules={[{ required: true, message: '请输入密码' }]}
-              style={{ marginBottom: 32 }}
+              style={{ marginBottom: spacing.xl }}
             >
               <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, color: colors.light.text.secondary, marginBottom: 8, display: 'block' }}>
+                <Text style={{ fontSize: 13, fontWeight: 500, color: colors.light.text.secondary, marginBottom: spacing.sm, display: 'block' }}>
                   密码
                 </Text>
                 <Input.Password

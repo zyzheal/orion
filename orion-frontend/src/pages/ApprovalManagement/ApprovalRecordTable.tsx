@@ -45,6 +45,7 @@ import {
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -383,7 +384,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
         </Descriptions>
 
         {/* 审批进度 */}
-        <Card size="small" title="审批进度" style={{ marginTop: 16 }}>
+        <Card size="small" title="审批进度" style={{ marginTop: spacing.md }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Progress
               percent={approvalProgress(r)}
@@ -403,7 +404,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
         </Card>
 
         {/* 审批步骤列表 */}
-        <Card size="small" title="审批步骤" style={{ marginTop: 16 }}>
+        <Card size="small" title="审批步骤" style={{ marginTop: spacing.md }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             {r.steps.map((step: ApprovalStepDetail) => {
               const statusIconMap: Record<string, React.ReactNode> = {
@@ -459,7 +460,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
 
         {/* 操作按钮 */}
         {r.status === 'pending' && (
-          <Space style={{ marginTop: 16 }}>
+          <Space style={{ marginTop: spacing.md }}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -484,7 +485,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
   return (
     <div>
       {/* 统计面板 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Space size="large">
           <Space>
             <Text type="secondary">总计:</Text>
@@ -523,7 +524,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
 
       {/* 筛选 */}
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
           <Space>
             <Input.Search
               placeholder="搜索标题、申请人或资源..."
@@ -589,7 +590,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
               : undefined,
         }}
       >
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: spacing.sm }}>
           <Text type="secondary">
             {commentAction === 'approve'
               ? '确认通过该审批？可填写评论理由（可选）。'

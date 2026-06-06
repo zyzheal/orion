@@ -221,12 +221,12 @@ const AuditLogViewer: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <AuditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <AuditOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             审计日志
           </Title>
           <Text type="secondary">ChatOps 命令执行审计与统计</Text>
@@ -241,7 +241,7 @@ const AuditLogViewer: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总执行数" value={stats?.totalExecutions || logs.length} />
@@ -273,7 +273,7 @@ const AuditLogViewer: React.FC = () => {
       </Row>
 
       {/* 高级过滤 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <span style={{ fontSize: spacing[3] }}>日期范围：</span>
           <RangePicker
@@ -289,7 +289,7 @@ const AuditLogViewer: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -317,12 +317,12 @@ const AuditLogViewer: React.FC = () => {
                     平台分布
                   </Space>
                 }
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               >
                 {stats.platformBreakdown?.map((item, index) => (
                   <div
                     key={index}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Tag>{item.platform}</Tag>
                     <Text>{item.count} 次</Text>
@@ -340,7 +340,7 @@ const AuditLogViewer: React.FC = () => {
                 {stats.topCommands?.map((item, index) => (
                   <div
                     key={index}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Text code>/{item.command}</Text>
                     <Text>{item.count} 次</Text>

@@ -27,7 +27,7 @@ func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 
 	target, err := h.svc.CreateTarget(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -38,7 +38,7 @@ func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
 	sla, err := h.svc.GetTicketSLA(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "SLA record not found"})
+		respondError(c, http.StatusNotFound, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": sla})
@@ -48,7 +48,7 @@ func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
 func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
 	report, err := h.svc.GetComplianceReport(c.Request.Context(), time.Time{}, time.Time{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": report})
@@ -58,7 +58,7 @@ func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
 func (h *SLAHandler) CheckSLABreaches(c *gin.Context) {
 	breaches, err := h.svc.CheckBreaches(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": breaches, "count": len(breaches)})

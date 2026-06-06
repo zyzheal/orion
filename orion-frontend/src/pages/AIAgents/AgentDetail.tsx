@@ -6,7 +6,7 @@
 import React from 'react';
 import { Descriptions, Tag, Typography, Card, Divider } from 'antd';
 import type { AgentInfo } from '@/api/ai-agents';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -39,8 +39,8 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
   return (
     <div>
       {/* 基本信息 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={4} style={{ marginBottom: spacing.sm }}>
           {config.name || agent.id}
         </Title>
         <Paragraph type="secondary">Agent 详细配置与状态</Paragraph>
@@ -70,7 +70,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
       {config.tools && config.tools.length > 0 && (
         <>
           <Divider orientation="left">工具列表</Divider>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
             {config.tools.map((tool: string | Record<string, any>, index: number) => {
               const toolName = typeof tool === 'string' ? tool : tool.toolName || tool.name || `tool-${index}`;
               return (

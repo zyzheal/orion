@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Space, Button, Modal, message, Tag } from 'antd';
 import { CheckOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
 import { batchUpdatePipelines } from '@/api/pipelines';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 interface BatchActionsProps {
   selectedIds: string[];
@@ -52,7 +52,7 @@ const BatchActions: React.FC<BatchActionsProps> = ({ selectedIds, onRefresh, onC
       padding: '8px 16px',
       background: colors.primary[50],
       borderRadius: 6,
-      marginBottom: 12,
+      marginBottom: spacing[3],
     }}>
       <span style={{ fontSize: 13 }}>
         已选择 <Tag color="blue">{selectedIds.length}</Tag> 个 Pipeline

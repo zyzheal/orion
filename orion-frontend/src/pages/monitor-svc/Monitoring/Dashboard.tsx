@@ -109,12 +109,12 @@ const MonitoringDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             监控总览
           </Title>
           <Text type="secondary">监控中心运行状态与关键指标</Text>
@@ -147,7 +147,7 @@ const MonitoringDashboard: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -200,7 +200,7 @@ const MonitoringDashboard: React.FC = () => {
       </Row>
 
       {/* Health Status */}
-      <Card title="系统健康状态" style={{ marginBottom: 16 }}>
+      <Card title="系统健康状态" style={{ marginBottom: spacing.md }}>
         <Space size="large">
           <div>
             <Text type="secondary">状态:</Text>{' '}
@@ -254,7 +254,7 @@ const MonitoringDashboard: React.FC = () => {
           <Text type="secondary">未发现异常</Text>
         )}
         {anomalies?.totalCount && anomalies.totalCount > 10 && (
-          <div style={{ marginTop: 8, textAlign: 'right' }}>
+          <div style={{ marginTop: spacing.sm, textAlign: 'right' }}>
             <Text type="secondary">共 {anomalies.totalCount} 条异常记录</Text>
           </div>
         )}

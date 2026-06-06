@@ -39,7 +39,7 @@ import CollectionDetail from './CollectionDetail';
 import VectorSearch from './VectorSearch';
 import DocumentManager from './DocumentManager';
 import CreateCollectionModal from './CreateCollectionModal';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -231,12 +231,12 @@ const VectorStorePage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             向量存储管理
           </Title>
           <Text type="secondary">管理向量集合、文档上传和语义相似度检索</Text>
@@ -264,7 +264,7 @@ const VectorStorePage: React.FC = () => {
 
       {/* Stats Panel */}
       {stats && (
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card size="small" style={{ marginBottom: spacing.md }}>
           <Row gutter={16}>
             <Col span={6}>
               <Statistic
@@ -325,7 +325,7 @@ const VectorStorePage: React.FC = () => {
             onTopKChange={setSearchTopK}
             onSearch={handleSearch}
           />
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <DocumentManager
               collections={collections}
               uploadContent={uploadContent}

@@ -417,7 +417,7 @@ const DashboardNew: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 12 }}>
+      <div style={{ padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: spacing[3] }}>
         <Spin size="large" />
         <Typography.Text type="secondary">加载数据中...</Typography.Text>
       </div>
@@ -433,14 +433,14 @@ const DashboardNew: React.FC = () => {
           type="warning"
           showIcon
           closable
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             工作台
           </Title>
           <Text type="secondary">个人工作与效能度量</Text>
@@ -451,7 +451,7 @@ const DashboardNew: React.FC = () => {
       </div>
 
       {/* 顶部统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             title="Pipeline 总数"
@@ -478,7 +478,7 @@ const DashboardNew: React.FC = () => {
           <Card
             title="待处理任务"
             extra={<Button type="link">查看全部</Button>}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Table
               columns={taskColumns}
@@ -516,7 +516,7 @@ const DashboardNew: React.FC = () => {
                 查看全部
               </Button>
             }
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Row gutter={[12, 12]}>
               {dashboardLinks.map((link) => (
@@ -553,7 +553,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 系统健康状态 */}
-          <Card title="系统健康状态" style={{ marginBottom: 16 }}>
+          <Card title="系统健康状态" style={{ marginBottom: spacing.md }}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {systemHealth.map((item) => (
                 <div
@@ -584,7 +584,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 快速操作 */}
-          <Card title="快速操作" style={{ marginBottom: 16 }}>
+          <Card title="快速操作" style={{ marginBottom: spacing.md }}>
             <Row gutter={[12, 12]}>
               {quickActions.map((action) => (
                 <Col span={12} key={action.name}>
@@ -603,7 +603,7 @@ const DashboardNew: React.FC = () => {
                       transition: 'all 0.3s',
                     }}
                   >
-                    <div style={{ fontSize: 28, color: action.color, marginBottom: 8 }}>
+                    <div style={{ fontSize: 28, color: action.color, marginBottom: spacing.sm }}>
                       {action.icon}
                     </div>
                     <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>
@@ -616,19 +616,19 @@ const DashboardNew: React.FC = () => {
           {/* 公告/提醒 */}
           <Card title="系统提醒">
             {pipelineStats.failed > 0 && (
-              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: 8 }}>
-                <WarningOutlined style={{ color: colors.warning[500], marginRight: 8 }} />
+              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+                <WarningOutlined style={{ color: colors.warning[500], marginRight: spacing.sm }} />
                 {pipelineStats.failed} 个 Pipeline 运行失败，请检查
               </Paragraph>
             )}
             {pipelineStats.running > 0 && (
-              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: 8 }}>
-                <RocketOutlined style={{ color: colors.primary[500], marginRight: 8 }} />
+              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+                <RocketOutlined style={{ color: colors.primary[500], marginRight: spacing.sm }} />
                 {pipelineStats.running} 个 Pipeline 正在运行中
               </Paragraph>
             )}
             <Paragraph type="secondary" style={{ fontSize: spacing[3] }}>
-              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: 8 }} />
+              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: spacing.sm }} />
               系统运行正常
             </Paragraph>
           </Card>

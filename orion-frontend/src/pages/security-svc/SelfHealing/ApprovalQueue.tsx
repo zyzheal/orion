@@ -21,7 +21,7 @@ import { CheckOutlined, CloseOutlined, ReloadOutlined, CheckCircleOutlined,} fro
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -178,11 +178,11 @@ const ApprovalQueue: React.FC = () => {
   const pendingCount = data.filter((r) => r.status === 'pending').length;
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            <CheckCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             审批队列
           </Title>
           <Text type="secondary">
@@ -195,7 +195,7 @@ const ApprovalQueue: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <Select
             placeholder="状态"
