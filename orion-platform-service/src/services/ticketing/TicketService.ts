@@ -16,10 +16,7 @@ import { TicketWorkflowService } from './TicketWorkflowService';
 import { TicketRelationAnalyzer } from './TicketRelationAnalyzer';
 import { TicketReportService } from './TicketReportService';
 import { TicketBIService, TransferRecord, CommentRecord, DashboardOptions } from './TicketBIService';
-import { DispatchEngine } from './DispatchEngine';
-import { DispatchQueueManager } from './DispatchQueueManager';
-import { LoadBalancer } from './LoadBalancer';
-import { DispatchAnalytics } from './DispatchAnalytics';
+import { TicketDispatchOrchestrator } from './TicketDispatchOrchestrator';
 import { TicketTransferService } from './TicketTransferService';
 import { EngineerSuspendService } from './EngineerSuspendService';
 import { TicketingRepository } from './TicketingRepository';
@@ -119,17 +116,8 @@ export class TicketService extends EventEmitter {
   /** Report service */
   public reporter: TicketReportService;
 
-  /** TASK-802: Smart dispatch engine */
-  public dispatchEngine: DispatchEngine;
-
-  /** TASK-802: Dispatch queue manager */
-  public dispatchQueue: DispatchQueueManager;
-
-  /** TASK-802: Load balancer */
-  public loadBalancer: LoadBalancer;
-
-  /** TASK-802: Dispatch analytics */
-  public dispatchAnalytics: DispatchAnalytics;
+  /** TASK-802: Dispatch orchestrator (manages engine, queue, balancer, analytics) */
+  public dispatch: TicketDispatchOrchestrator;
 
   /** TASK-TICKET-XFER: Ticket transfer service */
   public transfer: TicketTransferService;
@@ -168,16 +156,8 @@ export class TicketService extends EventEmitter {
       : new TicketRelationAnalyzer({ ticketingRepository: undefined });
     this.reporter = new TicketReportService();
 
-    // TASK-802: Initialize dispatch components with repository
-    const db = repository?.getDb();
-    this.dispatchEngine = repository
-      ? new DispatchEngine({ ticketingRepository: repository })
-      : new DispatchEngine({ ticketingRepository: undefined }); // will throw if used without repo
-    this.dispatchQueue = new DispatchQueueManager();
-    this.loadBalancer = repository
-      ? new LoadBalancer({ ticketingRepository: repository, db })
-      : new LoadBalancer({ ticketingRepository: undefined });
-    this.dispatchAnalytics = new DispatchAnalytics(db);
+    // TASK-802: Initialize dispatch orchestrator
+    this.dispatch = new TicketDispatchOrchestrator({ workflow: this.workflow, repository });
 
     // TASK-TICKET-XFER: Initialize transfer and suspend services
     this.transfer = new TicketTransferService();
@@ -186,10 +166,10 @@ export class TicketService extends EventEmitter {
       : new EngineerSuspendService({ ticketingRepository: undefined });
 
     // TASK-TICKET-BI: Initialize BI analytics service
-    this.bi = new TicketBIService(db);
+    this.bi = new TicketBIService(repository?.getDb());
 
     // Wire up dispatch queue callback
-    this.dispatchQueue.setDispatchCallback((entry) => {
+    this.dispatch.dispatchQueue.setDispatchCallback((entry) => {
       this.attemptAutoDispatch(entry.ticket.id);
     });
 
@@ -205,15 +185,14 @@ export class TicketService extends EventEmitter {
 
     // Wire up suspend callbacks to mark engineers in dispatch engine
     this.suspend.setOnActivateCallback((suspend) => {
-      this.dispatchEngine.markEngineerSuspended(suspend.engineerId);
-      // Reassign pending tickets if configured
+      this.dispatch.dispatchEngine.markEngineerSuspended(suspend.engineerId);
       if (suspend.autoReassignPending) {
         this.reassignTicketsForSuspend(suspend);
       }
     });
 
     this.suspend.setOnEndCallback((suspend) => {
-      this.dispatchEngine.markEngineerActive(suspend.engineerId);
+      this.dispatch.dispatchEngine.markEngineerActive(suspend.engineerId);
     });
   }
 
@@ -237,7 +216,7 @@ export class TicketService extends EventEmitter {
     }
 
     // TASK-802: Start dispatch queue auto-reprioritization
-    this.dispatchQueue.startAutoReprioritize();
+    this.dispatch.startAutoReprioritize();
 
     // Connect to NATS
     await this.connectNats();
@@ -259,7 +238,7 @@ export class TicketService extends EventEmitter {
     this.workflow.stopEscalationChecks();
 
     // TASK-802: Stop dispatch queue auto-reprioritization
-    this.dispatchQueue.stopAutoReprioritize();
+    this.dispatch.stopAutoReprioritize();
 
     // Disconnect NATS
     if (this.natsConnection) {
@@ -323,7 +302,7 @@ export class TicketService extends EventEmitter {
     this.analyzer.registerTicket(created);
 
     // TASK-802: Record for dispatch analytics
-    this.dispatchAnalytics.recordTicketCreated(created);
+    this.dispatch.dispatchAnalytics.recordTicketCreated(created);
 
     this.emit('ticket:created', created);
     this.publishNatsEvent('ticket.created', { ticketId: created.id, title: created.title });
@@ -339,18 +318,18 @@ export class TicketService extends EventEmitter {
         });
 
         // TASK-802: Record dispatch
-        this.recordDispatchForTicket(result.ticket, 'rule');
+        this.dispatch.recordDispatchForTicket(result.ticket, 'rule');
       } else {
         // TASK-802: Enqueue for dispatch if not assigned
         if (!result) {
           const slaTarget = this.workflow.getSLATarget(created.priority);
-          this.dispatchQueue.enqueue(created, slaTarget);
+          this.dispatch.enqueueForDispatch(created, slaTarget);
         }
       }
     } else {
       // TASK-802: Even if auto-assignment disabled, queue for dispatch
       const slaTarget = this.workflow.getSLATarget(created.priority);
-      this.dispatchQueue.enqueue(created, slaTarget);
+      this.dispatch.enqueueForDispatch(created, slaTarget);
     }
 
     return created;
@@ -570,96 +549,44 @@ export class TicketService extends EventEmitter {
     return this.workflow.removeAssignmentRule(ruleId);
   }
 
-  // ==================== TASK-802: Smart Dispatch ====================
+  // ==================== TASK-802: Smart Dispatch (delegated) ====================
 
-  /**
-   * Register an engineer for dispatch
-   */
-  async registerEngineer(profile: EngineerProfile): Promise<EngineerProfile> {
-    await this.dispatchEngine.registerEngineer(profile);
-    await this.loadBalancer.registerEngineer(profile);
-    this.dispatchAnalytics.registerEngineer(profile);
-    return profile;
-  }
+  /** @deprecated Use this.dispatch.dispatchEngine directly */
+  get dispatchEngine() { return this.dispatch.dispatchEngine; }
+  /** @deprecated Use this.dispatch.dispatchQueue directly */
+  get dispatchQueue() { return this.dispatch.dispatchQueue; }
+  /** @deprecated Use this.dispatch.loadBalancer directly */
+  get loadBalancer() { return this.dispatch.loadBalancer; }
+  /** @deprecated Use this.dispatch.dispatchAnalytics directly */
+  get dispatchAnalytics() { return this.dispatch.dispatchAnalytics; }
 
-  /**
-   * Update an engineer profile
-   */
-  async updateEngineer(id: string, updates: Partial<EngineerProfile>): Promise<EngineerProfile | null> {
-    const result = await this.dispatchEngine.updateEngineer(id, updates);
-    await this.loadBalancer.updateEngineer(id, updates);
-    return result;
-  }
-
-  /**
-   * Auto-dispatch a ticket to the best engineer
-   */
-  async autoDispatch(
-    ticketId: string,
-    options?: {
-      assignedBy?: string;
-      weights?: Partial<DispatchWeights>;
-      forceDispatch?: boolean;
-    }
-  ): Promise<DispatchResult | null> {
-    const ticket = await this.workflow.getTicket(ticketId);
-    if (!ticket) return null;
-
-    if (ticket.assignee && ticket.status !== 'open') {
-      return null; // Already assigned
-    }
-
-    // Mark dispatch attempt
-    this.dispatchQueue.recordDispatchAttempt(ticketId);
-
-    // Use dispatch engine to find best engineer
-    const result = await this.dispatchEngine.dispatchTicket(ticket, {
-      assignedBy: options?.assignedBy,
-      weights: options?.weights,
-      forceDispatch: options?.forceDispatch,
-    });
-
-    if (!result) return null;
-
-    // Assign the ticket
-    const assignResult = await this.workflow.assignTicket(
-      ticketId,
-      result.assignee,
-      options?.assignedBy || 'dispatch-engine',
-      result.reason
-    );
-
-    if ('ticket' in assignResult) {
-      // Record in load balancer
-      await this.loadBalancer.recordAssignment({
-        ticketId,
-        engineerId: result.assignee,
-        category: ticket.category,
-      });
-
-      // Record in analytics
-      this.dispatchAnalytics.recordDispatch(result);
-
-      // Mark dispatched in queue
-      this.dispatchQueue.markDispatched(ticketId);
-
-      this.emit('ticket:auto-dispatched', { ticket: assignResult.ticket, dispatch: result });
-      this.publishNatsEvent('ticket.assigned', {
-        ticketId,
-        assignee: result.assignee,
-        dispatchType: 'auto',
-        score: result.score,
-      });
-    }
-
-    return result;
-  }
+  registerEngineer(profile: EngineerProfile) { return this.dispatch.registerEngineer(profile); }
+  updateEngineer(id: string, updates: Partial<EngineerProfile>) { return this.dispatch.updateEngineer(id, updates); }
+  autoDispatch(ticketId: string, options?: { assignedBy?: string; weights?: Partial<DispatchWeights>; forceDispatch?: boolean }) { return this.dispatch.autoDispatch(ticketId, options); }
+  manualDispatch(ticketId: string, engineerId: string, assignedBy: string, reason?: string) { return this.dispatch.manualDispatch(ticketId, engineerId, assignedBy, reason); }
+  findBestEngineerForTicket(ticketId: string) { return this.dispatch.findBestEngineerForTicket(ticketId); }
+  calculateDispatchScore(ticketId: string, engineerId: string) { return this.dispatch.calculateDispatchScore(ticketId, engineerId); }
+  getDispatchQueueStatus() { return this.dispatch.getDispatchQueueStatus(); }
+  getDispatchQueueEntries() { return this.dispatch.getDispatchQueueEntries(); }
+  getDispatchSLAAlerts(options?: { type?: 'sla-warning' | 'sla-critical' | 'sla-breach'; limit?: number }) { return this.dispatch.getDispatchSLAAlerts(options); }
+  addDispatchRule(rule: DispatchRule) { return this.dispatch.addDispatchRule(rule); }
+  getDispatchRules() { return this.dispatch.getDispatchRules(); }
+  removeDispatchRule(ruleId: string) { return this.dispatch.removeDispatchRule(ruleId); }
+  getLoadBalancingReport() { return this.dispatch.getLoadBalancingReport(); }
+  getSuggestedReassignments() { return this.dispatch.getSuggestedReassignments(); }
+  getDispatchMetrics(options?: { periodStart?: Date; periodEnd?: Date }) { return this.dispatch.getDispatchMetrics(options); }
+  getAssignmentSuccessMetrics(options?: { periodStart?: Date; periodEnd?: Date }) { return this.dispatch.getAssignmentSuccessMetrics(options); }
+  getTimeToAssignmentStats(options?: { periodStart?: Date; periodEnd?: Date }) { return this.dispatch.getTimeToAssignmentStats(options); }
+  getEngineerPerformance(engineerId: string) { return this.dispatch.getEngineerPerformance(engineerId); }
+  getAllEngineerPerformances() { return this.dispatch.getAllEngineerPerformances(); }
+  getDispatchWeights() { return this.dispatch.getDispatchWeights(); }
+  updateDispatchWeights(weights: Partial<DispatchWeights>) { return this.dispatch.updateDispatchWeights(weights); }
 
   /**
    * Attempt auto-dispatch for a ticket (internal)
    */
   private async attemptAutoDispatch(ticketId: string): Promise<void> {
-    const result = await this.autoDispatch(ticketId);
+    const result = await this.dispatch.autoDispatch(ticketId);
     if (result) {
       logger.info(
         {
@@ -671,228 +598,6 @@ export class TicketService extends EventEmitter {
         },
         '[TicketService] Auto-dispatched ticket'
       );
-    }
-  }
-
-  /**
-   * Manually dispatch a ticket to a specific engineer
-   */
-  async manualDispatch(
-    ticketId: string,
-    engineerId: string,
-    assignedBy: string,
-    reason?: string
-  ): Promise<DispatchResult | null> {
-    const ticket = await this.workflow.getTicket(ticketId);
-    if (!ticket) return null;
-
-    const engineer = await this.dispatchEngine.getEngineer(engineerId);
-    if (!engineer) return null;
-
-    const dispatchResult: DispatchResult = {
-      id: `DISP-${ticketId}`,
-      ticketId,
-      assignee: engineerId,
-      reason: reason || `Manual dispatch by ${assignedBy}`,
-      score: 100,
-      dispatchedAt: new Date(),
-      dispatchType: 'manual',
-      accepted: true,
-    };
-
-    this.dispatchEngine['dispatchHistory'].push(dispatchResult);
-    await this.loadBalancer.recordAssignment({
-      ticketId,
-      engineerId,
-      category: ticket.category,
-    });
-    this.dispatchAnalytics.recordDispatch(dispatchResult);
-    this.dispatchQueue.markDispatched(ticketId);
-
-    const assignResult = await this.workflow.assignTicket(
-      ticketId,
-      engineerId,
-      assignedBy,
-      reason || `Manual dispatch by ${assignedBy}`
-    );
-
-    return dispatchResult;
-  }
-
-  /**
-   * Get the dispatch queue status
-   */
-  getDispatchQueueStatus(): DispatchQueueStatus {
-    return this.dispatchQueue.getQueueStatus();
-  }
-
-  /**
-   * Get dispatch queue entries
-   */
-  getDispatchQueueEntries(): {
-    id: string;
-    ticket: Ticket;
-    priority: number;
-    enqueuedAt: Date;
-    slaDeadline?: Date;
-    attempts: number;
-  }[] {
-    return this.dispatchQueue.getEntries().map((e) => ({
-      id: e.id,
-      ticket: e.ticket,
-      priority: e.dispatchPriority,
-      enqueuedAt: e.enqueuedAt,
-      slaDeadline: e.slaDeadline,
-      attempts: e.dispatchAttemptCount,
-    }));
-  }
-
-  /**
-   * Get SLA alerts from the dispatch queue
-   */
-  getDispatchSLAAlerts(options?: {
-    type?: 'sla-warning' | 'sla-critical' | 'sla-breach';
-    limit?: number;
-  }): SLAAlert[] {
-    return this.dispatchQueue.getSLAAlerts(options);
-  }
-
-  /**
-   * Add a dispatch rule
-   */
-  addDispatchRule(rule: DispatchRule): void {
-    this.dispatchEngine.addRule(rule);
-  }
-
-  /**
-   * Get dispatch rules
-   */
-  getDispatchRules(): DispatchRule[] {
-    return this.dispatchEngine.getRules();
-  }
-
-  /**
-   * Remove a dispatch rule
-   */
-  removeDispatchRule(ruleId: string): boolean {
-    return this.dispatchEngine.removeRule(ruleId);
-  }
-
-  /**
-   * Find the best engineer for a ticket (without assigning)
-   */
-  async findBestEngineerForTicket(ticketId: string) {
-    const ticket = await this.workflow.getTicket(ticketId);
-    if (!ticket) return null;
-    return this.dispatchEngine.findBestEngineer(ticket);
-  }
-
-  /**
-   * Calculate dispatch score for a ticket-engineer pair
-   */
-  async calculateDispatchScore(ticketId: string, engineerId: string) {
-    const ticket = await this.workflow.getTicket(ticketId);
-    if (!ticket) return null;
-    const engineer = await this.dispatchEngine.getEngineer(engineerId);
-    if (!engineer) return null;
-    return this.dispatchEngine.calculateDispatchScore(ticket, engineer);
-  }
-
-  /**
-   * Get load balancing report
-   */
-  async getLoadBalancingReport(): Promise<LoadBalancingReport> {
-    return this.loadBalancer.getBalancingReport();
-  }
-
-  /**
-   * Get reassignment suggestions
-   */
-  async getSuggestedReassignments(): Promise<ReassignmentSuggestion[]> {
-    return this.loadBalancer.suggestReassignments();
-  }
-
-  /**
-   * Get dispatch analytics metrics
-   */
-  getDispatchMetrics(options?: {
-    periodStart?: Date;
-    periodEnd?: Date;
-  }): DispatchMetrics {
-    return this.dispatchAnalytics.getDispatchMetrics(options);
-  }
-
-  /**
-   * Get assignment success metrics
-   */
-  getAssignmentSuccessMetrics(options?: {
-    periodStart?: Date;
-    periodEnd?: Date;
-  }): AssignmentSuccessMetrics {
-    return this.dispatchAnalytics.getAssignmentSuccess(options);
-  }
-
-  /**
-   * Get time-to-assignment statistics
-   */
-  getTimeToAssignmentStats(options?: {
-    periodStart?: Date;
-    periodEnd?: Date;
-  }): TimeToAssignmentStats {
-    return this.dispatchAnalytics.getTimeToAssignment(options);
-  }
-
-  /**
-   * Get engineer performance
-   */
-  getEngineerPerformance(engineerId: string): EngineerPerformance | null {
-    return this.dispatchAnalytics.getEngineerPerformance(engineerId);
-  }
-
-  /**
-   * Get all engineer performances
-   */
-  getAllEngineerPerformances(): EngineerPerformance[] {
-    return this.dispatchAnalytics.getAllEngineerPerformances();
-  }
-
-  /**
-   * Get dispatch weights
-   */
-  getDispatchWeights(): DispatchWeights {
-    return this.dispatchEngine.getWeights();
-  }
-
-  /**
-   * Update dispatch weights
-   */
-  updateDispatchWeights(weights: Partial<DispatchWeights>): void {
-    this.dispatchEngine.updateWeights(weights);
-  }
-
-  /**
-   * Record dispatch for a ticket (internal helper)
-   */
-  private async recordDispatchForTicket(ticket: Ticket, type: 'rule' | 'auto' | 'manual'): Promise<void> {
-    const result: DispatchResult = {
-      id: `DISP-${ticket.id}-${Date.now()}`,
-      ticketId: ticket.id,
-      assignee: ticket.assignee || 'unknown',
-      reason: `${type}-assigned`,
-      score: type === 'rule' ? 100 : 75,
-      dispatchedAt: new Date(),
-      dispatchType: type,
-      accepted: true,
-    };
-
-    this.dispatchAnalytics.recordDispatch(result);
-
-    if (ticket.assignee) {
-      await this.loadBalancer.recordAssignment({
-        ticketId: ticket.id,
-        engineerId: ticket.assignee,
-        category: ticket.category,
-      });
     }
   }
 
@@ -1506,10 +1211,7 @@ export class TicketService extends EventEmitter {
     this.workflow.clearAll();
     this.analyzer.clearAll();
     this.stopEscalationChecks();
-    this.dispatchEngine.clearAll();
-    this.dispatchQueue.clearAll();
-    this.loadBalancer.clearAll();
-    this.dispatchAnalytics.clearAll();
+    this.dispatch.clearAll();
     this.transfer.clearAll();
     this.suspend.clearAll();
     this.bi.clearAll();
