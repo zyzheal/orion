@@ -27,7 +27,7 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { getTickets } from '@/api/ticketing';
+import { getTickets, type Ticket } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
@@ -37,24 +37,6 @@ import DispatchPanel from './DispatchPanel';
 
 const { Title, Text } = Typography;
 
-// Local Ticket type definition
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  source: string;
-  reporter: string;
-  assignee: string | null;
-  createdAt: string;
-  dueDate: string;
-  escalationLevel: number;
-  tags?: Record<string, string>;
-}
-
-type MockTicket = Ticket;
 
 // ============================================================================
 // Helpers
@@ -92,19 +74,22 @@ const categoryLabels: Record<string, string> = {
  * Calculate SLA remaining percentage and status
  * Returns { percent, color, text }
  */
-function calculateSLA(ticket: MockTicket): {
+function calculateSLA(ticket: Ticket): {
   percent: number;
   color: string;
   text: string;
   overdue: boolean;
 } {
+  if (!ticket.dueDate) {
+    return { percent: 100, color: colors.neutral[500], text: '无SLA', overdue: false };
+  }
   const now = dayjs();
   const created = dayjs(ticket.createdAt);
   const due = dayjs(ticket.dueDate);
   const totalMs = due.diff(created);
   const remainingMs = due.diff(now);
 
-  if (remainingMs <= 0) {
+  if (totalMs <= 0 || remainingMs <= 0) {
     return { percent: 0, color: colors.error[400], text: '已超时', overdue: true };
   }
 
@@ -222,7 +207,7 @@ const TicketList: React.FC = () => {
       // Assignee filter
       const assigneeFilter = filters.assignee;
       if (assigneeFilter && assigneeFilter !== 'all') {
-        if (assigneeFilter === 'unassigned' && ticket.assignee !== null) return false;
+        if (assigneeFilter === 'unassigned' && ticket.assignee) return false;
         if (assigneeFilter !== 'unassigned' && ticket.assignee !== assigneeFilter) return false;
       }
 
@@ -287,7 +272,7 @@ const TicketList: React.FC = () => {
       title: '工单ID',
       dataIndex: 'id',
       width: 100,
-      render: (value: unknown, record: MockTicket) => (
+      render: (value: unknown, record: Ticket) => (
         <Text
           strong
           style={{ cursor: 'pointer', color: colors.primary[500] }}
@@ -303,7 +288,7 @@ const TicketList: React.FC = () => {
       title: '标题',
       dataIndex: 'title',
       width: 280,
-      render: (value: unknown, record: MockTicket) => (
+      render: (value: unknown, record: Ticket) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -373,7 +358,7 @@ const TicketList: React.FC = () => {
       key: 'sla',
       title: 'SLA 剩余',
       width: 110,
-      render: (_: unknown, record: MockTicket) => {
+      render: (_: unknown, record: Ticket) => {
         const sla = calculateSLA(record);
         return (
           <Space size={4}>

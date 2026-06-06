@@ -43,28 +43,10 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { getTicket, assignTicket, resolveTicket, closeTicket } from '@/api/ticketing';
+import { getTicket, assignTicket, resolveTicket, closeTicket, type Ticket } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
 import { colors, spacing } from '@/tokens';
-
-// Local Ticket type definition
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  source: string;
-  reporter: string;
-  assignee: string | null;
-  tags: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
-  dueDate: string;
-  escalationLevel: number;
-}
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -128,12 +110,20 @@ function calculateSLA(ticket: Ticket): {
   status: 'normal' | 'warning' | 'danger';
   overdue: boolean;
 } {
+  if (!ticket.dueDate) {
+    return { percent: 0, elapsed: '-', total: '-', status: 'normal', overdue: false };
+  }
   const now = dayjs();
   const created = dayjs(ticket.createdAt);
   const due = dayjs(ticket.dueDate);
   const totalMs = due.diff(created);
   const elapsedMs = Math.max(0, now.diff(created));
   const remainingMs = due.diff(now);
+
+  if (totalMs <= 0) {
+    return { percent: 100, elapsed: formatDuration(elapsedMs), total: '-', status: 'danger', overdue: true };
+  }
+
   const percent = Math.min(100, Math.round((elapsedMs / totalMs) * 100));
 
   if (remainingMs <= 0) {
@@ -478,7 +468,7 @@ const TicketDetail: React.FC = () => {
             style={{ marginBottom: 16 }}
           >
             <Space wrap>
-              {Object.entries(ticket.tags).map(([key, value]) => (
+              {Object.entries(ticket.tags || {}).map(([key, value]) => (
                 <Tag key={key} color="blue">
                   {key}: {value}
                 </Tag>
@@ -510,7 +500,7 @@ const TicketDetail: React.FC = () => {
                   {dayjs(ticket.createdAt).format('YYYY-MM-DD HH:mm')}
                 </Descriptions.Item>
                 <Descriptions.Item label="SLA 截止">
-                  {dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm')}
+                  {ticket.dueDate ? dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm') : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="SLA 状态">
                   <Tag color={slaStatusColors[sla.status]}>
@@ -638,7 +628,7 @@ const TicketDetail: React.FC = () => {
                 {dayjs(ticket.updatedAt).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
               <Descriptions.Item label="截止时间">
-                {dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm')}
+                {ticket.dueDate ? dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm') : '-'}
               </Descriptions.Item>
             </Descriptions>
           </Card>
