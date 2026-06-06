@@ -169,14 +169,15 @@ export class TicketService extends EventEmitter {
     this.reporter = new TicketReportService();
 
     // TASK-802: Initialize dispatch components with repository
+    const db = repository?.getDb();
     this.dispatchEngine = repository
       ? new DispatchEngine({ ticketingRepository: repository })
       : new DispatchEngine({ ticketingRepository: undefined }); // will throw if used without repo
     this.dispatchQueue = new DispatchQueueManager();
     this.loadBalancer = repository
-      ? new LoadBalancer({ ticketingRepository: repository })
+      ? new LoadBalancer({ ticketingRepository: repository, db })
       : new LoadBalancer({ ticketingRepository: undefined });
-    this.dispatchAnalytics = new DispatchAnalytics();
+    this.dispatchAnalytics = new DispatchAnalytics(db);
 
     // TASK-TICKET-XFER: Initialize transfer and suspend services
     this.transfer = new TicketTransferService();
@@ -185,7 +186,7 @@ export class TicketService extends EventEmitter {
       : new EngineerSuspendService({ ticketingRepository: undefined });
 
     // TASK-TICKET-BI: Initialize BI analytics service
-    this.bi = new TicketBIService();
+    this.bi = new TicketBIService(db);
 
     // Wire up dispatch queue callback
     this.dispatchQueue.setDispatchCallback((entry) => {

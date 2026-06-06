@@ -145,6 +145,9 @@ export class TicketingRepository {
   private pool: DatabasePool;
   constructor(pool: DatabasePool) { this.pool = pool; }
 
+  /** Expose db connection for sub-services that need direct query access */
+  getDb(): DatabasePool { return this.pool; }
+
   // ==================== Ticket CRUD ====================
 
   async findById(id: string, tenantId?: string): Promise<TicketRecord | null> {
