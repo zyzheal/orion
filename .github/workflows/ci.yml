@@ -8,10 +8,10 @@ on:
 
 env:
   NODE_VERSION: '20'
+  GO_VERSION: '1.25'
 
-# ==================== Path Filters ====================
+# ==================== Jobs ====================
 
-# Only run platform-service jobs when relevant files change
 jobs:
   # ==================== Lint (Fast check, runs first) ====================
 
@@ -36,13 +36,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: ${{ matrix.dir }}
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --max-warnings 0
         working-directory: ${{ matrix.dir }}
 
   # ==================== Type Check ====================
@@ -68,30 +70,82 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
 
       - name: Install dependencies (platform-service)
         if: ${{ matrix.service == 'platform-service' }}
         run: |
-          npm install
-          cd packages/event-bus && npm install && npm run build
+          npm ci
+          cd packages/event-bus && npm ci && npm run build
         working-directory: orion-platform-service
 
       - name: Install dependencies
         if: ${{ matrix.service != 'platform-service' }}
-        run: npm install
+        run: npm ci
         working-directory: ${{ matrix.dir }}
-
-      - name: Debug - Check build files (platform-service)
-        if: ${{ matrix.service == 'platform-service' }}
-        run: |
-          echo "=== Checking build service files ==="
-          ls -la src/services/build/ || echo "services/build not found"
-          ls -la src/api/controllers/build/ || echo "controllers/build not found"
-        working-directory: orion-platform-service
 
       - name: Type check
         run: npm run type-check
         working-directory: ${{ matrix.dir }}
+
+  # ==================== Design Constraint Check ====================
+
+  design-constraint:
+    name: Design Constraint Check
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: orion-frontend
+
+      - name: Run Design Constraint AST Scan
+        run: |
+          npx tsx docs/design-constraints/framework/core/cli-check.ts \
+            --scan orion-frontend/src/pages/ \
+            --max-files 100 \
+            --format json > design-constraint-results.json || true
+          echo "=== Design Constraint Results ==="
+          cat design-constraint-results.json | head -100
+        working-directory: .
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-constraint-results
+          path: design-constraint-results.json
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = 'Design Constraint Check completed.';
+            try {
+              const results = JSON.parse(fs.readFileSync('design-constraint-results.json', 'utf8'));
+              if (results.issues && results.issues.length > 0) {
+                summary = `Found ${results.issues.length} design constraint issues.`;
+              }
+            } catch (e) {
+              summary = 'Design Constraint Check completed (parse error).';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Design Constraint\n${summary}`
+            });
 
   # ==================== Platform Service Unit Tests (No DB, Fast) ====================
 
@@ -112,7 +166,7 @@ jobs:
 
       - name: Build local packages
         run: |
-          cd packages/event-bus && npm install && npm run build
+          cd packages/event-bus && npm ci && npm run build
         working-directory: orion-platform-service
 
       - name: Install dependencies
@@ -120,7 +174,7 @@ jobs:
         working-directory: orion-platform-service
 
       - name: Run unit tests (no DB required)
-        run: npx jest --testPathIgnorePatterns="integration" --silent --coverage --coverageReporters=text --coverageReporters=lcov
+        run: npx jest --testPathIgnorePatterns="integration" --silent --coverage --coverageReporters=text --coverageReporters=lcov --coverageThreshold='{"global":{"lines":80}}'
         working-directory: orion-platform-service
 
       - name: Upload coverage
@@ -155,6 +209,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      DATABASE_URL: postgres://orion:test_password_ci_only@localhost:5432/orion_test
+      JWT_SECRET: test-secret-for-ci
     steps:
       - uses: actions/checkout@v4
 
@@ -167,11 +224,15 @@ jobs:
 
       - name: Build local packages
         run: |
-          cd packages/event-bus && npm install && npm run build
+          cd packages/event-bus && npm ci && npm run build
         working-directory: orion-platform-service
 
       - name: Install dependencies
         run: npm ci
+        working-directory: orion-platform-service
+
+      - name: Run migrations
+        run: npx tsx src/db/run-migrations.ts
         working-directory: orion-platform-service
 
       - name: Run integration tests
@@ -249,7 +310,7 @@ jobs:
         working-directory: orion-frontend
 
       - name: Run tests
-        run: npm run test:coverage
+        run: npm run test -- --coverage --coverageThreshold='{"global":{"lines":60}}'
         working-directory: orion-frontend
 
       - name: Upload coverage
@@ -263,43 +324,100 @@ jobs:
         run: npm run build
         working-directory: orion-frontend
 
+  # ==================== Go Services ====================
+
+  go-test:
+    name: Go Test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - orion-ticket-svc-go
+          - orion-api-gateway-go
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ${{ matrix.service }}/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: ${{ matrix.service }}
+
+      - name: Vet
+        run: go vet ./...
+        working-directory: ${{ matrix.service }}
+
+      - name: Test
+        run: go test ./... -v -race -coverprofile=coverage.out -covermode=atomic
+        working-directory: ${{ matrix.service }}
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-${{ matrix.service }}-coverage
+          path: ${{ matrix.service }}/coverage.out
+          retention-days: 30
+
+      - name: Build
+        run: go build -o /dev/null ./...
+        working-directory: ${{ matrix.service }}
+
   # ==================== Coverage Gate ====================
 
   coverage-gate:
     name: Coverage Threshold Check
     runs-on: ubuntu-latest
-    needs: [platform-service-unit-test, platform-service-integration-test, frontend-test, api-gateway-test]
+    needs: [platform-service-unit-test, platform-service-integration-test, frontend-test, api-gateway-test, go-test]
     if: ${{ !cancelled() }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download backend coverage
+      - name: Download all coverage artifacts
         uses: actions/download-artifact@v4
         with:
-          name: backend-coverage
-          path: coverage/backend
+          pattern: '*-coverage'
+          path: coverage/
+          merge-multiple: false
 
-      - name: Check backend coverage exists
+      - name: Check backend coverage
         run: |
-          if [ ! -f coverage/backend/lcov.info ]; then
+          if [ ! -f coverage/backend-coverage/lcov.info ]; then
             echo "Backend coverage file not found"
             exit 1
           fi
           echo "Backend coverage file found"
 
-      - name: Download frontend coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-coverage
-          path: coverage/frontend
-
-      - name: Check frontend coverage exists
+      - name: Check frontend coverage
         run: |
-          if [ ! -f coverage/frontend/lcov.info ]; then
+          if [ ! -f coverage/frontend-coverage/lcov.info ]; then
             echo "Frontend coverage file not found"
             exit 1
           fi
           echo "Frontend coverage file found"
+
+      - name: Check Go service coverage
+        run: |
+          for svc in orion-ticket-svc-go orion-api-gateway-go; do
+            if [ ! -f "coverage/go-${svc}-coverage/coverage.out" ]; then
+              echo "Warning: Go coverage for $svc not found"
+            else
+              echo "Go coverage for $svc found"
+            fi
+          done
+
+      - name: Generate coverage summary
+        run: |
+          echo "=== Coverage Summary ==="
+          for dir in coverage/*/; do
+            name=$(basename "$dir")
+            echo "  $name: artifacts present"
+          done
 
   # ==================== DB Migration Validation ====================
 
@@ -310,7 +428,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate SQL syntax
+      - name: Validate SQL syntax (platform-service)
         run: |
           errors=0
           for f in orion-platform-service/src/db/migrations/*.sql; do
@@ -330,6 +448,15 @@ jobs:
           fi
           echo "All migration files valid."
 
+      - name: Check duplicate migration numbers
+        run: |
+          duplicates=$(ls orion-platform-service/src/db/migrations/*.sql | awk -F'/' '{print $NF}' | cut -d_ -f1 | sort | uniq -d)
+          if [ -n "$duplicates" ]; then
+            echo "Error: Duplicate migration numbers found: $duplicates"
+            exit 1
+          fi
+          echo "No duplicate migration numbers."
+
   # ==================== Orion DB Client Tests ====================
 
   orion-db-test:
@@ -345,7 +472,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: orion-db
 
       - name: Check syntax
@@ -364,10 +491,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'  # DBA frontend requires Node 14+
+          node-version: '18'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: orion-dba/frontend
 
       - name: Build (with type check)
@@ -387,6 +514,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache-dependency-path: orion-knowledge/backend/go.sum
 
       - name: Download dependencies
         run: go mod download
@@ -428,7 +556,6 @@ jobs:
         working-directory: orion-knowledge/web
 
   # ==================== Orion Visor (Java/Maven) ====================
-  # Note: orion-visor is from gitee.com/dromara/orion-visor.git but exists in this repo
 
   orion-visor-build:
     name: Orion Visor Build
@@ -451,3 +578,48 @@ jobs:
       - name: Run tests
         run: mvn test -B
         working-directory: orion-visor
+
+  # ==================== Docker Multi-Arch Build ====================
+
+  docker-build:
+    name: Docker Build (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: [platform-service-unit-test, go-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - orion-platform-service
+          - orion-api-gateway
+          - orion-frontend
+          - orion-ticket-svc-go
+        include:
+          - service: orion-platform-service
+            context: ./orion-platform-service
+            file: ./orion-platform-service/Dockerfile
+          - service: orion-api-gateway
+            context: ./orion-api-gateway
+            file: ./orion-api-gateway/Dockerfile
+          - service: orion-frontend
+            context: ./orion-frontend
+            file: ./orion-frontend/Dockerfile
+          - service: orion-ticket-svc-go
+            context: ./orion-ticket-svc-go
+            file: ./orion-ticket-svc-go/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (multi-arch)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

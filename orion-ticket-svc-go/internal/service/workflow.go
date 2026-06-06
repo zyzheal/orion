@@ -12,11 +12,11 @@ import (
 )
 
 type WorkflowService struct {
-	workflowRepo *repository.WorkflowRepository
-	ticketRepo   *repository.TicketRepository
+	workflowRepo repository.WorkflowRepositoryInterface
+	ticketRepo   repository.TicketRepositoryInterface
 }
 
-func NewWorkflowService(workflowRepo *repository.WorkflowRepository, ticketRepo *repository.TicketRepository) *WorkflowService {
+func NewWorkflowService(workflowRepo repository.WorkflowRepositoryInterface, ticketRepo repository.TicketRepositoryInterface) *WorkflowService {
 	return &WorkflowService{workflowRepo: workflowRepo, ticketRepo: ticketRepo}
 }
 

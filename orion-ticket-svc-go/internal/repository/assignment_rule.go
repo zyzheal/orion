@@ -18,11 +18,17 @@ func NewAssignmentRuleRepository(db *sqlx.DB) *AssignmentRuleRepository {
 }
 
 func (r *AssignmentRuleRepository) Create(rule *models.AssignmentRule) error {
-	categoriesJSON, _ := json.Marshal(rule.Categories)
-	prioritiesJSON, _ := json.Marshal(rule.Priorities)
+	categoriesJSON, err := json.Marshal(rule.Categories)
+	if err != nil {
+		return fmt.Errorf("marshal categories: %w", err)
+	}
+	prioritiesJSON, err := json.Marshal(rule.Priorities)
+	if err != nil {
+		return fmt.Errorf("marshal priorities: %w", err)
+	}
 	query := `INSERT INTO assignment_rules (id, name, categories, assignee, priorities, enabled, "order")
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := r.db.Exec(query,
+	_, err = r.db.Exec(query,
 		rule.ID, rule.Name, string(categoriesJSON), rule.Assignee,
 		string(prioritiesJSON), rule.Enabled, rule.Order,
 	)
@@ -44,8 +50,12 @@ func (r *AssignmentRuleRepository) List() ([]models.AssignmentRule, error) {
 			&prioritiesJSON, &rule.Enabled, &rule.Order, &rule.CreatedAt); err != nil {
 			continue
 		}
-		json.Unmarshal([]byte(categoriesJSON), &rule.Categories)
-		json.Unmarshal([]byte(prioritiesJSON), &rule.Priorities)
+		if err := json.Unmarshal([]byte(categoriesJSON), &rule.Categories); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(prioritiesJSON), &rule.Priorities); err != nil {
+			continue
+		}
 		rules = append(rules, rule)
 	}
 	return rules, nil
@@ -79,8 +89,12 @@ func (r *AssignmentRuleRepository) FindMatching(category, priority string) (*mod
 			&prioritiesJSON, &rule.Enabled, &rule.Order, &rule.CreatedAt); err != nil {
 			continue
 		}
-		json.Unmarshal([]byte(categoriesJSON), &rule.Categories)
-		json.Unmarshal([]byte(prioritiesJSON), &rule.Priorities)
+		if err := json.Unmarshal([]byte(categoriesJSON), &rule.Categories); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(prioritiesJSON), &rule.Priorities); err != nil {
+			continue
+		}
 
 		// Check category match
 		categoryMatch := len(rule.Categories) == 0

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
@@ -22,7 +23,9 @@ func (r *AnalyticsRepository) GetTicketStats(tenantID string) (*models.TicketSta
 		ByCategory: make(map[string]int),
 	}
 
-	r.db.Get(&stats.TotalTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1", tenantID)
+	if err := r.db.Get(&stats.TotalTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1", tenantID); err != nil {
+		return nil, fmt.Errorf("total tickets: %w", err)
+	}
 	r.db.Get(&stats.OpenTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'open'", tenantID)
 	r.db.Get(&stats.AssignedTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'assigned'", tenantID)
 	r.db.Get(&stats.InProgressTickets, "SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status = 'in-progress'", tenantID)
@@ -34,8 +37,8 @@ func (r *AnalyticsRepository) GetTicketStats(tenantID string) (*models.TicketSta
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL`, tenantID)
 
 	// By priority
-	rows, _ := r.db.Query("SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY priority", tenantID)
-	if rows != nil {
+	rows, err := r.db.Query("SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY priority", tenantID)
+	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var p string
@@ -46,8 +49,8 @@ func (r *AnalyticsRepository) GetTicketStats(tenantID string) (*models.TicketSta
 	}
 
 	// By category
-	rows2, _ := r.db.Query("SELECT type, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY type", tenantID)
-	if rows2 != nil {
+	rows2, err := r.db.Query("SELECT type, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY type", tenantID)
+	if err == nil {
 		defer rows2.Close()
 		for rows2.Next() {
 			var t string
@@ -66,17 +69,19 @@ func (r *AnalyticsRepository) GetResolutionStats(tenantID string) (*models.Resol
 		ByCategory: make(map[string]float64),
 	}
 
-	r.db.Get(&stats.TotalResolved,
-		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL", tenantID)
+	if err := r.db.Get(&stats.TotalResolved,
+		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL", tenantID); err != nil {
+		return nil, fmt.Errorf("total resolved: %w", err)
+	}
 	r.db.Get(&stats.AvgResolutionMs,
 		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000), 0)
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL`, tenantID)
 
 	// By priority
-	rows, _ := r.db.Query(
+	rows, err := r.db.Query(
 		`SELECT priority, AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000)
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL GROUP BY priority`, tenantID)
-	if rows != nil {
+	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var p string
@@ -95,13 +100,15 @@ func (r *AnalyticsRepository) GetBacklogAnalysis(tenantID string) (*models.Backl
 		ByCategory: make(map[string]int),
 	}
 
-	r.db.Get(&analysis.TotalOpen,
-		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open', 'assigned', 'in-progress')", tenantID)
+	if err := r.db.Get(&analysis.TotalOpen,
+		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open', 'assigned', 'in-progress')", tenantID); err != nil {
+		return nil, fmt.Errorf("total open: %w", err)
+	}
 
 	// By priority
-	rows, _ := r.db.Query(
+	rows, err := r.db.Query(
 		`SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open', 'assigned', 'in-progress') GROUP BY priority`, tenantID)
-	if rows != nil {
+	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var p string
@@ -120,12 +127,6 @@ func (r *AnalyticsRepository) GetBacklogAnalysis(tenantID string) (*models.Backl
 
 func (r *AnalyticsRepository) GetTrendData(tenantID string, days int, granularity string) ([]models.TrendPoint, error) {
 	var points []models.TrendPoint
-	interval := "1 day"
-	if granularity == "week" {
-		interval = "7 days"
-	} else if granularity == "month" {
-		interval = "30 days"
-	}
 
 	rows, err := r.db.Query(
 		`SELECT DATE_TRUNC($1, created_at) as ts, COUNT(*) as cnt
@@ -142,7 +143,6 @@ func (r *AnalyticsRepository) GetTrendData(tenantID string, days int, granularit
 		points = append(points, p)
 	}
 
-	_ = interval // used for reference
 	return points, nil
 }
 
@@ -155,8 +155,10 @@ func (r *AnalyticsRepository) GetExecutiveDashboard(tenantID string, start, end 
 		ByCategory:  make(map[string]int),
 	}
 
-	r.db.Get(&dash.TotalTickets,
-		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND created_at BETWEEN $2 AND $3", tenantID, start, end)
+	if err := r.db.Get(&dash.TotalTickets,
+		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND created_at BETWEEN $2 AND $3", tenantID, start, end); err != nil {
+		return nil, fmt.Errorf("total tickets: %w", err)
+	}
 	r.db.Get(&dash.OpenTickets,
 		"SELECT COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open','assigned','in-progress') AND created_at BETWEEN $2 AND $3", tenantID, start, end)
 	r.db.Get(&dash.ResolvedTickets,
@@ -166,9 +168,9 @@ func (r *AnalyticsRepository) GetExecutiveDashboard(tenantID string, start, end 
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL AND created_at BETWEEN $2 AND $3`, tenantID, start, end)
 
 	// By priority
-	rows, _ := r.db.Query(
+	rows, err := r.db.Query(
 		"SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 AND created_at BETWEEN $2 AND $3 GROUP BY priority", tenantID, start, end)
-	if rows != nil {
+	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var p string

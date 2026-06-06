@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
@@ -37,7 +38,9 @@ func (r *TransferRepository) GetStats(start, end time.Time) (map[string]any, err
 	stats := make(map[string]any)
 
 	var total int
-	r.db.Get(&total, "SELECT COUNT(*) FROM ticket_transfers WHERE created_at BETWEEN $1 AND $2", start, end)
+	if err := r.db.Get(&total, "SELECT COUNT(*) FROM ticket_transfers WHERE created_at BETWEEN $1 AND $2", start, end); err != nil {
+		return nil, fmt.Errorf("total transfers: %w", err)
+	}
 	stats["total_transfers"] = total
 
 	var avgHold float64

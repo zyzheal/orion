@@ -12,23 +12,23 @@ import (
 )
 
 type TicketService struct {
-	repo      *repository.TicketRepository
-	comment   *repository.CommentRepository
+	repo      repository.TicketRepositoryInterface
+	comment   repository.CommentRepositoryInterface
 	workflow  *WorkflowService
 	sla       *SLAService
 	dispatch  *DispatchService
 	analyzer  *AnalyzerService
-	ruleRepo  *repository.AssignmentRuleRepository
+	ruleRepo  repository.AssignmentRuleRepositoryInterface
 }
 
 func NewTicketService(
-	repo *repository.TicketRepository,
-	comment *repository.CommentRepository,
+	repo repository.TicketRepositoryInterface,
+	comment repository.CommentRepositoryInterface,
 	workflow *WorkflowService,
 	sla *SLAService,
 	dispatch *DispatchService,
 	analyzer *AnalyzerService,
-	ruleRepo *repository.AssignmentRuleRepository,
+	ruleRepo repository.AssignmentRuleRepositoryInterface,
 ) *TicketService {
 	return &TicketService{
 		repo:     repo,

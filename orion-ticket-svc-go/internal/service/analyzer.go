@@ -12,11 +12,11 @@ import (
 )
 
 type AnalyzerService struct {
-	relationRepo *repository.RelationRepository
-	ticketRepo   *repository.TicketRepository
+	relationRepo repository.RelationRepositoryInterface
+	ticketRepo   repository.TicketRepositoryInterface
 }
 
-func NewAnalyzerService(relationRepo *repository.RelationRepository, ticketRepo *repository.TicketRepository) *AnalyzerService {
+func NewAnalyzerService(relationRepo repository.RelationRepositoryInterface, ticketRepo repository.TicketRepositoryInterface) *AnalyzerService {
 	return &AnalyzerService{relationRepo: relationRepo, ticketRepo: ticketRepo}
 }
 

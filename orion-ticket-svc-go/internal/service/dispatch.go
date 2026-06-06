@@ -16,13 +16,13 @@ import (
 )
 
 type DispatchService struct {
-	engineerRepo *repository.DispatchRepository
-	ticketRepo   *repository.TicketRepository
-	slaRepo      *repository.SLARepository
+	engineerRepo repository.DispatchRepositoryInterface
+	ticketRepo   repository.TicketRepositoryInterface
+	slaRepo      repository.SLARepositoryInterface
 	weights      models.DispatchWeights
 }
 
-func NewDispatchService(engineerRepo *repository.DispatchRepository, ticketRepo *repository.TicketRepository, slaRepo *repository.SLARepository) *DispatchService {
+func NewDispatchService(engineerRepo repository.DispatchRepositoryInterface, ticketRepo repository.TicketRepositoryInterface, slaRepo repository.SLARepositoryInterface) *DispatchService {
 	return &DispatchService{
 		engineerRepo: engineerRepo,
 		ticketRepo:   ticketRepo,

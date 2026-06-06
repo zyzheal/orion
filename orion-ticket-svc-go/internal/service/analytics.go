@@ -12,19 +12,19 @@ import (
 )
 
 type AnalyticsService struct {
-	analyticsRepo *repository.AnalyticsRepository
-	dispatchRepo  *repository.DispatchRepository
-	slaRepo       *repository.SLARepository
-	transferRepo  *repository.TransferRepository
-	ticketRepo    *repository.TicketRepository
+	analyticsRepo repository.AnalyticsRepositoryInterface
+	dispatchRepo  repository.DispatchRepositoryInterface
+	slaRepo       repository.SLARepositoryInterface
+	transferRepo  repository.TransferRepositoryInterface
+	ticketRepo    repository.TicketRepositoryInterface
 }
 
 func NewAnalyticsService(
-	analyticsRepo *repository.AnalyticsRepository,
-	dispatchRepo *repository.DispatchRepository,
-	slaRepo *repository.SLARepository,
-	transferRepo *repository.TransferRepository,
-	ticketRepo *repository.TicketRepository,
+	analyticsRepo repository.AnalyticsRepositoryInterface,
+	dispatchRepo repository.DispatchRepositoryInterface,
+	slaRepo repository.SLARepositoryInterface,
+	transferRepo repository.TransferRepositoryInterface,
+	ticketRepo repository.TicketRepositoryInterface,
 ) *AnalyticsService {
 	return &AnalyticsService{
 		analyticsRepo: analyticsRepo,

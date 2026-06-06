@@ -13,12 +13,12 @@ import (
 )
 
 type SuspendService struct {
-	suspendRepo  *repository.SuspendRepository
-	dispatchRepo *repository.DispatchRepository
+	suspendRepo  repository.SuspendRepositoryInterface
+	dispatchRepo repository.DispatchRepositoryInterface
 	slaService   *SLAService
 }
 
-func NewSuspendService(suspendRepo *repository.SuspendRepository, dispatchRepo *repository.DispatchRepository, slaService *SLAService) *SuspendService {
+func NewSuspendService(suspendRepo repository.SuspendRepositoryInterface, dispatchRepo repository.DispatchRepositoryInterface, slaService *SLAService) *SuspendService {
 	return &SuspendService{suspendRepo: suspendRepo, dispatchRepo: dispatchRepo, slaService: slaService}
 }
 

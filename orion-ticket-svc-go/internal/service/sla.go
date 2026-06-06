@@ -13,11 +13,11 @@ import (
 )
 
 type SLAService struct {
-	slaRepo    *repository.SLARepository
-	ticketRepo *repository.TicketRepository
+	slaRepo    repository.SLARepositoryInterface
+	ticketRepo repository.TicketRepositoryInterface
 }
 
-func NewSLAService(slaRepo *repository.SLARepository, ticketRepo *repository.TicketRepository) *SLAService {
+func NewSLAService(slaRepo repository.SLARepositoryInterface, ticketRepo repository.TicketRepositoryInterface) *SLAService {
 	return &SLAService{slaRepo: slaRepo, ticketRepo: ticketRepo}
 }
 

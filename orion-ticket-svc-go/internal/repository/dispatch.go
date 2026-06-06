@@ -21,12 +21,18 @@ func NewDispatchRepository(db *sqlx.DB) *DispatchRepository {
 // Engineers
 
 func (r *DispatchRepository) CreateEngineer(ep *models.EngineerProfile) error {
-	expertiseJSON, _ := json.Marshal(ep.Expertise)
-	skillsJSON, _ := json.Marshal(ep.Skills)
+	expertiseJSON, err := json.Marshal(ep.Expertise)
+	if err != nil {
+		return fmt.Errorf("marshal expertise: %w", err)
+	}
+	skillsJSON, err := json.Marshal(ep.Skills)
+	if err != nil {
+		return fmt.Errorf("marshal skills: %w", err)
+	}
 	query := `INSERT INTO dispatch_engineers (id, name, expertise, current_load, max_capacity, availability,
 		skills, team, on_call, total_resolved, avg_resolution_ms, sla_compliance, success_rate)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
-	_, err := r.db.Exec(query,
+	_, err = r.db.Exec(query,
 		ep.ID, ep.Name, string(expertiseJSON), ep.CurrentLoad, ep.MaxCapacity, ep.Availability,
 		string(skillsJSON), ep.Team, ep.OnCall, ep.TotalResolved, ep.AvgResolutionMs,
 		ep.SLACompliance, ep.SuccessRate,
@@ -35,12 +41,18 @@ func (r *DispatchRepository) CreateEngineer(ep *models.EngineerProfile) error {
 }
 
 func (r *DispatchRepository) UpdateEngineer(ep *models.EngineerProfile) error {
-	expertiseJSON, _ := json.Marshal(ep.Expertise)
-	skillsJSON, _ := json.Marshal(ep.Skills)
+	expertiseJSON, err := json.Marshal(ep.Expertise)
+	if err != nil {
+		return fmt.Errorf("marshal expertise: %w", err)
+	}
+	skillsJSON, err := json.Marshal(ep.Skills)
+	if err != nil {
+		return fmt.Errorf("marshal skills: %w", err)
+	}
 	query := `UPDATE dispatch_engineers SET name=$1, expertise=$2, current_load=$3, max_capacity=$4,
 		availability=$5, skills=$6, team=$7, on_call=$8, total_resolved=$9, avg_resolution_ms=$10,
 		sla_compliance=$11, success_rate=$12, updated_at=NOW() WHERE id=$13`
-	_, err := r.db.Exec(query,
+	_, err = r.db.Exec(query,
 		ep.Name, string(expertiseJSON), ep.CurrentLoad, ep.MaxCapacity, ep.Availability,
 		string(skillsJSON), ep.Team, ep.OnCall, ep.TotalResolved, ep.AvgResolutionMs,
 		ep.SLACompliance, ep.SuccessRate, ep.ID,
@@ -62,8 +74,12 @@ func (r *DispatchRepository) GetEngineer(id string) (*models.EngineerProfile, er
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal([]byte(expertiseJSON), &ep.Expertise)
-	json.Unmarshal([]byte(skillsJSON), &ep.Skills)
+	if err := json.Unmarshal([]byte(expertiseJSON), &ep.Expertise); err != nil {
+		return nil, fmt.Errorf("unmarshal expertise: %w", err)
+	}
+	if err := json.Unmarshal([]byte(skillsJSON), &ep.Skills); err != nil {
+		return nil, fmt.Errorf("unmarshal skills: %w", err)
+	}
 	return &ep, nil
 }
 
@@ -88,8 +104,12 @@ func (r *DispatchRepository) ListEngineers() ([]models.EngineerProfile, error) {
 		); err != nil {
 			continue
 		}
-		json.Unmarshal([]byte(expertiseJSON), &ep.Expertise)
-		json.Unmarshal([]byte(skillsJSON), &ep.Skills)
+		if err := json.Unmarshal([]byte(expertiseJSON), &ep.Expertise); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(skillsJSON), &ep.Skills); err != nil {
+			continue
+		}
 		engineers = append(engineers, ep)
 	}
 	return engineers, nil
@@ -191,14 +211,20 @@ func (r *DispatchRepository) UpdateQueueEntry(ticketID, lastError string, attemp
 func (r *DispatchRepository) GetQueueStatus() (*models.DispatchQueueStatus, error) {
 	status := &models.DispatchQueueStatus{}
 
-	r.db.Get(&status.PendingCount, "SELECT COUNT(*) FROM dispatch_queue")
+	if err := r.db.Get(&status.PendingCount, "SELECT COUNT(*) FROM dispatch_queue"); err != nil {
+		return nil, fmt.Errorf("count pending: %w", err)
+	}
 
 	var oldest *time.Time
-	r.db.Get(&oldest, "SELECT MIN(enqueued_at) FROM dispatch_queue")
+	if err := r.db.Get(&oldest, "SELECT MIN(enqueued_at) FROM dispatch_queue"); err != nil {
+		return nil, fmt.Errorf("oldest entry: %w", err)
+	}
 	status.OldestEntry = oldest
 
-	r.db.Get(&status.AvgWaitMs,
-		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - enqueued_at)) * 1000), 0) FROM dispatch_queue`)
+	if err := r.db.Get(&status.AvgWaitMs,
+		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - enqueued_at)) * 1000), 0) FROM dispatch_queue`); err != nil {
+		return nil, fmt.Errorf("avg wait: %w", err)
+	}
 
 	return status, nil
 }
@@ -208,12 +234,18 @@ func (r *DispatchRepository) GetQueueStatus() (*models.DispatchQueueStatus, erro
 func (r *DispatchRepository) GetMetrics(start, end time.Time) (*models.DispatchMetrics, error) {
 	metrics := &models.DispatchMetrics{}
 
-	r.db.Get(&metrics.TotalDispatches,
-		"SELECT COUNT(*) FROM dispatch_records WHERE created_at BETWEEN $1 AND $2", start, end)
-	r.db.Get(&metrics.AutoDispatches,
-		"SELECT COUNT(*) FROM dispatch_records WHERE method = 'auto' AND created_at BETWEEN $1 AND $2", start, end)
-	r.db.Get(&metrics.ManualDispatches,
-		"SELECT COUNT(*) FROM dispatch_records WHERE method = 'manual' AND created_at BETWEEN $1 AND $2", start, end)
+	if err := r.db.Get(&metrics.TotalDispatches,
+		"SELECT COUNT(*) FROM dispatch_records WHERE created_at BETWEEN $1 AND $2", start, end); err != nil {
+		return nil, fmt.Errorf("total dispatches: %w", err)
+	}
+	if err := r.db.Get(&metrics.AutoDispatches,
+		"SELECT COUNT(*) FROM dispatch_records WHERE method = 'auto' AND created_at BETWEEN $1 AND $2", start, end); err != nil {
+		return nil, fmt.Errorf("auto dispatches: %w", err)
+	}
+	if err := r.db.Get(&metrics.ManualDispatches,
+		"SELECT COUNT(*) FROM dispatch_records WHERE method = 'manual' AND created_at BETWEEN $1 AND $2", start, end); err != nil {
+		return nil, fmt.Errorf("manual dispatches: %w", err)
+	}
 
 	if metrics.TotalDispatches > 0 {
 		metrics.SuccessRate = 100.0 // simplified
