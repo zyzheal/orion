@@ -258,7 +258,13 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(otelgin.Middleware(cfg.Otel.ServiceName))
-	r.Use(cors.Default())
+	corsConfig := cors.Config{
+			AllowOrigins:     cfg.CORS.Origins,
+			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Tenant-ID", "X-User-ID"},
+			AllowCredentials: true,
+		}
+		r.Use(cors.New(corsConfig))
 
 	// Middleware
 	authMW := middleware.NewAuthMiddleware(cfg)
