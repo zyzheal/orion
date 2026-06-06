@@ -163,8 +163,9 @@ func (h *TicketHandler) AssignTicket(c *gin.Context) {
 func (h *TicketHandler) ResolveTicket(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
+	performedBy := GetUserID(c)
 
-	if err := h.svc.Resolve(c.Request.Context(), id, tenantID); err != nil {
+	if err := h.svc.Resolve(c.Request.Context(), id, tenantID, performedBy); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve ticket"})
 		return
 	}
