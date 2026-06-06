@@ -223,12 +223,12 @@ export class TicketService extends EventEmitter {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Already running');
+      logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Already running');
       return;
     }
 
     this.isRunning = true;
-    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Starting...');
+    logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Starting...');
 
     // Start escalation checks
     if (this.config.enableAutoEscalation) {
@@ -242,7 +242,7 @@ export class TicketService extends EventEmitter {
     await this.connectNats();
 
     this.emit('started');
-    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Started');
+    logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Started');
   }
 
   /**
@@ -252,7 +252,7 @@ export class TicketService extends EventEmitter {
     if (!this.isRunning) return;
 
     this.isRunning = false;
-    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Stopping...');
+    logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Stopping...');
 
     // Stop escalation checks
     this.workflow.stopEscalationChecks();
@@ -266,13 +266,13 @@ export class TicketService extends EventEmitter {
         await this.natsUnsubscribe?.();
         await this.natsConnection.close();
       } catch (error) {
-        logger.warn({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Error disconnecting NATS', error);
+        logger.warn({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Error disconnecting NATS', error);
       }
       this.natsConnection = null;
     }
 
     this.emit('stopped');
-    logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Stopped');
+    logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Stopped');
   }
 
   /**
@@ -375,7 +375,7 @@ export class TicketService extends EventEmitter {
     if (duplicates.length > 0) {
       logger.info(
         {
-          traceId: 'unknown-trace',
+          traceId: getCurrentTraceId(),
           tenantId: 'unknown-tenant',
           alertId: source.alertId ? '***' : '',
           duplicateTicketId: duplicates[0].ticket.id ? '***' : ''
@@ -662,7 +662,7 @@ export class TicketService extends EventEmitter {
     if (result) {
       logger.info(
         {
-          traceId: 'unknown-trace',
+          traceId: getCurrentTraceId(),
           tenantId: 'unknown-tenant',
           ticketId: ticketId ? '***' : '',
           assignee: result.assignee ? '***' : '',
@@ -1345,7 +1345,7 @@ export class TicketService extends EventEmitter {
       const { connect } = await import('nats').catch(() => ({ connect: null }));
 
       if (!connect) {
-        logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] NATS not available, running without event subscription');
+        logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] NATS not available, running without event subscription');
         return;
       }
 
@@ -1355,12 +1355,12 @@ export class TicketService extends EventEmitter {
         reconnect: false,
       });
 
-      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Connected to NATS');
+      logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Connected to NATS');
 
       // Subscribe to relevant events
       await this.subscribeToEvents();
     } catch (error) {
-      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] NATS connection failed, running without event bus', error);
+      logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] NATS connection failed, running without event bus', error);
     }
   }
 
@@ -1389,7 +1389,7 @@ export class TicketService extends EventEmitter {
               await this.handleAlertEvent(data);
               msg.ack();
             } catch (error) {
-              logger.error({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Error processing NATS message', error);
+              logger.error({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Error processing NATS message', error);
             }
           }
         })().catch((err) => logger.error({ traceId: getCurrentTraceId(), err }, 'NATS subscription failed'));
@@ -1399,9 +1399,9 @@ export class TicketService extends EventEmitter {
         // Drain handled by connection close
       };
 
-      logger.info({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Subscribed to alert events');
+      logger.info({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Subscribed to alert events');
     } catch (error) {
-      logger.warn({ traceId: 'unknown-trace', tenantId: 'unknown-tenant' }, '[TicketService] Failed to subscribe to NATS events', error);
+      logger.warn({ traceId: getCurrentTraceId(), tenantId: 'unknown-tenant' }, '[TicketService] Failed to subscribe to NATS events', error);
     }
   }
 
@@ -1413,7 +1413,7 @@ export class TicketService extends EventEmitter {
 
     logger.info(
         {
-          traceId: 'unknown-trace',
+          traceId: getCurrentTraceId(),
           tenantId: 'unknown-tenant',
           alertId: data.alertId ? '***' : ''
         },
@@ -1434,7 +1434,7 @@ export class TicketService extends EventEmitter {
       const ticket = await this.createTicketFromAlert(alertSource);
       logger.info(
         {
-          traceId: 'unknown-trace',
+          traceId: getCurrentTraceId(),
           tenantId: 'unknown-tenant',
           ticketId: ticket.id ? '***' : '',
           alertId: data.alertId ? '***' : ''

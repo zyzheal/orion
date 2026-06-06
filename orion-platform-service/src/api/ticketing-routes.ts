@@ -14,11 +14,11 @@ import { TicketingService } from '../services/ticketing/TicketingService';
 import { TicketingRepository } from '../services/ticketing/TicketingRepository';
 
 export default async function ticketingRoutes(app: FastifyInstance): Promise<void> {
-  // Initialize services and controller
-  const ticketService = new TicketService();
-  const mockDb = {} as any;
-  const ticketingRepo = new TicketingRepository(mockDb);
+  // Initialize services with real db connection from Fastify instance
+  const db = (app as any).db;
+  const ticketingRepo = new TicketingRepository(db);
   const ticketingService = new TicketingService(ticketingRepo);
+  const ticketService = new TicketService(undefined, ticketingRepo);
   const controller = new TicketingController(ticketService, ticketingService);
 
   // ==================== Service Control ====================

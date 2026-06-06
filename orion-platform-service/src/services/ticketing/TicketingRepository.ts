@@ -147,7 +147,10 @@ export class TicketingRepository {
 
   // ==================== Ticket CRUD ====================
 
-  async findById(id: string): Promise<TicketRecord | null> {
+  async findById(id: string, tenantId?: string): Promise<TicketRecord | null> {
+    if (tenantId) {
+      return (await this.pool.query('SELECT * FROM tickets WHERE id = $1 AND tenant_id = $2', [id, tenantId])).rows[0] || null;
+    }
     return (await this.pool.query('SELECT * FROM tickets WHERE id = $1', [id])).rows[0] || null;
   }
 
