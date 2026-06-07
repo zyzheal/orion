@@ -21,7 +21,9 @@ func (r *Repository) Create(ci *CI) error {
 	return r.db.Create(ci).Error
 }
 
-// GetByID retrieves a CI by its primary key ID
+// GetByID retrieves a CI by its primary key ID.
+// DEPRECATED: Use GetByIDWithTenant with tenantID instead. Retained only for cross-service
+// internal calls where tenant context is not available.
 func (r *Repository) GetByID(id string) (*CI, error) {
 	var ci CI
 	err := r.db.Where("id = ?", id).First(&ci).Error
@@ -60,7 +62,9 @@ func (r *Repository) GetByCiID(ciID string, tenantID int64) (*CI, error) {
 	return &ci, nil
 }
 
-// Update updates an existing CI
+// Update updates an existing CI.
+// DEPRECATED: Use UpdateWithTenant with tenantID instead. Retained only for cross-service
+// internal calls where tenant context is not available.
 func (r *Repository) Update(id string, input *UpdateCIInput) (*CI, error) {
 	ci, err := r.GetByID(id)
 	if err != nil {
@@ -113,7 +117,9 @@ func (r *Repository) updateCI(ci *CI, input *UpdateCIInput) (*CI, error) {
 	return r.GetByID(ci.ID)
 }
 
-// Delete soft deletes a CI
+// Delete soft deletes a CI.
+// DEPRECATED: Use DeleteWithTenant with tenantID instead. Retained only for cross-service
+// internal calls where tenant context is not available.
 func (r *Repository) Delete(id string) error {
 	result := r.db.Delete(&CI{}, "id = ?", id)
 	if result.Error != nil {
@@ -187,10 +193,19 @@ func (r *Repository) Exists(ciID string, tenantID int64) bool {
 	return count > 0
 }
 
-// GetByIDs retrieves multiple CIs by their IDs
+// GetByIDs retrieves multiple CIs by their IDs.
+// DEPRECATED: Use GetByIDsAndTenant with tenantID instead. Retained only for cross-service
+// internal calls where tenant context is not available.
 func (r *Repository) GetByIDs(ids []string) ([]CI, error) {
 	var cis []CI
 	err := r.db.Where("id IN ?", ids).Find(&cis).Error
+	return cis, err
+}
+
+// GetByIDsAndTenant retrieves multiple CIs by their IDs, scoped to a tenant.
+func (r *Repository) GetByIDsAndTenant(ids []string, tenantID int64) ([]CI, error) {
+	var cis []CI
+	err := r.db.Where("id IN ? AND tenant_id = ?", ids, tenantID).Find(&cis).Error
 	return cis, err
 }
 

@@ -62,7 +62,8 @@ func (s *Service) CreateCI(input *CreateCIInput) (*CI, error) {
 	return ci, nil
 }
 
-// GetCI retrieves a CI by ID
+// GetCI retrieves a CI by ID.
+// DEPRECATED: Use GetCIWithTenant with tenantID instead.
 func (s *Service) GetCI(id string) (*CI, error) {
 	if id == "" {
 		return nil, ErrInvalidInput
@@ -76,7 +77,8 @@ func (s *Service) GetCI(id string) (*CI, error) {
 	return ci, nil
 }
 
-// UpdateCI updates an existing CI
+// UpdateCI updates an existing CI.
+// DEPRECATED: Use UpdateCIWithTenant with tenantID instead.
 func (s *Service) UpdateCI(id string, input *UpdateCIInput) (*CI, error) {
 	if id == "" {
 		return nil, ErrInvalidInput
@@ -96,7 +98,8 @@ func (s *Service) UpdateCI(id string, input *UpdateCIInput) (*CI, error) {
 	return ci, nil
 }
 
-// DeleteCI deletes a CI
+// DeleteCI deletes a CI.
+// DEPRECATED: Use DeleteCIWithTenant with tenantID instead.
 func (s *Service) DeleteCI(id string) error {
 	if id == "" {
 		return ErrInvalidInput
