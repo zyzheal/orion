@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,46 +12,83 @@ import (
 	"orion/pipeline-svc-go/internal/handler"
 	"orion/pipeline-svc-go/internal/repository"
 	"orion/pipeline-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	"orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
+	"orion/go-common/pkg/redis"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		panic("failed to load config: " + err.Error())
 	}
+
+	zapLogger := logger.Must(logger.Config{
+		Level:       "info",
+		Development: cfg.Environment == "development",
+		ServiceName: cfg.ServiceName,
+	})
+	defer zapLogger.Sync()
+
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.ServiceName,
+		Endpoint:    cfg.OTelEndpoint,
+		Insecure:    true,
+	})
+	if err != nil {
+		zapLogger.Warn("failed to init OTel", zap.Error(err))
+	}
+	defer shutdown(context.Background())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	db, err := database.ConnectWithRetry(ctx, database.DefaultConfig(cfg.DatabaseURL), 3)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
-	// Run migrations
 	if err := database.RunMigrations(db, "migrations"); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		zapLogger.Fatal("failed to run migrations", zap.Error(err))
 	}
 
-	// Initialize repositories
+	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
+	defer rdb.Close()
+
 	pipelineRepo := repository.NewPipelineRepository(db.DB)
 	runRepo := repository.NewRunRepository(db.DB)
 	stageRepo := repository.NewStageRepository(db.DB)
+	taskRepo := repository.NewTaskRepository(db.DB)
 
-	// Initialize services
-	pipelineSvc := service.NewPipelineService(pipelineRepo, runRepo, stageRepo)
+	pipelineSvc := service.NewPipelineService(pipelineRepo, runRepo, stageRepo, taskRepo)
+	templateSvc := service.NewTemplateService(db.DB)
+	triggerSvc := service.NewTriggerService(db.DB, pipelineSvc)
+	versionSvc := service.NewVersionService(db.DB)
+	rbacSvc := service.NewRBACService(db.DB)
+	approvalGateSvc := service.NewApprovalGateService(db.DB)
+	sseSvc := service.NewSSEService()
 
-	// Initialize handler
 	h := handler.NewHandler(pipelineSvc)
+	templateHandler := handler.NewTemplateHandler(templateSvc)
+	triggerHandler := handler.NewTriggerHandler(triggerSvc)
+	versionHandler := handler.NewVersionHandler(versionSvc)
+	rbacHandler := handler.NewRBACHandler(rbacSvc)
+	approvalGateHandler := handler.NewApprovalGateHandler(approvalGateSvc)
+	sseHandler := handler.NewSSEHandler(sseSvc)
 
-	// Setup router
-	r := gin.Default()
+	r := gin.New()
+	r.Use(middleware.RequestID())
+	r.Use(middleware.Recovery(zapLogger))
+	r.Use(middleware.StructuredLogger(zapLogger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
-	// Health check
 	r.GET("/healthz", func(c *gin.Context) {
 		if err := db.Health(c.Request.Context()); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "error": err.Error()})
@@ -61,23 +97,24 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// API routes
 	v1 := r.Group("/api/v1")
+	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(v1)
+	templateHandler.RegisterRoutes(v1)
+	triggerHandler.RegisterRoutes(v1)
+	versionHandler.RegisterRoutes(v1)
+	rbacHandler.RegisterRoutes(v1)
+	approvalGateHandler.RegisterRoutes(v1)
+	sseHandler.RegisterRoutes(v1)
 
-	// Graceful shutdown
-	srv := &http.Server{
-		Addr:    cfg.HTTPAddr,
-		Handler: r,
-	}
-
+	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %v", err)
+			zapLogger.Fatal("server failed", zap.Error(err))
 		}
 	}()
 
-	log.Printf("%s started on %s", cfg.ServiceName, cfg.HTTPAddr)
+	zapLogger.Info("pipeline service starting", zap.String("addr", cfg.HTTPAddr))
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -85,9 +122,8 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
-
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("server forced to shutdown: %v", err)
+		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
-	log.Println("server exited")
+	zapLogger.Info("server exited")
 }

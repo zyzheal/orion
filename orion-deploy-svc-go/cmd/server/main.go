@@ -10,8 +10,11 @@ import (
 
 	"orion/deploy-svc-go/internal/config"
 	"orion/deploy-svc-go/internal/handler"
-	"orion/deploy-svc-go/internal/middleware"
-	"orion/deploy-svc-go/internal/otel"
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
+	"orion/go-common/pkg/redis"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -19,42 +22,46 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
-
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Fatal("failed to load config", zap.Error(err))
+		panic("failed to load config: " + err.Error())
 	}
 
-	shutdown, err := otel.Init(cfg.ServiceName, cfg.OTelEndpoint)
+	zapLogger := logger.Must(logger.Config{
+		Level:       "info",
+		Development: cfg.Environment == "development",
+		ServiceName: cfg.ServiceName,
+	})
+	defer zapLogger.Sync()
+
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.ServiceName,
+		Endpoint:    cfg.OTelEndpoint,
+		Insecure:    true,
+	})
 	if err != nil {
-		logger.Warn("failed to init OTel", zap.Error(err))
+		zapLogger.Warn("failed to init OTel", zap.Error(err))
 	}
 	defer shutdown(context.Background())
 
 	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
 	if err != nil {
-		logger.Fatal("failed to connect to database", zap.Error(err))
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	if err := runMigrations(cfg.DatabaseURL, logger); err != nil {
-		logger.Fatal("migration failed", zap.Error(err))
+	if err := runMigrations(cfg.DatabaseURL, zapLogger); err != nil {
+		zapLogger.Fatal("migration failed", zap.Error(err))
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisAddr,
-		DB:   cfg.RedisDB,
-	})
+	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
 
 	if cfg.Environment == "production" {
@@ -62,66 +69,62 @@ func main() {
 	}
 
 	r := gin.New()
-	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
-	r.Use(middleware.StructuredLogger(logger))
-	r.Use(middleware.CORS())
+	r.Use(middleware.Recovery(zapLogger))
+	r.Use(middleware.StructuredLogger(zapLogger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
-	r.GET("/metrics", middleware.MetricsHandler())
-
+	r.GET("/healthz", middleware.HealthCheck("orion-deploy-svc"))
 	r.GET("/health", func(c *gin.Context) {
-		status := gin.H{
-			"status":    "healthy",
-			"service":   "orion-deploy-svc",
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-		}
-
+		status := gin.H{"status": "healthy", "service": "orion-deploy-svc", "timestamp": time.Now().UTC().Format(time.RFC3339)}
 		if err := db.Ping(); err != nil {
 			status["status"] = "unhealthy"
 			status["db"] = "error"
-			status["db_error"] = err.Error()
 			c.JSON(http.StatusServiceUnavailable, status)
 			return
 		}
 		status["db"] = "ok"
-
 		if err := rdb.Ping(c.Request.Context()).Err(); err != nil {
 			status["status"] = "unhealthy"
 			status["redis"] = "error"
-			status["redis_error"] = err.Error()
 			c.JSON(http.StatusServiceUnavailable, status)
 			return
 		}
 		status["redis"] = "ok"
-
 		c.JSON(http.StatusOK, status)
 	})
 
-	h := handler.New(db, logger)
+	h := handler.New(db, zapLogger)
 
 	api := r.Group("/api/v1")
-	api.Use(middleware.Auth(rdb, cfg.JWTSecret))
+	api.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz", "/health", "/metrics"}}))
 	{
 		deployments := api.Group("/deployments")
 		{
 			deployments.GET("", h.ListDeployments)
-			deployments.POST("", h.CreateDeployment)
-			deployments.GET("/:id", h.GetDeployment)
-			deployments.PUT("/:id", h.UpdateDeployment)
-			deployments.DELETE("/:id", h.DeleteDeployment)
-			deployments.POST("/:id/rollback", h.Rollback)
+			deployments.POST("", auth.RequirePermission("deployment", "write"), h.CreateDeployment)
 			deployments.GET("/count", h.Count)
+			deployments.GET("/latest", h.GetLatestDeployment)
+			deployments.GET("/environments", h.GetEnvironments)
+			deployments.GET("/stats", h.GetDeployStats)
+			deployments.GET("/build/:buildId", h.GetDeploymentsByBuild)
+			deployments.GET("/:id", h.GetDeployment)
+			deployments.PUT("/:id", auth.RequirePermission("deployment", "write"), h.UpdateDeployment)
+			deployments.DELETE("/:id", auth.RequirePermission("deployment", "delete"), h.DeleteDeployment)
+			deployments.POST("/:id/start", auth.RequirePermission("deployment", "execute"), h.StartDeployment)
+			deployments.POST("/:id/complete", auth.RequirePermission("deployment", "execute"), h.CompleteDeployment)
+			deployments.POST("/:id/cancel", auth.RequirePermission("deployment", "execute"), h.CancelDeployment)
+			deployments.POST("/:id/rollback", auth.RequirePermission("deployment", "execute"), h.Rollback)
+			deployments.GET("/:id/events", h.GetDeploymentEvents)
 		}
 	}
 
-	logger.Info("deploy service starting",
-		zap.String("addr", cfg.HTTPAddr),
-	)
+	zapLogger.Info("deploy service starting", zap.String("addr", cfg.HTTPAddr))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("server failed", zap.Error(err))
+			zapLogger.Fatal("server failed", zap.Error(err))
 		}
 	}()
 
@@ -129,24 +132,23 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("shutting down deploy service...")
+	zapLogger.Info("shutting down deploy service...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("server forced to shutdown", zap.Error(err))
+		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 }
 
-func runMigrations(dbURL string, logger *zap.Logger) error {
+func runMigrations(dbURL string, log *zap.Logger) error {
 	m, err := migrate.New("file://migrations", dbURL)
 	if err != nil {
 		return err
 	}
 	defer m.Close()
-
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return err
 	}
-	logger.Info("database migrations applied or up-to-date")
+	log.Info("database migrations applied or up-to-date")
 	return nil
 }

@@ -10,18 +10,25 @@ import (
 	"orion/approval-svc-go/internal/handler"
 	"orion/approval-svc-go/internal/repository"
 	"orion/approval-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
 
+	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-approval-svc"))
+	defer logger.Sync()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	// Build DSN from config
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode)
 
@@ -30,11 +37,10 @@ func main() {
 	ctx := context.Background()
 	db, err := database.Connect(ctx, dbCfg)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
-	// Run migrations
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
@@ -42,21 +48,47 @@ func main() {
 		}
 	}
 
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	defer rdb.Close()
+
+
 	approvalRepo := repository.NewApprovalRepository(db.DB)
-	approvalSvc := service.NewApprovalService(approvalRepo)
+	notificationSvc := service.NewNotificationService()
+	approvalSvc := service.NewApprovalService(approvalRepo, notificationSvc)
+	reportingSvc := service.NewReportingService(approvalRepo)
+
 	h := handler.NewHandler(approvalSvc)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	// Core routes
 	h.RegisterRoutes(rg)
 
-	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+	// Extended routes (submit, stats, pending, etc.)
+	h.RegisterExtendedRoutes(rg)
+
+	// Reporting endpoint
+	rg.GET("/approvals/report", func(c *gin.Context) {
+		tenantID := c.GetString("tenant_id")
+		report, err := reportingSvc.GenerateReport(c.Request.Context(), tenantID)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, report)
 	})
 
+	r.GET("/healthz", middleware.HealthCheck("orion-approval-svc"))
+
 	addr := fmt.Sprintf(":%d", cfg.ServerPort)
-	log.Printf("approval-svc starting on %s", addr)
+	logger.Info("approval-svc starting", zap.String("addr", addr))
 	if err := r.Run(addr); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		logger.Fatal("failed to start server", zap.Error(err))
 	}
 }

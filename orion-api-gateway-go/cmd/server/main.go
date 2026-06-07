@@ -13,15 +13,18 @@ import (
 	"orion/api-gateway/internal/config"
 	"orion/api-gateway/internal/middleware"
 	"orion/api-gateway/internal/proxy"
-	"orion/api-gateway/internal/otel"
 	"orion/api-gateway/internal/routesync"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/otel"
+	orionredis "orion/go-common/pkg/redis"
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-api-gateway"))
 	defer logger.Sync()
 
 	cfg, err := config.Load()
@@ -29,7 +32,11 @@ func main() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	shutdown, err := otel.Init(cfg.ServiceName, cfg.OTelEndpoint)
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.ServiceName,
+		Endpoint:    cfg.OTelEndpoint,
+		Insecure:    true,
+	})
 	if err != nil {
 		logger.Warn("failed to init OTel", zap.Error(err))
 	}

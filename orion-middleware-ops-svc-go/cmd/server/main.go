@@ -14,11 +14,19 @@ import (
 	"orion/middleware-ops-svc-go/internal/repository"
 	"orion/middleware-ops-svc-go/internal/service"
 
+	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
 )
 
 func main() {
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-middleware-ops-svc"))
+	defer logger.Sync()
+
 	cfg := config.Load()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -27,7 +35,7 @@ func main() {
 	dbCfg := database.DefaultConfig(cfg.DSN)
 	db, err := database.Connect(ctx, dbCfg)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
@@ -35,14 +43,27 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	defer rdb.Close()
+
+
 	instanceRepo := repository.NewInstanceRepository(db.DB)
 	backupRepo := repository.NewBackupRepository(db.DB)
+	metricRepo := repository.NewMetricRepository(db.DB)
+	connPoolRepo := repository.NewConnectionPoolRepository(db.DB)
+	mqStatsRepo := repository.NewMqStatsRepository(db.DB)
+	alertRepo := repository.NewAlertRepository(db.DB)
 
-	svc := service.NewService(instanceRepo, backupRepo)
+	svc := service.NewService(instanceRepo, backupRepo, metricRepo, connPoolRepo, mqStatsRepo, alertRepo)
 	h := handler.NewHandler(svc)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	api := r.Group("/api/v1")
+	api.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(api)
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })

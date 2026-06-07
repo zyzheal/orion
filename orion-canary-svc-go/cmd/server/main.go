@@ -10,15 +10,23 @@ import (
 	"orion/canary-svc-go/internal/handler"
 	"orion/canary-svc-go/internal/repository"
 	"orion/canary-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
 
+	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-canary-svc"))
+	defer logger.Sync()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
 	// Build DSN from config
@@ -30,7 +38,7 @@ func main() {
 	ctx := context.Background()
 	db, err := database.Connect(ctx, dbCfg)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
@@ -42,21 +50,36 @@ func main() {
 		}
 	}
 
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	defer rdb.Close()
+
+
 	canaryRepo := repository.NewCanaryRepository(db.DB)
-	canarySvc := service.NewCanaryService(canaryRepo)
+	analysisRunRepo := repository.NewCanaryAnalysisRunRepository(db.DB)
+	metricResultRepo := repository.NewCanaryMetricResultRepository(db.DB)
+	mlResultRepo := repository.NewCanaryMLResultRepository(db.DB)
+	analysisConfigRepo := repository.NewCanaryAnalysisConfigRepository(db.DB)
+	decisionRepo := repository.NewCanaryDecisionRepository(db.DB)
+	retrainJobRepo := repository.NewCanaryRetrainJobRepository(db.DB)
+	trafficConfigRepo := repository.NewTrafficConfigRepository(db.DB)
+	trafficHistoryRepo := repository.NewTrafficHistoryRepository(db.DB)
+	canarySvc := service.NewCanaryService(canaryRepo, analysisRunRepo, metricResultRepo, mlResultRepo, analysisConfigRepo, decisionRepo, retrainJobRepo, trafficConfigRepo, trafficHistoryRepo)
 	h := handler.NewHandler(canarySvc)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(rg)
 
-	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	r.GET("/healthz", middleware.HealthCheck("orion-canary-svc"))
 
 	addr := fmt.Sprintf(":%d", cfg.ServerPort)
-	log.Printf("canary-svc starting on %s", addr)
+	logger.Info("canary-svc starting", zap.String("addr", addr))
 	if err := r.Run(addr); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		logger.Fatal("failed to start server", zap.Error(err))
 	}
 }

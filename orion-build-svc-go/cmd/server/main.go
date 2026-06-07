@@ -10,8 +10,12 @@ import (
 
 	"orion/build-svc-go/internal/config"
 	"orion/build-svc-go/internal/handler"
-	"orion/build-svc-go/internal/middleware"
-	"orion/build-svc-go/internal/otel"
+
+	"orion/go-common/pkg/auth"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
+	"orion/go-common/pkg/redis"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -19,12 +23,11 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-build-svc"))
 	defer logger.Sync()
 
 	cfg, err := config.Load()
@@ -32,7 +35,11 @@ func main() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	shutdown, err := otel.Init(cfg.ServiceName, cfg.OTelEndpoint)
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.ServiceName,
+		Endpoint:    cfg.OTelEndpoint,
+		Insecure:    true,
+	})
 	if err != nil {
 		logger.Warn("failed to init OTel", zap.Error(err))
 	}
@@ -51,10 +58,7 @@ func main() {
 		logger.Fatal("migration failed", zap.Error(err))
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisAddr,
-		DB:   cfg.RedisDB,
-	})
+	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
 
 	if cfg.Environment == "production" {
@@ -62,12 +66,10 @@ func main() {
 	}
 
 	r := gin.New()
-	r.Use(gin.Recovery())
+	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
-	r.Use(middleware.CORS())
-
-	r.GET("/metrics", middleware.MetricsHandler())
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	r.GET("/health", func(c *gin.Context) {
 		status := gin.H{
@@ -100,23 +102,52 @@ func main() {
 	h := handler.New(db, logger)
 
 	api := r.Group("/api/v1")
-	api.Use(middleware.Auth(rdb, cfg.JWTSecret))
+	api.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/health", "/metrics"}}))
 	{
+		// Build CRUD
 		builds := api.Group("/builds")
 		{
 			builds.GET("", h.ListBuilds)
-			builds.POST("", h.CreateBuild)
-			builds.GET("/:id", h.GetBuild)
-			builds.PUT("/:id", h.UpdateBuild)
-			builds.DELETE("/:id", h.DeleteBuild)
-			builds.GET("/:id/logs", h.GetBuildLogs)
+			builds.POST("", auth.RequirePermission("pipeline", "write"), h.CreateBuild)
+			builds.GET("/stats", h.GetBuildStats)
 			builds.GET("/count", h.Count)
+			builds.GET("/pipeline-run/:runId", h.GetBuildByPipelineRun)
+			builds.GET("/:id", h.GetBuild)
+			builds.PUT("/:id", auth.RequirePermission("pipeline", "write"), h.UpdateBuild)
+			builds.DELETE("/:id", auth.RequirePermission("pipeline", "delete"), h.DeleteBuild)
+
+			// Build lifecycle (ported from Node.js)
+			builds.POST("/:id/trigger", auth.RequirePermission("pipeline", "execute"), h.TriggerBuild)
+			builds.GET("/:id/status", h.GetBuildStatus)
+			builds.POST("/:id/cancel", auth.RequirePermission("pipeline", "execute"), h.CancelBuild)
+			builds.POST("/:id/retry", auth.RequirePermission("pipeline", "execute"), h.RetryBuild)
+			builds.GET("/:id/logs", h.GetBuildLogs)
+		}
+
+		// Build environments
+		envs := api.Group("/environments")
+		{
+			envs.GET("", h.ListEnvironments)
+			envs.POST("", auth.RequirePermission("pipeline", "write"), h.CreateEnvironment)
+			envs.GET("/:id", h.GetEnvironment)
+			envs.PUT("/:id", auth.RequirePermission("pipeline", "write"), h.UpdateEnvironment)
+			envs.DELETE("/:id", auth.RequirePermission("pipeline", "delete"), h.DeleteEnvironment)
+		}
+
+		// Artifacts
+		artifacts := api.Group("/artifacts")
+		{
+			artifacts.GET("", h.ListArtifacts)
+			artifacts.POST("", auth.RequirePermission("pipeline", "write"), h.CreateArtifact)
+			artifacts.GET("/:id", h.GetArtifact)
+			artifacts.DELETE("/:id", auth.RequirePermission("pipeline", "delete"), h.DeleteArtifact)
+			artifacts.POST("/:id/download", auth.RequirePermission("pipeline", "execute"), h.RecordDownload)
+			artifacts.POST("/cleanup", auth.RequirePermission("pipeline", "execute"), h.CleanupExpiredArtifacts)
+			artifacts.DELETE("/run/:runId", auth.RequirePermission("pipeline", "delete"), h.CleanupArtifactsByRun)
 		}
 	}
 
-	logger.Info("build service starting",
-		zap.String("addr", cfg.HTTPAddr),
-	)
+	logger.Info("build service starting", zap.String("addr", cfg.HTTPAddr))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 	go func() {

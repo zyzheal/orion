@@ -10,8 +10,11 @@ import (
 
 	"orion/auth-svc/internal/config"
 	"orion/auth-svc/internal/handler"
-	"orion/auth-svc/internal/middleware"
-	"orion/auth-svc/internal/otel"
+	authmw "orion/auth-svc/internal/middleware"
+	"orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
+	"orion/go-common/pkg/redis"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -19,40 +22,52 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
-
+	// Load config (auth-svc has service-specific fields like RS256 keys)
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Fatal("failed to load config", zap.Error(err))
+		panic("failed to load config: " + err.Error())
 	}
 
-	shutdown, err := otel.Init(cfg.ServiceName, cfg.OTelEndpoint)
+	// Initialize structured logger via go-common
+	zapLogger := logger.Must(logger.Config{
+		Level:       "info",
+		Development: cfg.Environment == "development",
+		ServiceName: cfg.ServiceName,
+	})
+	defer zapLogger.Sync()
+
+	// Initialize OTel via go-common
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.ServiceName,
+		Endpoint:    cfg.OTelEndpoint,
+		Insecure:    true,
+	})
 	if err != nil {
-		logger.Warn("failed to init OTel", zap.Error(err))
+		zapLogger.Warn("failed to init OTel", zap.Error(err))
 	}
 	defer shutdown(context.Background())
 
+	// Connect to database
 	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
 	if err != nil {
-		logger.Fatal("failed to connect to database", zap.Error(err))
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Run database migrations on startup
-	if err := runMigrations(cfg.DatabaseURL, logger); err != nil {
-		logger.Fatal("migration failed", zap.Error(err))
+	// Run database migrations
+	if err := runMigrations(cfg.DatabaseURL, zapLogger); err != nil {
+		zapLogger.Fatal("migration failed", zap.Error(err))
 	}
 
-	rdb := redis.NewClient(&redis.Options{
+	// Initialize Redis via go-common
+	rdb := redis.NewClient(redis.Config{
 		Addr: cfg.RedisAddr,
 		DB:   cfg.RedisDB,
 	})
@@ -62,22 +77,22 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// Setup router with shared middleware
 	r := gin.New()
-	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
-	r.Use(middleware.StructuredLogger(logger))
-	r.Use(middleware.CORS())
+	r.Use(middleware.Recovery(zapLogger))
+	r.Use(middleware.StructuredLogger(zapLogger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	r.GET("/metrics", middleware.MetricsHandler())
 
+	// Health check with dependency verification
 	r.GET("/health", func(c *gin.Context) {
 		status := gin.H{
 			"status":    "healthy",
-			"service":   "orion-auth-svc",
+			"service":   cfg.ServiceName,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}
-
-		// Check database
 		if err := db.Ping(); err != nil {
 			status["status"] = "unhealthy"
 			status["db"] = "error"
@@ -86,8 +101,6 @@ func main() {
 			return
 		}
 		status["db"] = "ok"
-
-		// Check Redis
 		if err := rdb.Ping(c.Request.Context()).Err(); err != nil {
 			status["status"] = "unhealthy"
 			status["redis"] = "error"
@@ -96,11 +109,10 @@ func main() {
 			return
 		}
 		status["redis"] = "ok"
-
 		c.JSON(http.StatusOK, status)
 	})
 
-	h := handler.New(db, rdb, logger, cfg)
+	h := handler.New(db, rdb, zapLogger, cfg)
 
 	// Auth routes (public)
 	auth := r.Group("/api/v1/auth")
@@ -113,9 +125,9 @@ func main() {
 		auth.POST("/wechat/login", h.WechatLogin)
 	}
 
-	// Auth routes (authenticated)
+	// Auth routes (authenticated) — uses auth-svc's own Auth middleware
 	authProtected := r.Group("/api/v1/auth")
-	authProtected.Use(middleware.Auth(rdb, cfg.JWTSecret))
+	authProtected.Use(authmw.Auth(rdb, cfg.JWTSecret))
 	{
 		authProtected.GET("/me", h.GetMe)
 		authProtected.PUT("/password", h.ChangePassword)
@@ -125,22 +137,20 @@ func main() {
 
 	// Token management (admin)
 	tokens := r.Group("/api/v1/tokens")
-	tokens.Use(middleware.Auth(rdb, cfg.JWTSecret))
-	tokens.Use(middleware.RequireRole("admin"))
+	tokens.Use(authmw.Auth(rdb, cfg.JWTSecret))
+	tokens.Use(authmw.RequireRole("admin"))
 	{
 		tokens.POST("/blacklist", h.AddToBlacklist)
 		tokens.GET("/blacklist/:token_id", h.GetBlacklistEntry)
 		tokens.DELETE("/blacklist/:token_id", h.RemoveFromBlacklist)
 	}
 
-	logger.Info("auth service starting",
-		zap.String("addr", cfg.HTTPAddr),
-	)
+	zapLogger.Info("auth service starting", zap.String("addr", cfg.HTTPAddr))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("server failed", zap.Error(err))
+			zapLogger.Fatal("server failed", zap.Error(err))
 		}
 	}()
 
@@ -148,15 +158,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("shutting down auth service...")
+	zapLogger.Info("shutting down auth service...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("server forced to shutdown", zap.Error(err))
+		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 }
 
-// runMigrations executes pending database migrations on startup.
 func runMigrations(dbURL string, logger *zap.Logger) error {
 	m, err := migrate.New("file://migrations", dbURL)
 	if err != nil {

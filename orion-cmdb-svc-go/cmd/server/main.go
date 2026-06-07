@@ -7,16 +7,19 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
+
+	"orion/go-common/pkg/auth"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
+	"orion/go-common/pkg/redis"
+	orionredis "orion/go-common/pkg/redis"
 
 	"orion-cmdb-svc-go/internal/config"
 	"orion-cmdb-svc-go/internal/handler"
-	"orion-cmdb-svc-go/internal/middleware"
-	"orion-cmdb-svc-go/internal/otel"
 	"orion-cmdb-svc-go/internal/repository"
 	"orion-cmdb-svc-go/internal/service"
 )
@@ -70,7 +73,7 @@ func runMigrations(db *sqlx.DB) error {
 }
 
 func main() {
-	logger, _ := zap.NewProduction()
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-cmdb-svc"))
 	defer logger.Sync()
 
 	cfg, err := config.Load()
@@ -79,11 +82,15 @@ func main() {
 	}
 
 	ctx := context.Background()
-	cleanupTracer, err := otel.InitTracer(ctx, &cfg.Otel, logger)
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.Otel.ServiceName,
+		Endpoint:    cfg.Otel.Endpoint,
+		Insecure:    true,
+	})
 	if err != nil {
 		logger.Warn("failed to init tracer", zap.Error(err))
 	}
-	defer cleanupTracer()
+	defer shutdown(ctx)
 
 	db, err := sqlx.Connect("postgres", cfg.Database.DSN())
 	if err != nil {
@@ -98,11 +105,13 @@ func main() {
 
 	gin.SetMode(cfg.Server.Mode)
 	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(otelgin.Middleware(cfg.Otel.ServiceName))
-	r.Use(cors.Default())
+	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
-	authMW := middleware.NewAuthMiddleware(cfg)
+	rdb := orionredis.NewClient(redis.Config{Addr: cfg.RedisAddr})
+	defer rdb.Close()
 
 	ciRepo := repository.NewCIRepository(db)
 	relRepo := repository.NewCIRelationRepository(db)
@@ -111,17 +120,17 @@ func main() {
 	ciHandler := handler.NewCIHandler(ciSvc)
 
 	v1 := r.Group("/api/v1")
-	v1.Use(authMW.Handle(), middleware.TenantMiddleware())
+	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	{
 		v1.GET("/ci-items", ciHandler.ListCIItems)
-		v1.POST("/ci-items", ciHandler.CreateCIItem)
+		v1.POST("/ci-items", auth.RequirePermission("cmdb", "write"), ciHandler.CreateCIItem)
 		v1.GET("/ci-items/:id", ciHandler.GetCIItem)
-		v1.PUT("/ci-items/:id", ciHandler.UpdateCIItem)
-		v1.DELETE("/ci-items/:id", ciHandler.DeleteCIItem)
+		v1.PUT("/ci-items/:id", auth.RequirePermission("cmdb", "write"), ciHandler.UpdateCIItem)
+		v1.DELETE("/ci-items/:id", auth.RequirePermission("cmdb", "delete"), ciHandler.DeleteCIItem)
 		v1.GET("/ci-items/:id/topology", ciHandler.GetTopology)
 		v1.GET("/ci-relations", ciHandler.ListCIRelations)
-		v1.POST("/ci-relations", ciHandler.CreateRelation)
-		v1.DELETE("/ci-relations/:id", ciHandler.DeleteRelation)
+		v1.POST("/ci-relations", auth.RequirePermission("cmdb", "write"), ciHandler.CreateRelation)
+		v1.DELETE("/ci-relations/:id", auth.RequirePermission("cmdb", "delete"), ciHandler.DeleteRelation)
 		v1.GET("/ci-items/count", ciHandler.Count)
 	}
 

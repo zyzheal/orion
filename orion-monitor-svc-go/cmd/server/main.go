@@ -9,55 +9,52 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.uber.org/zap"
+
+	"orion/go-common/pkg/auth"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
+	orionredis "orion/go-common/pkg/redis"
 
 	"github.com/orion-platform/orion-monitor-svc-go/internal/config"
 	"github.com/orion-platform/orion-monitor-svc-go/internal/handler"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/middleware"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/otel"
 	"github.com/orion-platform/orion-monitor-svc-go/internal/repository"
 	"github.com/orion-platform/orion-monitor-svc-go/internal/service"
-	"go.uber.org/zap"
 )
 
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Initialize structured logger (zap)
-	logger, err := zap.NewProduction()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
-		os.Exit(1)
-	}
+	logger := orionlog.Must(orionlog.Config{
+		Level:       "info",
+		ServiceName: "orion-monitor-svc-go",
+	})
 	defer logger.Sync()
-
-	middleware.InitMiddleware(logger)
 
 	logger.Info("starting orion-monitor-svc-go",
 		zap.String("environment", cfg.Environment),
 		zap.Int("port", cfg.ServerPort),
 	)
 
-	// Initialize OpenTelemetry tracer
 	ctx := context.Background()
-	var tp *sdktrace.TracerProvider
 	if cfg.Environment != "test" {
-		tp, err = otel.InitTracer(ctx, cfg.OTLPEndpoint, "orion-monitor-svc-go", "1.0.0", logger)
+		shutdown, err := otel.Init(otel.Config{
+			ServiceName: "orion-monitor-svc-go",
+			Endpoint:    cfg.OTLPEndpoint,
+			Insecure:    true,
+		})
 		if err != nil {
 			logger.Warn("failed to init OpenTelemetry, continuing without tracing", zap.Error(err))
+		} else {
+			defer shutdown(ctx)
 		}
-	}
-	if tp != nil {
-		defer otel.Shutdown(context.Background(), tp, logger)
 	}
 
 	// Initialize PostgreSQL connection pool
@@ -73,11 +70,7 @@ func main() {
 	logger.Info("connected to PostgreSQL")
 
 	// Initialize Redis client
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		DB:       cfg.RedisDB,
-		PoolSize: 10,
-	})
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
@@ -109,17 +102,10 @@ func main() {
 	r := gin.New()
 
 	// Global middleware
-	r.Use(middleware.Recover())
+	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
-	r.Use(middleware.StructuredLog())
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Tenant-Id", "X-Request-Id"},
-		ExposeHeaders:    []string{"X-Request-Id"},
-		AllowCredentials: false,
-		MaxAge:           12 * time.Hour,
-	}))
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	// Health check (no auth required)
 	r.GET("/healthz", h.HealthCheck)
@@ -127,11 +113,10 @@ func main() {
 
 	// API v1 group with Auth + TenantID middleware
 	v1 := r.Group("/api/v1")
-	v1.Use(middleware.Auth())
-	v1.Use(middleware.TenantID())
+	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	{
 		// Metrics
-		v1.POST("/metrics", h.ReportMetric)
+		v1.POST("/metrics", auth.RequirePermission("alert", "write"), h.ReportMetric)
 		v1.GET("/metrics", h.QueryMetrics)
 
 		// Traces
@@ -145,16 +130,16 @@ func main() {
 		// Alerts
 		v1.GET("/alerts", h.QueryAlerts)
 		v1.GET("/alerts/:id", h.GetAlertByID)
-		v1.POST("/alerts/:id/silence", h.SilenceAlert)
-		v1.POST("/alerts/:id/resolve", h.ResolveAlert)
+		v1.POST("/alerts/:id/silence", auth.RequirePermission("alert", "execute"), h.SilenceAlert)
+		v1.POST("/alerts/:id/resolve", auth.RequirePermission("alert", "execute"), h.ResolveAlert)
 
 		// Alert Rules
 		v1.GET("/alert-rules", h.QueryAlertRules)
-		v1.POST("/alert-rules", h.CreateAlertRule)
+		v1.POST("/alert-rules", auth.RequirePermission("alert", "write"), h.CreateAlertRule)
 		v1.GET("/alert-rules/:id", h.GetAlertRule)
-		v1.PUT("/alert-rules/:id", h.UpdateAlertRule)
-		v1.DELETE("/alert-rules/:id", h.DeleteAlertRule)
-	v1.GET("/count", h.Count)
+		v1.PUT("/alert-rules/:id", auth.RequirePermission("alert", "write"), h.UpdateAlertRule)
+		v1.DELETE("/alert-rules/:id", auth.RequirePermission("alert", "delete"), h.DeleteAlertRule)
+		v1.GET("/count", h.Count)
 	}
 
 	// Start HTTP server
@@ -167,7 +152,6 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	// Graceful shutdown
 	go func() {
 		logger.Info("HTTP server listening", zap.String("addr", cfg.Addr()))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -175,7 +159,6 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

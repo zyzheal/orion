@@ -1,57 +1,16 @@
 package middleware
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
 )
 
-func RequestID() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		b := make([]byte, 16)
-		_, _ = rand.Read(b)
-		requestID := hex.EncodeToString(b)
-		c.Set("request_id", requestID)
-		c.Header("X-Request-ID", requestID)
-		c.Next()
-	}
-}
-
-func StructuredLogger(logger *zap.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		c.Next()
-		logger.Info("request",
-			zap.String("method", c.Request.Method),
-			zap.String("path", c.Request.URL.Path),
-			zap.Int("status", c.Writer.Status()),
-			zap.Duration("latency", time.Since(start)),
-			zap.String("request_id", c.GetString("request_id")),
-		)
-	}
-}
-
-func CORS() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-ID, X-Request-ID")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-		c.Next()
-	}
-}
-
+// Auth validates JWT tokens and checks Redis token blacklist.
+// This is auth-svc-specific middleware (the auth service itself validates tokens).
 func Auth(rdb *redis.Client, jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -84,6 +43,7 @@ func Auth(rdb *redis.Client, jwtSecret string) gin.HandlerFunc {
 	}
 }
 
+// RequireRole checks that the authenticated user has the required role.
 func RequireRole(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, exists := c.Get("role")
@@ -92,12 +52,5 @@ func RequireRole(requiredRole string) gin.HandlerFunc {
 			return
 		}
 		c.Next()
-	}
-}
-
-func MetricsHandler() gin.HandlerFunc {
-	h := promhttp.Handler()
-	return func(c *gin.Context) {
-		h.ServeHTTP(c.Writer, c.Request)
 	}
 }

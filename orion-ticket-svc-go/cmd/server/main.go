@@ -7,23 +7,23 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/gin-contrib/cors"
+	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/config"
 	"orion-ticket-svc-go/internal/handler"
-	"orion-ticket-svc-go/internal/middleware"
-	"orion-ticket-svc-go/internal/otel"
 	"orion-ticket-svc-go/internal/repository"
 	"orion-ticket-svc-go/internal/service"
 )
 
 func runMigrations(db *sqlx.DB) error {
 	migrations := []string{
-		// Core tables
 		`CREATE TABLE IF NOT EXISTS tickets (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			tenant_id UUID NOT NULL,
@@ -56,8 +56,6 @@ func runMigrations(db *sqlx.DB) error {
 			uploaded_by VARCHAR(255),
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// Workflow history
 		`CREATE TABLE IF NOT EXISTS ticket_workflow_history (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			ticket_id UUID REFERENCES tickets(id),
@@ -67,8 +65,6 @@ func runMigrations(db *sqlx.DB) error {
 			reason TEXT,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// Relations
 		`CREATE TABLE IF NOT EXISTS ticket_relations (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			ticket_id UUID REFERENCES tickets(id),
@@ -79,8 +75,6 @@ func runMigrations(db *sqlx.DB) error {
 			confidence DOUBLE PRECISION DEFAULT 0,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// SLA
 		`CREATE TABLE IF NOT EXISTS sla_targets (
 			id VARCHAR(100) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
@@ -107,8 +101,6 @@ func runMigrations(db *sqlx.DB) error {
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// Dispatch
 		`CREATE TABLE IF NOT EXISTS dispatch_engineers (
 			id VARCHAR(100) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
@@ -152,8 +144,6 @@ func runMigrations(db *sqlx.DB) error {
 			attempts INT DEFAULT 0,
 			last_error TEXT
 		)`,
-
-		// Transfers
 		`CREATE TABLE IF NOT EXISTS ticket_transfers (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			ticket_id UUID REFERENCES tickets(id),
@@ -164,8 +154,6 @@ func runMigrations(db *sqlx.DB) error {
 			hold_duration_ms BIGINT DEFAULT 0,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// Suspensions
 		`CREATE TABLE IF NOT EXISTS suspend_records (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			engineer_id VARCHAR(100),
@@ -184,8 +172,6 @@ func runMigrations(db *sqlx.DB) error {
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// Assignment rules
 		`CREATE TABLE IF NOT EXISTS assignment_rules (
 			id VARCHAR(100) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
@@ -196,8 +182,6 @@ func runMigrations(db *sqlx.DB) error {
 			"order" INT DEFAULT 0,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
-
-		// Indexes
 		`CREATE INDEX IF NOT EXISTS idx_tickets_tenant ON tickets(tenant_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_tickets_assigned ON tickets(assigned_to)`,
@@ -224,52 +208,53 @@ func runMigrations(db *sqlx.DB) error {
 }
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
-
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Fatal("failed to load config", zap.Error(err))
+		panic("failed to load config: " + err.Error())
 	}
 
-	// Initialize tracer
-	ctx := context.Background()
-	cleanupTracer, err := otel.InitTracer(ctx, &cfg.Otel, logger)
+	zapLogger := logger.Must(logger.Config{
+		Level:       "info",
+		Development: cfg.Server.Mode == "debug",
+		ServiceName: cfg.Otel.ServiceName,
+	})
+	defer zapLogger.Sync()
+
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.Otel.ServiceName,
+		Endpoint:    cfg.Otel.Endpoint,
+		Insecure:    true,
+	})
 	if err != nil {
-		logger.Warn("failed to init tracer", zap.Error(err))
+		zapLogger.Warn("failed to init OTel", zap.Error(err))
 	}
-	defer cleanupTracer()
+	defer shutdown(context.Background())
 
-	// Connect to database
 	db, err := sqlx.Connect("postgres", cfg.Database.DSN())
 	if err != nil {
-		logger.Fatal("failed to connect to database", zap.Error(err))
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
-	// Run migrations
 	if err := runMigrations(db); err != nil {
-		logger.Fatal("failed to run migrations", zap.Error(err))
+		zapLogger.Fatal("failed to run migrations", zap.Error(err))
 	}
-	logger.Info("migrations completed")
+	zapLogger.Info("migrations completed")
 
-	// Set up gin
 	gin.SetMode(cfg.Server.Mode)
 	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(otelgin.Middleware(cfg.Otel.ServiceName))
-	corsConfig := cors.Config{
-			AllowOrigins:     cfg.CORS.Origins,
-			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Tenant-ID", "X-User-ID"},
-			AllowCredentials: true,
-		}
-		r.Use(cors.New(corsConfig))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.Recovery(zapLogger))
+	r.Use(middleware.StructuredLogger(zapLogger))
+	r.Use(middleware.CORS(middleware.CORSConfig{
+		AllowOrigins: cfg.CORS.Origins,
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization", "X-Tenant-ID", "X-User-ID"},
+	}))
 
-	// Middleware
-	authMW := middleware.NewAuthMiddleware(cfg)
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.Redis.Addr, DB: cfg.Redis.DB})
+	defer rdb.Close()
 
-	// Initialize repositories
 	ticketRepo := repository.NewTicketRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	workflowRepo := repository.NewWorkflowRepository(db)
@@ -281,7 +266,6 @@ func main() {
 	analyticsRepo := repository.NewAnalyticsRepository(db)
 	ruleRepo := repository.NewAssignmentRuleRepository(db)
 
-	// Initialize services
 	workflowSvc := service.NewWorkflowService(workflowRepo, ticketRepo)
 	slaSvc := service.NewSLAService(slaRepo, ticketRepo)
 	dispatchSvc := service.NewDispatchService(dispatchRepo, ticketRepo, slaRepo)
@@ -289,8 +273,11 @@ func main() {
 	suspendSvc := service.NewSuspendService(suspendRepo, dispatchRepo, slaSvc)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, dispatchRepo, slaRepo, transferRepo, ticketRepo)
 	ticketSvc := service.NewTicketService(ticketRepo, commentRepo, workflowSvc, slaSvc, dispatchSvc, analyzerSvc, ruleRepo)
+	transferSvc := service.NewTransferService(transferRepo, ticketRepo, dispatchRepo, suspendRepo)
+	queueMgr := service.NewQueueManager(dispatchRepo, slaRepo)
+	loadBalancer := service.NewLoadBalancer(dispatchRepo)
+	analyticsEnhanced := service.NewAnalyticsEnhanced(analyticsRepo, dispatchRepo, slaRepo, ticketRepo)
 
-	// Initialize handlers
 	ticketHandler := handler.NewTicketHandler(ticketSvc)
 	workflowHandler := handler.NewWorkflowHandler(ticketSvc)
 	dispatchHandler := handler.NewDispatchHandler(dispatchSvc)
@@ -298,77 +285,78 @@ func main() {
 	relationHandler := handler.NewRelationHandler(analyzerSvc)
 	suspendHandler := handler.NewSuspendHandler(suspendSvc)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
+	transferHandler := handler.NewTransferHandler(transferSvc)
+	queueHandler := handler.NewQueueHandler(queueMgr)
+	loadBalancerHandler := handler.NewLoadBalancerHandler(loadBalancer)
+	analyticsEnhancedHandler := handler.NewAnalyticsEnhancedHandler(analyticsEnhanced)
 
-	// Routes
 	v1 := r.Group("/api/v1")
-	v1.Use(authMW.Handle(), middleware.TenantMiddleware())
+	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWT.Secret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	{
-		// Core CRUD
 		v1.GET("/tickets", ticketHandler.ListTickets)
-		v1.POST("/tickets", ticketHandler.CreateTicket)
+		v1.POST("/tickets", auth.RequirePermission("ticket", "write"), ticketHandler.CreateTicket)
 		v1.GET("/tickets/count", ticketHandler.Count)
 		v1.GET("/tickets/:id", ticketHandler.GetTicket)
-		v1.PUT("/tickets/:id", ticketHandler.UpdateTicket)
-		v1.DELETE("/tickets/:id", ticketHandler.DeleteTicket)
-		v1.POST("/tickets/:id/assign", ticketHandler.AssignTicket)
-		v1.POST("/tickets/:id/resolve", ticketHandler.ResolveTicket)
+		v1.PUT("/tickets/:id", auth.RequirePermission("ticket", "write"), ticketHandler.UpdateTicket)
+		v1.DELETE("/tickets/:id", auth.RequirePermission("ticket", "delete"), ticketHandler.DeleteTicket)
+		v1.POST("/tickets/:id/assign", auth.RequirePermission("ticket", "write"), ticketHandler.AssignTicket)
+		v1.POST("/tickets/:id/resolve", auth.RequirePermission("ticket", "execute"), ticketHandler.ResolveTicket)
 		v1.GET("/tickets/:id/comments", ticketHandler.ListComments)
-		v1.POST("/tickets/:id/comments", ticketHandler.CreateComment)
-
-		// Workflow
-		v1.POST("/tickets/:id/transition", workflowHandler.TransitionStatus)
+		v1.POST("/tickets/:id/comments", auth.RequirePermission("ticket", "write"), ticketHandler.CreateComment)
+		v1.POST("/tickets/:id/transition", auth.RequirePermission("ticket", "write"), workflowHandler.TransitionStatus)
 		v1.GET("/tickets/:id/history", workflowHandler.GetWorkflowHistory)
-		v1.POST("/tickets/:id/escalate", workflowHandler.EscalateTicket)
-		v1.POST("/tickets/:id/close", workflowHandler.CloseTicket)
-
-		// Relations
-		v1.POST("/tickets/:id/relations", relationHandler.AddRelation)
+		v1.POST("/tickets/:id/escalate", auth.RequirePermission("ticket", "write"), workflowHandler.EscalateTicket)
+		v1.POST("/tickets/:id/close", auth.RequirePermission("ticket", "write"), workflowHandler.CloseTicket)
+		v1.POST("/tickets/:id/relations", auth.RequirePermission("ticket", "write"), relationHandler.AddRelation)
 		v1.GET("/tickets/:id/relations", relationHandler.GetRelations)
 		v1.GET("/tickets/:id/related", relationHandler.FindRelatedTickets)
 		v1.GET("/tickets/:id/duplicates", relationHandler.DetectDuplicates)
-		v1.POST("/tickets/correlate", relationHandler.CorrelateRootCause)
-
-		// SLA
-		v1.POST("/tickets/sla/targets", slaHandler.AddSLATarget)
+		v1.POST("/tickets/correlate", auth.RequirePermission("ticket", "write"), relationHandler.CorrelateRootCause)
+		v1.POST("/tickets/sla/targets", auth.RequirePermission("ticket", "write"), slaHandler.AddSLATarget)
 		v1.GET("/tickets/sla/compliance", slaHandler.GetSLACompliance)
 		v1.GET("/tickets/sla/breaches", slaHandler.CheckSLABreaches)
 		v1.GET("/tickets/:id/sla", slaHandler.GetTicketSLA)
-
-		// Dispatch
-		v1.POST("/tickets/dispatch/engineers", dispatchHandler.RegisterEngineer)
+		v1.POST("/tickets/dispatch/engineers", auth.RequirePermission("ticket", "write"), dispatchHandler.RegisterEngineer)
 		v1.GET("/tickets/dispatch/engineers", dispatchHandler.ListEngineers)
 		v1.GET("/tickets/dispatch/engineers/:id", dispatchHandler.GetEngineer)
-		v1.POST("/tickets/:id/dispatch/auto", dispatchHandler.AutoDispatch)
-		v1.POST("/tickets/:id/dispatch/manual", dispatchHandler.ManualDispatch)
-		v1.POST("/tickets/dispatch/score", dispatchHandler.CalculateDispatchScore)
+		v1.POST("/tickets/:id/dispatch/auto", auth.RequirePermission("ticket", "write"), dispatchHandler.AutoDispatch)
+		v1.POST("/tickets/:id/dispatch/manual", auth.RequirePermission("ticket", "write"), dispatchHandler.ManualDispatch)
+		v1.POST("/tickets/dispatch/score", auth.RequirePermission("ticket", "write"), dispatchHandler.CalculateDispatchScore)
 		v1.GET("/tickets/dispatch/queue/status", dispatchHandler.GetDispatchQueueStatus)
 		v1.GET("/tickets/dispatch/queue/entries", dispatchHandler.GetDispatchQueueEntries)
-		v1.POST("/tickets/dispatch/rules", dispatchHandler.AddDispatchRule)
+		v1.POST("/tickets/dispatch/rules", auth.RequirePermission("ticket", "write"), dispatchHandler.AddDispatchRule)
 		v1.GET("/tickets/dispatch/rules", dispatchHandler.GetDispatchRules)
-		v1.DELETE("/tickets/dispatch/rules/:ruleId", dispatchHandler.RemoveDispatchRule)
+		v1.DELETE("/tickets/dispatch/rules/:ruleId", auth.RequirePermission("ticket", "delete"), dispatchHandler.RemoveDispatchRule)
 		v1.GET("/tickets/dispatch/load-balance", dispatchHandler.GetLoadBalanceReport)
-		v1.PUT("/tickets/dispatch/weights", dispatchHandler.UpdateDispatchWeights)
+		v1.PUT("/tickets/dispatch/weights", auth.RequirePermission("ticket", "write"), dispatchHandler.UpdateDispatchWeights)
 		v1.GET("/tickets/dispatch/weights", dispatchHandler.GetDispatchWeights)
 		v1.GET("/tickets/dispatch/metrics", dispatchHandler.GetDispatchMetrics)
 		v1.GET("/tickets/dispatch/performance", dispatchHandler.GetAllEngineerPerformances)
 		v1.GET("/tickets/dispatch/performance/:engineerId", dispatchHandler.GetEngineerPerformance)
-
-		// Transfer
-		v1.POST("/tickets/transfer/:ticketId", analyticsHandler.TransferTicket)
-		v1.GET("/tickets/transfer/:ticketId/history", analyticsHandler.GetTransferHistory)
-		v1.GET("/tickets/transfer/stats", analyticsHandler.GetTransferStats)
-
-		// Suspend
-		v1.POST("/tickets/suspend", suspendHandler.CreateSuspend)
-		v1.POST("/tickets/suspend/:id/activate", suspendHandler.ActivateSuspend)
-		v1.POST("/tickets/suspend/:id/end", suspendHandler.EndSuspend)
-		v1.POST("/tickets/suspend/:id/cancel", suspendHandler.CancelSuspend)
+		v1.GET("/tickets/dispatch/queue/sla-status", queueHandler.GetSLAQueueStatus)
+		v1.GET("/tickets/dispatch/queue/sla-entries", queueHandler.GetSLAQueueEntries)
+		v1.GET("/tickets/dispatch/queue/sla-alerts", queueHandler.GetSLAAlerts)
+		v1.POST("/tickets/dispatch/queue/reprioritize", auth.RequirePermission("ticket", "write"), queueHandler.ReprioritizeQueue)
+		v1.GET("/tickets/dispatch/balancing/report", loadBalancerHandler.GetBalancingReport)
+		v1.GET("/tickets/dispatch/balancing/suggestions", loadBalancerHandler.GetReassignmentSuggestions)
+		v1.GET("/tickets/dispatch/balancing/team/:team/capacity", loadBalancerHandler.GetTeamCapacity)
+		v1.GET("/tickets/dispatch/balancing/engineer/:id/capacity", loadBalancerHandler.CheckEngineerCapacity)
+		v1.GET("/tickets/dispatch/balancing/available", loadBalancerHandler.GetAvailableEngineers)
+		v1.POST("/tickets/transfer/:ticketId", auth.RequirePermission("ticket", "write"), transferHandler.ManualTransfer)
+		v1.GET("/tickets/transfer/:ticketId/history", transferHandler.GetTransferHistory)
+		v1.GET("/tickets/transfer/stats", transferHandler.GetTransferStats)
+		v1.POST("/tickets/transfer/auto-check", auth.RequirePermission("ticket", "write"), transferHandler.CheckAutoTransfer)
+		v1.POST("/tickets/transfer/suspend/:suspendId", auth.RequirePermission("ticket", "write"), transferHandler.TransferDueToSuspend)
+		v1.GET("/tickets/transfer/config", transferHandler.GetTransferConfig)
+		v1.PUT("/tickets/transfer/config", auth.RequirePermission("ticket", "write"), transferHandler.UpdateTransferConfig)
+		v1.POST("/tickets/suspend", auth.RequirePermission("ticket", "write"), suspendHandler.CreateSuspend)
+		v1.POST("/tickets/suspend/:id/activate", auth.RequirePermission("ticket", "write"), suspendHandler.ActivateSuspend)
+		v1.POST("/tickets/suspend/:id/end", auth.RequirePermission("ticket", "write"), suspendHandler.EndSuspend)
+		v1.POST("/tickets/suspend/:id/cancel", auth.RequirePermission("ticket", "execute"), suspendHandler.CancelSuspend)
 		v1.GET("/tickets/suspend", suspendHandler.ListSuspensions)
 		v1.GET("/tickets/suspend/:id", suspendHandler.GetSuspend)
 		v1.GET("/tickets/suspend/engineer/:engineerId", suspendHandler.GetEngineerSuspensions)
 		v1.GET("/tickets/suspend/engineer/:engineerId/impact", suspendHandler.GetEngineerSuspendImpact)
-
-		// BI Analytics
 		v1.GET("/tickets/stats", analyticsHandler.GetStatistics)
 		v1.GET("/tickets/reports/resolution", analyticsHandler.GetResolutionStats)
 		v1.GET("/tickets/reports/backlog", analyticsHandler.GetBacklogAnalysis)
@@ -378,31 +366,30 @@ func main() {
 		v1.GET("/tickets/bi/dashboard/engineer/:engineerId", analyticsHandler.GetEngineerDashboard)
 		v1.GET("/tickets/bi/score/:engineerId", analyticsHandler.GetEfficiencyScore)
 		v1.GET("/tickets/bi/compare", analyticsHandler.ComparePeriods)
-		v1.POST("/tickets/bi/export", analyticsHandler.ExportBIData)
+		v1.POST("/tickets/bi/export", auth.RequirePermission("ticket", "execute"), analyticsHandler.ExportBIData)
 		v1.GET("/tickets/bi/trend", analyticsHandler.GetTimeTrend)
+		v1.GET("/tickets/bi/heatmap", analyticsEnhancedHandler.GetHeatmapData)
+		v1.GET("/tickets/bi/bottlenecks", analyticsEnhancedHandler.GetBottleneckAnalysis)
+		v1.GET("/tickets/bi/engineer/:engineerId/categories", analyticsEnhancedHandler.GetCategoryBreakdown)
+		v1.GET("/tickets/bi/dashboard/manager-enhanced", analyticsEnhancedHandler.GetManagerDashboardEnhanced)
+		v1.GET("/tickets/bi/dashboard/engineer-enhanced/:engineerId", analyticsEnhancedHandler.GetEngineerDashboardEnhanced)
 	}
 
-	// Health check (no auth)
 	r.GET("/healthz", func(c *gin.Context) {
 		if err := db.Ping(); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "db": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "healthy",
-			"service": "orion-ticket-svc",
-			"version": "2.0.0",
-		})
+		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "orion-ticket-svc", "version": "2.0.0"})
 	})
 
-	// Ready check
 	r.GET("/readyz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	logger.Info("starting ticket service", zap.Int("port", cfg.Server.Port))
+	zapLogger.Info("starting ticket service", zap.Int("port", cfg.Server.Port))
 	if err := r.Run(addr); err != nil {
-		logger.Fatal("server failed", zap.Error(err))
+		zapLogger.Fatal("server failed", zap.Error(err))
 	}
 }

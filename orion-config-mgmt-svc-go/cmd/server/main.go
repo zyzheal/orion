@@ -10,12 +10,20 @@ import (
 	"orion/config-mgmt-svc-go/internal/handler"
 	"orion/config-mgmt-svc-go/internal/repository"
 	"orion/config-mgmt-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
 
+	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-config-mgmt-svc"))
+	defer logger.Sync()
+
 	cfg := config.Load()
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
@@ -25,7 +33,7 @@ func main() {
 	ctx := context.Background()
 	db, err := database.Connect(ctx, dbCfg)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
@@ -36,21 +44,50 @@ func main() {
 		}
 	}
 
-	repo := repository.NewRepository(db.DB)
-	svc := service.NewService(repo)
-	h := handler.NewHandler(svc)
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	defer rdb.Close()
 
-	r := gin.Default()
+
+	repo := repository.NewRepository(db.DB)
+
+	// Core config service
+	configSvc := service.NewService(repo)
+	h := handler.NewHandler(configSvc)
+
+	// New services
+	driftSvc := service.NewDriftService(repo)
+	featureFlagSvc := service.NewFeatureFlagService(repo)
+	gitSyncSvc := service.NewGitSyncService(repo)
+	approvalSvc := service.NewApprovalService(repo, configSvc)
+
+	// New handlers
+	driftH := handler.NewDriftHandler(driftSvc)
+	featureFlagH := handler.NewFeatureFlagHandler(featureFlagSvc)
+	gitSyncH := handler.NewGitSyncHandler(gitSyncSvc)
+	approvalH := handler.NewApprovalHandler(approvalSvc)
+
+	r := gin.New()
+	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	// Core routes
 	h.RegisterRoutes(rg)
 
-	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	// New routes
+	driftH.RegisterRoutes(rg)
+	featureFlagH.RegisterRoutes(rg)
+	gitSyncH.RegisterRoutes(rg)
+	approvalH.RegisterRoutes(rg)
+
+	r.GET("/healthz", middleware.HealthCheck("orion-config-mgmt-svc"))
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
-	log.Printf("config-mgmt-svc listening on %s", addr)
+	logger.Info("config-mgmt-svc listening", zap.String("addr", addr))
 	if err := r.Run(addr); err != nil {
-		log.Fatalf("server error: %v", err)
+		logger.Fatal("server error", zap.Error(err))
 	}
 }

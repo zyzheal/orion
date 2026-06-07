@@ -10,8 +10,12 @@ import (
 
 	"orion/tenant-svc/internal/config"
 	"orion/tenant-svc/internal/handler"
-	"orion/tenant-svc/internal/middleware"
-	"orion/tenant-svc/internal/otel"
+	tenmw "orion/tenant-svc/internal/middleware"
+
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/logger"
+	"orion/go-common/pkg/middleware"
+	"orion/go-common/pkg/otel"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -23,32 +27,39 @@ import (
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
-
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Fatal("failed to load config", zap.Error(err))
+		panic("failed to load config: " + err.Error())
 	}
 
-	shutdown, err := otel.Init(cfg.ServiceName, cfg.OTelEndpoint)
+	zapLogger := logger.Must(logger.Config{
+		Level:       "info",
+		Development: cfg.Environment == "development",
+		ServiceName: cfg.ServiceName,
+	})
+	defer zapLogger.Sync()
+
+	shutdown, err := otel.Init(otel.Config{
+		ServiceName: cfg.ServiceName,
+		Endpoint:    cfg.OTelEndpoint,
+		Insecure:    true,
+	})
 	if err != nil {
-		logger.Warn("failed to init OTel", zap.Error(err))
+		zapLogger.Warn("failed to init OTel", zap.Error(err))
 	}
 	defer shutdown(context.Background())
 
 	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
 	if err != nil {
-		logger.Fatal("failed to connect to database", zap.Error(err))
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Run database migrations on startup
-	if err := runMigrations(cfg.DatabaseURL, logger); err != nil {
-		logger.Fatal("migration failed", zap.Error(err))
+	if err := runMigrations(cfg.DatabaseURL, zapLogger); err != nil {
+		zapLogger.Fatal("migration failed", zap.Error(err))
 	}
 
 	if cfg.Environment == "production" {
@@ -56,63 +67,55 @@ func main() {
 	}
 
 	r := gin.New()
-	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
-	r.Use(middleware.StructuredLogger(logger))
-	r.Use(middleware.CORS())
+	r.Use(middleware.Recovery(zapLogger))
+	r.Use(middleware.StructuredLogger(zapLogger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	r.GET("/metrics", middleware.MetricsHandler())
+	r.GET("/healthz", middleware.HealthCheck("orion-tenant-svc"))
 	r.GET("/health", func(c *gin.Context) {
-		status := gin.H{
-			"status":    "healthy",
-			"service":   "orion-tenant-svc",
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-		}
-
-		// Check database
+		status := gin.H{"status": "healthy", "service": "orion-tenant-svc", "timestamp": time.Now().UTC().Format(time.RFC3339)}
 		if err := db.Ping(); err != nil {
 			status["status"] = "unhealthy"
 			status["db"] = "error"
-			status["db_error"] = err.Error()
 			c.JSON(http.StatusServiceUnavailable, status)
 			return
 		}
 		status["db"] = "ok"
-
 		c.JSON(http.StatusOK, status)
 	})
 
-	h := handler.New(db, logger, cfg)
+	h := handler.New(db, zapLogger, cfg)
 
 	// Tenant routes (system admin only)
 	admin := r.Group("/api/v1/tenants")
-	admin.Use(middleware.Auth(cfg.JWTSecret))
-	admin.Use(middleware.RequireRole("admin"))
+	admin.Use(tenmw.Auth(cfg.JWTSecret))
+	admin.Use(tenmw.RequireRole("admin"))
 	{
-		admin.POST("", h.CreateTenant)
+		admin.POST("", auth.RequirePermission("tenant", "write"), h.CreateTenant)
 		admin.GET("", h.ListTenants)
 		admin.GET("/:id", h.GetTenant)
-		admin.PUT("/:id", h.UpdateTenant)
-		admin.DELETE("/:id", h.DeleteTenant)
-		admin.PUT("/:id/status", h.UpdateTenantStatus)
+		admin.PUT("/:id", auth.RequirePermission("tenant", "write"), h.UpdateTenant)
+		admin.DELETE("/:id", auth.RequirePermission("tenant", "delete"), h.DeleteTenant)
+		admin.PUT("/:id/status", auth.RequirePermission("tenant", "write"), h.UpdateTenantStatus)
 	}
 
-	// Tenant self-service (authenticated with tenant context)
 	self := r.Group("/api/v1/tenant")
-	self.Use(middleware.Auth(cfg.JWTSecret))
-	self.Use(middleware.TenantID())
+	self.Use(tenmw.Auth(cfg.JWTSecret))
+	self.Use(tenmw.TenantID())
 	{
 		self.GET("/info", h.GetMyTenant)
-		self.PUT("/settings", h.UpdateTenantSettings)
+		self.PUT("/settings", auth.RequirePermission("tenant", "write"), h.UpdateTenantSettings)
 		self.GET("/quota", h.GetQuota)
 	}
 
-	logger.Info("tenant service starting", zap.String("addr", cfg.HTTPAddr))
+	zapLogger.Info("tenant service starting", zap.String("addr", cfg.HTTPAddr))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("server failed", zap.Error(err))
+			zapLogger.Fatal("server failed", zap.Error(err))
 		}
 	}()
 
@@ -120,25 +123,23 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("shutting down tenant service...")
+	zapLogger.Info("shutting down tenant service...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("server forced to shutdown", zap.Error(err))
+		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 }
 
-// runMigrations executes pending database migrations on startup.
-func runMigrations(dbURL string, logger *zap.Logger) error {
+func runMigrations(dbURL string, log *zap.Logger) error {
 	m, err := migrate.New("file://migrations", dbURL)
 	if err != nil {
 		return err
 	}
 	defer m.Close()
-
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return err
 	}
-	logger.Info("database migrations applied or up-to-date")
+	log.Info("database migrations applied or up-to-date")
 	return nil
 }
