@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -22,7 +22,7 @@ func NewAnalyzerService(relationRepo repository.RelationRepositoryInterface, tic
 
 // AddRelation creates a relation between two tickets
 func (s *AnalyzerService) AddRelation(ctx context.Context, ticketID, relatedTicketID, relationType, createdBy, description string, confidence float64) (*models.TicketRelation, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyzerService.AddRelation")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyzerService.AddRelation")
 	defer span.End()
 
 	// Validate relation type
@@ -110,7 +110,7 @@ func (s *AnalyzerService) DetectDuplicates(ctx context.Context, ticketID string,
 
 // CorrelateRootCause analyzes tickets for common root causes
 func (s *AnalyzerService) CorrelateRootCause(ctx context.Context, ticketIDs []string) (*models.RootCauseCorrelation, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyzerService.CorrelateRootCause")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyzerService.CorrelateRootCause")
 	defer span.End()
 
 	if len(ticketIDs) < 2 {

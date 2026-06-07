@@ -44,9 +44,9 @@ func main() {
 		}
 	}
 
-	encryptionKey := os.Getenv("ORION_SECRET_ENCRYPTION_KEY")	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	encryptionKey := os.Getenv("ORION_SECRET_ENCRYPTION_KEY")
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
 
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo, encryptionKey)

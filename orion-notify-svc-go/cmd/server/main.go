@@ -44,9 +44,9 @@ func main() {
 		}
 	}
 
-	// Template repository and service	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	// Template repository and service
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
 
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)

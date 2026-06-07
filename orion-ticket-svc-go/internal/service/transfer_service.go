@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -41,7 +41,7 @@ func NewTransferService(
 
 // ManualTransfer transfers a ticket from one engineer to another
 func (s *TransferService) ManualTransfer(ctx context.Context, ticketID, tenantID, toEngineerID, initiatedBy, reason string) (*models.TransferRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "TransferService.ManualTransfer")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TransferService.ManualTransfer")
 	defer span.End()
 
 	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
@@ -105,7 +105,7 @@ func (s *TransferService) ManualTransfer(ctx context.Context, ticketID, tenantID
 
 // CheckAndAutoTransfer checks for tickets that exceed hold time and auto-transfers them
 func (s *TransferService) CheckAndAutoTransfer(ctx context.Context, tenantID string) ([]models.TransferRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "TransferService.CheckAndAutoTransfer")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TransferService.CheckAndAutoTransfer")
 	defer span.End()
 
 	var results []models.TransferRecord
@@ -146,7 +146,7 @@ func (s *TransferService) CheckAndAutoTransfer(ctx context.Context, tenantID str
 
 // TransferDueToSuspend transfers all active tickets from a suspended engineer
 func (s *TransferService) TransferDueToSuspend(ctx context.Context, suspendID string) ([]models.TransferRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "TransferService.TransferDueToSuspend")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TransferService.TransferDueToSuspend")
 	defer span.End()
 
 	suspend, err := s.suspendRepo.GetByID(ctx, suspendID)

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"orion/notification-svc-go/internal/models"
-	"orion/notification-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion/notification-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -62,7 +62,7 @@ func (s *Service) WithDispatcher(d ChannelDispatcher) *Service {
 // SendNotification creates and dispatches a notification.
 // It validates input, persists the record, and triggers multi-channel delivery.
 func (s *Service) SendNotification(ctx context.Context, tenantID string, req *models.CreateNotificationRequest) (*models.Notification, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.SendNotification")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.SendNotification")
 	defer span.End()
 
 	if req.UserID == "" {
@@ -148,7 +148,7 @@ func (s *Service) deliverAsync(n *models.Notification) {
 
 // GetNotification returns a single notification by id.
 func (s *Service) GetNotification(ctx context.Context, tenantID, id string) (*models.Notification, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.GetNotification")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetNotification")
 	defer span.End()
 
 	return s.repo.GetNotification(ctx, tenantID, id)
@@ -156,7 +156,7 @@ func (s *Service) GetNotification(ctx context.Context, tenantID, id string) (*mo
 
 // ListNotifications returns filtered, paginated notifications.
 func (s *Service) ListNotifications(ctx context.Context, tenantID string, opts models.ListNotificationsQuery) ([]models.Notification, int, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.ListNotifications")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.ListNotifications")
 	defer span.End()
 
 	return s.repo.ListNotifications(ctx, tenantID, opts)
@@ -164,7 +164,7 @@ func (s *Service) ListNotifications(ctx context.Context, tenantID string, opts m
 
 // MarkAsRead marks a single notification as read.
 func (s *Service) MarkAsRead(ctx context.Context, tenantID, id string) (*models.Notification, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.MarkAsRead")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.MarkAsRead")
 	defer span.End()
 
 	// Verify the notification exists
@@ -178,7 +178,7 @@ func (s *Service) MarkAsRead(ctx context.Context, tenantID, id string) (*models.
 
 // GetUnreadCount returns the number of unread notifications for a user.
 func (s *Service) GetUnreadCount(ctx context.Context, tenantID, userID string) (int, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.GetUnreadCount")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetUnreadCount")
 	defer span.End()
 
 	return s.repo.GetUnreadCount(ctx, tenantID, userID)
@@ -186,7 +186,7 @@ func (s *Service) GetUnreadCount(ctx context.Context, tenantID, userID string) (
 
 // Broadcast sends a notification to multiple users.
 func (s *Service) Broadcast(ctx context.Context, tenantID string, req *models.BroadcastRequest) (int, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.Broadcast")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.Broadcast")
 	defer span.End()
 
 	count := 0
@@ -232,7 +232,7 @@ func (s *Service) Broadcast(ctx context.Context, tenantID string, req *models.Br
 
 // Delete removes a notification.
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.Delete")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.Delete")
 	defer span.End()
 
 	return s.repo.DeleteNotification(ctx, tenantID, id)
@@ -240,7 +240,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 
 // Count returns total notification count for a tenant.
 func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.Count")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.Count")
 	defer span.End()
 
 	return s.repo.CountNotifications(ctx, tenantID)
@@ -250,7 +250,7 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 
 // CreateTemplate creates a new notification template.
 func (s *Service) CreateTemplate(ctx context.Context, tenantID string, t *models.NotificationTemplate) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.CreateTemplate")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.CreateTemplate")
 	defer span.End()
 
 	t.ID = uuid.New().String()
@@ -260,7 +260,7 @@ func (s *Service) CreateTemplate(ctx context.Context, tenantID string, t *models
 
 // ListTemplates returns all templates for a tenant.
 func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]models.NotificationTemplate, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.ListTemplates")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.ListTemplates")
 	defer span.End()
 
 	return s.repo.ListTemplates(ctx, tenantID)
@@ -268,7 +268,7 @@ func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]models.
 
 // GetTemplate returns a single template by id.
 func (s *Service) GetTemplate(ctx context.Context, tenantID, id string) (*models.NotificationTemplate, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.GetTemplate")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetTemplate")
 	defer span.End()
 
 	return s.repo.GetTemplate(ctx, tenantID, id)
@@ -276,7 +276,7 @@ func (s *Service) GetTemplate(ctx context.Context, tenantID, id string) (*models
 
 // DeleteTemplate removes a template.
 func (s *Service) DeleteTemplate(ctx context.Context, tenantID, id string) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.DeleteTemplate")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.DeleteTemplate")
 	defer span.End()
 
 	return s.repo.DeleteTemplate(ctx, tenantID, id)
@@ -286,7 +286,7 @@ func (s *Service) DeleteTemplate(ctx context.Context, tenantID, id string) error
 
 // CreateChannel creates a new notification channel configuration.
 func (s *Service) CreateChannel(ctx context.Context, tenantID string, c *models.NotificationChannel) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.CreateChannel")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.CreateChannel")
 	defer span.End()
 
 	c.ID = uuid.New().String()
@@ -296,7 +296,7 @@ func (s *Service) CreateChannel(ctx context.Context, tenantID string, c *models.
 
 // ListChannels returns all channel configs for a tenant.
 func (s *Service) ListChannels(ctx context.Context, tenantID string) ([]models.NotificationChannel, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.ListChannels")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.ListChannels")
 	defer span.End()
 
 	return s.repo.ListChannels(ctx, tenantID)
@@ -304,7 +304,7 @@ func (s *Service) ListChannels(ctx context.Context, tenantID string) ([]models.N
 
 // GetChannel returns a single channel config by id.
 func (s *Service) GetChannel(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.GetChannel")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetChannel")
 	defer span.End()
 
 	return s.repo.GetChannel(ctx, tenantID, id)
@@ -312,7 +312,7 @@ func (s *Service) GetChannel(ctx context.Context, tenantID, id string) (*models.
 
 // UpdateChannel updates an existing channel configuration.
 func (s *Service) UpdateChannel(ctx context.Context, tenantID string, c *models.NotificationChannel) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.UpdateChannel")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.UpdateChannel")
 	defer span.End()
 
 	c.TenantID = tenantID
@@ -321,7 +321,7 @@ func (s *Service) UpdateChannel(ctx context.Context, tenantID string, c *models.
 
 // DeleteChannel removes a channel configuration.
 func (s *Service) DeleteChannel(ctx context.Context, tenantID, id string) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.DeleteChannel")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.DeleteChannel")
 	defer span.End()
 
 	return s.repo.DeleteChannel(ctx, tenantID, id)
@@ -331,7 +331,7 @@ func (s *Service) DeleteChannel(ctx context.Context, tenantID, id string) error 
 
 // GetSettings returns notification settings for a user, creating defaults if none exist.
 func (s *Service) GetSettings(ctx context.Context, tenantID, userID string) (*models.NotificationSettings, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.GetSettings")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetSettings")
 	defer span.End()
 
 	settings, err := s.repo.GetSettings(ctx, tenantID, userID)
@@ -366,7 +366,7 @@ func (s *Service) GetSettings(ctx context.Context, tenantID, userID string) (*mo
 
 // UpdateSettings updates notification preferences for a user.
 func (s *Service) UpdateSettings(ctx context.Context, tenantID, userID string, req *models.UpdateSettingsRequest) (*models.NotificationSettings, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.UpdateSettings")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.UpdateSettings")
 	defer span.End()
 
 	// Get or create current settings
@@ -447,7 +447,7 @@ func (s *Service) UpdateSettings(ctx context.Context, tenantID, userID string, r
 
 // GetSubscriptions returns all channel subscriptions for a user.
 func (s *Service) GetSubscriptions(ctx context.Context, tenantID, userID string) ([]models.NotificationSubscription, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.GetSubscriptions")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetSubscriptions")
 	defer span.End()
 
 	return s.repo.GetSubscriptions(ctx, tenantID, userID)
@@ -455,7 +455,7 @@ func (s *Service) GetSubscriptions(ctx context.Context, tenantID, userID string)
 
 // Subscribe creates or updates a channel subscription.
 func (s *Service) Subscribe(ctx context.Context, tenantID, userID, channel string, enabled bool) (*models.NotificationSubscription, error) {
-	ctx, span := otel.Tracer().Start(ctx, "Service.Subscribe")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.Subscribe")
 	defer span.End()
 
 	sub := &models.NotificationSubscription{
@@ -473,7 +473,7 @@ func (s *Service) Subscribe(ctx context.Context, tenantID, userID, channel strin
 
 // Unsubscribe removes a channel subscription.
 func (s *Service) Unsubscribe(ctx context.Context, tenantID, userID, channel string) error {
-	ctx, span := otel.Tracer().Start(ctx, "Service.Unsubscribe")
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.Unsubscribe")
 	defer span.End()
 
 	return s.repo.DeleteSubscription(ctx, tenantID, userID, channel)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -22,7 +22,7 @@ func NewWorkflowService(workflowRepo repository.WorkflowRepositoryInterface, tic
 
 // TransitionStatus performs a validated status transition
 func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenantID, toStatus, performedBy, reason string) (*models.Ticket, *models.WorkflowHistory, error) {
-	_, span := otel.Tracer().Start(ctx, "WorkflowService.TransitionStatus")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "WorkflowService.TransitionStatus")
 	defer span.End()
 
 	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
@@ -72,7 +72,7 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 
 // GetWorkflowHistory returns the full workflow history for a ticket
 func (s *WorkflowService) GetWorkflowHistory(ctx context.Context, ticketID string) ([]models.WorkflowHistory, error) {
-	_, span := otel.Tracer().Start(ctx, "WorkflowService.GetWorkflowHistory")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "WorkflowService.GetWorkflowHistory")
 	defer span.End()
 
 	return s.workflowRepo.ListByTicket(ctx, ticketID)

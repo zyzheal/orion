@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"orion/approval-svc-go/internal/models"
-	"orion/approval-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion/approval-svc-go/internal/repository"
 
 	"github.com/jmoiron/sqlx"
@@ -47,7 +47,7 @@ func (s *ApprovalService) Create(ctx context.Context, a *models.Approval) error 
 // SubmitApproval creates a multi-level approval with approver steps.
 // Ported from Node.js MultiLevelApprovalService.submitApprovalRequest.
 func (s *ApprovalService) SubmitApproval(ctx context.Context, tenantID string, req *models.SubmitApprovalRequest) (*models.ApprovalWithSteps, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.SubmitApproval")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.SubmitApproval")
 	defer span.End()
 
 	if len(req.Levels) == 0 {
@@ -135,7 +135,7 @@ func (s *ApprovalService) SubmitApproval(ctx context.Context, tenantID string, r
 // Ported from Node.js ApprovalService.approve + MultiLevelApprovalService.review.
 // Wrapped in a transaction with SELECT FOR UPDATE to prevent race conditions.
 func (s *ApprovalService) Approve(ctx context.Context, tenantID, approvalID, approverID string, comment *string) (*models.ApprovalWithSteps, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.Approve")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.Approve")
 	defer span.End()
 
 	var result *models.ApprovalWithSteps
@@ -250,7 +250,7 @@ func (s *ApprovalService) Approve(ctx context.Context, tenantID, approvalID, app
 // Ported from Node.js ApprovalService.reject + MultiLevelApprovalService.review.
 // Wrapped in a transaction with SELECT FOR UPDATE to prevent race conditions.
 func (s *ApprovalService) Reject(ctx context.Context, tenantID, approvalID, approverID string, comment *string) (*models.ApprovalWithSteps, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.Reject")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.Reject")
 	defer span.End()
 
 	var result *models.ApprovalWithSteps
@@ -331,7 +331,7 @@ func (s *ApprovalService) GetByID(ctx context.Context, tenantID, id string) (*mo
 
 // GetWithSteps returns an approval with its workflow steps.
 func (s *ApprovalService) GetWithSteps(ctx context.Context, tenantID, id string) (*models.ApprovalWithSteps, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.GetWithSteps")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.GetWithSteps")
 	defer span.End()
 
 	approval, err := s.repo.GetByID(ctx, tenantID, id)
@@ -347,7 +347,7 @@ func (s *ApprovalService) GetWithSteps(ctx context.Context, tenantID, id string)
 
 // GetByResource returns approvals matching a resource type and ID.
 func (s *ApprovalService) GetByResource(ctx context.Context, tenantID, resourceType, resourceID string) ([]models.Approval, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.GetByResource")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.GetByResource")
 	defer span.End()
 	return s.repo.FindByResource(ctx, tenantID, resourceType, resourceID)
 }
@@ -355,7 +355,7 @@ func (s *ApprovalService) GetByResource(ctx context.Context, tenantID, resourceT
 // GetPendingForUser returns pending approvals where the user has an actionable step.
 // Ported from Node.js MultiLevelApprovalService.getPendingApprovals.
 func (s *ApprovalService) GetPendingForUser(ctx context.Context, tenantID, userID string) ([]models.ApprovalWithSteps, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.GetPendingForUser")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.GetPendingForUser")
 	defer span.End()
 
 	approvals, err := s.repo.FindPendingByUser(ctx, tenantID, userID)
@@ -379,7 +379,7 @@ func (s *ApprovalService) GetPendingForUser(ctx context.Context, tenantID, userI
 
 // GetStats returns aggregate approval statistics for a tenant.
 func (s *ApprovalService) GetStats(ctx context.Context, tenantID string) (*models.ApprovalStats, error) {
-	ctx, span := otel.Tracer().Start(ctx, "ApprovalService.GetStats")
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.GetStats")
 	defer span.End()
 	return s.repo.GetStats(ctx, tenantID)
 }

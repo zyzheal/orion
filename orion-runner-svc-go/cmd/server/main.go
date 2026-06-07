@@ -50,9 +50,9 @@ func main() {
 		}
 	}
 
-	// Wire up the layers: Repository -> Service -> Handler	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	// Wire up the layers: Repository -> Service -> Handler
+	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
 
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)

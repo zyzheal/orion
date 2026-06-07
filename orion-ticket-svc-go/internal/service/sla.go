@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -23,7 +23,7 @@ func NewSLAService(slaRepo repository.SLARepositoryInterface, ticketRepo reposit
 
 // CreateTarget creates a new SLA target
 func (s *SLAService) CreateTarget(ctx context.Context, req *models.CreateSLATargetRequest) (*models.SLATarget, error) {
-	_, span := otel.Tracer().Start(ctx, "SLAService.CreateTarget")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SLAService.CreateTarget")
 	defer span.End()
 
 	enabled := true
@@ -106,7 +106,7 @@ func (s *SLAService) UnpauseSLA(ctx context.Context, ticketID string) error {
 
 // CheckBreaches checks all pending SLA records for breaches
 func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, error) {
-	_, span := otel.Tracer().Start(ctx, "SLAService.CheckBreaches")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SLAService.CheckBreaches")
 	defer span.End()
 
 	records, err := s.slaRepo.FindPendingRecords(ctx, )

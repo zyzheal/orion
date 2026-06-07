@@ -49,6 +49,7 @@ use (
 	./orion-skill-svc-go
 	./orion-tenant-svc
 	./orion-ticket-svc-go
+	./orion-tool-svc-go
 	./orion-user-svc
 	./orion-visor-svc-go
 	./orion-workflow-svc-go

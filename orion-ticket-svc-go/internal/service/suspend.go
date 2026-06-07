@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -24,7 +24,7 @@ func NewSuspendService(suspendRepo repository.SuspendRepositoryInterface, dispat
 
 // CreateSuspend creates a new suspension record
 func (s *SuspendService) CreateSuspend(ctx context.Context, req *models.CreateSuspendRequest) (*models.SuspendRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "SuspendService.CreateSuspend")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SuspendService.CreateSuspend")
 	defer span.End()
 
 	// Validate reason
@@ -70,7 +70,7 @@ func (s *SuspendService) CreateSuspend(ctx context.Context, req *models.CreateSu
 
 // ActivateSuspend activates a pending suspension
 func (s *SuspendService) ActivateSuspend(ctx context.Context, suspendID string) (*models.SuspendRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "SuspendService.ActivateSuspend")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SuspendService.ActivateSuspend")
 	defer span.End()
 
 	record, err := s.suspendRepo.GetByID(ctx, suspendID)

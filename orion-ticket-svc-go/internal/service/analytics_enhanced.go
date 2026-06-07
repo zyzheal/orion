@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 )
 
@@ -34,7 +34,7 @@ func NewAnalyticsEnhanced(
 
 // GetHeatmapData returns workload distribution data for heatmap visualization
 func (s *AnalyticsEnhanced) GetHeatmapData(ctx context.Context, tenantID string, start, end time.Time) (*models.HeatmapData, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyticsEnhanced.GetHeatmapData")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyticsEnhanced.GetHeatmapData")
 	defer span.End()
 
 	engineers, err := s.dispatchRepo.ListEngineers(ctx)
@@ -78,7 +78,7 @@ func (s *AnalyticsEnhanced) GetHeatmapData(ctx context.Context, tenantID string,
 
 // GetBottleneckAnalysis identifies bottlenecks in ticket processing
 func (s *AnalyticsEnhanced) GetBottleneckAnalysis(ctx context.Context, tenantID string) (*models.BottleneckAnalysis, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyticsEnhanced.GetBottleneckAnalysis")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyticsEnhanced.GetBottleneckAnalysis")
 	defer span.End()
 
 	analysis := &models.BottleneckAnalysis{
@@ -162,7 +162,7 @@ func (s *AnalyticsEnhanced) GetBottleneckAnalysis(ctx context.Context, tenantID 
 
 // GetCategoryBreakdown returns ticket category distribution for an engineer
 func (s *AnalyticsEnhanced) GetCategoryBreakdown(ctx context.Context, engineerID string) ([]models.CategoryBreakdown, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyticsEnhanced.GetCategoryBreakdown")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyticsEnhanced.GetCategoryBreakdown")
 	defer span.End()
 
 	// Get engineer's dispatch records to determine category distribution

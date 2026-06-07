@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"orion-cmdb-svc-go/internal/models"
-	"orion-cmdb-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-cmdb-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -37,7 +37,7 @@ func NewCIService(
 // Create validates input, checks for duplicates, persists the CI with
 // version = 1, creates the initial version snapshot, and writes an audit log.
 func (s *CIService) Create(ctx context.Context, tenantID string, req *models.CreateCIRequest, actor string) (*models.CIItem, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.Create")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.Create")
 	defer span.End()
 
 	// Validate required fields
@@ -102,7 +102,7 @@ func (s *CIService) Create(ctx context.Context, tenantID string, req *models.Cre
 
 // GetByID returns a single CI with error wrapping.
 func (s *CIService) GetByID(ctx context.Context, id, tenantID string) (*models.CIItem, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetByID")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetByID")
 	defer span.End()
 
 	return s.ciRepo.GetByID(ctx, id, tenantID)
@@ -110,7 +110,7 @@ func (s *CIService) GetByID(ctx context.Context, id, tenantID string) (*models.C
 
 // List returns a paginated, filtered list of CIs.
 func (s *CIService) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.CIItem, int, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.List")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.List")
 	defer span.End()
 
 	if q.Page <= 0 {
@@ -126,7 +126,7 @@ func (s *CIService) List(ctx context.Context, tenantID string, q models.ListQuer
 // Update applies partial changes to a CI, records a detailed change description,
 // bumps the version, creates a version snapshot, and writes an audit log.
 func (s *CIService) Update(ctx context.Context, tenantID string, id string, req *models.UpdateCIRequest, actor string) (*models.CIItem, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.Update")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.Update")
 	defer span.End()
 
 	item, err := s.ciRepo.GetByID(ctx, id, tenantID)
@@ -233,7 +233,7 @@ func (s *CIService) Update(ctx context.Context, tenantID string, id string, req 
 // Delete soft-deletes a CI, cascades soft-delete to its relations,
 // and writes an audit log.
 func (s *CIService) Delete(ctx context.Context, tenantID, id, actor string) error {
-	_, span := otel.Tracer().Start(ctx, "CIService.Delete")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.Delete")
 	defer span.End()
 
 	// Verify CI exists before deleting
@@ -266,7 +266,7 @@ func (s *CIService) Count(ctx context.Context, tenantID string) (int, error) {
 
 // GetVersions returns the full version history for a CI, newest first.
 func (s *CIService) GetVersions(ctx context.Context, tenantID, ciID string) ([]models.CIVersion, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetVersions")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetVersions")
 	defer span.End()
 
 	// Verify the CI exists and belongs to the tenant
@@ -279,7 +279,7 @@ func (s *CIService) GetVersions(ctx context.Context, tenantID, ciID string) ([]m
 
 // GetCurrentVersion returns the current version number of a CI.
 func (s *CIService) GetCurrentVersion(ctx context.Context, tenantID, ciID string) (int, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetCurrentVersion")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetCurrentVersion")
 	defer span.End()
 
 	return s.ciRepo.GetCurrentVersion(ctx, ciID, tenantID)
@@ -289,7 +289,7 @@ func (s *CIService) GetCurrentVersion(ctx context.Context, tenantID, ciID string
 // snapshot, applies it, bumps the version, and creates a new version record
 // documenting the restoration.
 func (s *CIService) RestoreToVersion(ctx context.Context, tenantID, ciID string, targetVersion int, actor string) (*models.CIItem, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.RestoreToVersion")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.RestoreToVersion")
 	defer span.End()
 
 	item, err := s.ciRepo.GetByID(ctx, ciID, tenantID)
@@ -352,7 +352,7 @@ func (s *CIService) RestoreToVersion(ctx context.Context, tenantID, ciID string,
 // CreateRelation validates both endpoints exist, checks for duplicates,
 // persists the relation, and writes an audit log.
 func (s *CIService) CreateRelation(ctx context.Context, tenantID string, req *models.CreateRelationRequest, actor string) (*models.CIRelation, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.CreateRelation")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.CreateRelation")
 	defer span.End()
 
 	// Validate both CIs exist
@@ -405,7 +405,7 @@ func (s *CIService) CreateRelation(ctx context.Context, tenantID string, req *mo
 
 // DeleteRelation soft-deletes a relation and writes an audit log.
 func (s *CIService) DeleteRelation(ctx context.Context, tenantID, id string, actor string) error {
-	_, span := otel.Tracer().Start(ctx, "CIService.DeleteRelation")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.DeleteRelation")
 	defer span.End()
 
 	// Verify relation exists
@@ -436,7 +436,7 @@ func (s *CIService) DeleteRelation(ctx context.Context, tenantID, id string, act
 
 // GetTopology returns a single CI with its direct relations attached.
 func (s *CIService) GetTopology(ctx context.Context, tenantID, ciID string) (*models.TopologyNode, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetTopology")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetTopology")
 	defer span.End()
 
 	item, err := s.ciRepo.GetByID(ctx, ciID, tenantID)
@@ -473,7 +473,7 @@ func (s *CIService) GetTopology(ctx context.Context, tenantID, ciID string) (*mo
 // If rootCiID is non-empty and depth > 0, the graph is pruned via BFS
 // to only include nodes reachable within the given depth.
 func (s *CIService) GetFullTopology(ctx context.Context, tenantID string, rootCiID string, depth int) (*models.TopologyResponse, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetFullTopology")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetFullTopology")
 	defer span.End()
 
 	// Fetch all CIs for the tenant
@@ -621,7 +621,7 @@ func (s *CIService) bfsPrune(
 // CIs that depend on it (the "blast radius"). Returns the affected subgraph
 // and an impact level: critical (>=10), high (>=5), medium (>=2), low (<2).
 func (s *CIService) GetImpactAnalysis(ctx context.Context, tenantID, ciID string) (*models.ImpactAnalysisResult, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetImpactAnalysis")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetImpactAnalysis")
 	defer span.End()
 
 	// Verify CI exists
@@ -695,7 +695,7 @@ func (s *CIService) GetImpactAnalysis(ctx context.Context, tenantID, ciID string
 // GetServiceDependencies walks the relation graph forward from the given CI
 // to collect its full dependency tree (up to 10 levels deep).
 func (s *CIService) GetServiceDependencies(ctx context.Context, tenantID, ciID string) (*models.TopologyResponse, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.GetServiceDependencies")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetServiceDependencies")
 	defer span.End()
 
 	if _, err := s.ciRepo.GetByID(ctx, ciID, tenantID); err != nil {
@@ -754,7 +754,7 @@ func (s *CIService) GetServiceDependencies(ctx context.Context, tenantID, ciID s
 
 // ListCIRelations returns all active relations for a given CI.
 func (s *CIService) ListCIRelations(ctx context.Context, tenantID, ciID string) ([]models.CIRelation, error) {
-	_, span := otel.Tracer().Start(ctx, "CIService.ListCIRelations")
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ListCIRelations")
 	defer span.End()
 
 	return s.relRepo.ListByCI(ctx, tenantID, ciID)

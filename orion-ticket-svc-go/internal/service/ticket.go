@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -42,7 +42,7 @@ func NewTicketService(
 }
 
 func (s *TicketService) Create(ctx context.Context, tenantID string, req *models.CreateTicketRequest, createdBy string) (*models.Ticket, error) {
-	_, span := otel.Tracer().Start(ctx, "TicketService.Create")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.Create")
 	defer span.End()
 
 	ticket := &models.Ticket{
@@ -91,13 +91,13 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 }
 
 func (s *TicketService) GetByID(ctx context.Context, id, tenantID string) (*models.Ticket, error) {
-	_, span := otel.Tracer().Start(ctx, "TicketService.GetByID")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.GetByID")
 	defer span.End()
 	return s.repo.GetByID(ctx, id, tenantID)
 }
 
 func (s *TicketService) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error) {
-	_, span := otel.Tracer().Start(ctx, "TicketService.List")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.List")
 	defer span.End()
 
 	if q.Page <= 0 {
@@ -110,19 +110,19 @@ func (s *TicketService) List(ctx context.Context, tenantID string, q models.List
 }
 
 func (s *TicketService) Update(ctx context.Context, ticket *models.Ticket) error {
-	_, span := otel.Tracer().Start(ctx, "TicketService.Update")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.Update")
 	defer span.End()
 	return s.repo.Update(ctx, ticket)
 }
 
 func (s *TicketService) Delete(ctx context.Context, id, tenantID string) error {
-	_, span := otel.Tracer().Start(ctx, "TicketService.Delete")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.Delete")
 	defer span.End()
 	return s.repo.Delete(ctx, id, tenantID)
 }
 
 func (s *TicketService) Resolve(ctx context.Context, id, tenantID, performedBy string) error {
-	_, span := otel.Tracer().Start(ctx, "TicketService.Resolve")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.Resolve")
 	defer span.End()
 
 	if s.workflow != nil {
@@ -133,7 +133,7 @@ func (s *TicketService) Resolve(ctx context.Context, id, tenantID, performedBy s
 }
 
 func (s *TicketService) Assign(ctx context.Context, id, tenantID, assignedTo string) error {
-	_, span := otel.Tracer().Start(ctx, "TicketService.Assign")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.Assign")
 	defer span.End()
 
 	if err := s.repo.UpdateAssignee(ctx, id, tenantID, assignedTo); err != nil {
@@ -163,7 +163,7 @@ func (s *TicketService) GetWorkflowHistory(ctx context.Context, ticketID string)
 }
 
 func (s *TicketService) AddComment(ctx context.Context, ticketID, tenantID string, req *models.CreateCommentRequest) (*models.TicketComment, error) {
-	_, span := otel.Tracer().Start(ctx, "TicketService.AddComment")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.AddComment")
 	defer span.End()
 
 	if _, err := s.repo.GetByID(ctx, ticketID, tenantID); err != nil {
@@ -185,7 +185,7 @@ func (s *TicketService) AddComment(ctx context.Context, ticketID, tenantID strin
 }
 
 func (s *TicketService) ListComments(ctx context.Context, ticketID, tenantID string) ([]models.TicketComment, error) {
-	_, span := otel.Tracer().Start(ctx, "TicketService.ListComments")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.ListComments")
 	defer span.End()
 
 	if _, err := s.repo.GetByID(ctx, ticketID, tenantID); err != nil {

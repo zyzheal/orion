@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 
 	"github.com/google/uuid"
@@ -37,7 +37,7 @@ func NewAnalyticsService(
 
 // GetStatistics returns overall ticket statistics
 func (s *AnalyticsService) GetStatistics(ctx context.Context, tenantID string) (*models.TicketStatistics, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyticsService.GetStatistics")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyticsService.GetStatistics")
 	defer span.End()
 	return s.analyticsRepo.GetTicketStats(ctx, tenantID)
 }
@@ -96,7 +96,7 @@ func (s *AnalyticsService) GetTrendReport(ctx context.Context, tenantID string, 
 
 // GetExecutiveDashboard returns the executive dashboard
 func (s *AnalyticsService) GetExecutiveDashboard(ctx context.Context, tenantID string, start, end time.Time) (*models.ExecutiveDashboard, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyticsService.GetExecutiveDashboard")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyticsService.GetExecutiveDashboard")
 	defer span.End()
 
 	if start.IsZero() {
@@ -272,7 +272,7 @@ func (s *AnalyticsService) GetTimeTrend(ctx context.Context, tenantID, metric st
 
 // TransferTicket transfers a ticket between engineers
 func (s *AnalyticsService) TransferTicket(ctx context.Context, ticketID, tenantID, toEngineerID, initiatedBy, reason string) (*models.TransferRecord, int64, error) {
-	_, span := otel.Tracer().Start(ctx, "AnalyticsService.TransferTicket")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "AnalyticsService.TransferTicket")
 	defer span.End()
 
 	// Get current ticket

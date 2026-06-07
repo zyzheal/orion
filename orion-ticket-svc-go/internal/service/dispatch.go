@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"orion-ticket-svc-go/internal/models"
-	"orion-ticket-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/repository"
 	"time"
 
@@ -33,7 +33,7 @@ func NewDispatchService(engineerRepo repository.DispatchRepositoryInterface, tic
 
 // RegisterEngineer adds a new engineer to the dispatch pool
 func (s *DispatchService) RegisterEngineer(ctx context.Context, req *models.RegisterEngineerRequest) (*models.EngineerProfile, error) {
-	_, span := otel.Tracer().Start(ctx, "DispatchService.RegisterEngineer")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "DispatchService.RegisterEngineer")
 	defer span.End()
 
 	avail := req.Availability
@@ -71,7 +71,7 @@ func (s *DispatchService) GetEngineer(ctx context.Context, id string) (*models.E
 
 // AutoDispatch finds the best engineer for a ticket and assigns it
 func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, assignedBy string) (*models.DispatchRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "DispatchService.AutoDispatch")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "DispatchService.AutoDispatch")
 	defer span.End()
 
 	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
@@ -110,7 +110,7 @@ func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, 
 
 // ManualDispatch assigns a ticket to a specific engineer
 func (s *DispatchService) ManualDispatch(ctx context.Context, ticketID, tenantID, engineerID, assignedBy, reason string) (*models.DispatchRecord, error) {
-	_, span := otel.Tracer().Start(ctx, "DispatchService.ManualDispatch")
+	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "DispatchService.ManualDispatch")
 	defer span.End()
 
 	// Verify engineer exists

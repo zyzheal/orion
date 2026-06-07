@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"orion/deploy-svc-go/internal/models"
-	"orion/deploy-svc-go/internal/otel"
+	"orion/go-common/pkg/otel"
 	"orion/deploy-svc-go/internal/repository"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -33,7 +33,7 @@ func NewDeployService(repo *repository.DeploymentRepository, logger *zap.Logger)
 
 // Create creates a new deployment in pending state.
 func (s *DeployService) Create(ctx context.Context, d *models.Deployment) error {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.Create")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.Create")
 	defer span.End()
 
 	if d.Status == "" {
@@ -58,7 +58,7 @@ func (s *DeployService) Create(ctx context.Context, d *models.Deployment) error 
 
 // GetByID retrieves a deployment by ID.
 func (s *DeployService) GetByID(ctx context.Context, tenantID, id string) (*models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.GetByID")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.GetByID")
 	defer span.End()
 
 	dep, err := s.repo.GetByID(ctx, tenantID, id)
@@ -72,7 +72,7 @@ func (s *DeployService) GetByID(ctx context.Context, tenantID, id string) (*mode
 
 // List returns paginated deployments.
 func (s *DeployService) List(ctx context.Context, tenantID string, offset, limit int) ([]models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.List")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.List")
 	defer span.End()
 
 	return s.repo.List(ctx, tenantID, offset, limit)
@@ -80,7 +80,7 @@ func (s *DeployService) List(ctx context.Context, tenantID string, offset, limit
 
 // ListByFilter returns filtered, paginated deployments.
 func (s *DeployService) ListByFilter(ctx context.Context, tenantID, environment, status string, offset, limit int) ([]models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.ListByFilter")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.ListByFilter")
 	defer span.End()
 
 	return s.repo.ListByFilter(ctx, tenantID, environment, status, offset, limit)
@@ -88,7 +88,7 @@ func (s *DeployService) ListByFilter(ctx context.Context, tenantID, environment,
 
 // Update persists changes to a deployment.
 func (s *DeployService) Update(ctx context.Context, d *models.Deployment) error {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.Update")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.Update")
 	defer span.End()
 
 	return s.repo.Update(ctx, d)
@@ -96,7 +96,7 @@ func (s *DeployService) Update(ctx context.Context, d *models.Deployment) error 
 
 // Delete removes a deployment.
 func (s *DeployService) Delete(ctx context.Context, tenantID, id string) error {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.Delete")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.Delete")
 	defer span.End()
 
 	return s.repo.Delete(ctx, tenantID, id)
@@ -104,7 +104,7 @@ func (s *DeployService) Delete(ctx context.Context, tenantID, id string) error {
 
 // Count returns total deployments for a tenant.
 func (s *DeployService) Count(ctx context.Context, tenantID string) (int, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.Count")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.Count")
 	defer span.End()
 
 	return s.repo.Count(ctx, tenantID)
@@ -114,7 +114,7 @@ func (s *DeployService) Count(ctx context.Context, tenantID string) (int, error)
 
 // StartDeployment transitions from pending to deploying.
 func (s *DeployService) StartDeployment(ctx context.Context, tenantID, id string) (*models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.StartDeployment")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.StartDeployment")
 	defer span.End()
 
 	dep, err := s.repo.GetByID(ctx, tenantID, id)
@@ -145,7 +145,7 @@ func (s *DeployService) StartDeployment(ctx context.Context, tenantID, id string
 
 // CompleteDeployment transitions to a terminal state (success/failed).
 func (s *DeployService) CompleteDeployment(ctx context.Context, tenantID, id, status string, errorMsg *string) (*models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.CompleteDeployment")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.CompleteDeployment")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("target_status", status))
@@ -188,7 +188,7 @@ func (s *DeployService) CompleteDeployment(ctx context.Context, tenantID, id, st
 
 // CancelDeployment cancels a pending or deploying deployment.
 func (s *DeployService) CancelDeployment(ctx context.Context, tenantID, id string) (*models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.CancelDeployment")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.CancelDeployment")
 	defer span.End()
 
 	dep, err := s.repo.GetByID(ctx, tenantID, id)
@@ -222,7 +222,7 @@ func (s *DeployService) CancelDeployment(ctx context.Context, tenantID, id strin
 
 // Rollback creates a new deployment that reverts to the previous successful version.
 func (s *DeployService) Rollback(ctx context.Context, tenantID, id string) (*models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.Rollback")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.Rollback")
 	defer span.End()
 
 	current, err := s.repo.GetByID(ctx, tenantID, id)
@@ -288,7 +288,7 @@ func (s *DeployService) Rollback(ctx context.Context, tenantID, id string) (*mod
 
 // GetLatestDeployment returns the latest deployment for a tenant+environment.
 func (s *DeployService) GetLatestDeployment(ctx context.Context, tenantID, environment string) (*models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.GetLatestDeployment")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.GetLatestDeployment")
 	defer span.End()
 
 	dep, err := s.repo.FindLatestByEnvironment(ctx, tenantID, environment)
@@ -300,7 +300,7 @@ func (s *DeployService) GetLatestDeployment(ctx context.Context, tenantID, envir
 
 // GetDeploymentsByBuild returns all deployments for a build, scoped to tenant.
 func (s *DeployService) GetDeploymentsByBuild(ctx context.Context, tenantID, buildID string) ([]models.Deployment, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.GetDeploymentsByBuild")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.GetDeploymentsByBuild")
 	defer span.End()
 
 	return s.repo.FindByBuild(ctx, tenantID, buildID)
@@ -308,7 +308,7 @@ func (s *DeployService) GetDeploymentsByBuild(ctx context.Context, tenantID, bui
 
 // GetEnvironments returns distinct environments for a tenant.
 func (s *DeployService) GetEnvironments(ctx context.Context, tenantID string) ([]string, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.GetEnvironments")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.GetEnvironments")
 	defer span.End()
 
 	return s.repo.GetEnvironments(ctx, tenantID)
@@ -316,7 +316,7 @@ func (s *DeployService) GetEnvironments(ctx context.Context, tenantID string) ([
 
 // GetDeployStats returns aggregate deployment statistics.
 func (s *DeployService) GetDeployStats(ctx context.Context, tenantID string) (*models.DeployStats, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.GetDeployStats")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.GetDeployStats")
 	defer span.End()
 
 	return s.repo.GetDeployStats(ctx, tenantID)
@@ -326,7 +326,7 @@ func (s *DeployService) GetDeployStats(ctx context.Context, tenantID string) (*m
 
 // GetDeploymentEvents returns all events for a deployment.
 func (s *DeployService) GetDeploymentEvents(ctx context.Context, deploymentID string) ([]models.DeploymentEvent, error) {
-	ctx, span := otel.Tracer().Start(ctx, "DeployService.GetDeploymentEvents")
+	ctx, span := otel.Tracer("orion-deploy-svc").Start(ctx, "DeployService.GetDeploymentEvents")
 	defer span.End()
 
 	return s.repo.FindEvents(ctx, deploymentID)
