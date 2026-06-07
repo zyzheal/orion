@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -635,6 +636,59 @@ func (h *Handler) RemoveFromBlacklist(c *gin.Context) {
 func getEnvOrConfig(envKey, fallback string) string {
 	// Simple env fallback - in real code would use os.Getenv
 	return fallback
+}
+
+// FindOrCreateSSOUser finds an existing user by email or creates a new one for SSO login.
+func (h *Handler) FindOrCreateSSOUser(ctx context.Context, tenantID, email, username, source string) (*models.User, error) {
+	user, err := h.userRepo.GetByEmail(ctx, email)
+	if err == nil {
+		return user, nil
+	}
+
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000000"
+	}
+	if username == "" {
+		username = email
+	}
+
+	user = &models.User{
+		TenantID:     tenantID,
+		Username:     username,
+		Email:        email,
+		PasswordHash: "", // SSO users don't have local passwords
+		Role:         "user",
+		Status:       "active",
+	}
+	if err := h.userRepo.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("create SSO user: %w", err)
+	}
+
+	h.logger.Info("auto-provisioned SSO user",
+		zap.String("email", email),
+		zap.String("source", source),
+	)
+	return user, nil
+}
+
+// IssueTokensForUser generates JWT tokens for a user and stores the refresh token in Redis.
+func (h *Handler) IssueTokensForUser(ctx context.Context, user *models.User) (*models.TokenResponse, error) {
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role, "")
+	if err != nil {
+		return nil, fmt.Errorf("generate tokens: %w", err)
+	}
+
+	refreshKey := "refresh:" + tokens.JTI
+	if err := h.rdb.Set(ctx, refreshKey, tokens.RefreshToken, h.cfg.JWTRefreshExpiration).Err(); err != nil {
+		h.logger.Warn("failed to store refresh token in Redis", zap.Error(err))
+	}
+
+	return &models.TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		TokenType:    tokens.TokenType,
+	}, nil
 }
 
 // getDeviceID extracts or generates a device fingerprint from the request.

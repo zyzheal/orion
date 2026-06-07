@@ -11,6 +11,7 @@ import (
 	"orion/auth-svc/internal/config"
 	"orion/auth-svc/internal/handler"
 	authmw "orion/auth-svc/internal/middleware"
+	"orion/auth-svc/internal/sso"
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
@@ -123,6 +124,54 @@ func main() {
 		auth.POST("/logout", h.Logout)
 		auth.POST("/ldap/login", h.LDAPLogin)
 		auth.POST("/wechat/login", h.WechatLogin)
+	}
+
+	// SSO routes (OIDC, LDAP, WeChat via unified SSO handler)
+	ssoH := handler.NewSSOHandler(handler.SSOConfig{
+		OIDC: sso.OIDCConfig{
+			Issuer:       cfg.OIDCIssuer,
+			ClientID:     cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret,
+			RedirectURI:  cfg.OIDCRedirectURI,
+		},
+		LDAP: sso.LDAPConfig{
+			URL:            cfg.LDAPURL,
+			BindDN:         cfg.LDAPBindDN,
+			BindPassword:   cfg.LDAPBindPassword,
+			UserSearchBase: cfg.LDAPUserBaseDN,
+			UserFilter:     cfg.LDAPUserFilter,
+			GroupBaseDN:    cfg.LDAPGroupBaseDN,
+		},
+		WeChat: sso.WeChatConfig{
+			AppID:       cfg.WeChatCorpID,
+			AppSecret:   cfg.WeChatCorpSecret,
+			RedirectURI: cfg.OIDCRedirectURI,
+			AgentID:     cfg.WeChatAgentID,
+		},
+		Logger: zapLogger,
+	}, func(ctx context.Context, tenantID, email, username, source string) (string, string, int, error) {
+		// Token issuer: find or create user, then issue JWT tokens
+		user, err := h.FindOrCreateSSOUser(ctx, tenantID, email, username, source)
+		if err != nil {
+			return "", "", 0, err
+		}
+		tokens, err := h.IssueTokensForUser(ctx, user)
+		if err != nil {
+			return "", "", 0, err
+		}
+		return tokens.AccessToken, tokens.RefreshToken, tokens.ExpiresIn, nil
+	})
+
+	ssoRoutes := r.Group("/api/v1/auth/sso")
+	{
+		ssoRoutes.GET("/oidc/login", ssoH.OIDCLoginRedirect)
+		ssoRoutes.GET("/oidc/callback", ssoH.OIDCCallback)
+		ssoRoutes.GET("/oidc/providers", ssoH.OIDCProviders)
+		ssoRoutes.POST("/ldap/login", ssoH.LDAPLogin)
+		ssoRoutes.GET("/wechat/login", ssoH.WechatLoginRedirect)
+		ssoRoutes.GET("/wechat/callback", ssoH.WechatCallback)
+		ssoRoutes.GET("/wechat-work/login", ssoH.WechatWorkLoginRedirect)
+		ssoRoutes.GET("/wechat-work/callback", ssoH.WechatWorkCallback)
 	}
 
 	// Auth routes (authenticated) — uses auth-svc's own Auth middleware

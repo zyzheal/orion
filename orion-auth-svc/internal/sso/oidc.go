@@ -87,6 +87,11 @@ func NewOIDCProvider(config OIDCConfig) *OIDCProvider {
 	}
 }
 
+// Issuer returns the configured OIDC issuer URL.
+func (p *OIDCProvider) Issuer() string {
+	return p.config.Issuer
+}
+
 // Discover fetches the OIDC discovery document.
 func (p *OIDCProvider) Discover(ctx context.Context) (*OIDCDiscovery, error) {
 	discoveryURL := p.config.DiscoveryURL

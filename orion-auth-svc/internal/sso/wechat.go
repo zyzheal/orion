@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,11 @@ type WeChatConfig struct {
 type WeChatOAuthClient struct {
 	config WeChatConfig
 	client *http.Client
+
+	// Work access token cache (WeChat rate-limits token requests to 2000/day)
+	workTokenMu    sync.Mutex
+	workToken      string
+	workTokenExpiry time.Time
 }
 
 // NewWeChatOAuthClient creates a new WeChat OAuth client.
@@ -219,8 +225,17 @@ func (c *WeChatOAuthClient) GetWorkUserInfo(ctx context.Context, code string) (*
 	return &userInfo, nil
 }
 
-// getWorkAccessToken gets a WeChat Work access token.
+// getWorkAccessToken gets a WeChat Work access token with caching.
+// WeChat rate-limits token requests to 2000/day, so we cache the token.
 func (c *WeChatOAuthClient) getWorkAccessToken(ctx context.Context) (string, error) {
+	c.workTokenMu.Lock()
+	defer c.workTokenMu.Unlock()
+
+	// Return cached token if still valid (with 5-minute buffer)
+	if c.workToken != "" && time.Now().Before(c.workTokenExpiry.Add(-5*time.Minute)) {
+		return c.workToken, nil
+	}
+
 	v := url.Values{}
 	v.Set("corpid", c.config.AppID)
 	v.Set("corpsecret", c.config.AppSecret)
@@ -251,5 +266,51 @@ func (c *WeChatOAuthClient) getWorkAccessToken(ctx context.Context) (string, err
 		return "", fmt.Errorf("wechat work error %d: %s", result.ErrCode, result.ErrMsg)
 	}
 
+	// Cache the token
+	c.workToken = result.AccessToken
+	c.workTokenExpiry = time.Now().Add(time.Duration(result.ExpiresIn) * time.Second)
+
 	return result.AccessToken, nil
+}
+
+// ValidateToken validates an Open Platform access token.
+// Returns nil if the token is valid for the configured app.
+func (c *WeChatOAuthClient) ValidateToken(ctx context.Context, accessToken, openID string) error {
+	v := url.Values{}
+	v.Set("access_token", accessToken)
+	v.Set("openid", openID)
+
+	reqURL := "https://api.weixin.qq.com/sns/auth?" + v.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("create auth request: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("validate token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("decode auth response: %w", err)
+	}
+	if result.ErrCode != 0 {
+		return fmt.Errorf("token validation failed (code %d): %s", result.ErrCode, result.ErrMsg)
+	}
+
+	return nil
+}
+
+// InvalidateWorkToken clears the cached work access token.
+func (c *WeChatOAuthClient) InvalidateWorkToken() {
+	c.workTokenMu.Lock()
+	defer c.workTokenMu.Unlock()
+	c.workToken = ""
+	c.workTokenExpiry = time.Time{}
 }

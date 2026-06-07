@@ -24,6 +24,22 @@ type Config struct {
 	// Cookie security
 	SecureCookie           bool
 	OTelEndpoint           string
+	// SSO / OIDC
+	OIDCIssuer             string
+	OIDCClientID           string
+	OIDCClientSecret       string
+	OIDCRedirectURI        string
+	// LDAP
+	LDAPURL                string
+	LDAPBindDN             string
+	LDAPBindPassword       string
+	LDAPUserBaseDN         string
+	LDAPUserFilter         string
+	LDAPGroupBaseDN        string
+	// WeChat
+	WeChatCorpID           string
+	WeChatCorpSecret       string
+	WeChatAgentID          string
 }
 
 func Load() (*Config, error) {
@@ -46,6 +62,22 @@ func Load() (*Config, error) {
 	v.SetDefault("rs256_public_key_path", "")
 	v.SetDefault("secure_cookie", true)
 	v.SetDefault("otel_endpoint", "")
+	// SSO / OIDC
+	v.SetDefault("oidc_issuer", "")
+	v.SetDefault("oidc_client_id", "")
+	v.SetDefault("oidc_client_secret", "")
+	v.SetDefault("oidc_redirect_uri", "")
+	// LDAP
+	v.SetDefault("ldap_url", "")
+	v.SetDefault("ldap_bind_dn", "")
+	v.SetDefault("ldap_bind_password", "")
+	v.SetDefault("ldap_user_base_dn", "")
+	v.SetDefault("ldap_user_filter", "(uid=%s)")
+	v.SetDefault("ldap_group_base_dn", "")
+	// WeChat
+	v.SetDefault("wechat_corp_id", "")
+	v.SetDefault("wechat_corp_secret", "")
+	v.SetDefault("wechat_agent_id", "")
 
 	_ = v.ReadInConfig()
 	v.AutomaticEnv()
@@ -64,6 +96,22 @@ func Load() (*Config, error) {
 		RS256PublicKeyPath:   getEnvOrConfig("RS256_PUBLIC_KEY_PATH", v.GetString("rs256_public_key_path")),
 		SecureCookie:         v.GetBool("secure_cookie"),
 		OTelEndpoint:         getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
+		// SSO / OIDC
+		OIDCIssuer:           getEnvOrConfig("OIDC_ISSUER", v.GetString("oidc_issuer")),
+		OIDCClientID:         getEnvOrConfig("OIDC_CLIENT_ID", v.GetString("oidc_client_id")),
+		OIDCClientSecret:     getEnvOrConfig("OIDC_CLIENT_SECRET", v.GetString("oidc_client_secret")),
+		OIDCRedirectURI:      getEnvOrConfig("OIDC_REDIRECT_URI", v.GetString("oidc_redirect_uri")),
+		// LDAP
+		LDAPURL:              getEnvOrConfig("LDAP_URL", v.GetString("ldap_url")),
+		LDAPBindDN:           getEnvOrConfig("LDAP_BIND_DN", v.GetString("ldap_bind_dn")),
+		LDAPBindPassword:     getEnvOrConfig("LDAP_BIND_PASSWORD", v.GetString("ldap_bind_password")),
+		LDAPUserBaseDN:       getEnvOrConfig("LDAP_USER_BASE_DN", v.GetString("ldap_user_base_dn")),
+		LDAPUserFilter:       getEnvOrConfig("LDAP_USER_FILTER", v.GetString("ldap_user_filter")),
+		LDAPGroupBaseDN:      getEnvOrConfig("LDAP_GROUP_BASE_DN", v.GetString("ldap_group_base_dn")),
+		// WeChat
+		WeChatCorpID:         getEnvOrConfig("WECHAT_CORP_ID", v.GetString("wechat_corp_id")),
+		WeChatCorpSecret:     getEnvOrConfig("WECHAT_CORP_SECRET", v.GetString("wechat_corp_secret")),
+		WeChatAgentID:        getEnvOrConfig("WECHAT_AGENT_ID", v.GetString("wechat_agent_id")),
 	}
 
 	if cfg.JWTSecret == "" {
