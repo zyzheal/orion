@@ -7,6 +7,8 @@ import (
 	"orion/canary-svc-go/internal/models"
 	"orion/canary-svc-go/internal/service"
 
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,15 +25,15 @@ func NewHandler(svc *service.CanaryService) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	canaries := rg.Group("/canaries")
 	{
-		canaries.POST("", h.CreateCanary)
+		canaries.POST("", auth.RequirePermission("canary", "write"), h.CreateCanary)
 		canaries.GET("", h.ListCanaries)
 		canaries.GET("/:id", h.GetCanary)
-		canaries.POST("/:id/promote", h.Promote)
-		canaries.POST("/:id/rollback", h.Rollback)
-		canaries.POST("/:id/metrics", h.AddMetric)
+		canaries.POST("/:id/promote", auth.RequirePermission("canary", "write"), h.Promote)
+		canaries.POST("/:id/rollback", auth.RequirePermission("canary", "execute"), h.Rollback)
+		canaries.POST("/:id/metrics", auth.RequirePermission("canary", "write"), h.AddMetric)
 		canaries.GET("/:id/metrics", h.GetMetrics)
 	}
-	canaries.DELETE("/:id", h.Delete)
+	canaries.DELETE("/:id", auth.RequirePermission("canary", "delete"), h.Delete)
 	canaries.GET("/count", h.Count)
 }
 
@@ -90,7 +92,7 @@ func (h *Handler) Promote(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.Promote(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.Promote(c.Request.Context(), tenantID, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -102,7 +104,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.Rollback(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.Rollback(c.Request.Context(), tenantID, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

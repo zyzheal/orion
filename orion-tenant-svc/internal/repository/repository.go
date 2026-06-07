@@ -64,7 +64,9 @@ func (r *TenantRepository) List(ctx context.Context, offset, limit int) ([]model
 }
 
 func (r *TenantRepository) Count(ctx context.Context) (int, error) {
-	return r.BaseRepository.Count(ctx, "tenants", "true")
+	var count int
+	err := r.DB().GetContext(ctx, &count, "SELECT COUNT(*) FROM tenants WHERE status != 'deleted'")
+	return count, err
 }
 
 func (r *TenantRepository) Update(ctx context.Context, tenant *models.Tenant) error {
@@ -93,12 +95,17 @@ func (r *TenantRepository) Exists(ctx context.Context, id string) (bool, error) 
 	return r.BaseRepository.Exists(ctx, "tenants", "id = $1", id)
 }
 
-// UpdateStatus delegates to BaseRepository.
+// UpdateStatus updates tenant status directly (tenants table has no tenant_id column).
 func (r *TenantRepository) UpdateStatus(ctx context.Context, id, status string) error {
-	return r.BaseRepository.UpdateStatus(ctx, "tenants", id, status)
+	_, err := r.DB().ExecContext(ctx,
+		"UPDATE tenants SET status = $1, updated_at = now() WHERE id = $2",
+		status, id)
+	return err
 }
 
-// SoftDelete delegates to BaseRepository.
+// SoftDelete soft-deletes a tenant directly (tenants table has no tenant_id column).
 func (r *TenantRepository) SoftDelete(ctx context.Context, id string) error {
-	return r.BaseRepository.SoftDelete(ctx, "tenants", id)
+	_, err := r.DB().ExecContext(ctx,
+		"UPDATE tenants SET status = 'deleted', updated_at = now() WHERE id = $1", id)
+	return err
 }

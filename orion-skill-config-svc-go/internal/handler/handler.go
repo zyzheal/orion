@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"orion/skill-config-svc-go/internal/models"
 	"orion/skill-config-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,8 +15,8 @@ func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/configs")
-	r.POST("", h.Create); r.GET("", h.List); r.GET("/:id", h.Get)
-	r.DELETE("/:id", h.Delete)
+	r.POST("", auth.RequirePermission("skill", "write"), h.Create); r.GET("", h.List); r.GET("/:id", h.Get)
+	r.DELETE("/:id", auth.RequirePermission("skill", "delete"), h.Delete)
 	r.GET("/count", h.Count)
 }
 

@@ -50,7 +50,7 @@ func (r *TransferRepository) GetStats(ctx context.Context, start, end time.Time)
 	stats["avg_hold_duration_ms"] = avgHold
 
 	// By engineer
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT to_engineer_id, COUNT(*) as cnt FROM ticket_transfers
 		WHERE created_at BETWEEN $1 AND $2 GROUP BY to_engineer_id ORDER BY cnt DESC LIMIT 10`, start, end)
 	if err == nil {

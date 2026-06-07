@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"orion/approval-svc-go/internal/models"
 	"orion/approval-svc-go/internal/service"
+
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,15 +26,33 @@ func NewHandler(svc *service.ApprovalService) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	approvals := rg.Group("/approvals")
 	{
-		approvals.POST("", h.CreateApproval)
+		approvals.POST("", auth.RequirePermission("approval", "write"), h.CreateApproval)
 		approvals.GET("", h.ListApprovals)
+		approvals.GET("/count", h.Count)
 		approvals.GET("/:id", h.GetApproval)
-		approvals.POST("/:id/approve", h.Approve)
-		approvals.POST("/:id/reject", h.Reject)
-		approvals.POST("/:id/cancel", h.Cancel)
+		approvals.POST("/:id/approve", auth.RequirePermission("approval", "execute"), h.Approve)
+		approvals.POST("/:id/reject", auth.RequirePermission("approval", "execute"), h.Reject)
+		approvals.POST("/:id/cancel", auth.RequirePermission("approval", "execute"), h.Cancel)
 		approvals.GET("/:id/steps", h.GetSteps)
-		approvals.DELETE("/:id", h.DeleteApproval)
-		approvals.GET("/count", h.CountApprovals)
+		approvals.DELETE("/:id", auth.RequirePermission("approval", "delete"), h.Delete)
+	}
+}
+
+// mapError maps service-layer errors to appropriate HTTP status codes.
+func mapError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrApprovalNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrStepNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrInvalidStatus):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrAlreadyActed):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrNotAuthorized):
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }
 
@@ -57,7 +78,7 @@ func (h *Handler) GetApproval(c *gin.Context) {
 
 	approval, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "approval not found"})
+		mapError(c, err)
 		return
 	}
 
@@ -91,20 +112,21 @@ func (h *Handler) Approve(c *gin.Context) {
 	id := c.Param("id")
 
 	var req struct {
-		StepID  string  `json:"step_id" binding:"required"`
-		Comment *string `json:"comment"`
+		ApproverID string  `json:"approver_id" binding:"required"`
+		Comment    *string `json:"comment"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.svc.Approve(c.Request.Context(), tenantID, id, req.StepID, req.Comment); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	result, err := h.svc.Approve(c.Request.Context(), tenantID, id, req.ApproverID, req.Comment)
+	if err != nil {
+		mapError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "approved"})
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) Reject(c *gin.Context) {
@@ -112,20 +134,21 @@ func (h *Handler) Reject(c *gin.Context) {
 	id := c.Param("id")
 
 	var req struct {
-		StepID  string  `json:"step_id" binding:"required"`
-		Comment *string `json:"comment" binding:"required"`
+		ApproverID string  `json:"approver_id" binding:"required"`
+		Comment    *string `json:"comment" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.svc.Reject(c.Request.Context(), tenantID, id, req.StepID, req.Comment); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	result, err := h.svc.Reject(c.Request.Context(), tenantID, id, req.ApproverID, req.Comment)
+	if err != nil {
+		mapError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "rejected"})
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) Cancel(c *gin.Context) {
@@ -133,7 +156,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.Cancel(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		mapError(c, err)
 		return
 	}
 
@@ -155,33 +178,13 @@ func (h *Handler) GetSteps(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		mapError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
-}
-
-
-func (h *Handler) DeleteApproval(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
-}
-
-func (h *Handler) CountApprovals(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {

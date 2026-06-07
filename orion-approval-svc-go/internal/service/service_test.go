@@ -17,4 +17,7 @@ func TestServiceErrors(t *testing.T) {
 	if ErrAlreadyActed.Error() != "step already acted upon" {
 		t.Errorf("unexpected error message: %s", ErrAlreadyActed.Error())
 	}
+	if ErrNotAuthorized.Error() != "not authorized for this approval" {
+		t.Errorf("unexpected error message: %s", ErrNotAuthorized.Error())
+	}
 }

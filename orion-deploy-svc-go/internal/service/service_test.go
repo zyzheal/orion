@@ -15,3 +15,13 @@ func TestServiceErrors(t *testing.T) {
 		t.Errorf("unexpected error message: %s", ErrNoRollbackTarget.Error())
 	}
 }
+
+func TestSafeStr(t *testing.T) {
+	if got := safeStr(nil); got != "" {
+		t.Errorf("expected empty string for nil, got %q", got)
+	}
+	s := "hello"
+	if got := safeStr(&s); got != "hello" {
+		t.Errorf("expected 'hello', got %q", got)
+	}
+}

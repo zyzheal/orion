@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -94,11 +96,18 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role)
+	deviceID := getDeviceID(c)
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role, deviceID)
 	if err != nil {
 		h.logger.Error("failed to generate tokens", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
+	}
+
+	// Store refresh token in Redis for concurrent refresh detection (P0 security)
+	refreshKey := "refresh:" + tokens.JTI
+	if err := h.rdb.Set(ctx, refreshKey, tokens.RefreshToken, h.cfg.JWTRefreshExpiration).Err(); err != nil {
+		h.logger.Warn("failed to store refresh token in Redis", zap.Error(err))
 	}
 
 	// Record session
@@ -115,11 +124,17 @@ func (h *Handler) Login(c *gin.Context) {
 		h.logger.Warn("failed to create session record", zap.Error(err))
 	}
 
-	h.success(c, models.TokenResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		ExpiresIn:    tokens.ExpiresIn,
-		TokenType:    tokens.TokenType,
+	// Set HttpOnly Cookies for token storage (spec: C-3)
+	c.SetSameSite(http.SameSiteStrictMode)
+	cookieSecure := h.cfg.SecureCookie
+	c.SetCookie("access_token", tokens.AccessToken, int(h.cfg.JWTExpiration.Seconds()),
+		"/", "", cookieSecure, true) // HttpOnly=true
+	c.SetCookie("refresh_token", tokens.RefreshToken, int(h.cfg.JWTRefreshExpiration.Seconds()),
+		"/", "", cookieSecure, true) // HttpOnly=true
+
+	h.success(c, gin.H{
+		"expires_in": tokens.ExpiresIn,
+		"token_type": tokens.TokenType,
 	})
 }
 
@@ -147,26 +162,59 @@ func (h *Handler) Register(c *gin.Context) {
 	h.success(c, gin.H{"user_id": user.ID, "username": user.Username, "email": user.Email})
 }
 
+// refreshLuaScript atomically checks and rotates refresh tokens.
+// If the stored token matches, it replaces with the new token.
+// If mismatch (concurrent refresh detected), it deletes the key and returns REVOKED.
+const refreshLuaScript = `
+local current = redis.call('GET', KEYS[1])
+if current == ARGV[1] then
+    redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+    return 'OK'
+else
+    redis.call('DEL', KEYS[1])
+    return 'REVOKED'
+end
+`
+
 // RefreshToken issues a new access token using a refresh token.
+// Reads refresh_token from HttpOnly Cookie (spec: C-3).
+// Uses Redis Lua script for concurrent refresh protection (P0 security).
 func (h *Handler) RefreshToken(c *gin.Context) {
-	var req models.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.err(c, http.StatusBadRequest, "invalid request")
-		return
+	// Read refresh token from Cookie first, fallback to JSON body
+	refreshTokenStr, err := c.Cookie("refresh_token")
+	if err != nil || refreshTokenStr == "" {
+		var req models.RefreshRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			h.err(c, http.StatusBadRequest, "invalid request")
+			return
+		}
+		refreshTokenStr = req.RefreshToken
 	}
 
 	ctx := c.Request.Context()
 
 	// Check Redis blacklist first
-	blocked, err := h.rdb.Exists(ctx, "token:blacklist:"+req.RefreshToken).Result()
+	blocked, err := h.rdb.Exists(ctx, "token:blacklist:"+refreshTokenStr).Result()
 	if err == nil && blocked > 0 {
 		h.err(c, http.StatusUnauthorized, "refresh token revoked")
 		return
 	}
 
-	claims, err := h.services.JWT.ValidateRefreshToken(req.RefreshToken)
+	claims, err := h.services.JWT.ValidateRefreshToken(refreshTokenStr)
 	if err != nil {
 		h.err(c, http.StatusUnauthorized, "invalid refresh token")
+		return
+	}
+
+	// Device fingerprint binding: verify device_id matches
+	deviceID := getDeviceID(c)
+	if claims.DeviceID != "" && claims.DeviceID != deviceID {
+		h.logger.Warn("device fingerprint mismatch",
+			zap.String("user_id", claims.Subject),
+			zap.String("expected_device", claims.DeviceID),
+			zap.String("actual_device", deviceID),
+		)
+		h.err(c, http.StatusUnauthorized, "device mismatch, please re-authenticate")
 		return
 	}
 
@@ -177,17 +225,45 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.services.JWT.GenerateTokens(claims.Subject, claims.TenantID, claims.Role)
+	// Generate new tokens with same device ID
+	tokens, err := h.services.JWT.GenerateTokens(claims.Subject, claims.TenantID, claims.Role, deviceID)
 	if err != nil {
 		h.logger.Error("failed to generate new tokens", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 
+	// Concurrent refresh protection: atomically verify and rotate refresh token in Redis
+	refreshKey := "refresh:" + claims.JTI
+	ttlSeconds := int(h.cfg.JWTRefreshExpiration.Seconds())
+	result, err := h.rdb.Eval(ctx, refreshLuaScript, []string{refreshKey},
+		refreshTokenStr, tokens.RefreshToken, ttlSeconds).Result()
+	if err != nil {
+		h.logger.Warn("Redis Lua eval failed, falling through without concurrent protection", zap.Error(err))
+		// Continue without concurrent protection if Redis fails
+	} else if result == "REVOKED" {
+		// Concurrent refresh detected — revoke all tokens for this JTI
+		h.logger.Warn("concurrent refresh detected, revoking all tokens",
+			zap.String("jti", claims.JTI),
+			zap.String("user_id", claims.Subject),
+		)
+		// Blacklist the new access token too
+		h.rdb.Set(ctx, "token:blacklist:"+tokens.AccessToken, "1", h.cfg.JWTExpiration)
+		h.err(c, http.StatusUnauthorized, "concurrent refresh detected, all tokens revoked")
+		return
+	}
+
+	// Set new HttpOnly Cookies
+	c.SetSameSite(http.SameSiteStrictMode)
+	cookieSecure := h.cfg.SecureCookie
+	c.SetCookie("access_token", tokens.AccessToken, int(h.cfg.JWTExpiration.Seconds()),
+		"/", "", cookieSecure, true)
+	c.SetCookie("refresh_token", tokens.RefreshToken, int(h.cfg.JWTRefreshExpiration.Seconds()),
+		"/", "", cookieSecure, true)
+
 	h.success(c, gin.H{
-		"access_token": tokens.AccessToken,
-		"token_type":   tokens.TokenType,
-		"expires_in":   tokens.ExpiresIn,
+		"expires_in": tokens.ExpiresIn,
+		"token_type": tokens.TokenType,
 	})
 }
 
@@ -213,6 +289,8 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	// Blacklist in Redis (fast lookup)
 	h.rdb.Set(ctx, "token:blacklist:"+token, "1", h.cfg.JWTExpiration)
+	// Remove refresh token from Redis to prevent reuse
+	h.rdb.Del(ctx, "refresh:"+claims.JTI)
 
 	// Blacklist in DB (persistent)
 	entry := &models.TokenBlacklist{
@@ -271,12 +349,17 @@ func (h *Handler) LDAPLogin(c *gin.Context) {
 		}
 	}
 
-	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role)
+	deviceID := getDeviceID(c)
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role, deviceID)
 	if err != nil {
 		h.logger.Error("failed to generate tokens", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	// Store refresh token in Redis for concurrent refresh detection
+	refreshKey := "refresh:" + tokens.JTI
+	h.rdb.Set(ctx, refreshKey, tokens.RefreshToken, h.cfg.JWTRefreshExpiration)
 
 	h.success(c, models.TokenResponse{
 		AccessToken:  tokens.AccessToken,
@@ -352,12 +435,17 @@ func (h *Handler) WechatLogin(c *gin.Context) {
 		}
 	}
 
-	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role)
+	deviceID := getDeviceID(c)
+	tokens, err := h.services.JWT.GenerateTokens(user.ID, user.TenantID, user.Role, deviceID)
 	if err != nil {
 		h.logger.Error("failed to generate tokens", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	// Store refresh token in Redis for concurrent refresh detection
+	refreshKey := "refresh:" + tokens.JTI
+	h.rdb.Set(ctx, refreshKey, tokens.RefreshToken, h.cfg.JWTRefreshExpiration)
 
 	h.success(c, models.TokenResponse{
 		AccessToken:  tokens.AccessToken,
@@ -547,4 +635,17 @@ func (h *Handler) RemoveFromBlacklist(c *gin.Context) {
 func getEnvOrConfig(envKey, fallback string) string {
 	// Simple env fallback - in real code would use os.Getenv
 	return fallback
+}
+
+// getDeviceID extracts or generates a device fingerprint from the request.
+// Priority: X-Device-ID header > hash(User-Agent + IP).
+func getDeviceID(c *gin.Context) string {
+	if devID := c.GetHeader("X-Device-ID"); devID != "" {
+		return devID
+	}
+	// Generate fingerprint from User-Agent + Client IP
+	ua := c.GetHeader("User-Agent")
+	ip := c.ClientIP()
+	h := sha256.Sum256([]byte(ua + "|" + ip))
+	return hex.EncodeToString(h[:8]) // 16-char fingerprint
 }

@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	errors "errors"
+	"errors"
 	"orion/chatops-svc-go/internal/models"
 	"orion/chatops-svc-go/internal/repository"
 	"github.com/google/uuid"

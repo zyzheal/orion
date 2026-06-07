@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"orion/artifact-svc-go/internal/models"
 	"orion/artifact-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,8 +15,8 @@ func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/artifacts")
-	r.POST("", h.Create); r.GET("", h.List); r.GET("/:id", h.Get)
-	r.DELETE("/:id", h.Delete)
+	r.POST("", auth.RequirePermission("artifact", "write"), h.Create); r.GET("", h.List); r.GET("/:id", h.Get)
+	r.DELETE("/:id", auth.RequirePermission("artifact", "delete"), h.Delete)
 	r.GET("/count", h.Count)
 }
 
@@ -30,9 +32,10 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	opts := &models.ListQueryOptions{Page: page, PageSize: ps}
+	items, total, err := h.svc.List(c.Request.Context(), tenantID, opts)
 	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	c.JSON(http.StatusOK, gin.H{"data": items, "total": total})
 }
 
 func (h *Handler) Get(c *gin.Context) {

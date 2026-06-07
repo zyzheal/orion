@@ -7,6 +7,8 @@ import (
 	"orion/finops-svc-go/internal/models"
 	"orion/finops-svc-go/internal/service"
 
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,19 +25,19 @@ func NewHandler(svc *service.FinOpsService) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	costs := rg.Group("/costs")
 	{
-		costs.POST("/cloud", h.RecordCloudCost)
-		costs.POST("/k8s", h.RecordK8sCost)
-		costs.POST("/saas", h.RecordSaaSCost)
+		costs.POST("/cloud", auth.RequirePermission("finops", "write"), h.RecordCloudCost)
+		costs.POST("/k8s", auth.RequirePermission("finops", "write"), h.RecordK8sCost)
+		costs.POST("/saas", auth.RequirePermission("finops", "write"), h.RecordSaaSCost)
 		costs.GET("/summary", h.GetCostSummary)
 	}
 
 	alerts := rg.Group("/budget-alerts")
 	{
-		alerts.POST("", h.CreateBudgetAlert)
+		alerts.POST("", auth.RequirePermission("finops", "write"), h.CreateBudgetAlert)
 		alerts.GET("", h.ListBudgetAlerts)
-		alerts.PUT("/:id", h.UpdateBudgetAlert)
+		alerts.PUT("/:id", auth.RequirePermission("finops", "write"), h.UpdateBudgetAlert)
 	}
-	costs.DELETE("/:id", h.Delete)
+	costs.DELETE("/:id", auth.RequirePermission("finops", "delete"), h.Delete)
 	costs.GET("/count", h.Count)
 }
 

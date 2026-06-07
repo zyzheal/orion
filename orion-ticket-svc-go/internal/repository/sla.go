@@ -143,7 +143,7 @@ func (r *SLARepository) GetComplianceReport(ctx context.Context, start, end time
 		FROM sla_records WHERE resolved_at IS NOT NULL AND created_at BETWEEN $1 AND $2`, start, end)
 
 	// By priority
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT priority, COUNT(*) as total,
 		COUNT(CASE WHEN breached THEN 1 END) as breached
 		FROM sla_records WHERE created_at BETWEEN $1 AND $2

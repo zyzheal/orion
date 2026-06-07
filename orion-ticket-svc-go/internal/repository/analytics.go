@@ -38,7 +38,7 @@ func (r *AnalyticsRepository) GetTicketStats(ctx context.Context, tenantID strin
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL`, tenantID)
 
 	// By priority
-	rows, err := r.db.Query("SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY priority", tenantID)
+	rows, err := r.db.QueryContext(ctx, "SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY priority", tenantID)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -50,7 +50,7 @@ func (r *AnalyticsRepository) GetTicketStats(ctx context.Context, tenantID strin
 	}
 
 	// By category
-	rows2, err := r.db.Query("SELECT type, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY type", tenantID)
+	rows2, err := r.db.QueryContext(ctx, "SELECT type, COUNT(*) FROM tickets WHERE tenant_id = $1 GROUP BY type", tenantID)
 	if err == nil {
 		defer rows2.Close()
 		for rows2.Next() {
@@ -79,7 +79,7 @@ func (r *AnalyticsRepository) GetResolutionStats(ctx context.Context, tenantID s
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL`, tenantID)
 
 	// By priority
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT priority, AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000)
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL GROUP BY priority`, tenantID)
 	if err == nil {
@@ -107,7 +107,7 @@ func (r *AnalyticsRepository) GetBacklogAnalysis(ctx context.Context, tenantID s
 	}
 
 	// By priority
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 AND status IN ('open', 'assigned', 'in-progress') GROUP BY priority`, tenantID)
 	if err == nil {
 		defer rows.Close()
@@ -129,7 +129,7 @@ func (r *AnalyticsRepository) GetBacklogAnalysis(ctx context.Context, tenantID s
 func (r *AnalyticsRepository) GetTrendData(ctx context.Context, tenantID string, days int, granularity string) ([]models.TrendPoint, error) {
 	var points []models.TrendPoint
 
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT DATE_TRUNC($1, created_at) as ts, COUNT(*) as cnt
 		FROM tickets WHERE tenant_id = $2 AND created_at > NOW() - ($3 || ' days')::interval
 		GROUP BY ts ORDER BY ts`, granularity, tenantID, days)
@@ -169,7 +169,7 @@ func (r *AnalyticsRepository) GetExecutiveDashboard(ctx context.Context, tenantI
 		FROM tickets WHERE tenant_id = $1 AND resolved_at IS NOT NULL AND created_at BETWEEN $2 AND $3`, tenantID, start, end)
 
 	// By priority
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		"SELECT priority, COUNT(*) FROM tickets WHERE tenant_id = $1 AND created_at BETWEEN $2 AND $3 GROUP BY priority", tenantID, start, end)
 	if err == nil {
 		defer rows.Close()

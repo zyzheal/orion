@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"orion/inspection-svc-go/internal/models"
 	"orion/inspection-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,14 +15,14 @@ func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/inspections")
-	r.POST("/rules", h.CreateRule)
+	r.POST("/rules", auth.RequirePermission("inspection", "write"), h.CreateRule)
 	r.GET("/rules", h.ListRules)
 	r.GET("/rules/:id", h.GetRule)
-	r.PUT("/rules/:id", h.UpdateRule)
-	r.DELETE("/rules/:id", h.DeleteRule)
+	r.PUT("/rules/:id", auth.RequirePermission("inspection", "write"), h.UpdateRule)
+	r.DELETE("/rules/:id", auth.RequirePermission("inspection", "delete"), h.DeleteRule)
 	r.GET("/results", h.ListResults)
 	r.GET("/rules/:id/results", h.ListResultsByRule)
-	r.DELETE("/:id", h.Delete)
+	r.DELETE("/:id", auth.RequirePermission("inspection", "delete"), h.Delete)
 	r.GET("/count", h.Count)
 }
 

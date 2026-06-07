@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/orion-platform/orion-monitor-svc-go/internal/models"
 	"go.uber.org/zap"
 )
@@ -131,4 +132,89 @@ func (r *MetricRepository) DeleteOldMetrics(ctx context.Context, tenantID uuid.U
 		return 0, fmt.Errorf("delete old metrics: %w", err)
 	}
 	return tag.RowsAffected(), nil
+}
+
+// GetAggregation computes aggregate statistics for a metric within a time window.
+func (r *MetricRepository) GetAggregation(ctx context.Context, tenantID uuid.UUID, metricName string, startTime, endTime time.Time) (*models.MetricAggregation, error) {
+	query := `
+SELECT
+	COALESCE(AVG(value), 0) AS avg,
+	COALESCE(MAX(value), 0) AS max,
+	COALESCE(MIN(value), 0) AS min,
+	COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY value), 0) AS p95,
+	COALESCE(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY value), 0) AS p99,
+	COALESCE(COUNT(*), 0) AS count,
+	COALESCE(SUM(value), 0) AS sum
+FROM metrics
+WHERE tenant_id = $1 AND metric_name = $2`
+
+	args := []any{tenantID, metricName}
+	argIdx := 3
+
+	if !startTime.IsZero() {
+		query += fmt.Sprintf(" AND timestamp >= $%d", argIdx)
+		args = append(args, startTime)
+		argIdx++
+	}
+	if !endTime.IsZero() {
+		query += fmt.Sprintf(" AND timestamp <= $%d", argIdx)
+		args = append(args, endTime)
+	}
+
+	var agg models.MetricAggregation
+	err := r.db.Pool().QueryRow(ctx, query, args...).Scan(
+		&agg.Avg, &agg.Max, &agg.Min, &agg.P95, &agg.P99, &agg.Count, &agg.Sum,
+	)
+	if err != nil {
+		r.db.Logger().Error("failed to get metric aggregation",
+			zap.String("metricName", metricName),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("get metric aggregation: %w", err)
+	}
+	return &agg, nil
+}
+
+// GetMetricNames returns distinct metric names for a tenant.
+func (r *MetricRepository) GetMetricNames(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+	query := `SELECT DISTINCT metric_name FROM metrics WHERE tenant_id = $1 ORDER BY metric_name`
+	rows, err := r.db.Pool().Query(ctx, query, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("query metric names: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+// BulkInsert inserts multiple metrics in a single batch.
+func (r *MetricRepository) BulkInsert(ctx context.Context, metrics []*models.Metric) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	batch := &pgx.Batch{}
+	query := `INSERT INTO metrics (id, tenant_id, metric_name, value, tags, timestamp) VALUES ($1, $2, $3, $4, $5, $6)`
+	for _, m := range metrics {
+		batch.Queue(query, m.ID, m.TenantID, m.MetricName, m.Value, m.Tags, m.Timestamp)
+	}
+
+	br := r.db.Pool().SendBatch(ctx, batch)
+	defer br.Close()
+
+	for i := 0; i < len(metrics); i++ {
+		if _, err := br.Exec(); err != nil {
+			r.db.Logger().Error("failed to bulk insert metric", zap.Error(err))
+			return fmt.Errorf("bulk insert metric at index %d: %w", i, err)
+		}
+	}
+	return nil
 }

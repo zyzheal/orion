@@ -16,6 +16,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v3 v3.0.1
+	orion/go-common v0.0.0
 )
 
 require (
@@ -60,3 +61,5 @@ require (
 	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace orion/go-common => ../orion-go-common

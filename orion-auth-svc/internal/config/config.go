@@ -18,6 +18,11 @@ type Config struct {
 	JWTSecret              string
 	JWTExpiration          time.Duration
 	JWTRefreshExpiration   time.Duration
+	// RS256 key paths (empty = use HS256 for access tokens)
+	RS256PrivateKeyPath    string
+	RS256PublicKeyPath     string
+	// Cookie security
+	SecureCookie           bool
 	OTelEndpoint           string
 }
 
@@ -35,8 +40,11 @@ func Load() (*Config, error) {
 	v.SetDefault("redis_addr", "localhost:6379")
 	v.SetDefault("redis_db", 0)
 	v.SetDefault("jwt_secret", "")
-	v.SetDefault("jwt_expiration", 24*time.Hour)
+	v.SetDefault("jwt_expiration", 5*time.Minute) // spec C-2: 5min access token
 	v.SetDefault("jwt_refresh_expiration", 7*24*time.Hour)
+	v.SetDefault("rs256_private_key_path", "")
+	v.SetDefault("rs256_public_key_path", "")
+	v.SetDefault("secure_cookie", true)
 	v.SetDefault("otel_endpoint", "")
 
 	_ = v.ReadInConfig()
@@ -52,6 +60,9 @@ func Load() (*Config, error) {
 		JWTSecret:            getEnvOrConfig("JWT_SECRET", v.GetString("jwt_secret")),
 		JWTExpiration:        v.GetDuration("jwt_expiration"),
 		JWTRefreshExpiration: v.GetDuration("jwt_refresh_expiration"),
+		RS256PrivateKeyPath:  getEnvOrConfig("RS256_PRIVATE_KEY_PATH", v.GetString("rs256_private_key_path")),
+		RS256PublicKeyPath:   getEnvOrConfig("RS256_PUBLIC_KEY_PATH", v.GetString("rs256_public_key_path")),
+		SecureCookie:         v.GetBool("secure_cookie"),
 		OTelEndpoint:         getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
 	}
 

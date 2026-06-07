@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"orion/workflow-svc-go/internal/models"
 	"orion/workflow-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,9 +15,9 @@ func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	w := rg.Group("/workflows")
-	w.POST("", h.Create); w.GET("", h.List); w.GET("/:id", h.Get); w.POST("/:id/runs", h.StartRun)
+	w.POST("", auth.RequirePermission("workflow", "write"), h.Create); w.GET("", h.List); w.GET("/:id", h.Get); w.POST("/:id/runs", auth.RequirePermission("workflow", "execute"), h.StartRun)
 	rg.GET("/runs/:id", h.GetRun)
-	w.DELETE("/:id", h.Delete)
+	w.DELETE("/:id", auth.RequirePermission("workflow", "delete"), h.Delete)
 	w.GET("/count", h.Count)
 }
 

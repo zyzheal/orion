@@ -37,7 +37,7 @@ func (r *AssignmentRuleRepository) Create(ctx context.Context, rule *models.Assi
 }
 
 func (r *AssignmentRuleRepository) List(ctx context.Context) ([]models.AssignmentRule, error) {
-	rows, err := r.db.Query(`SELECT id, name, categories, assignee, priorities, enabled, "order", created_at FROM assignment_rules ORDER BY "order", name`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, name, categories, assignee, priorities, enabled, "order", created_at FROM assignment_rules ORDER BY "order", name`)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (r *AssignmentRuleRepository) Delete(ctx context.Context, id string) error 
 }
 
 func (r *AssignmentRuleRepository) FindMatching(ctx context.Context, category, priority string) (*models.AssignmentRule, error) {
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, name, categories, assignee, priorities, enabled, "order", created_at
 		FROM assignment_rules WHERE enabled = true ORDER BY "order"`)
 	if err != nil {

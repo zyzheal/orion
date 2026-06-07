@@ -85,7 +85,7 @@ func (r *DispatchRepository) GetEngineer(ctx context.Context, id string) (*model
 }
 
 func (r *DispatchRepository) ListEngineers(ctx context.Context) ([]models.EngineerProfile, error) {
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, name, expertise, current_load, max_capacity, availability, skills, team, on_call,
 		total_resolved, avg_resolution_ms, sla_compliance, success_rate, created_at, updated_at
 		FROM dispatch_engineers ORDER BY name`)

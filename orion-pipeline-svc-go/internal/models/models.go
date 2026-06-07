@@ -162,8 +162,33 @@ type RunPipelineRequest struct {
 // PipelineRunFilter filters pipeline runs.
 type PipelineRunFilter struct {
 	PipelineID  string
+	TenantID    string
 	Status      PipelineRunStatus
 	TriggerType TriggerType
 	Limit       int
 	Offset      int
+}
+
+// PipelineStats holds aggregate statistics for a pipeline.
+type PipelineStats struct {
+	TotalRuns   int     `db:"total_runs" json:"total_runs"`
+	SuccessRuns int     `db:"success_runs" json:"success_runs"`
+	FailedRuns  int     `db:"failed_runs" json:"failed_runs"`
+	RunningRuns int     `db:"running_runs" json:"running_runs"`
+	AvgDuration float64 `db:"avg_duration" json:"avg_duration"`
+}
+
+// RunLogEntry represents a single log line from a pipeline run.
+type RunLogEntry struct {
+	StageName string  `json:"stage_name"`
+	Logs      *string `json:"logs,omitempty"`
+	Status    string  `json:"status"`
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+}
+
+// RunListResponse wraps a paginated list of runs.
+type RunListResponse struct {
+	Data  []PipelineRun `json:"data"`
+	Total int           `json:"total"`
 }

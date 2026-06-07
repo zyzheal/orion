@@ -14,6 +14,8 @@ type Config struct {
 	Redis     RedisConfig    `yaml:"redis"`
 	Otel      OtelConfig     `yaml:"otel"`
 	JWT       JWTConfig      `yaml:"jwt"`
+	JWTSecret  string
+	RedisAddr  string
 }
 
 type ServerConfig struct {

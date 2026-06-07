@@ -18,6 +18,7 @@ type Config struct {
 	RedisDB     int
 	OTLPEndpoint string
 	Environment string
+	JWTSecret  string
 }
 
 func Load() (*Config, error) {
@@ -36,7 +37,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid REDIS_DB: %w", err)
 	}
 
-	return &Config{
+		jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+
+return &Config{
 		ServerPort:   port,
 		DBHost:       getEnv("DB_HOST", "localhost"),
 		DBPort:       dbPort,
@@ -44,10 +48,11 @@ func Load() (*Config, error) {
 		DBUser:       getEnv("DB_USER", "postgres"),
 		DBPassword:   getEnv("DB_PASSWORD", "postgres"),
 		DBSSLMode:    getEnv("DB_SSL_MODE", "disable"),
-		RedisAddr:    getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisAddr:    redisAddr,
 		RedisDB:      redisDB,
 		OTLPEndpoint: getEnv("OTLP_ENDPOINT", "localhost:4317"),
 		Environment:  getEnv("ENVIRONMENT", "development"),
+		JWTSecret:    jwtSecret,
 	}, nil
 }
 

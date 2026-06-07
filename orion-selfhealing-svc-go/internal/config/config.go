@@ -13,13 +13,18 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+	JWTSecret  string
+	RedisAddr  string
 }
 
 func Load() *Config {
 	port, _ := strconv.Atoi(getEnv("PORT", "8080"))
 	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
 
-	return &Config{
+		jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+
+return &Config{
 		Port:       port,
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     dbPort,
@@ -27,6 +32,8 @@ func Load() *Config {
 		DBPassword: requireEnv("DB_PASSWORD"),
 		DBName:     getEnv("DB_NAME", "orion_selfhealing"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+			JWTSecret:  jwtSecret,
+		RedisAddr:  redisAddr,
 	}
 }
 

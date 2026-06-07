@@ -12,6 +12,8 @@ type Config struct {
 	DBPassword string `mapstructure:"db_password"`
 	DBName     string `mapstructure:"db_name"`
 	DBSSLMode  string `mapstructure:"db_ssl_mode"`
+	JWTSecret  string
+	RedisAddr  string
 }
 
 func Load() (*Config, error) {

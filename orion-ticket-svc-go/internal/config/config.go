@@ -16,6 +16,8 @@ type Config struct {
 	Otel     OtelConfig     `yaml:"otel"`
 	JWT      JWTConfig      `yaml:"jwt"`
 	CORS     CORSConfig     `yaml:"cors"`
+	JWTSecret  string
+	RedisAddr  string
 }
 
 type ServerConfig struct {
