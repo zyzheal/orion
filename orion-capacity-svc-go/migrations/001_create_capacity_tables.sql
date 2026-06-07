@@ -44,3 +44,51 @@ CREATE TABLE IF NOT EXISTS scaling_policies (
     created_at           TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_scaling_policies_tenant ON scaling_policies(tenant_id);
+
+-- Capacity metrics: resource usage measurements (cpu/memory/disk/iops/throughput)
+CREATE TABLE IF NOT EXISTS capacity_metrics (
+    id                   VARCHAR(64) PRIMARY KEY,
+    tenant_id            VARCHAR(64) NOT NULL,
+    resource_type        VARCHAR(64) NOT NULL,       -- compute/storage/network/database
+    resource_id          VARCHAR(128) NOT NULL,       -- node/pod/volume identifier
+    metric_name          VARCHAR(64) NOT NULL,        -- cpu/memory/disk/iops/throughput
+    current_value        DOUBLE PRECISION NOT NULL DEFAULT 0,
+    max_value            DOUBLE PRECISION NOT NULL DEFAULT 0,
+    unit                 VARCHAR(32) NOT NULL DEFAULT '',
+    utilization_percent  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    recorded_at          TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_capacity_metrics_tenant ON capacity_metrics(tenant_id);
+CREATE INDEX idx_capacity_metrics_resource ON capacity_metrics(tenant_id, resource_type, resource_id);
+
+-- Capacity alerts: high-utilization warnings
+CREATE TABLE IF NOT EXISTS capacity_alerts (
+    id                   VARCHAR(64) PRIMARY KEY,
+    tenant_id            VARCHAR(64) NOT NULL,
+    resource_id          VARCHAR(128) NOT NULL,
+    resource_type        VARCHAR(64) NOT NULL,
+    metric_name          VARCHAR(64) NOT NULL,
+    current_utilization  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    threshold            DOUBLE PRECISION NOT NULL DEFAULT 80,
+    severity             VARCHAR(16) NOT NULL DEFAULT 'info',  -- info/warning/critical
+    message              TEXT NOT NULL DEFAULT '',
+    created_at           TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_capacity_alerts_tenant ON capacity_alerts(tenant_id);
+CREATE INDEX idx_capacity_alerts_severity ON capacity_alerts(tenant_id, severity);
+
+-- Capacity reports: aggregated capacity analysis snapshots
+CREATE TABLE IF NOT EXISTS capacity_reports (
+    id                   VARCHAR(64) PRIMARY KEY,
+    tenant_id            VARCHAR(64) NOT NULL,
+    title                VARCHAR(255) NOT NULL,
+    total_resources      INT NOT NULL DEFAULT 0,
+    healthy_count        INT NOT NULL DEFAULT 0,
+    warning_count        INT NOT NULL DEFAULT 0,
+    critical_count       INT NOT NULL DEFAULT 0,
+    overall_score        INT NOT NULL DEFAULT 100,
+    alerts_snapshot      JSONB DEFAULT '[]',
+    forecasts_snapshot   JSONB DEFAULT '[]',
+    generated_at         TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_capacity_reports_tenant ON capacity_reports(tenant_id);
