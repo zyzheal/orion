@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,6 +32,17 @@ func NewToolService(
 }
 
 func (s *ToolService) Create(ctx context.Context, tenantID, userID string, req models.CreateToolRequest) (*models.Tool, error) {
+	// Check for duplicate name within tenant
+	existing, err := s.toolRepo.Search(ctx, tenantID, req.Name, 1)
+	if err != nil {
+		return nil, fmt.Errorf("check duplicate: %w", err)
+	}
+	for _, t := range existing {
+		if t.Name == req.Name {
+			return nil, fmt.Errorf("tool with name %q already exists", req.Name)
+		}
+	}
+
 	tool := &models.Tool{
 		ID:          uuid.New().String(),
 		TenantID:    tenantID,
@@ -58,14 +70,16 @@ func (s *ToolService) Create(ctx context.Context, tenantID, userID string, req m
 	}
 
 	// Record initial version
-	_ = s.versionRepo.Create(ctx, &models.ToolVersion{
+	if err := s.versionRepo.Create(ctx, &models.ToolVersion{
 		ID:        uuid.New().String(),
 		ToolID:    tool.ID,
 		Version:   tool.Version,
 		Config:    tool.Config,
 		Changelog: "Initial version",
 		CreatedBy: userID,
-	})
+	}); err != nil {
+		log.Printf("[WARN] failed to record initial version for tool %s: %v", tool.ID, err)
+	}
 
 	return tool, nil
 }
@@ -105,12 +119,14 @@ func (s *ToolService) Update(ctx context.Context, tenantID, id string, req model
 	}
 	if req.Version != nil {
 		// Record version change
-		_ = s.versionRepo.Create(ctx, &models.ToolVersion{
+		if err := s.versionRepo.Create(ctx, &models.ToolVersion{
 			ID:      uuid.New().String(),
 			ToolID:  tool.ID,
 			Version: *req.Version,
 			Config:  tool.Config,
-		})
+		}); err != nil {
+			log.Printf("[WARN] failed to record version change for tool %s: %v", tool.ID, err)
+		}
 		tool.Version = *req.Version
 	}
 	if req.Config != nil {
@@ -143,7 +159,17 @@ func (s *ToolService) Update(ctx context.Context, tenantID, id string, req model
 }
 
 func (s *ToolService) Delete(ctx context.Context, tenantID, id string) error {
-	return s.toolRepo.Delete(ctx, tenantID, id)
+	tool, err := s.toolRepo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return fmt.Errorf("get tool: %w", err)
+	}
+	if tool == nil {
+		return fmt.Errorf("tool not found: %s", id)
+	}
+	now := time.Now()
+	tool.Status = "deleted"
+	tool.DeprecatedAt.Scan(now)
+	return s.toolRepo.Update(ctx, tool)
 }
 
 func (s *ToolService) GetCategories(ctx context.Context, tenantID string) ([]models.ToolCategory, error) {
@@ -154,7 +180,14 @@ func (s *ToolService) Search(ctx context.Context, tenantID, query string) ([]mod
 	return s.toolRepo.Search(ctx, tenantID, query, 20)
 }
 
-func (s *ToolService) GetVersions(ctx context.Context, toolID string) ([]models.ToolVersion, error) {
+func (s *ToolService) GetVersions(ctx context.Context, tenantID, toolID string) ([]models.ToolVersion, error) {
+	tool, err := s.toolRepo.GetByID(ctx, tenantID, toolID)
+	if err != nil {
+		return nil, fmt.Errorf("get tool: %w", err)
+	}
+	if tool == nil {
+		return nil, fmt.Errorf("tool not found: %s", toolID)
+	}
 	return s.versionRepo.ListByTool(ctx, toolID)
 }
 

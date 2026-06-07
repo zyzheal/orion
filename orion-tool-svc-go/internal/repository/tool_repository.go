@@ -57,8 +57,8 @@ func (r *ToolRepository) List(ctx context.Context, tenantID string, params model
 		argIdx++
 	}
 	if params.Search != "" {
-		where = append(where, fmt.Sprintf("(name ILIKE $%d OR display_name ILIKE $%d OR description ILIKE $%d)", argIdx, argIdx, argIdx))
-		args = append(args, "%"+params.Search+"%")
+		where = append(where, fmt.Sprintf("(name ILIKE $%d ESCAPE '\\' OR display_name ILIKE $%d ESCAPE '\\' OR description ILIKE $%d ESCAPE '\\')", argIdx, argIdx, argIdx))
+		args = append(args, "%"+escapeILIKE(params.Search)+"%")
 		argIdx++
 	}
 
@@ -111,7 +111,15 @@ func (r *ToolRepository) Search(ctx context.Context, tenantID, query string, lim
 	}
 	var tools []models.Tool
 	err := r.db.SelectContext(ctx, &tools,
-		`SELECT * FROM tools WHERE tenant_id=$1 AND status='active' AND (name ILIKE $2 OR display_name ILIKE $2 OR description ILIKE $2) ORDER BY name LIMIT $3`,
-		tenantID, "%"+query+"%", limit)
+		`SELECT * FROM tools WHERE tenant_id=$1 AND status='active' AND (name ILIKE $2 ESCAPE '\' OR display_name ILIKE $2 ESCAPE '\' OR description ILIKE $2 ESCAPE '\') ORDER BY name LIMIT $3`,
+		tenantID, "%"+escapeILIKE(query)+"%", limit)
 	return tools, err
+}
+
+// escapeILIKE escapes special characters for PostgreSQL ILIKE patterns.
+func escapeILIKE(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }

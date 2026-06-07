@@ -72,7 +72,9 @@ func Load() (*Config, error) {
 	cfg.CORS.Origins = []string{"http://localhost:3000", "http://localhost:5173"}
 
 	if data, err := os.ReadFile("config.yaml"); err == nil {
-		_ = yaml.Unmarshal(data, &cfg)
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			return nil, fmt.Errorf("parse config.yaml: %w", err)
+		}
 	}
 
 	if v := os.Getenv("TOOL_SVC_PORT"); v != "" {
