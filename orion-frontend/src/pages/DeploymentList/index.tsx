@@ -14,6 +14,7 @@ import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import { PermissionActions } from '@/components/PermissionActions';
 import { getDeployments } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -241,16 +242,15 @@ const DeploymentList: React.FC = () => {
       title: '操作',
       width: 120,
       render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => navigate(`/deployments/${record.id}`)}>
-            详情
-          </Button>
-          {record.status === 'success' && (
-            <Button type="link" size="small" danger>
-              回滚
-            </Button>
-          )}
-        </Space>
+        <PermissionActions
+          resource="deployment"
+          actions={[
+            { key: 'read', label: '详情', onClick: () => navigate(`/deployments/${record.id}`) },
+            ...(record.status === 'success'
+              ? [{ key: 'execute', label: '回滚', danger: true, confirm: true, confirmText: '确定要回滚此部署吗？' }]
+              : []),
+          ]}
+        />
       ),
     },
   ];

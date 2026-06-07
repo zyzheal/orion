@@ -625,17 +625,17 @@ const MultiCloudAdvancedPage: React.FC = () => {
               <Card title="Multi-Cloud Cost Optimization" style={{ borderRadius: 12 }}>
                 <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
-                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid #FF9900` }}>
+                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid ${colors.cloud.aws}` }}>
                       <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: colors.primary[500] }} />
                     </Card>
                   </Col>
                   <Col span={8}>
-                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid #0078D4` }}>
+                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid ${colors.cloud.azure}` }}>
                       <Statistic title="Monthly Cost (Azure)" value={8200} prefix="$" valueStyle={{ color: colors.purple[500] }} />
                     </Card>
                   </Col>
                   <Col span={8}>
-                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid #4285F4` }}>
+                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid ${colors.cloud.gcp}` }}>
                       <Statistic title="Monthly Cost (GCP)" value={6300} prefix="$" valueStyle={{ color: colors.error[600] }} />
                     </Card>
                   </Col>

@@ -14,6 +14,8 @@ import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import { PermissionActions } from '@/components/PermissionActions';
+import { usePermissionActions } from '@/hooks/usePermissionActions';
 import {
   getAlerts,
   acknowledgeAlert as apiAcknowledgeAlert,
@@ -43,6 +45,7 @@ const statusConfig: Record<AlertStatus, { color: string; label: string }> = {
 };
 
 const AlertList: React.FC = () => {
+  const { canExecute } = usePermissionActions('alert');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
@@ -370,33 +373,15 @@ const AlertList: React.FC = () => {
       render: (_, record) => {
         const isActive = record.status === 'active';
         const isAcknowledged = record.status === 'acknowledged';
-        return (
-          <Space size="small">
-            {isActive && (
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleAcknowledge(record.id)}
-              >
-                确认
-              </Button>
-            )}
-            {(isActive || isAcknowledged) && (
-              <Button
-                type="link"
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={() => handleResolve(record.id)}
-              >
-                解决
-              </Button>
-            )}
-            <Button type="link" size="small" onClick={() => showDetail(record)}>
-              详情
-            </Button>
-          </Space>
-        );
+        const actions = [];
+        if (isActive) {
+          actions.push({ key: 'acknowledge', label: '确认', icon: <CheckOutlined />, onClick: () => handleAcknowledge(record.id) });
+        }
+        if (isActive || isAcknowledged) {
+          actions.push({ key: 'resolve', label: '解决', icon: <CloseOutlined />, onClick: () => handleResolve(record.id) });
+        }
+        actions.push({ key: 'read', label: '详情', onClick: () => showDetail(record) });
+        return <PermissionActions resource="alert" actions={actions} />;
       },
     },
   ];
@@ -441,12 +426,13 @@ const AlertList: React.FC = () => {
               <Popconfirm
                 title={`确认 ${selectedRowKeys.length} 条告警?`}
                 onConfirm={handleBatchAcknowledge}
+                disabled={!canExecute}
               >
-                <Button icon={<CheckOutlined />} type="primary" ghost>
+                <Button icon={<CheckOutlined />} type="primary" ghost disabled={!canExecute}>
                   批量确认 ({selectedRowKeys.length})
                 </Button>
               </Popconfirm>
-              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve}>
+              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve} disabled={!canExecute}>
                 <Button danger icon={<CloseOutlined />}>
                   批量解决
                 </Button>

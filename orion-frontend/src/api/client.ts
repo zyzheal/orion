@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { message } from 'antd';
 import type { ApiResponse } from './types';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -145,11 +146,18 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // 其他错误处理保持不变
+    // 其他错误处理
     if (error.response) {
-      const { status } = error.response;
+      const { status, data } = error.response as AxiosResponse & { data?: Record<string, unknown> };
       if (status === 403) {
-        console.error('403 Forbidden: 没有权限访问该资源');
+        // 后端 RequireAuthorization 返回 { code: 403, message, detail, source }
+        const detail = data?.detail as string | undefined;
+        const source = data?.source as string | undefined;
+        const reason = detail || '没有权限访问该资源';
+        const label = source === 'abac' ? '访问策略拒绝' :
+                      source === 'relationship' ? '项目权限不足' :
+                      source === 'rbac' ? '角色权限不足' : '权限不足';
+        message.error(`${label}：${reason}`);
       }
       if (status === 404) {
         console.error('404 Not Found: 资源不存在');

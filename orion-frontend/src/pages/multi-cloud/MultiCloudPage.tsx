@@ -85,12 +85,12 @@ const statusLabelMap: Record<string, string> = {
 };
 
 const providerIconColors: Record<string, string> = {
-  aws: '#FF9900',
-  azure: '#0078D4',
-  gcp: '#4285F4',
-  alicloud: '#FF6A00',
-  aliyun: '#FF6A00',
-  tencent: '#006EFF',
+  aws: colors.cloud.aws,
+  azure: colors.cloud.azure,
+  gcp: colors.cloud.gcp,
+  alicloud: colors.cloud.alicloud,
+  aliyun: colors.cloud.alicloud,
+  tencent: colors.cloud.tencent,
 };
 
 const MultiCloudPage: React.FC = () => {

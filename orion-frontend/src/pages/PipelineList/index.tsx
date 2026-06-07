@@ -14,6 +14,8 @@ import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, ApiOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import { PermissionActions } from '@/components/PermissionActions';
+import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { getPipelines, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -25,6 +27,7 @@ const { Title, Text } = Typography;
 
 const PipelineList: React.FC = () => {
   const navigate = useNavigate();
+  const { canEdit } = usePermissionActions('pipeline');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
@@ -175,21 +178,14 @@ const PipelineList: React.FC = () => {
       title: '操作',
       width: '16%',
       render: (_: unknown, record) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
-            查看
-          </Button>
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
-          >
-            运行历史
-          </Button>
-        </Space>
+        <PermissionActions
+          resource="pipeline"
+          actions={[
+            { key: 'read', label: '查看', onClick: () => navigate(`/pipelines/${record.id}`) },
+            { key: 'write', label: '编辑', onClick: () => navigate(`/pipelines/${record.id}/edit`) },
+            { key: 'execute', label: '运行历史', onClick: () => navigate(`/pipelines/${record.id}/runs`) },
+          ]}
+        />
       ),
     },
   ];
@@ -220,7 +216,13 @@ const PipelineList: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
             刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/pipelines/new')}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/pipelines/new')}
+            disabled={!canEdit}
+            title={!canEdit ? '无操作权限' : undefined}
+          >
             创建 Pipeline
           </Button>
         </Space>
