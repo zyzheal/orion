@@ -359,3 +359,174 @@ type lokiStream struct {
 	Stream map[string]string `json:"stream"`
 	Values [][]string        `json:"values"`
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// LogSyncService — Direct entry push with buffering
+// ──────────────────────────────────────────────────────────────────────────────
+
+// LogSyncService provides a higher-level interface for syncing audit entries
+// to an independent log server. Unlike LogSyncer which pulls from a WORMStore,
+// LogSyncService accepts entries directly via Sync() and buffers them for
+// batch sending.
+type LogSyncService struct {
+	endpoint  string
+	batchSize int
+	interval  time.Duration
+	client    *http.Client
+	buffer    []*AuditEntry
+	mu        sync.Mutex
+	stopCh    chan struct{}
+	stopped   bool
+	stats     SyncStats
+}
+
+// NewLogSyncService creates a new log sync service.
+// endpoint: the log server URL (e.g., "http://log-server:8080/api/audit/ingest").
+// batchSize: max entries per batch (default 100).
+// interval: flush interval for background sync (default 30s).
+func NewLogSyncService(endpoint string, batchSize int, interval time.Duration) *LogSyncService {
+	if batchSize <= 0 {
+		batchSize = 100
+	}
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	return &LogSyncService{
+		endpoint:  endpoint,
+		batchSize: batchSize,
+		interval:  interval,
+		client:    &http.Client{Timeout: 30 * time.Second},
+		stopCh:    make(chan struct{}),
+	}
+}
+
+// Sync pushes entries to the log server. Entries are buffered and flushed
+// when the buffer exceeds batchSize.
+func (s *LogSyncService) Sync(ctx context.Context, entries []AuditEntry) error {
+	s.mu.Lock()
+	for i := range entries {
+		entry := entries[i] // copy to avoid holding reference to caller's slice
+		s.buffer = append(s.buffer, &entry)
+	}
+	shouldFlush := len(s.buffer) >= s.batchSize
+	var toSend []*AuditEntry
+	if shouldFlush {
+		toSend = s.buffer
+		s.buffer = nil
+	}
+	s.mu.Unlock()
+
+	if shouldFlush && len(toSend) > 0 {
+		return s.sendBatch(ctx, toSend)
+	}
+	return nil
+}
+
+// StartBatchSync starts a background goroutine that periodically flushes the buffer.
+// Runs until the context is cancelled or Stop() is called.
+func (s *LogSyncService) StartBatchSync(ctx context.Context, interval time.Duration) {
+	flushInterval := s.interval
+	if interval > 0 {
+		flushInterval = interval
+	}
+	ticker := time.NewTicker(flushInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			s.flushBuffer(context.Background())
+			return
+		case <-s.stopCh:
+			s.flushBuffer(context.Background())
+			return
+		case <-ticker.C:
+			s.mu.Lock()
+			toSend := s.buffer
+			s.buffer = nil
+			s.mu.Unlock()
+
+			if len(toSend) > 0 {
+				_ = s.sendBatch(context.Background(), toSend)
+			}
+		}
+	}
+}
+
+// Stop gracefully stops the background sync and flushes remaining entries.
+func (s *LogSyncService) Stop() {
+	s.mu.Lock()
+	if !s.stopped {
+		s.stopped = true
+		close(s.stopCh)
+	}
+	s.mu.Unlock()
+}
+
+// GetStats returns current sync statistics.
+func (s *LogSyncService) GetStats() SyncStats {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stats
+}
+
+// BufferSize returns the current number of buffered entries.
+func (s *LogSyncService) BufferSize() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.buffer)
+}
+
+func (s *LogSyncService) sendBatch(ctx context.Context, entries []*AuditEntry) error {
+	payload, err := json.Marshal(entries)
+	if err != nil {
+		return fmt.Errorf("marshal entries: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		s.mu.Lock()
+		s.stats.TotalFailed += int64(len(entries))
+		s.stats.LastError = err.Error()
+		s.stats.LastErrorAt = time.Now()
+		s.mu.Unlock()
+		return fmt.Errorf("send batch: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		errMsg := fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+		s.mu.Lock()
+		s.stats.TotalFailed += int64(len(entries))
+		s.stats.LastError = errMsg.Error()
+		s.stats.LastErrorAt = time.Now()
+		s.mu.Unlock()
+		return errMsg
+	}
+
+	s.mu.Lock()
+	s.stats.TotalSynced += int64(len(entries))
+	s.stats.BatchesSent++
+	s.stats.LastSyncAt = time.Now()
+	s.mu.Unlock()
+
+	return nil
+}
+
+func (s *LogSyncService) flushBuffer(ctx context.Context) {
+	s.mu.Lock()
+	toSend := s.buffer
+	s.buffer = nil
+	s.mu.Unlock()
+
+	if len(toSend) > 0 {
+		_ = s.sendBatch(ctx, toSend)
+	}
+}

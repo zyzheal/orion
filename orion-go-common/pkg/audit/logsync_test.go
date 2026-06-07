@@ -303,3 +303,182 @@ func TestLogSyncer_Elasticsearch(t *testing.T) {
 		t.Errorf("expected ndjson content type, got %s", contentType)
 	}
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// LogSyncService tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestLogSyncService_Sync(t *testing.T) {
+	var received int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var entries []*AuditEntry
+		if err := json.NewDecoder(r.Body).Decode(&entries); err != nil {
+			t.Errorf("decode error: %v", err)
+			w.WriteHeader(400)
+			return
+		}
+		atomic.AddInt32(&received, int32(len(entries)))
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	service := NewLogSyncService(server.URL, 10, 1*time.Hour)
+
+	entries := []AuditEntry{
+		{ID: "e1", TenantID: "t1", Timestamp: time.Now()},
+		{ID: "e2", TenantID: "t1", Timestamp: time.Now()},
+	}
+
+	err := service.Sync(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("Sync failed: %v", err)
+	}
+
+	// 2 entries < batchSize(10), so they should be buffered
+	if atomic.LoadInt32(&received) != 0 {
+		t.Errorf("expected 0 received (buffered), got %d", atomic.LoadInt32(&received))
+	}
+	if service.BufferSize() != 2 {
+		t.Errorf("expected 2 buffered, got %d", service.BufferSize())
+	}
+}
+
+func TestLogSyncService_Sync_FlushOnBatchSize(t *testing.T) {
+	var received int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var entries []*AuditEntry
+		json.NewDecoder(r.Body).Decode(&entries)
+		atomic.AddInt32(&received, int32(len(entries)))
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	service := NewLogSyncService(server.URL, 5, 1*time.Hour) // batch size 5
+
+	// Send 5 entries to trigger flush
+	entries := make([]AuditEntry, 5)
+	for i := range entries {
+		entries[i] = AuditEntry{ID: fmt.Sprintf("e%d", i), TenantID: "t1", Timestamp: time.Now()}
+	}
+
+	err := service.Sync(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("Sync failed: %v", err)
+	}
+
+	if atomic.LoadInt32(&received) != 5 {
+		t.Errorf("expected 5 received (flushed), got %d", atomic.LoadInt32(&received))
+	}
+	if service.BufferSize() != 0 {
+		t.Errorf("expected 0 buffered after flush, got %d", service.BufferSize())
+	}
+
+	stats := service.GetStats()
+	if stats.TotalSynced != 5 {
+		t.Errorf("expected 5 synced, got %d", stats.TotalSynced)
+	}
+	if stats.BatchesSent != 1 {
+		t.Errorf("expected 1 batch sent, got %d", stats.BatchesSent)
+	}
+}
+
+func TestLogSyncService_BatchSync(t *testing.T) {
+	var received int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var entries []*AuditEntry
+		json.NewDecoder(r.Body).Decode(&entries)
+		atomic.AddInt32(&received, int32(len(entries)))
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	service := NewLogSyncService(server.URL, 100, 50*time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	// Add entries that won't trigger immediate flush
+	entries := []AuditEntry{
+		{ID: "e1", TenantID: "t1", Timestamp: time.Now()},
+		{ID: "e2", TenantID: "t1", Timestamp: time.Now()},
+	}
+	_ = service.Sync(ctx, entries)
+
+	// Start batch sync in background
+	go service.StartBatchSync(ctx, 50*time.Millisecond)
+
+	// Wait for context to expire
+	<-ctx.Done()
+
+	// Should have flushed via batch sync
+	got := atomic.LoadInt32(&received)
+	if got != 2 {
+		t.Errorf("expected 2 entries flushed by batch sync, got %d", got)
+	}
+}
+
+func TestLogSyncService_Stop(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	service := NewLogSyncService(server.URL, 100, 1*time.Hour)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		service.StartBatchSync(ctx, 1*time.Hour)
+		close(done)
+	}()
+
+	// Stop should cause StartBatchSync to return
+	service.Stop()
+
+	select {
+	case <-done:
+		// success
+	case <-time.After(1 * time.Second):
+		t.Error("StartBatchSync did not return after Stop()")
+	}
+}
+
+func TestLogSyncService_SendError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		w.Write([]byte("server error"))
+	}))
+	defer server.Close()
+
+	service := NewLogSyncService(server.URL, 1, 1*time.Hour) // batch size 1 to trigger immediate send
+
+	entries := []AuditEntry{
+		{ID: "e1", TenantID: "t1", Timestamp: time.Now()},
+	}
+
+	err := service.Sync(context.Background(), entries)
+	if err == nil {
+		t.Error("expected error for 500 response")
+	}
+
+	stats := service.GetStats()
+	if stats.TotalFailed != 1 {
+		t.Errorf("expected 1 failed, got %d", stats.TotalFailed)
+	}
+	if stats.LastError == "" {
+		t.Error("expected last error to be set")
+	}
+}
+
+func TestLogSyncService_DefaultConfig(t *testing.T) {
+	service := NewLogSyncService("http://localhost", 0, 0)
+
+	if service.batchSize != 100 {
+		t.Errorf("expected default batch size 100, got %d", service.batchSize)
+	}
+	if service.interval != 30*time.Second {
+		t.Errorf("expected default interval 30s, got %v", service.interval)
+	}
+}

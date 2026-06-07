@@ -6,12 +6,15 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	audit "orion/go-common/pkg/audit"
 )
 
 // AuthorizationEngine is the unified authorization engine that evaluates
@@ -29,6 +32,11 @@ type AuthorizationEngine struct {
 	config    EngineConfig
 	auditCh   chan *PermissionAuditLog
 	auditStop chan struct{}
+
+	// Phase 4: UEBA real-time detection and WORM storage
+	uebaDetector *audit.UEBADetector
+	alertService *audit.AlertService
+	wormStore    *audit.S3WORMStorage
 }
 
 // EngineConfig holds configuration for the AuthorizationEngine.
@@ -111,6 +119,13 @@ func (e *AuthorizationEngine) startAuditWorker() {
 					}
 					time.Sleep(time.Duration(attempt+1) * 50 * time.Millisecond)
 				}
+				// Phase 4: Also write to WORM storage if configured
+				if e.wormStore != nil {
+					auditEntry := permissionAuditLogToAuditEntry(entry)
+					if err := e.wormStore.Store(context.Background(), []audit.AuditEntry{auditEntry}); err != nil {
+						log.Printf("[WARN] WORM store write failed for audit entry %s: %v", entry.ID, err)
+					}
+				}
 			case <-e.auditStop:
 				// Drain remaining entries before shutdown
 				for {
@@ -136,6 +151,21 @@ func (e *AuthorizationEngine) StopAuditWorker() {
 	default:
 		close(e.auditStop)
 	}
+}
+
+// SetUEBADetector attaches a UEBA detector for real-time security event evaluation.
+func (e *AuthorizationEngine) SetUEBADetector(detector *audit.UEBADetector) {
+	e.uebaDetector = detector
+}
+
+// SetAlertService attaches an alert service for dispatching UEBA alerts.
+func (e *AuthorizationEngine) SetAlertService(service *audit.AlertService) {
+	e.alertService = service
+}
+
+// SetWORMStorage attaches S3-based WORM storage as a secondary audit log destination.
+func (e *AuthorizationEngine) SetWORMStorage(store *audit.S3WORMStorage) {
+	e.wormStore = store
 }
 
 // Authorize evaluates an authorization request through the full pipeline.
@@ -346,6 +376,40 @@ func (e *AuthorizationEngine) auditDecision(ctx context.Context, req AuthZReques
 		e.computeChainHash(ctx, auditLog)
 	}
 
+	// Phase 4: UEBA real-time evaluation
+	if e.uebaDetector != nil {
+		secEvent := audit.SecurityEvent{
+			Type:      "auth",
+			TenantID:  req.TenantID,
+			UserID:    req.UserID,
+			Resource:  req.Resource,
+			Action:    req.Action,
+			Decision:  decisionStr,
+			Timestamp: time.Now(),
+		}
+		if ip := extractIP(ctx); ip != "" {
+			secEvent.IPAddress = ip
+		}
+		if ua := extractUserAgent(ctx); ua != "" {
+			secEvent.UserAgent = ua
+		}
+
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// UEBA panic should never crash the authorization engine
+				}
+			}()
+			alerts, err := e.uebaDetector.Evaluate(ctx, secEvent)
+			if err != nil {
+				return
+			}
+			if len(alerts) > 0 && e.alertService != nil {
+				_ = e.alertService.DispatchBatch(ctx, alerts)
+			}
+		}()
+	}
+
 	// Send to buffered audit worker (non-blocking, drops on full channel)
 	select {
 	case e.auditCh <- auditLog:
@@ -430,6 +494,43 @@ func extractUserStatus(ctx context.Context) string {
 		return s
 	}
 	return ""
+}
+
+// permissionAuditLogToAuditEntry converts a PermissionAuditLog to an audit.AuditEntry
+// for WORM storage. This bridges the auth package's audit log type with the
+// audit package's unified AuditEntry type.
+func permissionAuditLogToAuditEntry(log *PermissionAuditLog) audit.AuditEntry {
+	entry := audit.AuditEntry{
+		ID:        log.ID,
+		TenantID:  log.TenantID,
+		UserID:    log.UserID,
+		Resource:  log.Resource,
+		Action:    log.Action,
+		Decision:  log.Decision,
+		Source:    log.Source,
+		Timestamp: log.CreatedAt,
+	}
+	// Note: ResourceID is not mapped to AuditEntry (no corresponding field).
+	// entry.ID is already set to log.ID above.
+	if log.Reason.Valid {
+		entry.Reason = log.Reason.String
+	}
+	if log.IPAddress.Valid {
+		entry.IPAddress = log.IPAddress.String
+	}
+	if log.UserAgent.Valid {
+		entry.UserAgent = log.UserAgent.String
+	}
+	if log.RequestID.Valid {
+		entry.RequestID = log.RequestID.String
+	}
+	if log.PrevHash.Valid {
+		entry.PrevHash = log.PrevHash.String
+	}
+	if log.ChainHash.Valid {
+		entry.Hash = log.ChainHash.String
+	}
+	return entry
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

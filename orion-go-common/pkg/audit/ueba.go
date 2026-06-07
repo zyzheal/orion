@@ -3,6 +3,8 @@ package audit
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -413,4 +415,408 @@ func evaluateCrossTenantAttempt(ctx context.Context, store UEBAStore, tenantID s
 		}
 	}
 	return alerts, nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Real-time UEBA Detector — Event-based evaluation
+// ──────────────────────────────────────────────────────────────────────────────
+
+// SecurityEvent represents a real-time security event for UEBA evaluation.
+type SecurityEvent struct {
+	Type      string                 `json:"type"`       // "auth", "export", "login", "access"
+	TenantID  string                 `json:"tenant_id"`
+	UserID    string                 `json:"user_id"`
+	Resource  string                 `json:"resource"`
+	Action    string                 `json:"action"`
+	Decision  string                 `json:"decision"`   // "allow" or "deny"
+	IPAddress string                 `json:"ip_address"`
+	UserAgent string                 `json:"user_agent"`
+	Timestamp time.Time              `json:"timestamp"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// UEBADetectorRule defines a rule for real-time event-based UEBA detection.
+type UEBADetectorRule struct {
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Severity    AlertSeverity `json:"severity"`
+	Enabled     bool          `json:"enabled"`
+	// Evaluate evaluates a single security event against this rule.
+	// Returns a UEBAAlert if the rule triggers, nil otherwise.
+	Evaluate func(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) `json:"-"`
+}
+
+// UEBADetector evaluates security events against UEBA rules in real-time.
+// Unlike UEBAEngine which runs periodic batch analysis, UEBADetector evaluates
+// individual events as they occur — suitable for inline authorization checks.
+type UEBADetector struct {
+	store   UEBAStore
+	rules   []UEBADetectorRule
+	alerts  []UEBAAlert
+	alertFn AlertFunc
+	mu      sync.RWMutex
+}
+
+// NewUEBADetector creates a new UEBA detector with the 6 default detection rules.
+func NewUEBADetector(store UEBAStore, alertFn AlertFunc) *UEBADetector {
+	d := &UEBADetector{
+		store:   store,
+		alertFn: alertFn,
+	}
+	d.rules = DefaultUEBADetectorRules()
+	return d
+}
+
+// Evaluate evaluates a security event against all enabled rules.
+// Returns any triggered alerts. Also stores alerts and fires the alert callback.
+func (d *UEBADetector) Evaluate(ctx context.Context, event SecurityEvent) ([]UEBAAlert, error) {
+	d.mu.RLock()
+	rules := make([]UEBADetectorRule, len(d.rules))
+	copy(rules, d.rules)
+	d.mu.RUnlock()
+
+	var alerts []UEBAAlert
+	for _, rule := range rules {
+		if !rule.Enabled {
+			continue
+		}
+		alert, err := rule.Evaluate(ctx, event, d.store)
+		if err != nil {
+			log.Printf("[WARN] UEBA rule %q evaluate failed: %v", rule.Name, err)
+			continue
+		}
+		if alert != nil {
+			alerts = append(alerts, *alert)
+		}
+	}
+
+	// Store and dispatch alerts
+	if len(alerts) > 0 {
+		d.mu.Lock()
+		d.alerts = append(d.alerts, alerts...)
+		d.mu.Unlock()
+
+		if d.alertFn != nil {
+			for _, alert := range alerts {
+				d.alertFn(ctx, alert)
+			}
+		}
+	}
+
+	return alerts, nil
+}
+
+// AddRule adds a custom UEBA detector rule.
+func (d *UEBADetector) AddRule(rule UEBADetectorRule) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.rules = append(d.rules, rule)
+}
+
+// GetAlerts returns alerts triggered since the given time for a tenant.
+func (d *UEBADetector) GetAlerts(ctx context.Context, tenantID string, since time.Time) ([]UEBAAlert, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	var result []UEBAAlert
+	for _, alert := range d.alerts {
+		if tenantID != "" && alert.TenantID != tenantID {
+			continue
+		}
+		if alert.Timestamp.Before(since) {
+			continue
+		}
+		result = append(result, alert)
+	}
+	return result, nil
+}
+
+// RuleCount returns the number of configured rules.
+func (d *UEBADetector) RuleCount() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.rules)
+}
+
+// DefaultUEBADetectorRules returns the 6 default real-time UEBA detection rules.
+func DefaultUEBADetectorRules() []UEBADetectorRule {
+	return []UEBADetectorRule{
+		{
+			ID:          "mass-data-export",
+			Name:        "Mass data export",
+			Description: "User exports data more than 10 times in 1 hour",
+			Severity:    SeverityHigh,
+			Enabled:     true,
+			Evaluate:    evaluateMassDataExport,
+		},
+		{
+			ID:          "unauthorized-attempt",
+			Name:        "Unauthorized access attempt",
+			Description: "User has more than 20 permission denials in 30 minutes",
+			Severity:    SeverityCritical,
+			Enabled:     true,
+			Evaluate:    evaluateUnauthorizedAttempt,
+		},
+		{
+			ID:          "off-hours-sensitive-access",
+			Name:        "Off-hours sensitive access",
+			Description: "User accesses prod/secrets resources outside 9:00-18:00",
+			Severity:    SeverityMedium,
+			Enabled:     true,
+			Evaluate:    evaluateOffHoursSensitiveAccess,
+		},
+		{
+			ID:          "api-pattern-anomaly",
+			Name:        "API pattern anomaly",
+			Description: "ML anomaly score exceeds 0.8 threshold",
+			Severity:    SeverityMedium,
+			Enabled:     true,
+			Evaluate:    evaluateAPIPatternAnomaly,
+		},
+		{
+			ID:          "multi-location-login",
+			Name:        "Multi-location login",
+			Description: "Same account accessed from more than 3 different IPs",
+			Severity:    SeverityMedium,
+			Enabled:     true,
+			Evaluate:    evaluateMultiLocationLogin,
+		},
+		{
+			ID:          "service-account-abuse",
+			Name:        "Service account abuse",
+			Description: "Service account used via human browser user agent",
+			Severity:    SeverityHigh,
+			Enabled:     true,
+			Evaluate:    evaluateServiceAccountAbuse,
+		},
+	}
+}
+
+// evaluateMassDataExport detects mass data export (>10 exports in 1h).
+// Triggers HIGH alert with "block" action recommendation.
+func evaluateMassDataExport(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) {
+	if event.Action != "export" {
+		return nil, nil
+	}
+
+	since := time.Now().Add(-1 * time.Hour)
+	entries, err := store.GetRecentEntries(ctx, event.TenantID, event.UserID, 100)
+	if err != nil {
+		return nil, err
+	}
+
+	exportCount := 0
+	for _, e := range entries {
+		if e.Action == "export" && e.Timestamp.After(since) {
+			exportCount++
+		}
+	}
+
+	if exportCount > 10 {
+		return &UEBAAlert{
+			RuleID:    "mass-data-export",
+			RuleName:  "Mass data export",
+			Severity:  SeverityHigh,
+			TenantID:  event.TenantID,
+			UserID:    event.UserID,
+			Detail:    fmt.Sprintf("User exported data %d times in the last hour (threshold: 10)", exportCount),
+			Timestamp: time.Now(),
+			Metadata: map[string]interface{}{
+				"export_count": exportCount,
+				"action":       "block",
+			},
+		}, nil
+	}
+	return nil, nil
+}
+
+// evaluateUnauthorizedAttempt detects excessive permission denials (>20 in 30min).
+// Triggers CRITICAL alert with "lock_account" action recommendation.
+func evaluateUnauthorizedAttempt(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) {
+	if event.Decision != "deny" {
+		return nil, nil
+	}
+
+	since := time.Now().Add(-30 * time.Minute)
+	count, err := store.CountDenialsByUser(ctx, event.TenantID, event.UserID, since)
+	if err != nil {
+		return nil, err
+	}
+
+	if count > 20 {
+		return &UEBAAlert{
+			RuleID:    "unauthorized-attempt",
+			RuleName:  "Unauthorized access attempt",
+			Severity:  SeverityCritical,
+			TenantID:  event.TenantID,
+			UserID:    event.UserID,
+			Detail:    fmt.Sprintf("User had %d permission denials in 30 minutes (threshold: 20)", count),
+			Timestamp: time.Now(),
+			Metadata: map[string]interface{}{
+				"denial_count": count,
+				"action":       "lock_account",
+			},
+		}, nil
+	}
+	return nil, nil
+}
+
+// evaluateOffHoursSensitiveAccess detects access to prod/secrets outside 9:00-18:00.
+// Triggers MEDIUM alert for sensitive resource access during non-working hours.
+func evaluateOffHoursSensitiveAccess(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) {
+	sensitiveResources := map[string]bool{
+		"prod": true, "production": true, "secrets": true, "secret": true,
+		"config": true, "credentials": true, "database": true,
+	}
+
+	if !sensitiveResources[event.Resource] {
+		return nil, nil
+	}
+
+	hour := event.Timestamp.Hour()
+	if hour >= 9 && hour < 18 {
+		return nil, nil // within working hours
+	}
+
+	return &UEBAAlert{
+		RuleID:    "off-hours-sensitive-access",
+		RuleName:  "Off-hours sensitive access",
+		Severity:  SeverityMedium,
+		TenantID:  event.TenantID,
+		UserID:    event.UserID,
+		Detail:    fmt.Sprintf("Access to '%s' at %02d:00 outside working hours (9:00-18:00)", event.Resource, hour),
+		Timestamp: time.Now(),
+		Metadata: map[string]interface{}{
+			"resource": event.Resource,
+			"hour":     hour,
+			"action":   event.Action,
+		},
+	}, nil
+}
+
+// evaluateAPIPatternAnomaly detects ML anomaly scores above 0.8.
+// Expects "anomaly_score" key in event metadata.
+func evaluateAPIPatternAnomaly(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) {
+	scoreRaw, ok := event.Metadata["anomaly_score"]
+	if !ok {
+		return nil, nil
+	}
+
+	var score float64
+	switch v := scoreRaw.(type) {
+	case float64:
+		score = v
+	case float32:
+		score = float64(v)
+	case int:
+		score = float64(v)
+	default:
+		return nil, nil
+	}
+
+	if score <= 0.8 {
+		return nil, nil
+	}
+
+	return &UEBAAlert{
+		RuleID:    "api-pattern-anomaly",
+		RuleName:  "API pattern anomaly",
+		Severity:  SeverityMedium,
+		TenantID:  event.TenantID,
+		UserID:    event.UserID,
+		Detail:    fmt.Sprintf("API anomaly score %.2f exceeds threshold 0.80", score),
+		Timestamp: time.Now(),
+		Metadata: map[string]interface{}{
+			"anomaly_score": score,
+			"resource":      event.Resource,
+			"action":        event.Action,
+		},
+	}, nil
+}
+
+// evaluateMultiLocationLogin detects same account accessed from >3 different IPs.
+// Triggers MEDIUM alert when IP diversity exceeds threshold.
+func evaluateMultiLocationLogin(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) {
+	if event.IPAddress == "" {
+		return nil, nil
+	}
+
+	since := time.Now().Add(-1 * time.Hour)
+	entries, err := store.GetRecentEntries(ctx, event.TenantID, event.UserID, 100)
+	if err != nil {
+		return nil, err
+	}
+
+	ips := make(map[string]bool)
+	ips[event.IPAddress] = true
+	for _, e := range entries {
+		if e.Timestamp.After(since) && e.IPAddress != "" {
+			ips[e.IPAddress] = true
+		}
+	}
+
+	if len(ips) > 3 {
+		ipList := make([]string, 0, len(ips))
+		for ip := range ips {
+			ipList = append(ipList, ip)
+		}
+		return &UEBAAlert{
+			RuleID:    "multi-location-login",
+			RuleName:  "Multi-location login",
+			Severity:  SeverityMedium,
+			TenantID:  event.TenantID,
+			UserID:    event.UserID,
+			Detail:    fmt.Sprintf("Account accessed from %d different IPs in the last hour (threshold: 3)", len(ips)),
+			Timestamp: time.Now(),
+			Metadata: map[string]interface{}{
+				"ip_count": len(ips),
+				"ip_list":  ipList,
+			},
+		}, nil
+	}
+	return nil, nil
+}
+
+// evaluateServiceAccountAbuse detects service accounts accessed via human browser.
+// Triggers HIGH alert with "revoke" action recommendation.
+func evaluateServiceAccountAbuse(ctx context.Context, event SecurityEvent, store UEBAStore) (*UEBAAlert, error) {
+	// Service accounts typically have prefixes: svc_, service_, bot_
+	userID := event.UserID
+	isServiceAccount := strings.HasPrefix(userID, "svc_") ||
+		strings.HasPrefix(userID, "service_") ||
+		strings.HasPrefix(userID, "bot_")
+
+	if !isServiceAccount {
+		return nil, nil
+	}
+
+	// Check if user agent looks like a browser (human)
+	ua := event.UserAgent
+	humanIndicators := []string{"Mozilla", "Chrome", "Safari", "Firefox", "Edge"}
+	isHuman := false
+	for _, indicator := range humanIndicators {
+		if strings.Contains(ua, indicator) {
+			isHuman = true
+			break
+		}
+	}
+
+	if !isHuman {
+		return nil, nil
+	}
+
+	return &UEBAAlert{
+		RuleID:    "service-account-abuse",
+		RuleName:  "Service account abuse",
+		Severity:  SeverityHigh,
+		TenantID:  event.TenantID,
+		UserID:    event.UserID,
+		Detail:    fmt.Sprintf("Service account '%s' accessed via human user agent: %s", event.UserID, ua),
+		Timestamp: time.Now(),
+		Metadata: map[string]interface{}{
+			"user_agent": ua,
+			"action":     "revoke",
+		},
+	}, nil
 }
