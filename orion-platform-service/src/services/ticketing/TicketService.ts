@@ -767,6 +767,28 @@ export class TicketService extends EventEmitter {
   }
 
   /**
+   * List all suspensions with optional status filter
+   */
+  async listSuspensions(status?: string): Promise<EngineerSuspend[]> {
+    const all = await this.suspend.listAll();
+    if (status) {
+      return all.filter(s => s.status === status);
+    }
+    return all;
+  }
+
+  /**
+   * Get suspension impact for an engineer
+   */
+  async getEngineerSuspendImpact(engineerId: string): Promise<SuspensionImpact | null> {
+    const suspensions = await this.suspend.getEngineerSuspensions(engineerId);
+    const active = suspensions.find(s => s.status === 'active');
+    if (!active) return null;
+    const tickets = await this.workflow.listTickets();
+    return this.suspend.analyzeImpact(active.id, tickets);
+  }
+
+  /**
    * Analyze suspension impact on tickets
    */
   async analyzeSuspendImpact(suspendId: string): Promise<SuspensionImpact> {

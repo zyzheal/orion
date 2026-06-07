@@ -101,6 +101,19 @@ export class RoleController {
     }
   }
 
+  /** GET /api/v1/roles/permissions-map — 返回完整角色权限映射（含继承） */
+  async getPermissionsMap(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const map = this.service.getPermissionsMap();
+      await reply.send({ success: true, data: map });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
   async update(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const params = request.params as Record<string, string>;
     const body = request.body as Record<string, unknown>;

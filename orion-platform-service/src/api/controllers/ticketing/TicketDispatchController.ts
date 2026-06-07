@@ -281,9 +281,10 @@ export class TicketDispatchController {
       const rule: DispatchRule = {
         id: `DR-${Date.now()}`,
         name,
-        condition,
-        engineerId,
+        conditions: condition,
+        assignee: engineerId || 'best-match',
         priority: priority || 0,
+        enabled: true,
       };
 
       this.ticketService.addDispatchRule(rule);

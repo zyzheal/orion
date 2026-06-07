@@ -30,7 +30,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
     const { name, description, astConfig, llmConfig } = request.body;
     const tenantId = (request as any).tenantId;
 
-    const repository = new DualEngineRepository(fastify.db);
+    const repository = new DualEngineRepository((fastify as any).db);
     const service = new DualEngineService(repository);
 
     try {
@@ -54,7 +54,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>('/api/dual-engines/:id', async (request, reply) => {
     const { id } = request.params;
 
-    const repository = new DualEngineRepository(fastify.db);
+    const repository = new DualEngineRepository((fastify as any).db);
     const service = new DualEngineService(repository);
 
     try {
@@ -72,7 +72,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
   fastify.get('/api/dual-engines', async (request, reply) => {
     const tenantId = (request as any).tenantId;
 
-    const repository = new DualEngineRepository(fastify.db);
+    const repository = new DualEngineRepository((fastify as any).db);
     const service = new DualEngineService(repository);
 
     const engines = await service.listDualEngines(tenantId);
@@ -86,7 +86,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       const updates = request.body;
 
-      const repository = new DualEngineRepository(fastify.db);
+      const repository = new DualEngineRepository((fastify as any).db);
       const service = new DualEngineService(repository);
 
       try {
@@ -108,7 +108,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>('/api/dual-engines/:id', async (request, reply) => {
     const { id } = request.params;
 
-    const repository = new DualEngineRepository(fastify.db);
+    const repository = new DualEngineRepository((fastify as any).db);
     const service = new DualEngineService(repository);
 
     try {
@@ -126,7 +126,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>('/api/dual-engines/:id/status', async (request, reply) => {
     const { id } = request.params;
 
-    const repository = new DualEngineRepository(fastify.db);
+    const repository = new DualEngineRepository((fastify as any).db);
     const service = new DualEngineService(repository);
 
     try {
@@ -147,7 +147,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       const { filePaths } = request.body;
 
-      const repository = new DualEngineRepository(fastify.db);
+      const repository = new DualEngineRepository((fastify as any).db);
       const service = new DualEngineService(repository);
 
       try {

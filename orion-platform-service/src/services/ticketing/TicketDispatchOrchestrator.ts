@@ -29,6 +29,7 @@ import {
   LoadBalancingReport,
   ReassignmentSuggestion,
   DispatchRule,
+  SLATarget,
 } from './types';
 import type { DispatchMetrics, AssignmentSuccessMetrics, TimeToAssignmentStats, EngineerPerformance } from './DispatchAnalytics';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
@@ -358,8 +359,8 @@ export class TicketDispatchOrchestrator {
   /**
    * Enqueue a ticket for dispatch
    */
-  enqueueForDispatch(ticket: Ticket, slaDeadline?: Date): void {
-    this.dispatchQueue.enqueue(ticket, slaDeadline);
+  enqueueForDispatch(ticket: Ticket, slaTarget?: SLATarget): void {
+    this.dispatchQueue.enqueue(ticket, slaTarget);
   }
 
   /**

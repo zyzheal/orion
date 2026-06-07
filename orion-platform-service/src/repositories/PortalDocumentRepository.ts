@@ -267,7 +267,9 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const query = `SELECT * FROM portal_documents ${whereClause} ORDER BY ${orderBy} ${orderDir === 'ASC' ? 'ASC' : 'DESC'} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    const allowedOrderBy = ['created_at', 'updated_at', 'title', 'view_count', 'helpful_count', 'sort_order'];
+    const safeOrderBy = allowedOrderBy.includes(orderBy) ? orderBy : 'created_at';
+    const query = `SELECT * FROM portal_documents ${whereClause} ORDER BY ${safeOrderBy} ${orderDir === 'ASC' ? 'ASC' : 'DESC'} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const result = await this.db.query(query, params);

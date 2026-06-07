@@ -92,7 +92,7 @@ export class TicketingBIController {
         return;
       }
 
-      const validReasons: SuspendReason[] = ['vacation', 'sick-leave', 'training', 'reassignment', 'other'];
+      const validReasons: SuspendReason[] = ['leave', 'sick', 'training', 'offline', 'other'];
       if (!validReasons.includes(reason)) {
         await reply.status(400).send({
           error: 'VALIDATION_ERROR',

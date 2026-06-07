@@ -96,6 +96,11 @@ export default async function roleRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'read' })],
   }, listHandler);
 
+  // GET /api/v1/roles/permissions-map — full role permissions map (for frontend sync)
+  app.get('/permissions-map', {
+    onRequest: [authenticateUser],
+  }, (request: FastifyRequest, reply: FastifyReply) => controller?.getPermissionsMap(request, reply) || unavailableHandler(request, reply));
+
   // GET /api/v1/roles/:id — role detail
   app.get('/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'read' })],

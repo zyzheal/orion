@@ -451,6 +451,11 @@ export class TicketingRepository {
     return result.rows.map(r => this.mapSuspendRow(r));
   }
 
+  async listAllSuspensions(): Promise<EngineerSuspend[]> {
+    const result = await this.pool.query('SELECT * FROM engineer_suspensions ORDER BY start_time DESC');
+    return result.rows.map(r => this.mapSuspendRow(r));
+  }
+
   // ==================== Workflow History ====================
 
   async createWorkflowHistory(ticketId: string, fromStatus: string, toStatus: string, performedBy: string, reason?: string): Promise<WorkflowHistory> {

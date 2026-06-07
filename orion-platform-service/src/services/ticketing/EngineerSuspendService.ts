@@ -133,6 +133,13 @@ export class EngineerSuspendService {
   }
 
   /**
+   * List all suspensions
+   */
+  async listAll(): Promise<EngineerSuspend[]> {
+    return this.ticketingRepository!.listAllSuspensions();
+  }
+
+  /**
    * Get scheduled (future) suspensions
    */
   async getScheduledSuspensions(): Promise<EngineerSuspend[]> {

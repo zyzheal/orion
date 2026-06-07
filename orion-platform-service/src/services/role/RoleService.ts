@@ -216,6 +216,37 @@ export class RoleService {
   }
 
   /**
+   * 获取完整的角色权限映射（含继承展开后）
+   * 供前端动态同步权限定义
+   */
+  getPermissionsMap(): Record<string, string[]> {
+    const base = {
+      ...SYSTEM_ROLE_PERMISSIONS,
+      ...BUSINESS_ROLE_PERMISSIONS,
+      ...PROJECT_ROLE_PERMISSIONS,
+    };
+
+    // Apply inheritance: child gets all parent permissions
+    const result: Record<string, string[]> = {};
+    for (const [role, perms] of Object.entries(base)) {
+      result[role] = [...perms];
+    }
+    for (const [child, parents] of Object.entries(ROLE_INHERITANCE)) {
+      if (!result[child]) result[child] = [];
+      for (const parent of parents) {
+        if (result[parent]) {
+          for (const p of result[parent]) {
+            if (!result[child].includes(p)) {
+              result[child].push(p);
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
    * 初始化角色默认权限映射（写入 role_permissions 表）
    *
    * 实施注意:
