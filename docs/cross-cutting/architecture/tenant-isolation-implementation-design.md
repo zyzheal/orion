@@ -1,4 +1,6 @@
 > ⚠️ **目标设计，未实现**。本文档描述的是未来架构方案，当前系统为 Node.js Fastify 单体。详见 [`当前系统架构.md`](./当前系统架构.md)。
+>
+> **注意**：本文档的租户隔离架构是权威来源。全局统一视图见 `docs/security/权限系统统一规范.md`。
 
 # Multi-Tenant Isolation Implementation Design (多租户隔离实施详细设计)
 
