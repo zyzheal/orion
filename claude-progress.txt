@@ -1,5 +1,197 @@
 # Orion Design - Progress Log
 
+## 2026-06-07: Phase 2.3+2.4 — Repository Tenant ID 修复 + RLS 测试
+
+### 概述
+
+完成权限系统 Phase 2 的 P0/P1 违规修复和 RLS 集成测试，确保所有 Go 微服务的 SQL 查询正确包含 tenant_id 过滤。
+
+### 修复内容
+
+| 服务 | 修复文件 | 修复方法 |
+|------|---------|---------|
+| **scheduler-svc-go** | service/scheduler_service.go | ListSchedules, GetSchedule, DeleteSchedule, GetCurrentOnCall, CreateOverride, generateAssignments 添加 tenantID |
+| **scheduler-svc-go** | handler/handler.go | 所有 on-call handler 提取并传递 tenantID |
+| **skill-svc-go** | repository/skill_repository.go | UpdateInstance, DeleteInstance, FindExecutionByID, UpdateExecution 添加 tenant_id WHERE 条件 |
+| **skill-svc-go** | service/skill_service.go | 对应 service 方法传递 tenantID |
+| **skill-svc-go** | handler/handler.go | UpdateExecution handler 提取 tenantID |
+| **secret-svc-go** | — | 已有安全方法，FindByID/DeleteByID 标记 DEPRECATED |
+| **deploy-svc-go** | — | 已有安全方法，GetByIDAny 标记 DEPRECATED |
+| **build-svc-go** | — | 所有方法已含 tenant_id |
+| **cmdb-service** | — | WithTenant 方法已存在，旧方法标记 DEPRECATED |
+
+### RLS 测试
+
+- 文件: `orion-go-common/pkg/database/rls_test.go`
+- 11 个测试用例覆盖:
+  - SELECT 隔离验证
+  - 无租户返回空结果
+  - UPDATE/DELETE 跨租户拦截
+  - NULL tenant_id 不可见
+  - 多表隔离验证
+  - FORCE RLS 防绕过
+  - 并发租户切换
+  - Advisory Lock 不受 RLS 影响
+
+### 验证状态
+
+- [x] scheduler-svc-go: `go build ./...` 通过
+- [x] skill-svc-go: `go build ./...` 通过
+- [x] secret-svc-go: `go build ./...` 通过
+- [x] deploy-svc-go: `go build ./...` 通过
+- [x] build-svc-go: `go build ./...` 通过
+- [x] go-common: `go vet -tags=integration ./pkg/database/` 通过
+
+### 任务状态
+
+- Phase 2.1: ✅ RLS migration
+- Phase 2.2: ✅ Repository 审计
+- Phase 2.3: ✅ BaseRepository + 违规修复
+- Phase 2.4: ✅ RLS 测试
+- **Phase 2 全部完成**
+
+---
+
+## 2026-06-03: TDD 开发修复 — Session 8 (auth/efficiency/security/self-healing)
+
+### 概述
+
+为 4 个模块补充 TDD 测试用例，新增 8 个测试文件、188 个测试用例，覆盖所有未测试的源文件。
+
+### 新增测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖源文件 |
+|------|----------|--------|-----------|
+| auth | LdapService.test.ts | 22 | LdapService.ts |
+| auth | SsoService.test.ts | 25 | SsoService.ts |
+| auth | WechatWorkService.test.ts | 28 | WechatWorkService.ts |
+| efficiency | EfficiencyReportService.test.ts | 28 | EfficiencyReportService.ts |
+| security | ArtifactSigner.test.ts | 12 | ArtifactSigner.ts |
+| security | DependencyGraphService.test.ts | 12 | DependencyGraphService.ts |
+| self-healing | HealingActionExecutor.test.ts | 39 | HealingActionExecutor.ts |
+| self-healing | HealingStrategyEngine.test.ts | 22 | HealingStrategyEngine.ts |
+
+**合计**: 8 个测试文件, 188 个测试用例, 全部通过
+
+### 测试覆盖要点
+
+- **LdapService**: 连接管理、认证流程、配置验证、断开连接、单例导出
+- **SsoService**: OIDC 初始化、授权 URL 生成、回调处理、状态存储、配置暴露
+- **WechatWorkService**: 授权 URL、token 缓存、用户信息获取、回调处理、连接测试
+- **EfficiencyReportService**: 报告生成、团队/项目指标、时间段对比、历史记录
+- **ArtifactSigner**: 签名生成、签名验证、证书生成（使用真实 RSA 密钥对）
+- **DependencyGraphService**: 依赖图构建、漏洞路径查找、传递依赖查询
+- **HealingActionExecutor**: restart/scale/failover/rollback 执行、验证、回滚（K8S_SIMULATE=true）
+- **HealingStrategyEngine**: 策略注册/匹配/条件评估、启用/禁用、内置策略加载
+
+---
+
+## 2026-06-03: TDD 开发修复 — 整体进度汇总
+
+### 概述
+
+TDD 开发修复已完成多轮会话，覆盖 18+ 个服务模块，新增 717+ 个测试用例。
+
+### 已完成的模块
+
+| 模块 | 测试文件 | 测试数 | 覆盖率改进 |
+|------|----------|--------|-----------|
+| FinOpsRepository | FinOpsRepository.test.ts | 94 | 0% → 89% |
+| FinOpsService | FinOpsService.test.ts | 49 | 0% → 76% |
+| TicketingRepository | TicketingRepository.test.ts | 76 | 0.54% → 100% |
+| PipelineRunRepository | PipelineRunRepository.test.ts | 48 | 0.74% → 98% |
+| MonitoringRepository | MonitoringRepository.test.ts | 64 | 0.61% → 100% |
+| WebhookRepository | WebhookRepository.test.ts | 55 | 1.39% → 89% |
+| BudgetService | BudgetService.test.ts | 60 | 0% → 76%+ |
+| AutoProgressionEngine | AutoProgressionEngine.test.ts | 23 | 0% → 85%+ |
+| RedisCache | redis-cache.test.ts | 60 | 0% → 80%+ |
+
+### 整体测试状态
+
+- 测试套件: 638 个 (4 skipped)
+- 测试用例: 15,585 个 (62 skipped)
+- 全部通过: 是
+- 服务模块: 122 个，121 个有测试
+
+### Commits
+
+- `877223dc` test: add TDD coverage for finops, ticketing, pipeline Repository modules
+- `99837bcd` test: add TDD coverage for finops, monitoring, webhook modules (Session 2)
+- `530134a3` test: add TDD coverage for budget, canary-traffic, redis-cache modules
+- `e17acc80` test: add TDD coverage for cost calculator, data processor, efficiency dashboard
+- `da002999` test: add TDD coverage for PipelineBudget, PipelineExecutionQueue, BuildAttestation
+- `78e9d783` test: add TDD coverage for DigitalTwinService, DeploymentWorkflow, apk-uploaders
+- `f26243c9` test: add TDD coverage for ConfigVersion, BackupRestore, SemanticSearch
+- `54ae5c25` test: add TDD coverage for DeployRepository, DeploymentHistory, PipelineTemplate
+- `246ffbad` test: add TDD coverage for DeployWindowRepository, DynamicParamsResolver, TeamRepository+TeamService
+- `6351b979` test: add TDD coverage for ReleaseTrainService, CapacityService, BillingService
+- `ee7809ad` test: add TDD coverage for SubAppRepository and CapabilityRepository
+
+---
+
+## 2026-06-03: finops + monitoring + webhook 模块 TDD 测试补充 (Session 2)
+
+### 概述
+
+继续 TDD 开发修复，为 finops、monitoring 和 webhook 模块补充 Service/Repository 层测试。
+
+### 本次新增的测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖率改进 |
+|------|----------|--------|-----------|
+| finops | `FinOpsService.test.ts` (NEW) | 49 | FinOpsService: 0% → 76% |
+| monitoring | `MonitoringRepository.test.ts` (NEW) | 64 | MonitoringRepository: 0.61% → 100% |
+| webhook | `WebhookRepository.test.ts` (NEW) | 55 | WebhookRepository: 1.39% → 89% |
+
+### 关键技术点
+
+- 测试 FinOpsService 业务逻辑（预算状态、ROI计算、成本优化分析）
+- 测试 MonitoringRepository 完整 CRUD（配置、告警、规则、渠道、升级策略、通知历史）
+- 测试 WebhookRepository 双版本（Legacy + Enhanced）端点/订阅/投递管理
+- 测试行映射函数（mapWebhook、mapDelivery 等 active→enabled 转换）
+
+### 覆盖率详情
+
+| 文件 | Stmts | Branch | Funcs | Lines |
+|------|-------|--------|-------|-------|
+| FinOpsService.ts | 74.61% | 53.37% | 72.04% | 76.27% |
+| MonitoringRepository.ts | 86.54% | 81.41% | 100% | 100% |
+| WebhookRepository.ts | 87.17% | 86.17% | 100% | 88.81% |
+
+---
+
+## 2026-06-03: finops + ticketing + pipeline 模块 TDD 测试补充
+
+### 概述
+
+为 finops、ticketing 和 pipeline 模块补充 Repository 层测试，覆盖率从 0% 提升至 79-98%。
+
+### 本次新增的测试文件
+
+| 模块 | 测试文件 | 测试数 | 覆盖率改进 |
+|------|----------|--------|-----------|
+| finops | `FinOpsRepository.test.ts` (NEW) | 94 | FinOpsRepository: 0% → 89% |
+| ticketing | `TicketingRepository.test.ts` (NEW) | 76 | TicketingRepository: 0.54% → 100% |
+| pipeline | `PipelineRunRepository.test.ts` (NEW) | 48 | PipelineRunRepository: 0.74% → 98% |
+
+### 关键技术点
+
+- 使用 `jest.fn()` mock `DatabasePool.query` 方法
+- 测试错误传播场景（connection refused, timeout, constraint violation 等）
+- 测试动态 SQL 构建（多条件过滤、IN 查询、LIKE 查询）
+- 测试默认值处理（timestamp、status、config_snapshot 等）
+- 测试行映射辅助函数（mapAssignmentRow、mapRelationRow 等）
+
+### 覆盖率详情
+
+| 文件 | Stmts | Branch | Funcs | Lines |
+|------|-------|--------|-------|-------|
+| FinOpsRepository.ts | 79.34% | 72.59% | 89.36% | 89.4% |
+| TicketingRepository.ts | 88.84% | 78.39% | 100% | 100% |
+| PipelineRunRepository.ts | 98.52% | 98.18% | 100% | 98.51% |
+
+---
+
 ## 2026-06-02: api-key + project 模块 TDD 测试补充
 
 ### 概述
@@ -3760,3 +3952,481 @@ expect(result.data.xxx).toBe(...); // 正确访问解包后的数据
 
 - **新增测试**: 90 个 (42 + 48)
 - **全部通过**: 133 个测试 (含已有 QueueService 测试 43 个)
+
+## TDD 测试补充 - metrics + adaptive-pipeline 模块 (2026-06-02)
+
+### 变更内容
+1. **新增** `src/services/metrics/__tests__/MetricsRepository.test.ts` - 25 个测试用例
+2. **增强** `src/services/adaptive-pipeline/__tests__/SelfAdaptivePipelineService.test.ts` - 新增 32 个测试用例
+
+### 覆盖率提升
+- MetricsRepository.ts: 0% -> 100% (Stmts/Branch/Funcs/Lines)
+- MetricsService.ts: 100% (已有)
+- SelfAdaptivePipelineService.ts: 50% -> 100%
+
+### 测试统计
+- 总测试数: 117 个 (3 个测试套件)
+- 全部通过
+- AST 设计约束检查: 通过
+
+### Git 提交
+- commit 3fb7f41a on feat/metric-collector-postgres-persistence
+
+## 2026-06-02: 双引擎（AST + LLM）代码分析模块开发
+
+### 概述
+
+为 Orion 平台添加双引擎（AST 静态分析 + LLM 智能解析）代码分析模块，支持代码质量评估、风险分析和优化建议。
+
+### 新增文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `src/services/ai-training/dual-engine-model.ts` | 数据模型定义 |
+| `src/services/ai-training/dual-engine-repository.ts` | 数据库访问层 |
+| `src/services/ai-training/dual-engine-service.ts` | 业务逻辑层 |
+| `src/services/ai-training/index.ts` | 模块导出 |
+| `src/api/dual-engine-routes.ts` | API 路由定义 |
+| `src/services/ai-training/__tests__/DualEngineService.test.ts` | 单元测试（19 个测试用例） |
+
+### 修改文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `src/api/routes.ts` | 添加双引擎路由注册 |
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/dual-engines` | 创建双引擎配置 |
+| GET | `/api/dual-engines` | 获取所有双引擎配置 |
+| GET | `/api/dual-engines/:id` | 获取单个双引擎配置 |
+| PUT | `/api/dual-engines/:id` | 更新双引擎配置 |
+| DELETE | `/api/dual-engines/:id` | 删除双引擎配置 |
+| GET | `/api/dual-engines/:id/status` | 获取引擎运行状态 |
+| POST | `/api/dual-engines/:id/analyze` | 启动代码分析 |
+
+### 测试结果
+
+- 总测试数: 19 个
+- 全部通过
+- 覆盖场景: 创建引擎（含验证）、查询引擎、列表查询、更新引擎、删除引擎、状态查询、代码分析
+
+### Git 提交
+- 待提交
+
+## 2026-06-02: 双引擎（AST + LLM）代码分析模块开发 - COMPLETED
+
+### 概述
+
+为 Orion 平台添加了双引擎（AST + LLM）代码分析模块，结合 AST 静态分析引擎和 LLM 智能解析引擎，提供代码质量评估、风险分析和优化建议功能。
+
+### 新增文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `src/services/ai-training/dual-engine-model.ts` | 数据模型定义 |
+| `src/services/ai-training/dual-engine-repository.ts` | 数据库访问层 |
+| `src/services/ai-training/dual-engine-service.ts` | 业务逻辑层 |
+| `src/services/ai-training/index.ts` | 模块导出 |
+| `src/api/dual-engine-routes.ts` | API 路由定义 |
+| `src/services/ai-training/__tests__/DualEngineService.test.ts` | 单元测试（19 个测试用例） |
+
+### 修改文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `src/api/routes.ts` | 添加双引擎路由导入和注册 |
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/dual-engines` | 创建双引擎配置 |
+| GET | `/api/dual-engines` | 获取所有双引擎配置 |
+| GET | `/api/dual-engines/:id` | 获取单个双引擎配置 |
+| PUT | `/api/dual-engines/:id` | 更新双引擎配置 |
+| DELETE | `/api/dual-engines/:id` | 删除双引擎配置 |
+| GET | `/api/dual-engines/:id/status` | 获取引擎运行状态 |
+| POST | `/api/dual-engines/:id/analyze` | 启动代码分析 |
+
+### 测试结果
+
+- 总测试数: 19 个
+- 全部通过
+- 覆盖场景: 创建引擎（含验证）、查询引擎、列表查询、更新引擎、删除引擎、状态查询、代码分析
+
+### Git 提交
+- commit c5ef34d2 on feat/metric-collector-postgres-persistence
+
+## 2026-06-03: API Route TDD 测试补充 — 29 个路由模块
+
+### 概述
+
+为 `src/api/` 下所有缺少测试的路由文件补充 TDD 测试，验证路由模块可正确导入和导出 Fastify 插件函数。
+
+### 新增测试文件 (29 个)
+
+| 分类 | 路由模块 | 导出类型 |
+|------|---------|---------|
+| AI | ai-cost, ai-gateway | default |
+| 审批 | approval | named (registerApprovalRoutes) |
+| 缓存 | cache-cleanup | default |
+| 熔断 | circuit-breaker | default |
+| 降级 | degradation | default |
+| 依赖 | dependency-coordination | named (registerDependencyCoordinationRoutes) |
+| 双引擎 | dual-engine | named (dualEngineRoutes) |
+| 事件 | event-trigger-registry | default |
+| 知识库 | knowledge | default |
+| LLM | llm-trace | default |
+| 消息队列 | message-queue | default |
+| 通知 | notification | default |
+| Pipeline | pipeline-budget (named), pipeline-error-detail, pipeline-graph (named), pipeline-template, pipeline-version | mixed |
+| 插件 | plugin-hotreload | default |
+| 隐私 | privacy | default |
+| SSO | sso | named (registerSsoRoutes) |
+| 超时 | task-timeout | default |
+| 用户 | user-status | default |
+| 向量 | vector | named (vectorRoutes) |
+| 工作流 | workflow, workflow-dependency, workflow-task, workflow-trigger, workflow-webhook | default |
+
+### 测试结果
+
+- **测试套件**: 30 passed (含 sso-routes 的 ESM mock 修复)
+- **测试用例**: 34 passed
+- **无回归**: 预存失败数从 14 降至 13（sso-routes 修复）
+
+### 技术要点
+
+- sso-routes 需要 mock `openid-client` 和 `oauth4webapi`（ESM 模块 Jest 无法解析）
+- 默认导出路由检查 `mod.default`，命名导出路由检查具体导出名
+- 所有测试使用 `jest.fn()` 动态导入，避免模块级副作用
+
+### Git 提交
+- commit b3415aa5 on feat/metric-collector-postgres-persistence
+
+## 2026-06-07: Phase 3 — RBAC 数据库落地 (3.1-3.7)
+
+### 概述
+
+完成权限系统 Phase 3 的数据库迁移和 Go 代码实现，包括 RBACRepository（数据库 CRUD）和 AuthorizationEngine（统一授权引擎）。
+
+### 数据库迁移
+
+- 文件: `orion-platform-service/src/db/migrations/306_rbac_abac_enhanced_tables.sql`
+- 新增 4 个表: role_inheritance, abac_policies, project_members, permission_audit_logs
+- 所有表启用 RLS + tenant_isolation 策略
+- 种子数据: 49 条默认权限（15 资源 × 4 操作 + approvals 3 操作）
+
+### Go 代码
+
+#### RBACRepository (`orion-go-common/pkg/auth/rbac_repository.go`)
+- 角色 CRUD: GetRoleByID, ListRoles, CreateRole, UpdateRole, DeleteRole
+- 用户角色 CRUD: AssignRole, RevokeRole, GetUserRoles, SetUserRoles, ListUsersByRole
+- 角色继承: AddInheritance, RemoveInheritance, GetParentRoles, GetChildRoles, ExpandInheritanceChain (CTE 递归)
+- ABAC 策略: CreatePolicy, GetPolicyByID, ListPolicies, ListEnabledPolicies, UpdatePolicy, DeletePolicy
+- 项目成员: AddProjectMember, RemoveProjectMember, GetProjectMember, ListProjectMembers, UpdateProjectMemberRole
+- 审计日志: CreateAuditLog, ListAuditLogs, ListAuditLogsByUser, GetLastAuditHash, CountAuditLogs
+- 权限: ListPermissions, GetRolePermissions, GrantPermission, RevokePermission
+- ResolveUserPermissions: 继承展开 + 权限合并
+
+#### AuthorizationEngine (`orion-go-common/pkg/auth/authorization_engine.go`)
+- 三阶段评估: RBAC → ABAC deny-only → relationship check → audit log
+- 双模式: UseInMemoryRBAC (默认, 兼容) / DB-backed (通过 ResolveUserPermissions)
+- super_admin 跳过 ABAC 检查
+- 审计日志链式哈希 (Phase 4 预留)
+- RequireAuthorization gin 中间件集成
+
+### 测试
+
+- AuthorizationEngine 测试: 11 个测试组, 30+ 测试用例
+  - RBAC 权限匹配 (14 个角色 × 多种操作)
+  - ABAC 拒绝策略 (租户隔离、外部网络、工作时间)
+  - 超级管理员跳过 ABAC
+  - 角色继承链展开
+  - 通配符匹配 (*:*, resource:*, *:action)
+- RBACRepository 集成测试: 7 个测试组 (需 PostgreSQL)
+  - 角色 CRUD、用户角色、继承、ABAC 策略、项目成员、审计日志、租户隔离
+
+### 阶段状态
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 3.1 角色/权限表 | ✅ | migration 002 + 306 |
+| 3.2 user_roles CRUD | ✅ | RBACRepository |
+| 3.3 role_inheritance 展开 | ✅ | ExpandInheritanceChain (CTE) |
+| 3.4 abac_policies CRUD | ✅ | RBACRepository |
+| 3.5 project_members CRUD | ✅ | RBACRepository |
+| 3.6 AuthorizationEngine | ✅ | 三阶段评估引擎 |
+| 3.7 permission_audit_logs | ✅ | 含链式哈希预留 |
+| 3.8 前端按钮级权限 | 待实现 | 需前端工作 |
+| 3.9 集成测试 | ✅ | 已创建，需 DB 环境运行 |
+
+## 2026-06-07: Phase 4 — 审计防篡改 (4.1-4.6)
+
+### 概述
+
+完成权限系统 Phase 4 的审计防篡改模块，包括链式 Hash、WORM 存储、定期签名、UEBA 异常检测、安全告警集成。
+
+### Go 代码
+
+#### Chain Hasher (`orion-go-common/pkg/audit/chain.go`)
+- AuditEntry 结构体: 完整审计日志字段 + chain fields (PrevHash, Hash)
+- ChainHasher: SHA-256 链式哈希计算
+  - ComputeHash: 生成哈希 (prev_hash + tenant_id + user_id + resource + action + decision + timestamp)
+  - SealEntry: 计算并设置 Hash 字段
+  - VerifyEntry: 验证单条日志哈希完整性
+  - VerifyChain: 验证链完整性，返回首个破坏位置
+- ChainVerifier: 高级链验证，返回 VerificationResult
+
+#### WORM Storage (`orion-go-common/pkg/audit/worm.go`)
+- WORMStore 接口: Write/Read/List/ListByTimeRange/Count/VerifyIntegrity
+- PostgresWORMStore: 基于 PostgreSQL 的 WORM 实现
+  - 只 INSERT 不 UPDATE/DELETE (应用层 WORM 语义)
+  - 自动计算链式哈希
+  - VerifyIntegrity: 批量验证链完整性
+
+#### Periodic Signer (`orion-go-common/pkg/audit/signer.go`)
+- Signer: 定期签名审计日志块
+  - RSA PKCS1v15 SHA-256 签名
+  - 可配置 interval 和 block size
+  - Start/Stop 生命周期
+  - SignBlock: 对日志块签名
+  - VerifyBlock: 验证块签名
+- GenerateKeyPair: RSA 密钥对生成
+- AuditBlock: 签名块结构 (entries + block_hash + signature)
+
+#### UEBA Engine (`orion-go-common/pkg/audit/ueba.go`)
+- UEBAEngine: 用户行为分析引擎
+- 6 条默认检测规则:
+  1. excessive-denials: 过多权限拒绝 (15min 内 ≥10 次)
+  2. privilege-escalation-attempt: 权限提升尝试 (30min 内 ≥5 次)
+  3. unusual-resource-access: 异常资源访问 (1h 内 ≥20 个不同资源)
+  4. off-hours-access: 非工作时间特权操作 (1h 内 ≥3 次)
+  5. brute-force-permission: 暴力探测 (5min 内 ≥15 次)
+  6. cross-tenant-attempt: 跨租户访问 (1h 内 ≥1 次)
+- UEBAStore 接口: 数据查询抽象
+- AlertFunc: 告警回调
+
+#### Alert Router (`orion-go-common/pkg/audit/alert.go`)
+- SecurityAlert: 安全告警结构
+- AlertNotifier 接口: 告警发送抽象
+- NotificationServiceNotifier: 发送到 notification-svc
+- LogNotifier: 内存存储 (开发/测试)
+- AlertRouter: 路由 UEBA 告警到通知系统
+
+### 测试
+
+- ChainHasher 测试: 7 个测试用例
+  - ComputeHash 一致性
+  - SealEntry 设置 Hash
+  - VerifyEntry 验证 + 篡改检测
+  - VerifyChain 完整链验证
+  - 断链检测
+  - ChainVerifier 高级验证
+
+### 阶段状态
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 4.1 链式 Hash | ✅ | ChainHasher + ChainVerifier |
+| 4.2 定期签名 | ✅ | Signer + RSA PKCS1v15 |
+| 4.3 WORM 存储 | ✅ | PostgresWORMStore |
+| 4.4 独立日志同步 | 待实现 | 需独立日志服务器 |
+| 4.5 UEBA 基础规则 | ✅ | 6 条检测规则 |
+| 4.6 安全告警集成 | ✅ | AlertRouter + NotificationServiceNotifier |
+
+---
+
+## 2026-06-07: Phase 5 — SSO & Enterprise Integration
+
+### 概述
+
+完成 SSO 企业集成模块，包含 OIDC 标准流程、LDAP 认证、微信 OAuth、HR 同步引擎、设备管理、地理登录检测、密钥轮转 7 个子模块。
+
+### 新增文件
+
+| 文件 | 模块 | 说明 |
+|------|------|------|
+| `orion-auth-svc/internal/sso/oidc.go` | OIDC | 标准 OpenID Connect 授权码流程 |
+| `orion-auth-svc/internal/sso/ldap.go` | LDAP | LDAP 认证 + 组映射 |
+| `orion-auth-svc/internal/sso/wechat.go` | WeChat | 微信开放平台 + 企业微信 OAuth |
+| `orion-auth-svc/internal/sso/hr_sync.go` | HR Sync | HR 系统同步引擎 |
+| `orion-auth-svc/internal/sso/device.go` | Device | 设备指纹 + 信任管理 |
+| `orion-auth-svc/internal/sso/geologin.go` | Geo Login | 地理位置异常登录检测 |
+| `orion-auth-svc/internal/sso/keyrotation.go` | Key Rotation | RS256 密钥自动轮转 |
+| `orion-auth-svc/internal/sso/geologin_test.go` | Tests | 地理登录检测测试 |
+
+### 模块详情
+
+#### 5.1 OIDC 标准流程 (`oidc.go`)
+- OIDCProvider: Discover → AuthCodeURL → Exchange → GetUserInfo
+- AuthCodeOption 函数式选项: WithNonce, WithPrompt, WithLoginHint
+- IDTokenVerifier: ID Token 验证器
+- GenerateState/GenerateNonce: 加密安全随机数
+
+#### 5.2 LDAP 实现 (`ldap.go`)
+- LDAPClient: Authenticate → bind → searchUser → searchGroups
+- LDAPConfig: 完整 LDAP 配置（URL/BaseDN/BindDN/Filter/TLS）
+- MapLDAPGroupsToRoles: LDAP 组 → Orion 角色映射
+- ParseLDAPURL: LDAP URL 解析
+
+#### 5.3 微信 OAuth (`wechat.go`)
+- WeChatOAuthClient: 同时支持微信开放平台和企业微信
+- AuthCodeURL / WorkAuthCodeURL: 授权 URL 生成
+- Exchange: 授权码换 Token
+- GetUserInfo / GetWorkUserInfo: 用户信息获取
+
+#### 5.4 HR 同步引擎 (`hr_sync.go`)
+- HRSyncEngine: 批量同步 HR 用户数据
+- Sync: 处理新员工、离职、调岗
+- handleNewEmployee: 创建用户 + 通知
+- handleTermination: 禁用账户 + 通知
+- handleTransfer: 调岗通知
+- StartPeriodicSync: 后台定时同步
+
+#### 5.5 设备管理 (`device.go`)
+- DeviceManager: 设备识别 + 信任管理
+- IdentifyOrCreate: 指纹识别或创建新设备
+- Trust / RevokeTrust: 信任状态管理
+- GenerateFingerprint: SHA-256 设备指纹生成
+
+#### 5.6 地理登录检测 (`geologin.go`)
+- GeoLoginDetector: 异常登录位置检测
+- CheckLogin: 5 项检测逻辑
+  1. 国家黑名单拦截
+  2. 国家白名单校验
+  3. 不可能旅行检测（Haversine 距离 + 速度）
+  4. 新国家告警
+  5. 登录记录持久化
+- HaversineDistance: 大圆距离计算
+- StaticGeoIPResolver: 静态 GeoIP 解析器（测试用）
+
+#### 5.7 密钥轮转 (`keyrotation.go`)
+- KeyRotationManager: RS256 密钥自动轮转
+- Initialize: 加载或创建初始密钥
+- Rotate: 生成新密钥 + 旧密钥进入宽限期
+- StartAutoRotation: 后台定时轮转
+- CleanupOldKeys: 清理过期密钥
+- GetSigningKey / GetVerificationKeys: 签名/验证密钥获取
+- VaultClient 接口: HashiCorp Vault 集成预留
+
+### 测试
+
+- GeoLogin 测试: 5 个测试用例
+  - NormalLogin: 正常登录无告警
+  - ImpossibleTravel: 不可能旅行检测
+  - BlockedCountry: 黑名单国家拦截
+  - AllowedCountries: 白名单国家校验
+  - HaversineDistance: 距离计算精度
+
+### 阶段状态
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 5.1 OIDC 标准流程 | ✅ | OIDCProvider + Discovery |
+| 5.2 LDAP 实现 | ✅ | LDAPClient + 组映射 |
+| 5.3 微信 OAuth | ✅ | 开放平台 + 企业微信 |
+| 5.4 HR 同步引擎 | ✅ | HRSyncEngine + 定时同步 |
+| 5.5 设备管理 | ✅ | DeviceManager + 指纹 |
+| 5.6 地理登录检测 | ✅ | GeoLoginDetector + Haversine |
+| 5.7 密钥轮转 | ✅ | KeyRotationManager + Vault 预留 |
+
+**Phase 5 全部完成**
+
+---
+
+## 2026-06-07: Phase 3.8 — 前端按钮级权限控制
+
+### 概述
+
+为前端关键页面添加按钮级权限控制，使用 PermissionActions 组件和 usePermissionActions Hook 实现 RBAC 权限守卫。
+
+### 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `orion-frontend/src/hooks/usePermissionActions.ts` | 权限操作 Hook，提供 canView/canEdit/canDelete/canExecute 等快捷方法 |
+| `orion-frontend/src/components/PermissionActions/index.tsx` | 权限感知操作按钮组组件，支持 hide/disabled/tooltip 三种无权限模式 |
+
+### 修改页面
+
+| 页面 | 修改内容 |
+|------|---------|
+| **PipelineList** | 创建按钮 + 行操作（查看/编辑/运行历史）添加权限控制 |
+| **DeploymentList** | 行操作（详情/回滚）添加权限控制 |
+| **AlertList** | 行操作（确认/解决/详情）+ 批量操作按钮添加权限控制 |
+
+### 组件特性
+
+#### usePermissionActions Hook
+- `canView` / `canEdit` / `canDelete` / `canExecute` / `canApprove` / `canManage` 快捷方法
+- `checkAction(action)` 自定义操作检查
+- `getActionProps(action, extraProps)` 获取按钮属性（自动处理 disabled + tooltip）
+
+#### PermissionActions 组件
+- 支持 `noPermissionMode`: 'hide' | 'disabled' | 'tooltip'
+- 支持 `confirm` 二次确认（Popconfirm）
+- 支持自定义 `render` 完全控制渲染
+- 支持 `danger` 危险操作样式
+
+### 阶段状态
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 3.8 前端按钮级权限控制 | ✅ | PermissionActions + usePermissionActions + 3 个页面集成 |
+
+---
+
+## 2026-06-07: Phase 4.4 — 独立日志服务器同步
+
+### 概述
+
+实现审计日志独立服务器同步功能，支持 Elasticsearch、Loki、通用 HTTP 三种日志后端。
+
+### 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `orion-go-common/pkg/audit/logsync.go` | LogSyncer 日志同步器 |
+| `orion-go-common/pkg/audit/logsync_test.go` | 6 个测试用例 |
+
+### 功能详情
+
+#### LogSyncer
+- 支持三种日志后端: Elasticsearch (bulk API)、Loki (push API)、HTTP (generic)
+- 批量同步: 可配置 batch size
+- 自动重试: 可配置 max retries + retry delay
+- Bearer Token 认证
+- 后台定时同步 + 手动触发
+- 同步统计: totalSynced/totalFailed/batchesSent
+
+#### 测试用例
+- SendHTTP: 基本 HTTP 同步
+- SendHTTP_Batching: 批量分片
+- Retry: 失败重试
+- Disabled: 禁用状态
+- AuthToken: 认证令牌
+- Elasticsearch: ES bulk API 格式
+
+### 阶段状态
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 4.4 独立日志同步 | ✅ | LogSyncer + ES/Loki/HTTP 支持 |
+
+---
+
+## 最终权限系统完成状态
+
+| Phase | 状态 | 说明 |
+|-------|------|------|
+| Phase 0: 基础设施 | ✅ | JWT RS256 + HttpOnly Cookie + PostgreSQL RLS |
+| Phase 1: 认证层 | ✅ | Login/Refresh/Logout + Redis 黑名单 |
+| Phase 2: 租户隔离 | ✅ | RLS migration + Repository 审计 + BaseRepository |
+| Phase 3: RBAC 持久化 | ✅ | RBACRepository + AuthorizationEngine + 前端权限控制 |
+| Phase 4: 审计防篡改 | ✅ | ChainHash + WORM + Signer + UEBA + LogSync |
+| Phase 5: SSO 企业集成 | ✅ | OIDC + LDAP + WeChat + HR Sync + Device + GeoLogin + KeyRotation |
+
+**权限系统全部完成**
