@@ -94,11 +94,6 @@ func (r *ToolRepository) Update(ctx context.Context, tool *models.Tool) error {
 	return err
 }
 
-func (r *ToolRepository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM tools WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	return err
-}
-
 func (r *ToolRepository) GetCategories(ctx context.Context, tenantID string) ([]models.ToolCategory, error) {
 	var cats []models.ToolCategory
 	err := r.db.SelectContext(ctx, &cats, `SELECT * FROM tool_categories WHERE tenant_id=$1 ORDER BY sort_order`, tenantID)

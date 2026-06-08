@@ -2,8 +2,12 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 )
+
+// Sentinel errors for tool operations.
+var ErrToolNotFound = errors.New("tool not found")
 
 // Tool represents a registered tool in the tool center.
 type Tool struct {

@@ -20,7 +20,6 @@ import (
 
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/otel"
-	orionredis "orion/go-common/pkg/redis"
 )
 
 func main() {

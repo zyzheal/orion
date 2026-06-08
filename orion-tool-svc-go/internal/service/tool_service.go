@@ -12,6 +12,8 @@ import (
 	"orion-tool-svc-go/internal/repository"
 )
 
+const defaultSearchLimit = 20
+
 // ToolService handles tool business logic.
 type ToolService struct {
 	toolRepo   *repository.ToolRepository
@@ -90,7 +92,7 @@ func (s *ToolService) Get(ctx context.Context, tenantID, id string) (*models.Too
 		return nil, fmt.Errorf("get tool: %w", err)
 	}
 	if tool == nil {
-		return nil, fmt.Errorf("tool not found: %s", id)
+		return nil, fmt.Errorf("%w: %s", models.ErrToolNotFound, id)
 	}
 	return tool, nil
 }
@@ -105,7 +107,7 @@ func (s *ToolService) Update(ctx context.Context, tenantID, id string, req model
 		return nil, fmt.Errorf("get tool: %w", err)
 	}
 	if tool == nil {
-		return nil, fmt.Errorf("tool not found: %s", id)
+		return nil, fmt.Errorf("%w: %s", models.ErrToolNotFound, id)
 	}
 
 	if req.DisplayName != nil {
@@ -164,7 +166,7 @@ func (s *ToolService) Delete(ctx context.Context, tenantID, id string) error {
 		return fmt.Errorf("get tool: %w", err)
 	}
 	if tool == nil {
-		return fmt.Errorf("tool not found: %s", id)
+		return fmt.Errorf("%w: %s", models.ErrToolNotFound, id)
 	}
 	now := time.Now()
 	tool.Status = "deleted"
@@ -177,7 +179,7 @@ func (s *ToolService) GetCategories(ctx context.Context, tenantID string) ([]mod
 }
 
 func (s *ToolService) Search(ctx context.Context, tenantID, query string) ([]models.Tool, error) {
-	return s.toolRepo.Search(ctx, tenantID, query, 20)
+	return s.toolRepo.Search(ctx, tenantID, query, defaultSearchLimit)
 }
 
 func (s *ToolService) GetVersions(ctx context.Context, tenantID, toolID string) ([]models.ToolVersion, error) {
@@ -186,7 +188,7 @@ func (s *ToolService) GetVersions(ctx context.Context, tenantID, toolID string) 
 		return nil, fmt.Errorf("get tool: %w", err)
 	}
 	if tool == nil {
-		return nil, fmt.Errorf("tool not found: %s", toolID)
+		return nil, fmt.Errorf("%w: %s", models.ErrToolNotFound, toolID)
 	}
 	return s.versionRepo.ListByTool(ctx, toolID)
 }

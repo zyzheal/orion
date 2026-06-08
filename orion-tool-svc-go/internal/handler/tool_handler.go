@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -47,7 +48,7 @@ func (h *ToolHandler) GetTool(c *gin.Context) {
 
 	tool, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		if err.Error() == "tool not found: "+id {
+		if errors.Is(err, models.ErrToolNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
 			return
 		}
@@ -86,7 +87,7 @@ func (h *ToolHandler) UpdateTool(c *gin.Context) {
 
 	tool, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		if err.Error() == "tool not found: "+id {
+		if errors.Is(err, models.ErrToolNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
 			return
 		}
@@ -140,7 +141,7 @@ func (h *ToolHandler) GetVersions(c *gin.Context) {
 
 	versions, err := h.svc.GetVersions(c.Request.Context(), tenantID, id)
 	if err != nil {
-		if err.Error() == "tool not found: "+id {
+		if errors.Is(err, models.ErrToolNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
 			return
 		}
