@@ -3,6 +3,10 @@
  *
  * 集成 WebSocket 服务到 Fastify 应用
  * 提供认证、心跳、自动重连等功能
+ *
+ * 支持两种连接模式：
+ * 1. 本地处理：网关自身处理消息（ping/pong、广播等）
+ * 2. 代理模式：匹配 /ws/* 路径的连接自动代理到后端微服务
  */
 
 import { FastifyInstance, FastifyRequest } from 'fastify';
@@ -10,6 +14,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { WsAuthHandler } from './ws-auth';
 import { WebSocketConnectionManager } from './ws-heartbeat';
+import { WebSocketProxy, WsProxyRoute, WsProxyError, wsProxy } from './ws-proxy';
 import { generateId } from '../utils';
 import type { Data as WebSocketData } from 'ws';
 
@@ -17,6 +22,8 @@ export interface WebSocketServerConfig {
   path: string; // WebSocket 路径
   heartbeatInterval?: number; // 心跳间隔（毫秒）
   heartbeatTimeout?: number; // 心跳超时（毫秒）
+  /** 自定义 WebSocket 代理路由（可选） */
+  proxyRoutes?: WsProxyRoute[];
 }
 
 const DEFAULT_CONFIG: WebSocketServerConfig = {
@@ -29,12 +36,14 @@ export class WebSocketServerManager {
   private wss: WebSocketServer | null = null;
   private connectionManager: WebSocketConnectionManager;
   private authHandler: WsAuthHandler;
+  private proxy: WebSocketProxy;
   private config: WebSocketServerConfig;
 
   constructor(private app: FastifyInstance, config?: Partial<WebSocketServerConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.connectionManager = new WebSocketConnectionManager();
     this.authHandler = new WsAuthHandler(app);
+    this.proxy = config?.proxyRoutes ? new WebSocketProxy(config.proxyRoutes) : wsProxy;
   }
 
   /**
@@ -68,6 +77,12 @@ export class WebSocketServerManager {
     socket: any,
     head: Buffer
   ): Promise<void> {
+    // 只处理 /ws 前缀的请求
+    const url = request.url || '';
+    if (!url.startsWith('/ws')) {
+      return;
+    }
+
     // 先进行认证
     const authResult = await this.authHandler.authenticate(request);
 
@@ -96,14 +111,80 @@ export class WebSocketServerManager {
 
   /**
    * 处理新连接
+   * 检查请求路径是否匹配代理路由，匹配则代理到后端，否则本地处理
    */
-  private handleConnection(ws: WebSocket, request: IncomingMessage): void {
+  private async handleConnection(ws: WebSocket, request: IncomingMessage): Promise<void> {
+    const requestPath = (request.url || '').split('?')[0]; // 去掉查询参数
+
+    // 检查是否匹配代理路由
+    const proxyTarget = this.proxy.resolveTarget(requestPath);
+
+    if (proxyTarget) {
+      // --- 代理模式：转发到后端微服务 ---
+      await this.handleProxyConnection(ws, request, proxyTarget.url);
+    } else {
+      // --- 本地处理模式 ---
+      this.handleLocalConnection(ws, request);
+    }
+  }
+
+  /**
+   * 代理模式：将 WebSocket 连接转发到后端微服务
+   */
+  private async handleProxyConnection(
+    clientWs: WebSocket,
+    request: IncomingMessage,
+    targetUrl: string
+  ): Promise<void> {
+    const clientId = generateId();
+    const user = (clientWs as any).user;
+    const userId = user?.sub || 'anonymous';
+
+    this.app.log.info(
+      { clientId, userId, targetUrl },
+      'Proxying WebSocket to backend service'
+    );
+
+    // 构建一个最小化的 FastifyRequest 代理以复用 buildProxyHeaders
+    const fakeRequest = {
+      headers: request.headers,
+      ip: request.socket.remoteAddress,
+      tenantId: (request as any).tenantId,
+      requestId: (request as any).requestId || clientId,
+    } as unknown as FastifyRequest;
+
+    try {
+      await this.proxy.proxy(clientWs, fakeRequest, targetUrl, clientId);
+      this.app.log.info({ clientId, targetUrl }, 'WebSocket proxy connection established');
+    } catch (error) {
+      this.app.log.error(
+        { err: error, clientId, targetUrl },
+        'WebSocket proxy connection failed'
+      );
+
+      // 向客户端发送错误信息
+      const errorMessage =
+        error instanceof WsProxyError
+          ? { type: 'error', code: error.code, message: error.message }
+          : { type: 'error', code: 502, message: 'Failed to connect to backend service' };
+
+      if (clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(JSON.stringify(errorMessage));
+        clientWs.close(1011, 'Backend connection failed');
+      }
+    }
+  }
+
+  /**
+   * 本地处理模式：网关自身处理 WebSocket 消息
+   */
+  private handleLocalConnection(ws: WebSocket, _request: IncomingMessage): void {
     // 生成客户端 ID
     const clientId = generateId();
     const user = (ws as any).user;
     const userId = user?.sub || 'anonymous';
 
-    this.app.log.info({ clientId, userId }, 'New WebSocket connection');
+    this.app.log.info({ clientId, userId }, 'New local WebSocket connection');
 
     // 添加到连接管理器
     this.connectionManager.addConnection(clientId, ws, {
@@ -204,10 +285,20 @@ export class WebSocketServerManager {
   }
 
   /**
+   * 获取代理实例
+   */
+  getProxy(): WebSocketProxy {
+    return this.proxy;
+  }
+
+  /**
    * 关闭 WebSocket 服务器
    */
   async shutdown(): Promise<void> {
-    // 关闭所有连接
+    // 关闭所有代理连接
+    this.proxy.closeAll();
+
+    // 关闭所有本地连接
     this.connectionManager.closeAll();
 
     // 关闭服务器
