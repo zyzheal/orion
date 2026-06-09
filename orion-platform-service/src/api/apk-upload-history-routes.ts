@@ -10,14 +10,22 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 import ApkUploadHistoryService from '../services/pipeline/ApkUploadHistoryService';
+
+interface ApkUploadHistoryRoutesOptions {
+  database?: DatabasePool;
+}
 
 // Global history service instance
 let globalHistoryService: ApkUploadHistoryService | null = null;
 
-export function getApkUploadHistoryService(): ApkUploadHistoryService {
+export function getApkUploadHistoryService(db?: DatabasePool): ApkUploadHistoryService {
   if (!globalHistoryService) {
-    globalHistoryService = new ApkUploadHistoryService();
+    if (!db) {
+      throw new Error('ApkUploadHistoryService requires a database connection');
+    }
+    globalHistoryService = new ApkUploadHistoryService(db);
   }
   return globalHistoryService;
 }
@@ -58,8 +66,8 @@ function validatePagination(limit?: number, offset?: number): { limit: number; o
   return { limit: safeLimit, offset: safeOffset };
 }
 
-export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Promise<void> {
-  const historyService = getApkUploadHistoryService();
+export async function registerApkUploadHistoryRoutes(app: FastifyInstance, options: ApkUploadHistoryRoutesOptions = {}): Promise<void> {
+  const historyService = getApkUploadHistoryService(options.database);
 
   // Get tenant ID from request - only from authenticated user session
   // Security: Do not trust x-tenant-id header as it can be forged by clients

@@ -5,6 +5,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import { PluginExecutorService, registerExecutorForShutdown } from '../services/plugin-executor-service';
 import { ExecutionTimelineService, registerTimelineForShutdown } from '../services/observability/ExecutionTimelineService';
+import { ExecutionTimelineRepository } from '../repositories/ExecutionTimelineRepository';
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
 import { DebugController } from '../engine/DebugController';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
@@ -29,8 +30,13 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
 
   // Register for graceful shutdown
   registerExecutorForShutdown(pluginExecutor);
-  const timelineService = new ExecutionTimelineService();
-  registerTimelineForShutdown(timelineService);
+  const timelineRepo = options?.database ? new ExecutionTimelineRepository(options.database) : undefined;
+  const timelineService = timelineRepo
+    ? new ExecutionTimelineService({ repository: timelineRepo })
+    : undefined;
+  if (timelineService) {
+    registerTimelineForShutdown(timelineService);
+  }
   const aiDiagnosis = new AIDiagnosisService();
   const auditLogRepo = options?.database ? new PostgresPluginAuditLogRepository(options.database) : undefined;
   const debugController = DebugController.getInstance();
@@ -158,6 +164,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
     onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
+    if (!timelineService) {
+      return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Timeline service requires database connection' });
+    }
     const replayData = await timelineService.getReplayData(runId);
     return replayData;
   });

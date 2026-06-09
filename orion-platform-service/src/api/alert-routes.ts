@@ -27,10 +27,17 @@ export default async function alertRoutes(
 ): Promise<void> {
   const db = options.database;
 
+  // Alert routes require database for persistence
+  if (!db) {
+    return;
+  }
+
   // Initialize services with DB for persistence
   const correlationService = new AlertCorrelationService(undefined, db);
-  const deduplication = new AlertDeduplication(undefined, db);
-  const suppressionService = new AlertSuppressionService(deduplication, correlationService, undefined, db);
+  const deduplication = db ? new AlertDeduplication(db) : undefined;
+  const suppressionService = deduplication
+    ? new AlertSuppressionService(deduplication, correlationService, undefined, db)
+    : undefined;
 
   // Start deduplication service
   deduplication.start();
@@ -149,7 +156,7 @@ export default async function alertRoutes(
 
   // GET /alert/suppression/maintenance-windows - 获取维护窗口
   app.get('/suppression/maintenance-windows', async (request: FastifyRequest, reply: FastifyReply) => {
-    const windows = suppressionService.getActiveMaintenanceWindows();
+    const windows = await suppressionService.getActiveMaintenanceWindows();
     return success(reply, request, { windows });
   });
 
@@ -157,7 +164,7 @@ export default async function alertRoutes(
   app.post('/suppression/maintenance-windows', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
-      suppressionService.addMaintenanceWindow({
+      await suppressionService.addMaintenanceWindow({
         name: body.name as string,
         description: body.description as string,
         startTime: new Date(body.startTime as string),
@@ -174,7 +181,7 @@ export default async function alertRoutes(
 
   // GET /alert/suppression/known-issues - 获取已知问题
   app.get('/suppression/known-issues', async (request: FastifyRequest, reply: FastifyReply) => {
-    const issues = suppressionService.getOpenKnownIssues();
+    const issues = await suppressionService.getOpenKnownIssues();
     return success(reply, request, { issues });
   });
 
@@ -182,7 +189,7 @@ export default async function alertRoutes(
   app.post('/suppression/known-issues', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
-      suppressionService.addKnownIssue({
+      await suppressionService.addKnownIssue({
         title: body.title as string,
         description: body.description as string,
         tenantId: (body.tenantId as string) || 'default',

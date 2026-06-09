@@ -9,6 +9,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
+import { ExecutionTimelineService } from '../services/observability/ExecutionTimelineService';
+import { ExecutionTimelineRepository } from '../repositories/ExecutionTimelineRepository';
 import pino from 'pino';
 
 const logger = pino({ name: 'observability-routes' });
@@ -21,6 +23,12 @@ export default async function observabilityRoutes(
   app: FastifyInstance,
   options: ObservabilityRoutesOptions
 ): Promise<void> {
+  // Initialize timeline service if database is available
+  const timelineRepo = options.database ? new ExecutionTimelineRepository(options.database) : undefined;
+  const timelineService = timelineRepo
+    ? new ExecutionTimelineService({ repository: timelineRepo })
+    : undefined;
+
   // ==================== Execution Timeline ====================
 
   // GET /api/v1/observability/timeline - List execution timelines
@@ -36,27 +44,17 @@ export default async function observabilityRoutes(
         return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'runId query parameter is required' });
       }
 
-      // ExecutionTimelineService.getTimelineByRunId(runId) would be called here
+      if (!timelineService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Timeline service requires database connection' });
+      }
+
+      const timelines = await timelineService.getTimelineByRunId(runId);
       return reply.status(200).send({
         success: true,
-        data: { timelines: [], total: 0, runId, limit },
+        data: { timelines: timelines.slice(0, limit), total: timelines.length, runId, limit },
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list execution timelines');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
-    }
-  });
-
-  // GET /api/v1/observability/timeline/:id - Get timeline entry by ID
-  app.get('/timeline/:id', {
-    onRequest: [authenticateUser],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const { id } = (request.params as any);
-      // ExecutionTimelineService would be called here
-      return reply.status(200).send({ success: true, data: { id } });
-    } catch (error: any) {
-      logger.error({ error, id: (request.params as any).id }, 'Failed to get timeline entry');
       return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
     }
   });
@@ -67,8 +65,13 @@ export default async function observabilityRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = (request.params as any);
-      // ExecutionTimelineService.getEvents(id) would be called here
-      return reply.status(200).send({ success: true, data: { events: [], timelineId: id } });
+
+      if (!timelineService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Timeline service requires database connection' });
+      }
+
+      const events = await timelineService.getEvents(id);
+      return reply.status(200).send({ success: true, data: { events, timelineId: id } });
     } catch (error: any) {
       logger.error({ error, timelineId: (request.params as any).id }, 'Failed to get timeline events');
       return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
@@ -99,14 +102,19 @@ export default async function observabilityRoutes(
     }
   });
 
-  // GET /api/v1/observability/executions/:id - Get execution by ID
+  // GET /api/v1/observability/executions/:id - Get execution replay data
   app.get('/executions/:id', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = (request.params as any);
-      // ExecutionTimelineService.getReplayData(id) would be called here
-      return reply.status(200).send({ success: true, data: { id } });
+
+      if (!timelineService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Timeline service requires database connection' });
+      }
+
+      const replayData = await timelineService.getReplayData(id);
+      return reply.status(200).send({ success: true, data: replayData });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get execution');
       return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });

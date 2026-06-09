@@ -766,7 +766,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerSecretRoutes(app, { database: options.database });
 
   // ==================== APK Upload History ====================
-  await registerApkUploadHistoryRoutes(app);
+  await registerApkUploadHistoryRoutes(app, { database: options.database });
 
   // ==================== Pipeline Budget Management ====================
   if (options.database) {
