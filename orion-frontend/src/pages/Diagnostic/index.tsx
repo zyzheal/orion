@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Typography } from 'antd';
+import { Layout, Menu, Typography, Spin } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
@@ -27,6 +27,7 @@ const DiagnosticLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [loading, _setLoading] = useState(false);
 
   const selectedKey = location.pathname;
 
@@ -68,7 +69,9 @@ const DiagnosticLayout: React.FC = () => {
             background: colors.light.bg.primary,
           }}
         >
-          <Outlet />
+          <Spin spinning={loading}>
+            <Outlet />
+          </Spin>
         </Content>
       </Layout>
     </Layout>

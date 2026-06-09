@@ -17,6 +17,7 @@ import {
   message,
   Tabs,
   Spin,
+  Empty,
   Popconfirm,
   Badge,
   Statistic,
@@ -584,6 +585,15 @@ const DbaPage: React.FC = () => {
         rowKey="id"
         size="middle"
         striped
+        locale={{
+          emptyText: (
+            <Empty description="暂无SQL工单">
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setOrderModalVisible(true)}>
+                新建工单
+              </Button>
+            </Empty>
+          ),
+        }}
       />
 
       {/* Create Order Modal */}
@@ -811,6 +821,9 @@ const DbaPage: React.FC = () => {
         rowKey="id"
         size="middle"
         striped
+        locale={{
+          emptyText: <Empty description="暂无审计规则" />,
+        }}
       />
     </div>
   );
@@ -856,7 +869,6 @@ const DbaPage: React.FC = () => {
           {/* Header */}
           <div style={{ marginBottom: spacing.lg }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               <DatabaseOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               数据库管理
             </Title>
