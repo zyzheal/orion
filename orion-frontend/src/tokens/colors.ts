@@ -158,6 +158,24 @@ export const colors = {
       heavy: '#bfbfbf',
     },
   },
+
+  // ============ 云厂商品牌色 ============
+  cloud: {
+    aws: '#FF9900',
+    azure: '#0078D4',
+    gcp: '#4285F4',
+    alicloud: '#FF6A00',
+    tencent: '#006EFF',
+  },
+
+  // ============ 终端主题色 (One Dark) ============
+  terminal: {
+    green: '#6a9955',
+    yellow: '#d7ba7d',
+    blue: '#569cd6',
+    magenta: '#c586c0',
+    cyan: '#4dc9b0',
+  },
 } as const;
 
 /**
@@ -269,23 +287,8 @@ export const semanticColors = {
     borderLight: colors.dark.border.light,
     borderHeavy: colors.dark.border.heavy,
   },
-  // ============ 云厂商品牌色 ============
-  cloud: {
-    aws: '#FF9900',
-    azure: '#0078D4',
-    gcp: '#4285F4',
-    alicloud: '#FF6A00',
-    tencent: '#006EFF',
-  },
-
-  // ============ 终端主题色 (One Dark) ============
-  terminal: {
-    green: '#6a9955',
-    yellow: '#d7ba7d',
-    blue: '#569cd6',
-    magenta: '#c586c0',
-    cyan: '#4dc9b0',
-  },
+  cloud: colors.cloud,
+  terminal: colors.terminal,
 } as const;
 
 export default colors;

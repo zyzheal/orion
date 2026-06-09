@@ -8,7 +8,7 @@
  * Wraps Ant Design Table with additional conveniences for the Orion platform.
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { Table as AntTable, Pagination, Input, Space, Button } from 'antd';
+import { Table as AntTable, Pagination, Input, Space, Button, Empty } from 'antd';
 import { SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
@@ -316,7 +316,7 @@ function OrionTable<T extends object>({
             : undefined
         }
         locale={{
-          emptyText: 'No data available',
+          emptyText: <Empty description="暂无数据" />,
           ...restProps.locale,
         }}
         {...restProps}
@@ -352,7 +352,7 @@ function OrionTable<T extends object>({
             pageSizeOptions={pageSizeOptions.map(String)}
             showSizeChanger
             showQuickJumper={showQuickJumper}
-            showTotal={showTotal ? (total) => `Total ${total} items` : undefined}
+            showTotal={showTotal ? (total) => `共 ${total} 条` : undefined}
           />
         </div>
       )}
