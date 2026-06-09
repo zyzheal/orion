@@ -88,3 +88,13 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 INSERT INTO schema_migrations (version, description)
 VALUES ('175', 'Add subapp_configs and subapp_config_history tables')
 ON CONFLICT (version) DO NOTHING;
+
+-- ============================================================
+-- Tenant isolation: add tenant_id to all tables
+-- ============================================================
+
+ALTER TABLE subapp_configs ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_subapp_configs_tenant_id ON subapp_configs(tenant_id);
+
+ALTER TABLE subapp_config_history ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_subapp_config_history_tenant_id ON subapp_config_history(tenant_id);
