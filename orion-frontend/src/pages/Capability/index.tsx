@@ -8,7 +8,7 @@
  * - /console/capabilities/users - 用户能力覆盖
  */
 import React, { useState } from 'react';
-import { Card, Tabs, Typography } from 'antd';
+import { Card, Tabs, Typography, Spin, Empty } from 'antd';
 import {
   SafetyCertificateOutlined,
   TeamOutlined,
@@ -27,6 +27,7 @@ const { Title, Paragraph } = Typography;
  */
 const CapabilityManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('list');
+  const [loading, setLoading] = useState(false);
 
   const tabItems = [
     {
@@ -73,9 +74,15 @@ const CapabilityManagement: React.FC = () => {
       </div>
 
       {/* 功能标签页 */}
-      <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} defaultActiveKey="list" items={tabItems} />
-      </Card>
+      <Spin spinning={loading}>
+        <Card>
+          {tabItems.length > 0 ? (
+            <Tabs activeKey={activeTab} onChange={setActiveTab} defaultActiveKey="list" items={tabItems} />
+          ) : (
+            <Empty description="暂无数据" />
+          )}
+        </Card>
+      </Spin>
     </div>
   );
 };

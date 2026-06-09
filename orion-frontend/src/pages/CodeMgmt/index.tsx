@@ -3,7 +3,7 @@
  * Provides sidebar menu for Repositories, Branch Policies, CODEOWNERS, and Webhook Logs
  */
 import React, { useState } from 'react';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, Spin } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   FolderOutlined,
@@ -42,6 +42,7 @@ const CodeMgmtLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Determine selected key based on current path
   const selectedKey =
@@ -87,7 +88,9 @@ const CodeMgmtLayout: React.FC = () => {
             background: colors.light.bg.primary,
           }}
         >
-          <Outlet />
+          <Spin spinning={loading}>
+            <Outlet context={{ setLoading }} />
+          </Spin>
         </Content>
       </Layout>
     </Layout>
