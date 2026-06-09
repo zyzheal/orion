@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 编排风险评估流程
- * - 存储和检索评估历史
+ * - 存储和检索评估历史（PostgreSQL）
  * - 生成评估报告
  * - 发布风险评估事件
  */
@@ -30,29 +30,26 @@ import pino from 'pino';
 const logger = pino({ name: 'LRisk-LAssessment-LService' });
 
 /**
- * 风险评估服务
+ * 风险评估服务 - 所有数据通过 PostgreSQL Repository 持久化
  */
 export class RiskAssessmentService {
   private scoringEngine: RiskScoringEngine;
   private healthCheckService: HealthCheckService;
   private eventBus: any;
-  private assessmentRepository?: RiskAssessmentRepository;
-  private reportRepository?: RiskReportRepository;
-  private reportHistory: Map<string, RiskReport>;
-  // 内存模式存储（用于测试和无 db 场景）
-  private assessmentHistory: Map<string, RiskAssessment> = new Map();
+  private assessmentRepository: RiskAssessmentRepository;
+  private reportRepository: RiskReportRepository;
 
-  constructor(config?: RiskAssessmentServiceConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    config?: RiskAssessmentServiceConfig,
+  ) {
     this.scoringEngine = new RiskScoringEngine();
     this.healthCheckService = new HealthCheckService({
       config: config?.healthCheckConfig,
     });
     this.eventBus = config?.eventBus;
-    this.reportHistory = new Map();
-    if (db) {
-      this.assessmentRepository = new RiskAssessmentRepository(db);
-      this.reportRepository = new RiskReportRepository(db);
-    }
+    this.assessmentRepository = new RiskAssessmentRepository(db);
+    this.reportRepository = new RiskReportRepository(db);
   }
 
   /**
@@ -120,24 +117,19 @@ export class RiskAssessmentService {
       metadata: healthCheckResult ? { healthCheckResult } : undefined,
     };
 
-    // 存储评估到 Repository 或内存
-    if (this.assessmentRepository) {
-      await this.assessmentRepository.create({
-        tenantId: tenantId ?? 'default',
-        name: `Risk assessment for deployment ${params.deploymentId}`,
-        type: 'deployment',
-        targetType: 'deployment',
-        targetId: params.deploymentId,
-        score: riskScore,
-        riskLevel,
-        findings: factors,
-        status: 'completed',
-        createdAt: new Date(),
-      });
-    } else {
-      // 内存模式：直接存储评估对象
-      this.assessmentHistory.set(assessmentId, assessment);
-    }
+    // 持久化到 PostgreSQL
+    await this.assessmentRepository.create({
+      tenantId: tenantId ?? 'default',
+      name: `Risk assessment for deployment ${params.deploymentId}`,
+      type: 'deployment',
+      targetType: 'deployment',
+      targetId: params.deploymentId,
+      score: riskScore,
+      riskLevel,
+      findings: factors,
+      status: 'completed',
+      createdAt: new Date(),
+    });
 
     // 发布风险评估事件
     await this.publishRiskAssessmentEvent(assessment, healthCheckResult);
@@ -175,25 +167,19 @@ export class RiskAssessmentService {
       tenantId,
     };
 
-    const assessmentId = assessment.id;
-
-    if (this.assessmentRepository) {
-      await this.assessmentRepository.create({
-        tenantId: tenantId ?? 'default',
-        name: `Risk assessment for change ${params.changeId}`,
-        type: 'change',
-        targetType: 'change',
-        targetId: params.changeId,
-        score: riskScore,
-        riskLevel,
-        findings: factors,
-        status: 'completed',
-        createdAt: new Date(),
-      });
-    } else {
-      // 内存模式：直接存储评估对象
-      this.assessmentHistory.set(assessmentId, assessment);
-    }
+    // 持久化到 PostgreSQL
+    await this.assessmentRepository.create({
+      tenantId: tenantId ?? 'default',
+      name: `Risk assessment for change ${params.changeId}`,
+      type: 'change',
+      targetType: 'change',
+      targetId: params.changeId,
+      score: riskScore,
+      riskLevel,
+      findings: factors,
+      status: 'completed',
+      createdAt: new Date(),
+    });
 
     await this.publishRiskAssessmentEvent(assessment);
 
@@ -211,60 +197,26 @@ export class RiskAssessmentService {
     since?: Date;
     limit?: number;
   }): Promise<RiskAssessment[]> {
-    if (this.assessmentRepository) {
-      let entities: RiskAssessmentEntity[];
+    let entities: RiskAssessmentEntity[];
 
-      if (filter?.targetType && filter?.targetId) {
-        entities = await this.assessmentRepository.findByTarget(filter.targetType, filter.targetId);
-      } else if (filter?.tenantId) {
-        entities = await this.assessmentRepository.findByTenant(filter.tenantId, { limit: filter?.limit ?? 20 });
-      } else {
-        const result = await this.assessmentRepository.findAll({ limit: filter?.limit ?? 20 });
-        entities = result.entities;
-      }
-
-      return entities.map(e => this.mapEntityToAssessment(e));
+    if (filter?.targetType && filter?.targetId) {
+      entities = await this.assessmentRepository.findByTarget(filter.targetType, filter.targetId);
+    } else if (filter?.tenantId) {
+      entities = await this.assessmentRepository.findByTenant(filter.tenantId, { limit: filter?.limit ?? 20 });
+    } else {
+      const result = await this.assessmentRepository.findAll({ limit: filter?.limit ?? 20 });
+      entities = result.entities;
     }
 
-    // 内存模式：从内存存储中获取
-    let results = Array.from(this.assessmentHistory.values());
-
-    if (filter?.targetType) {
-      results = results.filter((a) => a.targetType === filter.targetType);
-    }
-    if (filter?.targetId) {
-      results = results.filter((a) => a.targetId === filter.targetId);
-    }
-    if (filter?.tenantId) {
-      results = results.filter((a) => a.tenantId === filter.tenantId);
-    }
-    if (filter?.riskLevel) {
-      results = results.filter((a) => a.riskLevel === filter.riskLevel);
-    }
-    if (filter?.since) {
-      results = results.filter((a) => a.createdAt >= filter.since!);
-    }
-
-    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    if (filter?.limit) {
-      results = results.slice(0, filter.limit);
-    }
-
-    return results;
+    return entities.map(e => this.mapEntityToAssessment(e));
   }
 
   /**
    * 获取单个评估详情
    */
   async getAssessmentById(assessmentId: string): Promise<RiskAssessment | undefined> {
-    if (this.assessmentRepository) {
-      const entity = await this.assessmentRepository.findById(assessmentId);
-      return entity ? this.mapEntityToAssessment(entity) : undefined;
-    }
-
-    // 内存模式：从内存存储中获取
-    return this.assessmentHistory.get(assessmentId);
+    const entity = await this.assessmentRepository.findById(assessmentId);
+    return entity ? this.mapEntityToAssessment(entity) : undefined;
   }
 
   private mapEntityToAssessment(entity: RiskAssessmentEntity): RiskAssessment {
@@ -319,85 +271,51 @@ export class RiskAssessmentService {
       tenantId: assessment.tenantId,
     };
 
-    // 存储到 Repository 或内存
-    if (this.reportRepository) {
-      await this.reportRepository.createReport({
-        tenant_id: assessment.tenantId ?? 'default',
-        assessment_id: assessmentId,
-        risk_score: assessment.riskScore,
-        risk_level: assessment.riskLevel,
-        can_deploy: canDeploy,
-        critical_risk_count: criticalRiskCount,
-        summary: report.summary as unknown as Record<string, unknown>,
-        details: report.details as unknown as Record<string, unknown>,
-        recommendations: report.recommendations as unknown as Record<string, unknown>[],
-        generated_at: report.generatedAt,
-      });
-    } else {
-      this.reportHistory.set(report.id, report);
-    }
+    // 持久化到 PostgreSQL
+    await this.reportRepository.createReport({
+      tenant_id: assessment.tenantId ?? 'default',
+      assessment_id: assessmentId,
+      risk_score: assessment.riskScore,
+      risk_level: assessment.riskLevel,
+      can_deploy: canDeploy,
+      critical_risk_count: criticalRiskCount,
+      summary: report.summary as unknown as Record<string, unknown>,
+      details: report.details as unknown as Record<string, unknown>,
+      recommendations: report.recommendations as unknown as Record<string, unknown>[],
+      generated_at: report.generatedAt,
+    });
     return report;
   }
 
   /**
    * 获取报告历史
-   * 注意：当有 Repository 时返回 Promise，否则返回同步结果
    */
-  getReportHistory(filter?: {
+  async getReportHistory(filter?: {
     assessmentId?: string;
     tenantId?: string;
     limit?: number;
-  }): RiskReport[] | Promise<RiskReport[]> {
-    // 使用 Repository 如果可用
-    if (this.reportRepository) {
-      return (async () => {
-        let reports: RiskReportEntity[];
-        const filterRef = filter;
-
-        if (filterRef?.assessmentId) {
-          const report = await this.reportRepository!.findByAssessment(filterRef.assessmentId);
-          reports = report ? [report] : [];
-        } else if (filterRef && filterRef.tenantId) {
-          reports = await this.reportRepository!.findByTenant(filterRef.tenantId, { limit: filterRef.limit });
-        } else {
-          reports = await this.reportRepository!.findAll({ limit: filterRef?.limit ?? 20 }).then(r => r.entities);
-        }
-
-        return reports.map(e => this.mapEntityToReport(e));
-      })();
-    }
-
-    // 内存模式（同步）
-    let results = Array.from(this.reportHistory.values());
+  }): Promise<RiskReport[]> {
+    let reports: RiskReportEntity[];
 
     if (filter?.assessmentId) {
-      results = results.filter((r) => r.assessmentId === filter.assessmentId);
-    }
-    if (filter?.tenantId) {
-      results = results.filter((r) => r.tenantId === filter.tenantId);
-    }
-
-    results.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
-
-    if (filter?.limit) {
-      results = results.slice(0, filter.limit);
+      const report = await this.reportRepository.findByAssessment(filter.assessmentId);
+      reports = report ? [report] : [];
+    } else if (filter?.tenantId) {
+      reports = await this.reportRepository.findByTenant(filter.tenantId, { limit: filter.limit });
+    } else {
+      const result = await this.reportRepository.findAll({ limit: filter?.limit ?? 20 });
+      reports = result.entities;
     }
 
-    return results;
+    return reports.map(e => this.mapEntityToReport(e));
   }
 
   /**
    * 获取单个报告
-   * 注意：当有 Repository 时返回 Promise，否则返回同步结果
    */
-  getReportById(reportId: string): RiskReport | undefined | Promise<RiskReport | undefined> {
-    if (this.reportRepository) {
-      return (async () => {
-        const report = await this.reportRepository!.findById(reportId);
-        return report ? this.mapEntityToReport(report) : undefined;
-      })();
-    }
-    return this.reportHistory.get(reportId);
+  async getReportById(reportId: string): Promise<RiskReport | undefined> {
+    const report = await this.reportRepository.findById(reportId);
+    return report ? this.mapEntityToReport(report) : undefined;
   }
 
   private mapEntityToReport(entity: RiskReportEntity): RiskReport {
@@ -429,15 +347,6 @@ export class RiskAssessmentService {
    */
   getScoringEngine(): RiskScoringEngine {
     return this.scoringEngine;
-  }
-
-  /**
-   * 清空历史（用于测试）
-   * 注意：评估记录存储在数据库中，需要通过 Repository 删除
-   */
-  clearHistory(): void {
-    this.reportHistory.clear();
-    this.assessmentHistory.clear();
   }
 
   // ==================== 私有方法 ====================
