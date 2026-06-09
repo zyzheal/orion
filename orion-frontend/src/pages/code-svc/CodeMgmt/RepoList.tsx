@@ -3,7 +3,7 @@
  * Displays repositories in a card grid with adapter filter buttons
  */
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Card, Row, Col, Tag, message, Modal } from 'antd';
+import { Typography, Button, Space, Card, Row, Col, Tag, message, Popconfirm } from 'antd';
 import {
   ReloadOutlined,
   EyeOutlined,
@@ -112,16 +112,8 @@ const RepoList: React.FC = () => {
     [selectedAdapter]
   );
 
-  const handleDeleteRepo = useCallback((repo: CodeRepo) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除仓库 "${repo.name}" 吗？此操作不可撤销。`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: () => {
-        message.info('删除功能需要后端支持');
-      },
-    });
+  const handleDeleteRepo = useCallback((_repo: CodeRepo) => {
+    message.info('删除功能需要后端支持');
   }, []);
 
   const filteredRepos = useMemo(() => {
@@ -206,13 +198,20 @@ const RepoList: React.FC = () => {
                           navigate(`/code-mgmt/repos/${repo.id}`);
                         }}
                       />
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        danger
-                        onClick={() => handleDeleteRepo(repo)}
-                      />
+                      <Popconfirm
+                        title="确定删除？"
+                        description="删除后无法恢复"
+                        onConfirm={() => handleDeleteRepo(repo)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          danger
+                        />
+                      </Popconfirm>
                     </Space>
                   }
                   actions={[

@@ -3,7 +3,7 @@
  * Editor for CODEOWNERS file with validate and save functionality
  */
 import React, { useState, useCallback } from 'react';
-import { Typography, Button, Space, Select, Input, message, Card, Alert } from 'antd';
+import { Typography, Button, Space, Select, Input, message, Card, Alert, Popconfirm } from 'antd';
 import {
   SaveOutlined,
   CheckCircleOutlined,
@@ -14,7 +14,7 @@ import {
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
-import { Modal, Tag } from 'antd';
+import { Tag } from 'antd';
 import {
   getCodeOwners,
   registerCodeOwners,
@@ -182,29 +182,21 @@ const CodeOwnersPage: React.FC = () => {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedRepoId) return;
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除仓库 "${selectedRepoId}" 的 CODEOWNERS 配置吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteCodeOwners(selectedRepoId);
-          message.success('CODEOWNERS 已删除');
-          setContent('');
-          setSavedContent('');
-          setValidationResult(null);
-        } catch (error: unknown) {
-          if (error instanceof Error) {
-            message.error(`删除 CODEOWNERS 失败：${error.message}`);
-          } else {
-            message.error('删除 CODEOWNERS 失败，请稍后重试');
-          }
-        }
-      },
-    });
+    try {
+      await deleteCodeOwners(selectedRepoId);
+      message.success('CODEOWNERS 已删除');
+      setContent('');
+      setSavedContent('');
+      setValidationResult(null);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除 CODEOWNERS 失败：${error.message}`);
+      } else {
+        message.error('删除 CODEOWNERS 失败，请稍后重试');
+      }
+    }
   };
 
   const handleRecommend = async () => {
@@ -286,14 +278,22 @@ const CodeOwnersPage: React.FC = () => {
           >
             重新加载
           </Button>
-          <Button
-            icon={<DeleteOutlined />}
-            danger
-            onClick={handleDelete}
+          <Popconfirm
+            title="确定删除？"
+            description="删除后无法恢复"
+            onConfirm={handleDelete}
+            okText="确定"
+            cancelText="取消"
             disabled={!selectedRepoId || !savedContent}
           >
-            删除
-          </Button>
+            <Button
+              icon={<DeleteOutlined />}
+              danger
+              disabled={!selectedRepoId || !savedContent}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       </div>
 

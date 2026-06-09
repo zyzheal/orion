@@ -15,6 +15,7 @@ import {
   message,
   Spin,
   Select,
+  Popconfirm,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -165,22 +166,14 @@ const RepoDetail: React.FC = () => {
     }
   };
 
-  const handleDeleteBranch = (branchName: string) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除分支 "${branchName}" 吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteCodeRepoBranch(adapterId, id!, branchName);
-          message.success('分支已删除');
-          loadBranches();
-        } catch (error) {
-          message.error('删除分支失败');
-        }
-      },
-    });
+  const handleDeleteBranch = async (branchName: string) => {
+    try {
+      await deleteCodeRepoBranch(adapterId, id!, branchName);
+      message.success('分支已删除');
+      loadBranches();
+    } catch (error) {
+      message.error('删除分支失败');
+    }
   };
 
   const handleCreatePR = async (values: CreatePullRequestInput) => {
@@ -245,13 +238,20 @@ const RepoDetail: React.FC = () => {
           >
             {record.isProtected ? '解锁' : '保护'}
           </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteBranch(record.name)}
-          />
+          <Popconfirm
+            title="确定删除？"
+            description="删除后无法恢复"
+            onConfirm={() => handleDeleteBranch(record.name)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
         </Space>
       ),
     },

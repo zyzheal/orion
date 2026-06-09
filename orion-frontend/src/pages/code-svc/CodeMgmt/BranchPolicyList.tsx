@@ -14,6 +14,7 @@ import {
   Input,
   InputNumber,
   Checkbox,
+  Popconfirm,
   message,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, BranchesOutlined,} from '@ant-design/icons';
@@ -122,26 +123,18 @@ const BranchPolicyList: React.FC = () => {
     }
   };
 
-  const handleDelete = (policy: any) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除分支策略 "${policy.branchPattern}" 吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteBranchPolicy(policy.id);
-          message.success('策略已删除');
-          loadPolicies();
-        } catch (error: unknown) {
-          if (error instanceof Error) {
-            message.error(`删除策略失败：${error.message}`);
-          } else {
-            message.error('删除策略失败');
-          }
-        }
-      },
-    });
+  const handleDelete = async (policy: any) => {
+    try {
+      await deleteBranchPolicy(policy.id);
+      message.success('策略已删除');
+      loadPolicies();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除策略失败：${error.message}`);
+      } else {
+        message.error('删除策略失败');
+      }
+    }
   };
 
   const handleToggleEnabled = async (policy: any, enabled: boolean) => {
@@ -242,15 +235,22 @@ const BranchPolicyList: React.FC = () => {
           >
             编辑
           </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
+          <Popconfirm
+            title="确定删除？"
+            description="删除后无法恢复"
+            onConfirm={() => handleDelete(record)}
+            okText="确定"
+            cancelText="取消"
           >
-            删除
-          </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
