@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS auto_recovery_degraded_state (
   provider_id VARCHAR(200) NOT NULL UNIQUE,
   degraded_at TIMESTAMP NOT NULL,
   last_success_rate NUMERIC(5,4),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

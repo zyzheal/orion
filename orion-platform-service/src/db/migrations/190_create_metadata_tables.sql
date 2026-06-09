@@ -4,7 +4,7 @@
 -- Metadata Catalog (data asset registry)
 CREATE TABLE IF NOT EXISTS metadata_catalog (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name        VARCHAR(255) NOT NULL,
     description TEXT,
     type        VARCHAR(50) NOT NULL,  -- table, view, pipeline, dashboard, api
@@ -22,7 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_metadata_catalog_type ON metadata_catalog(type);
 -- Metadata Lineage (data flow tracking)
 CREATE TABLE IF NOT EXISTS metadata_lineage (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     source_id   UUID NOT NULL REFERENCES metadata_catalog(id),
     target_id   UUID NOT NULL REFERENCES metadata_catalog(id),
     relation    VARCHAR(50) NOT NULL,  -- transforms, reads, writes, depends_on

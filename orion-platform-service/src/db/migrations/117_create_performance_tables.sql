@@ -4,7 +4,7 @@
 -- Performance Baselines
 CREATE TABLE IF NOT EXISTS performance_baselines (
   id VARCHAR(36) PRIMARY KEY,
-  tenant_id VARCHAR(36) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   service VARCHAR(255) NOT NULL,
   environment VARCHAR(100),
   metrics JSONB NOT NULL DEFAULT '{}',
@@ -21,7 +21,7 @@ CREATE INDEX idx_perf_baselines_tenant ON performance_baselines (tenant_id);
 CREATE TABLE IF NOT EXISTS performance_evaluations (
   id VARCHAR(64) PRIMARY KEY,
   baseline_id VARCHAR(36) NOT NULL REFERENCES performance_baselines(id) ON DELETE CASCADE,
-  tenant_id VARCHAR(36) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   service VARCHAR(255) NOT NULL,
   overall VARCHAR(20) NOT NULL DEFAULT 'healthy',
   details JSONB NOT NULL DEFAULT '[]',
@@ -34,7 +34,7 @@ CREATE INDEX idx_perf_evaluations_tenant ON performance_evaluations (tenant_id);
 -- Performance Test Results
 CREATE TABLE IF NOT EXISTS performance_test_results (
   id VARCHAR(36) PRIMARY KEY,
-  tenant_id VARCHAR(36) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   service VARCHAR(255) NOT NULL,
   baseline_id VARCHAR(36) REFERENCES performance_baselines(id) ON DELETE SET NULL,
   test_name VARCHAR(255) NOT NULL,
@@ -51,7 +51,7 @@ CREATE INDEX idx_perf_test_results_tenant ON performance_test_results (tenant_id
 -- Performance Profiles
 CREATE TABLE IF NOT EXISTS performance_profiles (
   id VARCHAR(36) PRIMARY KEY,
-  tenant_id VARCHAR(36),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   service_name VARCHAR(255) NOT NULL,
   config JSONB NOT NULL DEFAULT '{}',
   status VARCHAR(20) NOT NULL DEFAULT 'pending',

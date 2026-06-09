@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS pipeline_environments (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(64) NOT NULL,
     description TEXT,
     display_order INTEGER NOT NULL DEFAULT 0,

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS healing_strategies (
   environments JSONB,
   max_retries INTEGER,
   retry_cooldown_ms INTEGER,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

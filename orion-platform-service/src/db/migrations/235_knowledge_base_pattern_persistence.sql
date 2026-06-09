@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS knowledge_base_patterns (
   risk_level VARCHAR(32) NOT NULL DEFAULT 'medium',
   affected_components JSONB NOT NULL DEFAULT '[]',
   related_patterns JSONB,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

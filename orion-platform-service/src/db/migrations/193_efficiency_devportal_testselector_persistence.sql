@@ -5,7 +5,7 @@
 -- ==================== Efficiency: Pipeline Completion Records ====================
 CREATE TABLE IF NOT EXISTS efficiency_pipeline_records (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   run_id VARCHAR(100) NOT NULL,
   pipeline_id VARCHAR(100) NOT NULL,
   status VARCHAR(50) NOT NULL,
@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_pipeline_records_unsynced ON efficiency_pipel
 -- ==================== Efficiency: Deployment Records ====================
 CREATE TABLE IF NOT EXISTS efficiency_deployment_records (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   deployment_id VARCHAR(100) NOT NULL,
   service VARCHAR(255),
   environment VARCHAR(100),
@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_deploy_records_unsynced ON efficiency_deploym
 -- ==================== Efficiency: DORA Metric Snapshots ====================
 CREATE TABLE IF NOT EXISTS efficiency_metric_snapshots (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   time_window VARCHAR(50) NOT NULL,
   deployment_frequency DOUBLE PRECISION NOT NULL DEFAULT 0,
   lead_time_ms DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -64,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_snapshots_tenant ON efficiency_metric_snapsho
 -- ==================== Efficiency: Team Data ====================
 CREATE TABLE IF NOT EXISTS efficiency_team_data (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name VARCHAR(255) NOT NULL,
   members INTEGER NOT NULL DEFAULT 0,
   pipelines JSONB NOT NULL DEFAULT '[]',
@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_team_data_tenant ON efficiency_team_data(tena
 -- ==================== Efficiency: Project Data ====================
 CREATE TABLE IF NOT EXISTS efficiency_project_data (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name VARCHAR(255) NOT NULL,
   pipelines JSONB NOT NULL DEFAULT '[]',
   deployments JSONB NOT NULL DEFAULT '[]',
@@ -92,7 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_project_data_tenant ON efficiency_project_dat
 -- ==================== Efficiency: Report History ====================
 CREATE TABLE IF NOT EXISTS efficiency_reports (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   report_data JSONB NOT NULL,
   generated_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -103,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_reports_tenant ON efficiency_reports(tenant_i
 -- ==================== Efficiency: Global Deployments ====================
 CREATE TABLE IF NOT EXISTS efficiency_global_deployments (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   deployment_data JSONB NOT NULL,
   deployed_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -114,7 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_global_deploy_tenant ON efficiency_global_dep
 -- ==================== Efficiency: Global Pipeline Records ====================
 CREATE TABLE IF NOT EXISTS efficiency_global_pipelines (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   pipeline_data JSONB NOT NULL,
   completed_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -125,7 +125,7 @@ CREATE INDEX IF NOT EXISTS idx_eff_global_pipelines_tenant ON efficiency_global_
 -- ==================== Developer Portal: Mock Rules ====================
 CREATE TABLE IF NOT EXISTS devportal_mock_rules (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name VARCHAR(255) NOT NULL,
   description TEXT DEFAULT '',
   method VARCHAR(20) NOT NULL,
@@ -147,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_devportal_mock_rules_enabled ON devportal_mock_ru
 -- ==================== Developer Portal: Playground Requests ====================
 CREATE TABLE IF NOT EXISTS devportal_playground_requests (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   user_id VARCHAR(100) NOT NULL,
   name VARCHAR(255) NOT NULL,
   method VARCHAR(20) NOT NULL,
@@ -180,7 +180,7 @@ CREATE INDEX IF NOT EXISTS idx_devportal_playground_resp_req ON devportal_playgr
 -- ==================== Developer Portal: API Subscriptions ====================
 CREATE TABLE IF NOT EXISTS devportal_api_subscriptions (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   user_id VARCHAR(100) NOT NULL,
   api_name VARCHAR(255) NOT NULL,
   plan_name VARCHAR(100) NOT NULL DEFAULT 'standard',
@@ -220,7 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_devportal_usage_sub ON devportal_usage_records(su
 -- ==================== Developer Portal: SDK Generation Tasks ====================
 CREATE TABLE IF NOT EXISTS devportal_sdk_tasks (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name VARCHAR(255) NOT NULL,
   api_spec TEXT NOT NULL,
   language VARCHAR(50) NOT NULL,
@@ -312,7 +312,7 @@ CREATE INDEX IF NOT EXISTS idx_test_exec_history_test ON test_selector_execution
 -- ==================== Pipeline: APK Upload Records ====================
 CREATE TABLE IF NOT EXISTS pipeline_apk_uploads (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   pipeline_run_id VARCHAR(100),
   pipeline_id VARCHAR(100),
   pipeline_name VARCHAR(255),

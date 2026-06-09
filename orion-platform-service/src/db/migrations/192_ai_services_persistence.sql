@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS ai_prediction_history (
   confidence NUMERIC(5,3) NOT NULL,
   predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   input_features JSONB NOT NULL DEFAULT '{}',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS ai_model_registry (
   name VARCHAR(255) NOT NULL,
   active_version VARCHAR(100),
   versions_json JSONB NOT NULL DEFAULT '[]',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS ai_ab_tests (
   completed_at TIMESTAMPTZ,
   winner VARCHAR(100),
   metrics JSONB NOT NULL DEFAULT '{}',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS ai_decision_explanations (
   mitigating_factors JSONB NOT NULL DEFAULT '[]',
   recommendations JSONB NOT NULL DEFAULT '[]',
   metadata_json JSONB,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

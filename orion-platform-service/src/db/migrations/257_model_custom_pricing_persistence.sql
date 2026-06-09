@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS model_custom_pricing (
     model_id TEXT NOT NULL,
     input_price NUMERIC(12, 6) NOT NULL DEFAULT 0,
     output_price NUMERIC(12, 6) NOT NULL DEFAULT 0,
-    tenant_id TEXT,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

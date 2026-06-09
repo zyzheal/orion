@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS ai_cb_manager_scenario_states (
   last_failure_time TIMESTAMP,
   last_state_change_time TIMESTAMP NOT NULL DEFAULT NOW(),
   half_open_attempts INTEGER NOT NULL DEFAULT 0,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS ai_cb_manager_providers (
   priority INTEGER NOT NULL DEFAULT 100,
   enabled BOOLEAN NOT NULL DEFAULT true,
   config_json JSONB DEFAULT '{}',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

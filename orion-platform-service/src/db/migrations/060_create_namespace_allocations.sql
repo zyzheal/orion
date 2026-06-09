@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS namespace_allocations (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   namespace_name  VARCHAR(100) NOT NULL UNIQUE,
   cluster_id      VARCHAR(100) NOT NULL DEFAULT 'default',
-  tenant_id       INTEGER,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   status          VARCHAR(20) NOT NULL DEFAULT 'available',
   purpose         VARCHAR(200),
   labels          JSONB NOT NULL DEFAULT '{}',

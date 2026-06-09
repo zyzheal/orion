@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS notification_settings (
     id          CHAR(36) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
     user_id     VARCHAR(64) NOT NULL,
-    tenant_id   VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
 
     -- Channel preferences
     email_enabled   BOOLEAN DEFAULT true,

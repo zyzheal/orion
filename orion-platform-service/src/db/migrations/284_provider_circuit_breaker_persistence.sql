@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS ai_provider_cb_states (
   last_state_change_time TIMESTAMP NOT NULL DEFAULT NOW(),
   half_open_probe_count INTEGER NOT NULL DEFAULT 0,
   open_start_time TIMESTAMP,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS ai_provider_cb_metrics (
   p95_latency NUMERIC(12,2) NOT NULL DEFAULT 0,
   last_failure_time TIMESTAMP,
   last_success_time TIMESTAMP,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS ai_provider_cb_request_history (
   success BOOLEAN NOT NULL,
   latency INTEGER NOT NULL DEFAULT 0,
   request_time TIMESTAMP NOT NULL DEFAULT NOW(),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

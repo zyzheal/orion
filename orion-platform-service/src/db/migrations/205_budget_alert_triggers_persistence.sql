@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS budget_alert_triggers (
   id            VARCHAR(64) PRIMARY KEY,
-  tenant_id     VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   budget_id     VARCHAR(64) NOT NULL,
   threshold     NUMERIC(5,2) NOT NULL,
   actual        NUMERIC(14,2) NOT NULL,

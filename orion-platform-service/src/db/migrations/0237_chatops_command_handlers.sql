@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS chatops_command_handlers (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   command_name VARCHAR(128) NOT NULL,
   handler_type VARCHAR(32) NOT NULL DEFAULT 'builtin',
   service_name VARCHAR(128),

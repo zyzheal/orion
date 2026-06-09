@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS confirmation_requests (
     responder VARCHAR(255),
     comment TEXT,
     context JSONB,
-    tenant_id VARCHAR(255),
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

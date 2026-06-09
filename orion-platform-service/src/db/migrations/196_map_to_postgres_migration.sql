@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS healing_action_results (
   verified BOOLEAN DEFAULT false,
   rollback_needed BOOLEAN DEFAULT false,
   rollback_success BOOLEAN,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS healing_approval_requests (
   approved_by VARCHAR(200),
   approval_reason TEXT,
   responded_at TIMESTAMP,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS security_trivy_scans (
   vulnerabilities JSONB DEFAULT '[]',
   summary JSONB DEFAULT '{}',
   passed BOOLEAN DEFAULT false,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS security_cosign_signatures (
   signed_at TIMESTAMP DEFAULT NOW(),
   key_id VARCHAR(200),
   verified BOOLEAN DEFAULT false,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS security_sbom_documents (
   generated_at TIMESTAMP DEFAULT NOW(),
   components JSONB DEFAULT '[]',
   raw_document TEXT,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -89,7 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_security_sbom_image ON security_sbom_documents(im
 
 CREATE TABLE IF NOT EXISTS compliance_evidence (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   policy_id VARCHAR(100) NOT NULL,
   control_id VARCHAR(100) NOT NULL,
   evidence_type VARCHAR(50) NOT NULL,
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS hook_chain_definitions (
   stop_on_failure BOOLEAN DEFAULT true,
   input_transform VARCHAR(200),
   output_transform VARCHAR(200),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS hook_chain_executions (
   final_output JSONB,
   error TEXT,
   executed_at TIMESTAMP DEFAULT NOW(),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -142,7 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_hook_chain_exec_tenant ON hook_chain_executions(t
 
 CREATE TABLE IF NOT EXISTS integration_configs (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   provider VARCHAR(100) NOT NULL,
   name VARCHAR(200) NOT NULL,
   config JSONB NOT NULL DEFAULT '{}',
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS budget_spend_records (
   recorded_at TIMESTAMP DEFAULT NOW(),
   window_start TIMESTAMP,
   window_end TIMESTAMP,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS saas_cost_subscriptions (
   end_date TIMESTAMP,
   status VARCHAR(50) DEFAULT 'active',
   notes TEXT,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS auto_recovery_records (
   success_rate NUMERIC(5,4),
   degraded_at TIMESTAMP,
   recovered_at TIMESTAMP,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS test_generation_history (
   generated_count INTEGER DEFAULT 0,
   status VARCHAR(50) DEFAULT 'completed',
   result JSONB DEFAULT '{}',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -243,7 +243,7 @@ CREATE TABLE IF NOT EXISTS test_templates (
   template_content TEXT,
   description TEXT,
   tags JSONB DEFAULT '[]',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS dead_letter_messages (
   dead_reason VARCHAR(50),
   dead_at TIMESTAMP DEFAULT NOW(),
   replay_status VARCHAR(50),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -274,7 +274,7 @@ CREATE TABLE IF NOT EXISTS consumer_registry (
   last_heartbeat TIMESTAMP DEFAULT NOW(),
   messages_processed INTEGER DEFAULT 0,
   status VARCHAR(50) DEFAULT 'active',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -285,7 +285,7 @@ CREATE INDEX IF NOT EXISTS idx_consumer_registry_queue ON consumer_registry(queu
 
 CREATE TABLE IF NOT EXISTS tenant_privacy_policies (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id INTEGER NOT NULL UNIQUE,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' UNIQUE,
   data_retention_days INTEGER DEFAULT 90,
   anonymize_pii BOOLEAN DEFAULT true,
   allowed_regions JSONB DEFAULT '[]',
@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS release_notes (
   content TEXT,
   generated_by VARCHAR(100) DEFAULT 'ai',
   status VARCHAR(50) DEFAULT 'draft',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -325,7 +325,7 @@ CREATE TABLE IF NOT EXISTS risk_assessment_records (
   factors JSONB DEFAULT '{}',
   recommendations JSONB DEFAULT '[]',
   status VARCHAR(50) DEFAULT 'completed',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -340,6 +340,6 @@ CREATE TABLE IF NOT EXISTS jwt_signing_keys (
   status VARCHAR(50) DEFAULT 'active',
   activated_at TIMESTAMP DEFAULT NOW(),
   expires_at TIMESTAMP,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );

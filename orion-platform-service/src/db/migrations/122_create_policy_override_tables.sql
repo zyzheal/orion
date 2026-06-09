@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS policy_overrides_v2 (
   id              VARCHAR(255) PRIMARY KEY,
-  tenant_id       VARCHAR(255) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   policy_id       VARCHAR(255) NOT NULL,
   pipeline_id     VARCHAR(255),
   run_id          VARCHAR(255),

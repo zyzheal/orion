@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS devportal_api_subscriptions (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   user_id VARCHAR(64) NOT NULL,
   api_name VARCHAR(255) NOT NULL,
   plan_name VARCHAR(64) DEFAULT 'standard',

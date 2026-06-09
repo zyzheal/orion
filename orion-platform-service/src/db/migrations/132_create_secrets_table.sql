@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS secrets (
   id VARCHAR(36) PRIMARY KEY,
-  tenant_id VARCHAR(36) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name VARCHAR(255) NOT NULL,
   encrypted_value BYTEA NOT NULL,
   scope VARCHAR(50) NOT NULL DEFAULT 'project', -- org, project, environment

@@ -5,7 +5,7 @@
 -- ==================== API Contracts ====================
 CREATE TABLE IF NOT EXISTS api_contracts (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(255) NOT NULL,
     description TEXT,
     endpoint VARCHAR(512) NOT NULL,
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_api_contract_violations_contract ON api_contract_
 -- ==================== API Versions ====================
 CREATE TABLE IF NOT EXISTS api_versions (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     api_id VARCHAR(255) NOT NULL,
     version VARCHAR(50) NOT NULL,
     definition JSONB DEFAULT '{}',
@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_api_versions_api ON api_versions(api_id);
 -- ==================== Governance Rules ====================
 CREATE TABLE IF NOT EXISTS governance_rules (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(255) NOT NULL,
     description TEXT,
     rule_type VARCHAR(50) NOT NULL,
@@ -66,7 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_governance_rules_type ON governance_rules(rule_ty
 -- ==================== API Inventory ====================
 CREATE TABLE IF NOT EXISTS api_inventory (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     api_data JSONB NOT NULL,
     registered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -76,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_api_inventory_tenant ON api_inventory(tenant_id);
 -- ==================== Cost Recommendations ====================
 CREATE TABLE IF NOT EXISTS cost_recommendations (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     title VARCHAR(255) NOT NULL,
     description TEXT,
     opportunities JSONB DEFAULT '[]',
@@ -93,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_cost_recommendations_status ON cost_recommendatio
 -- ==================== Savings Tracking ====================
 CREATE TABLE IF NOT EXISTS savings_tracking (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     recommendation_id UUID NOT NULL,
     month VARCHAR(7) NOT NULL,
     actual_savings DECIMAL(15,2) DEFAULT 0,

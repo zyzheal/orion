@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS test_selector_pr_results (
   id            UUID PRIMARY KEY,
-  tenant_id     VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   pr_id         VARCHAR(200) NOT NULL,
   plan_data     JSONB NOT NULL DEFAULT '{}',
   impact_data   JSONB NOT NULL DEFAULT '{}',

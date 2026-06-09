@@ -3,7 +3,7 @@
 -- Security scan results table
 CREATE TABLE IF NOT EXISTS security_scans (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(32),
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     scan_type VARCHAR(32) NOT NULL,  -- 'secret', 'sast', 'dependency', 'composite'
     repository VARCHAR(256) NOT NULL,
     branch VARCHAR(128),
@@ -56,7 +56,7 @@ CREATE INDEX idx_security_findings_rule ON security_findings(rule_id);
 -- Risk predictions table (for RiskAssessmentService persistence)
 CREATE TABLE IF NOT EXISTS risk_predictions (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(32),
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     target_type VARCHAR(64),         -- 'pr', 'commit', 'deployment', 'change'
     target_id VARCHAR(128),
     risk_score NUMERIC(5, 4) NOT NULL,  -- 0.0000 to 1.0000

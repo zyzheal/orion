@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS module_registry (
     priority INTEGER NOT NULL DEFAULT 100,
     route_prefix TEXT,
     error TEXT,
-    tenant_id TEXT,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

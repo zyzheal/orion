@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS im_notification_channels (
   id           VARCHAR(100) PRIMARY KEY,
-  tenant_id    VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   platform     VARCHAR(20) NOT NULL CHECK (platform IN ('dingtalk', 'wecom', 'feishu')),
   name         VARCHAR(200) NOT NULL,
   webhook_url  VARCHAR(1000) NOT NULL,

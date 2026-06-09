@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS test_selector_execution_history (
   id               UUID PRIMARY KEY,
-  tenant_id        VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   test_id          VARCHAR(200) NOT NULL,
   execution_id     VARCHAR(200) NOT NULL,
   passed           BOOLEAN NOT NULL DEFAULT FALSE,

@@ -5,7 +5,7 @@
 -- Data Sources
 CREATE TABLE IF NOT EXISTS dba_data_sources (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name        VARCHAR(255) NOT NULL,
     type        VARCHAR(50) NOT NULL,  -- mysql, postgresql, redis, mongodb
     host        VARCHAR(255) NOT NULL,
@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_dba_ds_status ON dba_data_sources(status);
 -- SQL Orders
 CREATE TABLE IF NOT EXISTS dba_sql_orders (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     user_id     VARCHAR(255) NOT NULL,
     database    VARCHAR(255) NOT NULL,
     sql         TEXT NOT NULL,
@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_dba_orders_user ON dba_sql_orders(user_id);
 -- Audit Rules
 CREATE TABLE IF NOT EXISTS dba_audit_rules (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name        VARCHAR(255) NOT NULL,
     pattern     TEXT NOT NULL,
     severity    VARCHAR(20) DEFAULT 'warning',  -- info, warning, error

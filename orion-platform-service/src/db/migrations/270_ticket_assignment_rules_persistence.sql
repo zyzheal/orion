@@ -1,7 +1,7 @@
 -- Ticket assignment rules for auto-assignment
 CREATE TABLE IF NOT EXISTS ticket_assignment_rules (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name VARCHAR(255) NOT NULL,
   categories JSONB NOT NULL DEFAULT '[]',
   assignee VARCHAR(64) NOT NULL,

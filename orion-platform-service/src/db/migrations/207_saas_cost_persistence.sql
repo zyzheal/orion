@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS saas_cost_subscriptions (
   id              VARCHAR(64) PRIMARY KEY,
-  tenant_id       VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   tool            VARCHAR(128) NOT NULL,
   subscription    VARCHAR(256),
   seats           INTEGER NOT NULL DEFAULT 0,

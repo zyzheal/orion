@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS degradation_audit_logs (
     id SERIAL PRIMARY KEY,
-    tenant_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     degradation_type VARCHAR(32) NOT NULL,
     scenario_id VARCHAR(64),
     provider_id VARCHAR(64),

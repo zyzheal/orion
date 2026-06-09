@@ -6,7 +6,7 @@
 -- Test suites (test files)
 CREATE TABLE IF NOT EXISTS test_selector_suites (
   id            UUID PRIMARY KEY,
-  tenant_id     VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name          VARCHAR(200) NOT NULL,
   file_path     TEXT NOT NULL,
   test_count    INTEGER NOT NULL DEFAULT 0,
@@ -24,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_tss_name ON test_selector_suites(name);
 -- Test cases (individual tests within suites)
 CREATE TABLE IF NOT EXISTS test_selector_cases (
   id            UUID PRIMARY KEY,
-  tenant_id     VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   suite_id      VARCHAR(200) NOT NULL,
   name          VARCHAR(200) NOT NULL,
   file_path     TEXT NOT NULL,
@@ -43,7 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_tsc_tenant_suite ON test_selector_cases(tenant_id
 -- Test-to-code mappings
 CREATE TABLE IF NOT EXISTS test_selector_code_mappings (
   id              UUID PRIMARY KEY,
-  tenant_id       VARCHAR(100) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   test_path       TEXT NOT NULL,
   source_paths    JSONB NOT NULL DEFAULT '[]',
   symbol_mapping  JSONB NOT NULL DEFAULT '{}',

@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS guardian_tasks (
   id VARCHAR(255) PRIMARY KEY,
-  tenant_id VARCHAR(255) NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   task_id VARCHAR(255) NOT NULL,
   start_time BIGINT NOT NULL,
   global_timeout_ms INTEGER NOT NULL,

@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS tenant_quotas (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100) NOT NULL UNIQUE,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' UNIQUE,
   max_pipelines INTEGER DEFAULT 10,
   max_pipeline_runs_per_day INTEGER DEFAULT 100,
   max_concurrent_builds INTEGER DEFAULT 5,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS pipeline_triggers (
   trigger_type VARCHAR(50) NOT NULL,
   config JSONB NOT NULL DEFAULT '{}',
   enabled BOOLEAN DEFAULT true,
-  tenant_id INTEGER NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS pipeline_dependencies (
   pipeline_id VARCHAR(100) NOT NULL,
   depends_on VARCHAR(100) NOT NULL,
   dependency_type VARCHAR(50) NOT NULL DEFAULT 'sequential',
-  tenant_id INTEGER NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(pipeline_id, depends_on)
 );
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS rbac_rules (
   action VARCHAR(50) NOT NULL,
   effect VARCHAR(10) NOT NULL DEFAULT 'allow',
   conditions JSONB DEFAULT '{}',
-  tenant_id INTEGER NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(role, resource, action)
 );

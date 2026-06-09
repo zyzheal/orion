@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS artifact_records (
   id          VARCHAR(100) PRIMARY KEY,
-  tenant_id   VARCHAR(100) NOT NULL DEFAULT 'system',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' DEFAULT 'system',
   run_id      VARCHAR(100) NOT NULL,
   stage_id    VARCHAR(100) NOT NULL,
   name        VARCHAR(500) NOT NULL,

@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS spans (
     duration_ms     INTEGER NOT NULL,
     status          VARCHAR(10) NOT NULL DEFAULT 'unset',  -- ok/error/unset
     attributes      JSONB NOT NULL DEFAULT '{}',
-    tenant_id       VARCHAR(36),
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS slow_queries (
     original_query  TEXT NOT NULL,
     duration_ms     INTEGER NOT NULL,
     params_count    INTEGER NOT NULL DEFAULT 0,
-    tenant_id       VARCHAR(36),
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     error           TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );

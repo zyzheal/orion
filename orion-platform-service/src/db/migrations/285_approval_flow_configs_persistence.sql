@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS approval_flow_configs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   flow_id VARCHAR(100) NOT NULL,
   name VARCHAR(200) NOT NULL,
   description TEXT,
@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_approval_flow_configs_flow_id ON approval_flow_co
 
 CREATE TABLE IF NOT EXISTS approval_approver_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   flow_id UUID REFERENCES approval_flow_configs(id) ON DELETE CASCADE,
   node_id VARCHAR(100) NOT NULL,
   rule_type VARCHAR(30) NOT NULL,
@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_approval_approver_rules_tenant ON approval_approv
 
 CREATE TABLE IF NOT EXISTS approval_fallback_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   approval_id VARCHAR(200) NOT NULL,
   node_id VARCHAR(100) NOT NULL,
   fallback_type VARCHAR(30) NOT NULL,

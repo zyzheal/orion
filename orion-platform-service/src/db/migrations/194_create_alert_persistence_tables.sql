@@ -4,7 +4,7 @@
 -- 1. Active alerts (AlertSuppressionService.activeAlerts)
 CREATE TABLE IF NOT EXISTS alert_active_alerts (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   fingerprint TEXT NOT NULL DEFAULT '',
   name TEXT NOT NULL,
   severity TEXT NOT NULL,
@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_active_alerts_source ON alert_active_alerts
 -- 2. Suppression log (AlertSuppressionService.suppressionLog)
 CREATE TABLE IF NOT EXISTS alert_suppression_log (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   alert_id TEXT NOT NULL,
   rule_type TEXT NOT NULL,
   reason TEXT NOT NULL,
@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_suppression_log_time ON alert_suppression_l
 -- 3. Correlation groups (AlertCorrelationService.groups)
 CREATE TABLE IF NOT EXISTS alert_correlation_groups (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   root_alert JSONB NOT NULL,
   correlated_alerts JSONB NOT NULL DEFAULT '[]',
   common_labels JSONB NOT NULL DEFAULT '{}',
@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_correlation_groups_fired ON alert_correlati
 -- 4. Topology nodes (AlertCorrelationService.topologyNodes)
 CREATE TABLE IF NOT EXISTS alert_topology_nodes (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   node_type TEXT NOT NULL,
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'healthy',
@@ -88,7 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_topology_nodes_tenant ON alert_topology_nod
 -- 5. RCA results (RootCauseAnalysisService.analysisResults)
 CREATE TABLE IF NOT EXISTS rca_results (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   status TEXT NOT NULL DEFAULT 'completed',
   affected_services JSONB NOT NULL DEFAULT '[]',
   correlated_alerts JSONB NOT NULL DEFAULT '[]',
@@ -109,7 +109,7 @@ CREATE INDEX IF NOT EXISTS idx_rca_results_completed ON rca_results(completed_at
 -- 6. Service dependency graph (RootCauseAnalysisService.dependencyGraph)
 CREATE TABLE IF NOT EXISTS service_dependencies (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   depends_on TEXT[] NOT NULL DEFAULT '{}',
   dependency_type TEXT NOT NULL DEFAULT 'sync',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -121,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_service_dependencies_tenant ON service_dependenci
 -- 7. Timeline events (RootCauseAnalysisService.timelineEvents)
 CREATE TABLE IF NOT EXISTS rca_timeline_events (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   deployment_id TEXT NOT NULL,
   event_timestamp TIMESTAMPTZ NOT NULL,
   service TEXT NOT NULL,
@@ -139,7 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_rca_timeline_events_time ON rca_timeline_events(e
 -- 8. Deduplication groups (AlertDeduplication.alertGroups)
 CREATE TABLE IF NOT EXISTS alert_deduplication_groups (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   alerts JSONB NOT NULL DEFAULT '[]',
   count INTEGER NOT NULL DEFAULT 0,
   first_occurrence TIMESTAMPTZ NOT NULL,
@@ -157,7 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_dedup_groups_last ON alert_deduplication_gr
 -- 9. Monitoring dashboard widget configs (MonitoringDashboard.widgetConfigs)
 CREATE TABLE IF NOT EXISTS monitoring_widget_configs (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   title TEXT NOT NULL,
   metrics TEXT[] NOT NULL DEFAULT '{}',
   time_window TEXT NOT NULL DEFAULT '1h',

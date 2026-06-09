@@ -1,7 +1,7 @@
 -- BI transfer records for ticket analytics
 CREATE TABLE IF NOT EXISTS bi_transfer_records (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   ticket_id VARCHAR(64) NOT NULL,
   from_engineer VARCHAR(64) NOT NULL,
   to_engineer VARCHAR(64) NOT NULL,

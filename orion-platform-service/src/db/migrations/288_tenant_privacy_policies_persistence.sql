@@ -2,7 +2,7 @@
 -- Migrates tenant privacy policies from in-memory Map to PostgreSQL
 
 CREATE TABLE IF NOT EXISTS tenant_privacy_policies (
-  tenant_id INTEGER PRIMARY KEY,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' PRIMARY KEY,
   policy_level VARCHAR(20) NOT NULL DEFAULT 'standard' CHECK (policy_level IN ('standard', 'enhanced', 'strict', 'custom')),
   secret_sanitization_enabled BOOLEAN NOT NULL DEFAULT true,
   pii_sanitization_enabled BOOLEAN NOT NULL DEFAULT true,

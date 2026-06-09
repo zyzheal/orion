@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS deployment_traffic_state (
   id                  VARCHAR(200) PRIMARY KEY,
-  tenant_id           VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   app_name            VARCHAR(200) NOT NULL,
   environment         VARCHAR(100) NOT NULL,
   active_percent      NUMERIC(5,2) NOT NULL DEFAULT 100,

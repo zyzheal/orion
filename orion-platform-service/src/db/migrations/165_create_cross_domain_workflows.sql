@@ -4,7 +4,7 @@
 -- Workflow definitions table
 CREATE TABLE IF NOT EXISTS cross_domain_workflows (
     id VARCHAR(255) PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL DEFAULT 'default',
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(255) NOT NULL,
     description TEXT,
     status VARCHAR(32) NOT NULL DEFAULT 'active',

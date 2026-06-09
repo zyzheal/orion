@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS chatops_subscription_failures (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   event_type VARCHAR(128) NOT NULL,
   error_message TEXT NOT NULL,
   retry_count INTEGER NOT NULL DEFAULT 0,

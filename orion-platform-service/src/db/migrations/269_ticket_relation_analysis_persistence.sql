@@ -1,7 +1,7 @@
 -- Ticket relation analysis records
 CREATE TABLE IF NOT EXISTS ticket_relation_analysis (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   ticket_id VARCHAR(64) NOT NULL,
   related_ticket_id VARCHAR(64) NOT NULL,
   relation_type VARCHAR(32) NOT NULL DEFAULT 'related',

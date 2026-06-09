@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS db_failover_alert_times (
   id VARCHAR(100) PRIMARY KEY,
   degradation_level INTEGER NOT NULL,
   last_alert_time TIMESTAMP NOT NULL,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS db_degradation_events (
   average_lag NUMERIC(10,2) NOT NULL DEFAULT 0,
   affected_replicas JSONB DEFAULT '[]',
   message TEXT,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS db_recovery_events (
   max_lag NUMERIC(10,2) NOT NULL DEFAULT 0,
   checks_passed INTEGER NOT NULL DEFAULT 0,
   message TEXT,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS db_failover_alerts (
   max_lag NUMERIC(10,2) NOT NULL DEFAULT 0,
   replicas JSONB DEFAULT '[]',
   trend JSONB DEFAULT '{}',
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 

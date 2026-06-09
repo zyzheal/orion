@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS ai_rule_engine_rule_sets (
   rules_json JSONB NOT NULL DEFAULT '[]',
   default_action JSONB,
   enabled BOOLEAN NOT NULL DEFAULT true,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS ai_rule_engine_audit_log (
   input_json JSONB NOT NULL DEFAULT '{}',
   result_json JSONB NOT NULL DEFAULT '{}',
   event_time TIMESTAMP NOT NULL DEFAULT NOW(),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -8,7 +8,7 @@
 
 CREATE TABLE IF NOT EXISTS risk_reports (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id           VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   assessment_id       VARCHAR(100) NOT NULL,                    -- Links to risk_assessments
   risk_score          NUMERIC(5,2) NOT NULL,
   risk_level          VARCHAR(20) NOT NULL,                     -- Low, Medium, High, Critical
@@ -30,7 +30,7 @@ CREATE INDEX idx_risk_reports_created ON risk_reports(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS digital_twin_snapshots (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id           VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name                VARCHAR(200) NOT NULL,
   description         TEXT,
   config              JSONB NOT NULL DEFAULT '{}',              -- Snapshot configuration

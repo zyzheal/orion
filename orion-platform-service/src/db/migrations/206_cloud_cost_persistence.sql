@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS cloud_cost_resources (
   id              VARCHAR(64) PRIMARY KEY,
-  tenant_id       VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   provider        VARCHAR(32) NOT NULL,
   resource_type   VARCHAR(32) NOT NULL,
   resource_id     VARCHAR(256) NOT NULL,
@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_cloud_cost_resources_ts ON cloud_cost_resources(t
 
 CREATE TABLE IF NOT EXISTS cloud_cost_schedules (
   id                VARCHAR(64) PRIMARY KEY,
-  tenant_id         VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   provider          VARCHAR(32) NOT NULL UNIQUE,
   cron_expression   VARCHAR(128) NOT NULL,
   enabled           BOOLEAN NOT NULL DEFAULT TRUE,

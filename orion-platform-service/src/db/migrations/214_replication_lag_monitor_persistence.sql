@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS db_lag_history (
   lag_seconds NUMERIC(10,2) NOT NULL DEFAULT 0,
   lag_level VARCHAR(50) NOT NULL,
   recorded_at TIMESTAMP DEFAULT NOW(),
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS db_replica_statuses (
   read_master_log_pos INTEGER DEFAULT 0,
   retrieved_gtid_set TEXT,
   executed_gtid_set TEXT,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

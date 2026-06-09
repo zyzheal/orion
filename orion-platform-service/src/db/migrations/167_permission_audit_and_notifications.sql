@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS permission_audit_logs (
     id              BIGSERIAL PRIMARY KEY,
     user_id         VARCHAR(255) NOT NULL,
-    tenant_id       VARCHAR(255),
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     resource_type   VARCHAR(255) NOT NULL,
     resource_id     VARCHAR(255),
     action          VARCHAR(255) NOT NULL,

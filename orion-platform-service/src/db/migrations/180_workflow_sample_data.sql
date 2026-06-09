@@ -8,7 +8,7 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS lowcode_workflow_definition (
     id                  VARCHAR(100) PRIMARY KEY,
-    tenant_id           VARCHAR(100) DEFAULT 'default',
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' DEFAULT 'default',
     name                VARCHAR(100) NOT NULL,
     description         TEXT,
     version             INTEGER DEFAULT 1,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS lowcode_workflow_instance (
     id                  VARCHAR(100) PRIMARY KEY,
     workflow_id         VARCHAR(100) NOT NULL,
     workflow_definition_id VARCHAR(100) NOT NULL,
-    tenant_id           VARCHAR(100) DEFAULT 'default',
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' DEFAULT 'default',
     status              VARCHAR(20) NOT NULL DEFAULT 'pending',
     current_node_id     VARCHAR(100),
     variables           JSONB DEFAULT '{}',

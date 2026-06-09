@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS immutable_audit_entries (
   id VARCHAR(100) PRIMARY KEY,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   sequence_number INTEGER NOT NULL,
   action VARCHAR(200) NOT NULL,
   user_id VARCHAR(100) NOT NULL,

@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS progressive_deployments (
   id                      VARCHAR(100) PRIMARY KEY,
   deployment_id           VARCHAR(100) NOT NULL,
-  tenant_id               VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   phase                   VARCHAR(50) NOT NULL DEFAULT 'initial',
   strategy                VARCHAR(50) NOT NULL DEFAULT 'canary',
   current_traffic_percent NUMERIC(5,2) NOT NULL DEFAULT 0,

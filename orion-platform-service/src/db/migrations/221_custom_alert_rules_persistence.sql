@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS custom_alert_rules CASCADE;
 
 CREATE TABLE IF NOT EXISTS custom_alert_rules (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL DEFAULT 'default',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name TEXT NOT NULL,
   description TEXT,
   rule_type TEXT NOT NULL DEFAULT 'threshold',

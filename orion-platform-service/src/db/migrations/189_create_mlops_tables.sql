@@ -4,7 +4,7 @@
 -- ML Experiments
 CREATE TABLE IF NOT EXISTS mlops_experiments (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name        VARCHAR(255) NOT NULL,
     project     VARCHAR(100),
     status      VARCHAR(20) DEFAULT 'draft',  -- draft, running, completed, failed
@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_mlops_exp_status ON mlops_experiments(status);
 -- ML Models (Registry)
 CREATE TABLE IF NOT EXISTS mlops_models (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name        VARCHAR(255) NOT NULL,
     version     INTEGER NOT NULL DEFAULT 1,
     experiment_id UUID REFERENCES mlops_experiments(id),
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_mlops_model_status ON mlops_models(status);
 -- ML Training Jobs
 CREATE TABLE IF NOT EXISTS mlops_training_jobs (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   BIGINT NOT NULL DEFAULT 1,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     experiment_id UUID REFERENCES mlops_experiments(id),
     model_id    UUID REFERENCES mlops_models(id),
     status      VARCHAR(20) DEFAULT 'pending',  -- pending, running, completed, failed

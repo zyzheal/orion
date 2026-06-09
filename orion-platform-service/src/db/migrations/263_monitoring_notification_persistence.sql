@@ -5,7 +5,7 @@
 -- Notification channels for alert delivery
 CREATE TABLE IF NOT EXISTS monitoring_notification_channels (
   id              VARCHAR(64) PRIMARY KEY,
-  tenant_id       VARCHAR(64) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' DEFAULT '00000000-0000-0000-0000-000000000000',
   name            VARCHAR(200) NOT NULL,
   type            VARCHAR(20) NOT NULL,
   config          JSONB NOT NULL,
@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_monitoring_notification_channels_type ON monitori
 -- Escalation policies
 CREATE TABLE IF NOT EXISTS monitoring_escalation_policies (
   id            VARCHAR(64) PRIMARY KEY,
-  tenant_id     VARCHAR(64) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' DEFAULT '00000000-0000-0000-0000-000000000000',
   name          VARCHAR(200) NOT NULL,
   steps         JSONB NOT NULL,
   repeat_count  INT NOT NULL DEFAULT 0,
@@ -36,7 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_monitoring_escalation_policies_tenant ON monitori
 -- Notification history
 CREATE TABLE IF NOT EXISTS monitoring_notification_history (
   id                VARCHAR(64) PRIMARY KEY,
-  tenant_id         VARCHAR(64) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' DEFAULT '00000000-0000-0000-0000-000000000000',
   alert_id          VARCHAR(64) NOT NULL,
   channel_id        VARCHAR(200) NOT NULL,
   channel_type      VARCHAR(20) NOT NULL,

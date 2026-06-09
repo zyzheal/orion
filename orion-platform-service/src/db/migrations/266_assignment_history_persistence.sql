@@ -1,7 +1,7 @@
 -- Assignment history for load balancer tracking
 CREATE TABLE IF NOT EXISTS assignment_history (
   id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   ticket_id VARCHAR(64) NOT NULL,
   assignee VARCHAR(64) NOT NULL,
   assigned_by VARCHAR(64) NOT NULL,

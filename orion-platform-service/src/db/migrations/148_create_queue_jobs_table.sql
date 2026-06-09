@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS queue_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   queue_name VARCHAR(128) NOT NULL DEFAULT 'default',
   job_type VARCHAR(128) NOT NULL,
   payload JSONB NOT NULL DEFAULT '{}',

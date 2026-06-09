@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS ai_degradation_configs (
   cache_ttl BIGINT NOT NULL DEFAULT 300000,
   notify_on_degradation BOOLEAN NOT NULL DEFAULT false,
   default_response JSONB,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS ai_degradation_result_cache (
   scenario VARCHAR(100) NOT NULL,
   result_json JSONB NOT NULL DEFAULT '{}',
   expires_at TIMESTAMP NOT NULL,
-  tenant_id VARCHAR(100),
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
