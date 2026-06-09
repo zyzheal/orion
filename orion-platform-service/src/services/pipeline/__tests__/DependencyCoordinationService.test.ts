@@ -8,8 +8,95 @@
 
 import { DependencyCoordinationService, PipelineDependency, PipelineResult } from '../DependencyCoordinationService';
 
+/**
+ * Create an in-memory mock DB for PipelineDependencyRepository.
+ */
+function createMockDb() {
+  const store: Record<string, any[]> = {};
+
+  function getTable(name: string): any[] {
+    if (!store[name]) store[name] = [];
+    return store[name];
+  }
+
+  return {
+    query: jest.fn(async (sql: string, params: any[] = []) => {
+      const norm = sql.trim();
+
+      // INSERT ... ON CONFLICT ... RETURNING *
+      if (/^INSERT\s+INTO/i.test(norm)) {
+        const m = norm.match(/INSERT\s+INTO\s+(\w+)\s+\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/i);
+        if (m) {
+          const table = m[1];
+          const cols = m[2].split(',').map(c => c.trim());
+          const row: any = {};
+          cols.forEach((col, i) => { row[col] = params[i] ?? null; });
+          if (!row.created_at) row.created_at = new Date();
+          if (!row.updated_at) row.updated_at = new Date();
+
+          // ON CONFLICT handling - check if pipeline_id already exists
+          const existingIdx = getTable(table).findIndex(r => r.pipeline_id === row.pipeline_id);
+          if (existingIdx >= 0) {
+            // Update existing
+            Object.assign(getTable(table)[existingIdx], row);
+            return { rows: [getTable(table)[existingIdx]], rowCount: 1 };
+          }
+          getTable(table).push(row);
+          return { rows: [row], rowCount: 1 };
+        }
+      }
+
+      // DELETE FROM ... WHERE pipeline_id = $1
+      if (/^DELETE/i.test(norm)) {
+        const m = norm.match(/DELETE\s+FROM\s+(\w+)\s+WHERE\s+(\w+)\s*=\s*\$(\d+)/i);
+        if (m) {
+          const table = m[1];
+          const col = m[2];
+          const val = params[parseInt(m[3]) - 1];
+          const rows = getTable(table);
+          const before = rows.length;
+          store[table] = rows.filter(r => String(r[col]) !== String(val));
+          return { rows: [], rowCount: before - store[table].length };
+        }
+      }
+
+      // SELECT * FROM ... WHERE ...
+      if (/^SELECT/i.test(norm)) {
+        const m = norm.match(/SELECT\s+\*\s+FROM\s+(\w+)\s+WHERE\s+(.*)/i);
+        if (m) {
+          const table = m[1];
+          const rest = m[2].trim();
+          const rows = getTable(table);
+
+          // Parse simple WHERE conditions
+          const conditions = rest.split(/\s+AND\s+/i);
+          let filtered = [...rows];
+          for (const cond of conditions) {
+            const trimmed = cond.trim();
+            const litMatch = trimmed.match(/^(\w+)\s*=\s*'([^']*)'$/);
+            if (litMatch) {
+              filtered = filtered.filter(r => String(r[litMatch[1]]) === litMatch[2]);
+              continue;
+            }
+            const paramMatch = trimmed.match(/^(\w+)\s*=\s*\$(\d+)$/);
+            if (paramMatch) {
+              const val = params[parseInt(paramMatch[2]) - 1];
+              filtered = filtered.filter(r => String(r[paramMatch[1]]) === String(val));
+              continue;
+            }
+          }
+
+          return { rows: filtered, rowCount: filtered.length };
+        }
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+}
+
 function createService(): DependencyCoordinationService {
-  return new DependencyCoordinationService();
+  return new DependencyCoordinationService(createMockDb());
 }
 
 // ==================== Tests ====================

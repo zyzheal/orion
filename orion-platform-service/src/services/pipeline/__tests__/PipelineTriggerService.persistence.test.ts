@@ -270,7 +270,35 @@ describe('PipelineTriggerService - Persistence', () => {
     });
 
     test('should persist trigger status change to failed after 5 consecutive failures', async () => {
-      mockDb.query.mockResolvedValue({ rows: [] });
+      // Track execution records in-memory so findRecentFailures returns them
+      const executionRecords: any[] = [];
+      mockDb.query.mockImplementation(async (sql: string, params: any[] = []) => {
+        const norm = sql.trim();
+        // INSERT INTO pipeline_trigger_executions - track the record
+        if (/INSERT\s+INTO\s+pipeline_trigger_executions/i.test(norm)) {
+          const row = {
+            id: params[0],
+            trigger_id: params[1],
+            run_id: params[2],
+            status: params[3],
+            context_json: params[4],
+            executed_at: params[5],
+          };
+          executionRecords.push(row);
+          return { rows: [row], rowCount: 1 };
+        }
+        // SELECT * FROM pipeline_trigger_executions WHERE trigger_id = $1 AND status = 'failed' ...
+        if (/SELECT.*FROM\s+pipeline_trigger_executions/i.test(norm) && /trigger_id/i.test(norm)) {
+          const triggerId = params[0];
+          const failures = executionRecords.filter(
+            r => r.trigger_id === triggerId && r.status === 'failed'
+          );
+          return { rows: failures, rowCount: failures.length };
+        }
+        // All other queries (INSERT triggers, UPDATE triggers, etc.)
+        return { rows: [], rowCount: 0 };
+      });
+
       const input: CreateTriggerInput = {
         pipelineId: 'pipe-1',
         tenantId: 'tenant-1',
@@ -279,7 +307,6 @@ describe('PipelineTriggerService - Persistence', () => {
       };
       const created = await service.registerTrigger(input);
 
-      mockDb.query.mockResolvedValue({ rows: [] });
       for (let i = 0; i < 5; i++) {
         await service.recordFailure(created.id, `error-${i}`);
       }
@@ -289,7 +316,7 @@ describe('PipelineTriggerService - Persistence', () => {
 
       // Should have persisted the status change
       const updateCalls = mockDb.query.mock.calls.filter(
-        (call: any[]) => call[0].includes('UPDATE pipeline_triggers')
+        (call: any[]) => String(call[0]).includes('UPDATE pipeline_triggers')
       );
       expect(updateCalls.length).toBeGreaterThanOrEqual(1);
     });

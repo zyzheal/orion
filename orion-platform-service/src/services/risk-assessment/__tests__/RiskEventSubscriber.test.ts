@@ -6,6 +6,118 @@ import { RiskEventSubscriber } from '../RiskEventSubscriber';
 import { RiskAssessmentService } from '../RiskAssessmentService';
 import { CloudEvent, EventContext, Subscription } from '@orion/event-bus';
 
+/**
+ * Create an in-memory mock DB for RiskAssessmentRepository and RiskReportRepository.
+ */
+function createMockDb() {
+  const store: Record<string, any[]> = {};
+
+  function getTable(name: string): any[] {
+    if (!store[name]) store[name] = [];
+    return store[name];
+  }
+
+  function matchWhere(rows: any[], whereClause: string, params: any[]): any[] {
+    const conditions = whereClause.split(/\s+AND\s+/i);
+    for (const cond of conditions) {
+      const trimmed = cond.trim();
+      const litMatch = trimmed.match(/^(\w+)\s*=\s*'([^']*)'$/);
+      if (litMatch) {
+        rows = rows.filter(r => String(r[litMatch[1]]) === litMatch[2]);
+        continue;
+      }
+      const paramMatch = trimmed.match(/^(\w+)\s*=\s*\$(\d+)$/);
+      if (paramMatch) {
+        const val = params[parseInt(paramMatch[2]) - 1];
+        rows = rows.filter(r => String(r[paramMatch[1]]) === String(val));
+        continue;
+      }
+    }
+    return rows;
+  }
+
+  return {
+    query: jest.fn(async (sql: string, params: any[] = []) => {
+      const norm = sql.trim();
+
+      // INSERT ... RETURNING *
+      if (/^INSERT\s+INTO/i.test(norm)) {
+        const m = norm.match(/INSERT\s+INTO\s+(\w+)\s+\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)\s+RETURNING\s+\*/i);
+        if (m) {
+          const table = m[1];
+          const cols = m[2].split(',').map(c => c.trim());
+          const row: any = {};
+          cols.forEach((col, i) => { row[col] = params[i] ?? null; });
+          if (!row.created_at) row.created_at = new Date();
+          if (!row.updated_at) row.updated_at = new Date();
+          getTable(table).push(row);
+          return { rows: [row], rowCount: 1 };
+        }
+      }
+
+      // SELECT COUNT(*) ...
+      if (/^SELECT\s+COUNT/i.test(norm)) {
+        const m = norm.match(/SELECT\s+COUNT\(\*\)\s+as\s+count\s+FROM\s+(\w+)/i);
+        if (m) {
+          const table = m[1];
+          let rows = [...getTable(table)];
+          // Check for WHERE clause
+          const whereMatch = norm.match(/WHERE\s+(.+?)(?:\s+ORDER|\s+GROUP|\s+LIMIT|$)/i);
+          if (whereMatch) {
+            rows = matchWhere(rows, whereMatch[1], params);
+          }
+          return { rows: [{ count: String(rows.length) }], rowCount: 1 };
+        }
+      }
+
+      // SELECT * FROM ... WHERE ...
+      if (/^SELECT/i.test(norm)) {
+        const m = norm.match(/SELECT\s+\*\s+FROM\s+(\w+)\s+WHERE\s+([\s\S]*)/i);
+        if (m) {
+          const table = m[1];
+          let rest = m[2].trim();
+          let limit: number | null = null;
+          let offset: number | null = null;
+
+          // Parse ORDER BY and LIMIT/OFFSET
+          const limMatch = rest.match(/^(.*?)\s+ORDER\s+BY\s+\w+(?:\s+DESC)?(?:\s+LIMIT\s+\$(\d+)(?:\s+OFFSET\s+\$(\d+))?)?$/i);
+          if (limMatch) {
+            rest = limMatch[1].trim();
+            if (limMatch[2]) limit = params[parseInt(limMatch[2]) - 1];
+            if (limMatch[3]) offset = params[parseInt(limMatch[3]) - 1];
+          }
+
+          let rows = matchWhere([...getTable(table)], rest, params);
+
+          if (limit !== null) {
+            const off = offset || 0;
+            rows = rows.slice(off, off + limit);
+          }
+
+          return { rows, rowCount: rows.length };
+        }
+
+        // SELECT * FROM ... (no WHERE)
+        const m2 = norm.match(/SELECT\s+\*\s+FROM\s+(\w+)\s+ORDER/i);
+        if (m2) {
+          const table = m2[1];
+          const rows = [...getTable(table)];
+          const limMatch = norm.match(/LIMIT\s+\$(\d+)(?:\s+OFFSET\s+\$(\d+))?/i);
+          let result = rows;
+          if (limMatch) {
+            const limit = params[parseInt(limMatch[1]) - 1];
+            const offset = limMatch[2] ? params[parseInt(limMatch[2]) - 1] : 0;
+            result = rows.slice(offset, offset + limit);
+          }
+          return { rows: result, rowCount: result.length };
+        }
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+}
+
 // Mock EventBus
 function createMockEventBus() {
   const subscriptions: Subscription[] = [];
@@ -34,12 +146,14 @@ function createMockEventBus() {
 
 describe('RiskEventSubscriber', () => {
   let mockEventBus: any;
+  let mockDb: ReturnType<typeof createMockDb>;
   let riskAssessmentService: RiskAssessmentService;
   let subscriber: RiskEventSubscriber;
 
   beforeEach(() => {
     mockEventBus = createMockEventBus();
-    riskAssessmentService = new RiskAssessmentService();
+    mockDb = createMockDb();
+    riskAssessmentService = new RiskAssessmentService(mockDb);
     subscriber = new RiskEventSubscriber({
       eventBus: mockEventBus,
       riskAssessmentService,
@@ -48,7 +162,6 @@ describe('RiskEventSubscriber', () => {
 
   afterEach(async () => {
     await subscriber.unsubscribeFromEvents();
-    riskAssessmentService.clearHistory();
   });
 
   // ==================== subscribeToEvents ====================

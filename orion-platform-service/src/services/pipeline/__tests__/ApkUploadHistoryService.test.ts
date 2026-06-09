@@ -4,12 +4,182 @@
 
 import { ApkUploadHistoryService, ApkUploadRecordCreateInput } from '../ApkUploadHistoryService';
 
+/**
+ * Create an in-memory mock DB that simulates PostgreSQL query behavior
+ * for the ApkUploadRepository patterns.
+ */
+function createMockDb() {
+  const store: Record<string, any[]> = {};
+
+  function getTable(name: string): any[] {
+    if (!store[name]) store[name] = [];
+    return store[name];
+  }
+
+  function matchWhere(rows: any[], whereClause: string, params: any[]): any[] {
+    // Split by AND (simple parsing)
+    const conditions = whereClause.split(/\s+AND\s+/i);
+    for (const cond of conditions) {
+      const trimmed = cond.trim();
+      // column = 'literal'
+      const litMatch = trimmed.match(/^(\w+)\s*=\s*'([^']*)'$/);
+      if (litMatch) {
+        rows = rows.filter(r => String(r[litMatch[1]]) === litMatch[2]);
+        continue;
+      }
+      // column = $N
+      const paramMatch = trimmed.match(/^(\w+)\s*=\s*\$(\d+)$/);
+      if (paramMatch) {
+        const val = params[parseInt(paramMatch[2]) - 1];
+        rows = rows.filter(r => String(r[paramMatch[1]]) === String(val));
+        continue;
+      }
+    }
+    return rows;
+  }
+
+  return {
+    query: jest.fn(async (sql: string, params: any[] = []) => {
+      const norm = sql.trim();
+
+      // INSERT INTO ... RETURNING *
+      if (/^INSERT\s+INTO/i.test(norm)) {
+        const m = norm.match(/INSERT\s+INTO\s+(\w+)\s+\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)\s+RETURNING\s+\*/i);
+        if (m) {
+          const table = m[1];
+          const cols = m[2].split(',').map(c => c.trim());
+          const row: any = {};
+          cols.forEach((col, i) => { row[col] = params[i] ?? null; });
+          if (!row.created_at) row.created_at = new Date();
+          if (!row.updated_at) row.updated_at = new Date();
+          getTable(table).push(row);
+          return { rows: [row], rowCount: 1 };
+        }
+      }
+
+      // UPDATE ... SET ... WHERE id = $N RETURNING *
+      if (/^UPDATE/i.test(norm)) {
+        const m = norm.match(/UPDATE\s+(\w+)\s+SET\s+(.+?)\s+WHERE\s+id\s*=\s*\$(\d+)\s+RETURNING\s+\*/i);
+        if (m) {
+          const table = m[1];
+          const setClause = m[2];
+          const idParamIdx = parseInt(m[3]) - 1;
+          const idVal = params[idParamIdx];
+          const rows = getTable(table);
+          const idx = rows.findIndex(r => r.id === idVal);
+          if (idx >= 0) {
+            const assignments = setClause.split(',');
+            for (const a of assignments) {
+              const [colPart, valPart] = a.split('=').map(s => s.trim());
+              const col = colPart;
+              if (valPart && valPart.startsWith('$')) {
+                const pIdx = parseInt(valPart.slice(1)) - 1;
+                if (pIdx >= 0 && pIdx < params.length) rows[idx][col] = params[pIdx];
+              } else if (/NOW\(\)/i.test(valPart)) {
+                rows[idx][col] = new Date();
+              }
+            }
+            rows[idx].updated_at = new Date();
+            return { rows: [rows[idx]], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }
+      }
+
+      // SELECT COUNT(*) ... GROUP BY status
+      if (/GROUP\s+BY/i.test(norm)) {
+        const m = norm.match(/SELECT\s+status,\s*COUNT\(\*\)\s+as\s+count\s+FROM\s+(\w+)\s+WHERE\s+(.+?)\s+GROUP\s+BY\s+status/i);
+        if (m) {
+          const rows = matchWhere([...getTable(m[1])], m[2], params);
+          const groups: Record<string, number> = {};
+          for (const r of rows) groups[r.status] = (groups[r.status] || 0) + 1;
+          return { rows: Object.entries(groups).map(([status, count]) => ({ status, count: String(count) })), rowCount: Object.keys(groups).length };
+        }
+      }
+
+      // SELECT COUNT(*) ... (no group by)
+      if (/^SELECT\s+COUNT/i.test(norm)) {
+        const m = norm.match(/SELECT\s+COUNT\(\*\)\s+as\s+count\s+FROM\s+(\w+)\s+WHERE\s+(.*)/i);
+        if (m) {
+          const rows = matchWhere([...getTable(m[1])], m[2], params);
+          return { rows: [{ count: String(rows.length) }], rowCount: 1 };
+        }
+      }
+
+      // SELECT * FROM ... WHERE ...
+      if (/^SELECT/i.test(norm)) {
+        const m = norm.match(/SELECT\s+\*\s+FROM\s+(\w+)\s+WHERE\s+([\s\S]*)/i);
+        if (m) {
+          const table = m[1];
+          let rest = m[2].trim();
+          let limit: number | null = null;
+          let offset: number | null = null;
+          let orderByDesc = false;
+
+          // Strip ORDER BY
+          const obMatch = rest.match(/^(.*?)\s+ORDER\s+BY\s+(\w+)(\s+DESC)?(.*)$/i);
+          if (obMatch) {
+            rest = obMatch[1].trim();
+            orderByDesc = !!obMatch[3];
+            const afterOrder = obMatch[4].trim();
+            // Parse LIMIT / OFFSET from the rest after ORDER BY
+            const limMatch = afterOrder.match(/LIMIT\s+\$(\d+)(?:\s+OFFSET\s+\$(\d+))?/i);
+            if (limMatch) {
+              limit = params[parseInt(limMatch[1]) - 1];
+              if (limMatch[2]) offset = params[parseInt(limMatch[2]) - 1];
+            }
+          } else {
+            // No ORDER BY, check for LIMIT in the where clause
+            const limMatch2 = rest.match(/^(.*?)\s+LIMIT\s+\$(\d+)(?:\s+OFFSET\s+\$(\d+))?$/i);
+            if (limMatch2) {
+              rest = limMatch2[1].trim();
+              limit = params[parseInt(limMatch2[2]) - 1];
+              if (limMatch2[3]) offset = params[parseInt(limMatch2[3]) - 1];
+            }
+          }
+
+          let rows = matchWhere([...getTable(table)], rest, params);
+
+          if (orderByDesc) {
+            rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          }
+
+          if (limit !== null) {
+            const off = offset || 0;
+            rows = rows.slice(off, off + limit);
+          }
+
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // DELETE FROM ... WHERE ...
+      if (/^DELETE/i.test(norm)) {
+        const m = norm.match(/DELETE\s+FROM\s+(\w+)\s+WHERE\s+(\w+)\s*=\s*\$(\d+)/i);
+        if (m) {
+          const table = m[1];
+          const col = m[2];
+          const val = params[parseInt(m[3]) - 1];
+          const rows = getTable(table);
+          const before = rows.length;
+          store[table] = rows.filter(r => r[col] !== val);
+          return { rows: [], rowCount: before - store[table].length };
+        }
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+}
+
 describe('ApkUploadHistoryService', () => {
   let service: ApkUploadHistoryService;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new ApkUploadHistoryService();
+    mockDb = createMockDb();
+    service = new ApkUploadHistoryService(mockDb);
   });
 
   const createInput: ApkUploadRecordCreateInput = {
@@ -70,12 +240,8 @@ describe('ApkUploadHistoryService', () => {
     });
 
     it('should persist to repository when db provided', async () => {
-      const mockCreate = jest.fn().mockResolvedValue({ id: 'test' });
-      const mockDb = {
-        query: jest.fn(),
-      };
-      // The service creates an ApkUploadRepository internally
-      const svc = new ApkUploadHistoryService(mockDb);
+      const db2 = createMockDb();
+      const svc = new ApkUploadHistoryService(db2);
       const record = await svc.create(createInput);
 
       expect(record).toBeDefined();

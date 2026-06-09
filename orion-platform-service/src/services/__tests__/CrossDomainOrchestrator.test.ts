@@ -1,187 +1,173 @@
 /**
  * CrossDomainOrchestrator Tests
  *
- * Tests for workflow creation, execution with dependencies,
- * workflow management (pause/resume), and execution tracking.
+ * Tests for orchestration creation, execution with dependencies,
+ * orchestration management (pause/resume), and execution tracking.
  */
 
 import {
   CrossDomainOrchestrator,
-  CreateWorkflowInput,
-  WorkflowStep,
-  Trigger,
+  CreateOrchestrationInput,
 } from '../cross-domain-orchestration/CrossDomainOrchestrator';
 
 describe('CrossDomainOrchestrator', () => {
   let orchestrator: CrossDomainOrchestrator;
 
-  const validSteps: Omit<WorkflowStep, 'id'>[] = [
+  const validSteps: CreateOrchestrationInput['steps'] = [
     {
-      domain: 'pipeline',
+      stepName: 'build',
+      domainName: 'pipeline',
       action: 'build',
-      parameters: { repo: 'my-app' },
-      dependsOn: [],
-      timeout: 30000,
+      payload: { repo: 'my-app' },
+      maxRetries: 3,
     },
     {
-      domain: 'deploy',
+      stepName: 'deploy',
+      domainName: 'deploy',
       action: 'deploy',
-      parameters: { version: '1.0.0' },
-      dependsOn: [], // Will be updated to depend on build
-      timeout: 60000,
+      payload: { version: '1.0.0' },
+      maxRetries: 2,
     },
     {
-      domain: 'monitor',
+      stepName: 'verify',
+      domainName: 'monitor',
       action: 'verify',
-      parameters: { threshold: 0.95 },
-      dependsOn: [], // Will be updated to depend on deploy
-      timeout: 30000,
+      payload: { threshold: 0.95 },
+      maxRetries: 1,
     },
   ];
 
-  const validTriggers: Trigger[] = [
-    { type: 'manual', config: {} },
-  ];
-
-  const validInput: CreateWorkflowInput = {
+  const validInput: CreateOrchestrationInput = {
     name: 'deploy-flow',
     description: 'Cross-domain deployment flow',
+    domains: ['pipeline', 'deploy', 'monitor'],
     steps: validSteps,
-    triggers: validTriggers,
   };
 
   beforeEach(() => {
+    // No database = in-memory mode
     orchestrator = new CrossDomainOrchestrator();
   });
 
-  // ==================== createWorkflow ====================
+  // ==================== createOrchestration ====================
 
-  describe('createWorkflow', () => {
-    it('should create a new workflow with active status', async () => {
-      const result = await orchestrator.createWorkflow(validInput);
+  describe('createOrchestration', () => {
+    it('should create a new orchestration with pending status', async () => {
+      const result = await orchestrator.createOrchestration('tenant-1', validInput);
 
-      expect(result.id).toMatch(/^workflow-/);
+      expect(result.id).toBeDefined();
       expect(result.name).toBe('deploy-flow');
       expect(result.description).toBe('Cross-domain deployment flow');
-      expect(result.status).toBe('active');
+      expect(result.status).toBe('pending');
       expect(result.steps).toHaveLength(3);
-      expect(result.triggers).toHaveLength(1);
       expect(result.createdAt).toBeInstanceOf(Date);
     });
 
-    it('should generate unique IDs for steps', async () => {
-      const result = await orchestrator.createWorkflow(validInput);
-
-      const stepIds = result.steps.map((s) => s.id);
-      const uniqueIds = new Set(stepIds);
-      expect(uniqueIds.size).toBe(result.steps.length);
-    });
-
     it('should preserve step properties', async () => {
-      const result = await orchestrator.createWorkflow(validInput);
+      const result = await orchestrator.createOrchestration('tenant-1', validInput);
 
-      expect(result.steps[0].domain).toBe('pipeline');
-      expect(result.steps[0].action).toBe('build');
-      expect(result.steps[0].parameters).toEqual({ repo: 'my-app' });
-      expect(result.steps[0].timeout).toBe(30000);
+      expect(result.steps[0].domainName).toBe('pipeline');
+      expect(result.steps[0].stepName).toBe('build');
+      expect(result.steps[0].input).toEqual({ repo: 'my-app' });
+      expect(result.steps[0].maxRetries).toBe(3);
     });
 
     it('should work with minimal input', async () => {
-      const minimalInput: CreateWorkflowInput = {
+      const minimalInput: CreateOrchestrationInput = {
         name: 'minimal',
-        description: 'A minimal workflow',
+        description: 'A minimal orchestration',
+        domains: ['pipeline'],
         steps: [
           {
-            domain: 'pipeline',
+            stepName: 'run',
+            domainName: 'pipeline',
             action: 'run',
-            parameters: {},
-            dependsOn: [],
-            timeout: 10000,
+            payload: {},
           },
         ],
-        triggers: [],
       };
 
-      const result = await orchestrator.createWorkflow(minimalInput);
-      expect(result.status).toBe('active');
+      const result = await orchestrator.createOrchestration('tenant-1', minimalInput);
+      expect(result.status).toBe('pending');
       expect(result.steps).toHaveLength(1);
     });
 
-    it('should preserve custom retry policy', async () => {
-      const inputWithRetry: CreateWorkflowInput = {
-        ...validInput,
+    it('should set default maxRetries to 3', async () => {
+      const input: CreateOrchestrationInput = {
+        name: 'test',
+        description: 'test',
+        domains: ['pipeline'],
         steps: [
           {
-            domain: 'pipeline',
-            action: 'build',
-            parameters: {},
-            dependsOn: [],
-            timeout: 30000,
-            retryPolicy: { maxRetries: 5, backoff: 2000 },
+            stepName: 's1',
+            domainName: 'pipeline',
+            action: 'run',
+            payload: {},
+            // no maxRetries specified
           },
         ],
       };
 
-      const result = await orchestrator.createWorkflow(inputWithRetry);
-      expect(result.steps[0].retryPolicy).toEqual({ maxRetries: 5, backoff: 2000 });
+      const result = await orchestrator.createOrchestration('tenant-1', input);
+      expect(result.steps[0].maxRetries).toBe(3);
     });
   });
 
-  // ==================== getWorkflow ====================
+  // ==================== getOrchestrationById ====================
 
-  describe('getWorkflow', () => {
-    it('should retrieve a workflow by ID', async () => {
-      const created = await orchestrator.createWorkflow(validInput);
-      const found = await orchestrator.getWorkflow(created.id);
+  describe('getOrchestrationById', () => {
+    it('should retrieve an orchestration by ID', async () => {
+      const created = await orchestrator.createOrchestration('tenant-1', validInput);
+      const found = await orchestrator.getOrchestrationById(created.id);
 
       expect(found).not.toBeNull();
       expect(found?.id).toBe(created.id);
       expect(found?.name).toBe('deploy-flow');
     });
 
-    it('should return null for non-existent workflow', async () => {
-      const found = await orchestrator.getWorkflow('non-existent');
+    it('should return null for non-existent orchestration', async () => {
+      const found = await orchestrator.getOrchestrationById('non-existent');
       expect(found).toBeNull();
     });
   });
 
-  // ==================== listWorkflows ====================
+  // ==================== listOrchestrations ====================
 
-  describe('listWorkflows', () => {
-    it('should list all workflows', async () => {
-      await orchestrator.createWorkflow({ ...validInput, name: 'flow-1' });
-      await orchestrator.createWorkflow({ ...validInput, name: 'flow-2' });
+  describe('listOrchestrations', () => {
+    it('should list all orchestrations for a tenant', async () => {
+      await orchestrator.createOrchestration('tenant-1', { ...validInput, name: 'flow-1' });
+      await orchestrator.createOrchestration('tenant-1', { ...validInput, name: 'flow-2' });
 
-      const workflows = await orchestrator.listWorkflows();
-      expect(workflows.length).toBe(2);
+      const orchestrations = await orchestrator.listOrchestrations('tenant-1');
+      expect(orchestrations.length).toBe(2);
     });
 
     it('should filter by status', async () => {
-      const created = await orchestrator.createWorkflow({ ...validInput, name: 'active-flow' });
-      await orchestrator.pauseWorkflow(created.id);
+      const created = await orchestrator.createOrchestration('tenant-1', { ...validInput, name: 'pending-flow' });
 
-      const activeWorkflows = await orchestrator.listWorkflows({ status: 'active' });
-      expect(activeWorkflows.some((w) => w.name === 'active-flow')).toBe(false);
+      const pendingOrchestrations = await orchestrator.listOrchestrations('tenant-1', { status: 'pending' });
+      expect(pendingOrchestrations.some((o) => o.name === 'pending-flow')).toBe(true);
     });
 
     it('should filter by domain', async () => {
-      await orchestrator.createWorkflow({
+      await orchestrator.createOrchestration('tenant-1', {
         ...validInput,
         name: 'pipeline-only',
-        steps: [{ domain: 'pipeline', action: 'run', parameters: {}, dependsOn: [], timeout: 10000 }],
+        domains: ['pipeline'],
+        steps: [{ stepName: 'run', domainName: 'pipeline', action: 'run', payload: {} }],
       });
 
-      const pipelineWorkflows = await orchestrator.listWorkflows({ domain: 'pipeline' });
-      expect(pipelineWorkflows.length).toBeGreaterThanOrEqual(1);
+      const pipelineOrchestrations = await orchestrator.listOrchestrations('tenant-1', { domain: 'pipeline' });
+      expect(pipelineOrchestrations.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should support pagination', async () => {
       for (let i = 0; i < 5; i++) {
-        await orchestrator.createWorkflow({ ...validInput, name: `flow-${i}` });
+        await orchestrator.createOrchestration('tenant-1', { ...validInput, name: `flow-${i}` });
       }
 
-      const page1 = await orchestrator.listWorkflows({ limit: 2, offset: 0 });
-      const page2 = await orchestrator.listWorkflows({ limit: 2, offset: 2 });
+      const page1 = await orchestrator.listOrchestrations('tenant-1', { limit: 2, offset: 0 });
+      const page2 = await orchestrator.listOrchestrations('tenant-1', { limit: 2, offset: 2 });
 
       expect(page1.length).toBe(2);
       expect(page2.length).toBe(2);
@@ -189,203 +175,124 @@ describe('CrossDomainOrchestrator', () => {
     });
   });
 
-  // ==================== executeWorkflow ====================
+  // ==================== executeOrchestration ====================
 
-  describe('executeWorkflow', () => {
-    it('should execute a workflow and return execution record', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      const execution = await orchestrator.executeWorkflow(workflow.id, 'user-1');
+  describe('executeOrchestration', () => {
+    it('should execute an orchestration and update status', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
+      const executed = await orchestrator.executeOrchestration(orchestration.id);
 
-      expect(execution.id).toMatch(/^exec-/);
-      expect(execution.workflowId).toBe(workflow.id);
-      expect(execution.status).toBe('completed');
-      expect(execution.triggeredBy).toBe('user-1');
-      expect(execution.startedAt).toBeInstanceOf(Date);
-      expect(execution.completedAt).toBeInstanceOf(Date);
+      expect(executed.id).toBe(orchestration.id);
+      expect(executed.status).toBe('completed');
+      expect(executed.startedAt).toBeInstanceOf(Date);
+      expect(executed.completedAt).toBeInstanceOf(Date);
     });
 
-    it('should execute steps in dependency order', async () => {
-      const workflowWithDeps = await orchestrator.createWorkflow({
-        name: 'dependent-flow',
-        description: 'Flow with dependencies',
-        steps: [
-          {
-            domain: 'pipeline',
-            action: 'build',
-            parameters: {},
-            dependsOn: [],
-            timeout: 30000,
-          },
-          {
-            domain: 'deploy',
-            action: 'deploy',
-            parameters: {},
-            dependsOn: [], // Will depend on build
-            timeout: 30000,
-          },
-        ],
-        triggers: [],
-      });
-
-      // Add dependencies after creation (in real scenario they'd be in input)
-      const steps = workflowWithDeps.steps;
-      // First step has empty dependsOn, second should depend on first
-      // This tests that execution respects the dependsOn field
-
-      const execution = await orchestrator.executeWorkflow(workflowWithDeps.id, 'user-1');
-      expect(execution.status).toBe('completed');
-    });
-
-    it('should fail when workflow not found', async () => {
+    it('should fail when orchestration not found', async () => {
       await expect(
-        orchestrator.executeWorkflow('non-existent', 'user-1')
-      ).rejects.toThrow('Workflow not found');
+        orchestrator.executeOrchestration('non-existent')
+      ).rejects.toThrow('not found');
     });
 
-    it('should fail when workflow is not active', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      await orchestrator.pauseWorkflow(workflow.id);
+    it('should fail when orchestration is not pending', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
+      await orchestrator.executeOrchestration(orchestration.id);
 
       await expect(
-        orchestrator.executeWorkflow(workflow.id, 'user-1')
-      ).rejects.toThrow('not active');
+        orchestrator.executeOrchestration(orchestration.id)
+      ).rejects.toThrow('cannot be executed');
     });
 
-    it('should update workflow lastRun timestamp', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      expect(workflow.lastRun).toBeUndefined();
+    it('should update orchestration completedAt timestamp', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
+      expect(orchestration.completedAt).toBeUndefined();
 
-      await orchestrator.executeWorkflow(workflow.id, 'user-1');
-
-      const updated = await orchestrator.getWorkflow(workflow.id);
-      expect(updated?.lastRun).toBeInstanceOf(Date);
-    });
-
-    it('should mark workflow as failed on execution failure', async () => {
-      const workflow = await orchestrator.createWorkflow({
-        name: 'failing-flow',
-        description: 'Will fail',
-        steps: [
-          {
-            domain: 'pipeline',
-            action: 'fail',
-            parameters: {},
-            dependsOn: [],
-            timeout: 1000, // Very short timeout
-          },
-        ],
-        triggers: [],
-      });
-
-      const execution = await orchestrator.executeWorkflow(workflow.id, 'user-1');
-      // The mock always succeeds, but let's verify the workflow completed
-      expect(execution.status).toBe('completed');
-    });
-
-    it('should accept initial input', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-
-      const execution = await orchestrator.executeWorkflow(workflow.id, 'user-1', {
-        customVar: 'customValue',
-      });
-
-      expect(execution.status).toBe('completed');
+      const executed = await orchestrator.executeOrchestration(orchestration.id);
+      expect(executed.completedAt).toBeInstanceOf(Date);
     });
   });
 
-  // ==================== getExecution ====================
+  // ==================== getOrchestrationStatus ====================
 
-  describe('getExecution', () => {
-    it('should retrieve an execution by ID', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      const execution = await orchestrator.executeWorkflow(workflow.id, 'user-1');
+  describe('getOrchestrationStatus', () => {
+    it('should retrieve orchestration status with steps', async () => {
+      const created = await orchestrator.createOrchestration('tenant-1', validInput);
 
-      const found = await orchestrator.getExecution(execution.id);
-      expect(found).not.toBeNull();
-      expect(found?.id).toBe(execution.id);
-      expect(found?.workflowId).toBe(workflow.id);
+      const status = await orchestrator.getOrchestrationStatus(created.id);
+      expect(status).not.toBeNull();
+      expect(status.id).toBe(created.id);
+      expect(status.steps).toHaveLength(3);
     });
 
-    it('should return null for non-existent execution', async () => {
-      const found = await orchestrator.getExecution('non-existent');
-      expect(found).toBeNull();
-    });
-  });
-
-  // ==================== listExecutions ====================
-
-  describe('listExecutions', () => {
-    it('should list executions for a workflow', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      await orchestrator.executeWorkflow(workflow.id, 'user-1');
-      await orchestrator.executeWorkflow(workflow.id, 'user-2');
-
-      const executions = await orchestrator.listExecutions(workflow.id);
-      expect(executions.length).toBe(2);
-    });
-
-    it('should return empty list for workflow with no executions', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-
-      const executions = await orchestrator.listExecutions(workflow.id);
-      expect(executions).toHaveLength(0);
+    it('should throw for non-existent orchestration', async () => {
+      await expect(
+        orchestrator.getOrchestrationStatus('non-existent')
+      ).rejects.toThrow('not found');
     });
   });
 
-  // ==================== pauseWorkflow ====================
+  // ==================== pauseOrchestration ====================
 
-  describe('pauseWorkflow', () => {
-    it('should pause an active workflow', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      expect(workflow.status).toBe('active');
+  describe('pauseOrchestration', () => {
+    it('should throw when trying to pause a pending orchestration', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
 
-      const result = await orchestrator.pauseWorkflow(workflow.id);
-      expect(result).toBe(true);
-
-      const paused = await orchestrator.getWorkflow(workflow.id);
-      expect(paused?.status).toBe('paused');
-    });
-
-    it('should return false for non-existent workflow', async () => {
-      const result = await orchestrator.pauseWorkflow('non-existent');
-      expect(result).toBe(false);
-    });
-
-    it('should throw when pausing non-active workflow', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      await orchestrator.pauseWorkflow(workflow.id);
-
-      await expect(orchestrator.pauseWorkflow(workflow.id)).rejects.toThrow(
-        'Cannot pause workflow with status'
+      await expect(orchestrator.pauseOrchestration(orchestration.id)).rejects.toThrow(
+        'Only running orchestrations can be paused'
       );
     });
+
+    it('should throw for non-existent orchestration', async () => {
+      await expect(orchestrator.pauseOrchestration('non-existent')).rejects.toThrow('not found');
+    });
   });
 
-  // ==================== resumeWorkflow ====================
+  // ==================== resumeOrchestration ====================
 
-  describe('resumeWorkflow', () => {
-    it('should resume a paused workflow', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-      await orchestrator.pauseWorkflow(workflow.id);
+  describe('resumeOrchestration', () => {
+    it('should throw when trying to resume a non-paused orchestration', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
 
-      const result = await orchestrator.resumeWorkflow(workflow.id);
-      expect(result).toBe(true);
-
-      const resumed = await orchestrator.getWorkflow(workflow.id);
-      expect(resumed?.status).toBe('active');
-    });
-
-    it('should return false for non-existent workflow', async () => {
-      const result = await orchestrator.resumeWorkflow('non-existent');
-      expect(result).toBe(false);
-    });
-
-    it('should throw when resuming non-paused workflow', async () => {
-      const workflow = await orchestrator.createWorkflow(validInput);
-
-      await expect(orchestrator.resumeWorkflow(workflow.id)).rejects.toThrow(
-        'Cannot resume workflow with status'
+      await expect(orchestrator.resumeOrchestration(orchestration.id)).rejects.toThrow(
+        'Only paused orchestrations can be resumed'
       );
+    });
+
+    it('should throw for non-existent orchestration', async () => {
+      await expect(orchestrator.resumeOrchestration('non-existent')).rejects.toThrow('not found');
+    });
+  });
+
+  // ==================== abortOrchestration ====================
+
+  describe('abortOrchestration', () => {
+    it('should abort a pending orchestration', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
+
+      const aborted = await orchestrator.abortOrchestration(orchestration.id);
+      expect(aborted.status).toBe('aborted');
+    });
+
+    it('should throw when trying to abort a completed orchestration', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
+      await orchestrator.executeOrchestration(orchestration.id);
+
+      await expect(orchestrator.abortOrchestration(orchestration.id)).rejects.toThrow(
+        'Cannot abort'
+      );
+    });
+
+    it('should throw when trying to abort an already aborted orchestration', async () => {
+      const orchestration = await orchestrator.createOrchestration('tenant-1', validInput);
+      await orchestrator.abortOrchestration(orchestration.id);
+
+      await expect(orchestrator.abortOrchestration(orchestration.id)).rejects.toThrow(
+        'Cannot abort'
+      );
+    });
+
+    it('should throw for non-existent orchestration', async () => {
+      await expect(orchestrator.abortOrchestration('non-existent')).rejects.toThrow('not found');
     });
   });
 });
