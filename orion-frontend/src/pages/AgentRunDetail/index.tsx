@@ -21,6 +21,8 @@ import {
   message,
   Progress,
   Alert,
+  Spin,
+  Empty,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -146,19 +148,17 @@ const AgentRunDetail: React.FC = () => {
 
   if (!run) {
     return (
-      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
-        {loading ? (
-          <Text>Loading...</Text>
-        ) : (
-          <div>
-            <Text type="secondary">未找到该运行记录</Text>
-            <br />
-            <Button type="link" onClick={() => navigate('/agents/dashboard')}>
-              返回仪表盘
-            </Button>
-          </div>
-        )}
-      </div>
+      <Spin spinning={loading} size="large">
+        <div style={{ padding: spacing.lg, textAlign: 'center' }}>
+          {!loading && (
+            <Empty description="未找到该运行记录">
+              <Button type="primary" onClick={() => navigate('/agents/dashboard')}>
+                返回仪表盘
+              </Button>
+            </Empty>
+          )}
+        </div>
+      </Spin>
     );
   }
 
@@ -197,6 +197,7 @@ const AgentRunDetail: React.FC = () => {
     });
 
   return (
+    <Spin spinning={loading}>
     <div style={{ padding: 0 }} data-testid="agent-run-detail-page">
       {/* Breadcrumb / back */}
       <div style={{ marginBottom: spacing.md }}>
@@ -539,6 +540,7 @@ const AgentRunDetail: React.FC = () => {
         </Card>
       )}
     </div>
+    </Spin>
   );
 };
 

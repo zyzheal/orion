@@ -7,7 +7,7 @@
  * - /ai/agents - Agent 管理主页面
  */
 import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Typography, Drawer, Modal, Form, Input, Button, message } from 'antd';
+import { Card, Tabs, Typography, Drawer, Modal, Form, Input, Button, message, Spin, Empty } from 'antd';
 import {
   RobotOutlined,
   PlayCircleOutlined,
@@ -208,19 +208,25 @@ const AIAgentsManagement: React.FC = () => {
       </div>
 
       {/* 功能标签页 */}
-      <Card
-        style={{
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-        }}
-      >
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          defaultActiveKey="list"
-          items={tabItems}
-        />
-      </Card>
+      <Spin spinning={loading}>
+        <Card
+          style={{
+            borderRadius: 12,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          {agents.length > 0 || loading ? (
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              defaultActiveKey="list"
+              items={tabItems}
+            />
+          ) : (
+            <Empty description="暂无 Agent 数据" />
+          )}
+        </Card>
+      </Spin>
 
       {/* Agent 详情抽屉 */}
       <Drawer

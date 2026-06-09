@@ -7,7 +7,7 @@
  * - Create agent profile modal
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, message, Modal } from 'antd';
+import { Typography, Button, Space, message, Modal, Spin, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -226,35 +226,43 @@ const AgentDashboard: React.FC = () => {
         </Space>
       </div>
 
-      {/* Summary cards */}
-      <AgentMetrics
-        activeAgentCount={activeAgentCount}
-        todayRunCount={todayRunCount}
-        successRate={successRate}
-        avgDuration={avgDuration}
-      />
+      <Spin spinning={loading}>
+        {/* Summary cards */}
+        <AgentMetrics
+          activeAgentCount={activeAgentCount}
+          todayRunCount={todayRunCount}
+          successRate={successRate}
+          avgDuration={avgDuration}
+        />
 
-      {/* Agent profiles table */}
-      <AgentTable
-        agents={agents}
-        filteredAgents={filteredAgents}
-        loading={loading}
-        searchQuery={searchQuery}
-        filters={filters}
-        onSearch={setSearchQuery}
-        onFilter={setFilters}
-        onViewDetail={handleViewDetail}
-        onToggleAgent={handleToggleAgent}
-        onDeleteAgent={handleDeleteAgent}
-      />
+        {/* Agent profiles table */}
+        {agents.length > 0 || loading ? (
+          <AgentTable
+            agents={agents}
+            filteredAgents={filteredAgents}
+            loading={loading}
+            searchQuery={searchQuery}
+            filters={filters}
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            onViewDetail={handleViewDetail}
+            onToggleAgent={handleToggleAgent}
+            onDeleteAgent={handleDeleteAgent}
+          />
+        ) : (
+          <div style={{ background: '#fff', borderRadius: 12, padding: '48px 0', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}>
+            <Empty description="暂无 Agent 数据" />
+          </div>
+        )}
 
-      {/* Recent runs and pending approvals */}
-      <AgentRunList
-        runs={runs}
-        approvals={approvals}
-        onApprove={handleApprove}
-        onReject={handleReject}
-      />
+        {/* Recent runs and pending approvals */}
+        <AgentRunList
+          runs={runs}
+          approvals={approvals}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+      </Spin>
 
       {/* Modals */}
       <CreateAgentModal
