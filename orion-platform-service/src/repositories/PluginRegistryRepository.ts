@@ -3,7 +3,7 @@
  * Plugin Registry data access layer (plugin-spi)
  */
 
-import { ErrorCode } from '../errors';
+import { NotFoundError } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface PluginRegistryEntity {
@@ -63,7 +63,7 @@ export class PluginRegistryRepository extends BaseRepository<PluginRegistryEntit
       params,
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('PluginRegistry', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -74,7 +74,7 @@ export class PluginRegistryRepository extends BaseRepository<PluginRegistryEntit
       [id, JSON.stringify(config)],
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('PluginRegistry', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

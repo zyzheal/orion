@@ -6,6 +6,7 @@
  * as they contain executable code that cannot be serialized to a database.
  */
 
+import { NotFoundError, DatabaseError } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface ApkMarketRegistrationEntity {
@@ -67,7 +68,7 @@ export class ApkMarketUploaderRepository extends BaseRepository<ApkMarketRegistr
       [`market-${marketName}`, marketName, status, config ?? {}],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Failed to upsert market registration: ${marketName}`);
+      throw new DatabaseError('upsert market registration');
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -81,7 +82,7 @@ export class ApkMarketUploaderRepository extends BaseRepository<ApkMarketRegistr
       [status, marketName],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Market registration not found: ${marketName}`);
+      throw new NotFoundError('MarketRegistration', marketName);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

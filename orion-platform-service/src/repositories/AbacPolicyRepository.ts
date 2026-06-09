@@ -51,6 +51,8 @@ export interface UpdateAbacPolicyInput {
   enabled?: boolean;
 }
 
+import { DatabaseError } from '../errors';
+
 export class AbacPolicyRepository {
   constructor(
     private db: {
@@ -126,7 +128,7 @@ export class AbacPolicyRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into abac_policies returned no rows');
+      throw new DatabaseError('INSERT into abac_policies');
     }
     return this.mapRowToEntity(result.rows[0]);
   }

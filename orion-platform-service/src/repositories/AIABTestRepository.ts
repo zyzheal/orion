@@ -3,7 +3,7 @@
  *
  * PostgreSQL persistence for ML A/B test configurations and metrics.
  */
-import { ErrorCode } from '../errors';
+import { NotFoundError } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface AIABTestEntity {
@@ -54,7 +54,7 @@ export class AIABTestRepository extends BaseRepository<AIABTestEntity> {
     }
     const result = await this.db.query(query, params);
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('AIABTest', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -65,7 +65,7 @@ export class AIABTestRepository extends BaseRepository<AIABTestEntity> {
       [JSON.stringify(metrics), id],
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('AIABTest', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -3,7 +3,7 @@
  *
  * PostgreSQL persistence for ML model registry entries (model + version metadata).
  */
-import { ErrorCode } from '../errors';
+import { NotFoundError } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface AIModelRegistryEntity {
@@ -38,7 +38,7 @@ export class AIModelRegistryRepository extends BaseRepository<AIModelRegistryEnt
       [JSON.stringify(versionsJson), activeVersion ?? null, modelId],
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('AIModelRegistry', modelId);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

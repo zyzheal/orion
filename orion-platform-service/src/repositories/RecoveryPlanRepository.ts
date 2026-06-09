@@ -3,7 +3,7 @@
  * Recovery plan and execution data access layer
  */
 
-import { ErrorCode } from '../errors';
+import { NotFoundError } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 
 export interface RecoveryPlanEntity {
@@ -57,7 +57,7 @@ export class RecoveryPlanRepository extends BaseRepository<RecoveryPlanEntity> {
       [id],
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('RecoveryPlan', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -68,7 +68,7 @@ export class RecoveryPlanRepository extends BaseRepository<RecoveryPlanEntity> {
       [id, enabled],
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('RecoveryPlan', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -121,7 +121,7 @@ export class RecoveryExecutionRepository extends BaseRepository<RecoveryExecutio
       params,
     );
     if (result.rows.length === 0) {
-      throw new Error(ErrorCode.NOT_FOUND);
+      throw new NotFoundError('RecoveryExecution', id);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -32,6 +32,8 @@ export interface UpdateJwtKeyInput {
   expiresAt?: Date | null;
 }
 
+import { DatabaseError } from '../errors';
+
 export class JwtKeyRotationRepository {
   constructor(
     private db: {
@@ -84,7 +86,7 @@ export class JwtKeyRotationRepository {
       [input.keyId, input.keyHash, input.keyStrength, input.status, input.rotationTrigger || 'scheduled'],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into jwt_key_rotation returned no rows');
+      throw new DatabaseError('INSERT into jwt_key_rotation');
     }
     return this.mapRowToEntity(result.rows[0]);
   }
