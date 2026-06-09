@@ -66,7 +66,6 @@ export class AlertCorrelationService {
 
   // In-memory caches for fast topology queries (derived from persisted data)
   private topologyEdges: AlertTopologyEdge[] = [];
-  private nodeHealth: Map<string, 'healthy' | 'degraded' | 'unhealthy'> = new Map();
   private dependencyMap: Map<string, string[]> = new Map();
   private impactMap: Map<string, string[]> = new Map();
 
@@ -411,7 +410,7 @@ export class AlertCorrelationService {
       id: n.id,
       type: n.type,
       name: n.name,
-      status: this.nodeHealth.get(n.id) || n.status || 'healthy',
+      status: n.status || 'healthy',
     }));
     const edges = this.topologyEdges.map(e => ({
       source: e.source,
@@ -448,10 +447,6 @@ export class AlertCorrelationService {
         } as any);
       } catch (err) {
         logger.warn({ traceId: getCurrentTraceId(), err, nodeId: node.id }, 'Failed to persist topology node');
-      }
-
-      if (!this.nodeHealth.has(node.id)) {
-        this.nodeHealth.set(node.id, 'healthy');
       }
     }
 
@@ -500,9 +495,9 @@ export class AlertCorrelationService {
   }
 
   /**
-   * Update node health based on alerts
+   * Update node health based on alerts (persisted via topologyNodeRepository)
    */
-  updateNodeHealth(alerts: Array<{ id: string; sourceId?: string; severity?: string; status?: string }>): void {
+  async updateNodeHealth(alerts: Array<{ id: string; sourceId?: string; severity?: string; status?: string }>): Promise<void> {
     for (const alert of alerts) {
       const sourceId = (alert as any).sourceId || alert.id;
       const severity = (alert as any).severity || '';
@@ -512,7 +507,8 @@ export class AlertCorrelationService {
         continue;
       }
 
-      const currentHealth = this.nodeHealth.get(sourceId) || 'healthy';
+      const node = await this.topologyNodeRepository.findById(sourceId);
+      const currentHealth = (node?.status as 'healthy' | 'degraded' | 'unhealthy') || 'healthy';
       let newHealth: 'healthy' | 'degraded' | 'unhealthy' = currentHealth;
 
       if (severity === 'critical') {
@@ -524,25 +520,26 @@ export class AlertCorrelationService {
       }
 
       if (newHealth !== currentHealth) {
-        this.nodeHealth.set(sourceId, newHealth);
+        await this.topologyNodeRepository.updateStatus(sourceId, newHealth);
         // Propagate to dependents
-        this.propagateHealthDegradation(sourceId, newHealth);
+        await this.propagateHealthDegradation(sourceId, newHealth);
       }
     }
   }
 
   /**
-   * Propagate health degradation to impacted nodes
+   * Propagate health degradation to impacted nodes (persisted via topologyNodeRepository)
    */
-  private propagateHealthDegradation(nodeId: string, health: 'healthy' | 'degraded' | 'unhealthy'): void {
+  private async propagateHealthDegradation(nodeId: string, health: 'healthy' | 'degraded' | 'unhealthy'): Promise<void> {
     const impacted = this.impactMap.get(nodeId) || [];
     for (const impactedId of impacted) {
-      const currentHealth = this.nodeHealth.get(impactedId) || 'healthy';
+      const node = await this.topologyNodeRepository.findById(impactedId);
+      const currentHealth = (node?.status as 'healthy' | 'degraded' | 'unhealthy') || 'healthy';
       const healthLevel = { healthy: 0, degraded: 1, unhealthy: 2 };
       if (healthLevel[health] > healthLevel[currentHealth]) {
-        this.nodeHealth.set(impactedId, health);
+        await this.topologyNodeRepository.updateStatus(impactedId, health);
         // Recursively propagate
-        this.propagateHealthDegradation(impactedId, health);
+        await this.propagateHealthDegradation(impactedId, health);
       }
     }
   }
@@ -598,14 +595,14 @@ export class AlertCorrelationService {
   }
 
   /**
-   * Get all node health status
+   * Get all node health status (from repository)
    */
-  getAllNodeHealth(): Array<{ nodeId: string; status: 'healthy' | 'degraded' | 'unhealthy' }> {
-    const result: Array<{ nodeId: string; status: 'healthy' | 'degraded' | 'unhealthy' }> = [];
-    for (const [nodeId, status] of this.nodeHealth.entries()) {
-      result.push({ nodeId, status });
-    }
-    return result;
+  async getAllNodeHealth(): Promise<Array<{ nodeId: string; status: 'healthy' | 'degraded' | 'unhealthy' }>> {
+    const nodes = await this.topologyNodeRepository.findByTenantId('default');
+    return nodes.map(n => ({
+      nodeId: n.id,
+      status: (n.status as 'healthy' | 'degraded' | 'unhealthy') || 'healthy',
+    }));
   }
 
   // ==================== Repository Helper Methods ====================
