@@ -102,20 +102,18 @@ export class AlertSuppressionService {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
-    deduplication?: AlertDeduplication,
-    correlation?: AlertCorrelationService,
-    config?: Partial<AlertSuppressionConfig>,
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+    deduplication: AlertDeduplication | undefined,
+    correlation: AlertCorrelationService | undefined,
+    config: Partial<AlertSuppressionConfig> | undefined,
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.deduplication = deduplication || new AlertDeduplication();
-    this.correlation = correlation || new AlertCorrelationService();
-    if (db) {
-      this.maintenanceWindowRepository = new MaintenanceWindowRepository(db);
-      this.knownIssueRepository = new KnownIssueRepository(db);
-      this.activeAlertRepository = new AlertActiveAlertRepository(db);
-      this.suppressionLogRepository = new SuppressionLogRepository(db);
-    }
+    this.correlation = correlation || new AlertCorrelationService(undefined, db);
+    this.maintenanceWindowRepository = new MaintenanceWindowRepository(db);
+    this.knownIssueRepository = new KnownIssueRepository(db);
+    this.activeAlertRepository = new AlertActiveAlertRepository(db);
+    this.suppressionLogRepository = new SuppressionLogRepository(db);
   }
 
   /**
@@ -656,45 +654,64 @@ export class AlertSuppressionService {
   /**
    * 添加维护窗口
    */
-  addMaintenanceWindow(window: Omit<MaintenanceWindow, 'id' | 'createdAt' | 'updatedAt'>): MaintenanceWindow {
-    const newWindow: MaintenanceWindow = {
-      ...window,
-      id: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  async addMaintenanceWindow(window: Omit<MaintenanceWindow, 'id' | 'createdAt' | 'updatedAt'>): Promise<MaintenanceWindow> {
+    const id = uuidv4();
+    const now = new Date();
 
-    // 存储到内存（无论是否有 db，内存存储都用于快速访问）
-    this.maintenanceWindows.set(newWindow.id, newWindow);
-
-    // 如果有数据库，也持久化
     if (this.maintenanceWindowRepository) {
-      // 异步持久化，不阻塞返回
-      this.maintenanceWindowRepository['db'].query(
-        `INSERT INTO maintenance_windows (id, tenant_id, name, start_time, end_time, affected_services, created_at) VALUES (gen_random_uuid(), 'default', $1, $2, $3, $4, $5) RETURNING *`,
-        [window.name, window.startTime, window.endTime, window.scope?.sourceTypes ?? [], new Date()],
-      ).catch(err => logger.error({ traceId: getCurrentTraceId(), err }, 'Failed to persist maintenance window'));
+      const entity = await this.maintenanceWindowRepository.create({
+        id,
+        tenantId: 'default',
+        name: window.name,
+        startTime: window.startTime,
+        endTime: window.endTime,
+        timezone: 'UTC',
+        description: null,
+        affectedServices: window.scope?.sourceTypes ?? [],
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const newWindow: MaintenanceWindow = {
+        ...window,
+        id: entity.id,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+      };
+
+      logger.info({ windowId: newWindow.id, name: newWindow.name }, 'Maintenance window added');
+      return newWindow;
     }
 
-    logger.info({ windowId: newWindow.id, name: newWindow.name }, 'Maintenance window added');
+    // 内存模式回退
+    const newWindow: MaintenanceWindow = {
+      ...window,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.maintenanceWindows.set(newWindow.id, newWindow);
+    logger.info({ windowId: newWindow.id, name: newWindow.name }, 'Maintenance window added (memory)');
     return newWindow;
   }
 
   /**
    * 移除维护窗口
    */
-  removeMaintenanceWindow(windowId: string): boolean {
-    const deleted = this.maintenanceWindows.delete(windowId);
-
-    // 如果有数据库，也删除
+  async removeMaintenanceWindow(windowId: string): Promise<boolean> {
     if (this.maintenanceWindowRepository) {
-      this.maintenanceWindowRepository.delete(windowId).catch(err =>
-        logger.error({ traceId: getCurrentTraceId(), err, windowId }, 'Failed to delete maintenance window from db')
-      );
+      const deleted = await this.maintenanceWindowRepository.delete(windowId);
+      if (deleted) {
+        logger.info({ windowId }, 'Maintenance window removed');
+      }
+      return deleted;
     }
 
+    // 内存模式回退
+    const deleted = this.maintenanceWindows.delete(windowId);
     if (deleted) {
-      logger.info({ windowId }, 'Maintenance window removed');
+      logger.info({ windowId }, 'Maintenance window removed (memory)');
     }
     return deleted;
   }
@@ -702,80 +719,123 @@ export class AlertSuppressionService {
   /**
    * 获取活跃维护窗口
    */
-  getActiveMaintenanceWindows(): MaintenanceWindow[] {
+  async getActiveMaintenanceWindows(): Promise<MaintenanceWindow[]> {
+    if (this.maintenanceWindowRepository) {
+      const entities = await this.maintenanceWindowRepository.findActive();
+      return entities.map(e => ({
+        id: e.id,
+        name: e.name,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        scope: { sourceTypes: e.affectedServices },
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+      } as MaintenanceWindow));
+    }
+
+    // 内存模式回退
     const now = new Date();
     const active: MaintenanceWindow[] = [];
-
     for (const window of this.maintenanceWindows.values()) {
       if (window.startTime <= now && window.endTime >= now) {
         active.push(window);
       }
     }
-
     return active;
   }
 
   /**
    * 添加已知问题
    */
-  addKnownIssue(issue: Omit<KnownIssue, 'id' | 'createdAt' | 'updatedAt'>): KnownIssue {
-    const newIssue: KnownIssue = {
-      ...issue,
-      id: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  async addKnownIssue(issue: Omit<KnownIssue, 'id' | 'createdAt' | 'updatedAt'>): Promise<KnownIssue> {
+    const id = uuidv4();
+    const now = new Date();
 
-    // 存储到内存
-    this.knownIssues.set(newIssue.id, newIssue);
-
-    // 如果有数据库，也持久化
     if (this.knownIssueRepository) {
-      this.knownIssueRepository['db'].query(
-        `INSERT INTO known_issues (id, tenant_id, title, description, fingerprint, resolved, created_at) VALUES (gen_random_uuid(), 'default', $1, $2, $3, false, $4) RETURNING *`,
-        [issue.title, issue.description ?? null, issue.fingerprintPattern ?? 'unknown', new Date()],
-      ).catch(err => logger.error({ traceId: getCurrentTraceId(), err }, 'Failed to persist known issue'));
+      const entity = await this.knownIssueRepository.create({
+        id,
+        tenantId: 'default',
+        title: issue.title,
+        description: issue.description ?? null,
+        fingerprint: issue.fingerprintPattern ?? 'unknown',
+        ticketId: null,
+        resolved: false,
+        resolvedAt: null,
+        createdAt: now,
+      });
+
+      const newIssue: KnownIssue = {
+        ...issue,
+        id: entity.id,
+        createdAt: entity.createdAt,
+        updatedAt: now,
+      };
+
+      logger.info({ issueId: newIssue.id, title: newIssue.title }, 'Known issue added');
+      return newIssue;
     }
 
-    logger.info({ issueId: newIssue.id, title: newIssue.title }, 'Known issue added');
+    // 内存模式回退
+    const newIssue: KnownIssue = {
+      ...issue,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.knownIssues.set(newIssue.id, newIssue);
+    logger.info({ issueId: newIssue.id, title: newIssue.title }, 'Known issue added (memory)');
     return newIssue;
   }
 
   /**
    * 解决已知问题
    */
-  resolveKnownIssue(issueId: string): boolean {
+  async resolveKnownIssue(issueId: string): Promise<boolean> {
+    if (this.knownIssueRepository) {
+      const resolved = await this.knownIssueRepository.resolve(issueId);
+      if (!resolved) {
+        return false;
+      }
+      logger.info({ issueId }, 'Known issue resolved');
+      return true;
+    }
+
+    // 内存模式回退
     const issue = this.knownIssues.get(issueId);
     if (!issue) {
       return false;
     }
-
     issue.status = 'resolved';
     issue.updatedAt = new Date();
-
-    // 如果有数据库，也更新
-    if (this.knownIssueRepository) {
-      this.knownIssueRepository.resolve(issueId).catch(err =>
-        logger.error({ traceId: getCurrentTraceId(), err, issueId }, 'Failed to resolve known issue in db')
-      );
-    }
-
-    logger.info({ issueId }, 'Known issue resolved');
+    logger.info({ issueId }, 'Known issue resolved (memory)');
     return true;
   }
 
   /**
    * 获取开放已知问题
    */
-  getOpenKnownIssues(): KnownIssue[] {
-    const open: KnownIssue[] = [];
+  async getOpenKnownIssues(): Promise<KnownIssue[]> {
+    if (this.knownIssueRepository) {
+      const entities = await this.knownIssueRepository.findOpen();
+      return entities.map(e => ({
+        id: e.id,
+        title: e.title,
+        description: e.description ?? undefined,
+        fingerprintPattern: e.fingerprint,
+        status: 'open' as const,
+        silenceDuration: 4 * 60 * 60 * 1000,
+        createdAt: e.createdAt,
+        updatedAt: e.createdAt,
+      } as KnownIssue));
+    }
 
+    // 内存模式回退
+    const open: KnownIssue[] = [];
     for (const issue of this.knownIssues.values()) {
       if (issue.status === 'open') {
         open.push(issue);
       }
     }
-
     return open;
   }
 
@@ -890,22 +950,34 @@ export class AlertSuppressionService {
   }> {
     const nodeHealth = this.correlation.getAllNodeHealth();
 
-    // 计算活跃的维护窗口和已知问题数量
-    const now = new Date();
+    // 计算活跃的维护窗口数量
     let activeMaintenanceWindows = 0;
-    for (const window of this.maintenanceWindows.values()) {
-      if (window.startTime <= now && window.endTime >= now) {
-        activeMaintenanceWindows++;
+    if (this.maintenanceWindowRepository) {
+      const activeWindows = await this.maintenanceWindowRepository.findActive();
+      activeMaintenanceWindows = activeWindows.length;
+    } else {
+      const now = new Date();
+      for (const window of this.maintenanceWindows.values()) {
+        if (window.startTime <= now && window.endTime >= now) {
+          activeMaintenanceWindows++;
+        }
       }
     }
 
+    // 计算开放的已知问题数量
     let openKnownIssues = 0;
-    for (const issue of this.knownIssues.values()) {
-      if (issue.status === 'open') {
-        openKnownIssues++;
+    if (this.knownIssueRepository) {
+      const openIssues = await this.knownIssueRepository.findOpen();
+      openKnownIssues = openIssues.length;
+    } else {
+      for (const issue of this.knownIssues.values()) {
+        if (issue.status === 'open') {
+          openKnownIssues++;
+        }
       }
     }
 
+    // 计算活跃告警和抑制日志数量
     let activeAlertCount = this.activeAlertsMemory.size;
     let suppressionLogSize = this.suppressionLogMemory.length;
 
