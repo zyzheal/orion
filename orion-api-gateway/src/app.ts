@@ -15,6 +15,7 @@ import { AuthMiddleware } from './middleware/auth';
 import { createSubAppAuthHook } from './middleware/subAppAuthAdapter';
 import { LoggingMiddleware } from './middleware/logging';
 import { TenantMiddleware } from './middleware/tenant';
+import { PermissionMiddleware } from './middleware/permission';
 import { createCSPMiddleware } from './middleware/csp';
 import { errorMiddleware } from './middleware/error';
 import { registerRoutes } from './routes';
@@ -46,6 +47,7 @@ export async function createApp(options: AppOptions = {}): Promise<{
   authMiddleware: AuthMiddleware;
   loggingMiddleware: LoggingMiddleware;
   tenantMiddleware: TenantMiddleware;
+  permissionMiddleware: PermissionMiddleware;
   tokenService: TokenService;
   authRoutes: AuthRoutes;
   tenantRoutes: TenantRoutes;
@@ -163,6 +165,10 @@ export async function createApp(options: AppOptions = {}): Promise<{
   const tenantMiddleware = new TenantMiddleware(app);
   app.addHook('onRequest', tenantMiddleware.handler.bind(tenantMiddleware));
 
+  // 权限检查中间件（在租户解析之后，基于 RBAC+ABAC 进行 API 路由级权限控制）
+  const permissionMiddleware = new PermissionMiddleware(app);
+  app.addHook('onRequest', permissionMiddleware.handler.bind(permissionMiddleware));
+
   // ==================== 注册认证路由 ====================
 
   // 注册认证路由（在 registerRoutes 之前，因为需要公开 /api/v1/auth/*路径）
@@ -268,5 +274,5 @@ export async function createApp(options: AppOptions = {}): Promise<{
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);
 
-  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, tokenService, authRoutes, tenantRoutes, pipelineVersionsRoutes, pipelineBudgetRoutes, pipelineTemplatesRoutes, aiModelsRoutes, aiDecisionsRoutes, aiDegradationRoutes, chaosRoutes, resilienceScoreRoutes, sbomRoutes, digitalTwinRoutes, governanceRoutes, wsServer };
+  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, permissionMiddleware, tokenService, authRoutes, tenantRoutes, pipelineVersionsRoutes, pipelineBudgetRoutes, pipelineTemplatesRoutes, aiModelsRoutes, aiDecisionsRoutes, aiDegradationRoutes, chaosRoutes, resilienceScoreRoutes, sbomRoutes, digitalTwinRoutes, governanceRoutes, wsServer };
 }

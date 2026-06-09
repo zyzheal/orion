@@ -560,6 +560,131 @@ describe('PermissionMiddleware', () => {
     });
   });
 
+  // ==================== 集成测试：授权/拒绝端到端 ====================
+
+  describe('Integration: Authorization End-to-End', () => {
+    it('should return 403 when developer tries to access admin-only tenant creation', async () => {
+      rbacService.assignRole('dev-user', 'developer');
+      const request = createMockRequest({
+        method: 'POST',
+        raw: { url: '/api/v1/tenants' },
+        authContext: {
+          authenticated: true,
+          user: { sub: 'dev-user', roles: ['developer'] },
+        },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      expect(reply.code).toHaveBeenCalledWith(403);
+      const sentPayload = reply.send.mock.calls[0][0];
+      expect(sentPayload.error).toBe('FORBIDDEN');
+      expect(sentPayload.code).toBe('PERMISSION_DENIED');
+    });
+
+    it('should return 403 when guest tries to delete a pipeline', async () => {
+      rbacService.assignRole('guest-del', 'guest');
+      const request = createMockRequest({
+        method: 'DELETE',
+        raw: { url: '/api/v1/pipelines/p-123' },
+        authContext: {
+          authenticated: true,
+          user: { sub: 'guest-del', roles: ['guest'] },
+        },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      expect(reply.code).toHaveBeenCalledWith(403);
+    });
+
+    it('should return 200 (pass through) when developer reads pipelines', async () => {
+      rbacService.assignRole('dev-read', 'developer');
+      const request = createMockRequest({
+        method: 'GET',
+        raw: { url: '/api/v1/pipelines' },
+        authContext: {
+          authenticated: true,
+          user: { sub: 'dev-read', roles: ['developer'] },
+        },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      // handler returns without calling reply.code → request passes through
+      expect(reply.code).not.toHaveBeenCalled();
+      expect(reply.send).not.toHaveBeenCalled();
+    });
+
+    it('should return 200 (pass through) when admin accesses tenant management', async () => {
+      rbacService.assignRole('admin-e2e', 'admin');
+      const request = createMockRequest({
+        method: 'GET',
+        raw: { url: '/api/v1/tenants' },
+        authContext: {
+          authenticated: true,
+          user: { sub: 'admin-e2e', roles: ['admin'] },
+        },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      expect(reply.code).not.toHaveBeenCalled();
+      expect(reply.send).not.toHaveBeenCalled();
+    });
+
+    it('should return 200 (pass through) when operator reads monitoring', async () => {
+      rbacService.assignRole('op-mon', 'operator');
+      const request = createMockRequest({
+        method: 'GET',
+        raw: { url: '/api/v1/monitoring' },
+        authContext: {
+          authenticated: true,
+          user: { sub: 'op-mon', roles: ['operator'] },
+        },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      expect(reply.code).not.toHaveBeenCalled();
+      expect(reply.send).not.toHaveBeenCalled();
+    });
+
+    it('should return 401 for unauthenticated access to protected route', async () => {
+      const request = createMockRequest({
+        method: 'GET',
+        raw: { url: '/api/v1/pipelines' },
+        authContext: { authenticated: false },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      expect(reply.code).toHaveBeenCalledWith(401);
+      const sentPayload = reply.send.mock.calls[0][0];
+      expect(sentPayload.code).toBe('AUTH_REQUIRED');
+    });
+
+    it('should bypass permission check for public paths', async () => {
+      const request = createMockRequest({
+        method: 'GET',
+        raw: { url: '/api/v1/auth/login' },
+        authContext: { authenticated: false },
+      });
+      const reply = createMockReply();
+
+      await middleware.handler(request, reply);
+
+      expect(reply.code).not.toHaveBeenCalled();
+      expect(reply.send).not.toHaveBeenCalled();
+    });
+  });
+
   // ==================== 权限配置扩展测试 ====================
 
   describe('Permission Config Extension', () => {
