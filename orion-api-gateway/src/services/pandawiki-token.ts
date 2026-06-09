@@ -83,7 +83,7 @@ async function doLogin(): Promise<string> {
     signal: AbortSignal.timeout(10000),
   });
 
-  const result = await response.json();
+  const result = (await response.json()) as { success: boolean; message?: string; data?: { token?: string } };
 
   if (!result.success) {
     throw new Error(`PandaWiki login failed: ${result.message}`);

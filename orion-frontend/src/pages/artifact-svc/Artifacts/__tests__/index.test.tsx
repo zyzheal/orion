@@ -178,14 +178,26 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
     // After API interceptor unwraps { success: true, data: T } → { data: T }
     vi.mocked(artifactApi.getArtifacts).mockResolvedValue({
       data: mockArtifacts as any,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
     });
 
     vi.mocked(artifactApi.getArtifactStats).mockResolvedValue({
       data: mockStats as any,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
     });
 
     vi.mocked(artifactApi.getNamespaces).mockResolvedValue({
       data: mockNamespaces as any,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
     });
 
     const ArtifactManagement = (await import('../index')).default;
