@@ -252,6 +252,17 @@ export class DeployWindowService {
         return true;
       }
 
+      // Validate that the day-of-month is valid for the specified month(s).
+      // e.g. cron "30 3 31 2 *" means Feb 31 which never exists.
+      const dayNum = parseInt(dayOfMonthField, 10);
+      const monthNum = parseInt(monthField, 10);
+      if (!isNaN(dayNum) && !isNaN(monthNum)) {
+        const maxDay = new Date(Date.UTC(date.getUTCFullYear(), monthNum, 0)).getUTCDate();
+        if (dayNum > maxDay) {
+          return false;
+        }
+      }
+
       // Check if we are within the duration window from the last trigger
       const durationMinutes = window.duration_minutes || 60;
       const triggerTime = this.getLastTriggerTime(date, window.cron_expression);
