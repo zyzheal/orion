@@ -10,7 +10,7 @@ import {
   CreateWorkflowInput,
   WorkflowStep,
   Trigger,
-} from '../CrossDomainOrchestrator';
+} from '../cross-domain-orchestration/CrossDomainOrchestrator';
 
 describe('CrossDomainOrchestrator', () => {
   let orchestrator: CrossDomainOrchestrator;
