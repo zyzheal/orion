@@ -6,8 +6,8 @@
  * - 重复告警检测
  * - 告警合并策略
  *
- * 持久化：使用 AlertDeduplicationGroupRepository 存储告警分组
- * 内存缓存：fingerprintCache 是 TTL 缓存，用于快速去重检测
+ * 持久化：使用 AlertDeduplicationGroupRepository (PostgreSQL) 存储告警分组
+ * 内存缓存：fingerprintCache 是 ephemeral TTL 缓存，仅用于快速去重检测
  */
 
 import crypto from 'crypto';
@@ -32,13 +32,13 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 export class AlertDeduplication {
   private config: DeduplicationConfig;
   private dedupGroupRepository: AlertDeduplicationGroupRepository;
-  // Fingerprint cache is ephemeral TTL cache - stays in-memory for fast lookup
+  // Fingerprint cache is ephemeral TTL cache - stays in-memory for fast dedup lookup
   private fingerprintCache: Map<string, { fingerprint: string; expiresAt: Date }> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
-    config: Partial<DeduplicationConfig> | undefined,
     db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    config?: Partial<DeduplicationConfig>,
   ) {
     this.config = {
       deduplicationWindowMs: config?.deduplicationWindowMs || 4 * 60 * 60 * 1000, // 默认4小时
@@ -121,7 +121,7 @@ export class AlertDeduplication {
   }
 
   /**
-   * 检测重复告警
+   * 检测重复告警（基于内存 TTL 缓存）
    */
   isDuplicate(fingerprint: string): boolean {
     const cached = this.fingerprintCache.get(fingerprint);
@@ -134,7 +134,7 @@ export class AlertDeduplication {
   }
 
   /**
-   * 记录告警指纹
+   * 记录告警指纹到内存 TTL 缓存
    */
   recordFingerprint(fingerprint: string): void {
     const expiresAt = new Date(Date.now() + this.config.deduplicationWindowMs);
@@ -214,7 +214,7 @@ export class AlertDeduplication {
   }
 
   /**
-   * 获取告警分组
+   * 获取告警分组（从 PostgreSQL）
    */
   async getAlertGroup(fingerprint: string): Promise<AlertGroup | undefined> {
     const entity = await this.dedupGroupRepository.findByFingerprint(fingerprint);
@@ -222,7 +222,7 @@ export class AlertDeduplication {
   }
 
   /**
-   * 获取所有活跃告警分组
+   * 获取所有活跃告警分组（从 PostgreSQL）
    */
   async getActiveGroups(options?: {
     minCount?: number;
@@ -242,7 +242,7 @@ export class AlertDeduplication {
   }
 
   /**
-   * 获取统计数据
+   * 获取统计数据（从 PostgreSQL）
    */
   async getStats(): Promise<{
     totalGroups: number;
@@ -267,7 +267,7 @@ export class AlertDeduplication {
     const now = new Date();
     let cleanedFingerprints = 0;
 
-    // 清理指纹缓存 (always in-memory)
+    // 清理指纹缓存 (always in-memory TTL cache)
     for (const [fingerprint, data] of this.fingerprintCache.entries()) {
       if (data.expiresAt < now) {
         this.fingerprintCache.delete(fingerprint);
@@ -275,7 +275,7 @@ export class AlertDeduplication {
       }
     }
 
-    // 清理告警分组（保留最近24小时的）
+    // 清理过期告警分组（保留最近24小时的），通过 PostgreSQL 删除
     const groupExpiryTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const cleanedGroups = await this.dedupGroupRepository.deleteExpired(groupExpiryTime);
 
@@ -291,8 +291,14 @@ export class AlertDeduplication {
   /**
    * 清除所有数据（用于测试）
    */
-  clearAll(): void {
+  async clearAll(): Promise<void> {
     this.fingerprintCache.clear();
+    // Delete all groups from PostgreSQL
+    const stats = await this.dedupGroupRepository.getStats();
+    if (stats.totalGroups > 0) {
+      // Use a far-past date to delete all groups
+      await this.dedupGroupRepository.deleteExpired(new Date(Date.now() + 24 * 60 * 60 * 1000));
+    }
   }
 
   /**
@@ -335,7 +341,7 @@ export class AlertDeduplication {
   // ==================== Repository Helper Methods ====================
 
   /**
-   * Save a group to repository
+   * Save a group to PostgreSQL repository
    */
   private async saveGroup(group: AlertGroup): Promise<void> {
     try {
@@ -356,7 +362,7 @@ export class AlertDeduplication {
   }
 
   /**
-   * Update a group in repository
+   * Update a group in PostgreSQL repository
    */
   private async updateGroup(group: AlertGroup): Promise<void> {
     try {
