@@ -1,8 +1,6 @@
-import { SettingOutlined } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
-
 /**
- * ChatOps Settings - Platform config, notification preferences, DND settings
+ * ChatOps Settings - Platform config, notification preferences, DND settings,
+ * and configurable question cards & commands
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -17,8 +15,18 @@ import {
   message,
   TimePicker,
   Checkbox,
+  Tabs,
+  Tag,
 } from 'antd';
-import { SaveOutlined, LinkOutlined } from '@ant-design/icons';
+import {
+  SaveOutlined,
+  LinkOutlined,
+  QuestionCircleOutlined,
+  CodeOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   getNotificationPreferences,
@@ -31,8 +39,10 @@ import {
   type DNDSettings,
   type PlatformConfig,
 } from '@/api/chatops';
+import { useChatOpsConfigStore } from '@/stores/chatOpsConfigStore';
+import { colors, spacing } from '@/tokens';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const WEEKDAYS = [
   { label: '周一', value: 1 },
@@ -51,51 +61,218 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
   { platform: 'slack', enabled: false, webhook: '', token: '' },
 ];
 
-const ChatOpsSettings: React.FC = () => {
-  const [saving, setSaving] = useState(false);
+// 可用图标列表
+const AVAILABLE_ICONS = [
+  'RocketOutlined', 'BarChartOutlined', 'BugOutlined', 'CloudServerOutlined',
+  'SecurityScanOutlined', 'SettingOutlined', 'DashboardOutlined', 'SearchOutlined',
+  'FileTextOutlined', 'BulbOutlined', 'ThunderboltOutlined', 'WarningOutlined',
+  'InfoCircleOutlined', 'ClockCircleOutlined', 'PlayCircleOutlined', 'CloseOutlined',
+];
+
+// ============================================================================
+// 问答卡片配置 Tab
+// ============================================================================
+const QuestionConfigTab: React.FC = () => {
+  const { questions, updateQuestion, addQuestion, removeQuestion, saveConfig, resetToDefault } = useChatOpsConfigStore();
+
+  const handleSave = () => {
+    saveConfig();
+    message.success('问答卡片配置已保存');
+  };
+
+  const handleReset = () => {
+    resetToDefault();
+    message.info('已恢复默认配置');
+  };
+
+  const handleAdd = () => {
+    const key = `custom-${Date.now()}`;
+    addQuestion({
+      key,
+      icon: 'BulbOutlined',
+      title: '新卡片',
+      desc: '描述',
+      question: '输入你的问题...',
+      enabled: true,
+    });
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
+        <Text type="secondary">配置 ChatOps 启动时展示的问答卡片</Text>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>恢复默认</Button>
+          <Button icon={<PlusOutlined />} onClick={handleAdd}>添加卡片</Button>
+          <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>保存配置</Button>
+        </Space>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+        {questions.map((q) => (
+          <Card
+            key={q.key}
+            size="small"
+            style={{
+              opacity: q.enabled ? 1 : 0.5,
+              borderLeft: `3px solid ${q.enabled ? colors.primary[500] : colors.neutral[300]}`,
+            }}
+            extra={
+              <Space>
+                <Switch
+                  size="small"
+                  checked={q.enabled}
+                  onChange={(checked) => updateQuestion(q.key, { enabled: checked })}
+                />
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  onClick={() => removeQuestion(q.key)}
+                />
+              </Space>
+            }
+          >
+            <div style={{ display: 'flex', gap: spacing[3], flexWrap: 'wrap' }}>
+              <Input
+                value={q.title}
+                onChange={(e) => updateQuestion(q.key, { title: e.target.value })}
+                placeholder="标题"
+                style={{ width: 120 }}
+                size="small"
+              />
+              <Input
+                value={q.desc}
+                onChange={(e) => updateQuestion(q.key, { desc: e.target.value })}
+                placeholder="描述"
+                style={{ width: 160 }}
+                size="small"
+              />
+              <Input
+                value={q.question}
+                onChange={(e) => updateQuestion(q.key, { question: e.target.value })}
+                placeholder="问题内容"
+                style={{ flex: 1, minWidth: 200 }}
+                size="small"
+              />
+              <Select
+                value={q.icon}
+                onChange={(v) => updateQuestion(q.key, { icon: v })}
+                style={{ width: 160 }}
+                size="small"
+                options={AVAILABLE_ICONS.map((icon) => ({ label: icon.replace('Outlined', '').replace('Icon', ''), value: icon }))}
+              />
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// 命令配置 Tab
+// ============================================================================
+const CommandConfigTab: React.FC = () => {
+  const { commands, updateCommand, addCommand, removeCommand, saveConfig, resetToDefault } = useChatOpsConfigStore();
+
+  const handleSave = () => {
+    saveConfig();
+    message.success('命令配置已保存');
+  };
+
+  const handleReset = () => {
+    resetToDefault();
+    message.info('已恢复默认配置');
+  };
+
+  const handleAdd = () => {
+    const key = `cmd-${Date.now()}`;
+    addCommand({
+      key,
+      label: '新命令',
+      command: '/command args=xxx',
+      enabled: true,
+    });
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
+        <Text type="secondary">配置 ChatOps 底部快捷命令</Text>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>恢复默认</Button>
+          <Button icon={<PlusOutlined />} onClick={handleAdd}>添加命令</Button>
+          <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>保存配置</Button>
+        </Space>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+        {commands.map((cmd) => (
+          <Card
+            key={cmd.key}
+            size="small"
+            style={{
+              opacity: cmd.enabled ? 1 : 0.5,
+              borderLeft: `3px solid ${cmd.enabled ? colors.primary[500] : colors.neutral[300]}`,
+            }}
+            extra={
+              <Space>
+                <Switch
+                  size="small"
+                  checked={cmd.enabled}
+                  onChange={(checked) => updateCommand(cmd.key, { enabled: checked })}
+                />
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  onClick={() => removeCommand(cmd.key)}
+                />
+              </Space>
+            }
+          >
+            <div style={{ display: 'flex', gap: spacing[3] }}>
+              <Input
+                value={cmd.label}
+                onChange={(e) => updateCommand(cmd.key, { label: e.target.value })}
+                placeholder="命令标签"
+                style={{ width: 120 }}
+                size="small"
+              />
+              <Input
+                value={cmd.command}
+                onChange={(e) => updateCommand(cmd.key, { command: e.target.value })}
+                placeholder="命令内容"
+                style={{ flex: 1 }}
+                size="small"
+                prefix={<CodeOutlined style={{ color: colors.neutral[500] }} />}
+              />
+              <Tag>{cmd.key}</Tag>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// Platform Config Tab (原有内容)
+// ============================================================================
+const PlatformConfigTab: React.FC = () => {
   const [platformSaving, setPlatformSaving] = useState(false);
-  const [form] = Form.useForm();
-  const [dndForm] = Form.useForm();
   const [platformForm] = Form.useForm();
-  const [dndEnabled, setDndEnabled] = useState(false);
-  const [dndSaving, setDndSaving] = useState(false);
   const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS);
-
-  const loadSettings = async () => {
-    try {
-      const res = await getNotificationPreferences();
-      const data = (res as { data?: { data?: unknown } })?.data?.data;
-      if (data && typeof data === 'object') form.setFieldsValue(data as Record<string, unknown>);
-    } catch {
-      // Use defaults - optional settings load
-    }
-  };
-
-  const loadDNDSettings = async () => {
-    try {
-      const res = await getDNDSettings();
-      const data = (res as { data?: { data?: DNDSettings } })?.data?.data ?? null;
-      if (data) {
-        setDndEnabled(data.enabled);
-        dndForm.setFieldsValue({
-          startTime: data.startTime ? dayjs(data.startTime, 'HH:mm') : undefined,
-          endTime: data.endTime ? dayjs(data.endTime, 'HH:mm') : undefined,
-          repeatDays: data.repeatDays || [1, 2, 3, 4, 5],
-          allowCritical: data.allowCritical,
-        });
-      }
-    } catch {
-      // Use defaults
-    }
-  };
 
   const loadPlatformConfigs = async () => {
     try {
       const res = await getPlatformConfigs();
-      const data = (res as { data?: { data?: PlatformConfig[] } })?.data?.data ?? [];
+      const data = (res as { data?: { data?: PlatformConfig[] } })?.data?.data as PlatformConfig[];
       if (data && data.length > 0) {
         setPlatforms(data);
-        // 填充表单
         data.forEach((p, index) => {
           platformForm.setFieldsValue({
             [`platform_${index}_enabled`]: p.enabled,
@@ -110,9 +287,136 @@ const ChatOpsSettings: React.FC = () => {
   };
 
   useEffect(() => {
+    loadPlatformConfigs();
+  }, []);
+
+  const handlePlatformSave = async () => {
+    try {
+      const values = await platformForm.validateFields();
+      setPlatformSaving(true);
+      const configs: PlatformConfig[] = platforms.map((p, index) => ({
+        platform: p.platform,
+        enabled: values[`platform_${index}_enabled`] ?? false,
+        webhook: values[`platform_${index}_webhook`] || '',
+        token: values[`platform_${index}_token`] || '',
+      }));
+      await updatePlatformConfigs(configs);
+      setPlatforms(configs);
+      message.success('平台配置已保存');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '保存失败';
+        message.error(msg);
+      }
+    } finally {
+      setPlatformSaving(false);
+    }
+  };
+
+  const platformLabels: Record<string, string> = {
+    dingtalk: '钉钉',
+    wecom: '企业微信',
+    feishu: '飞书',
+    slack: 'Slack',
+  };
+
+  return (
+    <div>
+      <Form form={platformForm} layout="vertical" style={{ maxWidth: 700 }}>
+        {platforms.map((platform, index) => (
+          <Card
+            key={platform.platform}
+            title={
+              <Space>
+                <LinkOutlined />
+                {platformLabels[platform.platform]}
+              </Space>
+            }
+            style={{ marginBottom: spacing.md }}
+            extra={
+              <Form.Item
+                name={`platform_${index}_enabled`}
+                valuePropName="checked"
+                initialValue={platform.enabled}
+              >
+                <Switch size="small" />
+              </Form.Item>
+            }
+          >
+            <Form.Item
+              name={`platform_${index}_webhook`}
+              label="Webhook URL"
+              initialValue={platform.webhook}
+            >
+              <Input placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." />
+            </Form.Item>
+            <Form.Item
+              name={`platform_${index}_token`}
+              label="Access Token"
+              initialValue={platform.token}
+            >
+              <Input.Password placeholder="输入访问令牌" />
+            </Form.Item>
+          </Card>
+        ))}
+
+        <Form.Item>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handlePlatformSave}
+            loading={platformSaving}
+          >
+            保存平台配置
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
+  );
+};
+
+// ============================================================================
+// 通知与免打扰 Tab
+// ============================================================================
+const NotificationDNDTab: React.FC = () => {
+  const [saving, setSaving] = useState(false);
+  const [form] = Form.useForm();
+  const [dndForm] = Form.useForm();
+  const [dndEnabled, setDndEnabled] = useState(false);
+  const [dndSaving, setDndSaving] = useState(false);
+
+  const loadSettings = async () => {
+    try {
+      const res = await getNotificationPreferences();
+      const data = (res as { data?: { data?: Record<string, unknown> } })?.data?.data;
+      if (data) form.setFieldsValue(data);
+    } catch {
+      // Use defaults
+    }
+  };
+
+  const loadDNDSettings = async () => {
+    try {
+      const res = await getDNDSettings();
+      const data = (res as { data?: { data?: DNDSettings | null } })?.data?.data as DNDSettings | null;
+      if (data) {
+        setDndEnabled(data.enabled);
+        dndForm.setFieldsValue({
+          startTime: data.startTime ? dayjs(data.startTime, 'HH:mm') : undefined,
+          endTime: data.endTime ? dayjs(data.endTime, 'HH:mm') : undefined,
+          repeatDays: data.repeatDays || [1, 2, 3, 4, 5],
+          allowCritical: data.allowCritical,
+        });
+      }
+    } catch {
+      // Use defaults
+    }
+  };
+
+  useEffect(() => {
     loadSettings();
     loadDNDSettings();
-    loadPlatformConfigs();
   }, []);
 
   const handleSave = async () => {
@@ -165,99 +469,8 @@ const ChatOpsSettings: React.FC = () => {
     }
   };
 
-  const handlePlatformSave = async () => {
-    try {
-      const values = await platformForm.validateFields();
-      setPlatformSaving(true);
-      // 构造平台配置数组
-      const configs: PlatformConfig[] = platforms.map((p, index) => ({
-        platform: p.platform,
-        enabled: values[`platform_${index}_enabled`] ?? false,
-        webhook: values[`platform_${index}_webhook`] || '',
-        token: values[`platform_${index}_token`] || '',
-      }));
-      await updatePlatformConfigs(configs);
-      setPlatforms(configs);
-      message.success('平台配置已保存');
-    } catch (error: unknown) {
-      const err = error as { errorFields?: unknown };
-      if (!err.errorFields) {
-        const msg = error instanceof Error ? error.message : '保存失败';
-        message.error(msg);
-      }
-    } finally {
-      setPlatformSaving(false);
-    }
-  };
-
-  const platformLabels: Record<string, string> = {
-    dingtalk: '钉钉',
-    wecom: '企业微信',
-    feishu: '飞书',
-    slack: 'Slack',
-  };
-
   return (
-    <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: spacing.lg }}>
-        <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-          设置
-        </Title>
-        <Text type="secondary">ChatOps 平台配置与 Webhook 管理</Text>
-      </div>
-
-      {/* 平台配置 */}
-      <Form form={platformForm} layout="vertical" style={{ maxWidth: 700 }}>
-        {platforms.map((platform, index) => (
-          <Card
-            key={platform.platform}
-            title={
-              <Space>
-                <LinkOutlined />
-                {platformLabels[platform.platform]}
-              </Space>
-            }
-            style={{ marginBottom: spacing.md }}
-            extra={
-              <Form.Item
-                name={`platform_${index}_enabled`}
-                valuePropName="checked"
-                initialValue={platform.enabled}
-              >
-                <Switch size="small" />
-              </Form.Item>
-            }
-          >
-            <Form.Item
-              name={`platform_${index}_webhook`}
-              label="Webhook URL"
-              initialValue={platform.webhook}
-            >
-              <Input placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." />
-            </Form.Item>
-            <Form.Item
-              name={`platform_${index}_token`}
-              label="Access Token"
-              initialValue={platform.token}
-            >
-              <Input.Password placeholder="输入访问令牌" />
-            </Form.Item>
-          </Card>
-        ))}
-
-        <Form.Item>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={handlePlatformSave}
-            loading={platformSaving}
-          >
-            保存平台配置
-          </Button>
-        </Form.Item>
-      </Form>
-
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
       {/* 全局设置 */}
       <Form form={form} layout="vertical" style={{ maxWidth: 700 }}>
         <Card title="全局设置" style={{ marginBottom: spacing.md }}>
@@ -325,6 +538,53 @@ const ChatOpsSettings: React.FC = () => {
           </Form.Item>
         </Form>
       </Card>
+    </div>
+  );
+};
+
+// ============================================================================
+// Main Settings Component
+// ============================================================================
+const ChatOpsSettings: React.FC = () => {
+  return (
+    <div style={{ padding: '0 0 16px' }}>
+      <Tabs
+        defaultActiveKey="questions"
+        items={[
+          {
+            key: 'questions',
+            label: (
+              <span>
+                <QuestionCircleOutlined /> 问答卡片
+              </span>
+            ),
+            children: <QuestionConfigTab />,
+          },
+          {
+            key: 'commands',
+            label: (
+              <span>
+                <CodeOutlined /> 命令配置
+              </span>
+            ),
+            children: <CommandConfigTab />,
+          },
+          {
+            key: 'platforms',
+            label: (
+              <span>
+                <LinkOutlined /> 平台配置
+              </span>
+            ),
+            children: <PlatformConfigTab />,
+          },
+          {
+            key: 'notifications',
+            label: '通知与免打扰',
+            children: <NotificationDNDTab />,
+          },
+        ]}
+      />
     </div>
   );
 };

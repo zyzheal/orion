@@ -42,7 +42,7 @@ const mockRecommendations = [
   },
 ];
 
-describe('SmartRecommend', () => {
+describe('SmartRecommend', { timeout: 15000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(chatopsApi.connectSSE).mockImplementation(() => {

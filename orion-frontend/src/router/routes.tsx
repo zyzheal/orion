@@ -1541,7 +1541,7 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/ai/chatops',
-    element: React.lazy(() => import('@/pages/ChatOps')),
+    element: React.lazy(() => import('@/pages/notify-svc/ChatOps')),
     protected: true,
     requiredPermission: { resource: 'chatops', action: 'use' },
   },

@@ -2,14 +2,13 @@
  * Command Browser - Searchable command catalog with usage examples, parameter docs
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, message } from 'antd';
+import { Typography, Button, Space, Tag, Card, Modal, Empty } from 'antd';
+const { Text } = Typography;
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, InfoCircleOutlined, CodeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getCommands, type ChatOpsCommand } from '@/api/chatops';
-
-const { Title, Text } = Typography;
 
 const permissionLevelColorMap: Record<string, string> = {
   admin: 'red',
@@ -25,18 +24,18 @@ const CommandBrowser: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedCommand, setSelectedCommand] = useState<ChatOpsCommand | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const res = await getCommands();
       setCommands(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`Failed to load commands：${error.message}`);
-      } else {
-        message.error('Failed to load commands');
-      }
+    } catch {
+      // 静默失败，显示空状态
+      setApiError('后端服务暂不可用，请配置 ChatOps 平台连接后使用');
+      setCommands([]);
     } finally {
       setLoading(false);
     }
@@ -80,9 +79,10 @@ const CommandBrowser: React.FC = () => {
       dataIndex: 'name',
       width: 200,
       sortable: true,
-      render: (_v: unknown, record: any) => (
+      render: (v: unknown, record: any) => (
         <Space>
           <Text strong>
+            <CodeOutlined /> /{String(v)}
           </Text>
           {record.subcommand && <Tag>{record.subcommand}</Tag>}
         </Space>
@@ -143,43 +143,46 @@ const CommandBrowser: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: '0 0 16px' }}>
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          marginBottom: spacing.md,
         }}
       >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            命令浏览
-          </Title>
-          <Text type="secondary">ChatOps 命令目录与使用文档</Text>
-        </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
         </Button>
       </div>
 
       <Card>
-        <div style={{ marginBottom: spacing.md }}>
-          <SearchFilterBar
-            onSearch={setSearchQuery}
-            onFilter={setFilters}
-            filters={filterDefs}
-            searchPlaceholder="搜索命令..."
+        {apiError && commands.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={apiError}
           />
-        </div>
-        <Table
-          columns={columns}
-          dataSource={filteredCommands}
-          loading={loading}
-          rowKey="id"
-          size="middle"
-          striped
-        />
+        ) : (
+          <>
+            <div style={{ marginBottom: spacing.md }}>
+              <SearchFilterBar
+                onSearch={setSearchQuery}
+                onFilter={setFilters}
+                filters={filterDefs}
+                searchPlaceholder="搜索命令..."
+              />
+            </div>
+            <Table
+              columns={columns}
+              dataSource={filteredCommands}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
+          </>
+        )}
       </Card>
 
       {/* Detail Modal */}
@@ -207,7 +210,7 @@ const CommandBrowser: React.FC = () => {
 
             {selectedCommand.parameters && Object.keys(selectedCommand.parameters).length > 0 && (
               <>
-                <Title level={5}>参数</Title>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>参数</span>
                 <Table
                   columns={[
                     {
@@ -246,9 +249,9 @@ const CommandBrowser: React.FC = () => {
               </>
             )}
 
-            <Title level={5} style={{ marginTop: spacing.md }}>
+            <span style={{ fontSize: 14, fontWeight: 600, marginTop: spacing.md, display: 'block' }}>
               使用示例
-            </Title>
+            </span>
             {selectedCommand.examples.map((example, index) => (
               <Card
                 key={index}
