@@ -186,7 +186,7 @@ export class ChatOpsMetrics {
   incrementCounter(name: string, labels?: Record<string, string>, amount: number = 1): void {
     const counter = this.counters.get(name);
     if (!counter) {
-      logger.warn(`[ChatOpsMetrics] Counter ${name} not found`);
+      logger.warn({ counterName: name }, '[ChatOpsMetrics] Counter not found');
       return;
     }
 
@@ -273,7 +273,7 @@ export class ChatOpsMetrics {
   setGauge(name: string, value: number, labels?: Record<string, string>): void {
     const gauge = this.gauges.get(name);
     if (!gauge) {
-      logger.warn(`[ChatOpsMetrics] Gauge ${name} not found`);
+      logger.warn({ gaugeName: name }, '[ChatOpsMetrics] Gauge not found');
       return;
     }
 

@@ -101,7 +101,7 @@ export class TokenBlacklistService extends EventEmitter {
       });
 
       (this.redisClient as any).on('error', (err: Error) => {
-        logger.warn(`[TokenBlacklist] Redis connection error: ${err.message}`);
+        logger.warn({ err, traceId: getCurrentTraceId() }, '[TokenBlacklist] Redis connection error');
         this.redisConnected = false;
       });
 
@@ -110,7 +110,7 @@ export class TokenBlacklistService extends EventEmitter {
         this.redisConnected = false;
       });
     } catch (error: any) {
-      logger.warn(`[TokenBlacklist] Failed to connect to Redis: ${error.message}`);
+      logger.warn({ err: error, traceId: getCurrentTraceId() }, '[TokenBlacklist] Failed to connect to Redis');
       this.redisConnected = false;
     }
   }
@@ -135,7 +135,7 @@ export class TokenBlacklistService extends EventEmitter {
     try {
       // Load all non-expired tokens from DB into cache
       const result = await this.repository.getStats();
-      logger.info(`[TokenBlacklist] Cache warmed: ${result.totalRevoked} revoked tokens in database`);
+      logger.info({ totalRevoked: result.totalRevoked, traceId: getCurrentTraceId() }, '[TokenBlacklist] Cache warmed');
       this.cacheInitialized = true;
     } catch (error) {
       logger.error('[TokenBlacklist] Failed to warm cache:', error);
@@ -154,7 +154,7 @@ export class TokenBlacklistService extends EventEmitter {
       try {
         const cleaned = await this.cleanupExpired();
         if (cleaned > 0) {
-          logger.info(`[TokenBlacklist] Periodic cleanup removed ${cleaned} expired tokens`);
+          logger.info({ cleaned, traceId: getCurrentTraceId() }, '[TokenBlacklist] Periodic cleanup removed expired tokens');
         }
       } catch (error) {
         logger.error('[TokenBlacklist] Periodic cleanup failed:', error);
@@ -204,7 +204,7 @@ export class TokenBlacklistService extends EventEmitter {
         const ttl = Math.max(0, Math.floor(expiresAt.getTime() / 1000) - Math.floor(Date.now() / 1000));
         if (ttl > 0) {
           await this.redisClient.setex(`${this.config.keyPrefix}${tokenHash}`, ttl, '1');
-          logger.debug(`[TokenBlacklist] Token blacklisted in Redis: ${tokenHash.slice(0, 16)}... TTL=${ttl}s`);
+          logger.debug({ tokenHashPrefix: tokenHash.slice(0, 16), ttl, traceId: getCurrentTraceId() }, '[TokenBlacklist] Token blacklisted in Redis');
         }
       } catch (error: any) {
         logger.error('[TokenBlacklist] Failed to blacklist token in Redis:', error);
@@ -223,7 +223,7 @@ export class TokenBlacklistService extends EventEmitter {
           revokedBy,
           expiresAt,
         });
-        logger.debug(`[TokenBlacklist] Token persisted to DB: ${tokenHash.slice(0, 16)}...`);
+        logger.debug({ tokenHashPrefix: tokenHash.slice(0, 16), traceId: getCurrentTraceId() }, '[TokenBlacklist] Token persisted to DB');
       }
     } catch (error) {
       logger.error('[TokenBlacklist] Failed to persist token to DB:', error);
@@ -245,7 +245,7 @@ export class TokenBlacklistService extends EventEmitter {
     // Emit event
     this.emit('token:revoked', info);
 
-    logger.info(`[TokenBlacklist] Token revoked: ${tokenHash.slice(0, 16)}... reason=${reason} user=${userId}`);
+    logger.info({ tokenHashPrefix: tokenHash.slice(0, 16), reason, userId, traceId: getCurrentTraceId() }, '[TokenBlacklist] Token revoked');
   }
 
   /**
@@ -355,7 +355,7 @@ export class TokenBlacklistService extends EventEmitter {
     if (this.repository) {
       try {
         count = await this.repository.revokeAllUserTokens(userId, reason, expiresAt);
-        logger.info(`[TokenBlacklist] Batch revoked ${count} tokens for user ${userId} in database`);
+        logger.info({ count, userId, traceId: getCurrentTraceId() }, '[TokenBlacklist] Batch revoked tokens in database');
       } catch (error) {
         logger.error('[TokenBlacklist] Failed to batch revoke user tokens in DB:', error);
       }
@@ -375,7 +375,7 @@ export class TokenBlacklistService extends EventEmitter {
       timestamp: new Date(),
     });
 
-    logger.info(`[TokenBlacklist] Batch revocation for user: ${userId} count=${total} reason=${reason}`);
+    logger.info({ userId, count: total, reason, traceId: getCurrentTraceId() }, '[TokenBlacklist] Batch revocation for user');
 
     return total;
   }
@@ -409,7 +409,7 @@ export class TokenBlacklistService extends EventEmitter {
       timestamp: new Date(),
     });
 
-    logger.info(`[TokenBlacklist] Tenant-wide revocation: tenant=${tenantId} count=${total} reason=${reason}`);
+    logger.info({ tenantId, count: total, reason, traceId: getCurrentTraceId() }, '[TokenBlacklist] Tenant-wide revocation');
 
     return total;
   }
@@ -450,7 +450,7 @@ export class TokenBlacklistService extends EventEmitter {
     if (this.repository) {
       try {
         dbCleaned = await this.repository.cleanupExpired();
-        logger.debug(`[TokenBlacklist] Cleaned up ${dbCleaned} expired tokens from database`);
+        logger.debug({ dbCleaned, traceId: getCurrentTraceId() }, '[TokenBlacklist] Cleaned up expired tokens from database');
       } catch (error) {
         logger.error('[TokenBlacklist] Failed to cleanup database:', error);
       }
@@ -465,7 +465,7 @@ export class TokenBlacklistService extends EventEmitter {
       timestamp: now,
     });
 
-    logger.info(`[TokenBlacklist] Cleanup completed: removed ${cacheCleaned} from memory, ${dbCleaned} from database`);
+    logger.info({ cacheCleaned, dbCleaned, traceId: getCurrentTraceId() }, '[TokenBlacklist] Cleanup completed');
 
     return totalCleaned;
   }

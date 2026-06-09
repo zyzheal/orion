@@ -653,9 +653,9 @@ export class DiagnosticAgentService {
         autoAck: true,
       });
       this.subscriptions.push(unsubscribe);
-      logger.info(`[DiagnosticAgentService] Subscribed to ${eventType}`);
+      logger.info({ eventType, traceId: getCurrentTraceId() }, '[DiagnosticAgentService] Subscribed to event');
     } catch (error) {
-      logger.error(`[DiagnosticAgentService] Failed to subscribe to ${eventType}:`, error);
+      logger.error({ eventType, err: error, traceId: getCurrentTraceId() }, '[DiagnosticAgentService] Failed to subscribe to event');
     }
   }
 

@@ -19,6 +19,7 @@ import { PermissionMiddleware } from './middleware/permission';
 import { createCSPMiddleware } from './middleware/csp';
 import { errorMiddleware } from './middleware/error';
 import { registerRoutes } from './routes';
+import { metricsRoutes, httpRequestDuration, httpRequestTotal, activeConnections } from './routes/metrics';
 import { serviceRegistry } from './services/service-registry';
 import { TokenService } from './services/token.service';
 import { gatewayRouteSync } from './services/gateway-route-sync';
@@ -168,6 +169,25 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // 权限检查中间件（在租户解析之后，基于 RBAC+ABAC 进行 API 路由级权限控制）
   const permissionMiddleware = new PermissionMiddleware(app);
   app.addHook('onRequest', permissionMiddleware.handler.bind(permissionMiddleware));
+
+  // ==================== 指标采集钩子 ====================
+
+  // onResponse 钩子：请求完成后记录 Prometheus 指标
+  app.addHook('onResponse', (request, reply, done) => {
+    const route = request.routeOptions?.url ?? request.url;
+    const labels = {
+      method: request.method,
+      route,
+      status_code: String(reply.statusCode),
+    };
+    httpRequestTotal.inc(labels);
+    httpRequestDuration.observe(labels, reply.elapsedTime / 1000);
+    done();
+  });
+
+  // ==================== 注册 Metrics 路由 ====================
+
+  await app.register(metricsRoutes);
 
   // ==================== 注册认证路由 ====================
 
