@@ -10,11 +10,196 @@ import {
   AlertSourceType,
 } from '../AlertTypes';
 
+/** Create a stateful in-memory mock DB for testing repositories */
+function createMockDb() {
+  const tables = new Map<string, Map<string, any>>();
+
+  function getTable(name: string): Map<string, any> {
+    if (!tables.has(name)) tables.set(name, new Map());
+    return tables.get(name)!;
+  }
+
+  const mockDb = {
+    query: jest.fn(async (text: string, params?: unknown[]) => {
+      const p = params || [];
+
+
+      // INSERT INTO <table> (...) VALUES (...) RETURNING *
+      if (text.match(/INSERT\s+INTO\s+(\w+)/i)) {
+        const tableMatch = text.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES/i);
+        if (tableMatch) {
+          const tableName = tableMatch[1];
+          const columns = tableMatch[2].split(',').map((c: string) => c.trim());
+          const table = getTable(tableName);
+          const row: any = {};
+          columns.forEach((col: string, i: number) => {
+            row[col] = p[i] !== undefined ? p[i] : null;
+          });
+          // Use first column (usually id) as key
+          const key = row[columns[0]] || String(table.size);
+          table.set(key, row);
+          return { rows: [row], rowCount: 1 };
+        }
+        return { rows: [{ id: 'mock' }], rowCount: 1 };
+      }
+
+      // SELECT ... FROM <table> WHERE id = $1 (findByFingerprint / findById)
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+\s+WHERE\s+id\s*=\s*\$1/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const row = table.get(p[0] as string);
+          return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+        }
+      }
+
+      // SELECT COUNT(*) ... FROM <table>
+      if (text.includes('COUNT(*)')) {
+        const tableMatch = text.match(/FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          // Check for SUM(count) pattern
+          if (text.includes('SUM(count)')) {
+            let totalAlerts = 0;
+            for (const row of table.values()) {
+              totalAlerts += row.count || 0;
+            }
+            return { rows: [{ total_groups: String(table.size), total_alerts: String(totalAlerts) }], rowCount: 1 };
+          }
+          return { rows: [{ count: String(table.size) }], rowCount: 1 };
+        }
+      }
+
+      // SELECT ... FROM <table> ... ORDER BY ... LIMIT ... (findActive / getTopFingerprints)
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+[\s\S]*ORDER\s+BY/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          let rows = Array.from(table.values());
+
+          // Parse WHERE conditions if present
+          const whereMatch = text.match(/WHERE\s+([\s\S]+?)(?:\s+ORDER|\s*$)/i);
+          if (whereMatch) {
+            const conditions = whereMatch[1].split(/\s+AND\s+/i);
+            for (const cond of conditions) {
+              const condMatch = cond.match(/(\w+)\s*>=\s*\$(\d+)/i);
+              if (condMatch) {
+                const col = condMatch[1];
+                const paramIdx = parseInt(condMatch[2]) - 1;
+                const val = p[paramIdx];
+                rows = rows.filter(r => r[col] >= val);
+              }
+            }
+          }
+
+          // Extract LIMIT
+          const limitMatch = text.match(/LIMIT\s+\$(\d+)/i);
+          if (limitMatch) {
+            const limitIdx = parseInt(limitMatch[1]) - 1;
+            rows = rows.slice(0, Number(p[limitIdx]) || rows.length);
+          }
+
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // SELECT id as fingerprint, count FROM <table>
+      if (text.match(/SELECT\s+id\s+as\s+fingerprint/i)) {
+        const tableMatch = text.match(/FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          let rows = Array.from(table.values()).map(r => ({ fingerprint: r.id, count: r.count }));
+          const limitMatch = text.match(/LIMIT\s+\$(\d+)/i);
+          if (limitMatch) {
+            rows = rows.slice(0, Number(p[parseInt(limitMatch[1]) - 1]) || rows.length);
+          }
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // DELETE FROM <table>
+      if (text.match(/DELETE\s+FROM\s+(\w+)/i)) {
+        const tableMatch = text.match(/DELETE\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          // DELETE with WHERE
+          const whereMatch = text.match(/WHERE\s+(.+)$/i);
+          if (whereMatch && p.length > 0) {
+            const condMatch = whereMatch[1].match(/(\w+)\s*<\s*\$(\d+)/i);
+            if (condMatch) {
+              const col = condMatch[1];
+              const paramIdx = parseInt(condMatch[2]) - 1;
+              const val = p[paramIdx];
+              let deleted = 0;
+              for (const [key, row] of table.entries()) {
+                if (row[col] < val) {
+                  table.delete(key);
+                  deleted++;
+                }
+              }
+              return { rows: [], rowCount: deleted };
+            }
+            // id = $1
+            const idMatch = whereMatch[1].match(/id\s*=\s*\$1/i);
+            if (idMatch) {
+              const deleted = table.has(p[0] as string) ? 1 : 0;
+              table.delete(p[0] as string);
+              return { rows: [], rowCount: deleted };
+            }
+          }
+          // DELETE without WHERE - clear all
+          const count = table.size;
+          table.clear();
+          return { rows: [], rowCount: count };
+        }
+      }
+
+      // UPDATE <table> SET ... WHERE id = $N
+      if (text.match(/UPDATE\s+\w+\s+SET/i)) {
+        const tableMatch = text.match(/UPDATE\s+(\w+)\s+SET/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const idIdx = p.length - 1;
+          const id = p[idIdx] as string;
+          const row = table.get(id);
+          if (row) {
+            // Parse SET clauses
+            const setMatch = text.match(/SET\s+(.+?)\s+WHERE/i);
+            if (setMatch) {
+              const assignments = setMatch[1].split(',');
+              for (const assignment of assignments) {
+                const assignMatch = assignment.trim().match(/(\w+)\s*=\s*\$(\d+)/i);
+                if (assignMatch) {
+                  const col = assignMatch[1];
+                  const paramIdx = parseInt(assignMatch[2]) - 1;
+                  if (col !== 'updated_at') {
+                    row[col] = p[paramIdx];
+                  } else {
+                    row[col] = new Date();
+                  }
+                }
+              }
+            }
+            return { rows: [row], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+
+  return mockDb;
+}
+
 describe('AlertDeduplication', () => {
   let deduplication: AlertDeduplication;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
-    deduplication = new AlertDeduplication();
+    mockDb = createMockDb();
+    deduplication = new AlertDeduplication(mockDb as any);
     deduplication.clearAll();
   });
 
@@ -308,7 +493,7 @@ describe('AlertDeduplication', () => {
   describe('cleanup', () => {
     it('should remove expired fingerprints', async () => {
       // Create deduplication with short window for testing
-      const shortDedup = new AlertDeduplication({
+      const shortDedup = new AlertDeduplication(mockDb as any, {
         deduplicationWindowMs: 100, // 100ms window
       });
 

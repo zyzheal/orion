@@ -38,12 +38,13 @@ describe('AlertCorrelationService', () => {
       if (text.includes('UPDATE alert_topology_nodes SET status')) {
         const node = topologyNodes.get(params?.[1]);
         if (node) node.status = params?.[0];
-        return { rows: [], rowCount: node ? 1 : 0 };
+        return { rows: node ? [node] : [], rowCount: node ? 1 : 0 };
       }
       if (text.includes('UPDATE alert_topology_nodes SET')) {
-        const node = topologyNodes.get(params?.[params!.length - 1]);
+        const nodeId = params?.[params!.length - 1];
+        const node = topologyNodes.get(nodeId);
         if (node) node.children_ids = params?.[0];
-        return { rows: [], rowCount: node ? 1 : 0 };
+        return { rows: node ? [node] : [], rowCount: node ? 1 : 0 };
       }
       if (text.includes('DELETE FROM alert_topology_nodes')) {
         const count = topologyNodes.size;

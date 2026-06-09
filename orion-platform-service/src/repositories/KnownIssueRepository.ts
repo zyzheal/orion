@@ -6,6 +6,7 @@ export interface KnownIssueEntity {
   title: string;
   description: string | null;
   fingerprint: string;
+  labelSelectors?: Record<string, string>;
   ticketId: string | null;
   resolved: boolean;
   resolvedAt: Date | null;
@@ -61,6 +62,7 @@ export class KnownIssueRepository extends BaseRepository<KnownIssueEntity> {
       title: row.title,
       description: row.description,
       fingerprint: row.fingerprint,
+      labelSelectors: row.label_selectors ?? undefined,
       ticketId: row.ticket_id,
       resolved: row.resolved ?? false,
       resolvedAt: row.resolved_at,

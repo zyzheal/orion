@@ -13,8 +13,268 @@ import {
   KnownIssue,
 } from '../AlertTypes';
 
+/** Create a stateful in-memory mock DB for testing repositories */
+function createMockDb() {
+  const tables = new Map<string, Map<string, any>>();
+
+  function getTable(name: string): Map<string, any> {
+    if (!tables.has(name)) tables.set(name, new Map());
+    return tables.get(name)!;
+  }
+
+  const mock = {
+    query: jest.fn(async (text: string, params?: unknown[]) => {
+      const p = params || [];
+
+      // INSERT INTO <table> (...) VALUES (...)
+      if (text.match(/INSERT\s+INTO\s+(\w+)/i)) {
+        const tableMatch = text.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES/i);
+        if (tableMatch) {
+          const tableName = tableMatch[1];
+          const columns = tableMatch[2].split(',').map((c: string) => c.trim());
+          const table = getTable(tableName);
+          const row: any = {};
+          columns.forEach((col: string, i: number) => {
+            row[col] = p[i] !== undefined ? p[i] : null;
+          });
+          const key = row.id || row[columns[0]] || String(table.size);
+          if (!row.id) row.id = key;
+          table.set(key, row);
+          return { rows: [row], rowCount: 1 };
+        }
+        return { rows: [{ id: 'mock' }], rowCount: 1 };
+      }
+
+      // SELECT ... FROM <table> WHERE id = $1
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+\s+WHERE\s+id\s*=\s*\$1/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const row = table.get(p[0] as string);
+          return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+        }
+      }
+
+      // SELECT ... FROM <table> WHERE resolved = false
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+\s+WHERE\s+resolved\s*=\s*false/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const rows = Array.from(table.values()).filter(r => r.resolved === false);
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // SELECT ... FROM <table> WHERE source_type = $1 AND status = 'firing' [AND severity = $2] ORDER BY ...
+      if (text.match(/WHERE\s+source_type\s*=\s*\$1\s+AND\s+status\s*=\s*'firing'/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          let rows = Array.from(table.values()).filter(
+            r => r.source_type === p[0] && r.status === 'firing'
+          );
+          // Check for severity filter — use ordering (>= threshold) like isSeverityAtLeast
+          const sevMatch = text.match(/AND\s+severity\s*=\s*\$(\d+)/i);
+          if (sevMatch) {
+            const sevIdx = parseInt(sevMatch[1]) - 1;
+            const threshold = p[sevIdx] as string;
+            const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+            const thresholdPriority = sevOrder[threshold] ?? 99;
+            rows = rows.filter(r => (sevOrder[r.severity] ?? 99) <= thresholdPriority);
+          }
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // SELECT ... FROM <table> WHERE start_time <= $1 AND end_time >= $1
+      if (text.match(/WHERE\s+start_time\s*<=\s*\$1\s+AND\s+end_time\s*>=\s*\$1/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const now = p[0] as Date;
+          const rows = Array.from(table.values()).filter(r => r.start_time <= now && r.end_time >= now);
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // SELECT ... FROM <table> WHERE tenant_id = $1
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+\s+WHERE\s+tenant_id\s*=\s*\$1/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          let rows = Array.from(table.values()).filter(r => r.tenant_id === p[0]);
+          const limitMatch = text.match(/LIMIT\s+\$(\d+)/i);
+          if (limitMatch) {
+            rows = rows.slice(0, Number(p[parseInt(limitMatch[1]) - 1]) || rows.length);
+          }
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // SELECT ... FROM <table> WHERE rule_type = $1
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+\s+WHERE\s+rule_type\s*=\s*\$1/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          let rows = Array.from(table.values()).filter(r => r.rule_type === p[0]);
+          const limitMatch = text.match(/LIMIT\s+\$(\d+)/i);
+          if (limitMatch) {
+            rows = rows.slice(0, Number(p[parseInt(limitMatch[1]) - 1]) || rows.length);
+          }
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // SELECT COUNT(*) ... FROM <table>
+      if (text.includes('COUNT(*)')) {
+        const tableMatch = text.match(/FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          if (text.includes('SUM(count)')) {
+            let totalAlerts = 0;
+            for (const row of table.values()) totalAlerts += row.count || 0;
+            return { rows: [{ total_groups: String(table.size), total_alerts: String(totalAlerts) }], rowCount: 1 };
+          }
+          // COUNT(*) FILTER (WHERE status = 'firing')
+          if (text.includes('FILTER')) {
+            const rows = Array.from(table.values());
+            const total = rows.length;
+            const firing = rows.filter(r => r.status === 'firing').length;
+            const resolved = rows.filter(r => r.status === 'resolved').length;
+            return { rows: [{ total: String(total), firing: String(firing), resolved: String(resolved) }], rowCount: 1 };
+          }
+          return { rows: [{ count: String(table.size) }], rowCount: 1 };
+        }
+      }
+
+      // SELECT ... FROM <table> ... ORDER BY ... LIMIT
+      if (text.match(/SELECT\s+\*\s+FROM\s+\w+.*ORDER\s+BY/i)) {
+        const tableMatch = text.match(/SELECT\s+\*\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          let rows = Array.from(table.values());
+          const whereMatch = text.match(/WHERE\s+(.+?)(?:\s+ORDER|\s*$)/i);
+          if (whereMatch) {
+            const conditions = whereMatch[1].split(/\s+AND\s+/i);
+            for (const cond of conditions) {
+              const condMatch = cond.match(/(\w+)\s*>=\s*\$(\d+)/i);
+              if (condMatch) {
+                const col = condMatch[1];
+                const paramIdx = parseInt(condMatch[2]) - 1;
+                rows = rows.filter(r => r[col] >= p[paramIdx]);
+              }
+            }
+          }
+          const limitMatch = text.match(/LIMIT\s+\$(\d+)/i);
+          if (limitMatch) {
+            rows = rows.slice(0, Number(p[parseInt(limitMatch[1]) - 1]) || rows.length);
+          }
+          return { rows, rowCount: rows.length };
+        }
+      }
+
+      // UPDATE <table> SET ... WHERE id = $N
+      if (text.match(/UPDATE\s+\w+\s+SET/i)) {
+        const tableMatch = text.match(/UPDATE\s+(\w+)\s+SET/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const idIdx = p.length - 1;
+          const id = p[idIdx] as string;
+          const row = table.get(id);
+          if (row) {
+            const setMatch = text.match(/SET\s+(.+?)\s+WHERE/i);
+            if (setMatch) {
+              const assignments = setMatch[1].split(',');
+              for (const assignment of assignments) {
+                const assignMatch = assignment.trim().match(/(\w+)\s*=\s*\$(\d+)/i);
+                if (assignMatch) {
+                  const col = assignMatch[1];
+                  const paramIdx = parseInt(assignMatch[2]) - 1;
+                  row[col] = col === 'updated_at' ? new Date() : p[paramIdx];
+                }
+                // Handle SET col = 'literal' pattern
+                const literalMatch = assignment.trim().match(/(\w+)\s*=\s*'([^']+)'/i);
+                if (literalMatch) {
+                  row[literalMatch[1]] = literalMatch[2];
+                }
+                // Handle SET col = true/false pattern
+                const boolMatch = assignment.trim().match(/(\w+)\s*=\s*(true|false)/i);
+                if (boolMatch) {
+                  row[boolMatch[1]] = boolMatch[2].toLowerCase() === 'true';
+                }
+                // Handle SET resolved_at = NOW()
+                if (assignment.includes('NOW()')) {
+                  const colMatch = assignment.trim().match(/(\w+)\s*=\s*NOW\(\)/i);
+                  if (colMatch) row[colMatch[1]] = new Date();
+                }
+              }
+            }
+            return { rows: [row], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }
+      }
+
+      // DELETE FROM <table>
+      if (text.match(/DELETE\s+FROM\s+(\w+)/i)) {
+        const tableMatch = text.match(/DELETE\s+FROM\s+(\w+)/i);
+        if (tableMatch) {
+          const table = getTable(tableMatch[1]);
+          const whereMatch = text.match(/WHERE\s+(.+)$/i);
+          if (whereMatch && p.length > 0) {
+            // WHERE id = $1
+            if (whereMatch[1].match(/id\s*=\s*\$1/i)) {
+              const deleted = table.has(p[0] as string) ? 1 : 0;
+              table.delete(p[0] as string);
+              return { rows: [], rowCount: deleted };
+            }
+            // WHERE end_time < $1
+            const timeMatch = whereMatch[1].match(/(\w+)\s*<\s*\$(\d+)/i);
+            if (timeMatch) {
+              const col = timeMatch[1];
+              const paramIdx = parseInt(timeMatch[2]) - 1;
+              const val = p[paramIdx];
+              let deleted = 0;
+              for (const [key, row] of table.entries()) {
+                if (row[col] < val) {
+                  table.delete(key);
+                  deleted++;
+                }
+              }
+              return { rows: [], rowCount: deleted };
+            }
+            // WHERE status = 'resolved' AND resolved_at < $1
+            if (whereMatch[1].includes("status = 'resolved'")) {
+              const timeMatch2 = whereMatch[1].match(/resolved_at\s*<\s*\$(\d+)/i);
+              if (timeMatch2) {
+                const paramIdx = parseInt(timeMatch2[1]) - 1;
+                const val = p[paramIdx];
+                let deleted = 0;
+                for (const [key, row] of table.entries()) {
+                  if (row.status === 'resolved' && row.resolved_at < val) {
+                    table.delete(key);
+                    deleted++;
+                  }
+                }
+                return { rows: [], rowCount: deleted };
+              }
+            }
+          }
+          const count = table.size;
+          table.clear();
+          return { rows: [], rowCount: count };
+        }
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+  return mock;
+}
+
 describe('AlertSuppressionService', () => {
   let suppression: AlertSuppressionService;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   const createAlert = (
     id: string,
@@ -41,12 +301,13 @@ describe('AlertSuppressionService', () => {
     updatedAt: new Date(),
   });
 
-  beforeEach(() => {
-    suppression = new AlertSuppressionService();
-    suppression.clearAll();
+  beforeEach(async () => {
+    mockDb = createMockDb();
+    suppression = new AlertSuppressionService(undefined, undefined, undefined, mockDb as any);
+    await suppression.clearAll();
 
     // Set up topology for correlation analysis
-    suppression.setTopology({
+    await suppression.setTopology({
       nodes: [
         { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1' },
         { id: 'node-002', type: AlertSourceType.NODE, name: 'Server-2' },
@@ -396,7 +657,7 @@ describe('AlertSuppressionService', () => {
     });
 
     it('should track suppression log', async () => {
-      suppression.addMaintenanceWindow({
+      await suppression.addMaintenanceWindow({
         name: 'Test Window',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 60 * 60 * 1000),
@@ -417,7 +678,7 @@ describe('AlertSuppressionService', () => {
 
     it('should return correct stats', async () => {
       // Add some data
-      suppression.addMaintenanceWindow({
+      await suppression.addMaintenanceWindow({
         name: 'Window',
         tenantId: 'tenant-001',
         startTime: new Date(),
@@ -426,7 +687,7 @@ describe('AlertSuppressionService', () => {
         createdBy: 'admin',
       });
 
-      suppression.addKnownIssue({
+      await suppression.addKnownIssue({
         title: 'Issue',
         tenantId: 'tenant-001',
         silenceDuration: 60 * 60 * 1000,
@@ -462,7 +723,7 @@ describe('AlertSuppressionService', () => {
   describe('Priority of suppression rules', () => {
     it('should apply maintenance window before other rules', async () => {
       // Add maintenance window
-      suppression.addMaintenanceWindow({
+      await suppression.addMaintenanceWindow({
         name: 'Window',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 60 * 60 * 1000),
@@ -488,14 +749,14 @@ describe('AlertSuppressionService', () => {
     it('should respect disabled configuration', async () => {
       const customSuppression = new AlertSuppressionService(undefined, undefined, {
         maintenanceWindowCheckEnabled: false,
-      });
+      }, mockDb as any);
 
       customSuppression.setTopology({
         nodes: [{ id: 'app-001', type: AlertSourceType.APPLICATION, name: 'App' }],
         edges: [],
       });
 
-      customSuppression.addMaintenanceWindow({
+      await customSuppression.addMaintenanceWindow({
         name: 'Window',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 60 * 60 * 1000),

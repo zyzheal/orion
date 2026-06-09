@@ -108,7 +108,7 @@ export class AlertSuppressionService {
     db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.deduplication = deduplication || new AlertDeduplication();
+    this.deduplication = deduplication || new AlertDeduplication(db);
     this.correlation = correlation || new AlertCorrelationService(undefined, db);
     this.maintenanceWindowRepository = new MaintenanceWindowRepository(db);
     this.knownIssueRepository = new KnownIssueRepository(db);
@@ -325,14 +325,38 @@ export class AlertSuppressionService {
    * 空范围（无 sourceTypes/sourceIds/labelSelectors）表示不匹配任何告警
    */
   private matchesMaintenanceScope(alert: Alert, window: MaintenanceWindowEntity): boolean {
-    // Check affected services
+    const scope = window.scope || {};
+
+    // Check affected services (sourceTypes)
     if (window.affectedServices && window.affectedServices.length > 0) {
-      // Match if alert source matches any affected service
       if (!window.affectedServices.includes(alert.sourceType)) {
         return false;
       }
     }
-    return true;
+
+    // Check sourceIds
+    if (scope.sourceIds && scope.sourceIds.length > 0) {
+      if (!scope.sourceIds.includes(alert.sourceId)) {
+        return false;
+      }
+    }
+
+    // Check labelSelectors
+    if (scope.labelSelectors && Object.keys(scope.labelSelectors).length > 0) {
+      for (const [key, value] of Object.entries(scope.labelSelectors)) {
+        if (alert.labels?.[key] !== value) {
+          return false;
+        }
+      }
+    }
+
+    // If no scope conditions, don't match
+    const hasScopeConditions =
+      (window.affectedServices && window.affectedServices.length > 0) ||
+      (scope.sourceIds && scope.sourceIds.length > 0) ||
+      (scope.labelSelectors && Object.keys(scope.labelSelectors).length > 0);
+
+    return Boolean(hasScopeConditions);
   }
 
   /**
@@ -387,11 +411,15 @@ export class AlertSuppressionService {
           return this.createKnownIssueSuppression(alert, issue);
         }
 
-        // 检查标签匹配
-        if (alert.labels) {
-          const matches = Object.entries(alert.labels).some(
-            ([key, value]) => issue.title.includes(key) || issue.fingerprint.includes(String(value))
-          );
+        // 检查 labelSelectors 匹配
+        if (issue.labelSelectors && alert.labels) {
+          let matches = true;
+          for (const [key, value] of Object.entries(issue.labelSelectors)) {
+            if (alert.labels[key] !== value) {
+              matches = false;
+              break;
+            }
+          }
           if (matches) {
             return this.createKnownIssueSuppression(alert, issue);
           }
@@ -629,8 +657,8 @@ export class AlertSuppressionService {
         isSeverityAtLeast(activeAlert.severity, AlertSeverity.HIGH)
       ) {
         // 检查是否在网络故障的下游
-        const deps = this.correlation.getDependencies(alert.sourceId);
-        if (deps.includes(activeAlert.sourceId)) {
+        const impacts = this.correlation.getImpactScope(activeAlert.sourceId);
+        if (impacts.includes(alert.sourceId)) {
           logger.info(
             { alertId: alert.id, networkAlertId: activeAlert.id },
             'Alert suppressed due to network failure'
@@ -668,6 +696,7 @@ export class AlertSuppressionService {
         timezone: 'UTC',
         description: null,
         affectedServices: window.scope?.sourceTypes ?? [],
+        scope: window.scope ?? null,
         createdBy: null,
         createdAt: now,
         updatedAt: now,
@@ -758,6 +787,7 @@ export class AlertSuppressionService {
         title: issue.title,
         description: issue.description ?? null,
         fingerprint: issue.fingerprintPattern ?? 'unknown',
+        labelSelectors: issue.labelSelectors ?? null,
         ticketId: null,
         resolved: false,
         resolvedAt: null,
@@ -948,7 +978,7 @@ export class AlertSuppressionService {
       unhealthy: number;
     };
   }> {
-    const nodeHealth = this.correlation.getAllNodeHealth();
+    const nodeHealth = await this.correlation.getAllNodeHealth();
 
     // 计算活跃的维护窗口数量
     let activeMaintenanceWindows = 0;
@@ -983,7 +1013,7 @@ export class AlertSuppressionService {
 
     if (this.activeAlertRepository) {
       const counts = await this.activeAlertRepository.countByStatus();
-      activeAlertCount = counts.total;
+      activeAlertCount = counts.firing;
     }
 
     return {
@@ -1195,12 +1225,12 @@ export class AlertSuppressionService {
   /**
    * 清除所有数据（用于测试）
    */
-  clearAll(): void {
+  async clearAll(): Promise<void> {
     this.activeAlertsMemory.clear();
     this.suppressionLogMemory = [];
     this.maintenanceWindows.clear();
     this.knownIssues.clear();
-    this.deduplication.clearAll();
+    await this.deduplication.clearAll();
   }
 
   /**
