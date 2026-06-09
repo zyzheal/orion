@@ -132,7 +132,7 @@ describe('MonitoringService', () => {
 
     it('should acknowledge an alert', async () => {
       service.metricCollector.recordMetric('test.cpu', 95);
-      const alerts = service.alertRuleEngine.evaluateRules();
+      const alerts = await service.alertRuleEngine.evaluateRules();
 
       const acked = await service.acknowledgeAlert(alerts[0].id, 'user-1');
       expect(acked).not.toBeNull();
@@ -141,7 +141,7 @@ describe('MonitoringService', () => {
 
     it('should resolve an alert', async () => {
       service.metricCollector.recordMetric('test.cpu', 95);
-      const alerts = service.alertRuleEngine.evaluateRules();
+      const alerts = await service.alertRuleEngine.evaluateRules();
 
       const resolved = await service.resolveAlert(alerts[0].id);
       expect(resolved).not.toBeNull();
