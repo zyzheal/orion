@@ -110,24 +110,18 @@ export interface TemporalCorrelationResult {
 
 export class RootCauseAnalysisService {
   private correlationService: AlertCorrelationService;
-  private rcaResultRepository?: RcaResultRepository;
-  private serviceDependencyRepository?: ServiceDependencyRepository;
-  private timelineEventRepository?: TimelineEventRepository;
-  // In-memory fallback
-  private analysisResultsMemory: Map<string, RcaResult> = new Map();
-  private dependencyGraphMemory: Map<string, ServiceDependency> = new Map();
-  private timelineEventsMemory: Map<string, TimelineEvent[]> = new Map();
+  private rcaResultRepository: RcaResultRepository;
+  private serviceDependencyRepository: ServiceDependencyRepository;
+  private timelineEventRepository: TimelineEventRepository;
 
   constructor(
-    correlationService?: AlertCorrelationService,
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    correlationService: AlertCorrelationService,
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
-    this.correlationService = correlationService ?? new AlertCorrelationService();
-    if (db) {
-      this.rcaResultRepository = new RcaResultRepository(db);
-      this.serviceDependencyRepository = new ServiceDependencyRepository(db);
-      this.timelineEventRepository = new TimelineEventRepository(db);
-    }
+    this.correlationService = correlationService;
+    this.rcaResultRepository = new RcaResultRepository(db);
+    this.serviceDependencyRepository = new ServiceDependencyRepository(db);
+    this.timelineEventRepository = new TimelineEventRepository(db);
     this.initializeDefaultDependencyGraph();
     logger.info('[RootCauseAnalysisService] Initialized');
   }
@@ -146,21 +140,10 @@ export class RootCauseAnalysisService {
       { service: 'notification-service', dependsOn: ['email-provider', 'slack-webhook'], dependencyType: 'external' },
     ];
 
-    if (this.serviceDependencyRepository) {
-      for (const dep of defaultDeps) {
-        try {
-          await this.serviceDependencyRepository.upsertDependency(
-            dep.service, 'default', dep.dependsOn, dep.dependencyType,
-          );
-        } catch (err) {
-          logger.warn({ traceId: getCurrentTraceId(), err, service: dep.service }, 'Failed to persist default dependency, using memory');
-          this.dependencyGraphMemory.set(dep.service, dep);
-        }
-      }
-    } else {
-      for (const dep of defaultDeps) {
-        this.dependencyGraphMemory.set(dep.service, dep);
-      }
+    for (const dep of defaultDeps) {
+      await this.serviceDependencyRepository.upsertDependency(
+        dep.service, 'default', dep.dependsOn, dep.dependencyType,
+      );
     }
   }
 
@@ -339,24 +322,16 @@ export class RootCauseAnalysisService {
    * 获取分析结果
    */
   async getAnalysis(analysisId: string): Promise<RcaResult | undefined> {
-    if (this.rcaResultRepository) {
-      const entity = await this.rcaResultRepository.findById(analysisId);
-      return entity ? this.entityToRcaResult(entity) : undefined;
-    }
-    return this.analysisResultsMemory.get(analysisId);
+    const entity = await this.rcaResultRepository.findById(analysisId);
+    return entity ? this.entityToRcaResult(entity) : undefined;
   }
 
   /**
    * 获取所有分析结果
    */
   async getAllAnalyses(limit: number = 50): Promise<RcaResult[]> {
-    if (this.rcaResultRepository) {
-      const entities = await this.rcaResultRepository.findByTenantId('default', limit);
-      return entities.map(e => this.entityToRcaResult(e));
-    }
-    return Array.from(this.analysisResultsMemory.values())
-      .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())
-      .slice(0, limit);
+    const entities = await this.rcaResultRepository.findByTenantId('default', limit);
+    return entities.map(e => this.entityToRcaResult(e));
   }
 
   /**
@@ -370,12 +345,9 @@ export class RootCauseAnalysisService {
    * 注册服务依赖关系
    */
   async registerDependency(dep: ServiceDependency): Promise<void> {
-    if (this.serviceDependencyRepository) {
-      await this.serviceDependencyRepository.upsertDependency(
-        dep.service, 'default', dep.dependsOn, dep.dependencyType,
-      );
-    }
-    this.dependencyGraphMemory.set(dep.service, dep);
+    await this.serviceDependencyRepository.upsertDependency(
+      dep.service, 'default', dep.dependsOn, dep.dependencyType,
+    );
     logger.info({ service: dep.service }, '[RootCauseAnalysisService] Dependency registered');
   }
 
@@ -383,15 +355,12 @@ export class RootCauseAnalysisService {
    * 获取依赖图
    */
   async getDependencyGraph(): Promise<ServiceDependency[]> {
-    if (this.serviceDependencyRepository) {
-      const entities = await this.serviceDependencyRepository.findByTenantId('default');
-      return entities.map(e => ({
-        service: e.id,
-        dependsOn: e.dependsOn,
-        dependencyType: e.dependencyType as ServiceDependency['dependencyType'],
-      }));
-    }
-    return Array.from(this.dependencyGraphMemory.values());
+    const entities = await this.serviceDependencyRepository.findByTenantId('default');
+    return entities.map(e => ({
+      service: e.id,
+      dependsOn: e.dependsOn,
+      dependencyType: e.dependencyType as ServiceDependency['dependencyType'],
+    }));
   }
 
   /**
@@ -448,17 +417,8 @@ export class RootCauseAnalysisService {
    * 获取下游依赖该服务的其他服务
    */
   private async getDownstreamDependents(service: string): Promise<string[]> {
-    if (this.serviceDependencyRepository) {
-      const entities = await this.serviceDependencyRepository.findDependentsOf(service);
-      return entities.map(e => e.id);
-    }
-    const dependents: string[] = [];
-    for (const [svc, dep] of this.dependencyGraphMemory) {
-      if (dep.dependsOn.includes(service)) {
-        dependents.push(svc);
-      }
-    }
-    return dependents;
+    const entities = await this.serviceDependencyRepository.findDependentsOf(service);
+    return entities.map(e => e.id);
   }
 
   /**
@@ -561,29 +521,20 @@ export class RootCauseAnalysisService {
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
     // Store for retrieval
-    if (this.timelineEventRepository) {
-      try {
-        // Clear old events for this deployment
-        await this.timelineEventRepository.deleteByDeploymentId(deploymentId);
-        for (const event of filtered) {
-          await this.timelineEventRepository.create({
-            id: uuidv4(),
-            tenantId: 'default',
-            deploymentId,
-            eventTimestamp: event.timestamp,
-            service: event.service,
-            eventType: event.eventType,
-            severity: event.severity,
-            description: event.description,
-            metadata: event.metadata || {},
-          } as any);
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, deploymentId }, 'Failed to persist timeline events, using memory');
-        this.timelineEventsMemory.set(deploymentId, filtered);
-      }
-    } else {
-      this.timelineEventsMemory.set(deploymentId, filtered);
+    // Clear old events for this deployment
+    await this.timelineEventRepository.deleteByDeploymentId(deploymentId);
+    for (const event of filtered) {
+      await this.timelineEventRepository.create({
+        id: uuidv4(),
+        tenantId: 'default',
+        deploymentId,
+        eventTimestamp: event.timestamp,
+        service: event.service,
+        eventType: event.eventType,
+        severity: event.severity,
+        description: event.description,
+        metadata: event.metadata || {},
+      } as any);
     }
 
     const criticalEvents = filtered.filter((e) => e.severity === 'critical').length;
@@ -607,24 +558,16 @@ export class RootCauseAnalysisService {
    * 获取部署时间线
    */
   async getTimeline(deploymentId: string): Promise<TimelineReport | undefined> {
-    let events: TimelineEvent[];
-
-    if (this.timelineEventRepository) {
-      const entities = await this.timelineEventRepository.findByDeploymentId(deploymentId);
-      if (entities.length === 0) return undefined;
-      events = entities.map(e => ({
-        timestamp: e.eventTimestamp,
-        service: e.service,
-        eventType: e.eventType as TimelineEvent['eventType'],
-        severity: e.severity as TimelineEvent['severity'],
-        description: e.description,
-        metadata: e.metadata,
-      }));
-    } else {
-      const memEvents = this.timelineEventsMemory.get(deploymentId);
-      if (!memEvents) return undefined;
-      events = memEvents;
-    }
+    const entities = await this.timelineEventRepository.findByDeploymentId(deploymentId);
+    if (entities.length === 0) return undefined;
+    const events: TimelineEvent[] = entities.map(e => ({
+      timestamp: e.eventTimestamp,
+      service: e.service,
+      eventType: e.eventType as TimelineEvent['eventType'],
+      severity: e.severity as TimelineEvent['severity'],
+      description: e.description,
+      metadata: e.metadata,
+    }));
 
     const criticalEvents = events.filter((e) => e.severity === 'critical').length;
     return {
@@ -872,48 +815,36 @@ export class RootCauseAnalysisService {
    * Get a dependency from repository or memory
    */
   private async getDependency(service: string): Promise<ServiceDependency | undefined> {
-    if (this.serviceDependencyRepository) {
-      const entity = await this.serviceDependencyRepository.findByService(service);
-      if (entity) {
-        return {
-          service: entity.id,
-          dependsOn: entity.dependsOn,
-          dependencyType: entity.dependencyType as ServiceDependency['dependencyType'],
-        };
-      }
-      return undefined;
+    const entity = await this.serviceDependencyRepository.findByService(service);
+    if (entity) {
+      return {
+        service: entity.id,
+        dependsOn: entity.dependsOn,
+        dependencyType: entity.dependencyType as ServiceDependency['dependencyType'],
+      };
     }
-    return this.dependencyGraphMemory.get(service);
+    return undefined;
   }
 
   /**
    * Save analysis result to repository or memory
    */
   private async saveAnalysisResult(result: RcaResult): Promise<void> {
-    if (this.rcaResultRepository) {
-      try {
-        await this.rcaResultRepository.create({
-          id: result.analysisId,
-          tenantId: result.tenantId,
-          status: result.status,
-          affectedServices: result.affectedServices as any,
-          correlatedAlerts: result.correlatedAlerts as any,
-          rootCause: result.rootCause as any,
-          topRootCauses: result.topRootCauses as any,
-          topologyPath: result.topologyPath,
-          timeWindowStart: result.timeWindowStart,
-          timeWindowEnd: result.timeWindowEnd,
-          alertCount: result.alertCount,
-          groupCount: result.groupCount,
-          completedAt: result.completedAt,
-        } as any);
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, analysisId: result.analysisId }, 'Failed to persist RCA result, using memory');
-        this.analysisResultsMemory.set(result.analysisId, result);
-      }
-    } else {
-      this.analysisResultsMemory.set(result.analysisId, result);
-    }
+    await this.rcaResultRepository.create({
+      id: result.analysisId,
+      tenantId: result.tenantId,
+      status: result.status,
+      affectedServices: result.affectedServices as any,
+      correlatedAlerts: result.correlatedAlerts as any,
+      rootCause: result.rootCause as any,
+      topRootCauses: result.topRootCauses as any,
+      topologyPath: result.topologyPath,
+      timeWindowStart: result.timeWindowStart,
+      timeWindowEnd: result.timeWindowEnd,
+      alertCount: result.alertCount,
+      groupCount: result.groupCount,
+      completedAt: result.completedAt,
+    } as any);
   }
 
   /**
