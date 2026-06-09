@@ -184,6 +184,40 @@ describe('BackupRestoreService', () => {
     });
   });
 
+  // ==================== Tenant isolation ====================
+
+  describe('tenant isolation', () => {
+    it('should not list backups from another tenant', async () => {
+      await service.createBackup('t-1', 'full', { description: 'tenant-1 backup' });
+      await service.createBackup('t-2', 'full', { description: 'tenant-2 backup' });
+
+      const t1Backups = await service.listBackups('t-1');
+      const t2Backups = await service.listBackups('t-2');
+
+      expect(t1Backups).toHaveLength(1);
+      expect(t2Backups).toHaveLength(1);
+      expect(t1Backups[0].tenantId).toBe('t-1');
+      expect(t2Backups[0].tenantId).toBe('t-2');
+    });
+
+    it('should isolate restore operations by tenant', async () => {
+      const backup = await service.createBackup('t-1', 'full', {});
+      await new Promise(r => setTimeout(r, 100));
+
+      const result = await service.restoreBackup(backup.id, { tenantId: 't-2' });
+      expect(result.targetTenantId).toBe('t-2');
+      expect(result.backupId).toBe(backup.id);
+    });
+
+    it('should set correct tenantId on backup creation', async () => {
+      const backup = await service.createBackup('t-abc', 'incremental', {});
+      expect(backup.tenantId).toBe('t-abc');
+
+      const found = await service.getBackupById(backup.id);
+      expect(found!.tenantId).toBe('t-abc');
+    });
+  });
+
   // ==================== Error class ====================
 
   describe('BackupRestoreServiceError', () => {
