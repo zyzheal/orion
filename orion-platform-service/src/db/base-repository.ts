@@ -2,6 +2,10 @@ import { OrionError, ErrorCode } from '../errors';
 // Valid SQL identifier pattern (alphanumeric + underscore, not starting with digit)
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
+function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
 function validateIdentifier(name: string, label: string): void {
   if (!VALID_IDENTIFIER.test(name)) {
     throw new OrionError(`Invalid ${label}: ${name}`, 'VALIDATION_ERROR')
@@ -49,9 +53,10 @@ export abstract class BaseRepository<T extends { id: string }> {
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(where)) {
-      validateIdentifier(key, 'where column');
+      const snakeKey = camelToSnake(key);
+      validateIdentifier(snakeKey, 'where column');
       if (value !== undefined && value !== null) {
-        query += ` AND ${key} = $${paramIndex}`;
+        query += ` AND ${snakeKey} = $${paramIndex}`;
         queryParams.push(value);
         paramIndex++;
       }
@@ -75,8 +80,9 @@ export abstract class BaseRepository<T extends { id: string }> {
   }
 
   async create(data: any): Promise<T> {
-    const columns = Object.keys(data);
+    const rawColumns = Object.keys(data);
     const values = Object.values(data);
+    const columns = rawColumns.map(camelToSnake);
 
     for (const col of columns) {
       validateIdentifier(col, 'column name');
@@ -93,8 +99,9 @@ export abstract class BaseRepository<T extends { id: string }> {
   }
 
   async update(id: string, data: any): Promise<T> {
-    const columns = Object.keys(data);
+    const rawColumns = Object.keys(data);
     const values = Object.values(data);
+    const columns = rawColumns.map(camelToSnake);
 
     if (columns.length === 0) {
       throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);

@@ -49,6 +49,22 @@ export class RiskAssessmentRepository extends BaseRepository<RiskAssessmentEntit
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  async findByTargetType(targetType: string): Promise<RiskAssessmentEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM risk_assessments WHERE target_type = $1 ORDER BY created_at DESC`,
+      [targetType],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findByTargetId(targetId: string): Promise<RiskAssessmentEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM risk_assessments WHERE target_id = $1 ORDER BY created_at DESC`,
+      [targetId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   async findByRiskLevel(riskLevel: string, tenantId?: string): Promise<RiskAssessmentEntity[]> {
     let query = `SELECT * FROM risk_assessments WHERE risk_level = $1`;
     const params: any[] = [riskLevel];

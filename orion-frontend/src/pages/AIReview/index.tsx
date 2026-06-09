@@ -2,8 +2,8 @@
  * AI Review - Main Layout
  * Sidebar navigation for AI Review sub-pages
  */
-import React, { useState, useCallback } from 'react';
-import { Layout, Menu, Typography, Spin, Empty, message } from 'antd';
+import React, { useState } from 'react';
+import { Layout, Menu, Typography, Spin } from 'antd';
 import { colors } from '@/tokens';
 import {
   ScanOutlined,
@@ -27,7 +27,7 @@ const AIReviewLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);

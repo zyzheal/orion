@@ -27,7 +27,7 @@ const { Title, Paragraph } = Typography;
  */
 const CapabilityManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('list');
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
 
   const tabItems = [
     {

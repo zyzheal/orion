@@ -23,7 +23,7 @@ import BatchExecPage from './BatchExecPage';
 import AuditLogPage from './AuditLogPage';
 
 const CMDBPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
 
   const tabItems = [
     {

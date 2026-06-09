@@ -305,23 +305,22 @@ describe('ClusterHealthMonitor', () => {
   // ==================== Tenant isolation ====================
 
   describe('tenant isolation', () => {
-    it('租户 A 无法获取租户 B 的集群', () => {
-      const c1 = monitor.registerCluster('tenant-a', { name: 'cluster-a', endpoint: 'https://a', region: 'east' });
-      monitor.registerCluster('tenant-b', { name: 'cluster-b', endpoint: 'https://b', region: 'west' });
+    it('租户 A 无法获取租户 B 的集群', async () => {
+      const c1 = await monitor.registerCluster('tenant-a', { name: 'cluster-a', endpoint: 'https://a', region: 'east' });
+      await monitor.registerCluster('tenant-b', { name: 'cluster-b', endpoint: 'https://b', region: 'west' });
 
       // tenant-a can only see their own cluster
-      const result = monitor.getCluster(c1.id, 'tenant-b');
-      console.log('DEBUG c1.id:', c1.id, 'typeof:', typeof c1.id, 'result:', JSON.stringify(result), 'result===null:', result === null);
+      const result = await monitor.getCluster(c1.id, 'tenant-b');
       expect(result).toBeNull();
     });
 
-    it('listClusters 不会泄露其他租户的数据', () => {
-      monitor.registerCluster('tenant-a', { name: 'a1', endpoint: 'https://a1', region: 'east' });
-      monitor.registerCluster('tenant-a', { name: 'a2', endpoint: 'https://a2', region: 'east' });
-      monitor.registerCluster('tenant-b', { name: 'b1', endpoint: 'https://b1', region: 'west' });
+    it('listClusters 不会泄露其他租户的数据', async () => {
+      await monitor.registerCluster('tenant-a', { name: 'a1', endpoint: 'https://a1', region: 'east' });
+      await monitor.registerCluster('tenant-a', { name: 'a2', endpoint: 'https://a2', region: 'east' });
+      await monitor.registerCluster('tenant-b', { name: 'b1', endpoint: 'https://b1', region: 'west' });
 
-      const tenantAClusters = monitor.listClusters('tenant-a');
-      const tenantBClusters = monitor.listClusters('tenant-b');
+      const tenantAClusters = await monitor.listClusters('tenant-a');
+      const tenantBClusters = await monitor.listClusters('tenant-b');
 
       expect(tenantAClusters).toHaveLength(2);
       expect(tenantBClusters).toHaveLength(1);
@@ -330,9 +329,9 @@ describe('ClusterHealthMonitor', () => {
       expect(tenantBClusters.every(c => c.tenantId === 'tenant-b')).toBe(true);
     });
 
-    it('不同租户可以注册同名集群', () => {
-      const c1 = monitor.registerCluster('tenant-a', { name: 'shared-name', endpoint: 'https://a', region: 'east' });
-      const c2 = monitor.registerCluster('tenant-b', { name: 'shared-name', endpoint: 'https://b', region: 'west' });
+    it('不同租户可以注册同名集群', async () => {
+      const c1 = await monitor.registerCluster('tenant-a', { name: 'shared-name', endpoint: 'https://a', region: 'east' });
+      const c2 = await monitor.registerCluster('tenant-b', { name: 'shared-name', endpoint: 'https://b', region: 'west' });
 
       expect(c1.id).not.toBe(c2.id);
       expect(c1.tenantId).toBe('tenant-a');

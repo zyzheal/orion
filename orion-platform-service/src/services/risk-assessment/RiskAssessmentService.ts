@@ -201,6 +201,10 @@ export class RiskAssessmentService {
 
     if (filter?.targetType && filter?.targetId) {
       entities = await this.assessmentRepository.findByTarget(filter.targetType, filter.targetId);
+    } else if (filter?.targetType) {
+      entities = await this.assessmentRepository.findByTargetType(filter.targetType);
+    } else if (filter?.targetId) {
+      entities = await this.assessmentRepository.findByTargetId(filter.targetId);
     } else if (filter?.tenantId) {
       entities = await this.assessmentRepository.findByTenant(filter.tenantId, { limit: filter?.limit ?? 20 });
     } else {
