@@ -77,7 +77,7 @@ describe('AlertSuppressionService', () => {
   describe('Suppression Rule 1: Maintenance Window', () => {
     it('should suppress alerts during maintenance window', async () => {
       // Add maintenance window covering app-001
-      const window = suppression.addMaintenanceWindow({
+      const window = await suppression.addMaintenanceWindow({
         name: 'Scheduled Maintenance',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 60 * 60 * 1000), // Started 1 hour ago
@@ -99,7 +99,7 @@ describe('AlertSuppressionService', () => {
 
     it('should not suppress alerts outside maintenance window', async () => {
       // Add maintenance window that has ended
-      suppression.addMaintenanceWindow({
+      await suppression.addMaintenanceWindow({
         name: 'Past Maintenance',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 3 * 60 * 60 * 1000), // Started 3 hours ago
@@ -118,7 +118,7 @@ describe('AlertSuppressionService', () => {
     });
 
     it('should filter by source types in maintenance window', async () => {
-      suppression.addMaintenanceWindow({
+      await suppression.addMaintenanceWindow({
         name: 'DB Maintenance',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 60 * 60 * 1000),
@@ -140,7 +140,7 @@ describe('AlertSuppressionService', () => {
     });
 
     it('should filter by labels in maintenance window', async () => {
-      suppression.addMaintenanceWindow({
+      await suppression.addMaintenanceWindow({
         name: 'Production Maintenance',
         tenantId: 'tenant-001',
         startTime: new Date(Date.now() - 60 * 60 * 1000),
@@ -164,7 +164,7 @@ describe('AlertSuppressionService', () => {
 
   describe('Suppression Rule 2: Known Issue', () => {
     it('should suppress alerts matching known issue', async () => {
-      suppression.addKnownIssue({
+      await suppression.addKnownIssue({
         title: 'Known Database Connection Issue',
         description: 'Temporary connection issue',
         tenantId: 'tenant-001',
@@ -184,7 +184,7 @@ describe('AlertSuppressionService', () => {
     });
 
     it('should not suppress alerts when issue is resolved', async () => {
-      const issue = suppression.addKnownIssue({
+      const issue = await suppression.addKnownIssue({
         title: 'Resolved Issue',
         tenantId: 'tenant-001',
         labelSelectors: { issue: 'resolved' },
@@ -194,7 +194,7 @@ describe('AlertSuppressionService', () => {
       });
 
       // Resolve the issue
-      suppression.resolveKnownIssue(issue.id);
+      await suppression.resolveKnownIssue(issue.id);
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH, { issue: 'resolved' });
 
@@ -352,8 +352,8 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('Management APIs', () => {
-    it('should add and remove maintenance windows', () => {
-      const window = suppression.addMaintenanceWindow({
+    it('should add and remove maintenance windows', async () => {
+      const window = await suppression.addMaintenanceWindow({
         name: 'Test Window',
         tenantId: 'tenant-001',
         startTime: new Date(),
@@ -364,18 +364,18 @@ describe('AlertSuppressionService', () => {
 
       expect(window.id).toBeDefined();
 
-      const activeWindows = suppression.getActiveMaintenanceWindows();
+      const activeWindows = await suppression.getActiveMaintenanceWindows();
       expect(activeWindows).toHaveLength(1);
 
-      const removed = suppression.removeMaintenanceWindow(window.id);
+      const removed = await suppression.removeMaintenanceWindow(window.id);
       expect(removed).toBe(true);
 
-      const remainingWindows = suppression.getActiveMaintenanceWindows();
+      const remainingWindows = await suppression.getActiveMaintenanceWindows();
       expect(remainingWindows).toHaveLength(0);
     });
 
-    it('should add and resolve known issues', () => {
-      const issue = suppression.addKnownIssue({
+    it('should add and resolve known issues', async () => {
+      const issue = await suppression.addKnownIssue({
         title: 'Test Issue',
         tenantId: 'tenant-001',
         silenceDuration: 60 * 60 * 1000,
@@ -385,13 +385,13 @@ describe('AlertSuppressionService', () => {
 
       expect(issue.id).toBeDefined();
 
-      const openIssues = suppression.getOpenKnownIssues();
+      const openIssues = await suppression.getOpenKnownIssues();
       expect(openIssues).toHaveLength(1);
 
-      const resolved = suppression.resolveKnownIssue(issue.id);
+      const resolved = await suppression.resolveKnownIssue(issue.id);
       expect(resolved).toBe(true);
 
-      const remainingIssues = suppression.getOpenKnownIssues();
+      const remainingIssues = await suppression.getOpenKnownIssues();
       expect(remainingIssues).toHaveLength(0);
     });
 

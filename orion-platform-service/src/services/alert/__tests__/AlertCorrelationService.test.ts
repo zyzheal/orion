@@ -14,6 +14,49 @@ import {
 describe('AlertCorrelationService', () => {
   let correlation: AlertCorrelationService;
 
+  // Mock db with in-memory storage for topology nodes
+  const topologyNodes = new Map<string, any>();
+  const mockDb = {
+    query: jest.fn(async (text: string, params?: unknown[]) => {
+      if (text.includes('INSERT INTO alert_topology_nodes')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], node_type: params?.[2],
+          name: params?.[3], status: params?.[4], parent_id: params?.[5],
+          children_ids: params?.[6], created_at: new Date(), updated_at: new Date(),
+        };
+        topologyNodes.set(row.id, row);
+        return { rows: [row], rowCount: 1 };
+      }
+      if (text.includes('SELECT * FROM alert_topology_nodes WHERE tenant_id')) {
+        const rows = Array.from(topologyNodes.values()).filter(n => n.tenant_id === params?.[0]);
+        return { rows, rowCount: rows.length };
+      }
+      if (text.includes('SELECT * FROM alert_topology_nodes WHERE id')) {
+        const row = topologyNodes.get(params?.[0]);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      if (text.includes('UPDATE alert_topology_nodes SET status')) {
+        const node = topologyNodes.get(params?.[1]);
+        if (node) node.status = params?.[0];
+        return { rows: [], rowCount: node ? 1 : 0 };
+      }
+      if (text.includes('UPDATE alert_topology_nodes SET')) {
+        const node = topologyNodes.get(params?.[params!.length - 1]);
+        if (node) node.children_ids = params?.[0];
+        return { rows: [], rowCount: node ? 1 : 0 };
+      }
+      if (text.includes('DELETE FROM alert_topology_nodes')) {
+        const count = topologyNodes.size;
+        topologyNodes.clear();
+        return { rows: [], rowCount: count };
+      }
+      if (text.includes('alert_correlation_groups')) {
+        return { rows: [], rowCount: 0 };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+
   const createTopology = (): AlertTopologyGraph => ({
     nodes: [
       { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1', status: 'healthy' },
@@ -59,15 +102,17 @@ describe('AlertCorrelationService', () => {
     updatedAt: new Date(),
   });
 
-  beforeEach(() => {
-    correlation = new AlertCorrelationService();
-    correlation.setTopology(createTopology());
+  beforeEach(async () => {
+    topologyNodes.clear();
+    mockDb.query.mockClear();
+    correlation = new AlertCorrelationService(undefined, mockDb as any);
+    await correlation.setTopology(createTopology());
   });
 
   describe('setTopology', () => {
     it('should set topology correctly', async () => {
       const topology = createTopology();
-      correlation.setTopology(topology);
+      await correlation.setTopology(topology);
 
       const result = await correlation.getTopology();
 
@@ -175,10 +220,6 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('detectCorrelation', () => {
-    // TODO: detectCorrelation method is not implemented in AlertCorrelationService.
-    // These tests are marked as todo until the method is added to the implementation.
-    // Expected signature: detectCorrelation(alert1: Alert, alert2: Alert) => CorrelationResult
-    // Expected CorrelationResult: { correlated: boolean, correlationType: string, confidence?: number }
     it.todo('should detect same source correlation');
     it.todo('should detect dependency correlation');
     it.todo('should detect common dependency correlation');
@@ -187,22 +228,19 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('analyzeCorrelations', () => {
-    // TODO: analyzeCorrelations method is not implemented in AlertCorrelationService.
-    // Expected signature: analyzeCorrelations(alerts: Alert[]) => CorrelationResult[]
-    // Expected CorrelationResult: { alertId: string, correlatedAlertIds: string[] }
     it.todo('should analyze all alerts and return correlation results');
   });
 
   describe('updateNodeHealth', () => {
-    it('should update node health based on alerts', () => {
+    it('should update node health based on alerts', async () => {
       const alerts: Alert[] = [
         createAlert('alert-critical', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.CRITICAL),
         createAlert('alert-high', 'app-002', AlertSourceType.APPLICATION, AlertSeverity.HIGH),
       ];
 
-      correlation.updateNodeHealth(alerts);
+      await correlation.updateNodeHealth(alerts);
 
-      const allHealth = correlation.getAllNodeHealth();
+      const allHealth = await correlation.getAllNodeHealth();
       const health1 = allHealth.find(h => h.nodeId === 'app-001');
       expect(health1?.status).toBe('unhealthy');
 
@@ -212,18 +250,14 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('calculateImpact', () => {
-    // TODO: calculateImpact method is not implemented in AlertCorrelationService.
-    // Expected signature: calculateImpact(alert: Alert) => ImpactResult
-    // Expected ImpactResult: { directImpact: string[], totalImpactCount: number }
     it.todo('should calculate direct and indirect impact');
   });
 
   describe('getNodeHealth', () => {
-    it('should return health status for all nodes', () => {
-      const allHealth = correlation.getAllNodeHealth();
+    it('should return health status for all nodes', async () => {
+      const allHealth = await correlation.getAllNodeHealth();
 
-      // Only nodes that have received alerts will have health status set
-      // After setTopology, nodeHealth is initialized for all nodes
+      // All topology nodes should be returned with healthy status
       expect(allHealth.length).toBeGreaterThan(0);
       expect(allHealth[0].status).toBe('healthy');
     });

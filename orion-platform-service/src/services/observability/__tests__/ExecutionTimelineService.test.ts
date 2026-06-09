@@ -2,17 +2,17 @@
  * ExecutionTimelineService - Comprehensive Tests
  *
  * Tests for timeline CRUD, event management, status updates,
- * replay data, database persistence, and shutdown.
+ * replay data, and shutdown. All operations backed by mock repository.
  */
 
 import {
   ExecutionTimelineService,
   TimelineEntry,
   TimelineEvent,
-  TimelineEventRepository,
   registerTimelineForShutdown,
   shutdownAllTimelines,
 } from '../ExecutionTimelineService';
+import { ExecutionTimelineRepository } from '../../../repositories/ExecutionTimelineRepository';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -23,13 +23,41 @@ jest.mock('pino', () => () => ({
   debug: jest.fn(),
 }));
 
-function createMockRepository(): jest.Mocked<TimelineEventRepository> {
+function createMockRepository(): jest.Mocked<ExecutionTimelineRepository> {
   return {
-    saveTimeline: jest.fn().mockResolvedValue(undefined),
-    saveEvent: jest.fn().mockResolvedValue(undefined),
+    saveTimeline: jest.fn().mockImplementation(async (params: any) => ({
+      id: params.id,
+      run_id: params.runId,
+      task_id: params.taskId,
+      plugin_id: params.pluginId,
+      step_name: params.stepName,
+      started_at: params.startedAt,
+      ended_at: params.endedAt || null,
+      duration_ms: params.durationMs ?? null,
+      status: params.status,
+      isolation_tier: params.isolationTier || null,
+      trace_id: params.traceId || null,
+      span_id: null,
+      error_message: params.errorMessage || null,
+      tenant_id: params.tenantId,
+      created_at: new Date(),
+      updated_at: new Date(),
+    })),
+    saveEvent: jest.fn().mockImplementation(async (params: any) => ({
+      id: params.id,
+      timeline_id: params.timelineId,
+      event_type: params.eventType,
+      timestamp: params.timestamp,
+      level: params.level,
+      message: params.message || null,
+      metadata: params.metadata || null,
+      sequence_num: params.sequenceNum,
+    })),
     findByRunId: jest.fn().mockResolvedValue([]),
     findByTimelineId: jest.fn().mockResolvedValue([]),
-  };
+    findById: jest.fn().mockResolvedValue(null),
+    getNextSequenceNum: jest.fn().mockResolvedValue(1),
+  } as any;
 }
 
 function createTimelineEntry(overrides: Partial<TimelineEntry> = {}): Omit<TimelineEntry, 'id'> {
@@ -44,19 +72,55 @@ function createTimelineEntry(overrides: Partial<TimelineEntry> = {}): Omit<Timel
   };
 }
 
+function createDbTimelineRow(overrides: Partial<any> = {}): any {
+  return {
+    id: 'tl-001',
+    run_id: 'run-001',
+    task_id: 'task-001',
+    plugin_id: 'plugin-001',
+    step_name: 'build',
+    started_at: new Date().toISOString(),
+    ended_at: null,
+    duration_ms: null,
+    status: 'running',
+    isolation_tier: null,
+    trace_id: null,
+    span_id: null,
+    error_message: null,
+    tenant_id: 'default',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function createDbEventRow(overrides: Partial<any> = {}): any {
+  return {
+    id: 'evt-001',
+    timeline_id: 'tl-001',
+    event_type: 'start',
+    timestamp: new Date().toISOString(),
+    level: 'info',
+    message: null,
+    metadata: null,
+    sequence_num: 1,
+    ...overrides,
+  };
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('ExecutionTimelineService', () => {
+  let repo: ReturnType<typeof createMockRepository>;
   let service: ExecutionTimelineService;
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    service = new ExecutionTimelineService();
+    repo = createMockRepository();
+    service = new ExecutionTimelineService({ repository: repo });
   });
 
   afterEach(() => {
     service.shutdown();
-    jest.useRealTimers();
   });
 
   // ─── createTimeline ─────────────────────────────────────────────────────
@@ -72,31 +136,16 @@ describe('ExecutionTimelineService', () => {
       expect(timeline.status).toBe('running');
     });
 
-    it('should persist to repository when available', async () => {
-      const repo = createMockRepository();
-      const svc = new ExecutionTimelineService({ repository: repo });
-
-      await svc.createTimeline(createTimelineEntry());
+    it('should persist to repository', async () => {
+      await service.createTimeline(createTimelineEntry());
 
       expect(repo.saveTimeline).toHaveBeenCalledTimes(1);
-      svc.shutdown();
     });
 
-    it('should not throw when repository save fails', async () => {
-      const repo = createMockRepository();
+    it('should propagate repository errors', async () => {
       repo.saveTimeline.mockRejectedValue(new Error('DB error'));
-      const svc = new ExecutionTimelineService({ repository: repo });
 
-      const timeline = await svc.createTimeline(createTimelineEntry());
-      expect(timeline).toBeDefined();
-      svc.shutdown();
-    });
-
-    it('should initialize events and sequence counter', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
-
-      const events = service.getEvents(timeline.id);
-      expect(events).toEqual([]);
+      await expect(service.createTimeline(createTimelineEntry())).rejects.toThrow('DB error');
     });
   });
 
@@ -104,10 +153,10 @@ describe('ExecutionTimelineService', () => {
 
   describe('addEvent', () => {
     it('should add event with auto-generated id and sequence number', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
+      repo.getNextSequenceNum.mockResolvedValue(1);
 
-      const event = await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
+      const event = await service.addEvent('tl-001', {
+        timelineId: 'tl-001',
         eventType: 'start',
         timestamp: new Date(),
         level: 'info',
@@ -120,16 +169,16 @@ describe('ExecutionTimelineService', () => {
     });
 
     it('should increment sequence number for multiple events', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
+      repo.getNextSequenceNum.mockResolvedValueOnce(1).mockResolvedValueOnce(2);
 
-      await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
+      await service.addEvent('tl-001', {
+        timelineId: 'tl-001',
         eventType: 'start',
         timestamp: new Date(),
         level: 'info',
       });
-      const second = await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
+      const second = await service.addEvent('tl-001', {
+        timelineId: 'tl-001',
         eventType: 'log',
         timestamp: new Date(),
         level: 'info',
@@ -139,43 +188,37 @@ describe('ExecutionTimelineService', () => {
     });
 
     it('should persist event to repository', async () => {
-      const repo = createMockRepository();
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const timeline = await svc.createTimeline(createTimelineEntry());
+      repo.getNextSequenceNum.mockResolvedValue(1);
 
-      await svc.addEvent(timeline.id, {
-        timelineId: timeline.id,
+      await service.addEvent('tl-001', {
+        timelineId: 'tl-001',
         eventType: 'complete',
         timestamp: new Date(),
         level: 'info',
       });
 
       expect(repo.saveEvent).toHaveBeenCalledTimes(1);
-      svc.shutdown();
     });
 
-    it('should not throw when repository event save fails', async () => {
-      const repo = createMockRepository();
+    it('should propagate repository errors', async () => {
+      repo.getNextSequenceNum.mockResolvedValue(1);
       repo.saveEvent.mockRejectedValue(new Error('DB error'));
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const timeline = await svc.createTimeline(createTimelineEntry());
 
-      const event = await svc.addEvent(timeline.id, {
-        timelineId: timeline.id,
-        eventType: 'error',
-        timestamp: new Date(),
-        level: 'error',
-      });
-
-      expect(event).toBeDefined();
-      svc.shutdown();
+      await expect(
+        service.addEvent('tl-001', {
+          timelineId: 'tl-001',
+          eventType: 'error',
+          timestamp: new Date(),
+          level: 'error',
+        })
+      ).rejects.toThrow('DB error');
     });
 
     it('should handle events with metadata', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
+      repo.getNextSequenceNum.mockResolvedValue(1);
 
-      const event = await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
+      const event = await service.addEvent('tl-001', {
+        timelineId: 'tl-001',
         eventType: 'log',
         timestamp: new Date(),
         level: 'info',
@@ -190,42 +233,48 @@ describe('ExecutionTimelineService', () => {
 
   describe('updateTimelineStatus', () => {
     it('should update status and set endedAt', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
+      const startedAt = new Date('2026-06-02T10:00:00Z');
+      repo.findById.mockResolvedValue(createDbTimelineRow({
+        id: 'tl-001',
+        started_at: startedAt.toISOString(),
+      }));
 
-      service.updateTimelineStatus(timeline.id, 'success');
+      await service.updateTimelineStatus('tl-001', 'success');
 
-      const timelines = service.getTimelineByRunId('run-001');
-      expect(timelines[0].status).toBe('success');
-      expect(timelines[0].endedAt).toBeDefined();
+      expect(repo.saveTimeline).toHaveBeenCalledTimes(1);
+      const call = repo.saveTimeline.mock.calls[0][0] as any;
+      expect(call.status).toBe('success');
+      expect(call.endedAt).toBeDefined();
     });
 
     it('should calculate durationMs', async () => {
       const startedAt = new Date('2026-06-02T10:00:00Z');
-      const timeline = await service.createTimeline(createTimelineEntry({ startedAt }));
+      repo.findById.mockResolvedValue(createDbTimelineRow({
+        id: 'tl-001',
+        started_at: startedAt.toISOString(),
+      }));
 
       const endedAt = new Date('2026-06-02T10:05:00Z');
-      service.updateTimelineStatus(timeline.id, 'success', endedAt);
+      await service.updateTimelineStatus('tl-001', 'success', endedAt);
 
-      const timelines = service.getTimelineByRunId('run-001');
-      expect(timelines[0].durationMs).toBe(300000); // 5 minutes
+      const call = repo.saveTimeline.mock.calls[0][0] as any;
+      expect(call.durationMs).toBe(300000); // 5 minutes
     });
 
-    it('should handle non-existent timeline id gracefully', () => {
-      expect(() => {
-        service.updateTimelineStatus('non-existent', 'failed');
-      }).not.toThrow();
+    it('should handle non-existent timeline id gracefully', async () => {
+      repo.findById.mockResolvedValue(null);
+
+      // Should not throw
+      await service.updateTimelineStatus('non-existent', 'failed');
+      expect(repo.saveTimeline).not.toHaveBeenCalled();
     });
 
     it('should persist update to repository', async () => {
-      const repo = createMockRepository();
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const timeline = await svc.createTimeline(createTimelineEntry());
+      repo.findById.mockResolvedValue(createDbTimelineRow());
 
-      svc.updateTimelineStatus(timeline.id, 'success');
+      await service.updateTimelineStatus('tl-001', 'success');
 
-      // saveTimeline called once for create, once for update
-      expect(repo.saveTimeline).toHaveBeenCalledTimes(2);
-      svc.shutdown();
+      expect(repo.saveTimeline).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -233,33 +282,54 @@ describe('ExecutionTimelineService', () => {
 
   describe('getTimelineByRunId', () => {
     it('should return timelines sorted by startedAt', async () => {
-      const t1 = await service.createTimeline(createTimelineEntry({
-        runId: 'run-1',
-        startedAt: new Date('2026-06-02T10:00:00Z'),
-      }));
-      const t2 = await service.createTimeline(createTimelineEntry({
-        runId: 'run-1',
-        startedAt: new Date('2026-06-02T09:00:00Z'),
-      }));
+      repo.findByRunId.mockResolvedValue([
+        createDbTimelineRow({ id: 'tl-1', started_at: '2026-06-02T09:00:00Z' }),
+        createDbTimelineRow({ id: 'tl-2', started_at: '2026-06-02T10:00:00Z' }),
+      ]);
 
-      const timelines = service.getTimelineByRunId('run-1');
+      const timelines = await service.getTimelineByRunId('run-001');
 
       expect(timelines).toHaveLength(2);
-      expect(timelines[0].id).toBe(t2.id); // Earlier one first
-      expect(timelines[1].id).toBe(t1.id);
+      expect(timelines[0].id).toBe('tl-1');
+      expect(timelines[1].id).toBe('tl-2');
     });
 
-    it('should return empty array for non-existent run', () => {
-      const timelines = service.getTimelineByRunId('non-existent');
+    it('should return empty array for non-existent run', async () => {
+      repo.findByRunId.mockResolvedValue([]);
+
+      const timelines = await service.getTimelineByRunId('non-existent');
       expect(timelines).toEqual([]);
     });
 
-    it('should filter by runId', async () => {
-      await service.createTimeline(createTimelineEntry({ runId: 'run-1' }));
-      await service.createTimeline(createTimelineEntry({ runId: 'run-2' }));
+    it('should map snake_case to camelCase', async () => {
+      repo.findByRunId.mockResolvedValue([
+        createDbTimelineRow({
+          id: 'tl-1',
+          run_id: 'run-x',
+          task_id: 'task-x',
+          plugin_id: 'plugin-x',
+          step_name: 'test',
+          status: 'success',
+          ended_at: '2026-06-02T10:05:00Z',
+          duration_ms: 300000,
+          isolation_tier: 'tier-1',
+          trace_id: 'trace-abc',
+          error_message: 'some error',
+        }),
+      ]);
 
-      const timelines = service.getTimelineByRunId('run-1');
-      expect(timelines).toHaveLength(1);
+      const timelines = await service.getTimelineByRunId('run-x');
+
+      expect(timelines[0].runId).toBe('run-x');
+      expect(timelines[0].taskId).toBe('task-x');
+      expect(timelines[0].pluginId).toBe('plugin-x');
+      expect(timelines[0].stepName).toBe('test');
+      expect(timelines[0].status).toBe('success');
+      expect(timelines[0].endedAt).toEqual(new Date('2026-06-02T10:05:00Z'));
+      expect(timelines[0].durationMs).toBe(300000);
+      expect(timelines[0].isolationTier).toBe('tier-1');
+      expect(timelines[0].traceId).toBe('trace-abc');
+      expect(timelines[0].errorMessage).toBe('some error');
     });
   });
 
@@ -267,174 +337,125 @@ describe('ExecutionTimelineService', () => {
 
   describe('getEvents', () => {
     it('should return events sorted by sequenceNum', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
+      repo.findByTimelineId.mockResolvedValue([
+        createDbEventRow({ id: 'evt-1', sequence_num: 1, message: 'first' }),
+        createDbEventRow({ id: 'evt-2', sequence_num: 2, message: 'second' }),
+      ]);
 
-      await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
-        eventType: 'log',
-        timestamp: new Date(),
-        level: 'info',
-        message: 'second',
-      });
-      await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
-        eventType: 'log',
-        timestamp: new Date(),
-        level: 'info',
-        message: 'third',
-      });
+      const events = await service.getEvents('tl-001');
 
-      const events = service.getEvents(timeline.id);
       expect(events).toHaveLength(2);
       expect(events[0].sequenceNum).toBeLessThan(events[1].sequenceNum);
     });
 
-    it('should return empty array for non-existent timeline', () => {
-      const events = service.getEvents('non-existent');
+    it('should return empty array for non-existent timeline', async () => {
+      repo.findByTimelineId.mockResolvedValue([]);
+
+      const events = await service.getEvents('non-existent');
       expect(events).toEqual([]);
+    });
+
+    it('should map snake_case to camelCase', async () => {
+      repo.findByTimelineId.mockResolvedValue([
+        createDbEventRow({
+          id: 'evt-1',
+          timeline_id: 'tl-x',
+          event_type: 'log',
+          level: 'warn',
+          message: 'test message',
+          metadata: { key: 'value' },
+          sequence_num: 5,
+        }),
+      ]);
+
+      const events = await service.getEvents('tl-x');
+
+      expect(events[0].id).toBe('evt-1');
+      expect(events[0].timelineId).toBe('tl-x');
+      expect(events[0].eventType).toBe('log');
+      expect(events[0].level).toBe('warn');
+      expect(events[0].message).toBe('test message');
+      expect(events[0].metadata).toEqual({ key: 'value' });
+      expect(events[0].sequenceNum).toBe(5);
     });
   });
 
   // ─── getReplayData ─────────────────────────────────────────────────────
 
   describe('getReplayData', () => {
-    it('should return timelines and events from memory', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry({ runId: 'run-replay' }));
-      await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
-        eventType: 'start',
-        timestamp: new Date(),
-        level: 'info',
-      });
+    it('should return timelines and events from repository', async () => {
+      repo.findByRunId.mockResolvedValue([
+        createDbTimelineRow({ id: 'tl-1' }),
+      ]);
+      repo.findByTimelineId.mockResolvedValue([
+        createDbEventRow({ id: 'evt-1', timeline_id: 'tl-1' }),
+      ]);
 
-      const replay = await service.getReplayData('run-replay');
+      const replay = await service.getReplayData('run-001');
 
       expect(replay.timelines).toHaveLength(1);
-      expect(replay.events[timeline.id]).toHaveLength(1);
+      expect(replay.events['tl-1']).toHaveLength(1);
     });
 
-    it('should use repository when available', async () => {
-      const repo = createMockRepository();
-      const timeline: TimelineEntry = {
-        id: 'tl-1',
-        runId: 'run-db',
-        taskId: 'task-1',
-        pluginId: 'plugin-1',
-        stepName: 'build',
-        startedAt: new Date(),
-        status: 'success',
-      };
-      repo.findByRunId.mockResolvedValue([timeline]);
+    it('should use repository for replay data', async () => {
+      repo.findByRunId.mockResolvedValue([createDbTimelineRow({ id: 'tl-1' })]);
       repo.findByTimelineId.mockResolvedValue([]);
 
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const replay = await svc.getReplayData('run-db');
+      const replay = await service.getReplayData('run-001');
 
-      expect(repo.findByRunId).toHaveBeenCalledWith('run-db');
+      expect(repo.findByRunId).toHaveBeenCalledWith('run-001');
       expect(replay.timelines).toHaveLength(1);
-      svc.shutdown();
     });
 
-    it('should fallback to memory when repository fails', async () => {
-      const repo = createMockRepository();
-      repo.findByRunId.mockRejectedValue(new Error('DB error'));
+    it('should return empty data for non-existent run', async () => {
+      repo.findByRunId.mockResolvedValue([]);
 
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const timeline = await svc.createTimeline(createTimelineEntry({ runId: 'run-fallback' }));
+      const replay = await service.getReplayData('non-existent');
+      expect(replay.timelines).toEqual([]);
+      expect(replay.events).toEqual({});
+    });
 
-      const replay = await svc.getReplayData('run-fallback');
-      expect(replay.timelines).toHaveLength(1);
-      svc.shutdown();
+    it('should include events for multiple timelines', async () => {
+      repo.findByRunId.mockResolvedValue([
+        createDbTimelineRow({ id: 'tl-1' }),
+        createDbTimelineRow({ id: 'tl-2' }),
+      ]);
+      repo.findByTimelineId.mockImplementation(async (id: string) => {
+        if (id === 'tl-1') return [createDbEventRow({ id: 'evt-1', timeline_id: 'tl-1' })];
+        if (id === 'tl-2') return [
+          createDbEventRow({ id: 'evt-2', timeline_id: 'tl-2', sequence_num: 1 }),
+          createDbEventRow({ id: 'evt-3', timeline_id: 'tl-2', sequence_num: 2 }),
+        ];
+        return [];
+      });
+
+      const replay = await service.getReplayData('run-001');
+
+      expect(replay.timelines).toHaveLength(2);
+      expect(replay.events['tl-1']).toHaveLength(1);
+      expect(replay.events['tl-2']).toHaveLength(2);
     });
   });
 
   // ─── shutdown ──────────────────────────────────────────────────────────
 
   describe('shutdown', () => {
-    it('should clear all data', async () => {
-      await service.createTimeline(createTimelineEntry());
-
-      service.shutdown();
-
-      const timelines = service.getTimelineByRunId('run-001');
-      expect(timelines).toEqual([]);
-    });
-
-    it('should clear cleanup timer', () => {
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
-      service.shutdown();
-
-      expect(clearIntervalSpy).toHaveBeenCalled();
-      clearIntervalSpy.mockRestore();
+    it('should complete without error', () => {
+      expect(() => service.shutdown()).not.toThrow();
     });
   });
 
-  // ─── cleanup timer ─────────────────────────────────────────────────────
-
-  describe('cleanup timer', () => {
-    it('should evict stale timelines after TTL', async () => {
-      const oldDate = new Date(Date.now() - 31 * 60 * 1000); // 31 minutes ago
-      await service.createTimeline(createTimelineEntry({ startedAt: oldDate }));
-
-      // Advance timers to trigger cleanup (5 minutes interval)
-      jest.advanceTimersByTime(5 * 60 * 1000);
-
-      const timelines = service.getTimelineByRunId('run-001');
-      expect(timelines).toEqual([]);
-    });
-
-    it('should keep recent timelines', async () => {
-      await service.createTimeline(createTimelineEntry());
-
-      // Advance timers
-      jest.advanceTimersByTime(5 * 60 * 1000);
-
-      const timelines = service.getTimelineByRunId('run-001');
-      expect(timelines).toHaveLength(1);
-    });
-
-    it('should evict old timelines and their events', async () => {
-      const oldDate = new Date(Date.now() - 31 * 60 * 1000);
-      const timeline = await service.createTimeline(createTimelineEntry({ startedAt: oldDate }));
-      await service.addEvent(timeline.id, {
-        timelineId: timeline.id,
-        eventType: 'log',
-        timestamp: new Date(),
-        level: 'info',
-      });
-
-      jest.advanceTimersByTime(5 * 60 * 1000);
-
-      expect(service.getTimelineByRunId('run-001')).toEqual([]);
-      expect(service.getEvents(timeline.id)).toEqual([]);
-    });
-
-    it('should evict multiple old timelines in one cleanup cycle', async () => {
-      const oldDate = new Date(Date.now() - 31 * 60 * 1000);
-      await service.createTimeline(createTimelineEntry({ startedAt: oldDate, runId: 'run-old-1' }));
-      await service.createTimeline(createTimelineEntry({ startedAt: oldDate, runId: 'run-old-2' }));
-      await service.createTimeline(createTimelineEntry({ runId: 'run-new' }));
-
-      jest.advanceTimersByTime(5 * 60 * 1000);
-
-      expect(service.getTimelineByRunId('run-old-1')).toEqual([]);
-      expect(service.getTimelineByRunId('run-old-2')).toEqual([]);
-      expect(service.getTimelineByRunId('run-new')).toHaveLength(1);
-    });
-  });
-
-  // ─── Constructor edge cases ──────────────────────────────────────────────
+  // ─── Constructor ────────────────────────────────────────────────────────
 
   describe('constructor', () => {
-    it('should work without options', () => {
-      const svc = new ExecutionTimelineService();
+    it('should require repository', () => {
+      const svc = new ExecutionTimelineService({ repository: repo });
       expect(svc).toBeDefined();
       svc.shutdown();
     });
 
-    it('should work with empty options', () => {
-      const svc = new ExecutionTimelineService({});
+    it('should accept custom tenantId', () => {
+      const svc = new ExecutionTimelineService({ repository: repo, tenantId: 'tenant-123' });
       expect(svc).toBeDefined();
       svc.shutdown();
     });
@@ -443,10 +464,11 @@ describe('ExecutionTimelineService', () => {
   // ─── addEvent edge cases ─────────────────────────────────────────────────
 
   describe('addEvent edge cases', () => {
-    it('should handle events for non-existent timeline (graceful fallback)', async () => {
-      // addEvent works even if timeline wasn't created via createTimeline
-      const event = await service.addEvent('non-existent-tl', {
-        timelineId: 'non-existent-tl',
+    it('should handle events for any timeline id', async () => {
+      repo.getNextSequenceNum.mockResolvedValue(1);
+
+      const event = await service.addEvent('any-tl-id', {
+        timelineId: 'any-tl-id',
         eventType: 'log',
         timestamp: new Date(),
         level: 'info',
@@ -459,32 +481,17 @@ describe('ExecutionTimelineService', () => {
     });
 
     it('should track sequence numbers independently per timeline', async () => {
-      const t1 = await service.createTimeline(createTimelineEntry());
-      const t2 = await service.createTimeline(createTimelineEntry({ runId: 'run-002' }));
+      repo.getNextSequenceNum.mockImplementation(async (tlId: string) => {
+        if (tlId === 'tl-1') return 3; // 2 existing events + 1
+        if (tlId === 'tl-2') return 1; // no existing events
+        return 1;
+      });
 
-      await service.addEvent(t1.id, { timelineId: t1.id, eventType: 'start', timestamp: new Date(), level: 'info' });
-      await service.addEvent(t1.id, { timelineId: t1.id, eventType: 'log', timestamp: new Date(), level: 'info' });
-      const t2Event = await service.addEvent(t2.id, { timelineId: t2.id, eventType: 'start', timestamp: new Date(), level: 'info' });
+      const t1Event = await service.addEvent('tl-1', { timelineId: 'tl-1', eventType: 'log', timestamp: new Date(), level: 'info' });
+      const t2Event = await service.addEvent('tl-2', { timelineId: 'tl-2', eventType: 'start', timestamp: new Date(), level: 'info' });
 
-      // t2 should have its own sequence starting at 1
+      expect(t1Event.sequenceNum).toBe(3);
       expect(t2Event.sequenceNum).toBe(1);
-
-      const t1Events = service.getEvents(t1.id);
-      expect(t1Events).toHaveLength(2);
-    });
-  });
-
-  // ─── getTimelineByRunId edge cases ───────────────────────────────────────
-
-  describe('getTimelineByRunId edge cases', () => {
-    it('should handle multiple runs independently', async () => {
-      await service.createTimeline(createTimelineEntry({ runId: 'run-a' }));
-      await service.createTimeline(createTimelineEntry({ runId: 'run-a' }));
-      await service.createTimeline(createTimelineEntry({ runId: 'run-b' }));
-
-      expect(service.getTimelineByRunId('run-a')).toHaveLength(2);
-      expect(service.getTimelineByRunId('run-b')).toHaveLength(1);
-      expect(service.getTimelineByRunId('run-c')).toHaveLength(0);
     });
   });
 
@@ -492,94 +499,31 @@ describe('ExecutionTimelineService', () => {
 
   describe('updateTimelineStatus edge cases', () => {
     it('should set endedAt to now when not provided', async () => {
-      const timeline = await service.createTimeline(createTimelineEntry());
+      repo.findById.mockResolvedValue(createDbTimelineRow({
+        started_at: new Date(Date.now() - 60000).toISOString(),
+      }));
 
       const before = Date.now();
-      service.updateTimelineStatus(timeline.id, 'success');
+      await service.updateTimelineStatus('tl-001', 'success');
       const after = Date.now();
 
-      const result = service.getTimelineByRunId('run-001')[0];
-      expect(result.endedAt!.getTime()).toBeGreaterThanOrEqual(before);
-      expect(result.endedAt!.getTime()).toBeLessThanOrEqual(after);
-    });
-
-    it('should handle repository save failure on update silently', async () => {
-      const repo = createMockRepository();
-      repo.saveTimeline.mockRejectedValueOnce(undefined).mockResolvedValue(undefined);
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const timeline = await svc.createTimeline(createTimelineEntry());
-
-      // Should not throw even if repo fails on update
-      expect(() => {
-        svc.updateTimelineStatus(timeline.id, 'failed');
-      }).not.toThrow();
-
-      svc.shutdown();
+      const call = repo.saveTimeline.mock.calls[0][0] as any;
+      expect(call.endedAt.getTime()).toBeGreaterThanOrEqual(before);
+      expect(call.endedAt.getTime()).toBeLessThanOrEqual(after);
     });
 
     it('should update to all valid statuses', async () => {
       const statuses: TimelineEntry['status'][] = ['success', 'failed', 'timeout', 'cancelled'];
 
       for (const status of statuses) {
-        const timeline = await service.createTimeline(createTimelineEntry());
-        service.updateTimelineStatus(timeline.id, status);
-        const result = service.getTimelineByRunId('run-001').find(t => t.id === timeline.id)!;
-        expect(result.status).toBe(status);
+        repo.saveTimeline.mockClear();
+        repo.findById.mockResolvedValue(createDbTimelineRow());
+
+        await service.updateTimelineStatus('tl-001', status);
+
+        const call = repo.saveTimeline.mock.calls[0][0] as any;
+        expect(call.status).toBe(status);
       }
-    });
-  });
-
-  // ─── getReplayData edge cases ────────────────────────────────────────────
-
-  describe('getReplayData edge cases', () => {
-    it('should return empty data for non-existent run', async () => {
-      const replay = await service.getReplayData('non-existent');
-      expect(replay.timelines).toEqual([]);
-      expect(replay.events).toEqual({});
-    });
-
-    it('should include events for multiple timelines', async () => {
-      const t1 = await service.createTimeline(createTimelineEntry({ runId: 'run-multi' }));
-      const t2 = await service.createTimeline(createTimelineEntry({ runId: 'run-multi' }));
-
-      await service.addEvent(t1.id, { timelineId: t1.id, eventType: 'start', timestamp: new Date(), level: 'info' });
-      await service.addEvent(t2.id, { timelineId: t2.id, eventType: 'start', timestamp: new Date(), level: 'info' });
-      await service.addEvent(t2.id, { timelineId: t2.id, eventType: 'complete', timestamp: new Date(), level: 'info' });
-
-      const replay = await service.getReplayData('run-multi');
-      expect(replay.timelines).toHaveLength(2);
-      expect(replay.events[t1.id]).toHaveLength(1);
-      expect(replay.events[t2.id]).toHaveLength(2);
-    });
-
-    it('should return repository events when repo is available', async () => {
-      const repo = createMockRepository();
-      const timeline: TimelineEntry = {
-        id: 'tl-db',
-        runId: 'run-db-evt',
-        taskId: 'task-1',
-        pluginId: 'plugin-1',
-        stepName: 'build',
-        startedAt: new Date(),
-        status: 'success',
-      };
-      const event: TimelineEvent = {
-        id: 'evt-db',
-        timelineId: 'tl-db',
-        eventType: 'start',
-        timestamp: new Date(),
-        level: 'info',
-        sequenceNum: 1,
-      };
-      repo.findByRunId.mockResolvedValue([timeline]);
-      repo.findByTimelineId.mockResolvedValue([event]);
-
-      const svc = new ExecutionTimelineService({ repository: repo });
-      const replay = await svc.getReplayData('run-db-evt');
-
-      expect(replay.events['tl-db']).toHaveLength(1);
-      expect(replay.events['tl-db'][0].id).toBe('evt-db');
-      svc.shutdown();
     });
   });
 });
@@ -587,9 +531,15 @@ describe('ExecutionTimelineService', () => {
 // ─── Global Registry ────────────────────────────────────────────────────────
 
 describe('Timeline Registry', () => {
+  let repo: ReturnType<typeof createMockRepository>;
+
+  beforeEach(() => {
+    repo = createMockRepository();
+  });
+
   it('should register and shutdown all timelines', () => {
-    const service1 = new ExecutionTimelineService();
-    const service2 = new ExecutionTimelineService();
+    const service1 = new ExecutionTimelineService({ repository: repo });
+    const service2 = new ExecutionTimelineService({ repository: repo });
 
     registerTimelineForShutdown(service1);
     registerTimelineForShutdown(service2);
@@ -604,7 +554,7 @@ describe('Timeline Registry', () => {
   });
 
   it('should handle shutdown errors gracefully', () => {
-    const service = new ExecutionTimelineService();
+    const service = new ExecutionTimelineService({ repository: repo });
     jest.spyOn(service, 'shutdown').mockImplementation(() => {
       throw new Error('shutdown error');
     });
@@ -615,7 +565,7 @@ describe('Timeline Registry', () => {
   });
 
   it('should clear registry after shutdown', () => {
-    const service = new ExecutionTimelineService();
+    const service = new ExecutionTimelineService({ repository: repo });
     registerTimelineForShutdown(service);
 
     shutdownAllTimelines();

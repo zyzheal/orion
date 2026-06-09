@@ -25,11 +25,119 @@ jest.mock('pino', () => {
 
 jest.mock('uuid', () => ({ v4: jest.fn(() => 'mock-uuid') }));
 
+// In-memory mock for PostgreSQL
+function createMockDb() {
+  const tables: Record<string, any[]> = {
+    auto_recovery_records: [],
+    auto_recovery_degraded_state: [],
+  };
+
+  const mockDb = {
+    query: jest.fn(async (text: string, params: any[] = []) => {
+      // Simple in-memory query simulation
+      if (text.includes('INSERT INTO auto_recovery_records')) {
+        const row = {
+          id: params[0],
+          provider_id: params[1],
+          attempted_at: params[2],
+          success: params[3],
+          success_rate: params[4],
+          degraded_at: params[5],
+          recovered_at: params[6],
+          tenant_id: params[7],
+          created_at: new Date(),
+        };
+        tables.auto_recovery_records.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+
+      if (text.includes('INSERT INTO auto_recovery_degraded_state')) {
+        const existing = tables.auto_recovery_degraded_state.find(r => r.provider_id === params[1]);
+        if (existing) {
+          existing.degraded_at = params[2];
+          existing.last_success_rate = params[3];
+          existing.updated_at = new Date();
+          return { rows: [existing], rowCount: 1 };
+        }
+        const row = {
+          id: params[0],
+          provider_id: params[1],
+          degraded_at: params[2],
+          last_success_rate: params[3],
+          tenant_id: params[4],
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+        tables.auto_recovery_degraded_state.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+
+      if (text.includes('DELETE FROM auto_recovery_degraded_state WHERE provider_id')) {
+        const idx = tables.auto_recovery_degraded_state.findIndex(r => r.provider_id === params[0]);
+        if (idx >= 0) tables.auto_recovery_degraded_state.splice(idx, 1);
+        return { rows: [], rowCount: idx >= 0 ? 1 : 0 };
+      }
+
+      if (text.includes('DELETE FROM auto_recovery_records WHERE provider_id')) {
+        const before = tables.auto_recovery_records.length;
+        tables.auto_recovery_records = tables.auto_recovery_records.filter(r => r.provider_id !== params[0]);
+        return { rows: [], rowCount: before - tables.auto_recovery_records.length };
+      }
+
+      if (text.includes('SELECT * FROM auto_recovery_degraded_state ORDER BY degraded_at DESC')) {
+        return { rows: [...tables.auto_recovery_degraded_state], rowCount: tables.auto_recovery_degraded_state.length };
+      }
+
+      if (text.includes('SELECT * FROM auto_recovery_degraded_state WHERE provider_id')) {
+        const row = tables.auto_recovery_degraded_state.find(r => r.provider_id === params[0]);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+
+      if (text.includes('COUNT(*)') && text.includes('auto_recovery_records') && text.includes('provider_id')) {
+        const attempts = tables.auto_recovery_records.filter(r => r.provider_id === params[0]);
+        const successes = attempts.filter(r => r.success);
+        return {
+          rows: [{
+            attempt_count: String(attempts.length),
+            success_count: String(successes.length),
+            failure_count: String(attempts.length - successes.length),
+            last_attempt_at: attempts.length > 0 ? attempts[attempts.length - 1].attempted_at : null,
+            last_success_at: successes.length > 0 ? successes[successes.length - 1].attempted_at : null,
+          }],
+          rowCount: 1,
+        };
+      }
+
+      if (text.includes('COUNT(*)') && text.includes('auto_recovery_records')) {
+        const successes = tables.auto_recovery_records.filter(r => r.success);
+        return {
+          rows: [{
+            total_attempts: String(tables.auto_recovery_records.length),
+            total_successes: String(successes.length),
+          }],
+          rowCount: 1,
+        };
+      }
+
+      if (text.includes('SELECT DISTINCT provider_id FROM auto_recovery_records')) {
+        const ids = [...new Set(tables.auto_recovery_records.map(r => r.provider_id))];
+        return { rows: ids.map(id => ({ provider_id: id })), rowCount: ids.length };
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+
+  return mockDb;
+}
+
 describe('AutoRecoveryService', () => {
   let service: AutoRecoveryService;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
-    service = new AutoRecoveryService();
+    mockDb = createMockDb();
+    service = new AutoRecoveryService({}, mockDb as any);
     jest.useFakeTimers();
   });
 
@@ -50,7 +158,7 @@ describe('AutoRecoveryService', () => {
     });
 
     it('should accept custom config', () => {
-      const custom = new AutoRecoveryService({ maxRecoveryAttempts: 5, successThreshold: 0.8 });
+      const custom = new AutoRecoveryService({ maxRecoveryAttempts: 5, successThreshold: 0.8 }, mockDb as any);
       expect(custom.getConfig().maxRecoveryAttempts).toBe(5);
       expect(custom.getConfig().successThreshold).toBe(0.8);
     });
@@ -59,15 +167,17 @@ describe('AutoRecoveryService', () => {
   // ==================== markDegraded ====================
 
   describe('markDegraded', () => {
-    it('should mark provider as degraded', () => {
-      service.markDegraded('provider-1');
-      expect(service.getDegradedProviders()).toContain('provider-1');
+    it('should mark provider as degraded', async () => {
+      await service.markDegraded('provider-1');
+      const degraded = await service.getDegradedProviders();
+      expect(degraded).toContain('provider-1');
     });
 
-    it('should track multiple degraded providers', () => {
-      service.markDegraded('p1');
-      service.markDegraded('p2');
-      expect(service.getDegradedProviders()).toHaveLength(2);
+    it('should track multiple degraded providers', async () => {
+      await service.markDegraded('p1');
+      await service.markDegraded('p2');
+      const degraded = await service.getDegradedProviders();
+      expect(degraded).toHaveLength(2);
     });
   });
 
@@ -75,7 +185,7 @@ describe('AutoRecoveryService', () => {
 
   describe('attemptRecovery', () => {
     it('should attempt recovery for degraded provider', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       // Default probe returns 0.6 > 0.5 threshold
       const result = await service.attemptRecovery('p1');
 
@@ -84,9 +194,9 @@ describe('AutoRecoveryService', () => {
     });
 
     it('should fail recovery when probe returns low rate', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       // Set rate below threshold so probe returns low value
-      service.updateProviderSuccessRate('p1', 0.3);
+      await service.updateProviderSuccessRate('p1', 0.3);
 
       const result = await service.attemptRecovery('p1');
 
@@ -95,8 +205,8 @@ describe('AutoRecoveryService', () => {
     });
 
     it('should not attempt after max attempts reached', async () => {
-      service.markDegraded('p1');
-      service.updateProviderSuccessRate('p1', 0.3);
+      await service.markDegraded('p1');
+      await service.updateProviderSuccessRate('p1', 0.3);
 
       // Exhaust attempts
       await service.attemptRecovery('p1');
@@ -110,7 +220,7 @@ describe('AutoRecoveryService', () => {
     it('should emit recovery:success on success', async () => {
       const spy = jest.fn();
       service.on('recovery:success', spy);
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
 
       await service.attemptRecovery('p1');
 
@@ -120,8 +230,8 @@ describe('AutoRecoveryService', () => {
     it('should emit recovery:failed on failure', async () => {
       const spy = jest.fn();
       service.on('recovery:failed', spy);
-      service.markDegraded('p1');
-      service.updateProviderSuccessRate('p1', 0.3);
+      await service.markDegraded('p1');
+      await service.updateProviderSuccessRate('p1', 0.3);
 
       await service.attemptRecovery('p1');
 
@@ -129,28 +239,29 @@ describe('AutoRecoveryService', () => {
     });
 
     it('should remove from degraded list on success', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       await service.attemptRecovery('p1');
 
-      expect(service.getDegradedProviders()).not.toContain('p1');
+      const degraded = await service.getDegradedProviders();
+      expect(degraded).not.toContain('p1');
     });
   });
 
   // ==================== getRecoveryStats ====================
 
   describe('getRecoveryStats', () => {
-    it('should return stats with no attempts', () => {
-      const stats = service.getRecoveryStats('p1');
+    it('should return stats with no attempts', async () => {
+      const stats = await service.getRecoveryStats('p1');
       expect(stats.attemptCount).toBe(0);
       expect(stats.successCount).toBe(0);
       expect(stats.failureCount).toBe(0);
     });
 
     it('should track success and failure counts', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       await service.attemptRecovery('p1');
 
-      const stats = service.getRecoveryStats('p1');
+      const stats = await service.getRecoveryStats('p1');
       expect(stats.attemptCount).toBe(1);
       expect(stats.successCount).toBeGreaterThanOrEqual(0);
     });
@@ -159,15 +270,15 @@ describe('AutoRecoveryService', () => {
   // ==================== getOverallSuccessRate ====================
 
   describe('getOverallSuccessRate', () => {
-    it('should return 0 with no attempts', () => {
-      expect(service.getOverallSuccessRate()).toBe(0);
+    it('should return 0 with no attempts', async () => {
+      expect(await service.getOverallSuccessRate()).toBe(0);
     });
 
     it('should calculate rate from attempts', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       await service.attemptRecovery('p1');
 
-      const rate = service.getOverallSuccessRate();
+      const rate = await service.getOverallSuccessRate();
       expect(rate).toBeGreaterThanOrEqual(0);
       expect(rate).toBeLessThanOrEqual(1);
     });
@@ -176,10 +287,11 @@ describe('AutoRecoveryService', () => {
   // ==================== clearDegraded ====================
 
   describe('clearDegraded', () => {
-    it('should remove provider from degraded list', () => {
-      service.markDegraded('p1');
-      service.clearDegraded('p1');
-      expect(service.getDegradedProviders()).not.toContain('p1');
+    it('should remove provider from degraded list', async () => {
+      await service.markDegraded('p1');
+      await service.clearDegraded('p1');
+      const degraded = await service.getDegradedProviders();
+      expect(degraded).not.toContain('p1');
     });
   });
 
@@ -187,13 +299,13 @@ describe('AutoRecoveryService', () => {
 
   describe('resetAttempts', () => {
     it('should reset attempt counter', async () => {
-      service.markDegraded('p1');
-      service.updateProviderSuccessRate('p1', 0.3);
+      await service.markDegraded('p1');
+      await service.updateProviderSuccessRate('p1', 0.3);
       await service.attemptRecovery('p1');
 
-      service.resetAttempts('p1');
+      await service.resetAttempts('p1');
 
-      const stats = service.getRecoveryStats('p1');
+      const stats = await service.getRecoveryStats('p1');
       expect(stats.attemptCount).toBe(0);
     });
   });
@@ -224,8 +336,9 @@ describe('AutoRecoveryService', () => {
   // ==================== updateProviderSuccessRate ====================
 
   describe('updateProviderSuccessRate', () => {
-    it('should update success rate', () => {
-      service.updateProviderSuccessRate('p1', 0.75);
+    it('should update success rate for degraded provider', async () => {
+      await service.markDegraded('p1');
+      await service.updateProviderSuccessRate('p1', 0.75);
       // Rate is used internally for probeProvider
     });
   });
@@ -233,18 +346,18 @@ describe('AutoRecoveryService', () => {
   // ==================== getAllStats ====================
 
   describe('getAllStats', () => {
-    it('should return summary stats', () => {
-      const stats = service.getAllStats();
+    it('should return summary stats', async () => {
+      const stats = await service.getAllStats();
       expect(stats.totalProviders).toBe(0);
       expect(stats.degradedProviders).toBe(0);
       expect(stats.overallSuccessRate).toBe(0);
       expect(stats.providers).toEqual([]);
     });
 
-    it('should include degraded count', () => {
-      service.markDegraded('p1');
-      service.markDegraded('p2');
-      const stats = service.getAllStats();
+    it('should include degraded count', async () => {
+      await service.markDegraded('p1');
+      await service.markDegraded('p2');
+      const stats = await service.getAllStats();
       expect(stats.degradedProviders).toBe(2);
     });
   });
@@ -253,24 +366,24 @@ describe('AutoRecoveryService', () => {
 
   describe('checkRecoveryCandidates', () => {
     it('should attempt recovery for eligible providers', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       // Advance time past minRecoveryTime
       jest.advanceTimersByTime(61000);
 
       await service.checkRecoveryCandidates();
 
-      const stats = service.getRecoveryStats('p1');
+      const stats = await service.getRecoveryStats('p1');
       expect(stats.attemptCount).toBeGreaterThanOrEqual(1);
     });
 
     it('should not attempt for recently degraded providers', async () => {
-      service.markDegraded('p1');
+      await service.markDegraded('p1');
       // Only advance 10 seconds (less than minRecoveryTime of 60s)
       jest.advanceTimersByTime(10000);
 
       await service.checkRecoveryCandidates();
 
-      const stats = service.getRecoveryStats('p1');
+      const stats = await service.getRecoveryStats('p1');
       expect(stats.attemptCount).toBe(0);
     });
   });
