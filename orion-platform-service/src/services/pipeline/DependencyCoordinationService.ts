@@ -8,8 +8,9 @@
  * - 检测循环依赖
  * - 获取拓扑排序顺序
  *
- * GAP-11: Added PostgreSQL persistence via PipelineDependencyRepository.
- * Graceful degradation: works with or without a repository.
+ * PostgreSQL is the primary data source. In-memory Map acts as a read-through
+ * cache for hot-path graph operations. All mutations are persisted to the DB
+ * first, then reflected in the cache.
  */
 
 import { PipelineDependencyRepository } from '../../repositories/PipelineDependencyRepository';
@@ -44,18 +45,17 @@ export interface PipelineResult {
 }
 
 export class DependencyCoordinationService {
-  private repository: PipelineDependencyRepository | null = null;
-  // In-memory fallback for tests and environments without DB
+  private repository: PipelineDependencyRepository;
+  // Read-through cache for hot-path graph operations
   private dependencies: Map<string, PipelineDependency> = new Map();
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new PipelineDependencyRepository(db);
-    }
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = new PipelineDependencyRepository(db);
   }
 
   /**
    * 注册pipeline依赖关系
+   * DB is the primary store; cache is updated on success.
    */
   async registerDependency(
     pipelineId: string,
@@ -70,64 +70,48 @@ export class DependencyCoordinationService {
       blockingStatus: blockingStatus || ['success'],
     };
 
-    // Persist to database if repository available
-    if (this.repository) {
-      try {
-        await this.repository.upsertDependency(
-          pipelineId,
-          dependsOn,
-          'sequential',
-          'default'
-        );
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, pipelineId }, 'Failed to persist dependency to database');
-      }
-    }
+    // Persist to database first (primary store)
+    await this.repository.upsertDependency(
+      pipelineId,
+      dependsOn,
+      'sequential',
+      'default'
+    );
 
-    // Always keep in-memory for fast access
+    // Update cache after successful persistence
     this.dependencies.set(pipelineId, dep);
   }
 
   /**
    * 注销pipeline依赖关系
+   * Deletes from DB first, then removes from cache.
    */
   async unregisterDependency(pipelineId: string): Promise<boolean> {
-    if (this.repository) {
-      try {
-        await this.repository.deleteByPipelineId(pipelineId);
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, pipelineId }, 'Failed to delete dependency from database');
-      }
-    }
+    await this.repository.deleteByPipelineId(pipelineId);
     return this.dependencies.delete(pipelineId);
   }
 
   /**
    * 获取指定pipeline的依赖信息
+   * Read-through: cache first, DB fallback, cache result.
    */
   async getDependency(pipelineId: string): Promise<PipelineDependency | undefined> {
-    // Try in-memory first
+    // Try cache first
     const cached = this.dependencies.get(pipelineId);
     if (cached) return cached;
 
     // Fallback to database
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findByPipelineId(pipelineId);
-        if (entity) {
-          const dep: PipelineDependency = {
-            pipelineId: entity.pipelineId,
-            dependsOn: entity.dependsOn,
-            requiredInputs: {},
-            blockingStatus: ['success'],
-          };
-          // Cache in memory
-          this.dependencies.set(pipelineId, dep);
-          return dep;
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, pipelineId }, 'Failed to load dependency from database');
-      }
+    const entity = await this.repository.findByPipelineId(pipelineId);
+    if (entity) {
+      const dep: PipelineDependency = {
+        pipelineId: entity.pipelineId,
+        dependsOn: entity.dependsOn,
+        requiredInputs: {},
+        blockingStatus: ['success'],
+      };
+      // Populate cache
+      this.dependencies.set(pipelineId, dep);
+      return dep;
     }
 
     return undefined;
@@ -135,39 +119,36 @@ export class DependencyCoordinationService {
 
   /**
    * 获取所有已注册的依赖
+   * Loads from DB (source of truth) and refreshes cache.
    */
   async getAllDependencies(): Promise<PipelineDependency[]> {
-    // If we have a repository, try to load all from DB
-    if (this.repository) {
-      try {
-        const entities = await this.repository.findByTenantId('default');
-        for (const entity of entities) {
-          if (!this.dependencies.has(entity.pipelineId)) {
-            this.dependencies.set(entity.pipelineId, {
-              pipelineId: entity.pipelineId,
-              dependsOn: entity.dependsOn,
-              requiredInputs: {},
-              blockingStatus: ['success'],
-            });
-          }
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to load dependencies from database');
+    try {
+      const entities = await this.repository.findByTenantId('default');
+      // Refresh cache from DB
+      this.dependencies.clear();
+      for (const entity of entities) {
+        this.dependencies.set(entity.pipelineId, {
+          pipelineId: entity.pipelineId,
+          dependsOn: entity.dependsOn,
+          requiredInputs: {},
+          blockingStatus: ['success'],
+        });
       }
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to load dependencies from database, using cache');
     }
     return Array.from(this.dependencies.values());
   }
 
   /**
    * 解析依赖是否已满足
-   * @param pipelineId 目标pipeline ID
-   * @param pipelineResults 其他pipeline的运行结果Map
+   * Uses getDependency for DB-backed lookup.
    */
   async resolveDependencies(
     pipelineId: string,
     pipelineResults: Map<string, PipelineResult>
   ): Promise<DependencyResolution> {
-    const dep = this.dependencies.get(pipelineId);
+    const dep = await this.getDependency(pipelineId);
 
     // 没有依赖关系，视为已满足
     if (!dep) {
@@ -211,8 +192,11 @@ export class DependencyCoordinationService {
 
   /**
    * 获取依赖图
+   * Loads all dependencies from DB first, then builds graph.
    */
   async getDependencyGraph(): Promise<DependencyGraph> {
+    await this.ensureCacheLoaded();
+
     const nodes = new Set<string>();
     const edges: { from: string; to: string }[] = [];
 
@@ -229,9 +213,11 @@ export class DependencyCoordinationService {
 
   /**
    * 检测循环依赖
-   * @returns 循环依赖的节点数组
+   * Loads all dependencies from DB first, then runs DFS.
    */
   async findCycles(): Promise<string[][]> {
+    await this.ensureCacheLoaded();
+
     const cycles: string[][] = [];
     const visited = new Set<string>();
     const recStack = new Set<string>();
@@ -270,9 +256,11 @@ export class DependencyCoordinationService {
 
   /**
    * 获取拓扑排序的执行顺序
-   * @returns 可以安全执行的pipeline ID数组
+   * Loads all dependencies from DB first, then computes topological order.
    */
   async getTopologicalOrder(): Promise<string[]> {
+    await this.ensureCacheLoaded();
+
     const inDegree = new Map<string, number>();
     const graph = new Map<string, string[]>();
 
@@ -333,10 +321,13 @@ export class DependencyCoordinationService {
 
   /**
    * 批量解析多个pipeline的依赖状态
+   * Loads all dependencies from DB first.
    */
   async resolveAllDependencies(
     pipelineResults: Map<string, PipelineResult>
   ): Promise<Map<string, DependencyResolution>> {
+    await this.ensureCacheLoaded();
+
     const results = new Map<string, DependencyResolution>();
 
     for (const [pipelineId] of this.dependencies) {
@@ -349,8 +340,36 @@ export class DependencyCoordinationService {
 
   /**
    * 清除所有依赖关系
+   * Clears both DB (via repository) and cache.
    */
   async clearAllDependencies(): Promise<void> {
+    // Delete all from DB for the default tenant
+    const entities = await this.repository.findByTenantId('default');
+    for (const entity of entities) {
+      await this.repository.deleteByPipelineId(entity.pipelineId);
+    }
     this.dependencies.clear();
+  }
+
+  /**
+   * Ensure cache is populated from DB.
+   * Called by graph-operation methods to guarantee complete data.
+   */
+  private async ensureCacheLoaded(): Promise<void> {
+    if (this.dependencies.size === 0) {
+      try {
+        const entities = await this.repository.findByTenantId('default');
+        for (const entity of entities) {
+          this.dependencies.set(entity.pipelineId, {
+            pipelineId: entity.pipelineId,
+            dependsOn: entity.dependsOn,
+            requiredInputs: {},
+            blockingStatus: ['success'],
+          });
+        }
+      } catch (err) {
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to load dependencies from database');
+      }
+    }
   }
 }

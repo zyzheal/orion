@@ -250,16 +250,68 @@ export class PipelineTriggerService {
   }
 
   /**
-   * Get a trigger by ID
+   * Get a trigger by ID.
+   * Cache-first with DB fallback.
    */
   async getTrigger(triggerId: string): Promise<Trigger | null> {
-    return this.triggers.get(triggerId) ?? null;
+    const cached = this.triggers.get(triggerId);
+    if (cached) return cached;
+
+    // Fallback to database
+    if (this.triggerRepository) {
+      try {
+        const entity = await this.triggerRepository.findById(triggerId);
+        if (entity) {
+          const trigger: Trigger = {
+            id: entity.id,
+            pipelineId: entity.pipelineId,
+            tenantId: entity.tenantId,
+            type: entity.type as TriggerType,
+            config: entity.config as TriggerConfig,
+            status: entity.status as TriggerStatus,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+          };
+          this.triggers.set(trigger.id, trigger);
+          return trigger;
+        }
+      } catch (err) {
+        logger.warn({ triggerId, err }, 'Failed to load trigger from database');
+      }
+    }
+
+    return null;
   }
 
   /**
-   * List triggers for a pipeline
+   * List triggers for a pipeline.
+   * Queries DB (source of truth) and refreshes cache entries.
    */
   async listTriggersByPipeline(tenantId: string, pipelineId: string): Promise<Trigger[]> {
+    if (this.triggerRepository) {
+      try {
+        const entities = await this.triggerRepository.findByPipeline(tenantId, pipelineId);
+        const triggers: Trigger[] = entities.map(entity => {
+          const trigger: Trigger = {
+            id: entity.id,
+            pipelineId: entity.pipelineId,
+            tenantId: entity.tenantId,
+            type: entity.type as TriggerType,
+            config: entity.config as TriggerConfig,
+            status: entity.status as TriggerStatus,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+          };
+          this.triggers.set(trigger.id, trigger);
+          return trigger;
+        });
+        return triggers;
+      } catch (err) {
+        logger.warn({ tenantId, pipelineId, err }, 'Failed to list triggers from database, falling back to cache');
+      }
+    }
+
+    // Fallback to in-memory cache
     const results: Trigger[] = [];
     for (const trigger of this.triggers.values()) {
       if (trigger.tenantId === tenantId && trigger.pipelineId === pipelineId) {
@@ -270,9 +322,34 @@ export class PipelineTriggerService {
   }
 
   /**
-   * List all triggers for a tenant
+   * List all triggers for a tenant.
+   * Queries DB (source of truth) and refreshes cache entries.
    */
   async listTriggersByTenant(tenantId: string): Promise<Trigger[]> {
+    if (this.triggerRepository) {
+      try {
+        const entities = await this.triggerRepository.findByTenant(tenantId);
+        const triggers: Trigger[] = entities.map(entity => {
+          const trigger: Trigger = {
+            id: entity.id,
+            pipelineId: entity.pipelineId,
+            tenantId: entity.tenantId,
+            type: entity.type as TriggerType,
+            config: entity.config as TriggerConfig,
+            status: entity.status as TriggerStatus,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+          };
+          this.triggers.set(trigger.id, trigger);
+          return trigger;
+        });
+        return triggers;
+      } catch (err) {
+        logger.warn({ tenantId, err }, 'Failed to list triggers from database, falling back to cache');
+      }
+    }
+
+    // Fallback to in-memory cache
     const results: Trigger[] = [];
     for (const trigger of this.triggers.values()) {
       if (trigger.tenantId === tenantId) {
@@ -685,12 +762,27 @@ export class PipelineTriggerService {
 
     await this.saveExecutionRecord(record);
 
-    // Mark trigger as failed if too many failures
-    const history = this.executionHistory.get(triggerId) ?? [];
-    const recentFailures = history.filter(
-      (r) => r.status === 'failed' && r.executedAt > new Date(Date.now() - 3600000)
-    );
-    if (recentFailures.length >= 5) {
+    // Mark trigger as failed if too many failures (check DB if available)
+    let recentFailureCount = 0;
+    if (this.triggerRepository) {
+      try {
+        const since = new Date(Date.now() - 3600000);
+        const failures = await this.triggerRepository.findRecentFailures(triggerId, since);
+        recentFailureCount = failures.length;
+      } catch (err) {
+        logger.warn({ triggerId, err }, 'Failed to query recent failures from DB, falling back to cache');
+        const history = this.executionHistory.get(triggerId) ?? [];
+        recentFailureCount = history.filter(
+          (r) => r.status === 'failed' && r.executedAt > new Date(Date.now() - 3600000)
+        ).length;
+      }
+    } else {
+      const history = this.executionHistory.get(triggerId) ?? [];
+      recentFailureCount = history.filter(
+        (r) => r.status === 'failed' && r.executedAt > new Date(Date.now() - 3600000)
+      ).length;
+    }
+    if (recentFailureCount >= 5) {
       trigger.status = 'failed';
       trigger.updatedAt = new Date();
       this.triggers.set(triggerId, trigger);
@@ -714,25 +806,69 @@ export class PipelineTriggerService {
   // ==================== Trigger History ====================
 
   /**
-   * Get execution history for a pipeline
+   * Get execution history for a pipeline.
+   * Queries DB for authoritative execution records.
    */
   async getTriggerHistory(pipelineId: string, tenantId?: string): Promise<TriggerExecutionRecord[]> {
+    // Find triggers for this pipeline, then query execution history from DB
+    const triggers = await this.listTriggersByPipeline(tenantId || '', pipelineId);
     const results: TriggerExecutionRecord[] = [];
-    for (const [triggerId, history] of this.executionHistory.entries()) {
-      const trigger = this.triggers.get(triggerId);
-      if (trigger && trigger.pipelineId === pipelineId) {
-        if (!tenantId || trigger.tenantId === tenantId) {
-          results.push(...history);
+
+    for (const trigger of triggers) {
+      if (this.triggerRepository) {
+        try {
+          const entities = await this.triggerRepository.findExecutionHistory(trigger.id);
+          for (const entity of entities) {
+            results.push({
+              id: entity.id,
+              triggerId: entity.triggerId,
+              pipelineId: trigger.pipelineId,
+              tenantId: trigger.tenantId,
+              status: entity.status as TriggerExecutionStatus,
+              message: (entity.contextJson?.message as string) || undefined,
+              runId: entity.runId || undefined,
+              executedAt: entity.executedAt,
+            });
+          }
+        } catch (err) {
+          logger.warn({ triggerId: trigger.id, err }, 'Failed to load execution history from database');
+          // Fallback to in-memory
+          const cached = this.executionHistory.get(trigger.id);
+          if (cached) results.push(...cached);
         }
+      } else {
+        const cached = this.executionHistory.get(trigger.id);
+        if (cached) results.push(...cached);
       }
     }
+
     return results.sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
   /**
-   * Get execution history for a specific trigger
+   * Get execution history for a specific trigger.
+   * Queries DB when repository is available.
    */
   async getTriggerHistoryById(triggerId: string): Promise<TriggerExecutionRecord[]> {
+    if (this.triggerRepository) {
+      try {
+        const entities = await this.triggerRepository.findExecutionHistory(triggerId);
+        const trigger = await this.getTrigger(triggerId);
+        return entities.map(entity => ({
+          id: entity.id,
+          triggerId: entity.triggerId,
+          pipelineId: trigger?.pipelineId || '',
+          tenantId: trigger?.tenantId || '',
+          status: entity.status as TriggerExecutionStatus,
+          message: (entity.contextJson?.message as string) || undefined,
+          runId: entity.runId || undefined,
+          executedAt: entity.executedAt,
+        }));
+      } catch (err) {
+        logger.warn({ triggerId, err }, 'Failed to load execution history from database, falling back to cache');
+      }
+    }
+
     return this.executionHistory.get(triggerId) ?? [];
   }
 
