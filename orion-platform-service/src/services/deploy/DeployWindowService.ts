@@ -334,6 +334,9 @@ export class DeployWindowService {
 
     const minuteField = cronParts[0];
     const hourField = cronParts[1];
+    const dayOfMonthField = cronParts[2];
+    const monthField = cronParts[3];
+    const dayOfWeekField = cronParts[4];
 
     // For simple cron expressions (exact minute/hour), calculate the trigger time
     const minute = this.extractExactValue(minuteField);
@@ -345,11 +348,27 @@ export class DeployWindowService {
 
       // If the trigger time is in the future, go back one occurrence
       if (triggerTime.getTime() > date.getTime()) {
-        // Go back to previous day's trigger
         triggerTime.setUTCDate(triggerTime.getUTCDate() - 1);
       }
 
-      return triggerTime;
+      // Walk backwards (up to 31 days) to find a date matching the day/month/weekday fields
+      for (let i = 0; i <= 31; i++) {
+        const dom = triggerTime.getUTCDate();
+        const mon = triggerTime.getUTCMonth() + 1;
+        const dow = triggerTime.getUTCDay();
+
+        if (
+          this.matchCronField(dayOfMonthField, dom, 1, 31) &&
+          this.matchCronField(monthField, mon, 1, 12) &&
+          this.matchCronField(dayOfWeekField, dow, 0, 6)
+        ) {
+          return triggerTime;
+        }
+
+        triggerTime.setUTCDate(triggerTime.getUTCDate() - 1);
+      }
+
+      return null;
     }
 
     return null;

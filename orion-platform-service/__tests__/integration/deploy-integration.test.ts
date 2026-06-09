@@ -382,6 +382,28 @@ describe('Deploy Integration - Deploy Window + Deployment', () => {
       // This should be inactive because Feb 31 doesn't exist
       expect(result.isActive).toBe(false);
     });
+
+    it('should not match window for specific day/month that is not today', async () => {
+      // Cron for a specific day/month that won't be today
+      await windowRepo.create({
+        tenant_id: 'tenant-1',
+        environment_id: 'env-staging',
+        name: 'Future Window',
+        cron_expression: '30 3 15 6 *', // June 15 at 3:30am
+        duration_minutes: 60,
+        status: 'active',
+        created_by: 'admin',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      const result = await windowService.checkWindowActive('tenant-1', 'env-staging');
+      // Should be inactive unless today is June 15 at 3:30-4:30am
+      const now = new Date();
+      const isJune15 = now.getUTCMonth() === 5 && now.getUTCDate() === 15;
+      const isWithinWindow = isJune15 && now.getUTCHours() === 3 && now.getUTCMinutes() >= 30 && now.getUTCMinutes() <= 90;
+      expect(result.isActive).toBe(isWithinWindow);
+    });
   });
 
   describe('E2E: Deployment Lifecycle', () => {
