@@ -2,6 +2,7 @@
  * ClusterHealthMonitor 单元测试
  *
  * 测试集群注册、健康检查、指标收集、异常检测、租户隔离等功能
+ * 所有方法现在都是 async，因为 PostgreSQL Repository 是主存储
  */
 
 import { ClusterHealthMonitor } from '../ClusterHealthMonitor';
@@ -17,8 +18,8 @@ describe('ClusterHealthMonitor', () => {
   // ==================== registerCluster ====================
 
   describe('registerCluster', () => {
-    it('应该成功注册集群', () => {
-      const result = monitor.registerCluster('tenant-1', {
+    it('应该成功注册集群', async () => {
+      const result = await monitor.registerCluster('tenant-1', {
         name: 'cluster-east',
         endpoint: 'https://cluster-east.example.com',
         region: 'east',
@@ -34,8 +35,8 @@ describe('ClusterHealthMonitor', () => {
       expect(result.createdAt).toBeInstanceOf(Date);
     });
 
-    it('应该支持自定义 nodeCount', () => {
-      const result = monitor.registerCluster('tenant-1', {
+    it('应该支持自定义 nodeCount', async () => {
+      const result = await monitor.registerCluster('tenant-1', {
         name: 'cluster-large',
         endpoint: 'https://cluster-large.example.com',
         region: 'west',
@@ -45,13 +46,13 @@ describe('ClusterHealthMonitor', () => {
       expect(result.nodeCount).toBe(10);
     });
 
-    it('应该正确维护租户到集群的映射', () => {
-      monitor.registerCluster('tenant-1', { name: 'c1', endpoint: 'https://c1', region: 'east' });
-      monitor.registerCluster('tenant-1', { name: 'c2', endpoint: 'https://c2', region: 'west' });
-      monitor.registerCluster('tenant-2', { name: 'c3', endpoint: 'https://c3', region: 'east' });
+    it('应该正确维护租户到集群的映射', async () => {
+      await monitor.registerCluster('tenant-1', { name: 'c1', endpoint: 'https://c1', region: 'east' });
+      await monitor.registerCluster('tenant-1', { name: 'c2', endpoint: 'https://c2', region: 'west' });
+      await monitor.registerCluster('tenant-2', { name: 'c3', endpoint: 'https://c3', region: 'east' });
 
-      const t1Clusters = monitor.listClusters('tenant-1');
-      const t2Clusters = monitor.listClusters('tenant-2');
+      const t1Clusters = await monitor.listClusters('tenant-1');
+      const t2Clusters = await monitor.listClusters('tenant-2');
 
       expect(t1Clusters.length).toBe(2);
       expect(t2Clusters.length).toBe(1);
@@ -61,15 +62,15 @@ describe('ClusterHealthMonitor', () => {
   // ==================== listClusters ====================
 
   describe('listClusters', () => {
-    it('没有集群时应返回空数组', () => {
-      expect(monitor.listClusters('nonexistent')).toEqual([]);
+    it('没有集群时应返回空数组', async () => {
+      expect(await monitor.listClusters('nonexistent')).toEqual([]);
     });
 
-    it('应该只返回指定租户的集群', () => {
-      monitor.registerCluster('tenant-1', { name: 'c1', endpoint: 'https://c1', region: 'east' });
-      monitor.registerCluster('tenant-2', { name: 'c2', endpoint: 'https://c2', region: 'west' });
+    it('应该只返回指定租户的集群', async () => {
+      await monitor.registerCluster('tenant-1', { name: 'c1', endpoint: 'https://c1', region: 'east' });
+      await monitor.registerCluster('tenant-2', { name: 'c2', endpoint: 'https://c2', region: 'west' });
 
-      const result = monitor.listClusters('tenant-1');
+      const result = await monitor.listClusters('tenant-1');
       expect(result.length).toBe(1);
       expect(result[0].name).toBe('c1');
     });
@@ -78,49 +79,49 @@ describe('ClusterHealthMonitor', () => {
   // ==================== getCluster ====================
 
   describe('getCluster', () => {
-    it('应该返回指定集群', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该返回指定集群', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'cluster-east',
         endpoint: 'https://cluster-east.example.com',
         region: 'east',
       });
 
-      const result = monitor.getCluster(cluster.id, 'tenant-1');
+      const result = await monitor.getCluster(cluster.id, 'tenant-1');
       expect(result).not.toBeNull();
       expect(result!.name).toBe('cluster-east');
     });
 
-    it('集群不存在时应返回 null', () => {
-      expect(monitor.getCluster('nonexistent', 'tenant-1')).toBeNull();
+    it('集群不存在时应返回 null', async () => {
+      expect(await monitor.getCluster('nonexistent', 'tenant-1')).toBeNull();
     });
 
-    it('租户不匹配时应返回 null', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('租户不匹配时应返回 null', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
-      expect(monitor.getCluster(cluster.id, 'tenant-2')).toBeNull();
+      expect(await monitor.getCluster(cluster.id, 'tenant-2')).toBeNull();
     });
   });
 
   // ==================== checkClusterHealth ====================
 
   describe('checkClusterHealth', () => {
-    it('集群不存在时应返回 null', () => {
-      expect(monitor.checkClusterHealth('nonexistent')).toBeNull();
+    it('集群不存在时应返回 null', async () => {
+      expect(await monitor.checkClusterHealth('nonexistent')).toBeNull();
     });
 
-    it('应该返回健康检查结果', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该返回健康检查结果', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'cluster-east',
         endpoint: 'https://cluster-east.example.com',
         region: 'east',
         nodeCount: 5,
       });
 
-      const result = monitor.checkClusterHealth(cluster.id);
+      const result = await monitor.checkClusterHealth(cluster.id);
 
       expect(result).not.toBeNull();
       expect(result!.clusterId).toBe(cluster.id);
@@ -135,22 +136,22 @@ describe('ClusterHealthMonitor', () => {
       expect(Array.isArray(result!.anomalies)).toBe(true);
     });
 
-    it('应该更新集群的 lastHealthCheck 时间', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该更新集群的 lastHealthCheck 时间', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
       expect(cluster.lastHealthCheck).toBeUndefined();
-      monitor.checkClusterHealth(cluster.id);
+      await monitor.checkClusterHealth(cluster.id);
 
-      const updated = monitor.getCluster(cluster.id, 'tenant-1');
+      const updated = await monitor.getCluster(cluster.id, 'tenant-1');
       expect(updated!.lastHealthCheck).toBeDefined();
     });
 
-    it('应该保留健康检查历史记录（最多100条）', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该保留健康检查历史记录（最多100条）', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
@@ -158,11 +159,11 @@ describe('ClusterHealthMonitor', () => {
 
       // Run multiple health checks
       for (let i = 0; i < 5; i++) {
-        monitor.checkClusterHealth(cluster.id);
+        await monitor.checkClusterHealth(cluster.id);
       }
 
       // All should have returned results (history is maintained internally)
-      const latest = monitor.checkClusterHealth(cluster.id);
+      const latest = await monitor.checkClusterHealth(cluster.id);
       expect(latest).not.toBeNull();
     });
   });
@@ -170,19 +171,19 @@ describe('ClusterHealthMonitor', () => {
   // ==================== getClusterMetrics ====================
 
   describe('getClusterMetrics', () => {
-    it('集群不存在时应返回 null', () => {
-      expect(monitor.getClusterMetrics('nonexistent')).toBeNull();
+    it('集群不存在时应返回 null', async () => {
+      expect(await monitor.getClusterMetrics('nonexistent')).toBeNull();
     });
 
-    it('应该返回集群指标', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该返回集群指标', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
         nodeCount: 5,
       });
 
-      const metrics = monitor.getClusterMetrics(cluster.id, '1h');
+      const metrics = await monitor.getClusterMetrics(cluster.id, '1h');
 
       expect(metrics).not.toBeNull();
       expect(metrics!.clusterId).toBe(cluster.id);
@@ -197,14 +198,14 @@ describe('ClusterHealthMonitor', () => {
       expect(metrics!.collectedAt).toBeInstanceOf(Date);
     });
 
-    it('应该使用默认 1h 时间窗口', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该使用默认 1h 时间窗口', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
-      const metrics = monitor.getClusterMetrics(cluster.id);
+      const metrics = await monitor.getClusterMetrics(cluster.id);
       expect(metrics!.timeWindow).toBe('1h');
     });
   });
@@ -212,35 +213,35 @@ describe('ClusterHealthMonitor', () => {
   // ==================== detectClusterAnomalies ====================
 
   describe('detectClusterAnomalies', () => {
-    it('集群不存在时应返回空数组', () => {
-      expect(monitor.detectClusterAnomalies('nonexistent')).toEqual([]);
+    it('集群不存在时应返回空数组', async () => {
+      expect(await monitor.detectClusterAnomalies('nonexistent')).toEqual([]);
     });
 
-    it('没有健康检查数据时应报告 no_data 异常', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('没有健康检查数据时应报告 no_data 异常', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
-      const anomalies = monitor.detectClusterAnomalies(cluster.id);
+      const anomalies = await monitor.detectClusterAnomalies(cluster.id);
 
       expect(anomalies.length).toBe(1);
       expect(anomalies[0].anomalyType).toBe('no_data');
       expect(anomalies[0].severity).toBe('medium');
     });
 
-    it('应该基于健康检查数据检测异常', () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+    it('应该基于健康检查数据检测异常', async () => {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
       // Run a health check to populate data
-      monitor.checkClusterHealth(cluster.id);
+      await monitor.checkClusterHealth(cluster.id);
 
-      const anomalies = monitor.detectClusterAnomalies(cluster.id);
+      const anomalies = await monitor.detectClusterAnomalies(cluster.id);
 
       // Results depend on simulated random values; just verify structure
       expect(Array.isArray(anomalies)).toBe(true);
@@ -264,14 +265,14 @@ describe('ClusterHealthMonitor', () => {
     });
 
     it('应该返回最近的异常（带 limit）', async () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
       // Trigger anomalies via detection
-      monitor.detectClusterAnomalies(cluster.id);
+      await monitor.detectClusterAnomalies(cluster.id);
 
       const anomalies = await monitor.getRecentAnomalies(cluster.id, 5);
       expect(Array.isArray(anomalies)).toBe(true);
@@ -287,13 +288,13 @@ describe('ClusterHealthMonitor', () => {
     });
 
     it('应该返回最新的健康检查结果', async () => {
-      const cluster = monitor.registerCluster('tenant-1', {
+      const cluster = await monitor.registerCluster('tenant-1', {
         name: 'c1',
         endpoint: 'https://c1',
         region: 'east',
       });
 
-      monitor.checkClusterHealth(cluster.id);
+      await monitor.checkClusterHealth(cluster.id);
       const latest = await monitor.getLatestHealthCheck(cluster.id);
 
       expect(latest).not.toBeNull();
@@ -309,7 +310,6 @@ describe('ClusterHealthMonitor', () => {
         query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
       };
       const monitorWithDb = new ClusterHealthMonitor(mockDb);
-      // Verify it doesn't throw when calling loadFromRepository
       expect(monitorWithDb).toBeDefined();
     });
 
@@ -326,6 +326,70 @@ describe('ClusterHealthMonitor', () => {
     it('没有 db 时 loadFromRepository 应直接返回', async () => {
       await monitor.loadFromRepository();
       // Should not throw
+    });
+
+    it('Repository 模式下 registerCluster 应写入数据库', async () => {
+      // Mock db that returns a row for INSERT RETURNING
+      const mockDb = {
+        query: jest.fn().mockImplementation((sql: string) => {
+          if (sql.includes('INSERT INTO')) {
+            return Promise.resolve({
+              rows: [{ id: 'test-id', tenant_id: 'tenant-1', name: 'c1', endpoint: 'https://c1', region: 'east', status: 'online', node_count: 3, last_health_check: null, created_at: new Date(), updated_at: new Date() }],
+              rowCount: 1,
+            });
+          }
+          return Promise.resolve({ rows: [], rowCount: 0 });
+        }),
+      };
+      const monitorWithDb = new ClusterHealthMonitor(mockDb);
+
+      const result = await monitorWithDb.registerCluster('tenant-1', {
+        name: 'c1',
+        endpoint: 'https://c1',
+        region: 'east',
+      });
+
+      expect(result.id).toBeDefined();
+      expect(result.name).toBe('c1');
+      // Verify repository create was called
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO cluster_records'),
+        expect.arrayContaining([result.id, 'tenant-1', 'c1']),
+      );
+    });
+
+    it('Repository 模式下 checkClusterHealth 应写入数据库', async () => {
+      // Mock db that returns rows for INSERT RETURNING
+      const mockDb = {
+        query: jest.fn().mockImplementation((sql: string) => {
+          if (sql.includes('INSERT INTO')) {
+            return Promise.resolve({
+              rows: [{ id: 'test-id', tenant_id: 'tenant-1', name: 'c1', endpoint: 'https://c1', region: 'east', status: 'online', node_count: 3, last_health_check: null, created_at: new Date(), updated_at: new Date() }],
+              rowCount: 1,
+            });
+          }
+          return Promise.resolve({ rows: [], rowCount: 0 });
+        }),
+      };
+      const monitorWithDb = new ClusterHealthMonitor(mockDb);
+
+      const cluster = await monitorWithDb.registerCluster('tenant-1', {
+        name: 'c1',
+        endpoint: 'https://c1',
+        region: 'east',
+      });
+
+      // Reset mock to track health check calls
+      mockDb.query.mockClear();
+
+      const result = await monitorWithDb.checkClusterHealth(cluster.id);
+
+      expect(result).not.toBeNull();
+      // Verify health check was persisted
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO cluster_health_checks'),
+        expect.any(Array),
+      );
     });
   });
 });
