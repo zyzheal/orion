@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, Spin, Empty, message } from 'antd';
 import {
   BarChartOutlined,
   WalletOutlined,
@@ -23,6 +23,8 @@ const menuItems = [
 const AICostDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
+
   return (
     <Layout style={{ minHeight: '100%' }}>
       <Sider
@@ -38,7 +40,9 @@ const AICostDashboardLayout: React.FC = () => {
         />
       </Sider>
       <Content style={{ padding: spacing[6], background: colors.light.bg.primary }}>
-        <Outlet />
+        <Spin spinning={loading}>
+          <Outlet />
+        </Spin>
       </Content>
     </Layout>
   );

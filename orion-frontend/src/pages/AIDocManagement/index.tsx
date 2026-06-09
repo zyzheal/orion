@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, Spin, Empty, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   BookOutlined,
@@ -21,6 +21,8 @@ const menuItems = [
 const AIDocManagementLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
+
   return (
     <Layout style={{ minHeight: '100%' }}>
       <Sider
@@ -36,7 +38,9 @@ const AIDocManagementLayout: React.FC = () => {
         />
       </Sider>
       <Content style={{ padding: spacing.lg, background: colors.light.bg.primary }}>
-        <Outlet />
+        <Spin spinning={loading}>
+          <Outlet />
+        </Spin>
       </Content>
     </Layout>
   );
