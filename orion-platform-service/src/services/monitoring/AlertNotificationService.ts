@@ -4,6 +4,10 @@
  * Sends alerts via multiple channels (email, webhook, Slack).
  * Supports escalation policies with timed steps, alert acknowledgment
  * tracking, and notification history.
+ *
+ * Persistence: When `db` is provided, PostgreSQL is the primary store and
+ * Maps are used as write-through caches. Without `db`, in-memory Maps are
+ * the sole store (for tests and legacy usage).
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -11,12 +15,15 @@ import pino from 'pino';
 import { OrionError } from '../../errors';
 import {
   MonitoringNotificationChannelRepository,
+  MonitoringNotificationChannelEntity,
 } from '../../repositories/MonitoringNotificationChannelRepository';
 import {
   MonitoringEscalationPolicyRepository,
+  MonitoringEscalationPolicyEntity,
 } from '../../repositories/MonitoringEscalationPolicyRepository';
 import {
   MonitoringNotificationHistoryRepository,
+  MonitoringNotificationHistoryEntity,
 } from '../../repositories/MonitoringNotificationHistoryRepository';
 
 const logger = pino({ name: 'LAlert-LNotification-LService' });
@@ -63,28 +70,28 @@ interface EscalationState {
  * - Notification history and delivery status
  */
 export class AlertNotificationService {
-  /** Optional PostgreSQL repository for notification channels */
+  /** PostgreSQL repository for notification channels (primary when available) */
   private readonly channelRepo?: MonitoringNotificationChannelRepository;
 
-  /** Optional PostgreSQL repository for escalation policies */
+  /** PostgreSQL repository for escalation policies (primary when available) */
   private readonly escalationPolicyRepo?: MonitoringEscalationPolicyRepository;
 
-  /** Optional PostgreSQL repository for notification history */
+  /** PostgreSQL repository for notification history (primary when available) */
   private readonly notificationHistoryRepo?: MonitoringNotificationHistoryRepository;
 
-  /** Registered notification channels (in-memory cache) */
+  /** Registered notification channels (write-through cache / memory fallback) */
   private channels: Map<string, AlertChannel> = new Map();
 
-  /** Registered escalation policies (in-memory cache) */
+  /** Registered escalation policies (write-through cache / memory fallback) */
   private escalationPolicies: Map<string, EscalationPolicy> = new Map();
 
-  /** Notification history (in-memory cache) */
+  /** Notification history (write-through cache / memory fallback) */
   private notifications: NotificationRecord[] = [];
 
-  /** Active escalation states */
+  /** Active escalation states (always in-memory, runtime state with timers) */
   private escalationStates: Map<string, EscalationState> = new Map();
 
-  /** Alert to escalation policy mapping */
+  /** Alert to escalation policy mapping (always in-memory, runtime state) */
   private alertEscalationMap: Map<string, string> = new Map();
 
   constructor(db?: DbConnection) {
@@ -95,68 +102,96 @@ export class AlertNotificationService {
     }
   }
 
+  /**
+   * Load persisted channels and escalation policies from PostgreSQL into in-memory Maps.
+   * Call this once after construction when db is provided.
+   */
+  async init(): Promise<void> {
+    if (this.channelRepo) {
+      const entities = await this.channelRepo.findEnabled();
+      for (const entity of entities) {
+        const channel = this.entityToChannel(entity);
+        this.channels.set(channel.id, channel);
+      }
+      logger.info(`[AlertNotificationService] Loaded ${entities.length} channels from repository`);
+    }
+
+    if (this.escalationPolicyRepo) {
+      const entities = await this.escalationPolicyRepo.findEnabled();
+      for (const entity of entities) {
+        const policy = this.entityToPolicy(entity);
+        this.escalationPolicies.set(policy.id, policy);
+      }
+      logger.info(`[AlertNotificationService] Loaded ${entities.length} escalation policies from repository`);
+    }
+  }
+
   // ==================== Channel Management ====================
 
   /**
    * Add a notification channel
    */
-  addChannel(channel: AlertChannel): void {
-    this.channels.set(channel.id, channel);
+  async addChannel(channel: AlertChannel): Promise<void> {
+    // Persist to repository first
+    if (this.channelRepo) {
+      await this.channelRepo.create({
+        id: channel.id,
+        tenant_id: '00000000-0000-0000-0000-000000000000',
+        name: channel.name,
+        type: channel.type,
+        config: channel.config,
+        enabled: channel.enabled,
+        severity_filter: channel.severityFilter || [],
+      } as any);
+    }
 
-    // Persist to repository if available (fire-and-forget)
-    this.channelRepo?.create({
-      id: channel.id,
-      tenant_id: '00000000-0000-0000-0000-000000000000',
-      name: channel.name,
-      type: channel.type,
-      config: channel.config,
-      enabled: channel.enabled,
-      severity_filter: channel.severityFilter || [],
-    } as any).catch((err: any) =>
-      logger.warn('[AlertNotificationService] Failed to persist channel:', err)
-    );
+    // Update in-memory cache
+    this.channels.set(channel.id, channel);
   }
 
   /**
    * Update a channel
    */
-  updateChannel(channelId: string, updates: Partial<AlertChannel>): AlertChannel | null {
+  async updateChannel(channelId: string, updates: Partial<AlertChannel>): Promise<AlertChannel | null> {
     const existing = this.channels.get(channelId);
     if (!existing) return null;
 
     const updated = { ...existing, ...updates };
-    this.channels.set(channelId, updated);
 
-    // Persist to repository if available (fire-and-forget)
-    const repoUpdate: any = {};
-    if (updates.name !== undefined) repoUpdate.name = updates.name;
-    if (updates.type !== undefined) repoUpdate.type = updates.type;
-    if (updates.config !== undefined) repoUpdate.config = updates.config;
-    if (updates.enabled !== undefined) repoUpdate.enabled = updates.enabled;
-    if (updates.severityFilter !== undefined) repoUpdate.severity_filter = updates.severityFilter;
+    // Persist to repository first
+    if (this.channelRepo) {
+      const repoUpdate: any = {};
+      if (updates.name !== undefined) repoUpdate.name = updates.name;
+      if (updates.type !== undefined) repoUpdate.type = updates.type;
+      if (updates.config !== undefined) repoUpdate.config = updates.config;
+      if (updates.enabled !== undefined) repoUpdate.enabled = updates.enabled;
+      if (updates.severityFilter !== undefined) repoUpdate.severity_filter = updates.severityFilter;
 
-    if (Object.keys(repoUpdate).length > 0) {
-      this.channelRepo?.update(channelId, repoUpdate).catch((err: any) =>
-        logger.warn('[AlertNotificationService] Failed to update channel in repository:', err)
-      );
+      if (Object.keys(repoUpdate).length > 0) {
+        await this.channelRepo.update(channelId, repoUpdate);
+      }
     }
 
+    // Update in-memory cache
+    this.channels.set(channelId, updated);
     return updated;
   }
 
   /**
    * Remove a channel
    */
-  removeChannel(channelId: string): boolean {
-    const result = this.channels.delete(channelId);
+  async removeChannel(channelId: string): Promise<boolean> {
+    const exists = this.channels.has(channelId);
+    if (!exists) return false;
 
-    if (result) {
-      this.channelRepo?.delete(channelId).catch((err: any) =>
-        logger.warn('[AlertNotificationService] Failed to delete channel from repository:', err)
-      );
+    // Delete from repository first
+    if (this.channelRepo) {
+      await this.channelRepo.delete(channelId);
     }
 
-    return result;
+    // Update in-memory cache
+    this.channels.delete(channelId);
+    return true;
   }
 
   /**
