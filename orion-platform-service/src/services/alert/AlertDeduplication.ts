@@ -5,9 +5,11 @@
  * - 告警指纹生成
  * - 重复告警检测
  * - 告警合并策略
+ *
+ * 持久化：使用 AlertDeduplicationGroupRepository 存储告警分组
+ * 内存缓存：fingerprintCache 是 TTL 缓存，用于快速去重检测
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import pino from 'pino';
 import {
@@ -15,7 +17,6 @@ import {
   AlertFingerprint,
   AlertGroup,
   DeduplicationConfig,
-  AlertStatus,
 } from './AlertTypes';
 import { AlertDeduplicationGroupRepository, AlertDeduplicationGroupEntity } from '../../repositories/AlertDeduplicationGroupRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
@@ -24,19 +25,20 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
  * 告警去重服务
+ *
+ * 所有告警分组数据通过 PostgreSQL Repository 持久化。
+ * fingerprintCache 是 ephemeral TTL 缓存，仅用于快速去重检测，不持久化。
  */
 export class AlertDeduplication {
   private config: DeduplicationConfig;
-  private dedupGroupRepository?: AlertDeduplicationGroupRepository;
-  // In-memory fallback for alert groups
-  private alertGroupsMemory: Map<string, AlertGroup> = new Map();
-  // Fingerprint cache is ephemeral TTL cache - stays in-memory
+  private dedupGroupRepository: AlertDeduplicationGroupRepository;
+  // Fingerprint cache is ephemeral TTL cache - stays in-memory for fast lookup
   private fingerprintCache: Map<string, { fingerprint: string; expiresAt: Date }> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
-    config?: Partial<DeduplicationConfig>,
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    config: Partial<DeduplicationConfig> | undefined,
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     this.config = {
       deduplicationWindowMs: config?.deduplicationWindowMs || 4 * 60 * 60 * 1000, // 默认4小时
@@ -44,9 +46,7 @@ export class AlertDeduplication {
       aggregationIntervalMs: config?.aggregationIntervalMs || 60 * 1000, // 默认1分钟
       ...config,
     };
-    if (db) {
-      this.dedupGroupRepository = new AlertDeduplicationGroupRepository(db);
-    }
+    this.dedupGroupRepository = new AlertDeduplicationGroupRepository(db);
   }
 
   /**
@@ -70,7 +70,6 @@ export class AlertDeduplication {
       this.cleanupInterval = null;
     }
 
-    this.alertGroupsMemory.clear();
     this.fingerprintCache.clear();
 
     logger.info('AlertDeduplication service stopped');
@@ -218,11 +217,8 @@ export class AlertDeduplication {
    * 获取告警分组
    */
   async getAlertGroup(fingerprint: string): Promise<AlertGroup | undefined> {
-    if (this.dedupGroupRepository) {
-      const entity = await this.dedupGroupRepository.findByFingerprint(fingerprint);
-      return entity ? this.entityToGroup(entity) : undefined;
-    }
-    return this.alertGroupsMemory.get(fingerprint);
+    const entity = await this.dedupGroupRepository.findByFingerprint(fingerprint);
+    return entity ? this.entityToGroup(entity) : undefined;
   }
 
   /**
@@ -235,34 +231,14 @@ export class AlertDeduplication {
     limit?: number;
     offset?: number;
   }): Promise<AlertGroup[]> {
-    if (this.dedupGroupRepository) {
-      const entities = await this.dedupGroupRepository.findActive(
-        options?.minCount,
-        options?.startTime,
-        options?.endTime,
-        options?.limit || 100,
-        options?.offset || 0,
-      );
-      return entities.map(e => this.entityToGroup(e));
-    }
-
-    let groups = Array.from(this.alertGroupsMemory.values());
-
-    if (options?.minCount) {
-      groups = groups.filter((g) => g.count >= options.minCount!);
-    }
-    if (options?.startTime) {
-      groups = groups.filter((g) => g.lastOccurrence >= options.startTime!);
-    }
-    if (options?.endTime) {
-      groups = groups.filter((g) => g.firstOccurrence <= options.endTime!);
-    }
-
-    groups.sort((a, b) => b.lastOccurrence.getTime() - a.lastOccurrence.getTime());
-
-    const offset = options?.offset || 0;
-    const limit = options?.limit || 100;
-    return groups.slice(offset, offset + limit);
+    const entities = await this.dedupGroupRepository.findActive(
+      options?.minCount,
+      options?.startTime,
+      options?.endTime,
+      options?.limit || 100,
+      options?.offset || 0,
+    );
+    return entities.map(e => this.entityToGroup(e));
   }
 
   /**
@@ -274,36 +250,13 @@ export class AlertDeduplication {
     suppressedAlerts: number;
     topFingerprints: Array<{ fingerprint: string; count: number }>;
   }> {
-    if (this.dedupGroupRepository) {
-      const stats = await this.dedupGroupRepository.getStats();
-      const topFingerprints = await this.dedupGroupRepository.getTopFingerprints(10);
-      return {
-        totalGroups: stats.totalGroups,
-        totalAlerts: stats.totalAlerts,
-        suppressedAlerts: 0, // Would need a separate query
-        topFingerprints,
-      };
-    }
-
-    let totalAlerts = 0;
-    let suppressedAlerts = 0;
-    const fingerprints: Array<{ fingerprint: string; count: number }> = [];
-
-    for (const group of this.alertGroupsMemory.values()) {
-      totalAlerts += group.count;
-      if (group.suppressed) {
-        suppressedAlerts += group.count;
-      }
-      fingerprints.push({ fingerprint: group.fingerprint, count: group.count });
-    }
-
-    fingerprints.sort((a, b) => b.count - a.count);
-
+    const stats = await this.dedupGroupRepository.getStats();
+    const topFingerprints = await this.dedupGroupRepository.getTopFingerprints(10);
     return {
-      totalGroups: this.alertGroupsMemory.size,
-      totalAlerts,
-      suppressedAlerts,
-      topFingerprints: fingerprints.slice(0, 10),
+      totalGroups: stats.totalGroups,
+      totalAlerts: stats.totalAlerts,
+      suppressedAlerts: 0, // Would need a separate query
+      topFingerprints,
     };
   }
 
@@ -313,7 +266,6 @@ export class AlertDeduplication {
   async cleanup(): Promise<void> {
     const now = new Date();
     let cleanedFingerprints = 0;
-    let cleanedGroups = 0;
 
     // 清理指纹缓存 (always in-memory)
     for (const [fingerprint, data] of this.fingerprintCache.entries()) {
@@ -325,21 +277,10 @@ export class AlertDeduplication {
 
     // 清理告警分组（保留最近24小时的）
     const groupExpiryTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    if (this.dedupGroupRepository) {
-      cleanedGroups = await this.dedupGroupRepository.deleteExpired(groupExpiryTime);
-    } else {
-      for (const [fingerprint, group] of this.alertGroupsMemory.entries()) {
-        if (group.lastOccurrence < groupExpiryTime) {
-          this.alertGroupsMemory.delete(fingerprint);
-          cleanedGroups++;
-        }
-      }
-    }
+    const cleanedGroups = await this.dedupGroupRepository.deleteExpired(groupExpiryTime);
 
     if (cleanedFingerprints > 0 || cleanedGroups > 0) {
-      const remaining = this.dedupGroupRepository
-        ? (await this.dedupGroupRepository.getStats()).totalGroups
-        : this.alertGroupsMemory.size;
+      const remaining = (await this.dedupGroupRepository.getStats()).totalGroups;
       logger.info(
         { cleanedFingerprints, cleanedGroups, remainingGroups: remaining },
         'AlertDeduplication cleanup completed'
@@ -351,7 +292,6 @@ export class AlertDeduplication {
    * 清除所有数据（用于测试）
    */
   clearAll(): void {
-    this.alertGroupsMemory.clear();
     this.fingerprintCache.clear();
   }
 
@@ -395,49 +335,41 @@ export class AlertDeduplication {
   // ==================== Repository Helper Methods ====================
 
   /**
-   * Save a group to repository or memory
+   * Save a group to repository
    */
   private async saveGroup(group: AlertGroup): Promise<void> {
-    if (this.dedupGroupRepository) {
-      try {
-        await this.dedupGroupRepository.create({
-          id: group.fingerprint,
-          tenantId: 'default',
-          alerts: group.alerts as any,
-          count: group.count,
-          firstOccurrence: group.firstOccurrence,
-          lastOccurrence: group.lastOccurrence,
-          suppressed: group.suppressed,
-          suppressionReason: group.suppressionReason ?? null,
-        } as any);
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to persist dedup group, using memory');
-        this.alertGroupsMemory.set(group.fingerprint, group);
-      }
-    } else {
-      this.alertGroupsMemory.set(group.fingerprint, group);
+    try {
+      await this.dedupGroupRepository.create({
+        id: group.fingerprint,
+        tenantId: 'default',
+        alerts: group.alerts as any,
+        count: group.count,
+        firstOccurrence: group.firstOccurrence,
+        lastOccurrence: group.lastOccurrence,
+        suppressed: group.suppressed,
+        suppressionReason: group.suppressionReason ?? null,
+      } as any);
+    } catch (err) {
+      logger.error({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to persist dedup group');
+      throw err;
     }
   }
 
   /**
-   * Update a group in repository or memory
+   * Update a group in repository
    */
   private async updateGroup(group: AlertGroup): Promise<void> {
-    if (this.dedupGroupRepository) {
-      try {
-        await this.dedupGroupRepository.update(group.fingerprint, {
-          alerts: group.alerts as any,
-          count: group.count,
-          lastOccurrence: group.lastOccurrence,
-          suppressed: group.suppressed,
-          suppressionReason: group.suppressionReason ?? null,
-        } as any);
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to update dedup group in repository');
-        this.alertGroupsMemory.set(group.fingerprint, group);
-      }
-    } else {
-      this.alertGroupsMemory.set(group.fingerprint, group);
+    try {
+      await this.dedupGroupRepository.update(group.fingerprint, {
+        alerts: group.alerts as any,
+        count: group.count,
+        lastOccurrence: group.lastOccurrence,
+        suppressed: group.suppressed,
+        suppressionReason: group.suppressionReason ?? null,
+      } as any);
+    } catch (err) {
+      logger.error({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to update dedup group in repository');
+      throw err;
     }
   }
 
