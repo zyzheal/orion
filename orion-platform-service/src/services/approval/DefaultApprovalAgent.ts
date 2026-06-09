@@ -30,6 +30,11 @@ import {
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
+/** 最小数据库查询接口，避免强依赖 DatabasePool */
+interface DbQuery {
+  query(sql: string, params?: unknown[]): Promise<{ rows: any[] }>;
+}
+
 /**
  * 风险因素定义
  */
@@ -81,10 +86,12 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
 
   private config: ApprovalAgentConfig;
   private aiServiceUrl: string;
+  private db?: DbQuery;
 
-  constructor(config: Partial<ApprovalAgentConfig> = {}) {
+  constructor(config: Partial<ApprovalAgentConfig> = {}, db?: DbQuery) {
     this.config = { ...createDefaultAgentConfig(), ...config };
     this.aiServiceUrl = this.config.aiServiceUrl || 'http://localhost:5000';
+    this.db = db;
   }
 
   /**
@@ -220,7 +227,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
     // 高风险 → 需要专家审批
     if (riskAnalysis.riskLevel >= 3) {
       return {
-        suggestedApprovers: this.getExpertApprovers(context),
+        suggestedApprovers: await this.getExpertApprovers(context),
         reason: '高风险操作，需要专家审批',
         confidence: 0.9,
         requiresExpertReview: true,
@@ -230,7 +237,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
     // 中等风险 → 部门负责人审批
     if (riskAnalysis.riskLevel >= 2) {
       return {
-        suggestedApprovers: this.getDepartmentHeadApprovers(context),
+        suggestedApprovers: await this.getDepartmentHeadApprovers(context),
         reason: '中等风险操作，需部门负责人审批',
         confidence: 0.8,
         requiresExpertReview: false,
@@ -239,7 +246,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
 
     // 低风险 → 直接主管审批
     return {
-      suggestedApprovers: this.getManagerApprovers(context),
+      suggestedApprovers: await this.getManagerApprovers(context),
       reason: '低风险操作，直接主管审批即可',
       confidence: 0.85,
       requiresExpertReview: false,
@@ -547,26 +554,74 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
 
   /**
    * 获取专家审批人列表
+   * 查询具有 expert 角色的活跃用户
    */
-  private getExpertApprovers(context: ApprovalContext): string[] {
-    // TODO: 集成 UserService 获取专家角色用户
-    return ['super_admin'];
+  private async getExpertApprovers(context: ApprovalContext): Promise<string[]> {
+    if (!this.db) return ['super_admin'];
+
+    const tenantId = (context.metadata?.tenantId as string) || 'default';
+    try {
+      const result = await this.db.query(
+        `SELECT user_id FROM user_roles
+         WHERE role = 'expert' AND tenant_id = $1`,
+        [tenantId],
+      );
+      const approvers = result.rows.map((r: any) => r.user_id);
+      return approvers.length > 0 ? approvers : ['super_admin'];
+    } catch (error) {
+      logger.warn({ error }, 'Failed to query expert approvers, falling back to default');
+      return ['super_admin'];
+    }
   }
 
   /**
    * 获取部门负责人审批人列表
+   * 查询请求者所在部门的负责人/经理
    */
-  private getDepartmentHeadApprovers(context: ApprovalContext): string[] {
-    // TODO: 集成 UserService 获取部门负责人
-    return ['dept_head'];
+  private async getDepartmentHeadApprovers(context: ApprovalContext): Promise<string[]> {
+    if (!this.db) return ['dept_head'];
+
+    const tenantId = (context.metadata?.tenantId as string) || 'default';
+    try {
+      const result = await this.db.query(
+        `SELECT dm.user_id FROM department_members dm
+         INNER JOIN department_members requester_dm
+           ON dm.department = requester_dm.department
+           AND dm.tenant_id = requester_dm.tenant_id
+         WHERE requester_dm.user_id = $1
+           AND dm.tenant_id = $2
+           AND dm.role IN ('head', 'manager')`,
+        [context.requester, tenantId],
+      );
+      const approvers = result.rows.map((r: any) => r.user_id);
+      return approvers.length > 0 ? approvers : ['dept_head'];
+    } catch (error) {
+      logger.warn({ error }, 'Failed to query department head approvers, falling back to default');
+      return ['dept_head'];
+    }
   }
 
   /**
    * 获取直接主管审批人列表
+   * 查询请求者的直属领导
    */
-  private getManagerApprovers(context: ApprovalContext): string[] {
-    // TODO: 集成 UserService 获取直接主管
-    return ['manager'];
+  private async getManagerApprovers(context: ApprovalContext): Promise<string[]> {
+    if (!this.db) return ['manager'];
+
+    const tenantId = (context.metadata?.tenantId as string) || 'default';
+    try {
+      const result = await this.db.query(
+        `SELECT manager_id FROM user_reporting_lines
+         WHERE user_id = $1 AND tenant_id = $2
+         LIMIT 1`,
+        [context.requester, tenantId],
+      );
+      const approvers = result.rows.map((r: any) => r.manager_id).filter(Boolean);
+      return approvers.length > 0 ? approvers : ['manager'];
+    } catch (error) {
+      logger.warn({ error }, 'Failed to query manager approvers, falling back to default');
+      return ['manager'];
+    }
   }
 }
 

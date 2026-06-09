@@ -7,6 +7,11 @@
 
 import { UserRepository, User, UpdateUserInput } from './UserRepository';
 
+/** 最小数据库查询接口，避免强依赖 DatabasePool */
+interface DbQuery {
+  query(sql: string, params?: unknown[]): Promise<{ rows: any[] }>;
+}
+
 /**
  * 用户基本档案
  */
@@ -65,7 +70,14 @@ export class UserProfileServiceError extends Error {
  * UserProfileService - 用户档案业务逻辑
  */
 export class UserProfileService {
-  constructor(private userRepository: UserRepository) {}
+  private db?: DbQuery;
+
+  constructor(
+    private userRepository: UserRepository,
+    db?: DbQuery,
+  ) {
+    this.db = db;
+  }
 
   /**
    * 将 User 实体转换为 UserProfile 格式
@@ -108,28 +120,47 @@ export class UserProfileService {
    * 获取用户所属团队
    * @param userId 用户ID
    * @returns 用户所属团队列表
-   *
-   * TODO: 待后续实现从数据库查询用户团队
-   * 当前返回空数组
    */
   async getUserTeams(userId: string): Promise<UserTeam[]> {
-    // TODO: 实现从 user_teams 或 tenant_users 表查询
-    // 暂时返回空数组，待后续功能实现
-    return [];
+    if (!this.db) return [];
+
+    const result = await this.db.query(
+      `SELECT t.id, t.name, tm.role
+       FROM teams t
+       INNER JOIN team_members tm ON t.id = tm.team_id
+       WHERE tm.user_id = $1
+       ORDER BY t.name`,
+      [userId],
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      role: row.role,
+    }));
   }
 
   /**
    * 获取用户权限
    * @param userId 用户ID
    * @returns 用户权限列表
-   *
-   * TODO: 待后续实现从权限系统查询用户权限
-   * 当前返回空数组
    */
   async getUserPermissions(userId: string): Promise<UserPermission[]> {
-    // TODO: 实现从 user_permissions 或 role_permissions 表查询
-    // 暂时返回空数组，待后续功能实现
-    return [];
+    if (!this.db) return [];
+
+    const result = await this.db.query(
+      `SELECT DISTINCT rp.resource, rp.actions
+       FROM role_permissions rp
+       INNER JOIN user_roles ur ON rp.role = ur.role
+       WHERE ur.user_id = $1
+       ORDER BY rp.resource`,
+      [userId],
+    );
+
+    return result.rows.map((row: any) => ({
+      resource: row.resource,
+      actions: Array.isArray(row.actions) ? row.actions : (typeof row.actions === 'string' ? JSON.parse(row.actions) : []),
+    }));
   }
 
   /**

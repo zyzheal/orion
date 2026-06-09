@@ -15,6 +15,11 @@ import pino from 'pino';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { CronSchedulerService } from '../scheduler/CronSchedulerService';
 
+/** 最小通知服务接口，避免强依赖 NotificationService */
+interface NotificationSender {
+  send(input: { tenant_id: string; user_id: string; type: string; title: string; message: string }): Promise<unknown>;
+}
+
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 // 超时配置
@@ -59,16 +64,19 @@ export class ApprovalTimeoutScheduler {
   private repository: ApprovalRepository;
   private config: ApprovalTimeoutConfig;
   private cronScheduler?: CronSchedulerService;
+  private notificationService?: NotificationSender;
   private jobId = 'approval-timeout-scheduler';
 
   constructor(
     db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
     config?: Partial<ApprovalTimeoutConfig>,
     cronScheduler?: CronSchedulerService,
+    notificationService?: NotificationSender,
   ) {
     this.repository = new ApprovalRepository(db);
     this.config = { ...DEFAULT_TIMEOUT_CONFIG, ...config };
     this.cronScheduler = cronScheduler;
+    this.notificationService = notificationService;
   }
 
   /**
@@ -219,7 +227,7 @@ export class ApprovalTimeoutScheduler {
 
   /**
    * 发送审批超时提醒
-   * 这里发送应用内通知，实际可通过事件机制发送邮件/IM消息
+   * 通过 NotificationService 发送应用内通知
    */
   private async sendReminder(timeoutInfo: ApprovalTimeoutInfo): Promise<void> {
     const { entity, steps } = timeoutInfo;
@@ -230,24 +238,33 @@ export class ApprovalTimeoutScheduler {
       .map(s => s.approverId)
       .filter(Boolean);
 
+    const overdueHours = Math.round(timeoutInfo.overdueMs / (1000 * 60 * 60));
+
     logger.info({
       approvalId: entity.id,
       pendingApprovers,
-      overdueHours: Math.round(timeoutInfo.overdueMs / (1000 * 60 * 60)),
+      overdueHours,
     }, 'Sending approval reminder notification');
 
-    // TODO: 通过 NotificationService 发送通知
-    // 实际实现需要注入 NotificationService
-    // 示例：
-    // for (const approverId of pendingApprovers) {
-    //   await this.notificationService.send({
-    //     tenant_id: entity.tenantId,
-    //     user_id: approverId,
-    //     type: 'approval_reminder',
-    //     title: '审批提醒',
-    //     message: `您有待审批的单据 "${entity.title}" 已超时 ${Math.round(timeoutInfo.overdueMs / (1000 * 60 * 60))} 小时，请尽快处理。`,
-    //   });
-    // }
+    if (!this.notificationService) {
+      logger.warn({ approvalId: entity.id }, 'NotificationService not configured, skipping reminder');
+      return;
+    }
+
+    // 向所有待审批人发送提醒通知
+    for (const approverId of pendingApprovers) {
+      try {
+        await this.notificationService.send({
+          tenant_id: entity.tenantId,
+          user_id: approverId,
+          type: 'approval_reminder',
+          title: '审批提醒',
+          message: `您有待审批的单据 "${entity.title}" 已超时 ${overdueHours} 小时，请尽快处理。`,
+        });
+      } catch (error) {
+        logger.error({ error, approverId, approvalId: entity.id }, 'Failed to send reminder notification');
+      }
+    }
   }
 
   /**

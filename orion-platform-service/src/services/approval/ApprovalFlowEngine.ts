@@ -857,37 +857,58 @@ export class ApprovalFlowEngine {
    * 按角色解析审批人
    */
   private async resolveByRole(role: string, tenantId: string): Promise<string[]> {
-    // TODO: 调用 UserService 或 RoleRepository 获取角色对应的用户
-    // 临时返回空数组，实际实现需集成 UserService
     logger.debug({ role, tenantId }, 'Resolving approvers by role');
-    return [];
+    const result = await this.pool.query(
+      `SELECT user_id FROM user_roles
+       WHERE role = $1 AND tenant_id = $2`,
+      [role, tenantId],
+    );
+    return result.rows.map((r: any) => r.user_id);
   }
 
   /**
    * 按值班解析审批人
    */
   private async resolveOnCall(oncallGroup: string, tenantId: string): Promise<string[]> {
-    // TODO: 调用值班服务获取当前值班人员
     logger.debug({ oncallGroup, tenantId }, 'Resolving approvers by oncall');
-    return [];
+    const result = await this.pool.query(
+      `SELECT user_id FROM oncall_schedule
+       WHERE group_name = $1 AND tenant_id = $2
+         AND is_active = true
+         AND NOW() BETWEEN shift_start AND shift_end
+       ORDER BY shift_start`,
+      [oncallGroup, tenantId],
+    );
+    return result.rows.map((r: any) => r.user_id);
   }
 
   /**
    * 按部门解析审批人
    */
   private async resolveByDepartment(department: string, tenantId: string): Promise<string[]> {
-    // TODO: 调用 UserService 获取部门负责人
     logger.debug({ department, tenantId }, 'Resolving approvers by department');
-    return [];
+    const result = await this.pool.query(
+      `SELECT user_id FROM department_members
+       WHERE department = $1 AND tenant_id = $2
+         AND role IN ('head', 'manager')
+       ORDER BY role`,
+      [department, tenantId],
+    );
+    return result.rows.map((r: any) => r.user_id);
   }
 
   /**
    * 按汇报线解析审批人
    */
   private async resolveByReportingLine(userId: string, tenantId: string): Promise<string[]> {
-    // TODO: 调用 UserService 获取用户的直属领导
     logger.debug({ userId, tenantId }, 'Resolving approvers by reporting line');
-    return [];
+    const result = await this.pool.query(
+      `SELECT manager_id FROM user_reporting_lines
+       WHERE user_id = $1 AND tenant_id = $2
+       LIMIT 1`,
+      [userId, tenantId],
+    );
+    return result.rows.map((r: any) => r.manager_id).filter(Boolean);
   }
 
   /**
