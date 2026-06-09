@@ -3,10 +3,11 @@
  *
  * Provides backup creation, restore, listing, and deletion
  * with tenant isolation.
- * Uses in-memory Map storage (can migrate to Repository later).
+ * Uses PostgreSQL BackupRecordRepository as primary storage with in-memory Map as cache.
  */
 import { v4 as uuidv4 } from 'uuid';
 import { DisasterRecoveryRepository } from '../../repositories/DisasterRecoveryRepository';
+import { BackupRecordRepository } from '../../repositories/BackupRecordRepository';
 
 export interface BackupConfig {
   scope: 'full' | 'incremental' | 'config-only' | 'data-only';
@@ -59,13 +60,40 @@ export class BackupRestoreServiceError extends Error {
 }
 
 export class BackupRestoreService {
+  // In-memory cache (populated from repository on load)
   private backups: Map<string, BackupRecord> = new Map();
   private backupsByTenant: Map<string, string[]> = new Map();
   private drRepo?: DisasterRecoveryRepository;
+  private backupRecordRepo?: BackupRecordRepository;
+  private useRepository: boolean = false;
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
       this.drRepo = new DisasterRecoveryRepository(db);
+      this.backupRecordRepo = new BackupRecordRepository(db);
+      this.useRepository = true;
+    }
+  }
+
+  /**
+   * Load backup records from repository into memory cache
+   */
+  async loadFromRepository(): Promise<void> {
+    if (!this.useRepository || !this.backupRecordRepo) return;
+
+    try {
+      const entities = await this.backupRecordRepo.findAll({ limit: 1000 });
+      for (const entity of entities.entities) {
+        const record = this.mapEntityToRecord(entity);
+        this.backups.set(record.id, record);
+        const tenantBackups = this.backupsByTenant.get(record.tenantId) ?? [];
+        if (!tenantBackups.includes(record.id)) {
+          tenantBackups.push(record.id);
+        }
+        this.backupsByTenant.set(record.tenantId, tenantBackups);
+      }
+    } catch (err) {
+      console.warn('[BackupRestoreService] Failed to load from repository:', err);
     }
   }
 
@@ -96,6 +124,22 @@ export class BackupRestoreService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    // Persist to repository
+    if (this.useRepository && this.backupRecordRepo) {
+      await this.backupRecordRepo.create({
+        id,
+        tenant_id: tenantId,
+        scope,
+        status: 'pending',
+        retention_days: retentionDays,
+        expires_at: expiresAt,
+        include_services: config.includeServices ?? [],
+        exclude_services: config.excludeServices ?? [],
+        description: config.description ?? null,
+        metadata: config.metadata ?? {},
+      });
+    }
 
     this.backups.set(id, record);
 
@@ -133,6 +177,10 @@ export class BackupRestoreService {
       backup.status = 'restoring';
       backup.updatedAt = new Date();
 
+      if (this.useRepository && this.backupRecordRepo) {
+        this.backupRecordRepo.updateStatus(backupId, 'restoring').catch(() => {});
+      }
+
       // Determine which services to restore
       const servicesToRestore = backup.includeServices ?? ['all'];
 
@@ -145,6 +193,10 @@ export class BackupRestoreService {
       backup.status = 'completed';
       backup.updatedAt = new Date();
 
+      if (this.useRepository && this.backupRecordRepo) {
+        this.backupRecordRepo.updateStatus(backupId, 'completed').catch(() => {});
+      }
+
       return {
         success: true,
         backupId,
@@ -155,6 +207,10 @@ export class BackupRestoreService {
     } catch (error: any) {
       backup.status = 'completed';
       backup.updatedAt = new Date();
+
+      if (this.useRepository && this.backupRecordRepo) {
+        this.backupRecordRepo.updateStatus(backupId, 'completed').catch(() => {});
+      }
 
       return {
         success: false,
@@ -171,6 +227,17 @@ export class BackupRestoreService {
    * List all backups for a tenant
    */
   async listBackups(tenantId: string): Promise<BackupRecord[]> {
+    // Use repository as primary source
+    if (this.useRepository && this.backupRecordRepo) {
+      try {
+        const entities = await this.backupRecordRepo.findByTenant(tenantId);
+        return entities.map(e => this.mapEntityToRecord(e));
+      } catch {
+        // Fall through to in-memory cache
+      }
+    }
+
+    // Fallback to in-memory cache
     const backupIds = this.backupsByTenant.get(tenantId) ?? [];
     return backupIds
       .map((id) => this.backups.get(id))
@@ -182,19 +249,30 @@ export class BackupRestoreService {
    * Delete a backup
    */
   async deleteBackup(backupId: string): Promise<boolean> {
+    // Try repository first
+    if (this.useRepository && this.backupRecordRepo) {
+      const entity = await this.backupRecordRepo.findById(backupId);
+      if (!entity) {
+        throw new BackupRestoreServiceError(`Backup not found: ${backupId}`, 'BACKUP_NOT_FOUND');
+      }
+      await this.backupRecordRepo.delete(backupId);
+    }
+
+    // Also clean up in-memory cache
     const backup = this.backups.get(backupId);
-    if (!backup) {
+    if (!backup && !this.useRepository) {
       throw new BackupRestoreServiceError(`Backup not found: ${backupId}`, 'BACKUP_NOT_FOUND');
     }
 
-    // Remove from tenant index
-    const tenantBackups = this.backupsByTenant.get(backup.tenantId) ?? [];
-    this.backupsByTenant.set(
-      backup.tenantId,
-      tenantBackups.filter((id) => id !== backupId)
-    );
+    if (backup) {
+      const tenantBackups = this.backupsByTenant.get(backup.tenantId) ?? [];
+      this.backupsByTenant.set(
+        backup.tenantId,
+        tenantBackups.filter((id) => id !== backupId)
+      );
+      this.backups.delete(backupId);
+    }
 
-    this.backups.delete(backupId);
     return true;
   }
 
@@ -202,6 +280,16 @@ export class BackupRestoreService {
    * Get backup by ID
    */
   async getBackupById(backupId: string): Promise<BackupRecord | null> {
+    // Use repository as primary source
+    if (this.useRepository && this.backupRecordRepo) {
+      try {
+        const entity = await this.backupRecordRepo.findById(backupId);
+        if (entity) return this.mapEntityToRecord(entity);
+      } catch {
+        // Fall through to in-memory cache
+      }
+    }
+
     return this.backups.get(backupId) ?? null;
   }
 
@@ -215,6 +303,11 @@ export class BackupRestoreService {
       record.status = 'in_progress';
       record.updatedAt = new Date();
 
+      // Update repository status (fire-and-forget)
+      if (this.useRepository && this.backupRecordRepo) {
+        this.backupRecordRepo.updateStatus(record.id, 'in_progress').catch(() => {});
+      }
+
       // Simulate backup execution
       const filePath = `/backups/${record.tenantId}/${record.id}.tar.gz`;
       const sizeBytes = Math.floor(Math.random() * 1000000000) + 1000000;
@@ -224,10 +317,26 @@ export class BackupRestoreService {
       record.sizeBytes = sizeBytes;
       record.completedAt = new Date();
       record.updatedAt = new Date();
+
+      // Persist completion to repository (fire-and-forget)
+      if (this.useRepository && this.backupRecordRepo) {
+        this.backupRecordRepo.updateStatus(record.id, 'completed', {
+          sizeBytes,
+          filePath,
+          completedAt: record.completedAt,
+        }).catch(() => {});
+      }
     } catch (error: any) {
       record.status = 'failed';
       record.errorMessage = error.message;
       record.updatedAt = new Date();
+
+      // Persist failure to repository (fire-and-forget)
+      if (this.useRepository && this.backupRecordRepo) {
+        this.backupRecordRepo.updateStatus(record.id, 'failed', {
+          errorMessage: error.message,
+        }).catch(() => {});
+      }
     }
   }
 
@@ -248,6 +357,30 @@ export class BackupRestoreService {
     // 4. Verify restored data
 
     return services;
+  }
+
+  /**
+   * Map a repository entity to the service-level BackupRecord interface
+   */
+  private mapEntityToRecord(entity: import('../../repositories/BackupRecordRepository').BackupRecordEntity): BackupRecord {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      scope: entity.scope,
+      status: entity.status,
+      sizeBytes: entity.sizeBytes ?? undefined,
+      filePath: entity.filePath ?? undefined,
+      description: entity.description ?? undefined,
+      retentionDays: entity.retentionDays,
+      expiresAt: entity.expiresAt ?? undefined,
+      includeServices: entity.includeServices,
+      excludeServices: entity.excludeServices,
+      metadata: entity.metadata,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      completedAt: entity.completedAt ?? undefined,
+      errorMessage: entity.errorMessage ?? undefined,
+    };
   }
 }
 
