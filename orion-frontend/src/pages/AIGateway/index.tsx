@@ -13,6 +13,8 @@ import {
   Statistic,
   Progress,
   message,
+  Spin,
+  Empty,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -182,6 +184,7 @@ const AIGatewayPage: React.FC = () => {
   return (
     <DashboardLayout padding={24} columns={4}>
       {/* Header - spans all columns */}
+      <Spin spinning={loading}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg, gridColumn: '1 / -1' }}>
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
@@ -257,7 +260,11 @@ const AIGatewayPage: React.FC = () => {
 
       {/* Health Table - spans all columns */}
       <Card title="场景健康监控" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
-        <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
+        {tableData.length > 0 ? (
+          <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
+        ) : (
+          !loading && <Empty description="暂无场景健康数据" />
+        )}
       </Card>
 
       {/* Rules Info - spans all columns */}
@@ -266,17 +273,20 @@ const AIGatewayPage: React.FC = () => {
             <div>
               <Text>内置降级规则覆盖 {rules.scenarios?.length || 15} 个 AI 场景</Text>
               <div style={{ marginTop: spacing[3] }}>
-                {rules.scenarios?.map((s: string) => (
+                {rules.scenarios?.length > 0 ? rules.scenarios.map((s: string) => (
                   <Tag key={s} style={{ marginBottom: spacing.sm }}>
                     {s}
                   </Tag>
-                ))}
+                )) : (
+                  <Empty description="暂无规则数据" />
+                )}
               </div>
             </div>
           ) : (
-            <Text type="secondary">加载中...</Text>
+            !loading && <Empty description="暂无规则数据" />
           )}
         </Card>
+      </Spin>
     </DashboardLayout>
   );
 };

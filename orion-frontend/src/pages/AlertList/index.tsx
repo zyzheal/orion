@@ -9,7 +9,7 @@
  * - Status filtering
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, message, Popconfirm } from 'antd';
+import { Typography, Button, Space, Tag, Modal, message, Popconfirm, Spin, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -388,6 +388,7 @@ const AlertList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      <Spin spinning={loading}>
       {/* Page header with severity summary */}
       <div
         style={{
@@ -456,15 +457,19 @@ const AlertList: React.FC = () => {
       </div>
 
       {/* Alert table */}
-      <Table
-        columns={columns}
-        dataSource={filteredAlerts}
-        loading={loading}
-        rowKey="id"
-        size="middle"
-        striped
-        rowSelection={rowSelection}
-      />
+      {filteredAlerts.length > 0 ? (
+        <Table
+          columns={columns}
+          dataSource={filteredAlerts}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+          rowSelection={rowSelection}
+        />
+      ) : (
+        !loading && <Empty description="暂无告警数据" />
+      )}
 
       {/* Alert detail modal */}
       <Modal
@@ -635,6 +640,7 @@ const AlertList: React.FC = () => {
           </Space>
         )}
       </Modal>
+      </Spin>
     </div>
   );
 };

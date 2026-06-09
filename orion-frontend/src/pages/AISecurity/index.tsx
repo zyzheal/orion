@@ -29,6 +29,8 @@ import {
   Descriptions,
   Badge,
   Table as AntTable,
+  Spin,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -528,6 +530,7 @@ const AISecurityPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      <Spin spinning={loading}>
       {/* Page Header */}
       <div
         style={{
@@ -620,14 +623,18 @@ const AISecurityPage: React.FC = () => {
             searchPlaceholder="搜索策略名称或描述..."
           />
         </div>
-        <Table
-          columns={columns}
-          dataSource={filteredData}
-          loading={loading}
-          rowKey="id"
-          size="middle"
-          striped
-        />
+        {filteredData.length > 0 ? (
+          <Table
+            columns={columns}
+            dataSource={filteredData}
+            loading={loading}
+            rowKey="id"
+            size="middle"
+            striped
+          />
+        ) : (
+          !loading && <Empty description="暂无安全策略" />
+        )}
       </Card>
 
       {/* Create Policy Modal */}
@@ -899,6 +906,7 @@ const AISecurityPage: React.FC = () => {
           </Space>
         )}
       </Modal>
+      </Spin>
     </div>
   );
 };
