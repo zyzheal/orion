@@ -233,6 +233,36 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/TicketDetail')),
     protected: true,
   },
+  // ITSM - Incident Management
+  {
+    path: '/itsm/incidents',
+    element: React.lazy(() => import('@/pages/Incident')),
+    protected: true,
+  },
+  // ITSM - Problem Management
+  {
+    path: '/itsm/problems',
+    element: React.lazy(() => import('@/pages/Problem')),
+    protected: true,
+  },
+  // ITSM - Service Catalog
+  {
+    path: '/itsm/catalog',
+    element: React.lazy(() => import('@/pages/ServiceCatalog')),
+    protected: true,
+  },
+  // ITSM - SLA Management
+  {
+    path: '/itsm/sla',
+    element: React.lazy(() => import('@/pages/SLA')),
+    protected: true,
+  },
+  // ITSM - Change Management
+  {
+    path: '/itsm/changes',
+    element: React.lazy(() => import('@/pages/ChangeManagement')),
+    protected: true,
+  },
   // Personal Workbench (统一工作台)
   // BI Dashboard Routes (统一入口)
   {

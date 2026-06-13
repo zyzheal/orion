@@ -227,6 +227,12 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       // 计费与变更
       { key: '/billing', label: '计费管理', description: '资源计费与账单', category: '计费管理', enabled: true },
       { key: '/change-intelligence', label: '变更智能', description: '变更影响分析与风险评估', category: '变更管理', enabled: true },
+      // ITSM 服务管理
+      { key: '/itsm/incidents', label: '事件管理', description: '事件生命周期与事后复盘', category: 'ITSM', enabled: true },
+      { key: '/itsm/problems', label: '问题管理', description: '问题根因分析与已知错误库', category: 'ITSM', enabled: true },
+      { key: '/itsm/catalog', label: '服务目录', description: '服务目录与请求工作流', category: 'ITSM', enabled: true },
+      { key: '/itsm/sla', label: 'SLA 管理', description: 'SLA 定义与合规追踪', category: 'ITSM', enabled: true },
+      { key: '/itsm/changes', label: '变更管理', description: '变更请求、RFC 与 CAB 审批', category: 'ITSM', enabled: true },
     ],
   },
   '/ecosystem': {

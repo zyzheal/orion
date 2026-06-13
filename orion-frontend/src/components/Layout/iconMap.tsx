@@ -35,6 +35,7 @@ import {
   LinkOutlined,
   DesktopOutlined,
   CodeOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 
 export const iconMap: Record<string, React.ReactNode> = {
@@ -60,6 +61,13 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/deployments': <CloudServerOutlined />,
   '/canary-analysis': <BarChartOutlined />,
   '/change-intelligence': <BarChartOutlined />,
+
+  // ITSM 服务管理
+  '/itsm/incidents': <AlertOutlined />,
+  '/itsm/problems': <ExclamationCircleOutlined />,
+  '/itsm/catalog': <AppstoreOutlined />,
+  '/itsm/sla': <ClockCircleOutlined />,
+  '/itsm/changes': <BranchesOutlined />,
   '/console/code-mgmt': <ForkOutlined />,
   '/test-selector': <ExperimentOutlined />,
 
