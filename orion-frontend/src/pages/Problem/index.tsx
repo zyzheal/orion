@@ -48,7 +48,11 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { colors, spacing, radius, shadows } from '@/tokens';
+import { Layout } from '@/components/Layout';
+import Table, { type TableColumn } from '@/components/Table';
+import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import MetricCard from '@/components/MetricCard';
+import { colors, spacing, radius, componentRadius, shadows } from '@/tokens';
 import {
   getProblems,
   getProblem,
@@ -502,7 +506,7 @@ const ProblemPage: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card
             size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.sm }}
+            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
           >
             <Statistic
               title="问题总数"
@@ -514,7 +518,7 @@ const ProblemPage: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card
             size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.sm }}
+            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
           >
             <Statistic
               title="已知问题"
@@ -527,7 +531,7 @@ const ProblemPage: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card
             size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.sm }}
+            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
           >
             <Statistic
               title="调查中"
@@ -540,7 +544,7 @@ const ProblemPage: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card
             size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.sm }}
+            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
           >
             <Statistic
               title="严重/高级"
@@ -825,7 +829,7 @@ const ProblemPage: React.FC = () => {
         {/* Detail Descriptions */}
         <Card
           title="问题详情"
-          style={{ borderRadius: radius.lg, boxShadow: shadows.sm }}
+          style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
         >
           <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
             <Descriptions.Item label="描述" span={2}>
@@ -864,7 +868,7 @@ const ProblemPage: React.FC = () => {
         {/* Related items */}
         <Card
           title="关联项"
-          style={{ borderRadius: radius.lg, boxShadow: shadows.sm }}
+          style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
           extra={
             <Space>
               <Button
@@ -1062,7 +1066,7 @@ const ProblemPage: React.FC = () => {
                       <td style={{ padding: '12px 16px' }}>
                         <Space wrap size={4}>
                           {(ke.keywords || []).slice(0, 3).map((kw) => (
-                            <Tag key={kw} style={{ borderRadius: radius.tag }}>
+                            <Tag key={kw} style={{ borderRadius: componentRadius.tag }}>
                               {kw}
                             </Tag>
                           ))}
@@ -1192,6 +1196,7 @@ const ProblemPage: React.FC = () => {
   // ============================================================================
 
   return (
+    <Layout>
     <div style={{ padding: 0 }}>
       {/* Page header */}
       <div style={{ marginBottom: spacing.lg }}>
@@ -1485,6 +1490,7 @@ const ProblemPage: React.FC = () => {
         </Form>
       </Modal>
     </div>
+    </Layout>
   );
 };
 

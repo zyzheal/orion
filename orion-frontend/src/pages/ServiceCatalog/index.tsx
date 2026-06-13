@@ -13,7 +13,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
-  Table,
   Button,
   Modal,
   Form,
@@ -70,6 +69,7 @@ import {
   updateServiceRequestStatus,
   getCatalogStats,
 } from '@/api/service-catalog';
+import Table from '@/components/Table';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -995,10 +995,12 @@ const ServiceCatalog: React.FC = () => {
         dataSource={requests}
         rowKey="id"
         loading={requestsLoading}
-        size="middle"
-        pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
-        locale={{ emptyText: <Empty description="暂无服务请求" /> }}
-        style={{ borderRadius: componentRadius.card, overflow: 'hidden' }}
+        pagination={{
+          current: 1,
+          pageSize: 20,
+          total: requests.length,
+        }}
+        showTotal
       />
     </div>
   );
