@@ -90,6 +90,9 @@ import { registerBudgetRoutes } from './pipeline-budget-routes';
 import capabilityRoutes from './capability-routes';
 import { registerAIAgentRoutes } from './ai-agent-routes';
 import apiMarketRoutes from './api-market-routes';
+import serviceCatalogRoutes from './service-catalog-routes';
+import changeRoutes from './change-routes';
+import slaRoutes from './sla-routes';
 
 // AI Module Routes — AI Gateway, Cost, Review, Security
 import aiGatewayRoutes from './ai-gateway-routes';
@@ -103,6 +106,7 @@ import observabilityRoutes from './observability-routes';
 import backupRoutes from './backup-routes';
 import oncallRoutes from './oncall-routes';
 import sbomRoutes from './sbom-routes';
+import incidentRoutes from './incident-routes';
 
 // Phase 3.5: Previously orphan routes — Alert, Cache, Circuit Breaker, Maintenance, Message Queue, Team
 import alertRoutes from './alert-routes';
@@ -117,6 +121,7 @@ import cmdbRoutes from './cmdb-routes';
 import monitoringRoutes from './monitoring-routes';
 import dbaRoutes from './dba-routes';
 import billingRoutes from './billing-routes';
+import problemRoutes from './problem-routes';
 
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
@@ -469,6 +474,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, billingRoutes, '/billing', { database: options.database });
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
   await registerWithRoleGuard(app, selfHealingRoutes, '/self-healing', { database: options.database });
+  // 注册 Problem Management API 路由 (ITIL Problem Management) - PostgreSQL backed
+  await registerWithRoleGuard(app, problemRoutes, '/problems', { database: options.database });
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
   // 注册 Plugin SPI API 路由 (TASK-104)// 注册 Plugin Enhanced API 路由 (Phase 1, shared instance)// 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
   // 注册 AI 网关 API 路由
@@ -1226,6 +1233,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // NOTE: Alert routes are in-memory only; no DB dependency
   await registerWithRoleGuard(app, alertRoutes, '/alert', { database: options.database });
 
+  // ==================== Incident Management (ITIL-aligned) ====================
+  // Full lifecycle, timeline, post-mortem/RCA, priority matrix, MTTR stats
+  await registerWithRoleGuard(app, incidentRoutes, '/incidents', { database: options.database });
+
   // ==================== Phase 3: Cache Management ====================
   // Phase 3.5 Fix: Register cache routes — previously orphan
   const { CacheStrategyService } = await import('../services/cache/CacheStrategyService');
@@ -1269,4 +1280,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Dual Engine (AST + LLM) ====================
   await registerWithRoleGuard(app, dualEngineRoutes, '/dual-engine', { database: options.database });
+
+  // ==================== Service Catalog (ITIL) ====================
+  await registerWithRoleGuard(app, serviceCatalogRoutes, '/catalog', { database: options.database });
+
+  // ==================== SLA Management (ITSM Phase B) ====================
+  await registerWithRoleGuard(app, slaRoutes, '/sla', { database: options.database });
+
+  // ==================== Change Management (ITSM Phase C) ====================
+  await registerWithRoleGuard(app, changeRoutes, '/changes', { database: options.database });
 }
