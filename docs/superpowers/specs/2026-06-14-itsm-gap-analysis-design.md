@@ -12,19 +12,19 @@ ITSM 5 个模块的 **功能实现度约 95%**：
 
 | 模块 | 后端端点 | DB 表 | 前端页面 | Repository | Service |
 |------|---------|-------|---------|-----------|---------|
-| Incident | 20 | 2 | ✅ | ✅ | ✅ |
-| Problem | 15 | 2 | ✅ | ✅ | ✅ |
-| SLA | 16 | 2 | ✅ | ✅ | ✅ |
-| Change | 16 | 2 | ✅ | ✅ | ✅ |
-| ServiceCatalog | 13 | 2 | ✅ | ✅ | ✅ |
+| Incident | 20 | 4 (incidents, timeline, postmortems, escalations) | ✅ | ✅ | ✅ |
+| Problem | 15 | 3 (problems, known_errors, timeline_events) | ✅ | ✅ | ✅ |
+| SLA | 16 | 3 (definitions, tracking, breach_events) | ✅ | ✅ | ✅ |
+| Change | 16 | 4 (change_requests, cab_meetings, timeline, rfcs) | ✅ | ✅ | ✅ |
+| ServiceCatalog | 13 | 3 (catalog_services, catalog_requests, request_timeline) | ✅ | ✅ | ✅ |
 
-**总计**: 80 个后端端点, 15 张 DB 表, 5 个前端页面, 全部使用 PostgreSQL Repository 模式。
+**总计**: 80 个后端端点, 17 张 DB 表（含 timeline/events 事件溯源表）, 5 个前端页面, 全部使用 PostgreSQL Repository 模式。
 
 ## 2. 识别的 5 类缺失
 
 ### 缺失 1: 测试覆盖率 (~0%)
 
-**现状**: 5 个 ITSM Service 均无测试文件。IncidentRepository 有测试，其余 Repository 无测试。
+**现状**: Incident 模块已有 `IncidentRepository.test.ts` (334 行, 18 cases) 和 `IncidentService.test.ts` (660 行, 45+ cases)。其余 4 个模块（Problem, SLA, Change, ServiceCatalog）无任何测试文件。
 
 **影响**: 无法防止回归，重构风险高。
 
@@ -68,7 +68,7 @@ ITSM 5 个模块的 **功能实现度约 95%**：
 
 | # | 文件路径 (`orion-platform-service/src/services/` 下) | 行数估算 | 测试内容 |
 |---|---------------------------------------------------|---------|---------|
-| 1 | `incident/__tests__/IncidentService.business.test.ts` (新建) | ~400 | 状态转换矩阵、优先级计算、SLA关联、批量操作 |
+| 1 | `incident/__tests__/IncidentService.test.ts` (补充已有) | ~200 | 补充状态转换矩阵、SLA关联、批量操作（已有 660 行/45 cases） |
 | 2 | `problem/__tests__/ProblemRepository.test.ts` (新建) | ~300 | CRUD、筛选、分页、KEDB查询 |
 | 3 | `problem/__tests__/ProblemService.test.ts` (新建) | ~350 | 根因分析流程、KnownError关联、状态转换 |
 | 4 | `sla/__tests__/SLARepository.test.ts` (新建) | ~400 | SLA策略CRUD、违约查询、统计聚合 |
@@ -79,7 +79,7 @@ ITSM 5 个模块的 **功能实现度约 95%**：
 | 9 | `service-catalog/__tests__/CatalogService.test.ts` (新建) | ~350 | 服务请求流程、审批触发、SLA绑定 |
 | 10 | `incident/__tests__/IncidentRepository.test.ts` (补充已有) | ~400 | 补充关联查询、时间线、批量操作测试 |
 
-**总计**: 10 个测试文件 (9 新建 + 1 补充), ~3800 行代码
+**总计**: 10 个测试文件 (8 新建 + 2 补充), ~3600 行代码
 
 **测试优先级**:
 - **P0**: Repository CRUD 基础测试 (文件 2,3,4,5,6,7,8,9)
