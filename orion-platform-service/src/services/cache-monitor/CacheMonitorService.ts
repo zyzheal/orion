@@ -230,7 +230,10 @@ export class CacheMonitorService {
   async analyzePerformanceImpact(
     db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }> },
     pipelineId: string,
+    tenantId?: string,
   ): Promise<CachePerformanceImpact> {
+    const tenantClause = tenantId ? 'AND tenant_id = $2' : '';
+    const params: unknown[] = tenantId ? [pipelineId, tenantId] : [pipelineId];
     const result = await db.query(
       `SELECT
         COUNT(*) FILTER (WHERE cache_enabled = true) as cache_enabled_runs,
@@ -238,8 +241,8 @@ export class CacheMonitorService {
         AVG(duration_ms) FILTER (WHERE cache_enabled = true) as with_cache_avg,
         AVG(duration_ms) FILTER (WHERE cache_enabled = false OR cache_enabled IS NULL) as without_cache_avg
        FROM pipeline_runs
-       WHERE pipeline_id = $1 AND status = 'completed' AND duration_ms IS NOT NULL`,
-      [pipelineId],
+       WHERE pipeline_id = $1 AND status = 'completed' AND duration_ms IS NOT NULL ${tenantClause}`,
+      params,
     );
 
     const row = result.rows[0];

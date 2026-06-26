@@ -357,7 +357,7 @@ export default async function buildEnvRoutes(
         return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
       }
       const { pipelineId } = (request.params as any);
-      const impact = await cacheMonitorService.analyzePerformanceImpact(options.database, pipelineId);
+      const impact = await cacheMonitorService.analyzePerformanceImpact(options.database, pipelineId, tenantId);
       return reply.status(200).send({ success: true, data: impact });
     } catch (error: any) {
       logger.error({ error }, 'Failed to analyze cache performance impact');

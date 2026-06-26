@@ -363,7 +363,7 @@ describe('CacheMonitorService', () => {
           }],
         });
 
-        const result = await service.analyzePerformanceImpact(db as any, 'p1');
+        const result = await service.analyzePerformanceImpact(db as any, 'p1', 't1');
 
         expect(result).toHaveProperty('time_saved_ms');
         expect(result).toHaveProperty('time_saved_percent');
@@ -427,6 +427,50 @@ describe('CacheMonitorService', () => {
         expect(result.caches.length).toBe(2);
         expect(result.topCaches.length).toBe(2);
       });
+    });
+  });
+
+  describe('SQL column name validation', () => {
+    it('recordEvent SQL should reference eviction_count, not total_eviction_count', async () => {
+      const capturedSql: string[] = [];
+      const validatingDb = {
+        query: jest.fn(async (sql: string) => {
+          capturedSql.push(sql);
+          return { rows: [], rowCount: 0 };
+        }),
+      };
+      const svc = new CacheMonitorService(validatingDb as any);
+      await svc.recordCacheEvent('c1', 't1', 'hit', 50);
+
+      const upsertSql = capturedSql.find(s => s.includes('INSERT INTO build_cache_metrics'));
+      expect(upsertSql).toBeDefined();
+      expect(upsertSql!).toContain('eviction_count = build_cache_metrics.eviction_count');
+      expect(upsertSql!).not.toContain('total_eviction_count');
+    });
+
+    it('recordEvent SQL should use correct column names from migration 344', async () => {
+      const capturedSql: string[] = [];
+      const validatingDb = {
+        query: jest.fn(async (sql: string) => {
+          capturedSql.push(sql);
+          return { rows: [], rowCount: 0 };
+        }),
+      };
+      const svc = new CacheMonitorService(validatingDb as any);
+      await svc.recordCacheEvent('c1', 't1', 'miss');
+
+      const upsertSql = capturedSql.find(s => s.includes('INSERT INTO build_cache_metrics'));
+      expect(upsertSql).toBeDefined();
+      // Verify all column names match migration 344
+      expect(upsertSql!).toContain('cache_id');
+      expect(upsertSql!).toContain('tenant_id');
+      expect(upsertSql!).toContain('total_hits');
+      expect(upsertSql!).toContain('total_misses');
+      expect(upsertSql!).toContain('hit_rate');
+      expect(upsertSql!).toContain('total_size_bytes');
+      expect(upsertSql!).toContain('eviction_count');
+      expect(upsertSql!).toContain('avg_latency_saved_ms');
+      expect(upsertSql!).toContain('last_updated');
     });
   });
 
