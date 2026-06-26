@@ -53,3 +53,8 @@ target/
 orion-knowledge/backend/bin/api
 orion-knowledge/pandawiki-api
 orion-cmdb-service/bin/cmdbd
+
+# Tool caches
+.codegraph/
+.understand-anything/
+.claude/worktrees/
