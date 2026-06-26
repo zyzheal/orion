@@ -178,6 +178,9 @@ export const listTickets = getTickets;
 export const updateTicket = (id: string, data: Partial<Ticket>) =>
   api.put<Ticket>(`/v1/tickets/${id}`, data);
 
+export const deleteTicket = (id: string) =>
+  api.delete(`/v1/tickets/${id}`);
+
 // ==================== Workflow ====================
 
 export const transitionStatus = (id: string, data: {

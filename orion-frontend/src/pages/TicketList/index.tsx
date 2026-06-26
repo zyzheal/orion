@@ -10,7 +10,7 @@
  * - Pagination at bottom
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Badge, Modal, message } from 'antd';
+import { Typography, Button, Space, Tag, Badge, Modal, message, Popconfirm } from 'antd';
 import {
   PlusOutlined,
   OrderedListOutlined,
@@ -23,16 +23,21 @@ import {
   UserAddOutlined,
   InboxOutlined,
   WarningOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CheckOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { getTickets } from '@/api/ticketing';
+import { getTickets, deleteTicket, transitionStatus, resolveTicket, closeTicket, assignTicket } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import CreateTicketModal from './CreateTicketModal';
+import EditTicketModal from './EditTicketModal';
 import DispatchPanel from './DispatchPanel';
 
 const { Title, Text } = Typography;
@@ -137,6 +142,8 @@ const TicketList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [dispatchPanelOpen, setDispatchPanelOpen] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
@@ -280,6 +287,100 @@ const TicketList: React.FC = () => {
     },
   ];
 
+  // Action handlers
+  const handleRefresh = () => {
+    loadTickets();
+  };
+
+  const handleAssign = (ticket: Ticket) => {
+    // TODO: Replace with proper assignee selection modal (engineer dropdown)
+    let assigneeInput = '';
+    Modal.confirm({
+      title: '分配工单',
+      content: (
+        <div>
+          <p>工单: {ticket.id}</p>
+          <input
+            placeholder="输入工程师名称"
+            style={{ width: '100%', padding: '4px 8px', marginTop: 8 }}
+            onChange={(e) => { assigneeInput = e.target.value; }}
+          />
+        </div>
+      ),
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        if (!assigneeInput.trim()) {
+          message.warning('请输入工程师名称');
+          throw new Error('validation');
+        }
+        try {
+          await assignTicket(ticket.id, { assignee: assigneeInput.trim() });
+          message.success(`工单已分配给 ${assigneeInput.trim()}`);
+          loadTickets();
+        } catch (error: unknown) {
+          if (error instanceof Error && error.message !== 'validation') {
+            message.error(`分配失败：${error.message}`);
+          }
+        }
+      },
+    });
+  };
+
+  const handleAutoDispatch = () => {
+    setDispatchPanelOpen(true);
+  };
+
+  const handleCreateSuccess = () => {
+    setCreateModalOpen(false);
+    loadTickets();
+  };
+
+  const handleEdit = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setEditingTicket(null);
+    loadTickets();
+  };
+
+  const handleDelete = async (ticket: Ticket) => {
+    try {
+      await deleteTicket(ticket.id);
+      message.success('工单已删除');
+      loadTickets();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
+    }
+  };
+
+  const handleStatusTransition = async (ticket: Ticket, action: string) => {
+    try {
+      if (action === 'start') {
+        await transitionStatus(ticket.id, { toStatus: 'in-progress', performedBy: 'current-user' });
+      } else if (action === 'resolve') {
+        await resolveTicket(ticket.id);
+      } else if (action === 'close') {
+        await closeTicket(ticket.id);
+      }
+      message.success('状态更新成功');
+      loadTickets();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`状态更新失败：${error.message}`);
+      } else {
+        message.error('状态更新失败');
+      }
+    }
+  };
+
   // Table columns
   const columns: TableColumn<Ticket>[] = [
     {
@@ -399,9 +500,9 @@ const TicketList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 160,
+      width: 280,
       render: (_: unknown, record: Ticket) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button
             type="link"
             size="small"
@@ -411,6 +512,50 @@ const TicketList: React.FC = () => {
           >
             详情
           </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            data-testid={`edit-ticket-${record.id}`}
+          >
+            编辑
+          </Button>
+          {/* Status transition buttons based on current status */}
+          {(record.status === 'open' || record.status === 'assigned') && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => handleStatusTransition(record, 'start')}
+              data-testid={`start-ticket-${record.id}`}
+            >
+              处理中
+            </Button>
+          )}
+          {record.status === 'in-progress' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CheckOutlined />}
+              style={{ color: colors.success[500] }}
+              onClick={() => handleStatusTransition(record, 'resolve')}
+              data-testid={`resolve-ticket-${record.id}`}
+            >
+              解决
+            </Button>
+          )}
+          {record.status === 'resolved' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={() => handleStatusTransition(record, 'close')}
+              data-testid={`close-ticket-${record.id}`}
+            >
+              关闭
+            </Button>
+          )}
           {!record.assignee && (
             <Button
               type="link"
@@ -422,6 +567,24 @@ const TicketList: React.FC = () => {
               分配
             </Button>
           )}
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这个工单吗？此操作不可恢复。"
+            onConfirm={() => handleDelete(record)}
+            okText="确认"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              data-testid={`delete-ticket-${record.id}`}
+            >
+              删除
+            </Button>
+          </Popconfirm>
           {record.escalationLevel > 0 && (
             <Tag color="red" style={{ margin: 0 }}>
               升级 L{record.escalationLevel}
@@ -431,31 +594,6 @@ const TicketList: React.FC = () => {
       ),
     },
   ];
-
-  const handleRefresh = () => {
-    loadTickets();
-  };
-
-  const handleAssign = (ticket: Ticket) => {
-    Modal.confirm({
-      title: '分配工单',
-      content: `选择工程师来分配工单 ${ticket.id}`,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => {
-        message.success(`工单 ${ticket.id} 分配成功`);
-      },
-    });
-  };
-
-  const handleAutoDispatch = () => {
-    setDispatchPanelOpen(true);
-  };
-
-  const handleCreateSuccess = () => {
-    setCreateModalOpen(false);
-    message.success('工单创建成功');
-  };
 
   return (
     <div style={{ padding: 0 }} data-testid="ticket-list-page">
@@ -557,6 +695,17 @@ const TicketList: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
+      />
+
+      {/* Edit ticket modal */}
+      <EditTicketModal
+        open={editModalOpen}
+        onCancel={() => {
+          setEditModalOpen(false);
+          setEditingTicket(null);
+        }}
+        onSuccess={handleEditSuccess}
+        ticket={editingTicket}
       />
 
       {/* Dispatch panel */}

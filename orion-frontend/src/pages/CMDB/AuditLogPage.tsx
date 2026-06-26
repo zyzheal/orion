@@ -3,8 +3,9 @@
  * 终端连接日志、会话审计、文件传输日志
  *
  * 2026-05-19: 从 orion-visor-ui 资产审计模块迁移至 CMDB
+ * 2026-06-24: 对接真实后端 API，移除 mock 数据
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Table,
@@ -20,6 +21,7 @@ import {
   Descriptions,
   Drawer,
   Tabs,
+  message,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -29,122 +31,16 @@ import {
   FileTextOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
+import {
+  getConnectLogs,
+  getFileLogs,
+  getTerminalAuditStats,
+  type TerminalConnectLog,
+  type TerminalFileLog,
+} from '@/api/terminal-audit';
 import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface TerminalConnectLog {
-  id: string;
-  username: string;
-  hostname: string;
-  hostIp: string;
-  connectTime: string;
-  disconnectTime?: string;
-  duration?: string;
-  status: 'active' | 'closed' | 'terminated';
-  clientIp: string;
-}
-
-interface TerminalFileLog {
-  id: string;
-  username: string;
-  hostname: string;
-  filePath: string;
-  fileName: string;
-  fileSize: string;
-  operation: 'upload' | 'download';
-  timestamp: string;
-  status: 'success' | 'failed';
-}
-
-// ============================================================================
-// Mock Data
-// ============================================================================
-
-const mockConnectLogs: TerminalConnectLog[] = [
-  {
-    id: 'conn-001',
-    username: 'admin',
-    hostname: 'prod-web-01',
-    hostIp: '10.0.1.10',
-    connectTime: '2026-05-19 14:30:00',
-    status: 'active',
-    clientIp: '192.168.1.100',
-  },
-  {
-    id: 'conn-002',
-    username: 'operator',
-    hostname: 'prod-api-01',
-    hostIp: '10.0.2.20',
-    connectTime: '2026-05-19 13:15:00',
-    disconnectTime: '2026-05-19 13:45:00',
-    duration: '30m',
-    status: 'closed',
-    clientIp: '192.168.1.101',
-  },
-  {
-    id: 'conn-003',
-    username: 'admin',
-    hostname: 'prod-web-02',
-    hostIp: '10.0.1.11',
-    connectTime: '2026-05-19 12:00:00',
-    disconnectTime: '2026-05-19 12:10:00',
-    duration: '10m',
-    status: 'terminated',
-    clientIp: '192.168.1.100',
-  },
-  {
-    id: 'conn-004',
-    username: 'developer',
-    hostname: 'dev-web-01',
-    hostIp: '10.0.3.10',
-    connectTime: '2026-05-19 10:30:00',
-    disconnectTime: '2026-05-19 11:30:00',
-    duration: '1h',
-    status: 'closed',
-    clientIp: '192.168.1.102',
-  },
-];
-
-const mockFileLogs: TerminalFileLog[] = [
-  {
-    id: 'file-001',
-    username: 'admin',
-    hostname: 'prod-web-01',
-    filePath: '/tmp',
-    fileName: 'config.yaml',
-    fileSize: '2.4 KB',
-    operation: 'upload',
-    timestamp: '2026-05-19 14:35:00',
-    status: 'success',
-  },
-  {
-    id: 'file-002',
-    username: 'operator',
-    hostname: 'prod-api-01',
-    filePath: '/var/log',
-    fileName: 'app.log',
-    fileSize: '15.2 MB',
-    operation: 'download',
-    timestamp: '2026-05-19 13:20:00',
-    status: 'success',
-  },
-  {
-    id: 'file-003',
-    username: 'admin',
-    hostname: 'prod-web-02',
-    filePath: '/opt/app',
-    fileName: 'deploy.sh',
-    fileSize: '1.1 KB',
-    operation: 'upload',
-    timestamp: '2026-05-19 12:05:00',
-    status: 'failed',
-  },
-];
 
 // ============================================================================
 // Status Maps
@@ -171,14 +67,28 @@ const operationMap: Record<TerminalFileLog['operation'], string> = {
 // ============================================================================
 
 const ConnectLogTab: React.FC = () => {
-  const [logs, setLogs] = useState<TerminalConnectLog[]>(mockConnectLogs);
+  const [logs, setLogs] = useState<TerminalConnectLog[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<TerminalConnectLog | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  const filteredLogs = filterStatus === 'all'
-    ? logs
-    : logs.filter((l) => l.status === filterStatus);
+  const loadLogs = (status?: string) => {
+    setLoading(true);
+    getConnectLogs({ pageSize: 50, status: status as TerminalConnectLog['status'] | undefined })
+      .then((res) => {
+        setLogs(res.data ?? []);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : '未知错误';
+        message.error(`加载连接日志失败：${msg}`);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadLogs(filterStatus === 'all' ? undefined : filterStatus);
+  }, [filterStatus]);
 
   const columns: TableProps<TerminalConnectLog>['columns'] = [
     {
@@ -275,7 +185,7 @@ const ConnectLogTab: React.FC = () => {
               { label: '已终止', value: 'terminated' },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => setLogs(mockConnectLogs)}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadLogs(filterStatus === 'all' ? undefined : filterStatus)} loading={loading}>
             刷新
           </Button>
         </Space>
@@ -283,9 +193,10 @@ const ConnectLogTab: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={filteredLogs}
+        dataSource={logs}
         rowKey="id"
         size="middle"
+        loading={loading}
         pagination={{ pageSize: 10 }}
       />
 
@@ -325,7 +236,25 @@ const ConnectLogTab: React.FC = () => {
 // ============================================================================
 
 const FileLogTab: React.FC = () => {
-  const [logs, setLogs] = useState<TerminalFileLog[]>(mockFileLogs);
+  const [logs, setLogs] = useState<TerminalFileLog[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadLogs = () => {
+    setLoading(true);
+    getFileLogs({ pageSize: 50 })
+      .then((res) => {
+        setLogs(res.data ?? []);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : '未知错误';
+        message.error(`加载文件日志失败：${msg}`);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadLogs();
+  }, []);
 
   const columns: TableProps<TerminalFileLog>['columns'] = [
     {
@@ -402,7 +331,7 @@ const FileLogTab: React.FC = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
-        <Button icon={<ReloadOutlined />} onClick={() => setLogs(mockFileLogs)}>
+        <Button icon={<ReloadOutlined />} onClick={loadLogs} loading={loading}>
           刷新
         </Button>
       </div>
@@ -412,6 +341,7 @@ const FileLogTab: React.FC = () => {
         dataSource={logs}
         rowKey="id"
         size="middle"
+        loading={loading}
         pagination={{ pageSize: 10 }}
       />
     </div>
@@ -423,6 +353,22 @@ const FileLogTab: React.FC = () => {
 // ============================================================================
 
 const AuditLogPage: React.FC = () => {
+  const [stats, setStats] = useState({ totalConnectLogs: 0, activeSessions: 0, totalFileTransfers: 0 });
+
+  useEffect(() => {
+    getTerminalAuditStats()
+      .then((res) => {
+        if (res.data) {
+          setStats({
+            totalConnectLogs: res.data.totalConnectLogs ?? 0,
+            activeSessions: res.data.activeSessions ?? 0,
+            totalFileTransfers: res.data.totalFileTransfers ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const tabItems = [
     {
       key: 'connect',
@@ -450,17 +396,17 @@ const AuditLogPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="连接日志" value={mockConnectLogs.length} prefix={<ClockCircleOutlined />} />
+            <Statistic title="连接日志" value={stats.totalConnectLogs} prefix={<ClockCircleOutlined />} />
           </Card>
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="活跃会话" value={mockConnectLogs.filter((l) => l.status === 'active').length} valueStyle={{ color: colors.success[500] }} />
+            <Statistic title="活跃会话" value={stats.activeSessions} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="文件传输" value={mockFileLogs.length} prefix={<FileTextOutlined />} />
+            <Statistic title="文件传输" value={stats.totalFileTransfers} prefix={<FileTextOutlined />} />
           </Card>
         </Col>
       </Row>

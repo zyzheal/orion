@@ -24,16 +24,13 @@ import {
   Card,
   Descriptions,
   Popconfirm,
-  Badge,
   Row,
   Col,
-  Statistic,
   Spin,
 } from 'antd';
 import {
   PlusOutlined,
   BugOutlined,
-  SearchOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
@@ -110,6 +107,8 @@ const statusTransitions: Record<string, { status: string; label: string; icon: R
   closed: [],
 };
 
+const KEDB_DEFAULT_PAGE_SIZE = 20;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -125,8 +124,7 @@ const ProblemPage: React.FC = () => {
   const [stats, setStats] = useState<ProblemStats | null>(null);
 
   // Filters
-  const [filterSeverity, setFilterSeverity] = useState<string | undefined>();
-  const [filterStatus, setFilterStatus] = useState<string | undefined>();
+  const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [searchQuery, setSearchQuery] = useState('');
 
   // Selected problem for detail view
@@ -149,8 +147,8 @@ const ProblemPage: React.FC = () => {
   const [kedbLoading, setKedbLoading] = useState(false);
   const [kedbTotal, setKedbTotal] = useState(0);
   const [kedbPage, setKedbPage] = useState(1);
-  const [kedbSearchQuery, setKedbSearchQuery] = useState('');
-  const [kedbStatusFilter, setKedbStatusFilter] = useState<string | undefined>();
+  const [kedbPageSize, setKedbPageSize] = useState(KEDB_DEFAULT_PAGE_SIZE);
+  const [kedbFilters, setKedbFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [kedbModalVisible, setKedbModalVisible] = useState(false);
   const [kedbEditModalVisible, setKedbEditModalVisible] = useState(false);
   const [editingKnownError, setEditingKnownError] = useState<KnownError | null>(null);
@@ -173,8 +171,8 @@ const ProblemPage: React.FC = () => {
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
       };
-      if (filterSeverity) params.severity = filterSeverity;
-      if (filterStatus) params.status = filterStatus;
+      if (filters.severity) params.severity = filters.severity;
+      if (filters.status) params.status = filters.status;
 
       const result = await getProblems(params);
       let data = result.data || [];
@@ -196,7 +194,7 @@ const ProblemPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, filterSeverity, filterStatus, searchQuery]);
+  }, [currentPage, pageSize, filters, searchQuery]);
 
   /** Load problem statistics */
   const loadStats = useCallback(async () => {
@@ -212,16 +210,18 @@ const ProblemPage: React.FC = () => {
   const loadKnownErrors = useCallback(async () => {
     setKedbLoading(true);
     try {
+      const kedbSearchQuery = (kedbFilters.kedbSearch as string) || '';
+      const kedbStatus = kedbFilters.kedbStatus as string | undefined;
       if (kedbSearchQuery) {
         const data = await searchKnownErrors(kedbSearchQuery);
         setKnownErrors(data);
         setKedbTotal(data.length);
       } else {
         const params: Record<string, unknown> = {
-          limit: 20,
-          offset: (kedbPage - 1) * 20,
+          limit: kedbPageSize,
+          offset: (kedbPage - 1) * kedbPageSize,
         };
-        if (kedbStatusFilter) params.status = kedbStatusFilter;
+        if (kedbStatus) params.status = kedbStatus;
         const result = await getKnownErrors(params);
         setKnownErrors(result.data || []);
         setKedbTotal(result.total || 0);
@@ -232,7 +232,7 @@ const ProblemPage: React.FC = () => {
     } finally {
       setKedbLoading(false);
     }
-  }, [kedbPage, kedbSearchQuery, kedbStatusFilter]);
+  }, [kedbPage, kedbPageSize, kedbFilters]);
 
   /** Load single problem detail */
   const loadProblemDetail = useCallback(async (id: string) => {
@@ -504,55 +504,36 @@ const ProblemPage: React.FC = () => {
     return (
       <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.lg }}>
         <Col xs={12} sm={6}>
-          <Card
-            size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
-          >
-            <Statistic
-              title="问题总数"
-              value={stats.total}
-              prefix={<BugOutlined style={{ color: colors.primary[500] }} />}
-            />
-          </Card>
+          <MetricCard
+            title="问题总数"
+            value={stats.total}
+            icon={<BugOutlined />}
+            color={colors.primary[500]}
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card
-            size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
-          >
-            <Statistic
-              title="已知问题"
-              value={stats.byStatus?.known || 0}
-              valueStyle={{ color: colors.purple[500] }}
-              prefix={<BookOutlined />}
-            />
-          </Card>
+          <MetricCard
+            title="已知问题"
+            value={stats.byStatus?.known || 0}
+            icon={<BookOutlined />}
+            color={colors.purple[500]}
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card
-            size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
-          >
-            <Statistic
-              title="调查中"
-              value={stats.byStatus?.investigating || 0}
-              valueStyle={{ color: colors.warning[500] }}
-              prefix={<SyncOutlined spin />}
-            />
-          </Card>
+          <MetricCard
+            title="调查中"
+            value={stats.byStatus?.investigating || 0}
+            icon={<SyncOutlined />}
+            color={colors.warning[500]}
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card
-            size="small"
-            style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
-          >
-            <Statistic
-              title="严重/高级"
-              value={(stats.bySeverity?.critical || 0) + (stats.bySeverity?.high || 0)}
-              valueStyle={{ color: colors.error[500] }}
-              prefix={<ExclamationCircleOutlined />}
-            />
-          </Card>
+          <MetricCard
+            title="严重/高级"
+            value={(stats.bySeverity?.critical || 0) + (stats.bySeverity?.high || 0)}
+            icon={<ExclamationCircleOutlined />}
+            color={colors.error[500]}
+          />
         </Col>
       </Row>
     );
@@ -562,222 +543,144 @@ const ProblemPage: React.FC = () => {
   // Tab 1: Problem List
   // ============================================================================
 
+  /** Problem list table columns */
+  const problemColumns: TableColumn<Problem>[] = [
+    {
+      key: 'title',
+      title: '标题',
+      dataIndex: 'title',
+      render: (_value, record) => (
+        <Text
+          strong
+          style={{ color: colors.primary[600], cursor: 'pointer' }}
+          onClick={() => handleViewDetail(record)}
+        >
+          {record.title}
+        </Text>
+      ),
+    },
+    {
+      key: 'severity',
+      title: '严重级别',
+      dataIndex: 'severity',
+      width: 90,
+      render: (_value, record) => {
+        const sev = severityConfig[record.severity] || severityConfig.medium;
+        return <Tag color={sev.color} icon={sev.icon}>{sev.label}</Tag>;
+      },
+    },
+    {
+      key: 'status',
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (_value, record) => {
+        const st = statusConfig[record.status] || statusConfig.known;
+        return <Tag color={st.color}>{st.label}</Tag>;
+      },
+    },
+    {
+      key: 'category',
+      title: '分类',
+      dataIndex: 'category',
+      width: 120,
+      render: (_value, record) => <Text type="secondary">{record.category || '-'}</Text>,
+    },
+    {
+      key: 'assigned_to',
+      title: '负责人',
+      dataIndex: 'assigned_to',
+      width: 120,
+      render: (_value, record) => <Text>{record.assigned_to || '-'}</Text>,
+    },
+    {
+      key: 'created_at',
+      title: '创建时间',
+      dataIndex: 'created_at',
+      width: 170,
+      render: (_value, record) => (
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
+        </Text>
+      ),
+    },
+    {
+      key: 'actions',
+      title: '操作',
+      width: 160,
+      render: (_value, record) => (
+        <Space size={4}>
+          <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} title="查看详情" />
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEditModal(record)} title="编辑" />
+          <Popconfirm
+            title="确定删除此问题?"
+            description="删除后不可恢复"
+            onConfirm={() => handleDelete(record.id)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  /** Filter definitions for problem list SearchFilterBar */
+  const problemFilterDefs: FilterDefinition[] = [
+    {
+      key: 'severity',
+      label: '严重级别',
+      options: [
+        { label: '严重', value: 'critical' },
+        { label: '高', value: 'high' },
+        { label: '中', value: 'medium' },
+        { label: '低', value: 'low' },
+      ],
+    },
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '已知', value: 'known' },
+        { label: '调查中', value: 'investigating' },
+        { label: '已解决', value: 'resolved' },
+        { label: '已关闭', value: 'closed' },
+      ],
+    },
+  ];
+
   const problemListContent = (
     <div>
-      {/* Filter bar */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: spacing.sm,
-          marginBottom: spacing.md,
-          alignItems: 'center',
-        }}
-      >
-        <Input
-          placeholder="搜索问题标题、描述、分类..."
-          prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: 280, borderRadius: radius.sm }}
-          allowClear
+      <SearchFilterBar
+        onSearch={setSearchQuery}
+        onFilter={setFilters}
+        filters={problemFilterDefs}
+        searchPlaceholder="搜索问题标题、描述、分类..."
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={() => { loadProblems(); loadStats(); }}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+              新建问题
+            </Button>
+          </Space>
+        }
+      />
+      <div style={{ marginTop: spacing.md }}>
+        <Table<Problem>
+          columns={problemColumns}
+          dataSource={problems}
+          rowKey="id"
+          loading={loading}
+          pagination={{ current: currentPage, pageSize, total: totalProblems }}
+          showTotal
+          pageSizeOptions={[10, 20, 50, 100]}
+          onPaginationChange={(p: number, ps: number) => { setCurrentPage(p); setPageSize(ps); }}
         />
-        <Select
-          placeholder="严重级别"
-          value={filterSeverity}
-          onChange={setFilterSeverity}
-          allowClear
-          style={{ width: 130 }}
-          options={[
-            { label: '全部级别', value: undefined },
-            { label: '严重', value: 'critical' },
-            { label: '高', value: 'high' },
-            { label: '中', value: 'medium' },
-            { label: '低', value: 'low' },
-          ]}
-        />
-        <Select
-          placeholder="状态"
-          value={filterStatus}
-          onChange={setFilterStatus}
-          allowClear
-          style={{ width: 130 }}
-          options={[
-            { label: '全部状态', value: undefined },
-            { label: '已知', value: 'known' },
-            { label: '调查中', value: 'investigating' },
-            { label: '已解决', value: 'resolved' },
-            { label: '已关闭', value: 'closed' },
-          ]}
-        />
-        <div style={{ flex: 1 }} />
-        <Button icon={<ReloadOutlined />} onClick={loadProblems}>
-          刷新
-        </Button>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setCreateModalVisible(true)}
-        >
-          新建问题
-        </Button>
       </div>
-
-      {/* Problem table */}
-      {problems.length > 0 ? (
-        <>
-          <div style={{ overflowX: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: 14,
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: `1px solid ${colors.neutral[200]}`,
-                    background: colors.neutral[50],
-                  }}
-                >
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600 }}>标题</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 90 }}>严重级别</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 100 }}>状态</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 120 }}>分类</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 120 }}>负责人</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 170 }}>创建时间</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 160 }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {problems.map((problem) => {
-                  const sev = severityConfig[problem.severity] || severityConfig.medium;
-                  const st = statusConfig[problem.status] || statusConfig.known;
-                  return (
-                    <tr
-                      key={problem.id}
-                      style={{
-                        borderBottom: `1px solid ${colors.neutral[100]}`,
-                        cursor: 'pointer',
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = colors.primary[50];
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                      }}
-                    >
-                      <td
-                        style={{ padding: '12px 16px' }}
-                        onClick={() => handleViewDetail(problem)}
-                      >
-                        <Text strong style={{ color: colors.primary[600], cursor: 'pointer' }}>
-                          {problem.title}
-                        </Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Tag color={sev.color} icon={sev.icon}>
-                          {sev.label}
-                        </Tag>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Tag color={st.color}>{st.label}</Tag>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text type="secondary">{problem.category || '-'}</Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text>{problem.assigned_to || '-'}</Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text type="secondary" style={{ fontSize: 13 }}>
-                          {problem.created_at ? dayjs(problem.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-                        </Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Space size={4}>
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<EyeOutlined />}
-                            onClick={() => handleViewDetail(problem)}
-                            title="查看详情"
-                          />
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => handleOpenEditModal(problem)}
-                            title="编辑"
-                          />
-                          <Popconfirm
-                            title="确定删除此问题?"
-                            description="删除后不可恢复"
-                            onConfirm={() => handleDelete(problem.id)}
-                            okText="删除"
-                            cancelText="取消"
-                            okButtonProps={{ danger: true }}
-                          >
-                            <Button
-                              type="text"
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              title="删除"
-                            />
-                          </Popconfirm>
-                        </Space>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {/* Pagination */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              marginTop: spacing.md,
-              gap: spacing.sm,
-            }}
-          >
-            <Text type="secondary" style={{ lineHeight: '32px', fontSize: 13 }}>
-              共 {totalProblems} 条
-            </Text>
-            <Button
-              size="small"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => p - 1)}
-            >
-              上一页
-            </Button>
-            <Badge count={currentPage} style={{ backgroundColor: colors.primary[500] }} />
-            <Button
-              size="small"
-              disabled={problems.length < pageSize}
-              onClick={() => setCurrentPage((p) => p + 1)}
-            >
-              下一页
-            </Button>
-          </div>
-        </>
-      ) : (
-        !loading && (
-          <Empty description="暂无问题数据">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateModalVisible(true)}
-            >
-              创建第一个问题
-            </Button>
-          </Empty>
-        )
-      )}
     </div>
   );
 
@@ -939,221 +842,136 @@ const ProblemPage: React.FC = () => {
   // Tab 3: KEDB
   // ============================================================================
 
+  /** KEDB table columns */
+  const kedbColumns: TableColumn<KnownError>[] = [
+    {
+      key: 'title',
+      title: '标题',
+      dataIndex: 'title',
+      render: (_value, record) => <Text strong>{record.title}</Text>,
+    },
+    {
+      key: 'symptoms',
+      title: '症状',
+      dataIndex: 'symptoms',
+      width: 180,
+      ellipsis: true,
+      render: (_value, record) => <Text type="secondary">{record.symptoms || '-'}</Text>,
+    },
+    {
+      key: 'root_cause',
+      title: '根因',
+      dataIndex: 'root_cause',
+      width: 180,
+      ellipsis: true,
+      render: (_value, record) => <Text type="secondary">{record.root_cause || '-'}</Text>,
+    },
+    {
+      key: 'workaround',
+      title: '临时方案',
+      dataIndex: 'workaround',
+      width: 180,
+      ellipsis: true,
+      render: (_value, record) => <Text type="secondary">{record.workaround || '-'}</Text>,
+    },
+    {
+      key: 'status',
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      render: (_value, record) => {
+        const keStatus = knownErrorStatusConfig[record.status] || knownErrorStatusConfig.active;
+        return <Tag color={keStatus.color}>{keStatus.label}</Tag>;
+      },
+    },
+    {
+      key: 'keywords',
+      title: '关键词',
+      width: 160,
+      render: (_value, record) => (
+        <Space wrap size={4}>
+          {(record.keywords || []).slice(0, 3).map((kw) => (
+            <Tag key={kw} style={{ borderRadius: componentRadius.tag }}>{kw}</Tag>
+          ))}
+          {(record.keywords || []).length > 3 && <Tag>+{record.keywords.length - 3}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      key: 'created_at',
+      title: '创建时间',
+      dataIndex: 'created_at',
+      width: 170,
+      render: (_value, record) => (
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
+        </Text>
+      ),
+    },
+    {
+      key: 'actions',
+      title: '操作',
+      width: 120,
+      render: (_value, record) => (
+        <Space size={4}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenKedbEditModal(record)} title="编辑" />
+          <Popconfirm
+            title="确定删除此已知错误?"
+            onConfirm={() => handleDeleteKnownError(record.id)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  /** Filter definitions for KEDB SearchFilterBar */
+  const kedbFilterDefs: FilterDefinition[] = [
+    {
+      key: 'kedbStatus',
+      label: '状态',
+      options: [
+        { label: '活跃', value: 'active' },
+        { label: '已解决', value: 'resolved' },
+        { label: '已归档', value: 'archived' },
+      ],
+    },
+  ];
+
   const kedbContent = (
     <div>
-      {/* KEDB filter bar */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: spacing.sm,
-          marginBottom: spacing.md,
-          alignItems: 'center',
-        }}
-      >
-        <Input
-          placeholder="搜索已知错误..."
-          prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
-          value={kedbSearchQuery}
-          onChange={(e) => setKedbSearchQuery(e.target.value)}
-          style={{ width: 280, borderRadius: radius.sm }}
-          allowClear
+      <SearchFilterBar
+        onSearch={(q) => setKedbFilters((prev) => ({ ...prev, kedbSearch: q }))}
+        onFilter={setKedbFilters}
+        filters={kedbFilterDefs}
+        searchPlaceholder="搜索已知错误..."
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadKnownErrors}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setKedbModalVisible(true)}>
+              新建已知错误
+            </Button>
+          </Space>
+        }
+      />
+      <div style={{ marginTop: spacing.md }}>
+        <Table<KnownError>
+          columns={kedbColumns}
+          dataSource={knownErrors}
+          rowKey="id"
+          loading={kedbLoading}
+          pagination={{ current: kedbPage, pageSize: kedbPageSize, total: kedbTotal }}
+          showTotal
+          pageSizeOptions={[10, 20, 50]}
+          onPaginationChange={(p: number, ps: number) => { setKedbPage(p); setKedbPageSize(ps); }}
         />
-        <Select
-          placeholder="状态"
-          value={kedbStatusFilter}
-          onChange={setKedbStatusFilter}
-          allowClear
-          style={{ width: 130 }}
-          options={[
-            { label: '全部状态', value: undefined },
-            { label: '活跃', value: 'active' },
-            { label: '已解决', value: 'resolved' },
-            { label: '已归档', value: 'archived' },
-          ]}
-        />
-        <div style={{ flex: 1 }} />
-        <Button icon={<ReloadOutlined />} onClick={loadKnownErrors}>
-          刷新
-        </Button>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setKedbModalVisible(true)}
-        >
-          新建已知错误
-        </Button>
       </div>
-
-      {/* KEDB table */}
-      {knownErrors.length > 0 ? (
-        <>
-          <div style={{ overflowX: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: 14,
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: `1px solid ${colors.neutral[200]}`,
-                    background: colors.neutral[50],
-                  }}
-                >
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600 }}>标题</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 180 }}>症状</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 180 }}>根因</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 180 }}>临时方案</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 90 }}>状态</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 160 }}>关键词</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 170 }}>创建时间</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, width: 120 }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {knownErrors.map((ke) => {
-                  const keStatus = knownErrorStatusConfig[ke.status] || knownErrorStatusConfig.active;
-                  return (
-                    <tr
-                      key={ke.id}
-                      style={{
-                        borderBottom: `1px solid ${colors.neutral[100]}`,
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = colors.primary[50];
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                      }}
-                    >
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text strong>{ke.title}</Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text
-                          type="secondary"
-                          ellipsis={{ tooltip: ke.symptoms }}
-                          style={{ maxWidth: 160, display: 'inline-block' }}
-                        >
-                          {ke.symptoms || '-'}
-                        </Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text
-                          type="secondary"
-                          ellipsis={{ tooltip: ke.root_cause }}
-                          style={{ maxWidth: 160, display: 'inline-block' }}
-                        >
-                          {ke.root_cause || '-'}
-                        </Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text
-                          type="secondary"
-                          ellipsis={{ tooltip: ke.workaround }}
-                          style={{ maxWidth: 160, display: 'inline-block' }}
-                        >
-                          {ke.workaround || '-'}
-                        </Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Tag color={keStatus.color}>{keStatus.label}</Tag>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Space wrap size={4}>
-                          {(ke.keywords || []).slice(0, 3).map((kw) => (
-                            <Tag key={kw} style={{ borderRadius: componentRadius.tag }}>
-                              {kw}
-                            </Tag>
-                          ))}
-                          {(ke.keywords || []).length > 3 && (
-                            <Tag>+{ke.keywords.length - 3}</Tag>
-                          )}
-                        </Space>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Text type="secondary" style={{ fontSize: 13 }}>
-                          {ke.created_at ? dayjs(ke.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-                        </Text>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <Space size={4}>
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => handleOpenKedbEditModal(ke)}
-                            title="编辑"
-                          />
-                          <Popconfirm
-                            title="确定删除此已知错误?"
-                            onConfirm={() => handleDeleteKnownError(ke.id)}
-                            okText="删除"
-                            cancelText="取消"
-                            okButtonProps={{ danger: true }}
-                          >
-                            <Button
-                              type="text"
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              title="删除"
-                            />
-                          </Popconfirm>
-                        </Space>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {/* KEDB Pagination */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              marginTop: spacing.md,
-              gap: spacing.sm,
-            }}
-          >
-            <Text type="secondary" style={{ lineHeight: '32px', fontSize: 13 }}>
-              共 {kedbTotal} 条
-            </Text>
-            <Button
-              size="small"
-              disabled={kedbPage <= 1}
-              onClick={() => setKedbPage((p) => p - 1)}
-            >
-              上一页
-            </Button>
-            <Badge count={kedbPage} style={{ backgroundColor: colors.primary[500] }} />
-            <Button
-              size="small"
-              disabled={knownErrors.length < 20}
-              onClick={() => setKedbPage((p) => p + 1)}
-            >
-              下一页
-            </Button>
-          </div>
-        </>
-      ) : (
-        !kedbLoading && (
-          <Empty description="暂无已知错误数据">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setKedbModalVisible(true)}
-            >
-              创建第一个已知错误
-            </Button>
-          </Empty>
-        )
-      )}
     </div>
   );
 

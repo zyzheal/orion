@@ -1080,6 +1080,12 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
+  // Script Library
+  {
+    path: '/console/script-library',
+    element: React.lazy(() => import('@/pages/ScriptLibrary')),
+    protected: true,
+  },
   // Environment Management
   {
     path: '/environments',

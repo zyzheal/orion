@@ -106,6 +106,7 @@ export default function SprintBoardPage() {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [form] = Form.useForm();
 
@@ -218,6 +219,7 @@ export default function SprintBoardPage() {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      setConfirmLoading(true);
       const [start, end] = values.dateRange ?? [];
       const input: CreateSprintInput = {
         name: values.name,
@@ -238,8 +240,11 @@ export default function SprintBoardPage() {
       }
       setModalVisible(false);
       fetchSprints();
-    } catch {
+    } catch (err: any) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('保存失败');
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -527,7 +532,7 @@ export default function SprintBoardPage() {
                         boxShadow: shadows.xs,
                         cursor: 'pointer',
                       }}
-                      bodyStyle={{ padding: spacing.sm }}
+                      styles={{ body: { padding: spacing.sm } }}
                     >
                       <div style={{ marginBottom: 4 }}>
                         <Text strong style={{ fontSize: 13 }}>
@@ -699,7 +704,7 @@ export default function SprintBoardPage() {
                     boxShadow: shadows.card,
                     marginBottom: spacing.md,
                   }}
-                  bodyStyle={{ padding: `${spacing.sm}px ${spacing.md}px` }}
+                  styles={{ body: { padding: `${spacing.sm}px ${spacing.md}px` } }}
                 >
                   <Row justify="space-between" align="middle">
                     <Col>
@@ -745,7 +750,7 @@ export default function SprintBoardPage() {
                         borderRadius: componentRadius.card,
                         boxShadow: shadows.card,
                       }}
-                      bodyStyle={{ padding: spacing.md }}
+                      styles={{ body: { padding: spacing.md } }}
                     >
                       {renderKanbanBoard()}
                     </Card>
@@ -802,6 +807,7 @@ export default function SprintBoardPage() {
         title={editingSprint ? '编辑 Sprint' : '创建 Sprint'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={confirmLoading}
         onCancel={() => setModalVisible(false)}
         width={600}
         destroyOnClose

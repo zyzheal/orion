@@ -30,7 +30,11 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ChatTrigger, ChatPanel } from '@/components/ChatOps';
 import { TenantSelector } from '@/components/TenantSelector';
 import { initializeChatOpsStore } from '@/stores/chatOpsStore';
-import { useMenuConfigStore, type MenuModuleConfig, type MenuChildConfig } from '@/stores/menuConfigStore';
+import {
+  useMenuConfigStore,
+  type MenuModuleConfig,
+  type MenuChildConfig,
+} from '@/stores/menuConfigStore';
 import { useSubAppStore } from '@/stores/subappStore';
 import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
@@ -114,7 +118,13 @@ interface FeishuNavItemProps {
   onMegaMenuToggle: (key: string | null) => void;
 }
 
-const FeishuNavItem: React.FC<FeishuNavItemProps> = ({ item, isActive, theme, onNavigate, onMegaMenuToggle }) => {
+const FeishuNavItem: React.FC<FeishuNavItemProps> = ({
+  item,
+  isActive,
+  theme,
+  onNavigate,
+  onMegaMenuToggle,
+}) => {
   const isDark = theme === 'dark';
   const hasChildren = item.children && item.children.length > 0;
   const txtColor = isDark ? 'rgba(255,255,255,0.65)' : colors.neutral[600];
@@ -154,11 +164,13 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({ item, isActive, theme, on
       <span style={{ fontSize: 15, lineHeight: 1 }}>{item.icon}</span>
       <span style={{ lineHeight: '20px' }}>{item.label}</span>
       {hasChildren && (
-        <DownOutlined style={{
-          fontSize: 10,
-          color: isDark ? 'rgba(255,255,255,0.35)' : colors.neutral[400],
-          marginLeft: 2,
-        }} />
+        <DownOutlined
+          style={{
+            fontSize: 10,
+            color: isDark ? 'rgba(255,255,255,0.35)' : colors.neutral[400],
+            marginLeft: 2,
+          }}
+        />
       )}
       {isActive && (
         <span
@@ -215,7 +227,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
     `;
     document.head.appendChild(style);
-    return () => { document.head.removeChild(style); };
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   const handleMegaMenuToggle = (key: string | null) => {
@@ -252,7 +266,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // 直接传递 subApps 到 buildNavMenuItems，由函数内部处理动态子应用
   const navMenuItems = React.useMemo(
-    () => buildNavMenuItems(modules, subApps as { key: string; name: string; description: string; status: string }[]),
+    () =>
+      buildNavMenuItems(
+        modules,
+        subApps as { key: string; name: string; description: string; status: string }[]
+      ),
     [modules, subApps]
   );
 
@@ -309,7 +327,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     // 查找该子菜单所属的模块，构建完整面包屑
     for (const module of Object.values(modules)) {
       if (!module.enabled) continue;
-      const child = module.children?.find(c => c.enabled && c.key === key);
+      const child = module.children?.find((c) => c.enabled && c.key === key);
       if (child) {
         setBreadcrumbs([
           { title: module.label, path: module.key },
@@ -445,10 +463,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             height: 60,
           }}
         >
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-          }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}
+          >
             {navMenuItems.map((item) => (
               <FeishuNavItem
                 key={item.key}
@@ -558,63 +578,67 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Header>
 
       {/* 全宽 Mega Menu 面板 - 飞书风格，面板全宽，内容居中 */}
-      {megaMenuKey && (() => {
-        const activeItem = navMenuItems.find(i => i.key === megaMenuKey);
-        if (!activeItem || !activeItem.children || activeItem.children.length === 0) return null;
-        const isDark = theme === 'dark';
+      {megaMenuKey &&
+        (() => {
+          const activeItem = navMenuItems.find((i) => i.key === megaMenuKey);
+          if (!activeItem || !activeItem.children || activeItem.children.length === 0) return null;
+          const isDark = theme === 'dark';
 
-        // 子应用 hover 预加载处理
-        const handleSubAppHover = (childKey: string) => {
-          const appKey = childKey.replace('/', '');
-          if (!appKey || appKey.includes('/')) return;
-          const remoteEntry = `/orion-${appKey}/remoteEntry.js`;
-          prefetchSubApp(appKey, remoteEntry, { mode: 'idle' });
-        };
+          // 子应用 hover 预加载处理
+          const handleSubAppHover = (childKey: string) => {
+            const appKey = childKey.replace('/', '');
+            if (!appKey || appKey.includes('/')) return;
+            const remoteEntry = `/orion-${appKey}/remoteEntry.js`;
+            prefetchSubApp(appKey, remoteEntry, { mode: 'idle' });
+          };
 
-        return (
-          <>
-            {/* 透明点击层 - 面板外区域点击关闭 */}
-            <div
-              style={{ position: 'fixed', top: 60, left: 0, right: 0, bottom: 0, zIndex: 998 }}
-              onClick={() => handleMegaMenuToggle(null)}
-            />
-            {/* 面板容器 - 全宽，紧贴 Header 底部，带淡入动画 */}
-            <div
-              onMouseEnter={() => handleMegaMenuToggle(megaMenuKey)}
-              onMouseLeave={() => handleMegaMenuToggle(null)}
-              style={{
-                position: 'fixed',
-                top: 60,
-                left: 0,
-                width: '100vw',
-                zIndex: 999,
-                animation: 'megaMenuFadeIn 0.2s ease-out',
-                background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
-                boxShadow: isDark
-                  ? '0 6px 20px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
-                  : '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-                borderBottom: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-            >
-              <div style={{
-                width: '100%',
-                maxWidth: 1200,
-                padding: '16px 24px 24px',
-                maxHeight: 'calc(100vh - 80px)',
-                overflowY: 'auto',
-              }}>
-                {(() => {
-                      const grouped: Record<string, typeof activeItem.children> = {};
-                      for (const child of activeItem.children) {
-                        const cat = child.category || '其他';
-                        if (!grouped[cat]) grouped[cat] = [];
-                        grouped[cat].push(child);
-                      }
-                      return Object.entries(grouped).map(([category, items]) => (
-                        <div key={category}>
-                          <div style={{
+          return (
+            <>
+              {/* 透明点击层 - 面板外区域点击关闭 */}
+              <div
+                style={{ position: 'fixed', top: 60, left: 0, right: 0, bottom: 0, zIndex: 998 }}
+                onClick={() => handleMegaMenuToggle(null)}
+              />
+              {/* 面板容器 - 全宽，紧贴 Header 底部，带淡入动画 */}
+              <div
+                onMouseEnter={() => handleMegaMenuToggle(megaMenuKey)}
+                onMouseLeave={() => handleMegaMenuToggle(null)}
+                style={{
+                  position: 'fixed',
+                  top: 60,
+                  left: 0,
+                  width: '100vw',
+                  zIndex: 999,
+                  animation: 'megaMenuFadeIn 0.2s ease-out',
+                  background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+                  boxShadow: isDark
+                    ? '0 6px 20px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
+                    : '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
+                  borderBottom: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+                  display: 'flex',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: 1200,
+                    padding: '16px 24px 24px',
+                    maxHeight: 'calc(100vh - 80px)',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {(() => {
+                    const grouped: Record<string, typeof activeItem.children> = {};
+                    for (const child of activeItem.children) {
+                      const cat = child.category || '其他';
+                      if (!grouped[cat]) grouped[cat] = [];
+                      grouped[cat].push(child);
+                    }
+                    return Object.entries(grouped).map(([category, items]) => (
+                      <div key={category}>
+                        <div
+                          style={{
                             fontSize: 12,
                             fontWeight: 600,
                             color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
@@ -622,80 +646,93 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                             paddingLeft: 4,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px',
-                          }}>
-                            {category}
-                          </div>
-                          <div style={{
+                          }}
+                        >
+                          {category}
+                        </div>
+                        <div
+                          style={{
                             display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
                             gap: '4px 16px',
-                          }}>
-                            {items.map((child) => (
+                          }}
+                        >
+                          {items.map((child) => (
+                            <div
+                              key={child.key}
+                              onClick={() => handleNavigate(child.key, child.label)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: spacing[3],
+                                padding: '10px 12px',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                transition: 'background 0.15s',
+                              }}
+                              onMouseEnter={(e) => {
+                                (e.currentTarget as HTMLElement).style.background = isDark
+                                  ? 'rgba(255,255,255,0.08)'
+                                  : colors.neutral[100];
+                                // 子应用 hover 预加载
+                                handleSubAppHover(child.key);
+                              }}
+                              onMouseLeave={(e) => {
+                                (e.currentTarget as HTMLElement).style.background = 'transparent';
+                              }}
+                            >
                               <div
-                                key={child.key}
-                                onClick={() => handleNavigate(child.key, child.label)}
                                 style={{
-                                  display: 'flex',
-                                  alignItems: 'flex-start',
-                                  gap: spacing[3],
-                                  padding: '10px 12px',
-                                  borderRadius: 8,
-                                  cursor: 'pointer',
-                                  transition: 'background 0.15s',
-                                }}
-                                onMouseEnter={(e) => {
-                                  (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100];
-                                  // 子应用 hover 预加载
-                                  handleSubAppHover(child.key);
-                                }}
-                                onMouseLeave={(e) => {
-                                  (e.currentTarget as HTMLElement).style.background = 'transparent';
-                                }}
-                              >
-                                <div style={{
                                   width: 32,
                                   height: 32,
                                   borderRadius: 8,
-                                  background: isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100],
+                                  background: isDark
+                                    ? 'rgba(255,255,255,0.08)'
+                                    : colors.neutral[100],
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   flexShrink: 0,
                                   color: colors.primary[500],
                                   fontSize: 15,
-                                }}>
-                                  {child.icon}
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{
+                                }}
+                              >
+                                {child.icon}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
                                     fontSize: 14,
                                     fontWeight: 500,
                                     color: isDark ? 'rgba(255,255,255,0.9)' : colors.neutral[800],
                                     lineHeight: '22px',
-                                  }}>
-                                    {child.label}
-                                  </div>
-                                  {child.description && (
-                                    <div style={{
+                                  }}
+                                >
+                                  {child.label}
+                                </div>
+                                {child.description && (
+                                  <div
+                                    style={{
                                       fontSize: 12,
                                       color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
                                       lineHeight: '18px',
-                                    }}>
-                                      {child.description}
-                                    </div>
-                                  )}
-                                </div>
+                                    }}
+                                  >
+                                    {child.description}
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
                         </div>
-                      ));
-                    })()}
-                  </div>
-            </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
             </>
           );
-      })()}
+        })()}
 
       {/* 顶部占位 - 防止内容被 fixed Header 遮挡 */}
       <div style={{ height: 60, flexShrink: 0 }} />
@@ -709,7 +746,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       >
         <Breadcrumb
-          separator={<span style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.25)' : colors.neutral[300], margin: '0 8px' }}>/</span>}
+          separator={
+            <span
+              style={{
+                color: theme === 'dark' ? 'rgba(255,255,255,0.25)' : colors.neutral[300],
+                margin: '0 8px',
+              }}
+            >
+              /
+            </span>
+          }
           items={[
             {
               title: (
@@ -721,9 +767,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               onClick: () => navigate('/dashboard'),
               style: { fontSize: 13 },
             } as any,
-            ...((breadcrumbs || []).map(b => ({
+            ...(breadcrumbs || []).map((b) => ({
               title: (
-                <span style={{ fontSize: 13, color: theme === 'dark' ? 'rgba(255,255,255,0.65)' : colors.neutral[600] }}>
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: theme === 'dark' ? 'rgba(255,255,255,0.65)' : colors.neutral[600],
+                  }}
+                >
                   {b.title}
                 </span>
               ),
@@ -732,7 +783,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 fontSize: 13,
                 cursor: b.path ? 'pointer' : 'default',
               },
-            }))),
+            })),
           ]}
         />
       </div>
@@ -745,9 +796,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           borderRadius: 12,
           padding: 32,
           minHeight: 'calc(100vh - 180px)',
-          boxShadow: theme === 'dark'
-            ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)'
-            : '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          boxShadow:
+            theme === 'dark'
+              ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)'
+              : '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
         {children}

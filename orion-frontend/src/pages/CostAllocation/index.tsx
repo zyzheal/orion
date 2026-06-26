@@ -56,6 +56,7 @@ import {
   type CostTrend,
   type FinopsBudget,
   type CreateBudgetInput,
+  type UpdateBudgetInput,
 } from '@/api/cost-allocation';
 
 const { Title, Text } = Typography;
@@ -82,6 +83,7 @@ export default function CostAllocationPage() {
   const [loading, setLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
+  const [budgetConfirmLoading, setBudgetConfirmLoading] = useState(false);
   const [editingBudget, setEditingBudget] = useState<FinopsBudget | null>(null);
   const [form] = Form.useForm();
 
@@ -143,26 +145,36 @@ export default function CostAllocationPage() {
   const handleSaveBudget = async () => {
     try {
       const values = await form.validateFields();
-      const input: CreateBudgetInput = {
-        name: values.name,
-        scopeType: values.scopeType,
-        scopeValue: values.scopeValue,
-        monthlyLimit: values.monthlyLimit,
-        currency: values.currency,
-        alertThreshold: values.alertThreshold,
-        enabled: values.enabled,
-      };
+      setBudgetConfirmLoading(true);
       if (editingBudget) {
-        await updateBudget(editingBudget.id, input);
+        const updateInput: UpdateBudgetInput = {
+          name: values.name,
+          monthlyLimit: values.monthlyLimit,
+          alertThreshold: values.alertThreshold,
+          enabled: values.enabled,
+        };
+        await updateBudget(editingBudget.id, updateInput);
         message.success('预算更新成功');
       } else {
-        await createBudget(input);
+        const createInput: CreateBudgetInput = {
+          name: values.name,
+          scopeType: values.scopeType,
+          scopeValue: values.scopeValue,
+          monthlyLimit: values.monthlyLimit,
+          currency: values.currency,
+          alertThreshold: values.alertThreshold,
+          enabled: values.enabled,
+        };
+        await createBudget(createInput);
         message.success('预算创建成功');
       }
       setBudgetModalVisible(false);
       fetchAll();
-    } catch {
+    } catch (err: any) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('保存失败');
+    } finally {
+      setBudgetConfirmLoading(false);
     }
   };
 
@@ -548,6 +560,7 @@ export default function CostAllocationPage() {
         title={editingBudget ? '编辑预算' : '创建预算'}
         open={budgetModalVisible}
         onOk={handleSaveBudget}
+        confirmLoading={budgetConfirmLoading}
         onCancel={() => setBudgetModalVisible(false)}
         width={560}
         destroyOnClose
