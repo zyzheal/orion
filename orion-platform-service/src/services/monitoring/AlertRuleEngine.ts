@@ -141,7 +141,7 @@ export class AlertRuleEngine {
         rate_of_change_percent: rule.rateOfChangePercent ?? null,
         description: rule.description ?? null,
         evaluation_window_ms: rule.evaluationWindowMs ?? null,
-      } as any);
+      });
     }
 
     // Update in-memory cache

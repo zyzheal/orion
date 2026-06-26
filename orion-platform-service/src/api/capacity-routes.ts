@@ -17,8 +17,7 @@ export default async function capacityRoutes(
   app: FastifyInstance,
   options: CapacityRoutesOptions = {}
 ): Promise<void> {
-  void options.database;
-  const capacityService = new CapacityService();
+  const capacityService = new CapacityService(options.database!);
   // Metrics
   app.post('/capacity/metrics', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capacity', action: 'write' })],

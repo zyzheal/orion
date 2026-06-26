@@ -110,7 +110,7 @@ export class EnvironmentRepository {
       locked_by: row.locked_by || null,
       locked_at: row.locked_at || null,
       locked_reason: row.locked_reason || null,
-    }).catch(() => {});
+    }).catch((err) => console.warn('[EnvironmentRepository] Failed to persist environment:', err));
 
     return row;
   }

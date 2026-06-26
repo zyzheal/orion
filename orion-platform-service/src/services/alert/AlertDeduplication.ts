@@ -354,7 +354,7 @@ export class AlertDeduplication {
         lastOccurrence: group.lastOccurrence,
         suppressed: group.suppressed,
         suppressionReason: group.suppressionReason ?? null,
-      } as any);
+      });
     } catch (err) {
       logger.error({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to persist dedup group');
       throw err;
@@ -372,7 +372,7 @@ export class AlertDeduplication {
         lastOccurrence: group.lastOccurrence,
         suppressed: group.suppressed,
         suppressionReason: group.suppressionReason ?? null,
-      } as any);
+      });
     } catch (err) {
       logger.error({ traceId: getCurrentTraceId(), err, fingerprint: group.fingerprint }, 'Failed to update dedup group in repository');
       throw err;

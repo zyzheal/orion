@@ -84,14 +84,14 @@ export class SSEConnectionManager {
 
       const raw = reply.raw;
       if (raw?.writableEnded) {
-        this.removeConnection(conn.id).catch(() => {});
+        this.removeConnection(conn.id).catch((err) => logger.warn({ err, connId: conn.id }, 'Failed to remove connection'));
       } else {
         try {
           raw.write(':heartbeat\n\n');
           // Update heartbeat in DB (fire-and-forget)
-          this.repo?.updateHeartbeat(conn.id).catch(() => {});
+          this.repo?.updateHeartbeat(conn.id).catch((err) => logger.warn({ err, connId: conn.id }, 'Failed to update heartbeat'));
         } catch {
-          this.removeConnection(conn.id).catch(() => {});
+          this.removeConnection(conn.id).catch((err) => logger.warn({ err, connId: conn.id }, 'Failed to remove connection'));
         }
       }
     }, this.HEARTBEAT_INTERVAL_MS);
@@ -133,7 +133,7 @@ export class SSEConnectionManager {
     this.runtimeConnections.delete(id);
 
     // Mark as disconnected in DB (fire-and-forget)
-    this.repo?.markDisconnected(id).catch(() => {});
+    this.repo?.markDisconnected(id).catch((err) => logger.warn({ err, connId: id }, 'Failed to mark connection disconnected'));
   }
 
   /**
@@ -162,7 +162,7 @@ export class SSEConnectionManager {
     }
 
     // Disconnect all in DB
-    await this.repo?.disconnectAll(this.tenantId ?? undefined).catch(() => {});
+    await this.repo?.disconnectAll(this.tenantId ?? undefined).catch((err) => logger.warn({ err }, 'Failed to disconnect all connections in DB'));
   }
 
   /** 获取活跃连接数 */

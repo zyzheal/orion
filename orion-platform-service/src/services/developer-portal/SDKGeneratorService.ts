@@ -327,7 +327,7 @@ export class SDKGeneratorService {
 
     // PostgreSQL 持久化（异步）
     if (this.repository) {
-      this.repository.updateStatus(taskId, task.status, task.output, task.error || undefined).catch(() => {});
+      this.repository.updateStatus(taskId, task.status, task.output, task.error || undefined).catch((err) => console.warn('[SDKGeneratorService] Failed to persist task status:', err));
     }
   }
 

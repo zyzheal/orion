@@ -534,7 +534,7 @@ export class RootCauseAnalysisService {
         severity: event.severity,
         description: event.description,
         metadata: event.metadata || {},
-      } as any);
+      });
     }
 
     const criticalEvents = filtered.filter((e) => e.severity === 'critical').length;
@@ -844,7 +844,7 @@ export class RootCauseAnalysisService {
       alertCount: result.alertCount,
       groupCount: result.groupCount,
       completedAt: result.completedAt,
-    } as any);
+    });
   }
 
   /**

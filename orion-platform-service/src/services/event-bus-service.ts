@@ -579,7 +579,7 @@ export class EventBusService extends EventEmitter {
           const messages = await consumer.fetch({
             max_messages: 100,
             expires: 30_000_000_000, // 30s in nanoseconds
-          } as any);
+          });
           if (!messages) {
             // No messages returned, wait briefly before next fetch
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1006,7 +1006,7 @@ export class EventBusService extends EventEmitter {
       const messages = await consumer.fetch({
         max_messages: limit,
         expires: 30_000_000_000, // 30s in nanoseconds
-      } as any);
+      });
 
       if (messages) {
         for await (const msg of messages as AsyncIterable<any>) {

@@ -70,7 +70,7 @@ export class WorkflowInstanceManager {
       nodeType: startNode.type,
       action: 'enter',
       data: { input },
-    } as any);
+    });
 
     logger.info({ instanceId: instance.id, workflowId: definition.id }, 'Workflow instance created');
     return instance;

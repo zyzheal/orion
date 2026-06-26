@@ -15,9 +15,6 @@ interface DbaRoutesOptions {
   database?: DatabasePool;
 }
 
-// In-memory singleton (in production, should use PostgreSQL Repository)
-const dbaService = new DbaService();
-
 interface AuthRequest {
   userId: string;
   tenantId: string;
@@ -35,8 +32,7 @@ export default async function dbaRoutes(
   app: FastifyInstance,
   options: DbaRoutesOptions = {}
 ): Promise<void> {
-  // db available for future Repository integration
-  void options.database;
+  const dbaService = new DbaService(options.database!);
   // ==================== SQL Orders ====================
 
   // List orders
@@ -119,8 +115,8 @@ export default async function dbaRoutes(
   app.get('/dba/datasources', {
     onRequest: [authenticateUser, requirePermission({ resource: 'dba', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as any;
-    const result = await dbaService.listDataSources(query.tenantId);
+    const auth = await getAuthInfo(request);
+    const result = await dbaService.listDataSources(auth.tenantId);
     return reply.send({ success: true, data: result });
   });
 
@@ -141,7 +137,8 @@ export default async function dbaRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'dba', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as CreateDataSourceInput;
-    const ds = await dbaService.createDataSource(body);
+    const auth = await getAuthInfo(request);
+    const ds = await dbaService.createDataSource(body, auth.tenantId);
     return reply.status(201).send({ success: true, data: ds });
   });
 
@@ -188,8 +185,8 @@ export default async function dbaRoutes(
   app.get('/dba/audit-rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'dba', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as any;
-    const result = await dbaService.listAuditRules(query.tenantId);
+    const auth = await getAuthInfo(request);
+    const result = await dbaService.listAuditRules(auth.tenantId);
     return reply.send({ success: true, data: result });
   });
 

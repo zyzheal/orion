@@ -69,7 +69,7 @@ export class HandlerRegistry {
     });
 
     // Redis 通知
-    this.notifyPeers('register', domain, name).catch(() => {});
+    this.notifyPeers('register', domain, name).catch((err) => logger.warn({ err, domain, name }, 'Failed to notify peers of handler registration'));
   }
 
   /**

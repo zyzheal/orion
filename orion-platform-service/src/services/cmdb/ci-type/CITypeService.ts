@@ -111,7 +111,7 @@ export class CITypeService {
       metadata: JSON.stringify(input.metadata ?? {}),
       createdBy: input.createdBy ?? null,
       deletedAt: null,
-    } as any);
+    });
 
     logger.info({ typeId: type.id, name: input.name }, 'CI type created');
     return type;

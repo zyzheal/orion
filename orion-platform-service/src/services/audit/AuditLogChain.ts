@@ -141,7 +141,7 @@ export class AuditLogChain {
 
     // Persist to repository (fire-and-forget)
     if (this.repository && 'createFromChainedEntry' in this.repository) {
-      (this.repository as any).createFromChainedEntry(entry).catch(() => {});
+      (this.repository as any).createFromChainedEntry(entry).catch((err: unknown) => logger.warn({ err, entryId: id }, 'Failed to persist audit chain entry'));
     }
 
     logger.debug({ id, sequenceNumber, action, userId }, 'Audit entry added to chain');

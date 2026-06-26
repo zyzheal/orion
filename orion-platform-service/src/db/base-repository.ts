@@ -3,7 +3,11 @@ import { OrionError, ErrorCode } from '../errors';
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 function camelToSnake(str: string): string {
-  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+  return str
+    .replace(/([a-z])(\d)/g, '$1_$2')
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/(\d)([A-Z])/g, '$1_$2')
+    .toLowerCase();
 }
 
 function validateIdentifier(name: string, label: string): void {

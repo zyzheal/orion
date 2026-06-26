@@ -239,7 +239,7 @@ export class HealingDecisionMaker {
         requestedBy: request.requestedBy,
         requestedAt: request.requestedAt,
         expiresAt: request.expiresAt || null,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, requestId: request.id }, 'Failed to persist approval request'));
     }
 
     return request;
@@ -274,7 +274,8 @@ export class HealingDecisionMaker {
 
     // Persist to DB (fire-and-forget)
     if (this.repository) {
-      this.repository.updateStatus(requestId, request.status, response.respondedBy, response.reason).catch(() => {});
+      this.repository.updateStatus(requestId, request.status, response.respondedBy, response.reason)
+        .catch((err) => logger.warn({ err, requestId }, 'Failed to persist approval status'));
     }
 
     return request;

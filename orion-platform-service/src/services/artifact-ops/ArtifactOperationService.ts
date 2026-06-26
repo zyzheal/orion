@@ -123,7 +123,7 @@ export class ArtifactOperationService {
           metadata: input.metadata ?? {},
           status: 'completed',
           initiated_by: input.initiatedBy ?? null,
-        } as any);
+        });
 
         // Update status after creation
         await this.operationRepository.updateStatus(id, 'completed', now, 0);

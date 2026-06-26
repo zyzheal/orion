@@ -125,7 +125,7 @@ export class FederationService {
               memory_capacity: null,
               registered_at: new Date(),
               last_heartbeat: null,
-            } as any);
+            });
           }
           clusterIds.push(clusterName);
         } catch (err) {

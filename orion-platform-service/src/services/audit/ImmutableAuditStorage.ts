@@ -157,7 +157,7 @@ export class ImmutableAuditStorage extends EventEmitter {
 
     // Persist to PostgreSQL (fire-and-forget for non-blocking writes)
     if (this.useRepository && this.entryRepository) {
-      this.entryRepository.createFromChainedEntry(entry, this.currentFile || undefined).catch(() => {});
+      this.entryRepository.createFromChainedEntry(entry, this.currentFile || undefined).catch((err) => logger.warn({ err, entryId: entry.id }, 'Failed to persist audit entry'));
     }
 
     // 如果开启同步写入，立即刷盘

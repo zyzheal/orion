@@ -9,8 +9,8 @@ updated: "2026-04-11"
 author: "AI Platform Cli 助手"
 tags: [oncall, incident, notification]
 related:
-  - "docs/sre/运维手册.md"
-  - "docs/sre/可观测性设计.md"
+  - "docs/services/monitor/运维手册.md"
+  - "docs/services/monitor/可观测性设计.md"
 ---
 
 # OnCall 排班系统设计

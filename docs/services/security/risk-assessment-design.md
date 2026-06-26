@@ -1,6 +1,6 @@
 # Risk Assessment Service Design
 
-> 状态: 🟡 后端已实现 | 数据存储: Map() 内存模拟
+> 状态: ✅ 后端已实现 | 数据存储: PostgreSQL Repository 模式
 > 创建日期: 2026-04-23 | 关联: M4 安全审计中心
 
 ---

@@ -72,7 +72,7 @@ export class PlanService {
         resourcesToChange: plan.resourceChanges?.change ?? 0,
         resourcesToDestroy: plan.resourceChanges?.destroy ?? 0,
         applied: false,
-      } as any);
+      });
     }
 
     await this.eventBus?.publish('iac.plan.created', {

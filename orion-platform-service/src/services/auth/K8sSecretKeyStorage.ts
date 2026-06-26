@@ -67,7 +67,7 @@ export class K8sSecretKeyStorage {
       const response = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any) as any;
+      }) as any;
 
       const secretData = response.data || {};
       const keys: JwtKey[] = [];
@@ -123,7 +123,7 @@ export class K8sSecretKeyStorage {
       const existingSecret = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any).catch((e: any) => e.statusCode === 404 ? null : Promise.reject(e)) as any;
+      }).catch((e: any) => e.statusCode === 404 ? null : Promise.reject(e)) as any;
 
       const keyData = this.encodeKeyData(key);
 
@@ -141,7 +141,7 @@ export class K8sSecretKeyStorage {
             ...existingSecret,
             data: updatedData,
           },
-        } as any);
+        });
       } else {
         // Create new secret
         await this.k8sApi.createNamespacedSecret({
@@ -161,7 +161,7 @@ export class K8sSecretKeyStorage {
               [key.keyId]: keyData,
             },
           }
-        } as any);
+        });
       }
 
       logger.info(`[K8sSecretStorage] Stored key ${key.keyId} in K8s Secret`);
@@ -183,7 +183,7 @@ export class K8sSecretKeyStorage {
       const response = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any) as any;
+      }) as any;
 
       const keyData = this.encodeKeyData(key);
 
@@ -197,7 +197,7 @@ export class K8sSecretKeyStorage {
             [key.keyId]: keyData,
           },
         },
-      } as any);
+      });
 
       logger.info(`[K8sSecretStorage] Updated key ${key.keyId} in K8s Secret`);
     } catch (error) {
@@ -218,7 +218,7 @@ export class K8sSecretKeyStorage {
       const response = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any) as any;
+      }) as any;
 
       const updatedData = { ...response.data };
       delete updatedData[keyId];
@@ -230,7 +230,7 @@ export class K8sSecretKeyStorage {
           ...response,
           data: updatedData,
         },
-      } as any);
+      });
 
       logger.info(`[K8sSecretStorage] Deleted key ${keyId} from K8s Secret`);
     } catch (error) {

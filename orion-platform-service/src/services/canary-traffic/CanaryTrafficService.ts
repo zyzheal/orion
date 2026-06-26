@@ -111,7 +111,7 @@ export class CanaryTrafficService {
         canary_destination: rules.canary_destination,
         host: rules.host,
         namespace: rules.namespace,
-      } as any);
+      });
     }
 
     const config = await this.configRepo.upsertConfig({

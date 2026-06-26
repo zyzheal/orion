@@ -15,7 +15,6 @@ import {
   PlusOutlined,
   CopyOutlined,
   ReloadOutlined,
-  BarChartOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
@@ -466,9 +465,6 @@ const TicketList: React.FC = () => {
           </Button>
           <Button icon={<ThunderboltOutlined />} onClick={handleAutoDispatch}>
             自动分派
-          </Button>
-          <Button icon={<BarChartOutlined />} onClick={() => message.info('报表功能开发中')}>
-            查看报表
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建工单

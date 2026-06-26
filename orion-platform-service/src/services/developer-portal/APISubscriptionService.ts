@@ -233,7 +233,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'approved', { approvedBy: input.approvedBy }).catch(() => {});
+      this.subscriptionRepo.updateStatus(id, 'approved', { approvedBy: input.approvedBy }).catch((err) => console.warn('[APISubscriptionService] Failed to persist approval:', err));
     }
 
     return sub;
@@ -258,7 +258,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'rejected', { approvedBy: input.approvedBy, rejectReason: input.rejectReason }).catch(() => {});
+      this.subscriptionRepo.updateStatus(id, 'rejected', { approvedBy: input.approvedBy, rejectReason: input.rejectReason }).catch((err) => console.warn('[APISubscriptionService] Failed to persist rejection:', err));
     }
 
     return sub;
@@ -281,7 +281,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'suspended').catch(() => {});
+      this.subscriptionRepo.updateStatus(id, 'suspended').catch((err) => console.warn('[APISubscriptionService] Failed to persist suspension:', err));
     }
 
     return sub;
@@ -301,7 +301,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'cancelled').catch(() => {});
+      this.subscriptionRepo.updateStatus(id, 'cancelled').catch((err) => console.warn('[APISubscriptionService] Failed to persist cancellation:', err));
     }
 
     return sub;
@@ -358,10 +358,10 @@ export class APISubscriptionService {
         method: record.method,
         statusCode: record.statusCode,
         latencyMs: record.latencyMs,
-      }).catch(() => {});
+      }).catch((err) => console.warn('[APISubscriptionService] Failed to persist usage record:', err));
     }
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.incrementUsage(subscriptionId).catch(() => {});
+      this.subscriptionRepo.incrementUsage(subscriptionId).catch((err) => console.warn('[APISubscriptionService] Failed to increment usage count:', err));
     }
 
     return record;

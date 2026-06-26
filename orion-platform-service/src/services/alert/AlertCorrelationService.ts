@@ -444,7 +444,7 @@ export class AlertCorrelationService {
           status: node.status || 'healthy',
           parentId: node.parentId ?? null,
           childrenIds: [],
-        } as any);
+        });
       } catch (err) {
         logger.warn({ traceId: getCurrentTraceId(), err, nodeId: node.id }, 'Failed to persist topology node');
       }
@@ -457,7 +457,7 @@ export class AlertCorrelationService {
         const parent = await this.topologyNodeRepository.findById(node.parentId);
         if (parent) {
           const children = [...(parent.childrenIds || []), node.id];
-          await this.topologyNodeRepository.update(node.parentId, { childrenIds: children } as any);
+          await this.topologyNodeRepository.update(node.parentId, { childrenIds: children });
         }
       }
     }
@@ -633,7 +633,7 @@ export class AlertCorrelationService {
         totalCount: group.totalCount,
         uniqueServices: group.uniqueServices,
         recommendedAction: group.recommendedAction ?? null,
-      } as any);
+      });
     } catch (err) {
       logger.error({ traceId: getCurrentTraceId(), err, groupId: group.id }, 'Failed to persist group');
       throw err;

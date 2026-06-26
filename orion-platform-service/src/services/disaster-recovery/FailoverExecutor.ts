@@ -123,7 +123,7 @@ export class FailoverExecutor {
       const service = await this.k8sApi.readNamespacedService({
         name: config.serviceName,
         namespace: config.namespace,
-      } as any) as any;
+      }) as any;
 
       // Update selector to point to standby deployment
       await this.k8sApi.replaceNamespacedService({
@@ -138,7 +138,7 @@ export class FailoverExecutor {
             },
           },
         },
-      } as any);
+      });
 
       logger.info(`[FailoverExecutor] Switched traffic to ${standbyServiceName}`);
 
@@ -177,7 +177,7 @@ export class FailoverExecutor {
       const ingress = await this.networkingApi.readNamespacedIngress({
         name: config.ingressName,
         namespace: config.namespace,
-      } as any) as any;
+      }) as any;
 
       // Update backend service name to standby
       const updatedRules = ingress.spec?.rules?.map((rule: any) => ({
@@ -205,7 +205,7 @@ export class FailoverExecutor {
             rules: updatedRules,
           },
         },
-      } as any);
+      });
 
       logger.info(`[FailoverExecutor] Updated ingress ${config.ingressName} to ${standbyServiceName}`);
 
@@ -279,7 +279,7 @@ export class FailoverExecutor {
       const pods = await this.k8sApi.listNamespacedPod({
         namespace: config.namespace,
         labelSelector: `app=${serviceName}`,
-      } as any) as any;
+      }) as any;
 
       const readyPods = pods.items.filter((pod: any) =>
         pod.status?.phase === 'Running' &&

@@ -82,7 +82,7 @@ export class ConnectorRegistry {
       version: connector.version,
       capabilities: JSON.stringify(connector.capabilities),
       tenantId: this.tenantId,
-    }).catch(() => {});
+    }).catch((err) => console.warn('[ConnectorRegistry] Failed to persist connector registration:', err));
   }
 
   /**
@@ -136,9 +136,9 @@ export class ConnectorRegistry {
     if (deleted && this.repo) {
       this.repo.findByName(name).then(entity => {
         if (entity) {
-          this.repo!.delete(entity.id).catch(() => {});
+          this.repo!.delete(entity.id).catch((err) => console.warn('[ConnectorRegistry] Failed to delete connector from DB:', err));
         }
-      }).catch(() => {});
+      }).catch((err) => console.warn('[ConnectorRegistry] Failed to find connector for deletion:', err));
     }
     return deleted;
   }

@@ -36,7 +36,6 @@ import {
   InfoCircleOutlined,
   BankOutlined,
   TeamOutlined,
-  SubnodeOutlined,
   SettingOutlined,
   DownloadOutlined,
   DatabaseOutlined,
@@ -453,28 +452,6 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
               onClick={() => handleOpenUserModal(record)}
             >
               用户
-            </Button>
-          </Tooltip>
-          {/* P1-4 修复：添加子租户管理入口 */}
-          <Tooltip title="子租户管理">
-            <Button
-              type="link"
-              size="small"
-              icon={<SubnodeOutlined />}
-              onClick={() => message.info("子租户管理功能开发中")}
-            >
-              子租户
-            </Button>
-          </Tooltip>
-          {/* P1-5 修复：添加租户设置入口 */}
-          <Tooltip title="租户设置">
-            <Button
-              type="link"
-              size="small"
-              icon={<SettingOutlined />}
-              onClick={() => message.info("租户设置功能开发中")}
-            >
-              设置
             </Button>
           </Tooltip>
           <Popconfirm

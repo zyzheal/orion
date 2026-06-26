@@ -4203,15 +4203,15 @@ Layer 1: 决策层 (为什么做)
 
 Layer 2: 设计层 (做什么)
   ├── docs/architecture/ (系统架构)
-  ├── docs/api/ (API 设计)
-  ├── docs/db/ (数据库设计)
+  ├── docs/services/ (服务设计文档)
+  ├── docs/services/dba/ (数据库设计)
   └── docs/ui/ (UI/UX 设计)
 
 Layer 3: 实现层 (怎么做)
-  ├── docs/ai/ (AI 算法实现)
-  ├── docs/frontend/ (前端实现)
-  ├── docs/security/ (安全实现)
-  └── docs/sre/ (运维实现)
+  ├── docs/services/ai/ (AI 算法设计)
+  ├── docs/architecture/ (架构设计)
+  ├── docs/services/security/ (安全设计)
+  └── docs/services/monitor/ (可观测性设计)
 
 Layer 4: 验证层 (做得怎样)
   ├── docs/qa/ (测试策略)
@@ -7598,7 +7598,7 @@ P0: 15 分钟内响应
 | [docs/architecture/code-architecture-layers.md](architecture/code-architecture-layers.md) | 代码架构分层 |
 | [docs/architecture/当前系统架构.md](architecture/当前系统架构.md) | 当前实际架构 |
 | [docs/文档管理规范.md](文档管理规范.md) | 文档管理规范 |
-| [docs/frontend/前端架构设计.md](frontend/前端架构设计.md) | 前端架构设计 |
+| docs/architecture/架构设计详解.md | 前端架构设计 |
 
 ---
 

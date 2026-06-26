@@ -1,12 +1,12 @@
 /**
  * Cache Monitor Services
  *
- * Phase 1 P0 - Build Cache Monitoring
+ * Build cache monitoring with hit/miss tracking, health assessment, and performance analysis.
+ * Uses PostgreSQL Repository pattern.
  */
 
 export {
   CacheMonitorService,
-  CacheMetricsRepository,
   CacheMetrics,
   CacheHealthStatus,
   CacheIssue,
@@ -14,3 +14,8 @@ export {
   CachePerformanceImpact,
   CacheMonitorServiceError,
 } from './CacheMonitorService';
+
+export {
+  CacheMetricsRepository,
+  CacheMetricsEntity,
+} from '../../repositories/CacheMonitorRepository';

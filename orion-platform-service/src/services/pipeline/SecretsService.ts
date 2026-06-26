@@ -200,7 +200,7 @@ export class SecretsService {
 
     try {
       const value = this.decrypt(entity.encryptedValue);
-      return this.toSecretValue({ ...entity, decryptedValue: value } as any);
+      return this.toSecretValue({ ...entity, decryptedValue: value });
     } catch (error) {
       logger.error({ traceId: getCurrentTraceId(), tenantId, name, error }, 'Failed to decrypt secret');
       throw new OrionError(`Failed to decrypt secret "${name}": ${(error as Error).message}`, 'OPERATION_FAILED')

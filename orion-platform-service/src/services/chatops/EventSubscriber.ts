@@ -161,7 +161,7 @@ export class ChatOpsEventSubscriber {
         this.unsubscribeFns.push(unsub);
         // ARCH-003: 订阅成功后清除失败记录
         this.subscriptionFailures.delete(event);
-        this.subscriptionFailureRepo?.markResolved(event).catch(() => {});
+        this.subscriptionFailureRepo?.markResolved(event).catch((err) => logger.warn({ err, event }, '[EventSubscriber] Failed to mark subscription resolved'));
       } catch (err: unknown) {
         // ARCH-003: 记录订阅失败，而非静默忽略
         const errorMsg = err instanceof EventBusError
@@ -178,7 +178,7 @@ export class ChatOpsEventSubscriber {
 
         // Persist to DB (fire-and-forget)
         this.subscriptionFailureRepo?.upsertFailure(event, errorMsg, this.tenantId ?? undefined)
-          .catch(() => {});
+          .catch((err) => logger.warn({ err, event }, '[EventSubscriber] Failed to persist subscription failure'));
 
         logger.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, errorMsg);
 
@@ -309,7 +309,7 @@ export class ChatOpsEventSubscriber {
           retryCount: failure.retryCount + 1,
         });
         // Update retry count in DB
-        this.subscriptionFailureRepo?.incrementRetryCount(failure.event).catch(() => {});
+        this.subscriptionFailureRepo?.incrementRetryCount(failure.event).catch((err) => logger.warn({ err, event: failure.event }, '[EventSubscriber] Failed to increment retry count'));
         logger.warn(`[ChatOpsEventSubscriber] Re-subscription attempt ${failure.retryCount + 1} failed for ${failure.event}:`, errorMsg);
       }
     }
@@ -345,7 +345,7 @@ export class ChatOpsEventSubscriber {
     const alertId = String(data.alertId || data.id || '');
     if (alertId) {
       this.activeRecommendations.delete(alertId);
-      this.recommendationRepo?.delete(alertId).catch(() => {});
+      this.recommendationRepo?.delete(alertId).catch((err) => logger.warn({ err, alertId }, '[EventSubscriber] Failed to delete recommendation'));
     }
     this.emitRecommendationUpdate();
   }
@@ -354,7 +354,7 @@ export class ChatOpsEventSubscriber {
     const alertId = String(data.alertId || data.id || '');
     if (alertId) {
       this.activeRecommendations.delete(alertId);
-      this.recommendationRepo?.delete(alertId).catch(() => {});
+      this.recommendationRepo?.delete(alertId).catch((err) => logger.warn({ err, alertId }, '[EventSubscriber] Failed to delete recommendation'));
     }
     this.emitRecommendationUpdate();
   }
@@ -515,7 +515,7 @@ export class ChatOpsEventSubscriber {
 
     // Also clean expired from DB
     this.recommendationRepo?.cleanExpired(this.RECOMMENDATION_TTL_MS, this.tenantId ?? undefined)
-      .catch(() => {});
+      .catch((err) => logger.warn({ err }, '[EventSubscriber] Failed to clean expired recommendations'));
   }
 
   /** 清理所有订阅 */

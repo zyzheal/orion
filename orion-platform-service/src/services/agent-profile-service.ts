@@ -199,7 +199,7 @@ export class AgentProfileService {
       id: entityInput.id,
       createdAt: entityInput.createdAt,
       updatedAt: entityInput.updatedAt,
-    } as any);
+    });
 
     return entityToProfile(entity);
   }

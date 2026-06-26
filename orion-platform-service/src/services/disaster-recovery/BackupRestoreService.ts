@@ -178,7 +178,7 @@ export class BackupRestoreService {
       backup.updatedAt = new Date();
 
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(backupId, 'restoring').catch(() => {});
+        this.backupRecordRepo.updateStatus(backupId, 'restoring').catch((err) => console.warn('[BackupRestoreService] Failed to update status to restoring:', err));
       }
 
       // Determine which services to restore
@@ -194,7 +194,7 @@ export class BackupRestoreService {
       backup.updatedAt = new Date();
 
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(backupId, 'completed').catch(() => {});
+        this.backupRecordRepo.updateStatus(backupId, 'completed').catch((err) => console.warn('[BackupRestoreService] Failed to update status to completed:', err));
       }
 
       return {
@@ -209,7 +209,7 @@ export class BackupRestoreService {
       backup.updatedAt = new Date();
 
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(backupId, 'completed').catch(() => {});
+        this.backupRecordRepo.updateStatus(backupId, 'completed').catch((err) => console.warn('[BackupRestoreService] Failed to update status to completed:', err));
       }
 
       return {
@@ -305,7 +305,7 @@ export class BackupRestoreService {
 
       // Update repository status (fire-and-forget)
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(record.id, 'in_progress').catch(() => {});
+        this.backupRecordRepo.updateStatus(record.id, 'in_progress').catch((err) => console.warn('[BackupRestoreService] Failed to update status to in_progress:', err));
       }
 
       // Simulate backup execution
@@ -324,7 +324,7 @@ export class BackupRestoreService {
           sizeBytes,
           filePath,
           completedAt: record.completedAt,
-        }).catch(() => {});
+        }).catch((err) => console.warn('[BackupRestoreService] Failed to persist backup completion:', err));
       }
     } catch (error: any) {
       record.status = 'failed';
@@ -335,7 +335,7 @@ export class BackupRestoreService {
       if (this.useRepository && this.backupRecordRepo) {
         this.backupRecordRepo.updateStatus(record.id, 'failed', {
           errorMessage: error.message,
-        }).catch(() => {});
+        }).catch((err) => console.warn('[BackupRestoreService] Failed to persist backup failure:', err));
       }
     }
   }

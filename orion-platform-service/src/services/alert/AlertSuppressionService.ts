@@ -1062,7 +1062,7 @@ export class AlertSuppressionService {
           ruleType,
           reason,
           loggedAt: new Date(),
-        } as any);
+        });
       } catch (err) {
         logger.error({ traceId: getCurrentTraceId(), err, alertId }, 'Failed to persist suppression log');
       }
@@ -1139,7 +1139,7 @@ export class AlertSuppressionService {
           relatedAlertIds: alert.relatedAlertIds ?? [],
           maintenanceWindowId: alert.maintenanceWindowId ?? null,
           knownIssueId: alert.knownIssueId ?? null,
-        } as any);
+        });
       } catch (err) {
         logger.error({ traceId: getCurrentTraceId(), err, alertId: alert.id }, 'Failed to persist active alert, falling back to memory');
         this.activeAlertsMemory.set(alert.id, alert);

@@ -170,7 +170,7 @@ export class AlertNotificationService {
         config: channel.config,
         enabled: channel.enabled,
         severity_filter: channel.severityFilter || [],
-      } as any);
+      });
     }
 
     // Update in-memory cache
@@ -269,7 +269,7 @@ export class AlertNotificationService {
       repeat_count: policy.repeatCount,
       enabled: policy.enabled,
       description: policy.description ?? null,
-    } as any).catch((err: any) =>
+    }).catch((err: any) =>
       logger.warn('[AlertNotificationService] Failed to persist escalation policy:', err)
     );
   }

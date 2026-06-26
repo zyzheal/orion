@@ -1,16 +1,28 @@
 /**
  * Capacity Planning Service (Phase 4 - Capacity Planning)
  * Resource capacity tracking, forecasting, bottleneck analysis
+ *
+ * Migrated from Map() to PostgreSQL Repository pattern (2026-06-26)
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import {
+  CapacityMetricRepository,
+  CapacityForecastRepository,
+  CapacityAlertRepository,
+  CapacityReportRepository,
+  CapacityMetricEntity,
+  CapacityForecastEntity,
+  CapacityAlertEntity,
+  CapacityReportEntity,
+} from '../../repositories/CapacityRepository';
 
 export interface CapacityMetric {
   id: string;
   tenantId: string;
-  resourceType: string; // compute/storage/network/database
+  resourceType: string;
   resourceId: string;
-  metricName: string; // cpu/memory/disk/iops/throughput
+  metricName: string;
   currentValue: number;
   maxValue: number;
   unit: string;
@@ -61,48 +73,52 @@ export interface CapacityReport {
   generatedAt: string;
 }
 
-const metrics = new Map<string, CapacityMetric>();
-const forecasts = new Map<string, CapacityForecast>();
-const alerts = new Map<string, CapacityAlert>();
-const reports = new Map<string, CapacityReport>();
-
 export class CapacityService {
+  private metricRepo: CapacityMetricRepository;
+  private forecastRepo: CapacityForecastRepository;
+  private alertRepo: CapacityAlertRepository;
+  private reportRepo: CapacityReportRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.metricRepo = new CapacityMetricRepository(db);
+    this.forecastRepo = new CapacityForecastRepository(db);
+    this.alertRepo = new CapacityAlertRepository(db);
+    this.reportRepo = new CapacityReportRepository(db);
+  }
+
   // Metrics
   async recordMetric(input: {
     resourceType: string; resourceId: string; metricName: string;
     currentValue: number; maxValue: number; unit: string;
   }, tenantId: string): Promise<CapacityMetric> {
     const utilization = input.maxValue > 0 ? (input.currentValue / input.maxValue) * 100 : 0;
-    const metric: CapacityMetric = {
-      id: uuidv4(), tenantId,
-      resourceType: input.resourceType, resourceId: input.resourceId,
-      metricName: input.metricName, currentValue: input.currentValue,
-      maxValue: input.maxValue, unit: input.unit,
+    const entity = await this.metricRepo.create({
+      id: uuidv4(),
+      tenantId,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      metricName: input.metricName,
+      currentValue: input.currentValue,
+      maxValue: input.maxValue,
+      unit: input.unit,
       utilizationPercent: Math.round(utilization * 100) / 100,
-      timestamp: new Date().toISOString(),
-    };
-    metrics.set(metric.id, metric);
-    return metric;
+    });
+    return this.metricToDTO(entity);
   }
 
   async listMetrics(tenantId: string, params?: {
     resourceType?: string; metricName?: string;
   }): Promise<CapacityMetric[]> {
-    let result = Array.from(metrics.values()).filter((m) => m.tenantId === tenantId);
-    if (params?.resourceType) result = result.filter((m) => m.resourceType === params.resourceType);
-    if (params?.metricName) result = result.filter((m) => m.metricName === params.metricName);
-    return result.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    const entities = await this.metricRepo.findByTenant(tenantId, params);
+    return entities.map(e => this.metricToDTO(e));
   }
 
   async getLatestMetrics(tenantId: string): Promise<Map<string, CapacityMetric>> {
-    const tenantMetrics = Array.from(metrics.values()).filter((m) => m.tenantId === tenantId);
+    const entities = await this.metricRepo.findLatestByTenant(tenantId);
     const latestMap = new Map<string, CapacityMetric>();
-    for (const m of tenantMetrics) {
-      const key = `${m.resourceType}:${m.resourceId}:${m.metricName}`;
-      const existing = latestMap.get(key);
-      if (!existing || m.timestamp > existing.timestamp) {
-        latestMap.set(key, m);
-      }
+    for (const e of entities) {
+      const key = `${e.resourceType}:${e.resourceId}:${e.metricName}`;
+      latestMap.set(key, this.metricToDTO(e));
     }
     return latestMap;
   }
@@ -112,9 +128,8 @@ export class CapacityService {
     const latestMetrics = await this.getLatestMetrics(tenantId);
     const newForecasts: CapacityForecast[] = [];
 
-    for (const [key, metric] of latestMetrics.entries()) {
-      // Simple linear growth projection (simulated)
-      const growthRate = 0.05 + Math.random() * 0.1; // 5-15% monthly growth
+    for (const [, metric] of latestMetrics.entries()) {
+      const growthRate = 0.05 + Math.random() * 0.1;
       const forecast30 = Math.min(metric.utilizationPercent * (1 + growthRate), 100);
       const forecast90 = Math.min(metric.utilizationPercent * (1 + growthRate * 3), 100);
 
@@ -131,33 +146,33 @@ export class CapacityService {
           : '计划扩容：资源使用率增长较快，建议提前规划扩容';
       }
 
-      const forecast: CapacityForecast = {
-        id: uuidv4(), tenantId,
-        resourceType: metric.resourceType, resourceId: metric.resourceId,
+      const entity = await this.forecastRepo.create({
+        id: uuidv4(),
+        tenantId,
+        resourceType: metric.resourceType,
+        resourceId: metric.resourceId,
         metricName: metric.metricName,
         currentUtilization: metric.utilizationPercent,
         forecast30Days: Math.round(forecast30 * 100) / 100,
         forecast90Days: Math.round(forecast90 * 100) / 100,
-        estimatedExhaustDate,
-        recommendedAction,
-        generatedAt: new Date().toISOString(),
-      };
-      forecasts.set(forecast.id, forecast);
-      newForecasts.push(forecast);
+        estimatedExhaustDate: estimatedExhaustDate ? new Date(estimatedExhaustDate) : null,
+        recommendedAction: recommendedAction ?? null,
+      });
 
-      // Generate alerts for high utilization
+      newForecasts.push(this.forecastToDTO(entity));
+
       if (metric.utilizationPercent >= 80) {
-        const alert: CapacityAlert = {
-          id: uuidv4(), tenantId,
-          resourceId: metric.resourceId, resourceType: metric.resourceType,
+        await this.alertRepo.create({
+          id: uuidv4(),
+          tenantId,
+          resourceId: metric.resourceId,
+          resourceType: metric.resourceType,
           metricName: metric.metricName,
           currentUtilization: metric.utilizationPercent,
           threshold: metric.utilizationPercent >= 90 ? 90 : 80,
           severity: metric.utilizationPercent >= 90 ? 'critical' : 'warning',
           message: `${metric.resourceId} 的 ${metric.metricName} 使用率达 ${metric.utilizationPercent.toFixed(1)}%`,
-          createdAt: new Date().toISOString(),
-        };
-        alerts.set(alert.id, alert);
+        });
       }
     }
 
@@ -165,20 +180,21 @@ export class CapacityService {
   }
 
   async listForecasts(tenantId: string, params?: { resourceType?: string }): Promise<CapacityForecast[]> {
-    let result = Array.from(forecasts.values()).filter((f) => f.tenantId === tenantId);
-    if (params?.resourceType) result = result.filter((f) => f.resourceType === params.resourceType);
-    return result.sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
+    const entities = await this.forecastRepo.findByTenant(tenantId, params);
+    return entities.map(e => this.forecastToDTO(e));
   }
 
   // Alerts
   async listAlerts(tenantId: string, params?: { severity?: string }): Promise<CapacityAlert[]> {
-    let result = Array.from(alerts.values()).filter((a) => a.tenantId === tenantId);
-    if (params?.severity) result = result.filter((a) => a.severity === params.severity);
-    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const entities = await this.alertRepo.findByTenant(tenantId, params);
+    return entities.map(e => this.alertToDTO(e));
   }
 
   async deleteAlert(id: string): Promise<boolean> {
-    return alerts.delete(id);
+    const existing = await this.alertRepo.findById(id);
+    if (!existing) return false;
+    await this.alertRepo.delete(id);
+    return true;
   }
 
   // Reports
@@ -194,28 +210,29 @@ export class CapacityService {
       ? Math.round((healthyCount / uniqueResources) * 100)
       : 100;
 
-    const report: CapacityReport = {
-      id: uuidv4(), tenantId, title,
+    const entity = await this.reportRepo.create({
+      id: uuidv4(),
+      tenantId,
+      title,
       summary: {
         totalResources: uniqueResources,
         healthyCount, warningCount, criticalCount, overallScore,
       },
       alerts: alertList,
       forecasts: forecastList,
-      generatedAt: new Date().toISOString(),
-    };
-    reports.set(report.id, report);
-    return report;
+    });
+
+    return this.reportToDTO(entity);
   }
 
   async listReports(tenantId: string): Promise<CapacityReport[]> {
-    return Array.from(reports.values())
-      .filter((r) => r.tenantId === tenantId)
-      .sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
+    const entities = await this.reportRepo.findByTenant(tenantId);
+    return entities.map(e => this.reportToDTO(e));
   }
 
   async getReport(id: string): Promise<CapacityReport | undefined> {
-    return reports.get(id);
+    const entity = await this.reportRepo.findById(id);
+    return entity ? this.reportToDTO(entity) : undefined;
   }
 
   // Bottleneck Analysis
@@ -263,5 +280,64 @@ export class CapacityService {
     }
 
     return bottlenecks.sort((a, b) => b.utilization - a.utilization);
+  }
+
+  // DTO converters
+  private metricToDTO(e: CapacityMetricEntity): CapacityMetric {
+    return {
+      id: e.id,
+      tenantId: e.tenantId,
+      resourceType: e.resourceType,
+      resourceId: e.resourceId,
+      metricName: e.metricName,
+      currentValue: e.currentValue,
+      maxValue: e.maxValue,
+      unit: e.unit,
+      utilizationPercent: e.utilizationPercent,
+      timestamp: e.createdAt.toISOString(),
+    };
+  }
+
+  private forecastToDTO(e: CapacityForecastEntity): CapacityForecast {
+    return {
+      id: e.id,
+      tenantId: e.tenantId,
+      resourceType: e.resourceType,
+      resourceId: e.resourceId,
+      metricName: e.metricName,
+      currentUtilization: e.currentUtilization,
+      forecast30Days: e.forecast30Days,
+      forecast90Days: e.forecast90Days,
+      estimatedExhaustDate: e.estimatedExhaustDate?.toISOString(),
+      recommendedAction: e.recommendedAction ?? undefined,
+      generatedAt: e.generatedAt.toISOString(),
+    };
+  }
+
+  private alertToDTO(e: CapacityAlertEntity): CapacityAlert {
+    return {
+      id: e.id,
+      tenantId: e.tenantId,
+      resourceId: e.resourceId,
+      resourceType: e.resourceType,
+      metricName: e.metricName,
+      currentUtilization: e.currentUtilization,
+      threshold: e.threshold,
+      severity: e.severity as 'info' | 'warning' | 'critical',
+      message: e.message,
+      createdAt: e.createdAt.toISOString(),
+    };
+  }
+
+  private reportToDTO(e: CapacityReportEntity): CapacityReport {
+    return {
+      id: e.id,
+      tenantId: e.tenantId,
+      title: e.title,
+      summary: e.summary as CapacityReport['summary'],
+      alerts: e.alerts as CapacityAlert[],
+      forecasts: e.forecasts as CapacityForecast[],
+      generatedAt: e.generatedAt.toISOString(),
+    };
   }
 }

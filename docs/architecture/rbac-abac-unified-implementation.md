@@ -5,9 +5,9 @@
 > **评审日期**: 2026-05-18
 > **状态**: 评审通过，待实施
 >
-> **注意**：本文档的角色体系/权限模型/ABAC 设计是权威来源。JWT/Token 部分以 `docs/security/认证授权与数据加密设计.md` 为准。全局统一视图见 `docs/security/权限系统统一规范.md`。
+> **注意**：本文档的角色体系/权限模型/ABAC 设计是权威来源。JWT/Token 部分以 `docs/services/security/认证授权与数据加密设计.md` 为准。全局统一视图见 `docs/services/security/安全与权限详解.md`。
 > **前置文档**:
-> - `docs/security/安全与权限详解.md` — SSO/角色矩阵/审计/UEBA
+> - `docs/services/security/安全与权限详解.md` — SSO/角色矩阵/审计/UEBA
 > - `orion-api-gateway/src/services/auth/AbacPolicyEngine.ts` — 已实现的 ABAC 引擎
 > - `src/services/permission/PermissionService.ts` — 权限定义服务
 > - `src/services/role/RoleService.ts` — 角色 CRUD 服务
@@ -1031,7 +1031,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
 
 ### 10.3 与现有角色矩阵的对应
 
-来自 `docs/security/安全与权限详解.md` 的角色矩阵：
+来自 `docs/services/security/安全与权限详解.md` 的角色矩阵：
 
 | 权限 | org_admin | tech_lead | developer | dba | sre | viewer | auditor |
 |------|:---------:|:---------:|:---------:|:---:|:---:|:------:|:-------:|

@@ -9,6 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
+import { CacheMonitorService } from '../services/cache-monitor/CacheMonitorService';
 import pino from 'pino';
 
 const logger = pino({ name: 'build-env-routes' });
@@ -278,6 +279,104 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get build log');
+      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+    }
+  });
+
+  // ==================== Cache Monitor ====================
+
+  // GET /api/v1/build-env/cache-monitor/dashboard - Get cache monitoring dashboard
+  app.get('/cache-monitor/dashboard', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!options.database) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
+      const tenantId = (request.query as any).tenantId || 'default';
+      const service = new CacheMonitorService(options.database);
+      const dashboard = await service.getDashboard(tenantId);
+      return reply.status(200).send({ success: true, data: dashboard });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to get cache monitor dashboard');
+      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+    }
+  });
+
+  // GET /api/v1/build-env/cache-monitor/metrics/:cacheId - Get cache metrics
+  app.get('/cache-monitor/metrics/:cacheId', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!options.database) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
+      const { cacheId } = (request.params as any);
+      const service = new CacheMonitorService(options.database);
+      const metrics = await service.getCacheMetrics(cacheId);
+      if (!metrics) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Cache metrics not found' });
+      }
+      return reply.status(200).send({ success: true, data: metrics });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to get cache metrics');
+      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+    }
+  });
+
+  // GET /api/v1/build-env/cache-monitor/health/:cacheId - Assess cache health
+  app.get('/cache-monitor/health/:cacheId', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!options.database) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
+      const { cacheId } = (request.params as any);
+      const service = new CacheMonitorService(options.database);
+      const health = await service.assessCacheHealth(cacheId);
+      return reply.status(200).send({ success: true, data: health });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to assess cache health');
+      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+    }
+  });
+
+  // GET /api/v1/build-env/cache-monitor/impact/:pipelineId - Analyze performance impact
+  app.get('/cache-monitor/impact/:pipelineId', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!options.database) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
+      const { pipelineId } = (request.params as any);
+      const service = new CacheMonitorService(options.database);
+      const impact = await service.analyzePerformanceImpact(options.database, pipelineId);
+      return reply.status(200).send({ success: true, data: impact });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to analyze cache performance impact');
+      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+    }
+  });
+
+  // POST /api/v1/build-env/cache-monitor/event - Record cache event
+  app.post('/cache-monitor/event', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!options.database) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
+      const { cacheId, tenantId, eventType, latencySavedMs } = request.body as any;
+      if (!cacheId || !tenantId || !eventType) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'cacheId, tenantId, eventType are required' });
+      }
+      const service = new CacheMonitorService(options.database);
+      await service.recordCacheEvent(cacheId, tenantId, eventType, latencySavedMs);
+      return reply.status(201).send({ success: true });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to record cache event');
       return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
     }
   });

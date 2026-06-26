@@ -193,7 +193,7 @@ export class ExecutionService {
           started: execution.startTime.toISOString(),
           completed: endTime.toISOString(),
         },
-      } as any);
+      });
 
       // Create audit log
       await this.createAuditLog({

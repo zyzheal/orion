@@ -264,7 +264,7 @@ export class HookChainService extends EventEmitter {
         stopOnFailure: definition.stopOnFailure !== false,
         inputTransform: definition.inputTransform || null,
         outputTransform: definition.outputTransform || null,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, chainId: definition.id }, 'Failed to persist hook chain'));
     }
 
     logger.info({ chainId: definition.id, hooksCount: definition.hooks.length }, 'Hook chain created');
@@ -641,7 +641,7 @@ export class HookChainService extends EventEmitter {
         finalOutput: result.finalOutput || null,
         error: result.error || null,
         executedAt: result.timestamp,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, chainId: result.chainId }, 'Failed to persist chain execution result'));
     }
   }
 

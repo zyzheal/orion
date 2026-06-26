@@ -397,7 +397,7 @@ export class PipelineTriggerService {
       } else if (input.status === 'active' && trigger.type === 'schedule' && trigger.config.cronExpression) {
         // If status becomes active and it's a schedule trigger, ensure cron is scheduled
         if (!this.cronSchedules.has(triggerId)) {
-          await this.scheduleTrigger(triggerId, trigger.config.cronExpression).catch(() => {});
+          await this.scheduleTrigger(triggerId, trigger.config.cronExpression).catch((err) => logger.warn({ err, triggerId }, 'Failed to schedule trigger'));
         }
       }
     }

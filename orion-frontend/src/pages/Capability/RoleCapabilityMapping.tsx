@@ -372,10 +372,31 @@ const RoleCapabilityMapping: React.FC = () => {
     message.info('已取消更改');
   }, []);
 
-  // 导出矩阵
+  // 导出矩阵为 CSV
   const handleExport = useCallback(() => {
-    message.info('导出功能开发中...');
-  }, []);
+    const grantedMap = new Map<string, Set<string>>();
+    for (const rc of roleCapabilities) {
+      if (rc.granted) {
+        if (!grantedMap.has(rc.roleId)) grantedMap.set(rc.roleId, new Set());
+        grantedMap.get(rc.roleId)!.add(rc.capabilityId);
+      }
+    }
+    const header = ['能力', '分类', ...mockRoles.map(r => r.name)];
+    const rows = mockCapabilities.map(cap => [
+      cap.name,
+      cap.category,
+      ...mockRoles.map(r => grantedMap.get(r.id)?.has(cap.id) ? '是' : '否'),
+    ]);
+    const csv = [header, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `角色能力矩阵_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('导出成功');
+  }, [roleCapabilities]);
 
   // 渲染权限矩阵Tab
   const renderMatrixView = () => {

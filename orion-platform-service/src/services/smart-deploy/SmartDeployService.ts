@@ -393,7 +393,7 @@ export class SmartDeployService {
           rollback_to: null,
           commit_sha: input.commitSha ?? null,
           commit_committed_at: input.commitCommittedAt ?? null,
-        } as any);
+        });
       } catch (error) {
         logger.warn({ error }, '[SmartDeploy] Failed to persist deployment');
       }
@@ -724,7 +724,7 @@ export class SmartDeployService {
             deployment.id,
             'completed',
             deployment.completedAt,
-          ).catch(() => {});
+          ).catch((err) => logger.warn({ err, deploymentId: deployment.id }, 'Failed to persist deployment completion status'));
         }
 
         this.addAuditEntry(deployment.id, 'deployment_completed', 'system', {

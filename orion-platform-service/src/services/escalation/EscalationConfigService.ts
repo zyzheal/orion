@@ -174,7 +174,7 @@ export class EscalationConfigService {
         notify_channels: policy.notifyChannels,
         auto_action: policy.autoAction,
         is_active: policy.isActive,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, entityType: policy.entityType, severity: policy.severity }, 'Failed to persist escalation policy'));
     } else if (this.db) {
       await this.db.query(
         `INSERT INTO escalation_policies

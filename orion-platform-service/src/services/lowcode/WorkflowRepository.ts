@@ -73,7 +73,7 @@ export class WorkflowDefinitionRepository {
         nodes: JSON.stringify(mapped.nodes),
         edges: JSON.stringify(mapped.edges),
         created_by: mapped.createdBy,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, workflowId: mapped.id }, 'Failed to persist workflow definition'));
 
       return mapped;
     } catch (error) {
@@ -320,7 +320,7 @@ export class WorkflowInstanceRepository {
         input: JSON.stringify(mapped.input),
         output: mapped.output ? JSON.stringify(mapped.output) : null,
         error: mapped.error || null,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, instanceId: mapped.id }, 'Failed to persist workflow instance'));
 
       return mapped;
     } catch (error) {

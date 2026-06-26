@@ -1036,7 +1036,7 @@ Phase 4: 测试发布 (Week 11-12)
 
 | 文档 | 链接 |
 |------|------|
-| AI 模型训练与评估详细设计 | `docs/ai/AI 模型训练与评估详细设计.md` |
+| AI 模型训练与评估详细设计 | `docs/services/ai/AI模型训练与评估详细设计.md` |
 | Orion 平台服务拆分设计 | `docs/architecture/platform-service-split-implementation.md` |
 
 ### 12.3 评审记录

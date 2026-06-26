@@ -191,7 +191,7 @@ export class HealingActionExecutor {
       // Store for potential rollback
       const actionKey = `${action.type}-${Date.now()}`;
       this.executedActions.set(actionKey, result);
-      this.persistActionResult(result).catch(() => {});
+      this.persistActionResult(result).catch((err) => logger.warn({ err, actionType: action.type }, 'Failed to persist action result'));
 
       return result;
     } catch (error: any) {
@@ -204,7 +204,7 @@ export class HealingActionExecutor {
       // Store for potential rollback
       const actionKey = `${action.type}-${Date.now()}`;
       this.executedActions.set(actionKey, result);
-      this.persistActionResult(result).catch(() => {});
+      this.persistActionResult(result).catch((err) => logger.warn({ err, actionType: action.type }, 'Failed to persist action result'));
 
       return result;
     }

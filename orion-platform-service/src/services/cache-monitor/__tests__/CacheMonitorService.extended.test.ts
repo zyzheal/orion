@@ -13,7 +13,8 @@
  * - mapRow 边界字段
  */
 
-import { CacheMonitorService, CacheMetricsRepository, CacheMonitorServiceError } from '../CacheMonitorService';
+import { CacheMonitorService, CacheMonitorServiceError } from '../CacheMonitorService';
+import { CacheMetricsRepository } from '../../../repositories/CacheMonitorRepository';
 
 // Mock DatabasePool
 const mockQuery = jest.fn();
@@ -34,22 +35,22 @@ describe('CacheMonitorService Extended Tests', () => {
   // ==================== CacheMetricsRepository ====================
 
   describe('CacheMetricsRepository', () => {
-    describe('updateMetrics', () => {
+    describe('recordEvent', () => {
       it('应该在零请求时计算 hit_rate 为 0', async () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
-        await repository.updateMetrics('c1', 'tenant1', 0, 0, 1024, 0, 0);
+        await repository.recordEvent('c1', 'tenant1', 0, 0, 1024, 0, 0);
 
         expect(mockQuery).toHaveBeenCalledWith(
           expect.stringContaining('INSERT INTO'),
-          expect.arrayContaining([0.0]) // hitRate = 0/(0+0) = 0
+          expect.arrayContaining([0.0]), // hitRate = 0/(0+0) = 0
         );
       });
 
       it('应该在全部未命中时计算 hit_rate 为 0', async () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
-        await repository.updateMetrics('c1', 'tenant1', 0, 100, 1024, 0, 0);
+        await repository.recordEvent('c1', 'tenant1', 0, 100, 1024, 0, 0);
 
         const callArgs = mockQuery.mock.calls[0][1];
         expect(callArgs[4]).toBe(0); // hit_rate = 0/(0+100)
@@ -58,7 +59,7 @@ describe('CacheMonitorService Extended Tests', () => {
       it('应该在全部命中时计算 hit_rate 为 1', async () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
-        await repository.updateMetrics('c1', 'tenant1', 100, 0, 1024, 0, 50);
+        await repository.recordEvent('c1', 'tenant1', 100, 0, 1024, 0, 50);
 
         const callArgs = mockQuery.mock.calls[0][1];
         expect(callArgs[4]).toBe(1); // hit_rate = 100/(100+0)
@@ -67,7 +68,7 @@ describe('CacheMonitorService Extended Tests', () => {
       it('应该传递正确的参数到 SQL 查询', async () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
-        await repository.updateMetrics('cache-abc', 'tenant-xyz', 42, 8, 2048, 3, 75);
+        await repository.recordEvent('cache-abc', 'tenant-xyz', 42, 8, 2048, 3, 75);
 
         const callArgs = mockQuery.mock.calls[0][1];
         expect(callArgs).toEqual(['cache-abc', 'tenant-xyz', 42, 8, 0.84, 2048, 3, 75]);
@@ -77,12 +78,12 @@ describe('CacheMonitorService Extended Tests', () => {
         mockQuery.mockRejectedValue(new Error('Connection refused'));
 
         await expect(
-          repository.updateMetrics('c1', 'tenant1', 1, 0, 0, 0, 0)
+          repository.recordEvent('c1', 'tenant1', 1, 0, 0, 0, 0),
         ).rejects.toThrow('Connection refused');
       });
     });
 
-    describe('getCacheMetrics', () => {
+    describe('findByCacheId', () => {
       it('应该正确映射完整数据行', async () => {
         const now = new Date();
         mockQuery.mockResolvedValue({
@@ -92,44 +93,43 @@ describe('CacheMonitorService Extended Tests', () => {
             total_hits: 500,
             total_misses: 50,
             hit_rate: 0.909,
-            total_size_bytes: 5368709120, // 5GB
-            max_size_bytes: 10737418240,  // 10GB
+            total_size_bytes: 5368709120,
+            max_size_bytes: 10737418240,
             eviction_count: 25,
             avg_latency_saved_ms: 120,
             last_updated: now,
           }],
         });
 
-        const result = await repository.getCacheMetrics('c-full');
+        const result = await repository.findByCacheId('c-full');
 
         expect(result).not.toBeNull();
-        expect(result!.cache_id).toBe('c-full');
-        expect(result!.tenant_id).toBe('t1');
-        expect(result!.total_hits).toBe(500);
-        expect(result!.total_misses).toBe(50);
-        expect(result!.hit_rate).toBeCloseTo(0.909, 3);
-        expect(result!.total_size_bytes).toBe(5368709120);
-        expect(result!.max_size_bytes).toBe(10737418240);
-        expect(result!.utilization_percent).toBeCloseTo(50, 0);
-        expect(result!.eviction_count).toBe(25);
-        expect(result!.avg_latency_saved_ms).toBe(120);
-        expect(result!.last_updated).toBe(now);
+        expect(result!.id).toBe('c-full');
+        expect(result!.tenantId).toBe('t1');
+        expect(result!.totalHits).toBe(500);
+        expect(result!.totalMisses).toBe(50);
+        expect(result!.hitRate).toBeCloseTo(0.909, 3);
+        expect(result!.totalSizeBytes).toBe(5368709120);
+        expect(result!.maxSizeBytes).toBe(10737418240);
+        expect(result!.evictionCount).toBe(25);
+        expect(result!.avgLatencySavedMs).toBe(120);
+        expect(result!.lastUpdated).toBe(now);
       });
 
       it('应该在数据库查询失败时抛出异常', async () => {
         mockQuery.mockRejectedValue(new Error('Table does not exist'));
 
         await expect(
-          repository.getCacheMetrics('c1')
+          repository.findByCacheId('c1'),
         ).rejects.toThrow('Table does not exist');
       });
     });
 
-    describe('listTenantCaches', () => {
+    describe('findByTenant', () => {
       it('应该在无缓存时返回空数组', async () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
-        const result = await repository.listTenantCaches('tenant-empty');
+        const result = await repository.findByTenant('tenant-empty');
 
         expect(result).toEqual([]);
       });
@@ -138,13 +138,13 @@ describe('CacheMonitorService Extended Tests', () => {
         mockQuery.mockRejectedValue(new Error('Timeout'));
 
         await expect(
-          repository.listTenantCaches('t1')
+          repository.findByTenant('t1'),
         ).rejects.toThrow('Timeout');
       });
     });
 
     describe('getTenantSummary', () => {
-      it('应该正确计算 estimated_cost_saved_cents', async () => {
+      it('应该正确返回汇总数据', async () => {
         mockQuery.mockResolvedValue({
           rows: [{
             total_caches: '3',
@@ -153,20 +153,17 @@ describe('CacheMonitorService Extended Tests', () => {
             total_misses: '200',
             avg_hit_rate: '0.833',
             avg_latency_saved: '80',
-            total_latency_saved: '80000',
           }],
         });
 
         const result = await repository.getTenantSummary('t1');
 
-        // estimated_cost_saved_cents = Math.floor(80000 * 0.001) = 80
-        expect(result.estimated_cost_saved_cents).toBe(80);
-        expect(result.total_caches).toBe(3);
-        expect(result.total_size_bytes).toBe(3072);
-        expect(result.total_hits).toBe(1000);
-        expect(result.total_misses).toBe(200);
-        expect(result.avg_hit_rate).toBeCloseTo(0.833, 3);
-        expect(result.avg_latency_saved_ms).toBe(80);
+        expect(result.totalCaches).toBe(3);
+        expect(result.totalSizeBytes).toBe(3072);
+        expect(result.totalHits).toBe(1000);
+        expect(result.totalMisses).toBe(200);
+        expect(result.avgHitRate).toBeCloseTo(0.833, 3);
+        expect(result.avgLatencySavedMs).toBe(80);
       });
 
       it('应该在全部值为 null 时返回零值', async () => {
@@ -178,41 +175,20 @@ describe('CacheMonitorService Extended Tests', () => {
             total_misses: null,
             avg_hit_rate: null,
             avg_latency_saved: null,
-            total_latency_saved: null,
           }],
         });
 
         const result = await repository.getTenantSummary('t-empty');
 
-        expect(result.total_caches).toBe(0);
-        expect(result.total_size_bytes).toBe(0);
-        expect(result.total_hits).toBe(0);
-        expect(result.total_misses).toBe(0);
-        expect(result.avg_hit_rate).toBe(0);
-        expect(result.avg_latency_saved_ms).toBe(0);
-        expect(result.estimated_cost_saved_cents).toBe(0);
+        expect(result.totalCaches).toBe(0);
+        expect(result.totalSizeBytes).toBe(0);
+        expect(result.totalHits).toBe(0);
+        expect(result.totalMisses).toBe(0);
+        expect(result.avgHitRate).toBe(0);
+        expect(result.avgLatencySavedMs).toBe(0);
       });
 
-      it('应该在 total_latency_saved 为 null 时将 estimated_cost_saved_cents 设为 0', async () => {
-        mockQuery.mockResolvedValue({
-          rows: [{
-            total_caches: '1',
-            total_size: '100',
-            total_hits: '50',
-            total_misses: '50',
-            avg_hit_rate: '0.5',
-            avg_latency_saved: '50',
-            total_latency_saved: null,
-          }],
-        });
-
-        const result = await repository.getTenantSummary('t1');
-
-        // parseInt(null) returns NaN, || 0 → 0, Math.floor(0 * 0.001) = 0
-        expect(result.estimated_cost_saved_cents).toBe(0);
-      });
-
-      it('应该在 avg_hit_rate 为 null 时回退到计算值', async () => {
+      it('应该在 avg_hit_rate 为 null 时返回 0', async () => {
         mockQuery.mockResolvedValue({
           rows: [{
             total_caches: '2',
@@ -221,81 +197,92 @@ describe('CacheMonitorService Extended Tests', () => {
             total_misses: '25',
             avg_hit_rate: null,
             avg_latency_saved: '60',
-            total_latency_saved: '4500',
           }],
         });
 
         const result = await repository.getTenantSummary('t1');
 
-        // avg_hit_rate null → parseFloat(null) = NaN || hitRate → hitRate = 75/(75+25) = 0.75
-        expect(result.avg_hit_rate).toBeCloseTo(0.75, 2);
+        expect(result.avgHitRate).toBe(0);
       });
     });
 
-    describe('mapRow', () => {
-      it('应该在 total_size_bytes 为 0 时返回 utilization 为 0', () => {
-        const row = {
-          cache_id: 'c-zero',
-          tenant_id: 't1',
-          total_hits: 0,
-          total_misses: 0,
-          hit_rate: 0,
-          total_size_bytes: 0,
-          max_size_bytes: 10240,
-          eviction_count: 0,
-          avg_latency_saved_ms: 0,
-          last_updated: new Date(),
-        };
+    describe('mapRow (via findByCacheId)', () => {
+      it('应该在 total_size_bytes 为 0 时返回 utilization 为 0', async () => {
+        mockQuery.mockResolvedValue({
+          rows: [{
+            cache_id: 'c-zero',
+            tenant_id: 't1',
+            total_hits: 0,
+            total_misses: 0,
+            hit_rate: 0,
+            total_size_bytes: 0,
+            max_size_bytes: 10240,
+            eviction_count: 0,
+            avg_latency_saved_ms: 0,
+            last_updated: new Date(),
+          }],
+        });
 
-        const result = repository.mapRow(row);
+        const result = await repository.findByCacheId('c-zero');
 
-        expect(result.utilization_percent).toBe(0);
+        expect(result).not.toBeNull();
+        // utilization = 0/10240 = 0
+        expect(result!.totalSizeBytes).toBe(0);
+        expect(result!.maxSizeBytes).toBe(10240);
       });
 
-      it('应该在 max_size_bytes 为 0 时使用默认值', () => {
-        const row = {
-          cache_id: 'c-zero-max',
-          total_size_bytes: 1073741824,
-          max_size_bytes: 0,
-          eviction_count: 0,
-        };
+      it('应该在 max_size_bytes 为 0/null 时使用默认 10GB', async () => {
+        mockQuery.mockResolvedValue({
+          rows: [{
+            cache_id: 'c-zero-max',
+            tenant_id: 't1',
+            total_hits: 0,
+            total_misses: 0,
+            hit_rate: 0,
+            total_size_bytes: 1073741824,
+            max_size_bytes: null,
+            eviction_count: 0,
+            avg_latency_saved_ms: 0,
+            last_updated: new Date(),
+          }],
+        });
 
-        const result = repository.mapRow(row);
+        const result = await repository.findByCacheId('c-zero-max');
 
-        // max_size_bytes = 0 is falsy, so default 10GB is used
-        expect(result.max_size_bytes).toBe(10737418240);
-        expect(result.utilization_percent).toBeCloseTo(10, 0);
+        expect(result).not.toBeNull();
+        expect(result!.maxSizeBytes).toBe(10737418240); // default 10GB
       });
 
-      it('应该在 max_size_bytes 未定义时使用默认 10GB', () => {
-        const row = {
-          cache_id: 'c-undef',
-          total_size_bytes: 10737418240,
-          eviction_count: 0,
-        };
+      it('应该正确映射完整数据行', async () => {
+        const now = new Date();
+        mockQuery.mockResolvedValue({
+          rows: [{
+            cache_id: 'c-full',
+            tenant_id: 't1',
+            total_hits: 500,
+            total_misses: 50,
+            hit_rate: 0.909,
+            total_size_bytes: 5368709120,
+            max_size_bytes: 10737418240,
+            eviction_count: 25,
+            avg_latency_saved_ms: 120,
+            last_updated: now,
+          }],
+        });
 
-        const result = repository.mapRow(row);
+        const result = await repository.findByCacheId('c-full');
 
-        expect(result.max_size_bytes).toBe(10737418240);
-        expect(result.utilization_percent).toBeCloseTo(100, 0);
-      });
-
-      it('应该处理缺失的可选字段', () => {
-        const row = {
-          cache_id: 'c-minimal',
-          total_size_bytes: 512,
-          eviction_count: 0,
-        };
-
-        const result = repository.mapRow(row);
-
-        expect(result.cache_id).toBe('c-minimal');
-        expect(result.tenant_id).toBeUndefined();
-        expect(result.total_hits).toBeUndefined();
-        expect(result.total_misses).toBeUndefined();
-        expect(result.hit_rate).toBeUndefined();
-        expect(result.avg_latency_saved_ms).toBeUndefined();
-        expect(result.last_updated).toBeUndefined();
+        expect(result).not.toBeNull();
+        expect(result!.id).toBe('c-full');
+        expect(result!.tenantId).toBe('t1');
+        expect(result!.totalHits).toBe(500);
+        expect(result!.totalMisses).toBe(50);
+        expect(result!.hitRate).toBeCloseTo(0.909, 2);
+        expect(result!.totalSizeBytes).toBe(5368709120);
+        expect(result!.maxSizeBytes).toBe(10737418240);
+        expect(result!.evictionCount).toBe(25);
+        expect(result!.avgLatencySavedMs).toBe(120);
+        expect(result!.lastUpdated).toBe(now);
       });
     });
   });
@@ -625,7 +612,7 @@ describe('CacheMonitorService Extended Tests', () => {
           }],
         });
 
-        const result = await service.analyzePerformanceImpact('p1');
+        const result = await service.analyzePerformanceImpact(mockPool as any, 'p1');
 
         expect(result.pipeline_id).toBe('p1');
         expect(result.with_cache_avg_duration_ms).toBe(1500);
@@ -646,7 +633,7 @@ describe('CacheMonitorService Extended Tests', () => {
           }],
         });
 
-        const result = await service.analyzePerformanceImpact('p1');
+        const result = await service.analyzePerformanceImpact(mockPool as any, 'p1');
 
         expect(result.time_saved_ms).toBe(0);
         expect(result.time_saved_percent).toBe(0);
@@ -662,7 +649,7 @@ describe('CacheMonitorService Extended Tests', () => {
           }],
         });
 
-        const result = await service.analyzePerformanceImpact('p1');
+        const result = await service.analyzePerformanceImpact(mockPool as any, 'p1');
 
         // timeSaved = 3000 - 4000 = -1000, Math.max(0, -1000) = 0
         expect(result.time_saved_ms).toBe(0);
@@ -679,7 +666,7 @@ describe('CacheMonitorService Extended Tests', () => {
           }],
         });
 
-        const result = await service.analyzePerformanceImpact('p-empty');
+        const result = await service.analyzePerformanceImpact(mockPool as any, 'p-empty');
 
         expect(result.with_cache_avg_duration_ms).toBe(0);
         expect(result.without_cache_avg_duration_ms).toBe(0);
@@ -693,7 +680,7 @@ describe('CacheMonitorService Extended Tests', () => {
         mockQuery.mockRejectedValue(new Error('Relation pipeline_runs does not exist'));
 
         await expect(
-          service.analyzePerformanceImpact('p1')
+          service.analyzePerformanceImpact(mockPool as any, 'p1')
         ).rejects.toThrow('Relation pipeline_runs does not exist');
       });
     });

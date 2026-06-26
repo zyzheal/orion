@@ -980,4 +980,4 @@ const getSLAStatus = (record: ApprovalRequest): { label: string; color: string; 
 |------|------|
 | `docs/services/approval/05-approval-workflow-spec.md` | 审批工作流详细规格 (Phase 2) |
 | `docs/superpowers/specs/phase2/05-approval-workflow-spec.md` | 原始规格文档 |
-| `docs/frontend/审批组件库.md` | 前端审批组件库设计 |
+| `docs/services/approval/审批组件库.md` | 前端审批组件库设计 |

@@ -88,7 +88,7 @@ export class SbomWaiverService {
       expires_at: input.expiresAt,
       scope: input.scope,
       scope_target: input.scopeTarget,
-    } as any);
+    });
 
     logger.info({ waiverId: entity.id, cveId: input.cveId, package: input.packageName }, '[SbomWaiver] Waiver created');
     return entity;

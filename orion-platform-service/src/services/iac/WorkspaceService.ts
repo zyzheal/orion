@@ -109,7 +109,7 @@ export class WorkspaceService {
         variables: input.variables ?? {},
         status: 'active',
         provider: input.provider ?? 'terraform',
-      } as any);
+      });
 
       const workspace = toWorkspace(entity);
 
@@ -207,7 +207,7 @@ export class WorkspaceService {
       const updated = await this.workspaceRepository.update(workspaceId, {
         locked_by: userId,
         status: 'locked',
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.workspace.locked', {
         workspaceId,
@@ -226,7 +226,7 @@ export class WorkspaceService {
       const updated = await this.workspaceRepository.update(workspaceId, {
         locked_by: null,
         status: 'active',
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.workspace.unlocked', { workspaceId });
       return toWorkspace(updated);
@@ -248,7 +248,7 @@ export class WorkspaceService {
         commit_sha: input.commitSha,
         author: input.author,
         size: input.size,
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.state.versioned', {
         workspaceId: input.workspaceId,
@@ -345,7 +345,7 @@ export class WorkspaceService {
         version: input.version,
         source: input.source,
         dependencies: input.dependencies ?? {},
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.module.created', {
         moduleId: entity.id,

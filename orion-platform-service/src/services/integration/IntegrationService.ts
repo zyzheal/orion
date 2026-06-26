@@ -143,7 +143,7 @@ export class IntegrationService {
         syncStatus: null,
         errorMessage: null,
         createdBy: integration.createdBy,
-      }).catch(() => {});
+      }).catch((err) => console.warn('[IntegrationService] Failed to persist integration:', err));
     }
 
     return integration;

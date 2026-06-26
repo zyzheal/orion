@@ -222,7 +222,7 @@ export class ConfigFallbackService {
         const staleValue = this.memoryCache.getStale(cacheKey);
         if (staleValue !== null) {
           // 异步刷新
-          this.refreshConfig(domain, key).catch(() => {});
+          this.refreshConfig(domain, key).catch((err) => logger.warn({ err, domain, key }, 'SWR background refresh failed'));
           return { value: staleValue, level: ConfigLevel.MEMORY, fromCache: true };
         }
       }

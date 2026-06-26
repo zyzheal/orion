@@ -76,7 +76,7 @@ export class CostCalculator {
       total_cost: estimate.totalCost,
       currency: estimate.currency,
       tenant_id: 'default',
-    }).catch(() => {});
+    }).catch((err) => console.warn('[CostCalculator] Failed to persist cost estimate:', err));
 
     return estimate;
   }

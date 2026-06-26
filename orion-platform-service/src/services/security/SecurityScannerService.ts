@@ -306,7 +306,7 @@ export class SecurityScannerService {
       scan_start_time: scanInput.scanStartTime,
       scan_end_time: scanInput.scanEndTime,
       duration_ms: scanInput.durationMs ?? 0,
-    } as any);
+    });
 
     // Create finding records
     if (result.findings.length > 0) {

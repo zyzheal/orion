@@ -198,7 +198,7 @@ export class RiskAssessmentService {
           shapValues: result.shapValues,
           topRiskFactors: result.topRiskFactors,
           expiresAt,
-        } as any);
+        });
       } catch (error) {
         logger.warn({ error }, '[RiskAssessment] Failed to persist prediction');
       }

@@ -100,7 +100,7 @@ export class MonitoringDashboard {
           timeWindow: config.timeWindow,
           tags: config.tags || {},
           sortOrder: this.widgetConfigsMemory.length,
-        } as any);
+        });
       } catch (err) {
         this.widgetConfigsMemory.push(config);
       }

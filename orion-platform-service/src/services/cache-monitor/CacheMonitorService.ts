@@ -1,4 +1,3 @@
-import { DatabasePool } from '../database';
 /**
  * CacheMonitorService - Business logic for Build Cache Monitoring
  *
@@ -8,8 +7,10 @@ import { DatabasePool } from '../database';
  * - Cache eviction and cleanup statistics
  * - Performance impact analysis
  *
- * Phase 1 P0 Service
+ * Migrated to PostgreSQL Repository pattern (2026-06-26)
  */
+
+import { CacheMetricsRepository, CacheMetricsEntity } from '../../repositories/CacheMonitorRepository';
 
 // ==================== Types ====================
 
@@ -70,132 +71,51 @@ export class CacheMonitorServiceError extends Error {
   }
 }
 
-// ==================== Repository ====================
-
-export class CacheMetricsRepository {
-
-  constructor(private pool: DatabasePool) {}
-
-  async getCacheMetrics(cacheId: string): Promise<CacheMetrics | null> {
-    const result = await this.pool.query(
-      `SELECT * FROM build_cache_metrics WHERE cache_id = $1`,
-      [cacheId]
-    );
-    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
-  }
-
-  async listTenantCaches(tenantId: string): Promise<CacheMetrics[]> {
-    const result = await this.pool.query(
-      `SELECT * FROM build_cache_metrics WHERE tenant_id = $1 ORDER BY last_updated DESC`,
-      [tenantId]
-    );
-    return result.rows.map(row => this.mapRow(row));
-  }
-
-  async updateMetrics(
-    cacheId: string,
-    tenantId: string,
-    hits: number,
-    misses: number,
-    sizeBytes: number,
-    evictions: number,
-    latencySavedMs: number
-  ): Promise<void> {
-    const totalRequests = hits + misses;
-    const hitRate = totalRequests > 0 ? hits / totalRequests : 0;
-
-    await this.pool.query(
-      `INSERT INTO build_cache_metrics 
-        (cache_id, tenant_id, total_hits, total_misses, hit_rate, total_size_bytes, eviction_count, avg_latency_saved_ms, last_updated)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
-       ON CONFLICT (cache_id) DO UPDATE SET
-        total_hits = build_cache_metrics.total_hits + $3,
-        total_misses = build_cache_metrics.total_misses + $4,
-        hit_rate = $5,
-        total_size_bytes = $6,
-        eviction_count = build_cache_metrics.eviction_count + $7,
-        avg_latency_saved_ms = $8,
-        last_updated = now()`,
-      [cacheId, tenantId, hits, misses, hitRate, sizeBytes, evictions, latencySavedMs]
-    );
-  }
-
-  async getTenantSummary(tenantId: string): Promise<CacheStatsSummary> {
-    const result = await this.pool.query(
-      `SELECT 
-        COUNT(*) as total_caches,
-        SUM(total_size_bytes) as total_size,
-        SUM(total_hits) as total_hits,
-        SUM(total_misses) as total_misses,
-        AVG(hit_rate) as avg_hit_rate,
-        AVG(avg_latency_saved_ms) as avg_latency_saved,
-        SUM(total_hits * avg_latency_saved_ms) as total_latency_saved
-       FROM build_cache_metrics 
-       WHERE tenant_id = $1`,
-      [tenantId]
-    );
-
-    const row = result.rows[0];
-    const totalRequests = parseInt(row.total_hits) + parseInt(row.total_misses);
-    const hitRate = totalRequests > 0 ? parseInt(row.total_hits) / totalRequests : 0;
-
-    return {
-      tenant_id: tenantId,
-      total_caches: parseInt(row.total_caches) || 0,
-      total_size_bytes: parseInt(row.total_size) || 0,
-      total_hits: parseInt(row.total_hits) || 0,
-      total_misses: parseInt(row.total_misses) || 0,
-      avg_hit_rate: parseFloat(row.avg_hit_rate) || hitRate,
-      avg_latency_saved_ms: parseFloat(row.avg_latency_saved) || 0,
-      estimated_cost_saved_cents: Math.floor((parseInt(row.total_latency_saved) || 0) * 0.001), // Rough estimate
-    };
-  }
-
-  private mapRow(row: any): CacheMetrics {
-    return {
-      cache_id: row.cache_id,
-      tenant_id: row.tenant_id,
-      total_hits: row.total_hits,
-      total_misses: row.total_misses,
-      hit_rate: row.hit_rate,
-      total_size_bytes: row.total_size_bytes,
-      max_size_bytes: row.max_size_bytes || 10737418240, // Default 10GB
-      utilization_percent: (row.total_size_bytes / (row.max_size_bytes || 10737418240)) * 100,
-      eviction_count: row.eviction_count,
-      avg_latency_saved_ms: row.avg_latency_saved_ms,
-      last_updated: row.last_updated,
-    };
-  }
-}
-
 // ==================== Service ====================
 
 export class CacheMonitorService {
   private repository: CacheMetricsRepository;
 
-  constructor(private pool: DatabasePool) {
-    this.repository = new CacheMetricsRepository(this.pool);
+  constructor(
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
+    this.repository = new CacheMetricsRepository(db);
   }
 
   /**
    * Get metrics for a specific cache
    */
   async getCacheMetrics(cacheId: string): Promise<CacheMetrics | null> {
-    return this.repository.getCacheMetrics(cacheId);
+    const entity = await this.repository.findByCacheId(cacheId);
+    return entity ? this.entityToDTO(entity) : null;
   }
 
   /**
    * List all caches for a tenant
    */
   async listTenantCaches(tenantId: string): Promise<CacheMetrics[]> {
-    return this.repository.listTenantCaches(tenantId);
+    const entities = await this.repository.findByTenant(tenantId);
+    return entities.map(e => this.entityToDTO(e));
   }
 
   /**
    * Get tenant-level cache statistics summary
    */
   async getTenantSummary(tenantId: string): Promise<CacheStatsSummary> {
-    return this.repository.getTenantSummary(tenantId);
+    const summary = await this.repository.getTenantSummary(tenantId);
+    const totalRequests = summary.totalHits + summary.totalMisses;
+    const hitRate = totalRequests > 0 ? summary.totalHits / totalRequests : 0;
+
+    return {
+      tenant_id: tenantId,
+      total_caches: summary.totalCaches,
+      total_size_bytes: summary.totalSizeBytes,
+      total_hits: summary.totalHits,
+      total_misses: summary.totalMisses,
+      avg_hit_rate: summary.avgHitRate || hitRate,
+      avg_latency_saved_ms: summary.avgLatencySavedMs,
+      estimated_cost_saved_cents: Math.floor(summary.totalHits * summary.avgLatencySavedMs * 0.001),
+    };
   }
 
   /**
@@ -205,51 +125,27 @@ export class CacheMonitorService {
     cacheId: string,
     tenantId: string,
     eventType: 'hit' | 'miss',
-    latencySavedMs?: number
+    latencySavedMs?: number,
   ): Promise<void> {
     const hits = eventType === 'hit' ? 1 : 0;
     const misses = eventType === 'miss' ? 1 : 0;
     const latencySaved = eventType === 'hit' ? (latencySavedMs || 0) : 0;
 
-    await this.repository.updateMetrics(
-      cacheId,
-      tenantId,
-      hits,
-      misses,
-      0, // Size would be tracked separately
-      0, // Evictions tracked separately
-      latencySaved
-    );
+    await this.repository.recordEvent(cacheId, tenantId, hits, misses, 0, 0, latencySaved);
   }
 
   /**
    * Record cache size update
    */
   async recordCacheSize(cacheId: string, tenantId: string, sizeBytes: number): Promise<void> {
-    await this.repository.updateMetrics(
-      cacheId,
-      tenantId,
-      0,
-      0,
-      sizeBytes,
-      0,
-      0
-    );
+    await this.repository.recordEvent(cacheId, tenantId, 0, 0, sizeBytes, 0, 0);
   }
 
   /**
    * Record cache eviction
    */
   async recordCacheEviction(cacheId: string, tenantId: string, count: number): Promise<void> {
-    await this.repository.updateMetrics(
-      cacheId,
-      tenantId,
-      0,
-      0,
-      0,
-      count,
-      0
-    );
+    await this.repository.recordEvent(cacheId, tenantId, 0, 0, 0, count, 0);
   }
 
   /**
@@ -331,16 +227,19 @@ export class CacheMonitorService {
   /**
    * Analyze cache performance impact on pipeline runs
    */
-  async analyzePerformanceImpact(pipelineId: string): Promise<CachePerformanceImpact> {
-    const result = await this.pool.query(
-      `SELECT 
+  async analyzePerformanceImpact(
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }> },
+    pipelineId: string,
+  ): Promise<CachePerformanceImpact> {
+    const result = await db.query(
+      `SELECT
         COUNT(*) FILTER (WHERE cache_enabled = true) as cache_enabled_runs,
         COUNT(*) FILTER (WHERE cache_enabled = false OR cache_enabled IS NULL) as cache_disabled_runs,
         AVG(duration_ms) FILTER (WHERE cache_enabled = true) as with_cache_avg,
         AVG(duration_ms) FILTER (WHERE cache_enabled = false OR cache_enabled IS NULL) as without_cache_avg
-       FROM pipeline_runs 
+       FROM pipeline_runs
        WHERE pipeline_id = $1 AND status = 'completed' AND duration_ms IS NOT NULL`,
-      [pipelineId]
+      [pipelineId],
     );
 
     const row = result.rows[0];
@@ -383,7 +282,7 @@ export class CacheMonitorService {
       caches.slice(0, 10).map(async cache => ({
         cache_id: cache.cache_id,
         status: await this.assessCacheHealth(cache.cache_id),
-      }))
+      })),
     );
 
     // Filter only non-healthy caches
@@ -394,6 +293,24 @@ export class CacheMonitorService {
       caches,
       topCaches,
       healthAlerts: unhealthyAlerts,
+    };
+  }
+
+  // ==================== DTO Converters ====================
+
+  private entityToDTO(e: CacheMetricsEntity): CacheMetrics {
+    return {
+      cache_id: e.id,
+      tenant_id: e.tenantId,
+      total_hits: e.totalHits,
+      total_misses: e.totalMisses,
+      hit_rate: e.hitRate,
+      total_size_bytes: e.totalSizeBytes,
+      max_size_bytes: e.maxSizeBytes,
+      utilization_percent: (e.totalSizeBytes / e.maxSizeBytes) * 100,
+      eviction_count: e.evictionCount,
+      avg_latency_saved_ms: e.avgLatencySavedMs,
+      last_updated: e.lastUpdated,
     };
   }
 }

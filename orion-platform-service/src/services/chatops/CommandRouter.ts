@@ -101,7 +101,7 @@ export class CommandRouter {
         serviceName: route?.service,
         methodName: route?.method,
         tenantId: this.tenantId ?? undefined,
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err, command: name }, 'Failed to persist builtin command route'));
     }
   }
 

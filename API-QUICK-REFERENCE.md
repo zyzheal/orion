@@ -10,11 +10,11 @@
 
 | 规范 | 值 | 文档 |
 |------|-----|------|
-| **API 版本** | v1, v2 | docs/api/API 设计规范.md |
-| **认证方式** | JWT / X-Orion-Token | docs/security/认证授权与数据加密设计.md |
-| **响应格式** | `{code, data, message}` | docs/api/API 分页与错误码规范.md |
-| **分页策略** | cursor-based / offset-based | docs/api/API 分页与错误码规范.md |
-| **错误码** | 二级分类 (模块 + 具体) | docs/api/API 分页与错误码规范.md |
+| **API 版本** | v1, v2 | docs/cross-cutting/api/ |
+| **认证方式** | JWT / X-Orion-Token | docs/services/security/认证授权与数据加密设计.md |
+| **响应格式** | `{code, data, message}` | docs/cross-cutting/api/ |
+| **分页策略** | cursor-based / offset-based | docs/cross-cutting/api/ |
+| **错误码** | 二级分类 (模块 + 具体) | docs/cross-cutting/api/ |
 
 ### 1.2 核心服务 API
 
@@ -22,11 +22,11 @@
 |------|---------|------|------|
 | **Orion Core** | /api/v1/* | 8080 | - |
 | **Pipeline** | /api/v1/pipeline/* | 8081 | - |
-| **AI Service** | /api/v1/ai/* | 8082 | docs/ai/AI-Skill-Schema 定义.md |
-| **CMDB** | /api/v1/cmdb/* | 8083 | docs/cmdb/CMDB 集成接口设计.md |
+| **AI Service** | /api/v1/ai/* | 8082 | docs/services/ai/AI-Skill-Schema-定义.md |
+| **CMDB** | /api/v1/cmdb/* | 8083 | docs/services/cmdb/CMDB 集成接口设计.md |
 | **Tool Chain** | /api/v1/tool/* | 8084 | docs/adr/工具管理中心设计.md |
 | **DB Audit** | /api/v1/db/* | 8090 | orion-dba/README.md |
-| **Knowledge** | /api/v1/knowledge/* | 8300 | docs/knowledge/Orion-Knowledge 微服务改造方案.md |
+| **Knowledge** | /api/v1/knowledge/* | 8300 | docs/services/knowledge/Orion-Knowledge 微服务改造方案.md |
 
 ---
 
@@ -488,9 +488,8 @@ query GetAISkills {
 
 ## 八、参考文档
 
-- [API 设计规范](docs/api/API 设计规范.md)
-- [API 分页与错误码规范](docs/api/API 分页与错误码规范.md)
-- [认证授权与数据加密设计](docs/security/认证授权与数据加密设计.md)
+- [API 设计规范](docs/cross-cutting/api/)
+- [认证授权与数据加密设计](docs/services/security/认证授权与数据加密设计.md)
 
 ---
 
