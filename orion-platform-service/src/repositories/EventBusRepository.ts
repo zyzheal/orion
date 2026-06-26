@@ -11,6 +11,7 @@
 
 import { BaseRepository, FindAllOptions } from '../db/base-repository';
 import { OrionError, ErrorCode } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 // ==================== Entity Types ====================
 
@@ -281,7 +282,7 @@ export class EventBusEventRepository extends BaseRepository<EventBusEventEntity>
       `INSERT INTO event_bus_events (tenant_id, event_type, subject, source, payload, sequence_num, status, published_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
-        data.tenant_id || 'default',
+        data.tenant_id || getCurrentTenantId(),
         data.event_type,
         data.subject,
         data.source || 'orion-platform-service',

@@ -34,10 +34,8 @@ export default async function alertRoutes(
 
   // Initialize services with DB for persistence
   const correlationService = new AlertCorrelationService(undefined, db);
-  const deduplication = db ? new AlertDeduplication(db) : undefined;
-  const suppressionService = deduplication
-    ? new AlertSuppressionService(deduplication, correlationService, undefined, db)
-    : undefined;
+  const deduplication = new AlertDeduplication(db);
+  const suppressionService = new AlertSuppressionService(deduplication, correlationService, undefined, db);
 
   // Start deduplication service
   deduplication.start();

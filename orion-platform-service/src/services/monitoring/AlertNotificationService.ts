@@ -40,7 +40,7 @@ import {
   WebhookChannelConfig,
   SlackChannelConfig,
 } from './types';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
@@ -126,6 +126,34 @@ export class AlertNotificationService {
     }
   }
 
+  /**
+   * Convert repository entity to domain AlertChannel
+   */
+  private entityToChannel(entity: MonitoringNotificationChannelEntity): AlertChannel {
+    return {
+      id: entity.id,
+      type: entity.type as ChannelType,
+      config: entity.config as ChannelConfig,
+      enabled: entity.enabled,
+      name: entity.name,
+      severityFilter: entity.severity_filter as AlertSeverity[],
+    };
+  }
+
+  /**
+   * Convert repository entity to domain EscalationPolicy
+   */
+  private entityToPolicy(entity: MonitoringEscalationPolicyEntity): EscalationPolicy {
+    return {
+      id: entity.id,
+      name: entity.name,
+      steps: (entity.steps || []) as any[],
+      repeatCount: entity.repeat_count ?? 0,
+      enabled: entity.enabled,
+      description: entity.description ?? undefined,
+    };
+  }
+
   // ==================== Channel Management ====================
 
   /**
@@ -136,7 +164,7 @@ export class AlertNotificationService {
     if (this.channelRepo) {
       await this.channelRepo.create({
         id: channel.id,
-        tenant_id: '00000000-0000-0000-0000-000000000000',
+        tenant_id: getCurrentTenantId(),
         name: channel.name,
         type: channel.type,
         config: channel.config,
@@ -235,7 +263,7 @@ export class AlertNotificationService {
     // Persist to repository if available (fire-and-forget)
     this.escalationPolicyRepo?.create({
       id: policy.id,
-      tenant_id: '00000000-0000-0000-0000-000000000000',
+      tenant_id: getCurrentTenantId(),
       name: policy.name,
       steps: policy.steps,
       repeat_count: policy.repeatCount,
@@ -701,7 +729,7 @@ export class AlertNotificationService {
   private notificationRecordToEntity(record: NotificationRecord): Record<string, any> {
     return {
       id: record.id,
-      tenant_id: '00000000-0000-0000-0000-000000000000',
+      tenant_id: getCurrentTenantId(),
       alert_id: record.alertId,
       channel_id: record.channelId,
       channel_type: record.channelType,

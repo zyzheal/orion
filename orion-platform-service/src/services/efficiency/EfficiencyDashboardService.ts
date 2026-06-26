@@ -10,6 +10,7 @@
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 import { OrionError } from '../../errors';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   EfficiencyScenarioRepository,
   EfficiencyScenarioEntity,
@@ -85,7 +86,7 @@ export class EfficiencyDashboardService {
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, tenantId?: string) {
     this.scenarioRepo = db ? new EfficiencyScenarioRepository(db) : null;
-    this.tenantId = tenantId || 'default';
+    this.tenantId = tenantId || getCurrentTenantId();
     logger.info('[EfficiencyDashboard] Initialized');
   }
 

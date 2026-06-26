@@ -13,6 +13,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { IntegrationService } from '../services/integration/IntegrationService';
 
 import { DatabasePool } from '../services/database';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
 
@@ -46,7 +47,7 @@ export default async function integrationRoutes(
       }
 
       const integration = await integrationService.createIntegration({
-        tenantId: (body.tenantId as string) || 'default',
+        tenantId: (body.tenantId as string) || getCurrentTenantId(),
         provider: body.provider as string,
         name: body.name as string,
         config: body.config as any,
@@ -66,7 +67,7 @@ export default async function integrationRoutes(
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
     const provider = query.provider;
 
     const integrations = await integrationService.listIntegrations(tenantId, provider);

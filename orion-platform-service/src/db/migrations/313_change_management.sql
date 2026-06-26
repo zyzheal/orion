@@ -4,7 +4,7 @@
 -- Change Requests
 CREATE TABLE IF NOT EXISTS change_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+  tenant_id VARCHAR(64) NOT NULL,  -- 应用层通过 getCurrentTenantId() 设置
   title VARCHAR(500) NOT NULL,
   description TEXT,
   type VARCHAR(30) NOT NULL DEFAULT 'standard', -- standard, normal, emergency
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS change_requests (
 -- CAB (Change Advisory Board) Meetings
 CREATE TABLE IF NOT EXISTS cab_meetings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+  tenant_id VARCHAR(64) NOT NULL,  -- 应用层通过 getCurrentTenantId() 设置
   title VARCHAR(500) NOT NULL,
   description TEXT,
   scheduled_at TIMESTAMP NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS cab_meetings (
 -- Change Request Timeline Events
 CREATE TABLE IF NOT EXISTS change_timeline (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+  tenant_id VARCHAR(64) NOT NULL,  -- 应用层通过 getCurrentTenantId() 设置
   change_request_id UUID NOT NULL REFERENCES change_requests(id) ON DELETE CASCADE,
   event_type VARCHAR(50) NOT NULL, -- status_change, comment, approval, rejection, assignment
   description TEXT NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS change_timeline (
 -- RFC (Request for Change) -- linked to change_requests
 CREATE TABLE IF NOT EXISTS rfcs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+  tenant_id VARCHAR(64) NOT NULL,  -- 应用层通过 getCurrentTenantId() 设置
   change_request_id UUID NOT NULL REFERENCES change_requests(id) ON DELETE CASCADE,
   rfc_number VARCHAR(50) NOT NULL,
   justification TEXT,
@@ -93,3 +93,20 @@ CREATE INDEX IF NOT EXISTS idx_cab_meetings_tenant ON cab_meetings(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_change_timeline_change ON change_timeline(change_request_id);
 CREATE INDEX IF NOT EXISTS idx_rfcs_change ON rfcs(change_request_id);
 CREATE INDEX IF NOT EXISTS idx_rfcs_tenant ON rfcs(tenant_id);
+
+-- RLS 多租户隔离
+ALTER TABLE change_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE change_requests FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON change_requests USING (tenant_id = current_setting('app.current_tenant_id', true));
+
+ALTER TABLE cab_meetings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cab_meetings FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cab_meetings USING (tenant_id = current_setting('app.current_tenant_id', true));
+
+ALTER TABLE change_timeline ENABLE ROW LEVEL SECURITY;
+ALTER TABLE change_timeline FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON change_timeline USING (tenant_id = current_setting('app.current_tenant_id', true));
+
+ALTER TABLE rfcs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rfcs FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON rfcs USING (tenant_id = current_setting('app.current_tenant_id', true));

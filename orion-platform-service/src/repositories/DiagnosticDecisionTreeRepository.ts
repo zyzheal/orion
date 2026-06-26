@@ -7,6 +7,7 @@
 import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DecisionBranch, DecisionTreeNode } from '../services/diagnostic/DiagnosticDecisionTree';
 import { RootCause } from '../services/diagnostic/types';
 
@@ -33,7 +34,7 @@ export class DiagnosticDecisionTreeRepository extends BaseRepository<DiagnosticD
     const columns = ['id', 'tenant_id', 'name', 'description', 'is_leaf', 'branches'];
     const values: any[] = [
       data.id,
-      data.tenantId || 'default',
+      data.tenantId || getCurrentTenantId(),
       data.name,
       data.description || '',
       data.isLeaf || false,

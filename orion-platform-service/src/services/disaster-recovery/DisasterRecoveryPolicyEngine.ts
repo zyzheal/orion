@@ -14,7 +14,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabasePool } from '../database';
 import { BaseRepository } from '../../db/base-repository';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -264,18 +264,39 @@ export class DisasterRecoveryPolicyService {
     input: DRPolicyCreateInput & { tenantId: string; projectId?: string; createdById?: string },
   ): Promise<DRPolicy> {
     if (!this.repository) {
-      return this.mockCreate(input);
+      const now = new Date().toISOString();
+      return {
+        id: uuidv4(),
+        name: input.name,
+        description: input.description || '',
+        services: input.services,
+        strategy: input.strategy,
+        rpo: input.rpo,
+        rto: input.rto,
+        priority: input.priority ?? 0,
+        status: 'active',
+        tenantId: input.tenantId,
+        projectId: input.projectId,
+        createdById: input.createdById,
+        config: input.config || {},
+        createdAt: now,
+        updatedAt: now,
+      };
     }
     return this.repository.create(input);
   }
 
   async getPolicy(id: string): Promise<DRPolicy | null> {
-    if (!this.repository) return null;
+    if (!this.repository) {
+      return null;
+    }
     return this.repository.getById(id);
   }
 
   async listPolicies(tenantId: string): Promise<DRPolicy[]> {
-    if (!this.repository) return [];
+    if (!this.repository) {
+      return [];
+    }
     return this.repository.listByTenant(tenantId);
   }
 
@@ -283,12 +304,16 @@ export class DisasterRecoveryPolicyService {
     id: string,
     input: DRPolicyUpdateInput,
   ): Promise<DRPolicy | null> {
-    if (!this.repository) return null;
+    if (!this.repository) {
+      return null;
+    }
     return this.repository.update(id, input);
   }
 
   async deletePolicy(id: string): Promise<boolean> {
-    if (!this.repository) return false;
+    if (!this.repository) {
+      return false;
+    }
     return this.repository.delete(id);
   }
 
@@ -334,29 +359,6 @@ export class DisasterRecoveryPolicyService {
       'cold-standby': 1000, // Start from cold
     };
     return baseCosts[strategy] + serviceCount * 10;
-  }
-
-  // ─── Mock Mode (for tests without DB) ────────────────────────────────────
-
-  private mockCreate(input: DRPolicyCreateInput & { tenantId: string; projectId?: string; createdById?: string }): DRPolicy {
-    const id = `dr-policy-${Date.now()}-${uuidv4().slice(0, 8)}`;
-    return {
-      id,
-      name: input.name,
-      description: input.description || '',
-      services: input.services,
-      strategy: input.strategy,
-      rpo: input.rpo,
-      rto: input.rto,
-      priority: input.priority || 0,
-      status: 'active',
-      tenantId: input.tenantId,
-      projectId: input.projectId,
-      createdById: input.createdById,
-      config: input.config || {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
   }
 
   // ─── Private Helpers ─────────────────────────────────────────────────────

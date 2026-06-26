@@ -16,7 +16,7 @@ import * as crypto from 'crypto';
 import { SecretRepository, SecretEntity, SecretScope, SecretCreateInput } from '../../repositories/SecretRepository';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'secrets-service' });
 
@@ -503,7 +503,7 @@ export class SecretsService {
   private toSecretValue(entity: any): SecretValue {
     return {
       id: entity.id,
-      tenantId: entity.tenantId || 'default',
+      tenantId: entity.tenantId || getCurrentTenantId(),
       name: entity.name,
       value: entity.decryptedValue || entity.value || '',
       scope: entity.scope,

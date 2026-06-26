@@ -70,6 +70,7 @@ import apiGovernanceRoutes from './api-governance-routes';import communityRoutes
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
+import scriptLibraryRoutes from './script-library-routes';
 import { registerApprovalRoutes } from './approval-routes';
 import artifactRoutes from './artifact-routes';
 import artifactVersionRoutes from './artifact-version-routes';
@@ -92,7 +93,26 @@ import { registerAIAgentRoutes } from './ai-agent-routes';
 import apiMarketRoutes from './api-market-routes';
 import serviceCatalogRoutes from './service-catalog-routes';
 import changeRoutes from './change-routes';
+import changeRequestRoutes from './change-request-routes';
 import slaRoutes from './sla-routes';
+import handlerRegistryRoutes from './handler-registry-routes';
+import pipelineBatchRoutes from './pipeline-batch-routes';
+import pipelineExecutionControlRoutes from './pipeline-execution-control-routes';
+import processStepRoutes from './process-step-routes';
+import sloRoutes from './slo-routes';
+import tracingRoutes from './tracing-routes';
+import ticketKnowledgeRoutes from './ticket-knowledge-routes';
+import i18nRoutes from './i18n-routes';
+import runbookRoutes from './runbook-routes';
+import versionArchiveRoutes from './version-archive-routes';
+import complianceRoutes from './compliance-routes';
+import notificationPolicyRoutes from './notification-policy-routes';
+import alertBreakerRoutes from './alert-breaker-routes';
+import eventTriggerRoutes from './event-trigger-routes';
+import reportDesignerRoutes from './report-designer-routes';
+import costAllocationRoutes from './cost-allocation-routes';
+import sprintRoutes from './sprint-routes';
+import ciTypeRoutes from './ci-type-routes';
 
 // AI Module Routes — AI Gateway, Cost, Review, Security
 import aiGatewayRoutes from './ai-gateway-routes';
@@ -118,6 +138,8 @@ import teamRoutes from './team-routes';
 // Previously orphan routes now being registered — Phase 3.5: register ticketing, CMDB, monitoring
 import ticketingRoutes from './ticketing-routes';
 import cmdbRoutes from './cmdb-routes';
+import visorExecRoutes from './visor-exec-routes';
+import terminalAuditRoutes from './terminal-audit-routes';
 import monitoringRoutes from './monitoring-routes';
 import dbaRoutes from './dba-routes';
 import billingRoutes from './billing-routes';
@@ -468,6 +490,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, ticketingRoutes, '/ticketing', { database: options.database });
   // 注册 CMDB API 路由
   await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
+  // 注册 Visor Exec API 路由 (批量命令执行、脚本模板、定时任务、文件上传)
+  await registerWithRoleGuard(app, visorExecRoutes, '/visor/exec');
+  // 注册终端审计日志 API 路由 (连接日志 + 文件传输日志)
+  await registerWithRoleGuard(app, terminalAuditRoutes, '/cmdb/terminal-audit', { database: options.database });
   // 注册 DBA API 路由 (Phase 4 - Database DevOps)
   await registerWithRoleGuard(app, dbaRoutes, '/dba', { database: options.database });
   // 注册 Billing API 路由 (Phase 4 - Quota & Billing)
@@ -769,6 +795,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Inline Script ====================
   await registerWithRoleGuard(app, scriptRoutes, '/scripts', { database: options.database });
 
+  // ==================== Script Library ====================
+  await registerWithRoleGuard(app, scriptLibraryRoutes, '/script-library', { database: options.database });
+
   // ==================== Secret Management ====================
   await registerSecretRoutes(app, { database: options.database });
 
@@ -876,7 +905,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Dependency Coordination - requires DependencyCoordinationService
   if (options.database) {
-    const dependencyCoordinationService = new DependencyCoordinationService();
+    const dependencyCoordinationService = new DependencyCoordinationService(options.database);
     await registerDependencyCoordinationRoutes(app, { dependencyCoordinationService });
   }
 
@@ -1233,6 +1262,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // NOTE: Alert routes are in-memory only; no DB dependency
   await registerWithRoleGuard(app, alertRoutes, '/alert', { database: options.database });
 
+  // ==================== Degradation Management ====================
+  await registerWithRoleGuard(app, degradationRoutes, '/degradation', { database: options.database });
+
   // ==================== Incident Management (ITIL-aligned) ====================
   // Full lifecycle, timeline, post-mortem/RCA, priority matrix, MTTR stats
   await registerWithRoleGuard(app, incidentRoutes, '/incidents', { database: options.database });
@@ -1289,4 +1321,61 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Change Management (ITSM Phase C) ====================
   await registerWithRoleGuard(app, changeRoutes, '/changes', { database: options.database });
+
+  // ==================== Handler Registry SPI ====================
+  await registerWithRoleGuard(app, handlerRegistryRoutes, '/handlers', { database: options.database });
+
+  // ==================== Pipeline Batch Execution ====================
+  await registerWithRoleGuard(app, pipelineBatchRoutes, '/pipeline-batch', { database: options.database });
+
+  // ==================== Pipeline Execution Control ====================
+  await registerWithRoleGuard(app, pipelineExecutionControlRoutes, '/pipeline-execution-control', { database: options.database });
+
+  // ==================== Process Step Engine ====================
+  await registerWithRoleGuard(app, processStepRoutes, '/process-steps', { database: options.database });
+
+  // ==================== SLO/SLI Tracking ====================
+  await registerWithRoleGuard(app, sloRoutes, '/slo', { database: options.database });
+
+  // ==================== Distributed Tracing ====================
+  await registerWithRoleGuard(app, tracingRoutes, '/tracing', { database: options.database });
+
+  // ==================== Ticket Knowledge Mapping ====================
+  await registerWithRoleGuard(app, ticketKnowledgeRoutes, '/ticket-knowledge', { database: options.database });
+
+  // ==================== i18n Internationalization ====================
+  await registerWithRoleGuard(app, i18nRoutes, '/i18n', { database: options.database });
+
+  // ==================== Runbook Automation ====================
+  await registerWithRoleGuard(app, runbookRoutes, '/runbooks', { database: options.database });
+
+  // ==================== Version Archives ====================
+  await registerWithRoleGuard(app, versionArchiveRoutes, '/version-archives', { database: options.database });
+
+  // ==================== Compliance Reports ====================
+  await registerWithRoleGuard(app, complianceRoutes, '/compliance', { database: options.database });
+
+  // ==================== Report Designer ====================
+  await registerWithRoleGuard(app, reportDesignerRoutes, '/reports', { database: options.database });
+
+  // ==================== Notification Policies ====================
+  await registerWithRoleGuard(app, notificationPolicyRoutes, '/notification-policies', { database: options.database });
+
+  // ==================== Alert Breaker Rules ====================
+  await registerWithRoleGuard(app, alertBreakerRoutes, '/alert-breakers', { database: options.database });
+
+  // ==================== Event Trigger Rules ====================
+  await registerWithRoleGuard(app, eventTriggerRoutes, '/event-triggers', { database: options.database });
+
+  // ==================== Change Request RFC Approval ====================
+  await registerWithRoleGuard(app, changeRequestRoutes, '/change-requests', { database: options.database });
+
+  // ==================== Cost Allocation ====================
+  await registerWithRoleGuard(app, costAllocationRoutes, '/cost-allocation', { database: options.database });
+
+  // ==================== Sprint Board ====================
+  await registerWithRoleGuard(app, sprintRoutes, '/sprints', { database: options.database });
+
+  // ==================== CI Type Designer ====================
+  await registerWithRoleGuard(app, ciTypeRoutes, '/ci-types', { database: options.database });
 }

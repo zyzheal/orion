@@ -1,5 +1,6 @@
 import { OrionError } from '../../errors';
 import { ConnectorRegistryRepository } from '../../repositories/ConnectorRegistryRepository';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 /**
  * Connector Registry - Unified connector system for external integrations
  *
@@ -64,7 +65,7 @@ export class ConnectorRegistry {
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, tenantId?: string) {
     this.repo = db ? new ConnectorRegistryRepository(db) : null;
-    this.tenantId = tenantId || 'default';
+    this.tenantId = tenantId || getCurrentTenantId();
   }
 
   /**

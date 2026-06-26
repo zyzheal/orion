@@ -236,7 +236,7 @@ export class ApprovalTimeoutScheduler {
     const pendingApprovers = steps
       .filter(s => s.status === 'pending')
       .map(s => s.approverId)
-      .filter(Boolean);
+      .filter((id): id is string => !!id);
 
     const overdueHours = Math.round(timeoutInfo.overdueMs / (1000 * 60 * 60));
 

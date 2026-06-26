@@ -17,7 +17,7 @@ import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LConfig-LChange-LService' });
 
@@ -316,7 +316,7 @@ class ConfigChangeRepository {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         entry.id,
-        entry.tenantId || 'default',
+        entry.tenantId || getCurrentTenantId(),
         entry.changeRequestId || null,
         entry.configKey,
         entry.configGroup || null,

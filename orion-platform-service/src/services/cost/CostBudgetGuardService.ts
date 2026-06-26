@@ -8,7 +8,7 @@ import pino from 'pino';
 import { DatabasePool } from '../database';
 
 import { v4 as uuidv4 } from 'uuid';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -131,7 +131,7 @@ export class CostBudgetGuardService {
     estimatedCost: number,
     options?: { tenantId?: string; projectId?: string; environment?: string },
   ): Promise<EvaluationResult> {
-    const tenantId = options?.tenantId || 'default';
+    const tenantId = options?.tenantId || getCurrentTenantId();
 
     // Get all active guards for this tenant
     const guards = await this.getBudgetGuards(tenantId);

@@ -7,6 +7,7 @@
 import { Pool } from 'pg';
 import { ApprovalGateRepository, ApprovalGateEntity } from '../../repositories/ApprovalGateRepository';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 // ==================== Types ====================
 
@@ -74,7 +75,7 @@ export class ApprovalGateService {
    * 创建审批请求（Pipeline Engine 调用）
    */
   async requestApproval(input: ApprovalGateRequestInput): Promise<ApprovalGate> {
-    return this.createGate(input.tenantId || 'default', {
+    return this.createGate(input.tenantId || getCurrentTenantId(), {
       runId: input.runId,
       stageId: input.stageId,
       requestedBy: input.approvers[0] || 'system',

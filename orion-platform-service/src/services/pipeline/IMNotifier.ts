@@ -18,7 +18,7 @@
 import { PipelineRun } from '../../models/PipelineRun';
 import { IMNotificationChannelRepository } from '../../repositories/IMNotificationChannelRepository';
 import pino from 'pino';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -65,7 +65,7 @@ export class IMNotifier {
     tenantId?: string;
   }) {
     this.adapters = new Map();
-    this.tenantId = options?.tenantId || 'default';
+    this.tenantId = options?.tenantId || getCurrentTenantId();
     if (options?.db) {
       this.channelRepository = new IMNotificationChannelRepository(options.db);
     }

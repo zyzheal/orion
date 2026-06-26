@@ -6,6 +6,7 @@
  */
 
 import pino from 'pino';
+import { OrionError, ErrorCode } from '../../errors';
 import { PolicyViolationRepository, PolicyViolationEntity, PolicyViolationCreateInput } from '../../repositories/PolicyViolationRepository';
 import { DatabasePool } from '../database';
 
@@ -69,7 +70,7 @@ export class PolicyViolationService {
    */
   async recordViolation(input: RecordViolationInput): Promise<PolicyViolationEntity> {
     if (!this.violationRepo) {
-      // Mock mode
+      const now = new Date();
       return {
         id: this.generateId(),
         evaluation_id: input.evaluationId ?? null,
@@ -79,8 +80,8 @@ export class PolicyViolationService {
         resource_type: input.resourceType ?? null,
         resource_id: input.resourceId ?? null,
         status: 'open',
-        created_at: new Date(),
-      };
+        created_at: now,
+      } as PolicyViolationEntity;
     }
 
     const createInput: PolicyViolationCreateInput = {

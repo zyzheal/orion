@@ -7,6 +7,7 @@
 import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 // ==================== Test Suite (Dependency Analyzer) ====================
 
@@ -336,7 +337,7 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
 
   async create(data: any): Promise<TestExecutionHistoryEntity> {
     const columns = ['id', 'tenant_id', 'test_id', 'execution_id', 'passed', 'duration', 'failure_message', 'pr_id', 'executed_at'];
-    const values = [data.id, data.tenantId || 'default', data.testId, data.executionId, data.passed, data.duration, data.failureMessage, data.prId, data.executedAt];
+    const values = [data.id, data.tenantId || getCurrentTenantId(), data.testId, data.executionId, data.passed, data.duration, data.failureMessage, data.prId, data.executedAt];
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
     const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -356,7 +357,7 @@ export class TestExecutionHistoryDependencyRepository extends BaseRepository<Tes
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findAllTestIds(tenantId: string = 'default'): Promise<string[]> {
+  async findAllTestIds(tenantId: string = getCurrentTenantId()): Promise<string[]> {
     const result = await this.db.query(
       `SELECT DISTINCT test_id FROM ${this.tableName} WHERE tenant_id = $1`,
       [tenantId],

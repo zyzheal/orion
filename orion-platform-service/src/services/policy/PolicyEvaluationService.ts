@@ -6,6 +6,7 @@
  */
 
 import pino from 'pino';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   PolicyEvaluationRepository,
   PolicyEvaluationEntity,
@@ -121,7 +122,7 @@ export class PolicyEvaluationService {
     const runId = context.runId || this.generateId();
     return this.evaluate({
       policyId,
-      tenantId: context.tenantId || 'default',
+      tenantId: context.tenantId || getCurrentTenantId(),
       runId,
       context,
     });
@@ -360,13 +361,22 @@ export class PolicyEvaluationService {
 
     let evaluations: PolicyEvaluationEntity[] = [];
 
-    if (this.evalRepo) {
-      if (options?.policyId) {
-        evaluations = await this.evalRepo.findByPolicyId(options.policyId, { limit: 1000 });
-      } else {
-        const result = await this.evalRepo.findAll({ limit: 1000, offset: 0 });
-        evaluations = result.entities;
-      }
+    if (!this.evalRepo) {
+      return {
+        totalEvaluations: 0,
+        allowedCount: 0,
+        deniedCount: 0,
+        complianceRate: 1,
+        byPolicy: [],
+        period,
+      };
+    }
+
+    if (options?.policyId) {
+      evaluations = await this.evalRepo.findByPolicyId(options.policyId, { limit: 1000 });
+    } else {
+      const result = await this.evalRepo.findAll({ limit: 1000, offset: 0 });
+      evaluations = result.entities;
     }
 
     // Filter by date
@@ -421,7 +431,11 @@ export class PolicyEvaluationService {
     activeViolations: number;
     resolvedViolations: number;
     policies: Array<{ id: string; name: string; violationCount: number }>;
-  }> {
+  }>{
+    if (!this.violationRepo) {
+      return { activeViolations: 0, resolvedViolations: 0, policies: [] };
+    }
+
     const openViolations = await this.getOpenViolations('open');
     const allViolations = await this.getOpenViolations();
 

@@ -19,7 +19,8 @@ export default async function billingRoutes(
   app: FastifyInstance,
   options: BillingRoutesOptions = {}
 ): Promise<void> {
-  const billingService = new BillingService();
+  const billingService = new BillingService(options.database);
+  await billingService.init();
   // ==================== Usage Metering ====================
 
   // Record usage

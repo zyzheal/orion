@@ -22,6 +22,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { TeamRepository, TeamService } from '../services/team';
 import { DatabasePool } from '../services/database';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 interface CreateTeamBody {
   name: string;
@@ -77,7 +78,7 @@ export default async function teamRoutes(
 
   const getTenantId = (request: FastifyRequest): string => {
     const user = (request as any).user;
-    return user?.tenantId || 'default';
+    return user?.tenantId || getCurrentTenantId();
   };
 
   const getUserId = (request: FastifyRequest): string => {

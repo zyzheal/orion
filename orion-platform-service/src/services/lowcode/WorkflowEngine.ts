@@ -14,6 +14,7 @@
  */
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   WorkflowDefinition,
   WorkflowInstance,
@@ -1571,7 +1572,7 @@ export class WorkflowEngine {
 
           // 构造 NotificationService 输入
           const input = {
-            tenant_id: variables.tenantId || 'default',
+            tenant_id: variables.tenantId || getCurrentTenantId(),
             user_id: userId,
             type: 'workflow_notification',
             title,

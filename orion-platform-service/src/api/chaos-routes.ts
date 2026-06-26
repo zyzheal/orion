@@ -16,6 +16,7 @@ import { ChaosRecoveryValidator } from '../services/chaos-engineering/ChaosRecov
 import { DatabasePool } from '../services/database';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 
 interface ChaosRoutesOptions {
@@ -61,7 +62,7 @@ export default async function chaosRoutes(
       }
 
       const experiment = await experimentService.createExperiment({
-        tenant_id: (body.tenant_id as string) || 'default',
+        tenant_id: (body.tenant_id as string) || getCurrentTenantId(),
         name: body.name as string,
         description: body.description as string | undefined,
         scope: body.scope as any,

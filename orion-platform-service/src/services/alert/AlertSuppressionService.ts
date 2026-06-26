@@ -30,7 +30,7 @@ import { MaintenanceWindowRepository, MaintenanceWindowEntity } from '../../repo
 import { KnownIssueRepository, KnownIssueEntity } from '../../repositories/KnownIssueRepository';
 import { AlertActiveAlertRepository, AlertActiveAlertEntity } from '../../repositories/AlertActiveAlertRepository';
 import { SuppressionLogRepository } from '../../repositories/SuppressionLogRepository';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -1118,7 +1118,7 @@ export class AlertSuppressionService {
       try {
         await this.activeAlertRepository.create({
           id: alert.id,
-          tenantId: alert.tenantId || 'default',
+          tenantId: alert.tenantId || getCurrentTenantId(),
           fingerprint: alert.fingerprint,
           name: alert.name,
           severity: alert.severity,

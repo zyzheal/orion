@@ -7,6 +7,7 @@
 import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 export interface DiagnosticOutcomeEntity {
   id: string;
@@ -30,7 +31,7 @@ export class DiagnosticOutcomeRepository extends BaseRepository<DiagnosticOutcom
     const columns = ['id', 'tenant_id', 'session_id', 'pattern_id', 'confirmed'];
     const values: any[] = [
       data.id,
-      data.tenantId || 'default',
+      data.tenantId || getCurrentTenantId(),
       data.sessionId,
       data.patternId,
       data.confirmed || false,

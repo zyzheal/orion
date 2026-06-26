@@ -10,6 +10,7 @@
 
 import { CloudEvent, EventContext, EventBus, EventHandler } from '@orion/event-bus';
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { DoraMetricsService } from './DoraMetricsService';
 import { ClickHouseSync } from './ClickHouseSync';
 import {
@@ -160,7 +161,7 @@ export class PostgresLocalStorage implements LocalStorage {
   async savePipelineRecord(record: PipelineCompletionRecord): Promise<void> {
     await this.pipelineRepo.create({
       id: record.id,
-      tenantId: record.tenantId || 'default',
+      tenantId: record.tenantId || getCurrentTenantId(),
       runId: record.runId,
       pipelineId: record.pipelineId,
       status: record.status,
@@ -174,7 +175,7 @@ export class PostgresLocalStorage implements LocalStorage {
   }
 
   async getPipelineRecords(filter?: { tenantId?: string; since?: Date }): Promise<PipelineCompletionRecord[]> {
-    const entities = await this.pipelineRepo.findByTenant(filter?.tenantId || 'default', filter?.since);
+    const entities = await this.pipelineRepo.findByTenant(filter?.tenantId || getCurrentTenantId(), filter?.since);
     return entities.map(e => ({
       id: e.id,
       runId: e.runId,
@@ -211,7 +212,7 @@ export class PostgresLocalStorage implements LocalStorage {
   async saveDeploymentRecord(record: DeploymentRecord): Promise<void> {
     await this.deploymentRepo.create({
       id: record.id,
-      tenantId: record.tenantId || 'default',
+      tenantId: record.tenantId || getCurrentTenantId(),
       deploymentId: record.deploymentId,
       service: record.service,
       environment: record.environment,
@@ -225,7 +226,7 @@ export class PostgresLocalStorage implements LocalStorage {
   }
 
   async getDeploymentRecords(filter?: { tenantId?: string; since?: Date }): Promise<DeploymentRecord[]> {
-    const entities = await this.deploymentRepo.findByTenant(filter?.tenantId || 'default', filter?.since);
+    const entities = await this.deploymentRepo.findByTenant(filter?.tenantId || getCurrentTenantId(), filter?.since);
     return entities.map(e => ({
       id: e.id,
       deploymentId: e.deploymentId,
@@ -380,7 +381,7 @@ export class EfficiencyEventHandler {
     await this.syncToClickHouse();
 
     // 发布效能更新事件
-    await this.publishEfficiencyUpdate(record.tenantId || 'default');
+    await this.publishEfficiencyUpdate(record.tenantId || getCurrentTenantId());
   }
 
   /**
@@ -434,7 +435,7 @@ export class EfficiencyEventHandler {
 
     await this.localStorage.saveDeploymentRecord(record);
     await this.syncToClickHouse();
-    await this.publishEfficiencyUpdate(record.tenantId || 'default');
+    await this.publishEfficiencyUpdate(record.tenantId || getCurrentTenantId());
   }
 
   /**

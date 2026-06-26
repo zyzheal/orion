@@ -1,4 +1,5 @@
 import { BaseRepository } from '../db/base-repository';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 export interface WebhookSecretEntity {
   id: string;
@@ -40,7 +41,7 @@ export class WebhookSecretRepository extends BaseRepository<WebhookSecretEntity>
       id: `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       repo_id: repoId,
       secret,
-      tenant_id: tenantId || 'default',
+      tenant_id: tenantId || getCurrentTenantId(),
     });
   }
 

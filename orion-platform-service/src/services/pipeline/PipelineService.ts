@@ -24,6 +24,7 @@ import {
 import type { DatabasePool } from '../database';
 import { CacheService } from '../cache/CacheService';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 export { PipelineEntity as Pipeline };
 
@@ -158,7 +159,7 @@ export class PipelineService {
       // Convert to entity shape for compatibility
       const entity: PipelineEntity = {
         id: pipeline.id,
-        tenant_id: (pipeline as any).tenant_id || input.tenant_id || 'default',
+        tenant_id: (pipeline as any).tenant_id || input.tenant_id || getCurrentTenantId(),
         project_id: (input as any).project_id || null,
         name: pipeline.name,
         description: pipeline.description || null,
@@ -186,7 +187,7 @@ export class PipelineService {
     }
 
     const repoInput: RepoCreatePipelineInput = {
-      tenant_id: input.tenant_id || 'default',
+      tenant_id: input.tenant_id || getCurrentTenantId(),
       project_id: (input as any).project_id || null,
       name: input.name,
       description: input.description || null,

@@ -33,6 +33,11 @@ export abstract class BaseRepository<T extends { id: string }> {
     validateIdentifier(tableName, 'table name');
   }
 
+  /** Expose db pool for transaction support in services */
+  getDb(): { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> } {
+    return this.db;
+  }
+
   async findById(id: string): Promise<T | undefined> {
     const result = await this.db.query(
       `SELECT * FROM ${this.tableName} WHERE id = $1`,

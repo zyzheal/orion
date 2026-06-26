@@ -15,6 +15,7 @@
  */
 
 import { CacheService } from '../cache/CacheService';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 export interface PermissionCacheKey {
   userId: string;
@@ -51,7 +52,7 @@ export class PermissionCache {
    * 构建缓存 key
    */
   private buildKey(key: PermissionCacheKey): string {
-    const tenant = key.tenantId || 'default';
+    const tenant = key.tenantId || getCurrentTenantId();
     return `perm:${tenant}:${key.userId}:${key.resourceType}:${key.action}`;
   }
 

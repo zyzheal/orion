@@ -67,3 +67,14 @@ export function getCurrentSpanId(): string {
  * 后台任务（Cron/EventBus/Saga）使用此 ID 绕过 RLS 策略
  */
 export const SYSTEM_TENANT_ID = '__system__' as unknown as number;
+
+/**
+ * 获取当前请求的租户 ID（字符串形式）。
+ * 在任何 Service/Repository 中调用，无需传递参数。
+ * 如果不在请求上下文中（如后台任务），返回 SYSTEM_TENANT_ID。
+ */
+export function getCurrentTenantId(): string {
+  const store = tenantContextStorage.getStore();
+  if (!store) return SYSTEM_TENANT_ID as unknown as string;
+  return String(store.tenantId);
+}

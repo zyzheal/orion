@@ -12,6 +12,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   DiagnosticSession,
   Symptom,
@@ -114,7 +115,7 @@ export class DiagnosticEngine {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             session.id,
-            session.tenantId || 'default',
+            session.tenantId || getCurrentTenantId(),
             `${session.triggerType}: ${session.triggerId}`,
             session.status,
             session.triggerType,

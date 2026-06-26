@@ -7,6 +7,7 @@
 import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DiagnosticReport, Finding, RootCause, RecommendedAction, TimelineEntry } from '../services/diagnostic/types';
 
 export interface DiagnosticReportEntity {
@@ -33,7 +34,7 @@ export class DiagnosticReportRepository extends BaseRepository<DiagnosticReportE
     const columns = ['id', 'tenant_id', 'session_id', 'summary', 'findings', 'recommendations', 'timeline', 'generated_at'];
     const values: any[] = [
       data.id,
-      data.tenantId || 'default',
+      data.tenantId || getCurrentTenantId(),
       data.sessionId,
       data.summary || '',
       JSON.stringify(data.findings || []),

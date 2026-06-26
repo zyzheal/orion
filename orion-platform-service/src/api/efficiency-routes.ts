@@ -14,6 +14,7 @@ import { DORACalculator } from '../services/efficiency/DORACalculator';
 import { DatabasePool } from '../services/database';
 import { success, created, badRequest, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 
 interface EfficiencyRoutesOptions {
@@ -37,7 +38,7 @@ export default async function efficiencyRoutes(
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
     const timeWindow = (query.timeWindow as any) || 'week';
     const windowSize = parseInt(query.windowSize || '1', 10);
 
@@ -52,7 +53,7 @@ export default async function efficiencyRoutes(
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
     const limit = parseInt(query.limit || '10', 10);
 
     const history = reportService.getReportHistory(tenantId, limit);
@@ -69,7 +70,7 @@ export default async function efficiencyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { teamId } = request.params as { teamId: string };
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
 
     const metrics = reportService.getTeamMetrics(tenantId, teamId);
     return success(reply, request, { metrics });
@@ -85,7 +86,7 @@ export default async function efficiencyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { projectId } = request.params as { projectId: string };
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
 
     const metrics = reportService.getProjectMetrics(tenantId, projectId);
     return success(reply, request, { metrics });
@@ -101,7 +102,7 @@ export default async function efficiencyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
-      const tenantId = (body.tenantId as string) || 'default';
+      const tenantId = (body.tenantId as string) || getCurrentTenantId();
       const periodA = body.periodA as { label: string; start: string; end: string };
       const periodB = body.periodB as { label: string; start: string; end: string };
 
@@ -130,7 +131,7 @@ export default async function efficiencyRoutes(
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
     const timeWindow = (query.timeWindow as any) || 'week';
     const windowSize = parseInt(query.windowSize || '1', 10);
 
@@ -149,7 +150,7 @@ export default async function efficiencyRoutes(
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || getCurrentTenantId();
     const timeWindow = (query.timeWindow as any) || 'week';
     const windowSize = parseInt(query.windowSize || '1', 10);
 

@@ -13,6 +13,7 @@
  */
 
 import pino from 'pino';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
 import {
   ApprovalAgentPlugin,
@@ -559,7 +560,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
   private async getExpertApprovers(context: ApprovalContext): Promise<string[]> {
     if (!this.db) return ['super_admin'];
 
-    const tenantId = (context.metadata?.tenantId as string) || 'default';
+    const tenantId = (context.metadata?.tenantId as string) || getCurrentTenantId();
     try {
       const result = await this.db.query(
         `SELECT user_id FROM user_roles
@@ -581,7 +582,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
   private async getDepartmentHeadApprovers(context: ApprovalContext): Promise<string[]> {
     if (!this.db) return ['dept_head'];
 
-    const tenantId = (context.metadata?.tenantId as string) || 'default';
+    const tenantId = (context.metadata?.tenantId as string) || getCurrentTenantId();
     try {
       const result = await this.db.query(
         `SELECT dm.user_id FROM department_members dm
@@ -608,7 +609,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
   private async getManagerApprovers(context: ApprovalContext): Promise<string[]> {
     if (!this.db) return ['manager'];
 
-    const tenantId = (context.metadata?.tenantId as string) || 'default';
+    const tenantId = (context.metadata?.tenantId as string) || getCurrentTenantId();
     try {
       const result = await this.db.query(
         `SELECT manager_id FROM user_reporting_lines

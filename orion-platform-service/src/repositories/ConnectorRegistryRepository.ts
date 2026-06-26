@@ -1,4 +1,5 @@
 import { BaseRepository } from '../db/base-repository';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 export interface ConnectorRegistryEntity {
   id: string;
@@ -57,7 +58,7 @@ export class ConnectorRegistryRepository extends BaseRepository<ConnectorRegistr
       capabilities: data.capabilities,
       config: data.config || '{}',
       enabled: true,
-      tenant_id: data.tenantId || 'default',
+      tenant_id: data.tenantId || getCurrentTenantId(),
     });
   }
 

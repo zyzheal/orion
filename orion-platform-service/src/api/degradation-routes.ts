@@ -10,6 +10,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AutoRecoveryService, RecoveryStats } from '../services/degradation/AutoRecoveryService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
 interface ProviderParams {
   providerId: string;
@@ -21,13 +22,17 @@ interface ProviderBody {
   tenantId?: number;
 }
 
+interface DegradationRoutesOptions {
+  database?: DatabasePool;
+}
+
 // Service singleton - initialized once during plugin registration
 let recoveryService: AutoRecoveryService | null = null;
 
-export default async function degradationRoutes(fastify: FastifyInstance) {
+export default async function degradationRoutes(fastify: FastifyInstance, options: DegradationRoutesOptions = {}) {
   // Initialize service singleton
-  if (!recoveryService) {
-    recoveryService = new AutoRecoveryService();
+  if (!recoveryService && options.database) {
+    recoveryService = new AutoRecoveryService({}, options.database);
   }
 
   // Apply authentication to all routes in this plugin
@@ -41,7 +46,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
       try {
         // Tenant isolation: only return stats for user's tenant
         const tenantId = request.user?.tenantId;
-        const allStats = recoveryService!.getAllStats();
+        const allStats = await recoveryService!.getAllStats();
         const stats = allStats.providers;
         const degraded = recoveryService!.getDegradedProviders();
         const config = recoveryService!.getConfig();
@@ -49,7 +54,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
 
         // Filter stats by tenant if applicable
         const filteredStats = tenantId
-          ? stats.filter(s => s.providerId.includes(`tenant-${tenantId}`))
+          ? stats.filter((s: RecoveryStats) => s.providerId.includes(`tenant-${tenantId}`))
           : stats;
 
         reply.send({

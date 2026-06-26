@@ -7,6 +7,7 @@
 import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DiagnosticPattern, SymptomPattern, DiagnosticCategory } from '../services/diagnostic/types';
 
 export interface DiagnosticPatternEntity {
@@ -33,7 +34,7 @@ export class DiagnosticPatternRepository extends BaseRepository<DiagnosticPatter
     const columns = ['id', 'tenant_id', 'name', 'symptoms', 'root_cause', 'solution', 'frequency', 'category', 'average_confidence'];
     const values = [
       data.id,
-      data.tenantId || 'default',
+      data.tenantId || getCurrentTenantId(),
       data.name,
       JSON.stringify(data.symptoms || []),
       data.rootCause || '',

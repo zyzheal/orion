@@ -13,6 +13,7 @@
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
 import pino from 'pino';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import {
   EventBusConfigRepository,
   EventSubscriptionRepository,
@@ -362,7 +363,7 @@ export class EventBusService extends EventEmitter {
     if (this.repos.eventRepo) {
       try {
         eventRecord = await this.repos.eventRepo.insert({
-          tenant_id: options?.tenantId || 'default',
+          tenant_id: options?.tenantId || getCurrentTenantId(),
           event_type: type,
           subject,
           source,
@@ -510,7 +511,7 @@ export class EventBusService extends EventEmitter {
       if (this.repos.subscriptionRepo) {
         try {
           subRecord = await this.repos.subscriptionRepo.insert({
-            tenant_id: options?.tenantId || 'default',
+            tenant_id: options?.tenantId || getCurrentTenantId(),
             subject_pattern: eventType,
             handler_name: eventType,
             handler_type: 'nats',

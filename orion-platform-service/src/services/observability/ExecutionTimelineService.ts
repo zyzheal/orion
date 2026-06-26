@@ -5,6 +5,7 @@
 
 import pino from 'pino';
 import { ExecutionTimelineRepository } from '../../repositories/ExecutionTimelineRepository';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -46,7 +47,7 @@ export class ExecutionTimelineService {
 
   constructor(options: { repository: ExecutionTimelineRepository; tenantId?: string }) {
     this.repository = options.repository;
-    this.tenantId = options.tenantId || 'default';
+    this.tenantId = options.tenantId || getCurrentTenantId();
   }
 
   async createTimeline(entry: Omit<TimelineEntry, 'id'>): Promise<TimelineEntry> {

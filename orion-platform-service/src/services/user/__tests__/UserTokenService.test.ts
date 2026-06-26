@@ -51,7 +51,7 @@ describe('UserTokenService', () => {
         id: 'token-123',
         user_id: 'user-456',
         name: 'Temp Token',
-        expires_at: new Date('2026-06-19'),
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         last_used_at: null,
         created_at: new Date('2026-05-19'),
       };

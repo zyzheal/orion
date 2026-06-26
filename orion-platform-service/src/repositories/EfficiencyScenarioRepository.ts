@@ -7,6 +7,7 @@
 import { ErrorCode } from '../errors';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { EfficiencyScenario, DashboardWidget, TimeRange, ScenarioSummary } from '../services/efficiency/EfficiencyDashboardService';
 
 export interface EfficiencyScenarioEntity {
@@ -34,7 +35,7 @@ export class EfficiencyScenarioRepository extends BaseRepository<EfficiencyScena
     const columns = ['id', 'tenant_id', 'scenario_id', 'name', 'description', 'category', 'widgets', 'time_range', 'summary', 'cache_key', 'expires_at'];
     const values = [
       data.id,
-      data.tenantId || 'default',
+      data.tenantId || getCurrentTenantId(),
       data.scenarioId,
       data.name,
       data.description || '',

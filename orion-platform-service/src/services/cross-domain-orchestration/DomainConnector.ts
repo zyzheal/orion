@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import pino from 'pino';
 import { OrionError } from '../../errors';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LDomain-LConnector' });
 
@@ -268,7 +269,7 @@ export class DomainConnector {
     orchestrationId?: string
   ): Promise<CrossDomainTransaction> {
     const id = uuidv4();
-    const tenantId = (payload.tenantId as string) || 'default';
+    const tenantId = (payload.tenantId as string) || getCurrentTenantId();
 
     const transaction: CrossDomainTransaction = {
       id,

@@ -16,6 +16,7 @@ import {
 } from '../../repositories/PolicyDefinitionRepository';
 import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -105,20 +106,21 @@ export class PolicyService {
    */
   async createPolicy(config: CreatePolicyInput): Promise<PolicyDefinitionEntity> {
     if (!this.policyRepo) {
-      // Mock mode
+      // Mock mode: return a synthetic entity
       return {
         id: this.generateId(),
+        tenantId: 'default',
         name: config.name,
         description: config.description ?? null,
-        category: config.category,
-        regoPath: config.regoPath,
+        category: config.category ?? 'general',
+        regoPath: config.regoPath ?? '',
         gateId: config.gateId ?? null,
         severity: config.severity ?? 'warning',
         enabled: true,
-        metadata: config.metadata ?? {},
+        metadata: config.metadata ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as PolicyDefinitionEntity;
     }
 
     const entity = await this.policyRepo.createPolicy({
@@ -281,11 +283,7 @@ export class PolicyService {
     const startTime = Date.now();
 
     if (!this.policyRepo) {
-      return {
-        allowed: true,
-        violations: [],
-        evaluationMs: Date.now() - startTime,
-      };
+      return { allowed: true, violations: [], evaluationMs: Date.now() - startTime };
     }
 
     const enabledPolicies = await this.policyRepo.findEnabled();
