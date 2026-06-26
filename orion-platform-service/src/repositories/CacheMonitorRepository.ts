@@ -27,6 +27,43 @@ export class CacheMetricsRepository extends BaseRepository<CacheMetricsEntity> {
     super(db, 'build_cache_metrics');
   }
 
+  // Override BaseRepository methods: build_cache_metrics uses cache_id, not id
+  async findById(id: string): Promise<CacheMetricsEntity | undefined> {
+    return this.findByCacheId(id) as Promise<CacheMetricsEntity | undefined>;
+  }
+
+  async create(data: any): Promise<CacheMetricsEntity> {
+    const { id, ...rest } = data;
+    const columns = ['cache_id', ...Object.keys(rest).map(k => k.replace(/([A-Z])/g, '_$1').toLowerCase())];
+    const values = [id, ...Object.values(rest)];
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+    const result = await this.db.query(
+      `INSERT INTO build_cache_metrics (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+      values,
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async update(id: string, data: any): Promise<CacheMetricsEntity> {
+    const entries = Object.entries(data).filter(([k]) => k !== 'id');
+    const columns = entries.map(([k]) => k.replace(/([A-Z])/g, '_$1').toLowerCase());
+    const values = entries.map(([, v]) => v);
+    const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
+    const result = await this.db.query(
+      `UPDATE build_cache_metrics SET ${setClause}, last_updated = NOW() WHERE cache_id = $${columns.length + 1} RETURNING *`,
+      [...values, id],
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db.query(
+      `DELETE FROM build_cache_metrics WHERE cache_id = $1`,
+      [id],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
   protected mapRowToEntity(row: any): CacheMetricsEntity {
     return {
       id: row.cache_id,
@@ -127,7 +164,7 @@ export class CacheMetricsRepository extends BaseRepository<CacheMetricsEntity> {
           ELSE 0
         END,
         total_size_bytes = CASE WHEN $6 > 0 THEN $6 ELSE build_cache_metrics.total_size_bytes END,
-        eviction_count = build_cache_metrics.total_eviction_count + $7,
+        eviction_count = build_cache_metrics.eviction_count + $7,
         avg_latency_saved_ms = CASE
           WHEN $8 > 0
           THEN (build_cache_metrics.avg_latency_saved_ms * build_cache_metrics.total_hits + $8) / (build_cache_metrics.total_hits + 1)

@@ -32,9 +32,10 @@ COMMENT ON COLUMN pipeline_runs.cache_enabled IS 'Whether build cache was enable
 
 -- RLS for build_cache_metrics
 ALTER TABLE build_cache_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE build_cache_metrics FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY build_cache_metrics_tenant_isolation ON build_cache_metrics
-  USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- Rollback:
 -- DROP TABLE IF EXISTS build_cache_metrics;

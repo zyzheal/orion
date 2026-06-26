@@ -285,17 +285,21 @@ export default async function buildEnvRoutes(
 
   // ==================== Cache Monitor ====================
 
+  const cacheMonitorService = options.database ? new CacheMonitorService(options.database) : null;
+
   // GET /api/v1/build-env/cache-monitor/dashboard - Get cache monitoring dashboard
   app.get('/cache-monitor/dashboard', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!options.database) {
+      if (!cacheMonitorService) {
         return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
       }
-      const tenantId = (request.query as any).tenantId || 'default';
-      const service = new CacheMonitorService(options.database);
-      const dashboard = await service.getDashboard(tenantId);
+      const tenantId = (request as any).user?.tenantId;
+      if (!tenantId) {
+        return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
+      }
+      const dashboard = await cacheMonitorService.getDashboard(tenantId);
       return reply.status(200).send({ success: true, data: dashboard });
     } catch (error: any) {
       logger.error({ error }, 'Failed to get cache monitor dashboard');
@@ -305,15 +309,14 @@ export default async function buildEnvRoutes(
 
   // GET /api/v1/build-env/cache-monitor/metrics/:cacheId - Get cache metrics
   app.get('/cache-monitor/metrics/:cacheId', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!options.database) {
+      if (!cacheMonitorService) {
         return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
       }
       const { cacheId } = (request.params as any);
-      const service = new CacheMonitorService(options.database);
-      const metrics = await service.getCacheMetrics(cacheId);
+      const metrics = await cacheMonitorService.getCacheMetrics(cacheId);
       if (!metrics) {
         return reply.status(404).send({ error: 'NOT_FOUND', message: 'Cache metrics not found' });
       }
@@ -326,15 +329,14 @@ export default async function buildEnvRoutes(
 
   // GET /api/v1/build-env/cache-monitor/health/:cacheId - Assess cache health
   app.get('/cache-monitor/health/:cacheId', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!options.database) {
+      if (!cacheMonitorService) {
         return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
       }
       const { cacheId } = (request.params as any);
-      const service = new CacheMonitorService(options.database);
-      const health = await service.assessCacheHealth(cacheId);
+      const health = await cacheMonitorService.assessCacheHealth(cacheId);
       return reply.status(200).send({ success: true, data: health });
     } catch (error: any) {
       logger.error({ error }, 'Failed to assess cache health');
@@ -344,15 +346,18 @@ export default async function buildEnvRoutes(
 
   // GET /api/v1/build-env/cache-monitor/impact/:pipelineId - Analyze performance impact
   app.get('/cache-monitor/impact/:pipelineId', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!options.database) {
+      if (!cacheMonitorService) {
         return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
       }
+      const tenantId = (request as any).user?.tenantId;
+      if (!tenantId) {
+        return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
+      }
       const { pipelineId } = (request.params as any);
-      const service = new CacheMonitorService(options.database);
-      const impact = await service.analyzePerformanceImpact(options.database, pipelineId);
+      const impact = await cacheMonitorService.analyzePerformanceImpact(options.database, pipelineId);
       return reply.status(200).send({ success: true, data: impact });
     } catch (error: any) {
       logger.error({ error }, 'Failed to analyze cache performance impact');
@@ -365,15 +370,18 @@ export default async function buildEnvRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!options.database) {
+      if (!cacheMonitorService) {
         return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
       }
-      const { cacheId, tenantId, eventType, latencySavedMs } = request.body as any;
-      if (!cacheId || !tenantId || !eventType) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'cacheId, tenantId, eventType are required' });
+      const tenantId = (request as any).user?.tenantId;
+      if (!tenantId) {
+        return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
       }
-      const service = new CacheMonitorService(options.database);
-      await service.recordCacheEvent(cacheId, tenantId, eventType, latencySavedMs);
+      const { cacheId, eventType, latencySavedMs } = request.body as any;
+      if (!cacheId || !eventType) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'cacheId and eventType are required' });
+      }
+      await cacheMonitorService.recordCacheEvent(cacheId, tenantId, eventType, latencySavedMs);
       return reply.status(201).send({ success: true });
     } catch (error: any) {
       logger.error({ error }, 'Failed to record cache event');

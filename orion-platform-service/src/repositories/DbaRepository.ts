@@ -85,7 +85,7 @@ export class SqlOrderRepository extends BaseRepository<SqlOrderEntity> {
   }
 
   async updateStatus(id: string, status: string, extra?: { approvedBy?: string; result?: string }): Promise<SqlOrderEntity | undefined> {
-    const sets: string[] = ['status = $2', 'updated_at = NOW()'];
+    const sets: string[] = ['status = $2'];
     const params: unknown[] = [id, status];
     let idx = 3;
 
