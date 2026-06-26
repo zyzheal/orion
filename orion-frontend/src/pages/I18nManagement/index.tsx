@@ -6,7 +6,7 @@
  * - Translation key-value management
  * - Bulk translation import
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Typography,
   Card,
@@ -30,8 +30,7 @@ import {
   ReloadOutlined,
   DeleteOutlined,
   GlobalOutlined,
-  TranslationOutlined,
-  UploadOutlined,
+
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -43,7 +42,6 @@ import {
   setTranslation,
   deleteTranslation,
   type I18nLocale,
-  type I18nTranslation,
 } from '@/api/i18n';
 
 const { Title, Text } = Typography;

@@ -10,7 +10,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
 import { WarningOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
-import { createTicket } from '@/api/ticketing';
+import { createTicket, type TicketCategory } from '@/api/ticketing';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -120,7 +120,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
       await createTicket({
         title: values.title,
         description: values.description,
-        category: values.category,
+        category: values.category as TicketCategory,
         priority: values.priority,
         reporter: 'current-user', // TODO: get from auth context
         source: values.source,

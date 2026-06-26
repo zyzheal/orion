@@ -6,7 +6,7 @@
  * - Runbook execution and history
  * - Step-by-step execution tracking
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Typography,
   Card,
@@ -36,10 +36,6 @@ import {
   DeleteOutlined,
   PlayCircleOutlined,
   HistoryOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
   BookOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -47,16 +43,13 @@ import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
 import {
   listRunbooks,
-  getRunbook,
   createRunbook,
   updateRunbook,
   deleteRunbook,
   executeRunbook,
   getExecutionHistory,
-  getExecutionDetails,
   type RunbookDefinition,
   type RunbookExecution,
-  type RunbookStep,
   type CreateRunbookInput,
 } from '@/api/runbooks';
 
@@ -79,13 +72,6 @@ const statusLabel: Record<string, string> = {
   failed: '失败',
   cancelled: '已取消',
   skipped: '已跳过',
-};
-
-const stepTypeLabel: Record<string, string> = {
-  command: '命令',
-  script: '脚本',
-  approval: '审批',
-  notification: '通知',
 };
 
 export default function RunbookManagementPage() {
@@ -431,7 +417,7 @@ export default function RunbookManagementPage() {
                   <div>
                     <Text strong>步骤 {index + 1}</Text>
                     <br />
-                    <Tag color={statusColor[step.status]} size="small">
+                    <Tag color={statusColor[step.status]} style={{ fontSize: 12 }}>
                       {statusLabel[step.status]}
                     </Tag>
                     {step.output && <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>{step.output}</Text>}

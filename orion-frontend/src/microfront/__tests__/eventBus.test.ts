@@ -8,8 +8,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventBus, eventBus } from '@orion-mf/core';
 
 describe('EventBus', () => {
-  let bus: InstanceType<typeof EventBus>;
-  let channel: ReturnType<typeof bus.createChannel>;
+  let bus: any;
+  let channel: any;
 
   beforeEach(() => {
     // Use resetForTest to get a fresh instance each test

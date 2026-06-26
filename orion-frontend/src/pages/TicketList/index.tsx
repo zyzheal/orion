@@ -53,6 +53,7 @@ interface Ticket {
   reporter: string;
   assignee: string | null;
   createdAt: string;
+  updatedAt: string;
   dueDate: string;
   escalationLevel: number;
   tags?: Record<string, string>;
@@ -701,7 +702,7 @@ const TicketList: React.FC = () => {
           setEditingTicket(null);
         }}
         onSuccess={handleEditSuccess}
-        ticket={editingTicket}
+        ticket={editingTicket as any}
       />
 
       {/* Dispatch panel */}

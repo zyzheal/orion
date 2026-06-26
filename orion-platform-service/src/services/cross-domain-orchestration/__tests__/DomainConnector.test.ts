@@ -118,10 +118,10 @@ describe('DomainConnector', () => {
       expect(tx.compensationLog[1].action).toBe('execute');
     });
 
-    it('should default tenantId to "default" when not in payload', async () => {
+    it('should default tenantId to system tenant when not in payload', async () => {
       const tx = await connector.handleCrossDomainTransaction('a', 'b', {});
 
-      expect(tx.tenantId).toBe('default');
+      expect(tx.tenantId).toBe('__system__');
     });
 
     it('should include orchestrationId when provided', async () => {

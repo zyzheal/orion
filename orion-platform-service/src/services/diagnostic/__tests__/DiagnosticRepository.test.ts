@@ -80,14 +80,14 @@ describe('DiagnosticRepository', () => {
       );
     });
 
-    it('should default tenant_id to "default" when not provided', async () => {
+    it('should default tenant_id to system tenant when not provided', async () => {
       mockPool.query.mockResolvedValue({ rows: [] });
       const sessionNoTenant = { ...mockSession, tenantId: undefined };
 
       await repo.createSession(sessionNoTenant);
 
       const params = mockPool.query.mock.calls[0][1];
-      expect(params[1]).toBe('default');
+      expect(params[1]).toBe('__system__');
     });
 
     it('should JSON.stringify symptoms and findings', async () => {

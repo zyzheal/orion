@@ -60,12 +60,12 @@ export const getCatalogServices = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: CatalogService[]; total: number }> => {
-  const response = await api.get('/v1/catalog/services', { params });
+  const response = await api.get<{ data: CatalogService[]; total: number }>('/v1/catalog/services', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getCatalogService = async (id: string): Promise<CatalogService> => {
-  const response = await api.get(`/v1/catalog/services/${id}`);
+  const response = await api.get<{ data: CatalogService }>(`/v1/catalog/services/${id}`);
   return response.data.data;
 };
 
@@ -81,12 +81,12 @@ export const createCatalogService = async (data: {
   form_schema?: Record<string, any>;
   approval_flow?: Record<string, any>;
 }): Promise<CatalogService> => {
-  const response = await api.post('/v1/catalog/services', data);
+  const response = await api.post<{ data: CatalogService }>('/v1/catalog/services', data);
   return response.data.data;
 };
 
 export const updateCatalogService = async (id: string, data: Partial<CatalogService>): Promise<CatalogService> => {
-  const response = await api.put(`/v1/catalog/services/${id}`, data);
+  const response = await api.put<{ data: CatalogService }>(`/v1/catalog/services/${id}`, data);
   return response.data.data;
 };
 
@@ -95,7 +95,7 @@ export const deleteCatalogService = async (id: string): Promise<void> => {
 };
 
 export const searchCatalogServices = async (q: string): Promise<CatalogService[]> => {
-  const response = await api.get('/v1/catalog/services/search', { params: { q } });
+  const response = await api.get<{ data: CatalogService[] }>('/v1/catalog/services/search', { params: { q } });
   return response.data.data;
 };
 
@@ -107,12 +107,12 @@ export const getServiceRequests = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: CatalogRequest[]; total: number }> => {
-  const response = await api.get('/v1/catalog/requests', { params });
+  const response = await api.get<{ data: CatalogRequest[]; total: number }>('/v1/catalog/requests', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getServiceRequest = async (id: string): Promise<CatalogRequest> => {
-  const response = await api.get(`/v1/catalog/requests/${id}`);
+  const response = await api.get<{ data: CatalogRequest }>(`/v1/catalog/requests/${id}`);
   return response.data.data;
 };
 
@@ -122,7 +122,7 @@ export const submitServiceRequest = async (serviceId: string, data: {
   priority?: string;
   form_data?: Record<string, any>;
 }): Promise<CatalogRequest> => {
-  const response = await api.post(`/v1/catalog/services/${serviceId}/request`, data);
+  const response = await api.post<{ data: CatalogRequest }>(`/v1/catalog/services/${serviceId}/request`, data);
   return response.data.data;
 };
 
@@ -130,13 +130,13 @@ export const updateServiceRequestStatus = async (id: string, action: 'approve' |
   reason?: string;
   assigned_to?: string;
 }): Promise<CatalogRequest> => {
-  const response = await api.patch(`/v1/catalog/requests/${id}/${action}`, data);
+  const response = await api.patch<{ data: CatalogRequest }>(`/v1/catalog/requests/${id}/${action}`, data);
   return response.data.data;
 };
 
 // ==================== Statistics ====================
 
 export const getCatalogStats = async (): Promise<CatalogStats> => {
-  const response = await api.get('/v1/catalog/stats');
+  const response = await api.get<{ data: CatalogStats }>('/v1/catalog/stats');
   return response.data.data;
 };

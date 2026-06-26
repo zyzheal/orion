@@ -2,7 +2,7 @@
  * microfront/config 单元测试
  * 注: config.ts 从 apps.ts 重新导出，测试验证 re-export 行为
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 const mockApps = [
   {

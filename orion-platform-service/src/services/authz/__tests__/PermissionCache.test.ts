@@ -70,7 +70,7 @@ describe('PermissionCache', () => {
   describe('get', () => {
     it('should return cached entry on cache hit', async () => {
       const entry = makeAllowEntry();
-      mockCache._store.set('perm:default:user-1:pipeline:read', entry);
+      mockCache._store.set('perm:__system__:user-1:pipeline:read', entry);
 
       const result = await cache.get(makeCacheKey());
 
@@ -84,7 +84,7 @@ describe('PermissionCache', () => {
     });
 
     it('should increment hits counter on hit', async () => {
-      mockCache._store.set('perm:default:user-1:pipeline:read', makeAllowEntry());
+      mockCache._store.set('perm:__system__:user-1:pipeline:read', makeAllowEntry());
 
       await cache.get(makeCacheKey());
 
@@ -105,10 +105,10 @@ describe('PermissionCache', () => {
       expect(mockCache.get).toHaveBeenCalledWith('perm:tenant-abc:user-1:pipeline:read');
     });
 
-    it('should use default tenant when tenantId is not provided', async () => {
+    it('should use system tenant when tenantId is not provided', async () => {
       await cache.get(makeCacheKey());
 
-      expect(mockCache.get).toHaveBeenCalledWith('perm:default:user-1:pipeline:read');
+      expect(mockCache.get).toHaveBeenCalledWith('perm:__system__:user-1:pipeline:read');
     });
   });
 
@@ -121,7 +121,7 @@ describe('PermissionCache', () => {
       await cache.set(makeCacheKey(), entry);
 
       expect(mockCache.set).toHaveBeenCalledWith(
-        'perm:default:user-1:pipeline:read',
+        'perm:__system__:user-1:pipeline:read',
         entry,
         300, // default TTL
       );
@@ -243,7 +243,7 @@ describe('PermissionCache', () => {
 
     it('should calculate hitRate correctly', async () => {
       // 1 hit + 1 miss = 50% hit rate
-      mockCache._store.set('perm:default:user-1:pipeline:read', makeAllowEntry());
+      mockCache._store.set('perm:__system__:user-1:pipeline:read', makeAllowEntry());
       await cache.get(makeCacheKey());
       await cache.get(makeCacheKey({ userId: 'user-2' }));
 
@@ -258,7 +258,7 @@ describe('PermissionCache', () => {
 
     it('should track multiple operations', async () => {
       // 2 gets (1 hit, 1 miss), 1 set, 1 invalidation
-      mockCache._store.set('perm:default:user-1:pipeline:read', makeAllowEntry());
+      mockCache._store.set('perm:__system__:user-1:pipeline:read', makeAllowEntry());
       await cache.get(makeCacheKey());
       await cache.get(makeCacheKey({ userId: 'user-2' }));
       await cache.set(makeCacheKey({ userId: 'user-3' }), makeAllowEntry());
@@ -276,7 +276,7 @@ describe('PermissionCache', () => {
 
   describe('resetStats', () => {
     it('should reset all stats to zero', async () => {
-      mockCache._store.set('perm:default:user-1:pipeline:read', makeAllowEntry());
+      mockCache._store.set('perm:__system__:user-1:pipeline:read', makeAllowEntry());
       await cache.get(makeCacheKey());
       await cache.set(makeCacheKey(), makeAllowEntry());
       await cache.invalidateUser('user-1');
@@ -339,10 +339,10 @@ describe('PermissionCache', () => {
       expect(mockCache.get).toHaveBeenCalledWith('perm:t-456:u-123:deployment:execute');
     });
 
-    it('should use "default" as tenant when tenantId is undefined', async () => {
+    it('should use system tenant when tenantId is undefined', async () => {
       await cache.get(makeCacheKey({ userId: 'u-1' }));
 
-      expect(mockCache.get).toHaveBeenCalledWith('perm:default:u-1:pipeline:read');
+      expect(mockCache.get).toHaveBeenCalledWith('perm:__system__:u-1:pipeline:read');
     });
   });
 });

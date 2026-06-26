@@ -6,11 +6,10 @@
  * - Same fields as CreateTicketModal
  */
 import React, { useState, useCallback, useEffect } from 'react';
-import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
+import { Modal, Form, Input, Select, Radio, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { updateTicket, type Ticket } from '@/api/ticketing';
 
-const { Text } = Typography;
 const { TextArea } = Input;
 
 // ============================================================================

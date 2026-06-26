@@ -991,7 +991,7 @@ const ServiceCatalog: React.FC = () => {
 
       {/* Requests table */}
       <Table
-        columns={requestColumns}
+        columns={requestColumns as any}
         dataSource={requests}
         rowKey="id"
         loading={requestsLoading}

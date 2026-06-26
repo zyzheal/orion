@@ -96,7 +96,7 @@ describe('ApprovalGateService', () => {
         approvers: ['user1'],
       });
 
-      expect(result.tenantId).toBe('default');
+      expect(result.tenantId).toBe('__system__');
     });
   });
 
