@@ -10,6 +10,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
 import { WarningOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { createTicket } from '@/api/ticketing';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -42,13 +43,9 @@ export interface CreateTicketModalProps {
 const categoryOptions = [
   { label: '基础设施', value: 'infrastructure' },
   { label: '应用', value: 'application' },
-  { label: '数据库', value: 'database' },
-  { label: '网络', value: 'network' },
   { label: '安全', value: 'security' },
-  { label: '部署', value: 'deployment' },
-  { label: '流水线', value: 'pipeline' },
-  { label: '性能', value: 'performance' },
-  { label: '成本', value: 'cost' },
+  { label: '网络', value: 'network' },
+  { label: '数据库', value: 'database' },
   { label: '其他', value: 'other' },
 ];
 
@@ -118,10 +115,17 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
 
   const handleSubmit = useCallback(async () => {
     try {
-      await form.validateFields();
+      const values = await form.validateFields();
       setSubmitting(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await createTicket({
+        title: values.title,
+        description: values.description,
+        category: values.category,
+        priority: values.priority,
+        reporter: 'current-user', // TODO: get from auth context
+        source: values.source,
+        tags: values.tags?.reduce((acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }), {}),
+      });
       message.success('工单创建成功');
       form.resetFields();
       setTitleValue('');
@@ -129,7 +133,11 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
       onSuccess();
     } catch (error: unknown) {
       setSubmitting(false);
-      // Form validation error - no need to show additional message
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`创建工单失败：${msg}`);
+      }
     }
   }, [form, onSuccess]);
 

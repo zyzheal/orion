@@ -50,6 +50,19 @@ import {
   type CronJob,
   type UploadTask,
   type ScriptTemplate as ScriptTemplateType,
+  executeCommand,
+  listCommandLogs,
+  listTemplates,
+  createTemplate,
+  deleteTemplate,
+  listCronJobs,
+  createCronJob,
+  deleteCronJob,
+  toggleCronJob,
+  runCronJobNow,
+  uploadFile,
+  listUploadTasks,
+  cancelUploadTask,
 } from '@/api/visor-exec';
 import { colors, spacing } from '@/tokens';
 
@@ -77,150 +90,6 @@ interface ExecRecord {
 type ScriptTemplate = ScriptTemplateType;
 
 // ============================================================================
-// Mock Data
-// ============================================================================
-
-const mockExecRecords: ExecRecord[] = [
-  {
-    id: 'exec-001',
-    command: 'df -h',
-    hosts: ['host-1', 'host-2', 'host-3'],
-    hostnames: ['prod-web-01', 'prod-web-02', 'prod-api-01'],
-    status: 'success',
-    output: 'Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1       100G   45G   55G  45% /',
-    errorOutput: '',
-    startTime: '2026-05-19 10:30:00',
-    endTime: '2026-05-19 10:30:05',
-    operator: 'admin',
-  },
-  {
-    id: 'exec-002',
-    command: 'systemctl status nginx',
-    hosts: ['host-1'],
-    hostnames: ['prod-web-01'],
-    status: 'success',
-    output: '● nginx.service - A high performance web server\n   Active: active (running) since Mon 2026-05-19 08:00:00 UTC',
-    errorOutput: '',
-    startTime: '2026-05-19 11:00:00',
-    endTime: '2026-05-19 11:00:02',
-    operator: 'admin',
-  },
-  {
-    id: 'exec-003',
-    command: 'tail -n 100 /var/log/syslog',
-    hosts: ['host-2', 'host-3'],
-    hostnames: ['prod-web-02', 'prod-api-01'],
-    status: 'partial',
-    output: 'May 19 11:05:01 prod-web-02 systemd[1]: Started Session 123 of user root.',
-    errorOutput: 'tail: cannot open "/var/log/syslog" for reading: Permission denied',
-    startTime: '2026-05-19 11:05:00',
-    operator: 'operator',
-  },
-];
-
-const mockTemplates: ScriptTemplate[] = [
-  {
-    id: 'tpl-001',
-    name: '检查磁盘空间',
-    description: '查看所有挂载点磁盘使用情况',
-    content: 'df -h',
-    category: '系统检查',
-    createdAt: '2026-05-15',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'tpl-002',
-    name: '检查 Nginx 状态',
-    description: '查看 Nginx 服务运行状态',
-    content: 'systemctl status nginx',
-    category: '服务检查',
-    createdAt: '2026-05-15',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'tpl-003',
-    name: '清理日志',
-    description: '清理 7 天前的日志文件',
-    content: 'find /var/log -name "*.log" -mtime +7 -delete',
-    category: '系统维护',
-    createdAt: '2026-05-16',
-    updatedAt: '2026-05-16',
-  },
-  {
-    id: 'tpl-004',
-    name: '查看内存使用',
-    description: '查看系统内存使用情况',
-    content: 'free -h',
-    category: '系统检查',
-    createdAt: '2026-05-17',
-    updatedAt: '2026-05-17',
-  },
-];
-
-const mockCronJobs: CronJob[] = [
-  {
-    id: 'cron-001',
-    name: '每日磁盘检查',
-    command: 'df -h && echo "Disk check completed"',
-    hostIds: ['host-1', 'host-2'],
-    hostnames: ['prod-web-01', 'prod-web-02'],
-    cronExpression: '0 8 * * *',
-    enabled: true,
-    lastRunAt: '2026-05-19 08:00:00',
-    nextRunAt: '2026-05-20 08:00:00',
-    createdAt: '2026-05-10',
-  },
-  {
-    id: 'cron-002',
-    name: '每周日志清理',
-    command: 'find /var/log -name "*.log" -mtime +7 -delete',
-    hostIds: ['host-1', 'host-2', 'host-3'],
-    hostnames: ['prod-web-01', 'prod-web-02', 'prod-api-01'],
-    cronExpression: '0 2 * * 0',
-    enabled: true,
-    lastRunAt: '2026-05-18 02:00:00',
-    nextRunAt: '2026-05-25 02:00:00',
-    createdAt: '2026-05-05',
-  },
-  {
-    id: 'cron-003',
-    name: '健康检查',
-    command: 'systemctl is-active nginx && echo "OK" || echo "FAIL"',
-    hostIds: ['host-1'],
-    hostnames: ['prod-web-01'],
-    cronExpression: '*/5 * * * *',
-    enabled: false,
-    lastRunAt: '2026-05-15 10:00:00',
-    createdAt: '2026-05-01',
-  },
-];
-
-const mockUploadTasks: UploadTask[] = [
-  {
-    id: 'upload-001',
-    fileName: 'config.yaml',
-    fileSize: 2457,
-    hostIds: ['host-1', 'host-2'],
-    hostnames: ['prod-web-01', 'prod-web-02'],
-    targetPath: '/etc/app/',
-    status: 'success',
-    progress: 100,
-    createdAt: '2026-05-19 14:30:00',
-  },
-  {
-    id: 'upload-002',
-    fileName: 'deploy.sh',
-    fileSize: 1024,
-    hostIds: ['host-3'],
-    hostnames: ['prod-api-01'],
-    targetPath: '/opt/scripts/',
-    status: 'running',
-    progress: 45,
-    createdAt: '2026-05-19 15:00:00',
-  },
-];
-
-// ============================================================================
 // Status Maps
 // ============================================================================
 
@@ -246,11 +115,27 @@ const statusLabelMap: Record<ExecRecord['status'], string> = {
 
 const CommandExecTab: React.FC = () => {
   const [hosts, setHosts] = useState<HostInfo[]>([]);
-  const [execRecords, setExecRecords] = useState<ExecRecord[]>(mockExecRecords);
+  const [execRecords, setExecRecords] = useState<ExecRecord[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [viewingResult, setViewingResult] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ExecRecord | null>(null);
   const [form] = Form.useForm();
+
+  const loadRecords = () => {
+    setLoading(true);
+    listCommandLogs(1, 50)
+      .then((res) => {
+        const data = res.data as Record<string, unknown> | undefined;
+        const items = (data?.items ?? []) as ExecRecord[];
+        setExecRecords(items);
+      })
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载执行记录失败：${msg}`);
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     getHosts({ pageSize: 100 })
@@ -260,6 +145,7 @@ const CommandExecTab: React.FC = () => {
         message.error(`加载主机列表失败：${msg}`);
         setHosts([]);
       });
+    loadRecords();
   }, []);
 
   const handleExecute = async () => {
@@ -267,18 +153,12 @@ const CommandExecTab: React.FC = () => {
       const values = await form.validateFields();
       setSubmitting(true);
 
-      const newRecord: ExecRecord = {
-        id: `exec-${Date.now()}`,
+      const res = await executeCommand({
         command: values.command,
-        hosts: values.hosts,
-        hostnames: values.hosts.map((id: string) => hosts.find((h) => h.ci_id === id)?.hostname || id),
-        status: 'success',
-        output: `Command executed successfully on ${values.hosts.length} host(s).\n\n$ ${values.command}\n(output placeholder)`,
-        errorOutput: '',
-        startTime: new Date().toLocaleString(),
-        operator: 'admin',
-      };
-      setExecRecords((prev) => [newRecord, ...prev]);
+        hostIds: values.hosts,
+      });
+      const result = res.data as ExecRecord;
+      setExecRecords((prev) => [result, ...prev]);
       message.success(`命令已提交到 ${values.hosts.length} 台主机`);
       form.resetFields();
     } catch (error: unknown) {
@@ -399,7 +279,7 @@ const CommandExecTab: React.FC = () => {
       </Card>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
-        <Button icon={<ReloadOutlined />} onClick={() => setExecRecords(mockExecRecords)}>
+        <Button icon={<ReloadOutlined />} onClick={loadRecords} loading={loading}>
           刷新
         </Button>
       </div>
@@ -408,6 +288,7 @@ const CommandExecTab: React.FC = () => {
         dataSource={execRecords}
         rowKey="id"
         size="middle"
+        loading={loading}
         pagination={{ pageSize: 10 }}
       />
 
@@ -473,22 +354,41 @@ const CommandExecTab: React.FC = () => {
 // ============================================================================
 
 const ScriptTemplateTab: React.FC = () => {
-  const [templates, setTemplates] = useState<ScriptTemplate[]>(mockTemplates);
+  const [templates, setTemplates] = useState<ScriptTemplate[]>([]);
+  const [loading, setLoading] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+
+  const loadTemplates = () => {
+    setLoading(true);
+    listTemplates()
+      .then((res) => {
+        const data = res.data as Record<string, unknown> | undefined;
+        setTemplates((data?.items ?? []) as ScriptTemplate[]);
+      })
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载模板列表失败：${msg}`);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
 
   const handleCreate = async () => {
     try {
       const values = await form.validateFields();
-      const newTpl: ScriptTemplate = {
-        id: `tpl-${Date.now()}`,
+      setSubmitting(true);
+      const res = await createTemplate({
         name: values.name,
         description: values.description || '',
         content: values.content,
         category: values.category || '自定义',
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
+      });
+      const newTpl = res.data as ScriptTemplate;
       setTemplates((prev) => [newTpl, ...prev]);
       message.success('模板创建成功');
       setCreateVisible(false);
@@ -498,12 +398,20 @@ const ScriptTemplateTab: React.FC = () => {
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
-    message.success('模板已删除');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTemplate(id);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      message.success('模板已删除');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`删除失败：${msg}`);
+    }
   };
 
   const handleCopy = (tpl: ScriptTemplate) => {
@@ -576,9 +484,9 @@ const ScriptTemplateTab: React.FC = () => {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={templates} rowKey="id" size="middle" pagination={{ pageSize: 10 }} />
+      <Table columns={columns} dataSource={templates} rowKey="id" size="middle" loading={loading} pagination={{ pageSize: 10 }} />
 
-      <Modal title="新建脚本模板" open={createVisible} onCancel={() => setCreateVisible(false)} onOk={() => form.submit()} width={600}>
+      <Modal title="新建脚本模板" open={createVisible} onCancel={() => setCreateVisible(false)} onOk={() => form.submit()} confirmLoading={submitting} width={600}>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入模板名称' }]}>
             <Input placeholder="例如：检查磁盘空间" />
@@ -615,9 +523,25 @@ const ScriptTemplateTab: React.FC = () => {
 
 const CronJobTab: React.FC = () => {
   const [hosts, setHosts] = useState<HostInfo[]>([]);
-  const [cronJobs, setCronJobs] = useState<CronJob[]>(mockCronJobs);
+  const [cronJobs, setCronJobs] = useState<CronJob[]>([]);
+  const [loading, setLoading] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+
+  const loadCronJobs = () => {
+    setLoading(true);
+    listCronJobs()
+      .then((res) => {
+        const data = res.data as Record<string, unknown> | undefined;
+        setCronJobs((data?.items ?? []) as CronJob[]);
+      })
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载定时任务失败：${msg}`);
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     getHosts({ pageSize: 100 })
@@ -627,21 +551,21 @@ const CronJobTab: React.FC = () => {
         message.error(`加载主机列表失败：${msg}`);
         setHosts([]);
       });
+    loadCronJobs();
   }, []);
 
   const handleCreate = async () => {
     try {
       const values = await form.validateFields();
-      const newJob: CronJob = {
-        id: `cron-${Date.now()}`,
+      setSubmitting(true);
+      const res = await createCronJob({
         name: values.name,
         command: values.command,
         hostIds: values.hosts,
-        hostnames: values.hosts.map((id: string) => id),
         cronExpression: values.cron,
         enabled: values.enabled ?? true,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
+      });
+      const newJob = res.data as CronJob;
       setCronJobs((prev) => [newJob, ...prev]);
       message.success('定时任务创建成功');
       setCreateVisible(false);
@@ -651,21 +575,41 @@ const CronJobTab: React.FC = () => {
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setCronJobs((prev) => prev.filter((j) => j.id !== id));
-    message.success('定时任务已删除');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteCronJob(id);
+      setCronJobs((prev) => prev.filter((j) => j.id !== id));
+      message.success('定时任务已删除');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`删除失败：${msg}`);
+    }
   };
 
-  const handleToggle = (id: string, enabled: boolean) => {
-    setCronJobs((prev) => prev.map((j) => (j.id === id ? { ...j, enabled } : j)));
-    message.success(enabled ? '任务已启用' : '任务已禁用');
+  const handleToggle = async (id: string, enabled: boolean) => {
+    try {
+      await toggleCronJob(id, enabled);
+      setCronJobs((prev) => prev.map((j) => (j.id === id ? { ...j, enabled } : j)));
+      message.success(enabled ? '任务已启用' : '任务已禁用');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`操作失败：${msg}`);
+    }
   };
 
-  const handleRunNow = (id: string) => {
-    message.success(`任务 ${id} 已触发执行`);
+  const handleRunNow = async (id: string) => {
+    try {
+      await runCronJobNow(id);
+      message.success('任务已触发执行');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`触发失败：${msg}`);
+    }
   };
 
   const columns: TableProps<CronJob>['columns'] = [
@@ -751,9 +695,9 @@ const CronJobTab: React.FC = () => {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={cronJobs} rowKey="id" size="middle" pagination={{ pageSize: 10 }} />
+      <Table columns={columns} dataSource={cronJobs} rowKey="id" size="middle" loading={loading} pagination={{ pageSize: 10 }} />
 
-      <Modal title="新建定时任务" open={createVisible} onCancel={() => setCreateVisible(false)} onOk={() => form.submit()} width={600}>
+      <Modal title="新建定时任务" open={createVisible} onCancel={() => setCreateVisible(false)} onOk={() => form.submit()} confirmLoading={submitting} width={600}>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item label="任务名称" name="name" rules={[{ required: true, message: '请输入任务名称' }]}>
             <Input placeholder="例如：每日磁盘检查" />
@@ -788,9 +732,24 @@ const CronJobTab: React.FC = () => {
 
 const FileUploadTab: React.FC = () => {
   const [hosts, setHosts] = useState<HostInfo[]>([]);
-  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>(mockUploadTasks);
+  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedHosts, setSelectedHosts] = useState<string[]>([]);
   const [targetPath, setTargetPath] = useState('/tmp');
+
+  const loadUploadTasks = () => {
+    setLoading(true);
+    listUploadTasks()
+      .then((res) => {
+        const data = res.data as Record<string, unknown> | undefined;
+        setUploadTasks((data?.items ?? []) as UploadTask[]);
+      })
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`加载上传任务失败：${msg}`);
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     getHosts({ pageSize: 100 })
@@ -800,28 +759,35 @@ const FileUploadTab: React.FC = () => {
         message.error(`加载主机列表失败：${msg}`);
         setHosts([]);
       });
+    loadUploadTasks();
   }, []);
 
-  const handleUpload = (file: File) => {
-    const newTask: UploadTask = {
-      id: `upload-${Date.now()}`,
-      fileName: file.name,
-      fileSize: file.size,
-      hostIds: selectedHosts,
-      hostnames: selectedHosts.map((id) => hosts.find((h) => h.ci_id === id)?.hostname || id),
-      targetPath,
-      status: 'running',
-      progress: 0,
-      createdAt: new Date().toLocaleString(),
-    };
-    setUploadTasks((prev) => [newTask, ...prev]);
-    message.success(`文件 ${file.name} 已添加到上传队列`);
+  const handleUpload = async (file: File) => {
+    if (selectedHosts.length === 0) {
+      message.warning('请先选择目标主机');
+      return false;
+    }
+    try {
+      const res = await uploadFile(file, selectedHosts, targetPath);
+      const newTask = res.data as UploadTask;
+      setUploadTasks((prev) => [newTask, ...prev]);
+      message.success(`文件 ${file.name} 已开始上传`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`上传失败：${msg}`);
+    }
     return false; // 阻止默认上传行为
   };
 
-  const handleCancel = (id: string) => {
-    setUploadTasks((prev) => prev.filter((t) => t.id !== id));
-    message.info('上传任务已取消');
+  const handleCancel = async (id: string) => {
+    try {
+      await cancelUploadTask(id);
+      setUploadTasks((prev) => prev.filter((t) => t.id !== id));
+      message.info('上传任务已取消');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`取消失败：${msg}`);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -946,9 +912,9 @@ const FileUploadTab: React.FC = () => {
       {/* Upload Tasks */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text strong>上传任务列表</Text>
-        <Button icon={<ReloadOutlined />} onClick={() => setUploadTasks(mockUploadTasks)}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadUploadTasks} loading={loading}>刷新</Button>
       </div>
-      <Table columns={columns} dataSource={uploadTasks} rowKey="id" size="middle" pagination={{ pageSize: 10 }} />
+      <Table columns={columns} dataSource={uploadTasks} rowKey="id" size="middle" loading={loading} pagination={{ pageSize: 10 }} />
     </div>
   );
 };
@@ -958,12 +924,22 @@ const FileUploadTab: React.FC = () => {
 // ============================================================================
 
 const BatchExecPage: React.FC = () => {
-  const execStats = {
-    total: mockExecRecords.length,
-    success: mockExecRecords.filter((r) => r.status === 'success').length,
-    partial: mockExecRecords.filter((r) => r.status === 'partial').length,
-    failed: mockExecRecords.filter((r) => r.status === 'failed').length,
-  };
+  const [execStats, setExecStats] = useState({ total: 0, success: 0, partial: 0, failed: 0 });
+
+  useEffect(() => {
+    listCommandLogs(1, 100)
+      .then((res) => {
+        const data = res.data as Record<string, unknown> | undefined;
+        const items = (data?.items ?? []) as ExecRecord[];
+        setExecStats({
+          total: items.length,
+          success: items.filter((r) => r.status === 'success').length,
+          partial: items.filter((r) => r.status === 'partial').length,
+          failed: items.filter((r) => r.status === 'failed').length,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   const tabItems = [
     {
