@@ -1,4 +1,7 @@
 # Plugin SPI 开发示例 (Plugin SPI Development Examples)
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 > **文档版本**: v1.0 | **创建日期**: 2026-04-10 | **状态**: ✅ 完成
 

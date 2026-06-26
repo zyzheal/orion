@@ -1,4 +1,7 @@
 # 构建制品详细规格 (Phase 1)
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 > **日期**: 2026-05-05
 > **状态**: 编写中

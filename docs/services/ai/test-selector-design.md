@@ -1,4 +1,7 @@
 # Test Selector Service Design
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 > 状态: ✅ 后端已实现 | 数据存储: PostgreSQL Repository 模式
 > 创建日期: 2026-04-23 | 关联: M14 构建环境

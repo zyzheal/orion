@@ -1,4 +1,7 @@
 # Orion Cron 功能扩展最优方案
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 ## 概述
 

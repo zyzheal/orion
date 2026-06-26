@@ -1,4 +1,7 @@
 # S14 队列管理模块设计文档 (Queue Management)
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 > **模块代号**: S14 — Queue Management
 > **技术栈**: Node.js + TypeScript + Fastify + PostgreSQL

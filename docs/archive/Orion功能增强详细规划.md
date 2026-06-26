@@ -1,4 +1,7 @@
 # Orion 平台功能增强详细规划 (v3.0)
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 > 版本: 3.0  
 > 更新日期: 2026-05-06  

@@ -1,4 +1,7 @@
 # PageRank 根因定位的图数据更新机制设计
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 ## 1. 概述
 

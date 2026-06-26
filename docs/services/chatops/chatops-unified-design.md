@@ -1,11 +1,16 @@
-# ChatOps Design (ChatOps 设计)
+# ChatOps 统一设计 (ChatOps Unified Design)
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
 
-**文档版本**: v1.0  
+
+
+**文档版本**: v2.0  
 **创建日期**: 2026-04-10  
+**最后更新**: 2026-06-26  
 **优先级**: P2  
 **状态**: 待评审  
 **作者**: Orion Architecture Team  
 **评审人**: 平台基础团队、安全与合规团队  
+**合并来源**: `chatops-design.md` + `ChatOps 命令集设计.md`  
 
 ---
 
@@ -685,7 +690,160 @@ class CommandSyntaxValidator {
 
 ---
 
-## 四、命令解析引擎设计 (Command Parser Engine)
+## 四、命令集定义 (Command Set Definition)
+
+> 本节整合自 `ChatOps 命令集设计.md`，定义 8 个核心命令的完整参数、权限和验证规则。
+
+### 4.1 命令总览
+
+| 命令 | 功能 | 参数 | 权限 | 示例 |
+|------|------|------|------|------|
+| `/pipeline` | 触发流水线 | `repo`, `branch`, `pipeline` | 开发者 | `/pipeline run --repo=frontend --branch=main` |
+| `/deploy` | 部署到环境 | `app`, `env`, `version` | 发布者 | `/deploy deploy --app=api --env=prod --version=1.2.0` |
+| `/approve` | 审批通过 | `id`, `comment` | 审批人 | `/approve 123 --comment=LGTM` |
+| `/reject` | 审批拒绝 | `id`, `reason` | 审批人 | `/reject 123 --reason=性能风险` |
+| `/status` | 查询状态 | `type`, `id` | 所有人 | `/status pipeline 456` |
+| `/rollback` | 回滚部署 | `app`, `env`, `target` | 发布者 | `/rollback --app=api --env=prod --target=1.1.0` |
+| `/scale` | 扩缩容 | `app`, `env`, `replicas` | 运维 | `/scale --app=api --env=prod --replicas=10` |
+| `/incident` | 创建事件 | `severity`, `desc` | 所有人 | `/incident --severity=P1 --desc=API 错误率飙升` |
+
+### 4.2 权限等级定义
+
+| 权限等级 | 角色 | 可执行命令 |
+|----------|------|------------|
+| L1 - 只读 | 所有人 | `/status`, `/incident` |
+| L2 - 开发 | 开发者 | `/pipeline`, `/status`, `/incident` |
+| L3 - 发布 | 发布者 | `/deploy`, `/approve`, `/reject`, `/rollback` + L2 |
+| L4 - 运维 | 运维 | `/scale` + L3 |
+
+### 4.3 命令详细定义
+
+#### 4.3.1 /pipeline - 流水线管理
+
+```yaml
+command: /pipeline
+subcommands:
+  - run:       触发新流水线
+  - cancel:    取消运行中流水线
+  - retry:     重试失败流水线
+parameters:
+  --repo:      仓库名称 (必需)
+  --branch:    分支名称 (必需)
+  --pipeline:  流水线类型 (build/test/deploy, 默认 build)
+  --async:     异步模式，不等待结果 (可选)
+  --notify:    通知频道 (可选)
+validation:
+  - repo 必须存在于注册仓库列表
+  - branch 必须符合分支命名规范
+  - 用户必须具有该仓库的访问权限
+```
+
+#### 4.3.2 /deploy - 部署管理
+
+```yaml
+command: /deploy
+subcommands:
+  - deploy:    执行部署
+  - preview:   预览部署配置
+  - history:   查看部署历史
+parameters:
+  --app:       应用名称 (必需)
+  --env:       目标环境 (dev/staging/prod, 必需)
+  --version:   部署版本 (必需)
+  --strategy:  部署策略 (blue-green/canary/rolling, 默认 rolling)
+  --timeout:   超时时间 (分钟，默认 30)
+validation:
+  - prod 环境部署需要二级审批
+  - 版本必须已通过测试环境验证
+  - 同一时间同一环境只能有一个部署
+```
+
+#### 4.3.3 /approve & /reject - 审批管理
+
+```yaml
+command: /approve
+parameters:
+  id:          审批项 ID (必需)
+  --comment:   审批意见 (可选)
+
+command: /reject
+parameters:
+  id:          审批项 ID (必需)
+  --reason:    拒绝原因 (必需)
+  --blocker:   阻塞问题描述 (可选)
+validation:
+  - 用户必须是审批人或审批管理员
+  - 审批项必须处于待审批状态
+```
+
+#### 4.3.4 /status - 状态查询
+
+```yaml
+command: /status
+subcommands:
+  - pipeline:  查询流水线状态
+  - deploy:    查询部署状态
+  - app:       查询应用健康状态
+  - oncall:    查询当前 On-Call 人员
+parameters:
+  id:          资源 ID (必需)
+  --detail:    显示详细信息 (可选)
+  --history:   显示历史记录 (可选)
+```
+
+#### 4.3.5 /rollback - 回滚管理
+
+```yaml
+command: /rollback
+parameters:
+  --app:       应用名称 (必需)
+  --env:       环境名称 (必需)
+  --target:    目标版本 (必需)
+  --reason:    回滚原因 (必需)
+  --notify:    是否通知相关人员 (默认 true)
+validation:
+  - 目标版本必须是历史成功部署版本
+  - prod 环境回滚需要运维确认
+  - 1 小时内同一应用只能回滚 2 次
+```
+
+#### 4.3.6 /scale - 扩缩容管理
+
+```yaml
+command: /scale
+parameters:
+  --app:       应用名称 (必需)
+  --env:       环境名称 (必需)
+  --replicas:  副本数 (必需)
+  --reason:    扩缩容原因 (可选)
+validation:
+  - 副本数必须在 [min, max] 范围内
+  - 缩容到 0 需要二次确认
+  - prod 环境需要运维权限
+```
+
+#### 4.3.7 /incident - 事件管理
+
+```yaml
+command: /incident
+subcommands:
+  - create:    创建事件
+  - update:    更新事件
+  - close:     关闭事件
+  - list:      列出事件
+parameters:
+  --severity:  严重程度 (P0/P1/P2/P3, 必需)
+  --desc:      事件描述 (必需)
+  --app:       关联应用 (可选)
+  --assignee:  指派人 (可选)
+validation:
+  - P0/P1 事件自动电话通知 On-Call
+  - 必须提供清晰的描述
+```
+
+---
+
+## 五、命令解析引擎设计 (Command Parser Engine)
 
 ### 4.1 命令解析流程
 
@@ -1061,7 +1219,7 @@ interface CommandSchema {
 
 ---
 
-## 五、命令执行引擎设计 (Command Execution Engine)
+## 六、命令执行引擎设计 (Command Execution Engine)
 
 ### 5.1 命令执行时序图
 
@@ -1333,7 +1491,7 @@ interface ExecutionState {
 
 ---
 
-## 六、命令分类设计 (Command Classification)
+## 七、命令分类设计 (Command Classification)
 
 ### 6.1 命令分类矩阵
 
@@ -1589,7 +1747,387 @@ notification_messages:
 
 ---
 
-## 七、交互式命令设计 (Interactive Commands)
+## 八、On-Call 排班与通知协作 (On-Call Scheduling & Notification)
+
+> 本节整合自 `ChatOps 命令集设计.md`，定义 On-Call 排班算法、通知疲劳控制和通知模板。
+
+### 8.1 On-Call 排班核心概念
+
+| 概念 | 说明 |
+|------|------|
+| 轮值周期 | 按周或按天轮换 |
+| 主值班人 | 第一响应人 (Primary) |
+| 备值班人 | 升级响应人 (Secondary) |
+| 升级策略 | 超时未响应的升级规则 |
+| 替班机制 | 临时替换值班人 |
+
+### 8.2 排班算法伪代码
+
+```
+算法：OnCallScheduler.generateSchedule()
+
+输入：
+  - roster: 值班人员名单
+  - config: 排班配置 { cycleType, startDate, endDate, timezone }
+  - constraints: 约束条件 { holidays, unavailable, preferences }
+输出：
+  - schedule: 排班表
+
+步骤:
+
+1. // 初始化
+   schedule <- empty list
+   currentIndex <- 0
+   currentDate <- config.startDate
+
+2. // 主循环：生成每日排班
+   WHILE currentDate <= config.endDate DO
+
+     a. // 检查节假日
+        IF isHoliday(currentDate) THEN
+          IF config.holidayPolicy == "skip" THEN
+            currentDate <- currentDate + 1 day
+            CONTINUE
+          ELSE IF config.holidayPolicy == "special" THEN
+            person <- getHolidayVolunteer()
+          END IF
+        END IF
+
+     b. // 检查不可用人员
+        availableRoster <- roster.filter(p => !isUnavailable(p, currentDate))
+
+        IF availableRoster.length == 0 THEN
+          LOG "Warning: No available personnel"
+          availableRoster <- roster  // 强制排班
+        END IF
+
+     c. // 轮班选择
+        person <- availableRoster[currentIndex % availableRoster.length]
+
+        // 检查连续值班限制
+        IF hasConsecutiveShifts(person, currentDate, config.maxConsecutiveDays) THEN
+          currentIndex <- currentIndex + 1
+          person <- availableRoster[currentIndex % availableRoster.length]
+        END IF
+
+     d. // 创建排班记录
+        shift <- {
+          date: currentDate,
+          primary: person,
+          secondary: availableRoster[(currentIndex + 1) % availableRoster.length],
+          timezone: config.timezone
+        }
+        schedule.add(shift)
+
+     e. // 移动到下一天
+        currentDate <- currentDate + 1 day
+        currentIndex <- currentIndex + 1
+
+   END WHILE
+
+3. // 应用偏好调整
+   schedule <- applyPreferences(schedule, constraints.preferences)
+
+4. RETURN schedule
+
+
+算法：OnCallScheduler.escalation()
+
+输入:
+  - incident: 事件
+  - schedule: 当日排班
+  - config: 升级配置
+输出:
+  - notifyList: 通知列表
+
+步骤:
+
+1. notifyList <- [schedule.primary]
+   lastNotifyTime <- incident.createdAt
+   currentTime <- now()
+
+2. // 升级检查
+   WHILE currentTime - lastNotifyTime > config.escalationTimeout DO
+
+     a. // 检查主值班人是否已响应
+        IF hasResponded(schedule.primary, incident) THEN
+          BREAK
+        END IF
+
+     b. // 升级到备值班人
+        IF schedule.secondary NOT IN notifyList THEN
+          notifyList.add(schedule.secondary)
+          sendNotification(schedule.secondary, incident, level: "escalated")
+        END IF
+
+     c. // 继续升级到管理员
+        IF currentTime - lastNotifyTime > config.managerEscalationTimeout THEN
+          FOR manager IN config.managers DO
+            IF manager NOT IN notifyList THEN
+              notifyList.add(manager)
+              sendNotification(manager, incident, level: "critical")
+            END IF
+          END FOR
+        END IF
+
+     d. lastNotifyTime <- currentTime
+        currentTime <- now()
+
+   END WHILE
+
+3. RETURN notifyList
+
+
+算法：OnCallScheduler.findSubstitute()
+
+输入:
+  - originalPerson: 原值班人
+  - dateRange: 日期范围
+  - roster: 可替班人员
+输出:
+  - substitute: 替班人或 null
+
+步骤:
+
+1. // 查找自愿替班
+   FOR person IN roster DO
+     IF person != originalPerson THEN
+       IF hasVolunteered(person, dateRange) THEN
+         RETURN person
+       END IF
+     END IF
+   END FOR
+
+2. // 按轮班顺序查找下一个可用人员
+   nextInRotation <- getNextInRotation(originalPerson, roster)
+
+   IF !isUnavailable(nextInRotation, dateRange)
+      AND !hasConsecutiveShifts(nextInRotation, dateRange) THEN
+     RETURN nextInRotation
+   END IF
+
+3. // 查找管理协调
+   RETURN requestManualAssignment(originalPerson, dateRange)
+```
+
+### 8.3 通知疲劳控制
+
+```typescript
+interface FatigueControl {
+  // 最小通知间隔
+  minNotifyInterval: number;        // 默认 5 分钟
+
+  // 静默时段
+  quietHours: {
+    start: string;                  // 默认 "22:00"
+    end: string;                    // 默认 "08:00"
+    enabled: boolean;               // 是否启用
+  };
+
+  // P0/P1 可突破静默
+  emergencyOverride: boolean;       // 默认 true
+
+  // 聚合通知
+  aggregation: {
+    window: number;                 // 聚合窗口 (秒)
+    maxBatch: number;               // 最大批量
+  };
+
+  // 重复告警抑制
+  duplicateSuppression: {
+    key: string;                    // 去重键
+    ttl: number;                    // 抑制时间
+  };
+}
+
+// 疲劳检测
+function shouldNotify(fatigueControl: FatigueControl, event: Event): boolean {
+  const lastNotifyTime = getLastNotifyTime(event.source);
+  const now = Date.now();
+
+  // 检查最小间隔
+  if (now - lastNotifyTime < fatigueControl.minNotifyInterval) {
+    return false;
+  }
+
+  // 检查静默时段
+  if (fatigueControl.quietHours.enabled && isQuietHours(fatigueControl.quietHours)) {
+    if (event.severity < 'P1' || !fatigueControl.emergencyOverride) {
+      return false;
+    }
+  }
+
+  return true;
+}
+```
+
+### 8.4 通知模板设计
+
+#### 8.4.1 流水线通知模板
+
+```markdown
+## 流水线通知
+
+**应用**: ${appName}
+**仓库**: ${repoName}
+**分支**: ${branchName}
+**流水线**: ${pipelineType}
+**状态**: ${status}  ${statusEmoji}
+
+---
+
+**详情**:
+- 触发人：${triggeredBy}
+- 开始时间：${startTime}
+- 预计耗时：${estimatedDuration}
+- 当前阶段：${currentStage}
+
+${progressBar}
+
+**操作**:
+[查看日志](${logUrl}) | [取消运行](${cancelUrl})
+```
+
+#### 8.4.2 审批通知模板
+
+```markdown
+## 审批请求
+
+**类型**: ${approvalType}
+**ID**: #${approvalId}
+**申请人**: ${requester}
+**申请时间**: ${requestTime}
+
+---
+
+**详情**:
+${description}
+
+**变更内容**:
+${changeSummary}
+
+**风险等级**: ${riskLevel}
+
+---
+
+**审批操作**:
+[通过](/approve ${approvalId}) | [拒绝](/reject ${approvalId})
+
+*请于 ${deadline} 前完成审批*
+```
+
+#### 8.4.3 告警通知模板
+
+```markdown
+## 告警通知
+
+**级别**: ${severity} ${severityIcon}
+**标题**: ${alertTitle}
+**来源**: ${alertSource}
+**时间**: ${alertTime}
+
+---
+
+**详情**:
+${alertDescription}
+
+**影响范围**:
+- 服务：${affectedServices}
+- 用户：${affectedUsers}
+- 持续时间：${duration}
+
+**当前 On-Call**:
+主值班：${primaryOncall}
+备值班：${secondaryOncall}
+
+---
+
+**快速操作**:
+[查看面板](${dashboardUrl}) | [查看日志](${logUrl}) | [呼叫 On-Call](${callUrl})
+
+*事件 ID: ${incidentId}*
+```
+
+#### 8.4.4 部署通知模板
+
+```markdown
+## 部署通知
+
+**应用**: ${appName}
+**环境**: ${envName} ${envIcon}
+**版本**: ${version}
+**状态**: ${status}
+
+---
+
+**部署详情**:
+- 部署人：${deployedBy}
+- 部署策略：${strategy}
+- 开始时间：${startTime}
+- 完成时间：${endTime}
+- 持续时间：${duration}
+
+**变更摘要**:
+${changeSummary}
+
+**健康检查**:
+${healthCheckStatus}
+
+---
+
+**操作**:
+[查看详情](${detailUrl}) | [回滚](${rollbackUrl})
+```
+
+#### 8.4.5 模板渲染引擎
+
+```typescript
+interface NotificationTemplate {
+  id: string;
+  name: string;
+  platforms: string[];
+  template: string;
+  variables: string[];
+}
+
+class TemplateRenderer {
+  private templates: Map<string, NotificationTemplate>;
+
+  render(templateId: string, context: Record<string, any>): string {
+    const template = this.templates.get(templateId);
+    if (!template) {
+      throw new Error(`Template not found: ${templateId}`);
+    }
+
+    let rendered = template.template;
+    for (const [key, value] of Object.entries(context)) {
+      rendered = rendered.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+    }
+
+    return rendered;
+  }
+
+  // 平台特定渲染
+  renderForPlatform(templateId: string, context: Record<string, any>, platform: string): PlatformMessage {
+    const rendered = this.render(templateId, context);
+
+    switch (platform) {
+      case 'dingtalk':
+        return this.toDingTalkCard(rendered);
+      case 'feishu':
+        return this.toFeishuCard(rendered);
+      case 'slack':
+        return this.toSlackBlocks(rendered);
+      default:
+        return { type: 'text', content: rendered };
+    }
+  }
+}
+```
+
+---
+
+## 九、交互式命令设计 (Interactive Commands)
 
 ### 6.1 交互式命令状态图
 
@@ -1940,7 +2478,7 @@ const DEFAULT_BUTTON_ACTIONS = {
 
 ---
 
-## 八、命令审计日志设计 (Command Audit Logging)
+## 十、命令审计日志设计 (Command Audit Logging)
 
 ### 8.1 审计日志数据流图
 
@@ -2207,7 +2745,67 @@ audit_log_apis:
 
 ---
 
-## 九、命令速率限制设计 (Command Rate Limiting)
+## 十一、ChatOps 配置示例 (Configuration Example)
+
+> 本节整合自 `ChatOps 命令集设计.md`，提供完整的 ChatOps 配置文件示例。
+
+### 11.1 配置文件示例
+
+```yaml
+# config/chatops.yaml
+chatops:
+  enabled: true
+
+  commands:
+    - name: pipeline
+      enabled: true
+      rate_limit:
+        max_requests: 10
+        window: 60s
+
+    - name: deploy
+      enabled: true
+      require_approval:
+        - prod
+      rate_limit:
+        max_requests: 5
+        window: 60s
+
+  im_platforms:
+    - platform: dingtalk
+      enabled: true
+      webhook: ${DINGTALK_WEBHOOK}
+      secret: ${DINGTALK_SECRET}
+
+    - platform: feishu
+      enabled: true
+      webhook: ${FEISHU_WEBHOOK}
+
+  oncall:
+    schedule:
+      cycle_type: weekly
+      start_day: monday
+      handover_time: "10:00"
+      timezone: Asia/Shanghai
+
+    escalation:
+      timeout: 15m
+      manager_timeout: 30m
+      managers:
+        - @tech-lead
+        - @ops-manager
+
+    fatigue_control:
+      quiet_hours:
+        enabled: true
+        start: "22:00"
+        end: "08:00"
+      min_notify_interval: 5m
+```
+
+---
+
+## 十二、命令速率限制设计 (Command Rate Limiting)
 
 ### 9.1 速率限制算法图
 
@@ -2480,7 +3078,7 @@ rate_limit_responses:
 
 ---
 
-## 十、ChatOps 机器人设计 (ChatOps Bot Design)
+## 十三、ChatOps 机器人设计 (ChatOps Bot Design)
 
 ### 10.1 机器人人格化设计
 
@@ -2857,7 +3455,7 @@ bot_response_templates:
 
 ---
 
-## 十一、部署与运维 (Deployment and Operations)
+## 十四、部署与运维 (Deployment and Operations)
 
 ### 11.1 部署架构
 
@@ -3042,7 +3640,7 @@ alerting_rules:
 
 ---
 
-## 十二、总结 (Summary)
+## 十五、总结 (Summary)
 
 ### 12.1 设计要点回顾
 
