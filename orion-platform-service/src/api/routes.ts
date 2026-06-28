@@ -156,6 +156,9 @@ import canaryTrafficRoutes from './canary-traffic-routes';
 import chaosEnhancedRoutes from './chaos-enhanced-routes';
 import cronRoutes from './cron-routes';
 import dataPipelineRoutes from './data-pipeline-routes';
+import dataQualityRoutes from './data-quality-routes';
+import dataLineageRoutes from './data-lineage-routes';
+import vectorizeRulesRoutes from './vectorize-rules-routes';
 import decisionExplanationRoutes from './decision-explanation-routes';
 import { registerDependencyCoordinationRoutes } from './dependency-coordination-routes';
 import developerPortalRoutes from './developer-portal-routes';
@@ -180,6 +183,7 @@ import { PipelineEngine } from '../engine/PipelineEngine';
 import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import featureFlagRoutes from './feature-flag-routes';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
 import pluginRoutes from './plugin-routes';
 import policyRoutes from './policy-routes';
@@ -573,14 +577,18 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const serverlessRoutes = await import('./serverless-routes').then(m => m.default);
   const multiCloudRoutes = await import('./multi-cloud-routes').then(m => m.default);
   await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations', { database: options.database });
-  await registerWithRoleGuard(app, finOpsV2Routes, '/v1/finops', { database: options.database });
+  await registerWithRoleGuard(app, finOpsV2Routes, '/finops', { database: options.database });
   await registerWithRoleGuard(app, mlopsRoutes, '/mlops', { database: options.database });
   await registerWithRoleGuard(app, metadataRoutes, '/metadata', { database: options.database });
+  await registerWithRoleGuard(app, dataQualityRoutes, '/data-quality', { database: options.database });
+  await registerWithRoleGuard(app, dataLineageRoutes, '/data-lineage', { database: options.database });
+  await registerWithRoleGuard(app, vectorizeRulesRoutes, '/vectorize-rules', { database: options.database });
+  await registerWithRoleGuard(app, vectorStoreRoutes, '/vector-store', { database: options.database });
   await registerWithRoleGuard(app, inspectionRoutes, '/inspection', { database: options.database });
   await registerWithRoleGuard(app, capacityRoutes, '/capacity', { database: options.database });
   await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware', { database: options.database });
   await registerWithRoleGuard(app, serverlessRoutes, '/serverless', { database: options.database });
-  await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud', { database: options.database });
+  await registerWithRoleGuard(app, multiCloudRoutes, '/multi-cloud', { database: options.database });
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
@@ -1210,13 +1218,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, testGenerationRoutes, '/test-generation');
 
   // Test Selector - smart test selection
-  await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector', { database: options.database });
+  await registerWithRoleGuard(app, testSelectorRoutes, '/test-selector', { database: options.database });
 
   // Smart Deploy - deployment execution, history, metrics
-  await registerWithRoleGuard(app, deployRoutes, '/v1/deploy', { database: options.database });
+  await registerWithRoleGuard(app, deployRoutes, '/deploy', { database: options.database });
 
   // Change Intelligence - AI-powered blast radius analysis
-  await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { database: options.database });
+  await registerWithRoleGuard(app, changeIntelligenceRoutes, '/change-intelligence', { database: options.database });
 
   // ==================== Capability Management ====================
   await registerWithRoleGuard(app, capabilityRoutes, '/capabilities', { database: options.database });
@@ -1245,17 +1253,20 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Build Environment ====================
   await registerWithRoleGuard(app, buildEnvRoutes, '/build-env', { database: options.database });
 
+  // ==================== Feature Flags ====================
+  await registerWithRoleGuard(app, featureFlagRoutes, '/feature-flags', { database: options.database });
+
   // ==================== Observability ====================
-  await registerWithRoleGuard(app, observabilityRoutes, '/v1/observability', { database: options.database });
+  await registerWithRoleGuard(app, observabilityRoutes, '/observability', { database: options.database });
 
   // ==================== Backup & Recovery ====================
   await registerWithRoleGuard(app, backupRoutes, '/backup', { database: options.database });
 
   // ==================== OnCall Scheduling ====================
-  await registerWithRoleGuard(app, oncallRoutes, '/v1/oncall', { database: options.database });
+  await registerWithRoleGuard(app, oncallRoutes, '/oncall', { database: options.database });
 
   // ==================== SBOM (Software Bill of Materials) ====================
-  await registerWithRoleGuard(app, sbomRoutes, '/v1/sbom', { database: options.database });
+  await registerWithRoleGuard(app, sbomRoutes, '/sbom', { database: options.database });
 
   // ==================== Phase 3: Alert Management ====================
   // Phase 3.5 Fix: Register alert routes — previously orphan
@@ -1273,13 +1284,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Phase 3.5 Fix: Register cache routes — previously orphan
   const { CacheStrategyService } = await import('../services/cache/CacheStrategyService');
   const cacheStrategyService = options.redis ? new CacheStrategyService(options.redis) : null;
-  await registerWithRoleGuard(app, cacheRoutes, '/v1/cache', { cacheService: cacheStrategyService });
+  await registerWithRoleGuard(app, cacheRoutes, '/cache', { cacheService: cacheStrategyService });
 
   // ==================== Phase 3: Circuit Breaker ====================
   // Phase 3.5 Fix: Register circuit breaker routes — previously orphan
   const { initCircuitBreakerService } = await import('../services/circuit-breaker');
   const circuitBreakerServiceInstance = await initCircuitBreakerService(options.database);
-  await registerWithRoleGuard(app, circuitBreakerRoutes, '/v1/circuit-breakers', { circuitBreakerService: circuitBreakerServiceInstance });
+  await registerWithRoleGuard(app, circuitBreakerRoutes, '/circuit-breakers', { circuitBreakerService: circuitBreakerServiceInstance });
 
   // ==================== Phase 3: Maintenance Window ====================
   // Phase 3.5 Fix: Register maintenance window routes — previously orphan
@@ -1295,7 +1306,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Phase 3.5 Fix: Register message queue routes — previously orphan
   const { MessageQueueService } = await import('../services/message-queue/message-queue-service');
   const messageQueueServiceInstance = new MessageQueueService();
-  await registerWithRoleGuard(app, messageQueueRoutes, '/v1/message-queue', { messageQueueService: messageQueueServiceInstance });
+  await registerWithRoleGuard(app, messageQueueRoutes, '/message-queue', { messageQueueService: messageQueueServiceInstance });
 
   // ==================== Team Management ====================
   // Phase 3.5 Fix: Register team routes — previously orphan

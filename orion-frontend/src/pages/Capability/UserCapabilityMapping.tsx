@@ -2,7 +2,7 @@
  * 用户能力覆盖页面
  * 为用户临时授权/撤销能力，查看用户有效能力
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Table,
   Tag,
@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
+import { capabilityApi, type Capability as ApiCapability } from '@/api/capability';
 
 const { Text } = Typography;
 const {} = Collapse;
@@ -83,8 +84,6 @@ interface UserCapabilityOverride {
   expiresAt: string | null;
 }
 
-// ==================== Mock 数据 ====================
-
 const mockUsers: User[] = [
   {
     id: 'user-1',
@@ -124,155 +123,7 @@ const mockUsers: User[] = [
   },
 ];
 
-const mockCapabilities: Capability[] = [
-  {
-    id: 'chatops_view',
-    name: 'ChatOps 查看',
-    description: '查看命令目录',
-    category: 'ChatOps',
-    riskLevel: 1,
-    requiresApproval: false,
-  },
-  {
-    id: 'chatops_card_manage',
-    name: '问答卡片管理',
-    description: '管理问答卡片',
-    category: 'ChatOps',
-    riskLevel: 2,
-    requiresApproval: false,
-  },
-  {
-    id: 'chatops_command_manage',
-    name: '命令配置管理',
-    description: '管理命令',
-    category: 'ChatOps',
-    riskLevel: 3,
-    requiresApproval: true,
-  },
-  {
-    id: 'chatops_platform_manage',
-    name: '平台配置管理',
-    description: '管理平台配置',
-    category: 'ChatOps',
-    riskLevel: 4,
-    requiresApproval: true,
-  },
-  {
-    id: 'pipeline_view',
-    name: '流水线查看',
-    description: '查看流水线',
-    category: 'Pipeline',
-    riskLevel: 1,
-    requiresApproval: false,
-  },
-  {
-    id: 'pipeline_create',
-    name: '流水线创建',
-    description: '创建流水线',
-    category: 'Pipeline',
-    riskLevel: 2,
-    requiresApproval: false,
-  },
-  {
-    id: 'pipeline_trigger_prod',
-    name: '生产环境流水线触发',
-    description: '触发生产流水线',
-    category: 'Pipeline',
-    riskLevel: 4,
-    requiresApproval: true,
-  },
-  {
-    id: 'deployment_operations',
-    name: '部署操作',
-    description: '执行部署',
-    category: 'Deployment',
-    riskLevel: 3,
-    requiresApproval: true,
-  },
-  {
-    id: 'deployment_rollback',
-    name: '部署回滚',
-    description: '执行回滚',
-    category: 'Deployment',
-    riskLevel: 4,
-    requiresApproval: true,
-  },
-  {
-    id: 'secret_operations',
-    name: '密钥操作',
-    description: '管理密钥',
-    category: 'Security',
-    riskLevel: 4,
-    requiresApproval: true,
-  },
-  {
-    id: 'backup_operations',
-    name: '备份操作',
-    description: '执行备份',
-    category: 'Security',
-    riskLevel: 3,
-    requiresApproval: true,
-  },
-  {
-    id: 'disaster_recovery',
-    name: '灾备操作',
-    description: '执行灾备',
-    category: 'Security',
-    riskLevel: 4,
-    requiresApproval: true,
-  },
-];
 
-const initialOverrides: UserCapabilityOverride[] = [
-  {
-    id: 'override-1',
-    userId: 'user-1',
-    capabilityId: 'deployment_operations',
-    capabilityName: '部署操作',
-    capabilityCategory: 'Deployment',
-    granted: true,
-    reason: '项目紧急上线需要',
-    grantedBy: 'heal',
-    grantedAt: '2026-05-15',
-    expiresAt: '2026-05-25',
-  },
-  {
-    id: 'override-2',
-    userId: 'user-1',
-    capabilityId: 'pipeline_trigger_prod',
-    capabilityName: '生产环境流水线触发',
-    capabilityCategory: 'Pipeline',
-    granted: true,
-    reason: '紧急修复需要',
-    grantedBy: 'heal',
-    grantedAt: '2026-05-16',
-    expiresAt: null,
-  },
-  {
-    id: 'override-3',
-    userId: 'user-2',
-    capabilityId: 'secret_operations',
-    capabilityName: '密钥操作',
-    capabilityCategory: 'Security',
-    granted: true,
-    reason: '密钥轮换操作',
-    grantedBy: 'heal',
-    grantedAt: '2026-05-10',
-    expiresAt: '2026-06-10',
-  },
-  {
-    id: 'override-4',
-    userId: 'user-3',
-    capabilityId: 'chatops_command_manage',
-    capabilityName: '命令配置管理',
-    capabilityCategory: 'ChatOps',
-    granted: false,
-    reason: '权限调整',
-    grantedBy: 'heal',
-    grantedAt: '2026-05-12',
-    expiresAt: null,
-  },
-];
 
 // ==================== 工具函数 ====================
 
@@ -304,13 +155,60 @@ const getRiskLevelColor = (level: number): string => {
  */
 const UserCapabilityMapping: React.FC = () => {
   // 状态
-  const [users] = useState<User[]>(mockUsers);
-  const [overrides, setOverrides] = useState<UserCapabilityOverride[]>(initialOverrides);
+  const [users] = useState<User[]>(mockUsers); // 用户列表暂用 mock（无独立用户 API）
+  const [capabilities, setCapabilities] = useState<Capability[]>([]);
+  const [overrides, setOverrides] = useState<UserCapabilityOverride[]>([]);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+
+  // 加载能力列表和覆盖数据
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const capRes = await capabilityApi.list();
+      const capData = (capRes.data as any)?.data || [];
+      setCapabilities(capData.map((c: ApiCapability) => ({
+        id: c.capability_id || c.id,
+        name: c.name,
+        description: c.description || '',
+        category: c.category,
+        riskLevel: (c.risk_level || 1) as 1 | 2 | 3 | 4,
+        requiresApproval: c.requires_approval ?? false,
+      })));
+
+      // 加载所有用户的覆盖
+      const allOverrides: UserCapabilityOverride[] = [];
+      for (const user of mockUsers) {
+        try {
+          const res = await capabilityApi.getUserOverrides(user.id);
+          const data = (res.data as any)?.data || [];
+          for (const o of Array.isArray(data) ? data : []) {
+            allOverrides.push({
+              id: o.id || `${user.id}-${o.capability_id}`,
+              userId: user.id,
+              capabilityId: o.capability_id,
+              capabilityName: o.capability_name || o.capability_id,
+              capabilityCategory: '',
+              granted: o.granted ?? true,
+              reason: o.reason,
+              grantedBy: o.granted_by || '',
+              grantedAt: o.created_at || '',
+              expiresAt: o.expires_at,
+            });
+          }
+        } catch { /* skip user */ }
+      }
+      setOverrides(allOverrides);
+    } catch {
+      message.error('加载数据失败');
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, []);
 
   // 筛选用户
   const filteredUsers = useMemo(() => {
@@ -333,10 +231,17 @@ const UserCapabilityMapping: React.FC = () => {
   );
 
   // 删除覆盖
-  const handleDeleteOverride = useCallback((overrideId: string) => {
-    setOverrides((prev) => prev.filter((o) => o.id !== overrideId));
-    message.success('覆盖已撤销');
-  }, []);
+  const handleDeleteOverride = useCallback(async (overrideId: string) => {
+    const override = overrides.find(o => o.id === overrideId);
+    if (!override) return;
+    try {
+      await capabilityApi.removeUserOverride(override.userId, override.capabilityId);
+      message.success('覆盖已撤销');
+      loadData();
+    } catch {
+      message.error('撤销失败');
+    }
+  }, [overrides, loadData]);
 
   // 打开添加覆盖弹窗
   const handleOpenModal = useCallback(
@@ -350,7 +255,7 @@ const UserCapabilityMapping: React.FC = () => {
 
   // 提交添加覆盖
   const handleSubmitOverride = useCallback(
-    (values: {
+    async (values: {
       capabilityId: string;
       granted: boolean;
       expiresAt: dayjs.Dayjs | null;
@@ -358,38 +263,28 @@ const UserCapabilityMapping: React.FC = () => {
     }) => {
       if (!selectedUser) return;
 
-      const capability = mockCapabilities.find((c) => c.id === values.capabilityId);
-      if (!capability) return;
-
-      const newOverride: UserCapabilityOverride = {
-        id: `override-${Date.now()}`,
-        userId: selectedUser.id,
-        capabilityId: values.capabilityId,
-        capabilityName: capability.name,
-        capabilityCategory: capability.category,
-        granted: values.granted,
-        reason: values.reason,
-        grantedBy: 'current_user',
-        grantedAt: new Date().toISOString().split('T')[0],
-        expiresAt: values.expiresAt ? values.expiresAt.format('YYYY-MM-DD') : null,
-      };
-
-      setOverrides((prev) => [...prev, newOverride]);
-      setModalOpen(false);
-      form.resetFields();
-      message.success(`已${values.granted ? '授予' : '撤销'}用户能力`);
+      try {
+        await capabilityApi.addUserOverride(selectedUser.id, {
+          capability_id: values.capabilityId,
+          granted: values.granted,
+          expires_in_hours: values.expiresAt ? values.expiresAt.diff(dayjs(), 'hour') : undefined,
+          reason: values.reason,
+        });
+        setModalOpen(false);
+        form.resetFields();
+        message.success(`已${values.granted ? '授予' : '撤销'}用户能力`);
+        loadData();
+      } catch {
+        message.error('操作失败');
+      }
     },
-    [selectedUser, form]
+    [selectedUser, form, loadData]
   );
 
   // 刷新
   const handleRefresh = useCallback(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      message.success('已刷新');
-    }, 500);
-  }, []);
+    loadData();
+  }, [loadData]);
 
   // 表格列定义
   const columns = [
@@ -638,7 +533,7 @@ const UserCapabilityMapping: React.FC = () => {
             rules={[{ required: true, message: '请选择能力' }]}
           >
             <Select placeholder="请选择能力" showSearch optionFilterProp="children">
-              {mockCapabilities.map((cap) => (
+              {capabilities.map((cap) => (
                 <Select.Option key={cap.id} value={cap.id}>
                   <Space>
                     <Tag color={getCategoryColor(cap.category)} style={{ fontSize: 10 }}>

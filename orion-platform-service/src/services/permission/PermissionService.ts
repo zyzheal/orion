@@ -16,7 +16,8 @@ export class PermissionService {
 
   /** List all permissions */
   async listPermissions(): Promise<Permission[]> {
-    return this.repository.findAll();
+    const { entities } = await this.repository.findAll({ limit: 10000 });
+    return entities;
   }
 
   /** Get permission detail by ID */
@@ -42,7 +43,7 @@ export class PermissionService {
     }
 
     try {
-      return await this.repository.create(resource, action, description);
+      return await this.repository.create({ resource, action, description: description || null });
     } catch (err: any) {
       if (err.code === '23505') { // unique_violation
         throw new PermissionServiceError(
@@ -121,7 +122,7 @@ export class PermissionService {
       { resource: 'api_key', action: 'delete', description: '删除API Key' },
     ];
 
-    const existing = await this.repository.findAll();
+    const { entities: existing } = await this.repository.findAll({ limit: 10000 });
     const existingSet = new Set(existing.map(p => `${p.resource}:${p.action}`));
 
     const toCreate = commonPermissions.filter(

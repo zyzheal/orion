@@ -21,6 +21,13 @@ export class TicketLoadRecordRepository extends BaseRepository<TicketLoadRecordE
     super(db, 'ticket_load_records');
   }
 
+  async findAllRecords(): Promise<TicketLoadRecordEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ticket_load_records ORDER BY assigned_at DESC`,
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   async findByTicketId(ticketId: string): Promise<TicketLoadRecordEntity | undefined> {
     const result = await this.db.query(
       `SELECT * FROM ticket_load_records WHERE ticket_id = $1`,

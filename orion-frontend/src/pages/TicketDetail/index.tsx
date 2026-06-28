@@ -4,7 +4,7 @@
  * - Action bar: Assign, Escalate, Resolve, Close, Transfer (contextual based on status)
  * - Left column (main): Description, Tags, SLA, Relations, Transfer history
  * - Right column (sidebar): Info card, Assignment, Workflow history, Escalation
- * - Uses mock data from mockTicketData.ts
+ * - Uses real backend API via @/api/ticketing
  * - Ant Design: Card, Timeline, Tag, Badge, Button, Space, Descriptions, Progress, Modal, Form
  */
 import React, { useState, useMemo, useEffect } from 'react';

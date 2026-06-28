@@ -9,7 +9,7 @@
  * - Search by test name
  * - Actions: Run selected tests, View detail
  *
- * Uses mock data with warning banner (no dedicated test API exists yet).
+ * Uses real backend API via @/api/test-selector.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Tag, Space, Button, message } from 'antd';

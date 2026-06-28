@@ -322,6 +322,85 @@ export class DORACalculator {
     };
   }
 
+  /**
+   * 获取历史快照用于趋势图
+   */
+  async getHistoricalSnapshots(tenantId: string, weeks: number = 12): Promise<Array<{
+    week: string;
+    deploymentFrequency: number;
+    leadTime: number;
+    mttr: number;
+    changeFailureRate: number;
+  }>> {
+    const result: Array<{ week: string; deploymentFrequency: number; leadTime: number; mttr: number; changeFailureRate: number }> = [];
+
+    // Try to get from PostgreSQL repository
+    let history: MetricSnapshot[] = [];
+    if (this.snapshotRepo) {
+      try {
+        const entities = await this.snapshotRepo.findByTenant(tenantId, weeks * 7); // 7 days per week
+        history = entities.map(e => ({
+          tenantId: e.tenantId,
+          timeWindow: e.timeWindow,
+          deploymentFrequency: e.deploymentFrequency,
+          leadTimeMs: e.leadTimeMs,
+          changeFailureRate: e.changeFailureRate,
+          mttrMs: e.mttrMs,
+          capturedAt: e.capturedAt,
+        }));
+      } catch {
+        // Fall back to in-memory
+      }
+    }
+
+    // If not enough from DB, use in-memory cache
+    if (history.length === 0) {
+      history = this.snapshotHistory.get(tenantId) ?? [];
+    }
+
+    // Sort by capturedAt descending (avoid mutating shared array reference)
+    history = [...history].sort((a, b) => b.capturedAt.getTime() - a.capturedAt.getTime());
+
+    // Build weekly data points
+    const now = new Date();
+    for (let i = weeks - 1; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - i * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
+      const weekLabel = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
+
+      // Find snapshots in this week
+      const weekSnapshots = history.filter(s =>
+        s.capturedAt >= weekStart && s.capturedAt < weekEnd
+      );
+
+      if (weekSnapshots.length > 0) {
+        // Aggregate from actual snapshots
+        const latest = weekSnapshots[weekSnapshots.length - 1];
+        result.push({
+          week: weekLabel,
+          deploymentFrequency: latest.deploymentFrequency,
+          leadTime: Math.round(latest.leadTimeMs / (1000 * 60 * 60)),
+          mttr: Math.round(latest.mttrMs / (1000 * 60)),
+          changeFailureRate: latest.changeFailureRate,
+        });
+      } else {
+        // No real data for this week, use zero
+        result.push({
+          week: weekLabel,
+          deploymentFrequency: 0,
+          leadTime: 0,
+          mttr: 0,
+          changeFailureRate: 0,
+        });
+      }
+    }
+
+    return result;
+  }
+
   // ==================== 私有方法 ====================
 
   /**

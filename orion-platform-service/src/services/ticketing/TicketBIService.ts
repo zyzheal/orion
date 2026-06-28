@@ -101,6 +101,33 @@ export class TicketBIService {
   }
 
   /**
+   * Load cached data from PostgreSQL on startup
+   */
+  async loadFromDb(): Promise<void> {
+    if (this.transferRecordRepository) {
+      const { entities } = await this.transferRecordRepository.findAll();
+      this.transferRecords = entities.map(e => ({
+        id: e.id,
+        ticketId: e.ticketId,
+        fromEngineer: e.fromEngineer,
+        toEngineer: e.toEngineer,
+        reason: e.reason ?? '',
+        transferredAt: e.transferredAt,
+        holdTimeMs: e.holdTimeMs ?? undefined,
+      }));
+    }
+    if (this.commentRecordRepository) {
+      const { entities } = await this.commentRecordRepository.findAll();
+      this.commentRecords = entities.map(e => ({
+        id: e.id,
+        ticketId: e.ticketId,
+        authorId: e.authorId,
+        createdAt: e.createdAt,
+      }));
+    }
+  }
+
+  /**
    * Set ticket data for analysis
    */
   setTickets(tickets: Ticket[]): void {

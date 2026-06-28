@@ -11,6 +11,11 @@ import { CmdbEventPublisher } from './CmdbEventPublisher';
 import { CmdbRepository } from '../../api/repositories/CmdbRepository';
 import { CmdbRelationRepository } from '../../api/repositories/CmdbRelationRepository';
 import { CmdbVersionRepository } from '../../api/repositories/CmdbVersionRepository';
+import { CITypeService } from './ci-type/CITypeService';
+import { RelationRuleEngine } from './RelationRuleEngine';
+import pino from 'pino';
+
+const logger = pino({ name: 'CmdbService' });
 import {
   CI,
   CreateCIInput,
@@ -38,19 +43,52 @@ export class CmdbService {
   private ciRepository?: CmdbRepository;
   private relationRepository?: CmdbRelationRepository;
   private versionRepository?: CmdbVersionRepository;
+  private ciTypeService?: CITypeService;
+  private relationRuleEngine: RelationRuleEngine;
 
   constructor(options?: {
     eventPublisher?: CmdbEventPublisher;
     database?: DatabasePool;
+    ciTypeService?: CITypeService;
+    relationRuleEngine?: RelationRuleEngine;
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.database = options?.database;
+    this.ciTypeService = options?.ciTypeService;
+    this.relationRuleEngine = options?.relationRuleEngine || new RelationRuleEngine();
 
     // 如果提供了数据库连接，初始化 Repository
     if (this.database) {
       this.ciRepository = new CmdbRepository(this.database);
       this.relationRepository = new CmdbRelationRepository(this.database);
       this.versionRepository = new CmdbVersionRepository(this.database);
+    }
+  }
+
+  /**
+   * 验证 CI 属性是否符合类型 schema 约束
+   * 如果 CITypeService 不可用或类型未定义 schema，则跳过验证
+   */
+  private async validateCIAttributes(ciType: string, attributes: Record<string, any>): Promise<void> {
+    if (!this.ciTypeService || !attributes || Object.keys(attributes).length === 0) {
+      return;
+    }
+
+    try {
+      const typeEntity = await this.ciTypeService.getTypeByName(ciType);
+      if (!typeEntity) return;
+
+      const result = await this.ciTypeService.validateInstance(typeEntity.id, attributes);
+      if (!result.valid) {
+        throw new OrionError(
+          `CI attributes validation failed: ${result.errors.join('; ')}`,
+          ErrorCode.VALIDATION_ERROR,
+        );
+      }
+    } catch (error) {
+      if (error instanceof OrionError) throw error;
+      // 验证服务异常不应阻塞 CI 创建
+      logger.warn({ err: error, ciType }, 'CI type schema validation skipped due to error');
     }
   }
 
@@ -62,6 +100,9 @@ export class CmdbService {
     if (!input.ciId || !input.name || !input.ciType) {
       throw new OrionError('Missing required fields: ciId, name, ciType', ErrorCode.VALIDATION_ERROR);
     }
+
+    // 验证属性是否符合类型 schema
+    await this.validateCIAttributes(input.ciType, input.attributes || {});
 
     // 检查是否已存在（使用数据库或内存）
     if (this.ciRepository) {
@@ -198,11 +239,19 @@ export class CmdbService {
       if (!oldCI) {
         return null;
       }
+      // 验证属性是否符合类型 schema
+      if (input.attributes) {
+        await this.validateCIAttributes(oldCI.ciType, input.attributes);
+      }
       ci = await this.ciRepository.updateCI(id, input, user);
     } else {
       ci = cis.get(id) || null;
       if (!ci || ci.deletedAt) {
         return null;
+      }
+      // 验证属性是否符合类型 schema
+      if (input.attributes) {
+        await this.validateCIAttributes(ci.ciType, input.attributes);
       }
       oldCI = { ...ci };
 
@@ -453,6 +502,15 @@ export class CmdbService {
     }
     if (!toCI) {
       throw new OrionError(`Target CI '${input.toCiId}' not found`, ErrorCode.NOT_FOUND);
+    }
+
+    // 验证关系规则
+    const ruleResult = this.relationRuleEngine.validate(fromCI.ciType, toCI.ciType, input.relationType);
+    if (!ruleResult.valid) {
+      throw new OrionError(
+        `Relation rule violation: ${ruleResult.reason}`,
+        ErrorCode.VALIDATION_ERROR,
+      );
     }
 
     // 检查是否已存在相同关系

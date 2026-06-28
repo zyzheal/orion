@@ -1,6 +1,7 @@
 /**
  * Data Lineage Page
  * Visualize data flow between services, databases, and pipelines
+ * Uses dedicated data-lineage API (migrated from metadata API)
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -17,6 +18,7 @@ import {
   Statistic,
   Empty,
   Spin,
+  message,
 } from 'antd';
 import {
   BranchesOutlined,
@@ -28,52 +30,80 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import {
+  getLineageGraph,
+  type LineageNode as ApiLineageNode,
+  type LineageStats,
+} from '@/api/data-lineage';
 
 const { Title, Text } = Typography;
 
-interface LineageNode {
+// ==================== Types ====================
+
+interface DisplayNode {
   id: string;
   name: string;
-  type: 'database' | 'service' | 'pipeline' | 'table' | 'api';
-  schema?: string;
+  type: 'source' | 'transform' | 'sink' | 'dataset' | 'model';
   description?: string;
+  pipelineId?: string;
 }
 
-interface LineageEdge {
+interface DisplayEdge {
   id: string;
   source: string;
   target: string;
-  transform?: string;
-  column_mapping?: Record<string, string>;
+  relationship: string;
 }
 
-interface LineageGraph {
-  nodes: LineageNode[];
-  edges: LineageEdge[];
+interface DisplayGraph {
+  nodes: DisplayNode[];
+  edges: DisplayEdge[];
 }
+
+// ==================== Helpers ====================
+
+const apiNodeToDisplay = (node: ApiLineageNode): DisplayNode => ({
+  id: node.id,
+  name: node.name,
+  type: node.type,
+  description: node.description,
+  pipelineId: node.pipelineId,
+});
 
 const nodeTypeConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  database: { color: 'blue', icon: <DatabaseOutlined />, label: '数据库' },
-  service: { color: 'green', icon: <CloudServerOutlined />, label: '服务' },
-  pipeline: { color: 'purple', icon: <ApiOutlined />, label: '流水线' },
-  table: { color: 'orange', icon: <DatabaseOutlined />, label: '数据表' },
-  api: { color: 'cyan', icon: <ApiOutlined />, label: 'API' },
+  source: { color: 'blue', icon: <DatabaseOutlined />, label: '数据源' },
+  transform: { color: 'purple', icon: <ApiOutlined />, label: '转换' },
+  sink: { color: 'green', icon: <CloudServerOutlined />, label: '数据汇' },
+  dataset: { color: 'orange', icon: <DatabaseOutlined />, label: '数据集' },
+  model: { color: 'cyan', icon: <ApiOutlined />, label: '模型' },
 };
+
+// ==================== Component ====================
 
 export default function DataLineagePage() {
   const [loading, setLoading] = useState(false);
-  const [graph, setGraph] = useState<LineageGraph | null>(null);
+  const [graph, setGraph] = useState<DisplayGraph | null>(null);
+  const [stats, setStats] = useState<LineageStats | null>(null);
   const [search, setSearch] = useState('');
-  const [selectedNode, setSelectedNode] = useState<LineageNode | null>(null);
+  const [selectedNode, setSelectedNode] = useState<DisplayNode | null>(null);
   const [nodeType, setNodeType] = useState<string | null>(null);
 
   const fetchLineage = async () => {
     setLoading(true);
     try {
-      // TODO: integrate with graph API for data lineage
-      setGraph({ nodes: [], edges: [] });
+      const result = await getLineageGraph();
+      setGraph({
+        nodes: result.graph.nodes.map(apiNodeToDisplay),
+        edges: result.graph.edges.map(e => ({
+          id: e.id,
+          source: e.from,
+          target: e.to,
+          relationship: e.relationship,
+        })),
+      });
+      setStats(result.stats);
     } catch {
-      // silently handle
+      message.error('获取数据血缘失败');
     } finally {
       setLoading(false);
     }
@@ -91,28 +121,27 @@ export default function DataLineagePage() {
     return (graph?.edges || [])
       .filter(e => e.target === nodeId)
       .map(e => graph?.nodes.find(n => n.id === e.source))
-      .filter(Boolean) as LineageNode[];
+      .filter(Boolean) as DisplayNode[];
   };
 
   const getDownstream = (nodeId: string) => {
     return (graph?.edges || [])
       .filter(e => e.source === nodeId)
       .map(e => graph?.nodes.find(n => n.id === e.target))
-      .filter(Boolean) as LineageNode[];
+      .filter(Boolean) as DisplayNode[];
   };
 
   const nodeColumns = [
     {
       title: '名称',
       key: 'name',
-      render: (_: any, record: LineageNode) => {
-        const cfg = nodeTypeConfig[record.type] || nodeTypeConfig.service;
+      render: (_: unknown, record: DisplayNode) => {
+        const cfg = nodeTypeConfig[record.type] || nodeTypeConfig.source;
         return (
           <Space>
             <span style={{ color: colors.primary[500] }}>{cfg.icon}</span>
             <div>
               <Text strong>{record.name}</Text>
-              {record.schema && <><br /><Text type="secondary" style={{ fontSize: 12 }}>{record.schema}</Text></>}
             </div>
           </Space>
         );
@@ -123,14 +152,14 @@ export default function DataLineagePage() {
       dataIndex: 'type',
       key: 'type',
       render: (v: string) => {
-        const cfg = nodeTypeConfig[v] || nodeTypeConfig.service;
+        const cfg = nodeTypeConfig[v] || nodeTypeConfig.source;
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
     },
     {
       title: '上游',
       key: 'upstream',
-      render: (_: any, record: LineageNode) => {
+      render: (_: unknown, record: DisplayNode) => {
         const ups = getUpstream(record.id);
         return ups.length ? ups.map(u => <Tag key={u.id}>{u.name}</Tag>) : <Text type="secondary">-</Text>;
       },
@@ -138,7 +167,7 @@ export default function DataLineagePage() {
     {
       title: '下游',
       key: 'downstream',
-      render: (_: any, record: LineageNode) => {
+      render: (_: unknown, record: DisplayNode) => {
         const downs = getDownstream(record.id);
         return downs.length ? downs.map(d => <Tag key={d.id}>{d.name}</Tag>) : <Text type="secondary">-</Text>;
       },
@@ -152,7 +181,7 @@ export default function DataLineagePage() {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: LineageNode) => (
+      render: (_: unknown, record: DisplayNode) => (
         <Button
           size="small"
           icon={<BranchesOutlined />}
@@ -176,7 +205,7 @@ export default function DataLineagePage() {
           <Card>
             <Statistic
               title="数据节点"
-              value={graph?.nodes.length ?? 0}
+              value={stats?.totalNodes ?? graph?.nodes.length ?? 0}
               prefix={<DatabaseOutlined />}
             />
           </Card>
@@ -185,7 +214,7 @@ export default function DataLineagePage() {
           <Card>
             <Statistic
               title="血缘关系"
-              value={graph?.edges.length ?? 0}
+              value={stats?.totalEdges ?? graph?.edges.length ?? 0}
               prefix={<BranchesOutlined />}
             />
           </Card>
@@ -194,7 +223,7 @@ export default function DataLineagePage() {
           <Card>
             <Statistic
               title="数据源"
-              value={(graph?.nodes || []).filter(n => n.type === 'database').length}
+              value={stats?.sourceCount ?? (graph?.nodes || []).filter(n => n.type === 'source').length}
               prefix={<DatabaseOutlined />}
               valueStyle={{ color: colors.info[500] }}
             />
@@ -203,8 +232,8 @@ export default function DataLineagePage() {
         <Col span={6}>
           <Card>
             <Statistic
-              title="服务"
-              value={(graph?.nodes || []).filter(n => n.type === 'service').length}
+              title="转换节点"
+              value={stats?.transformCount ?? (graph?.nodes || []).filter(n => n.type === 'transform').length}
               prefix={<CloudServerOutlined />}
               valueStyle={{ color: colors.success[500] }}
             />

@@ -39,8 +39,10 @@ import {
   getEfficiencyDashboard,
   getTeamComparison,
   getTeams,
+  getDeveloperProfiles,
+  getBottlenecks,
 } from '@/api/efficiency';
-import type { TeamMetrics } from '@/api/efficiency';
+import type { TeamMetrics, DeveloperProfile } from '@/api/efficiency';
 import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -67,7 +69,8 @@ const DORAMetricsTab: React.FC = () => {
         getEfficiencyDashboard(),
         getDoraBenchmarks(),
       ]);
-      setDashboardData(dashboardRes.data || null);
+      // Response wraps in { dashboard: {...} }
+      setDashboardData((dashboardRes.data as any)?.dashboard || dashboardRes.data || null);
       setBenchmarks(benchmarksRes.data || null);
     } catch (error: unknown) {
       message.error(`加载 DORA 指标失败: ${(error as Error).message}`);
@@ -211,37 +214,20 @@ const DeveloperProfileTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState<DeveloperProfile[]>([]);
 
-  interface DeveloperProfile {
-    id: string;
-    name: string;
-    team: string;
-    role: string;
-    commits: number;
-    prs: number;
-    reviews: number;
-    bugsFixed: number;
-    avgReviewTime: number; // minutes
-    avgPRSize: number; // lines
-    codeQuality: number; // 0-100
-    activeDays: number;
-    specialty: string[];
-  }
-
-  // Mock data until backend provides this
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setProfiles([
-        { id: 'dev-001', name: '张三', team: '前端组', role: '高级工程师', commits: 234, prs: 45, reviews: 67, bugsFixed: 23, avgReviewTime: 15, avgPRSize: 120, codeQuality: 92, activeDays: 22, specialty: ['React', 'TypeScript', '微前端'] },
-        { id: 'dev-002', name: '李四', team: '后端组', role: '中级工程师', commits: 189, prs: 38, reviews: 52, bugsFixed: 18, avgReviewTime: 22, avgPRSize: 200, codeQuality: 85, activeDays: 20, specialty: ['Go', 'gRPC', 'K8s'] },
-        { id: 'dev-003', name: '王五', team: '平台组', role: '高级工程师', commits: 156, prs: 32, reviews: 89, bugsFixed: 12, avgReviewTime: 8, avgPRSize: 80, codeQuality: 95, activeDays: 21, specialty: ['CI/CD', 'Terraform', 'Platform'] },
-        { id: 'dev-004', name: '赵六', team: 'QA组', role: '测试工程师', commits: 98, prs: 21, reviews: 134, bugsFixed: 45, avgReviewTime: 12, avgPRSize: 50, codeQuality: 88, activeDays: 22, specialty: ['自动化测试', '性能测试', 'Selenium'] },
-        { id: 'dev-005', name: '孙七', team: 'SRE组', role: 'SRE 工程师', commits: 145, prs: 28, reviews: 41, bugsFixed: 31, avgReviewTime: 18, avgPRSize: 150, codeQuality: 90, activeDays: 21, specialty: ['Prometheus', 'Grafana', 'Incident'] },
-        { id: 'dev-006', name: '周八', team: 'AI组', role: 'ML 工程师', commits: 112, prs: 19, reviews: 15, bugsFixed: 8, avgReviewTime: 30, avgPRSize: 350, codeQuality: 78, activeDays: 19, specialty: ['Python', 'TensorFlow', 'MLOps'] },
-      ]);
-      setLoading(false);
-    }, 300);
+  const loadProfiles = async () => {
     setLoading(true);
-    return () => clearTimeout(timer);
+    try {
+      const res = await getDeveloperProfiles();
+      setProfiles(res.data?.profiles || []);
+    } catch (error: unknown) {
+      message.error(`加载开发者画像失败: ${(error as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfiles();
   }, []);
 
   const columns = [
@@ -331,18 +317,17 @@ const BottleneckAnalysisTab: React.FC = () => {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setBottlenecks([
-        { id: 'bn-001', category: '代码评审', description: 'PR 平均等待评审时间超过 4 小时', impact: 'high', metric: 'avg PR review wait time', currentValue: '4.2h', targetValue: '< 1h', suggestion: '增加 reviewer 数量或设置自动分配机制' },
-        { id: 'bn-002', category: 'CI/CD', description: '构建失败率较高，平均每天 3 次构建失败', impact: 'high', metric: 'build failure rate', currentValue: '12%', targetValue: '< 5%', suggestion: '分析失败模式，增加 flaky test 检测' },
-        { id: 'bn-003', category: '测试', description: '端到端测试耗时过长，阻塞部署流水线', impact: 'medium', metric: 'e2e test duration', currentValue: '45min', targetValue: '< 15min', suggestion: '拆分测试套件，并行执行' },
-        { id: 'bn-004', category: '部署', description: '部署窗口集中，导致排队等待', impact: 'medium', metric: 'deploy queue time', currentValue: '2.5h', targetValue: '< 30min', suggestion: '实施自动化部署，减少手动干预' },
-        { id: 'bn-005', category: '环境', description: '预发布环境不稳定，影响测试进度', impact: 'low', metric: 'env availability', currentValue: '85%', targetValue: '> 99%', suggestion: '使用临时环境 (Ephemeral Environments)' },
-      ]);
-      setLoading(false);
-    }, 300);
-    setLoading(true);
-    return () => clearTimeout(timer);
+    const loadBottlenecks = async () => {
+      try {
+        const res = await getBottlenecks();
+        setBottlenecks(res.data?.bottlenecks || []);
+      } catch {
+        setBottlenecks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadBottlenecks();
   }, []);
 
   // Load team comparison

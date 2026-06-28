@@ -17,8 +17,7 @@ export default async function inspectionRoutes(
   app: FastifyInstance,
   options: InspectionRoutesOptions = {}
 ): Promise<void> {
-  void options.database;
-  const inspectionService = new InspectionService();
+  const inspectionService = options.database ? new InspectionService(options.database) : new InspectionService();
   // Rules
   app.post('/inspection/rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'inspection', action: 'write' })],

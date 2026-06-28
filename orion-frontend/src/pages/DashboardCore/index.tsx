@@ -126,7 +126,7 @@ const DashboardCore: React.FC = () => {
       try {
         // Fetch efficiency dashboard data (DORA metrics)
         const [efficiencyRes, alertsRes] = await Promise.allSettled([
-          api.get('/v1/efficiency/dashboard'),
+          api.get('/efficiency/dashboard'),
           api.get('/v1/alerts'),
         ]);
 

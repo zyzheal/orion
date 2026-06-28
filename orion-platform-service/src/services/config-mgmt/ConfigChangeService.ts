@@ -9,6 +9,8 @@
  * - 查询变更历史
  *
  * 复用现有的 ConfigService + ConfigApprovalService 基础能力
+ *
+ * PostgreSQL Repository pattern with Map fallback for graceful degradation.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +20,12 @@ import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
+import {
+  ConfigChangeRequestRepository,
+  ConfigChangeHistoryRepository,
+  ChangeRequestEntity,
+  ChangeHistoryEntity,
+} from '../../repositories/ConfigChangeRepository';
 
 const logger = pino({ name: 'LConfig-LChange-LService' });
 
@@ -112,314 +120,15 @@ export interface ChangeHistoryEntry {
 }
 
 // ============================================================
-// Repository
-// ============================================================
-
-interface ChangeRequestRow {
-  id: string;
-  tenant_id: string;
-  config_key: string;
-  config_group: string | null;
-  environment: string;
-  change_type: string;
-  old_value: Record<string, unknown> | null;
-  new_value: Record<string, unknown> | null;
-  reason: string;
-  risk_level: string;
-  requester: string;
-  status: string;
-  execution_plan: Record<string, unknown> | null;
-  rollback_plan: Record<string, unknown> | null;
-  approvals: Record<string, unknown>[];
-  required_approvals: number;
-  executed_at: Date | null;
-  executed_by: string | null;
-  approved_at: Date | null;
-  approved_by: string | null;
-  rolled_back_at: Date | null;
-  rolled_back_by: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface ChangeHistoryRow {
-  id: string;
-  tenant_id: string;
-  change_request_id: string | null;
-  config_key: string;
-  config_group: string | null;
-  environment: string;
-  action: string;
-  actor: string;
-  old_value: Record<string, unknown> | null;
-  new_value: Record<string, unknown> | null;
-  notes: string | null;
-  created_at: Date;
-}
-
-class ConfigChangeRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, ChangeRequest>();
-  private historyMemory: ChangeHistoryEntry[] = [];
-
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
-  }
-
-  async save(req: ChangeRequest): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(req.id, req);
-      return;
-    }
-    await this.pool!.query(
-      `INSERT INTO config_change_requests_enhanced (
-        id, tenant_id, config_key, config_group, environment, change_type,
-        old_value, new_value, reason, risk_level, requester, status,
-        execution_plan, rollback_plan, approvals, required_approvals,
-        executed_at, executed_by, approved_at, approved_by,
-        rolled_back_at, rolled_back_by, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        status = EXCLUDED.status,
-        approvals = EXCLUDED.approvals,
-        executed_at = EXCLUDED.executed_at,
-        executed_by = EXCLUDED.executed_by,
-        approved_at = EXCLUDED.approved_at,
-        approved_by = EXCLUDED.approved_by,
-        rolled_back_at = EXCLUDED.rolled_back_at,
-        rolled_back_by = EXCLUDED.rolled_back_by,
-        updated_at = EXCLUDED.updated_at`,
-      [
-        req.id,
-        req.tenantId,
-        req.configKey,
-        req.configGroup || null,
-        req.environment,
-        req.changeType,
-        req.oldValue ? JSON.stringify(req.oldValue) : null,
-        req.newValue ? JSON.stringify(req.newValue) : null,
-        req.reason,
-        req.riskLevel,
-        req.requester,
-        req.status,
-        req.executionPlan ? JSON.stringify(req.executionPlan) : null,
-        req.rollbackPlan ? JSON.stringify(req.rollbackPlan) : null,
-        JSON.stringify(req.approvals),
-        req.requiredApprovals,
-        req.executedAt || null,
-        req.executedBy || null,
-        req.approvedAt || null,
-        req.approvedBy || null,
-        req.rolledBackAt || null,
-        req.rolledBackBy || null,
-        req.createdAt,
-        req.updatedAt,
-      ]
-    );
-  }
-
-  async findById(id: string): Promise<ChangeRequest | null> {
-    if (!this.isDbAvailable()) {
-      return this.memory.get(id) || null;
-    }
-    const rows = (
-      await this.pool!.query(
-        'SELECT * FROM config_change_requests_enhanced WHERE id = $1',
-        [id]
-      )
-    ).rows;
-    if (rows.length === 0) return null;
-    return this.rowToChangeRequest(rows[0]);
-  }
-
-  async findByTenant(tenantId: string, filter?: ChangeHistoryFilter): Promise<ChangeRequest[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter((r) => r.tenantId === tenantId);
-      if (filter?.status) results = results.filter((r) => r.status === filter.status);
-      if (filter?.configKey) results = results.filter((r) => r.configKey === filter.configKey);
-      if (filter?.configGroup) results = results.filter((r) => r.configGroup === filter.configGroup);
-      if (filter?.environment) results = results.filter((r) => r.environment === filter.environment);
-      if (filter?.requester) results = results.filter((r) => r.requester === filter.requester);
-      if (filter?.riskLevel) results = results.filter((r) => r.riskLevel === filter.riskLevel);
-      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const offset = filter?.offset || 0;
-      const limit = filter?.limit || 100;
-      return results.slice(offset, offset + limit);
-    }
-
-    let query = 'SELECT * FROM config_change_requests_enhanced WHERE tenant_id = $1';
-    const params: unknown[] = [tenantId];
-    let paramIdx = 2;
-
-    if (filter?.status) {
-      query += ` AND status = $${paramIdx}`;
-      params.push(filter.status);
-      paramIdx++;
-    }
-    if (filter?.configKey) {
-      query += ` AND config_key = $${paramIdx}`;
-      params.push(filter.configKey);
-      paramIdx++;
-    }
-    if (filter?.configGroup) {
-      query += ` AND config_group = $${paramIdx}`;
-      params.push(filter.configGroup);
-      paramIdx++;
-    }
-    if (filter?.environment) {
-      query += ` AND environment = $${paramIdx}`;
-      params.push(filter.environment);
-      paramIdx++;
-    }
-    if (filter?.requester) {
-      query += ` AND requester = $${paramIdx}`;
-      params.push(filter.requester);
-      paramIdx++;
-    }
-    if (filter?.riskLevel) {
-      query += ` AND risk_level = $${paramIdx}`;
-      params.push(filter.riskLevel);
-      paramIdx++;
-    }
-
-    query += ' ORDER BY created_at DESC';
-    if (filter?.limit) {
-      query += ` LIMIT $${paramIdx}`;
-      params.push(filter.limit);
-      paramIdx++;
-    }
-    if (filter?.offset) {
-      query += ` OFFSET $${paramIdx}`;
-      params.push(filter.offset);
-    }
-
-    const rows = (await this.pool!.query(query, params)).rows;
-    return rows.map((r: ChangeRequestRow) => this.rowToChangeRequest(r));
-  }
-
-  async addHistoryEntry(entry: ChangeHistoryEntry): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.historyMemory.push(entry);
-      return;
-    }
-    await this.pool!.query(
-      `INSERT INTO config_change_history (
-        id, tenant_id, change_request_id, config_key, config_group,
-        environment, action, actor, old_value, new_value, notes, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [
-        entry.id,
-        entry.tenantId || getCurrentTenantId(),
-        entry.changeRequestId || null,
-        entry.configKey,
-        entry.configGroup || null,
-        entry.environment,
-        entry.action,
-        entry.actor,
-        entry.oldValue ? JSON.stringify(entry.oldValue) : null,
-        entry.newValue ? JSON.stringify(entry.newValue) : null,
-        entry.notes || null,
-        entry.createdAt,
-      ]
-    );
-  }
-
-  async getHistory(tenantId: string, filter?: ChangeHistoryFilter): Promise<ChangeHistoryEntry[]> {
-    if (!this.isDbAvailable()) {
-      let results = this.historyMemory.filter((h) => h.tenantId === tenantId || h.tenantId === 'default');
-      if (filter?.configKey) results = results.filter((h) => h.configKey === filter.configKey);
-      if (filter?.configGroup) results = results.filter((h) => h.configGroup === filter.configGroup);
-      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const offset = filter?.offset || 0;
-      const limit = filter?.limit || 100;
-      return results.slice(offset, offset + limit);
-    }
-
-    let query = 'SELECT * FROM config_change_history WHERE tenant_id = $1';
-    const params: unknown[] = [tenantId];
-    let paramIdx = 2;
-
-    if (filter?.configKey) {
-      query += ` AND config_key = $${paramIdx}`;
-      params.push(filter.configKey);
-      paramIdx++;
-    }
-    if (filter?.configGroup) {
-      query += ` AND config_group = $${paramIdx}`;
-      params.push(filter.configGroup);
-      paramIdx++;
-    }
-
-    query += ' ORDER BY created_at DESC';
-    if (filter?.limit) {
-      query += ` LIMIT $${paramIdx}`;
-      params.push(filter.limit);
-      paramIdx++;
-    }
-    if (filter?.offset) {
-      query += ` OFFSET $${paramIdx}`;
-      params.push(filter.offset);
-    }
-
-    const rows = (await this.pool!.query(query, params)).rows;
-    return rows.map((r: ChangeHistoryRow) => ({
-      id: r.id,
-      changeRequestId: r.change_request_id || '',
-      configKey: r.config_key,
-      configGroup: r.config_group || undefined,
-      environment: r.environment,
-      action: r.action,
-      actor: r.actor,
-      oldValue: r.old_value || null,
-      newValue: r.new_value || null,
-      notes: r.notes || undefined,
-      createdAt: r.created_at,
-    }));
-  }
-
-  private rowToChangeRequest(row: ChangeRequestRow): ChangeRequest {
-    return {
-      id: row.id,
-      tenantId: row.tenant_id,
-      configKey: row.config_key,
-      configGroup: row.config_group || undefined,
-      environment: row.environment,
-      changeType: row.change_type as ChangeRequestType,
-      oldValue: row.old_value,
-      newValue: row.new_value,
-      reason: row.reason,
-      riskLevel: row.risk_level as RiskLevel,
-      requester: row.requester,
-      status: row.status as ChangeRequestStatus,
-      executionPlan: row.execution_plan || undefined,
-      rollbackPlan: row.rollback_plan || undefined,
-      approvals: ((row.approvals || []) as unknown) as ApprovalRecord[],
-      requiredApprovals: row.required_approvals,
-      executedAt: row.executed_at || undefined,
-      executedBy: row.executed_by || undefined,
-      approvedAt: row.approved_at || undefined,
-      approvedBy: row.approved_by || undefined,
-      rolledBackAt: row.rolled_back_at || undefined,
-      rolledBackBy: row.rolled_back_by || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
-  }
-}
-
-// ============================================================
 // Service
 // ============================================================
 
 export class ConfigChangeService {
-  private repository: ConfigChangeRepository;
+  private repository: ConfigChangeRequestRepository | null;
+  private historyRepository: ConfigChangeHistoryRepository | null;
+  private memory = new Map<string, ChangeRequest>();
+  private historyMemory: ChangeHistoryEntry[] = [];
+
   private configService?: ConfigService;
   private approvalService?: ConfigApprovalService;
 
@@ -428,10 +137,24 @@ export class ConfigChangeService {
     configService?: ConfigService;
     approvalService?: ConfigApprovalService;
   } = {}) {
-    this.repository = new ConfigChangeRepository(options.database);
+    if (options.database) {
+      this.repository = new ConfigChangeRequestRepository(options.database);
+      this.historyRepository = new ConfigChangeHistoryRepository(options.database);
+    } else {
+      this.repository = null;
+      this.historyRepository = null;
+    }
     this.configService = options.configService;
     this.approvalService = options.approvalService;
   }
+
+  private isDbAvailable(): boolean {
+    return this.repository !== null;
+  }
+
+  // ============================================================
+  // Public API
+  // ============================================================
 
   /**
    * 提交配置变更请求
@@ -465,9 +188,17 @@ export class ConfigChangeService {
       updatedAt: now,
     };
 
-    await this.repository.save(changeRequest);
-    await this.repository.addHistoryEntry({
+    // Persist via repo or memory
+    if (this.repository) {
+      await this.persistToDB(changeRequest);
+    } else {
+      this.memory.set(id, changeRequest);
+    }
+
+    // Persist history
+    await this.recordHistory({
       id: uuidv4(),
+      tenantId,
       changeRequestId: id,
       configKey: input.configKey,
       configGroup: input.configGroup,
@@ -492,7 +223,7 @@ export class ConfigChangeService {
     action: 'approve' | 'reject',
     comment?: string
   ): Promise<ChangeRequest> {
-    const changeRequest = await this.repository.findById(requestId);
+    const changeRequest = await this.getChangeRequest(requestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -534,9 +265,15 @@ export class ConfigChangeService {
       changeRequest.status = 'rejected';
     }
 
-    await this.repository.save(changeRequest);
-    await this.repository.addHistoryEntry({
+    if (this.repository) {
+      await this.persistToDB(changeRequest);
+    } else {
+      this.memory.set(requestId, changeRequest);
+    }
+
+    await this.recordHistory({
       id: uuidv4(),
+      tenantId: changeRequest.tenantId,
       changeRequestId: requestId,
       configKey: changeRequest.configKey,
       environment: changeRequest.environment,
@@ -558,7 +295,7 @@ export class ConfigChangeService {
     requestId: string,
     executorId?: string
   ): Promise<ChangeRequest> {
-    const changeRequest = await this.repository.findById(requestId);
+    const changeRequest = await this.getChangeRequest(requestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${requestId}' not found`, 'NOT_FOUND')
     }
@@ -569,7 +306,11 @@ export class ConfigChangeService {
 
     changeRequest.status = 'executing';
     changeRequest.updatedAt = new Date();
-    await this.repository.save(changeRequest);
+    if (this.repository) {
+      await this.persistToDB(changeRequest);
+    } else {
+      this.memory.set(requestId, changeRequest);
+    }
 
     try {
       // Execute the actual config change
@@ -584,16 +325,25 @@ export class ConfigChangeService {
       changeRequest.executedAt = new Date();
       changeRequest.executedBy = executorId || 'system';
       changeRequest.updatedAt = new Date();
-      await this.repository.save(changeRequest);
+      if (this.repository) {
+        await this.persistToDB(changeRequest);
+      } else {
+        this.memory.set(requestId, changeRequest);
+      }
     } catch (error) {
       changeRequest.status = 'failed';
       changeRequest.updatedAt = new Date();
-      await this.repository.save(changeRequest);
+      if (this.repository) {
+        await this.persistToDB(changeRequest);
+      } else {
+        this.memory.set(requestId, changeRequest);
+      }
       throw error;
     }
 
-    await this.repository.addHistoryEntry({
+    await this.recordHistory({
       id: uuidv4(),
+      tenantId: changeRequest.tenantId,
       changeRequestId: requestId,
       configKey: changeRequest.configKey,
       environment: changeRequest.environment,
@@ -615,7 +365,7 @@ export class ConfigChangeService {
     requestId: string,
     rolledBackBy?: string
   ): Promise<ChangeRequest> {
-    const changeRequest = await this.repository.findById(requestId);
+    const changeRequest = await this.getChangeRequest(requestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -628,7 +378,12 @@ export class ConfigChangeService {
     changeRequest.rolledBackAt = new Date();
     changeRequest.rolledBackBy = rolledBackBy || 'system';
     changeRequest.updatedAt = new Date();
-    await this.repository.save(changeRequest);
+
+    if (this.repository) {
+      await this.persistToDB(changeRequest);
+    } else {
+      this.memory.set(requestId, changeRequest);
+    }
 
     // Apply rollback if config service available
     if (this.configService && changeRequest.oldValue) {
@@ -640,8 +395,9 @@ export class ConfigChangeService {
       }
     }
 
-    await this.repository.addHistoryEntry({
+    await this.recordHistory({
       id: uuidv4(),
+      tenantId: changeRequest.tenantId,
       changeRequestId: requestId,
       configKey: changeRequest.configKey,
       environment: changeRequest.environment,
@@ -666,8 +422,8 @@ export class ConfigChangeService {
     changeRequests: ChangeRequest[];
     history: ChangeHistoryEntry[];
   }> {
-    const changeRequests = await this.repository.findByTenant(tenantId, filter);
-    const history = await this.repository.getHistory(tenantId, filter);
+    const changeRequests = await this.listChangeRequests(tenantId, filter);
+    const history = await this.getChangeHistoryEntries(tenantId, filter);
 
     return { changeRequests, history };
   }
@@ -676,7 +432,7 @@ export class ConfigChangeService {
    * 获取变更请求详情
    */
   async getChangeRequestById(id: string): Promise<ChangeRequest | null> {
-    return this.repository.findById(id);
+    return this.getChangeRequest(id);
   }
 
   /**
@@ -686,12 +442,192 @@ export class ConfigChangeService {
     tenantId: string,
     filter?: ChangeHistoryFilter
   ): Promise<ChangeRequest[]> {
-    return this.repository.findByTenant(tenantId, filter);
+    if (!this.isDbAvailable()) {
+      let results = Array.from(this.memory.values()).filter((r) => r.tenantId === tenantId);
+      if (filter?.status) results = results.filter((r) => r.status === filter.status);
+      if (filter?.configKey) results = results.filter((r) => r.configKey === filter.configKey);
+      if (filter?.configGroup) results = results.filter((r) => r.configGroup === filter.configGroup);
+      if (filter?.environment) results = results.filter((r) => r.environment === filter.environment);
+      if (filter?.requester) results = results.filter((r) => r.requester === filter.requester);
+      if (filter?.riskLevel) results = results.filter((r) => r.riskLevel === filter.riskLevel);
+      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const offset = filter?.offset || 0;
+      const limit = filter?.limit || 100;
+      return results.slice(offset, offset + limit).map(r => ({ ...r }));
+    }
+
+    const entities = await this.repository!.findByTenant(tenantId, filter);
+    return entities.map(e => this.entityToChangeRequest(e));
   }
 
   // ============================================================
   // Internal Methods
   // ============================================================
+
+  private async getChangeRequest(id: string): Promise<ChangeRequest | null> {
+    if (!this.isDbAvailable()) {
+      const entity = this.memory.get(id);
+      return entity ? { ...entity } : null;
+    }
+
+    const entity = await this.repository!.findById(id);
+    if (!entity) return null;
+    return this.entityToChangeRequest(entity);
+  }
+
+  private async getChangeHistoryEntries(
+    tenantId: string,
+    filter?: ChangeHistoryFilter
+  ): Promise<ChangeHistoryEntry[]> {
+    if (!this.isDbAvailable()) {
+      let results = this.historyMemory.filter((h) => h.tenantId === tenantId || h.tenantId === 'default');
+      if (filter?.configKey) results = results.filter((h) => h.configKey === filter.configKey);
+      if (filter?.configGroup) results = results.filter((h) => h.configGroup === filter.configGroup);
+      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const offset = filter?.offset || 0;
+      const limit = filter?.limit || 100;
+      return results.slice(offset, offset + limit).map(h => ({ ...h }));
+    }
+
+    const entities = await this.historyRepository!.findByTenant(tenantId, {
+      configKey: filter?.configKey,
+      configGroup: filter?.configGroup,
+      limit: filter?.limit,
+      offset: filter?.offset,
+    });
+    return entities.map(e => this.historyEntityToEntry(e));
+  }
+
+  private async persistToDB(changeRequest: ChangeRequest): Promise<void> {
+    if (!this.isDbAvailable()) {
+      this.memory.set(changeRequest.id, changeRequest);
+      return;
+    }
+
+    // Use upsert with explicit INSERT ... ON CONFLICT
+    await this.repository!.getDb().query(
+      `INSERT INTO config_change_requests (
+        id, tenant_id, config_key, config_group, environment, change_type,
+        old_value, new_value, reason, risk_level, requester, status,
+        execution_plan, rollback_plan, approvals, required_approvals,
+        executed_at, executed_by, approved_at, approved_by,
+        rolled_back_at, rolled_back_by, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+        $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        status = EXCLUDED.status,
+        approvals = EXCLUDED.approvals,
+        executed_at = EXCLUDED.executed_at,
+        executed_by = EXCLUDED.executed_by,
+        approved_at = EXCLUDED.approved_at,
+        approved_by = EXCLUDED.approved_by,
+        rolled_back_at = EXCLUDED.rolled_back_at,
+        rolled_back_by = EXCLUDED.rolled_back_by,
+        updated_at = EXCLUDED.updated_at`,
+      [
+        changeRequest.id,
+        changeRequest.tenantId,
+        changeRequest.configKey,
+        changeRequest.configGroup || null,
+        changeRequest.environment,
+        changeRequest.changeType,
+        changeRequest.oldValue ? JSON.stringify(changeRequest.oldValue) : null,
+        changeRequest.newValue ? JSON.stringify(changeRequest.newValue) : null,
+        changeRequest.reason,
+        changeRequest.riskLevel,
+        changeRequest.requester,
+        changeRequest.status,
+        changeRequest.executionPlan ? JSON.stringify(changeRequest.executionPlan) : null,
+        changeRequest.rollbackPlan ? JSON.stringify(changeRequest.rollbackPlan) : null,
+        JSON.stringify(changeRequest.approvals),
+        changeRequest.requiredApprovals,
+        changeRequest.executedAt || null,
+        changeRequest.executedBy || null,
+        changeRequest.approvedAt || null,
+        changeRequest.approvedBy || null,
+        changeRequest.rolledBackAt || null,
+        changeRequest.rolledBackBy || null,
+        changeRequest.createdAt,
+        changeRequest.updatedAt,
+      ]
+    );
+  }
+
+  private async recordHistory(entry: ChangeHistoryEntry): Promise<void> {
+    if (!this.isDbAvailable()) {
+      this.historyMemory.push(entry);
+      return;
+    }
+
+    await this.historyRepository!.getDb().query(
+      `INSERT INTO config_change_history (
+        id, tenant_id, change_request_id, config_key, config_group,
+        environment, action, actor, old_value, new_value, notes, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        entry.id,
+        entry.tenantId || getCurrentTenantId() || '00000000-0000-0000-0000-000000000000',
+        entry.changeRequestId || null,
+        entry.configKey,
+        entry.configGroup || null,
+        entry.environment,
+        entry.action,
+        entry.actor,
+        entry.oldValue ? JSON.stringify(entry.oldValue) : null,
+        entry.newValue ? JSON.stringify(entry.newValue) : null,
+        entry.notes || null,
+        entry.createdAt,
+      ]
+    );
+  }
+
+  private entityToChangeRequest(entity: ChangeRequestEntity): ChangeRequest {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      configKey: entity.configKey,
+      configGroup: entity.configGroup,
+      environment: entity.environment,
+      changeType: entity.changeType as ChangeRequestType,
+      oldValue: entity.oldValue,
+      newValue: entity.newValue,
+      reason: entity.reason,
+      riskLevel: entity.riskLevel as RiskLevel,
+      requester: entity.requester,
+      status: entity.status as ChangeRequestStatus,
+      executionPlan: entity.executionPlan,
+      rollbackPlan: entity.rollbackPlan,
+      approvals: ((entity.approvals || []) as unknown) as ApprovalRecord[],
+      requiredApprovals: entity.requiredApprovals,
+      executedAt: entity.executedAt,
+      executedBy: entity.executedBy,
+      approvedAt: entity.approvedAt,
+      approvedBy: entity.approvedBy,
+      rolledBackAt: entity.rolledBackAt,
+      rolledBackBy: entity.rolledBackBy,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
+  }
+
+  private historyEntityToEntry(entity: ChangeHistoryEntity): ChangeHistoryEntry {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      changeRequestId: entity.changeRequestId,
+      configKey: entity.configKey,
+      configGroup: entity.configGroup,
+      environment: entity.environment,
+      action: entity.action,
+      actor: entity.actor,
+      oldValue: entity.oldValue,
+      newValue: entity.newValue,
+      notes: entity.notes,
+      createdAt: entity.createdAt,
+    };
+  }
 
   private calculateRequiredApprovals(riskLevel: RiskLevel): number {
     switch (riskLevel) {

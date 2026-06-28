@@ -1,4 +1,4 @@
-import { DatabasePool } from '../services/database';
+import { BaseRepository } from '../db/base-repository';
 
 /**
  * PermissionRepository - Database layer for Permission operations
@@ -15,45 +15,40 @@ export interface Permission {
   created_at: Date;
 }
 
-export class PermissionRepository {
-  constructor(private pool: DatabasePool) {}
+export class PermissionRepository extends BaseRepository<Permission> {
+  constructor(db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    super(db, 'permissions');
+  }
 
-  /** Find a permission by ID */
-  async findById(id: string): Promise<Permission | null> {
-    return (await this.pool.query('SELECT * FROM permissions WHERE id = $1', [id])).rows[0] || null;
+  protected mapRowToEntity(row: any): Permission {
+    return {
+      id: row.id,
+      resource: row.resource,
+      action: row.action,
+      description: row.description,
+      created_at: row.created_at,
+    };
   }
 
   /** Find a permission by resource and action */
-  async findByResourceAction(resource: string, action: string): Promise<Permission | null> {
-    return (await this.pool.query(
+  async findByResourceAction(resource: string, action: string): Promise<Permission | undefined> {
+    const result = await this.db.query(
       'SELECT * FROM permissions WHERE resource = $1 AND action = $2',
-      [resource, action]
-    )).rows[0] || null;
-  }
-
-  /** List all permissions */
-  async findAll(): Promise<Permission[]> {
-    return (await this.pool.query('SELECT * FROM permissions ORDER BY resource, action')).rows;
+      [resource, action],
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRowToEntity(result.rows[0]);
   }
 
   /** List permissions grouped by resource */
   async findAllGrouped(): Promise<Record<string, Permission[]>> {
-    const all = await this.findAll();
+    const { entities } = await this.findAll({ limit: 10000, orderBy: 'resource' });
     const grouped: Record<string, Permission[]> = {};
-    for (const perm of all) {
+    for (const perm of entities) {
       if (!grouped[perm.resource]) grouped[perm.resource] = [];
       grouped[perm.resource].push(perm);
     }
     return grouped;
-  }
-
-  /** Create a new permission */
-  async create(resource: string, action: string, description?: string): Promise<Permission> {
-    const result = await this.pool.query(
-      'INSERT INTO permissions (resource, action, description) VALUES ($1, $2, $3) RETURNING *',
-      [resource, action, description || null]
-    );
-    return result.rows[0];
   }
 
   /** Create multiple permissions in batch */
@@ -70,25 +65,19 @@ export class PermissionRepository {
       params.push(p.resource, p.action, p.description ?? null);
     }
 
-    const result = await this.pool.query(
+    const result = await this.db.query(
       `INSERT INTO permissions (resource, action, description) VALUES ${values} ON CONFLICT (resource, action) DO NOTHING RETURNING *`,
-      params
+      params,
     );
-    return result.rows;
-  }
-
-  /** Delete a permission */
-  async delete(id: string): Promise<boolean> {
-    const result = await this.pool.query('DELETE FROM permissions WHERE id = $1', [id]);
-    return result.rowCount != null && result.rowCount > 0;
+    return result.rows.map((row: any) => this.mapRowToEntity(row));
   }
 
   /** Delete by resource and action */
   async deleteByResourceAction(resource: string, action: string): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       'DELETE FROM permissions WHERE resource = $1 AND action = $2',
-      [resource, action]
+      [resource, action],
     );
-    return result.rowCount != null && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 }

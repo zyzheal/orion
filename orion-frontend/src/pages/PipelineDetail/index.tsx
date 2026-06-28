@@ -70,67 +70,11 @@ interface TaskOutput {
   propagatedTo: string[];
 }
 
-/**
- * Mock task outputs data.
- * TODO: Replace with real API integration once backend exposes
- * /v1/pipeline-runs/:runId/outputs or similar endpoint.
- */
-const mockTaskOutputs: TaskOutput[] = [
-  {
-    key: '1',
-    stageName: 'Build',
-    taskName: 'npm-build',
-    variableName: 'BUILD_OUTPUT_DIR',
-    variableValue: 'dist/',
-    propagatedTo: ['Test', 'Package'],
-  },
-  {
-    key: '2',
-    stageName: 'Build',
-    taskName: 'npm-build',
-    variableName: 'BUILD_VERSION',
-    variableValue: '1.2.3-abc1234',
-    propagatedTo: ['Test', 'Deploy'],
-  },
-  {
-    key: '3',
-    stageName: 'Test',
-    taskName: 'unit-test',
-    variableName: 'COVERAGE_PERCENT',
-    variableValue: '87.5',
-    propagatedTo: ['Quality Gate'],
-  },
-  {
-    key: '4',
-    stageName: 'Test',
-    taskName: 'integration-test',
-    variableName: 'TEST_REPORT_URL',
-    variableValue: 'https://reports.example.com/run-42',
-    propagatedTo: [],
-  },
-  {
-    key: '5',
-    stageName: 'Package',
-    taskName: 'docker-build',
-    variableName: 'IMAGE_TAG',
-    variableValue: 'registry.example.com/app:1.2.3-abc1234',
-    propagatedTo: ['Deploy'],
-  },
-  {
-    key: '6',
-    stageName: 'Deploy',
-    taskName: 'k8s-deploy',
-    variableName: 'DEPLOYED_NAMESPACE',
-    variableValue: 'production',
-    propagatedTo: [],
-  },
-];
+// TaskOutputs: backend API not yet available (requires /v1/pipeline-runs/:runId/outputs)
 
 /**
  * TaskOutputsTable — renders a table of task output variables
- * with propagation information.
- *
- * Currently uses mock data; ready for API integration.
+ * with propagation information. Shows empty state until backend API is available.
  */
 const TaskOutputsTable: React.FC = () => {
   const columns: ColumnsType<TaskOutput> = [
@@ -204,7 +148,7 @@ const TaskOutputsTable: React.FC = () => {
   return (
     <Table<TaskOutput>
       columns={columns}
-      dataSource={mockTaskOutputs}
+      dataSource={[]}
       size="middle"
       pagination={false}
       bordered
@@ -1023,7 +967,7 @@ const PipelineDetail: React.FC = () => {
           {/* Task outputs / variable propagation table */}
           <Card style={{ marginBottom: spacing.lg }} title="任务输出与变量传播">
             <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
-              以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
+              以下列出各阶段任务产生的输出变量及其传播目标。
             </Text>
             <TaskOutputsTable />
           </Card>

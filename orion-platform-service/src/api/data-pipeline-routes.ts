@@ -11,10 +11,14 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DataPipelineController } from './controllers/DataPipelineController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
-const controller = new DataPipelineController();
+export default async function dataPipelineRoutes(
+  app: FastifyInstance,
+  options: { database?: DatabasePool } = {},
+): Promise<void> {
+  const controller = new DataPipelineController(options.database);
 
-export default async function dataPipelineRoutes(app: FastifyInstance): Promise<void> {
   // POST /v1/data-pipelines - Create pipeline
   app.post('/', { onRequest: [authenticateUser, requirePermission({ resource: 'data_pipeline', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createPipeline(request, reply);

@@ -85,6 +85,33 @@ export class DispatchQueueManager {
     }
   }
 
+  /**
+   * Load cached data from PostgreSQL on startup
+   */
+  async loadFromDb(): Promise<void> {
+    if (this.queueEntryRepository) {
+      const entries = await this.queueEntryRepository.findAllSorted();
+      this.queue.clear();
+      for (const entry of entries) {
+        this.queue.set(entry.ticketId, entry as any);
+      }
+    }
+    if (this.slaTargetRepository) {
+      const targets = await this.slaTargetRepository.findEnabled();
+      this.slaTargets.clear();
+      for (const t of targets) {
+        this.slaTargets.set(t.priority, t as any);
+      }
+    }
+    if (this.slaAlertRepository) {
+      const { entities } = await this.slaAlertRepository.findAll();
+      this.alerts.clear();
+      for (const alert of entities) {
+        this.alerts.set(alert.id, alert as any);
+      }
+    }
+  }
+
   // ==================== Queue Operations ====================
 
   /**

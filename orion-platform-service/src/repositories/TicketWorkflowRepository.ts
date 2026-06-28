@@ -106,9 +106,24 @@ export class TicketSLARepository extends BaseRepository<TicketSLAEntity> {
     );
   }
 
+  async findAllSLA(): Promise<TicketSLAEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ticket_sla ORDER BY created_at DESC`,
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   async findBreached(): Promise<TicketSLAEntity[]> {
     const result = await this.db.query(
       `SELECT * FROM ticket_sla WHERE response_breached = true OR resolution_breached = true ORDER BY created_at DESC`,
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findByPeriod(start: Date, end: Date): Promise<TicketSLAEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ticket_sla WHERE created_at >= $1 AND created_at <= $2 ORDER BY created_at DESC`,
+      [start, end],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }

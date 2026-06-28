@@ -2,7 +2,7 @@
  * Executor Management Page
  * Phase 3 - Executor registration, heartbeat monitoring, and health dashboard
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -30,6 +30,7 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import { federationApi, type FederationCluster, type ClusterHealth } from '@/api/federation';
 
 const { Title, Text } = Typography;
 
@@ -74,27 +75,38 @@ interface ExecutorDashboard {
   health: ExecutorHealth[];
 }
 
-const mockExecutors: ExecutorInfo[] = [
-  { id: 'exec-1', cluster_id: 'c1', name: 'executor-us-east-1a', region: 'us-east', status: 'online', cpu_capacity: 16, memory_capacity_mb: 32768, cpu_used: 8, memory_used_mb: 16384, running_jobs: 3, max_concurrent_jobs: 10, last_heartbeat: new Date().toISOString(), registered_at: '2026-04-01T00:00:00Z', labels: { tier: 'standard' } },
-  { id: 'exec-2', cluster_id: 'c2', name: 'executor-eu-west-1b', region: 'eu-west', status: 'online', cpu_capacity: 32, memory_capacity_mb: 65536, cpu_used: 28, memory_used_mb: 58000, running_jobs: 8, max_concurrent_jobs: 10, last_heartbeat: new Date().toISOString(), registered_at: '2026-04-05T00:00:00Z', labels: { tier: 'high-performance' } },
-  { id: 'exec-3', cluster_id: 'c3', name: 'executor-ap-northeast-1c', region: 'ap-northeast', status: 'degraded', cpu_capacity: 16, memory_capacity_mb: 32768, cpu_used: 15, memory_used_mb: 31000, running_jobs: 10, max_concurrent_jobs: 10, last_heartbeat: new Date(Date.now() - 300000).toISOString(), registered_at: '2026-04-10T00:00:00Z', labels: { tier: 'standard' } },
-];
+const mapClusterToExecutor = (c: FederationCluster): ExecutorInfo => ({
+  id: c.id,
+  cluster_id: c.id,
+  name: c.name,
+  region: c.region,
+  status: c.status === 'active' ? 'online' : c.status === 'inactive' ? 'offline' : 'degraded',
+  cpu_capacity: 0,
+  memory_capacity_mb: 0,
+  cpu_used: 0,
+  memory_used_mb: 0,
+  running_jobs: 0,
+  max_concurrent_jobs: 0,
+  last_heartbeat: c.registeredAt,
+  registered_at: c.registeredAt,
+  labels: {},
+});
 
-const mockHealth: ExecutorHealth[] = mockExecutors.map(e => ({
-  executor_id: e.id,
-  status: e.status === 'online' && e.cpu_used / e.cpu_capacity < 0.9 ? 'healthy' : 'degraded',
-  cpu_usage_pct: Math.round((e.cpu_used / e.cpu_capacity) * 1000) / 10,
-  memory_usage_pct: Math.round((e.memory_used_mb / e.memory_capacity_mb) * 1000) / 10,
-  running_jobs: e.running_jobs,
-  queue_depth: e.running_jobs >= e.max_concurrent_jobs ? 3 : 0,
-  last_heartbeat: e.last_heartbeat!,
-  response_time_ms: Math.floor(Math.random() * 50) + 5,
-  errors_last_hour: Math.floor(Math.random() * 3),
-}));
+const mapHealthToExecutor = (h: ClusterHealth): ExecutorHealth => ({
+  executor_id: h.clusterId,
+  status: h.status,
+  cpu_usage_pct: h.cpuUsage,
+  memory_usage_pct: h.memoryUsage,
+  running_jobs: h.podCount,
+  queue_depth: 0,
+  last_heartbeat: h.lastChecked,
+  response_time_ms: 0,
+  errors_last_hour: 0,
+});
 
 const ExecutorManagementPage: React.FC = () => {
-  const [executors, setExecutors] = useState<ExecutorInfo[]>(mockExecutors);
-  const [health, setHealth] = useState<ExecutorHealth[]>(mockHealth);
+  const [executors, setExecutors] = useState<ExecutorInfo[]>([]);
+  const [health, setHealth] = useState<ExecutorHealth[]>([]);
   const [dashboard, setDashboard] = useState<ExecutorDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -102,76 +114,72 @@ const ExecutorManagementPage: React.FC = () => {
   const [healthModalOpen, setHealthModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Placeholder: would call API in production
-      await new Promise((r) => setTimeout(r, 500));
-      const totalRunningJobs = executors.reduce((s, e) => s + e.running_jobs, 0);
-      const avgCpu = health.length > 0 ? Math.round((health.reduce((s, h) => s + h.cpu_usage_pct, 0) / health.length) * 10) / 10 : 0;
-      const avgMem = health.length > 0 ? Math.round((health.reduce((s, h) => s + h.memory_usage_pct, 0) / health.length) * 10) / 10 : 0;
+      const clusters = await federationApi.listClusters();
+      const mapped = clusters.map(mapClusterToExecutor);
+      setExecutors(mapped);
+
+      const healthResults: ExecutorHealth[] = [];
+      for (const cluster of clusters) {
+        try {
+          const h = await federationApi.getClusterHealth(cluster.id);
+          healthResults.push(mapHealthToExecutor(h));
+        } catch { /* skip */ }
+      }
+      setHealth(healthResults);
+
+      const totalRunningJobs = mapped.reduce((s, e) => s + e.running_jobs, 0);
+      const avgCpu = healthResults.length > 0 ? Math.round((healthResults.reduce((s, h) => s + h.cpu_usage_pct, 0) / healthResults.length) * 10) / 10 : 0;
+      const avgMem = healthResults.length > 0 ? Math.round((healthResults.reduce((s, h) => s + h.memory_usage_pct, 0) / healthResults.length) * 10) / 10 : 0;
       setDashboard({
-        total_executors: executors.length,
-        online_executors: executors.filter(e => e.status === 'online').length,
-        offline_executors: executors.filter(e => e.status === 'offline').length,
-        degraded_executors: executors.filter(e => e.status === 'degraded').length,
+        total_executors: mapped.length,
+        online_executors: mapped.filter(e => e.status === 'online').length,
+        offline_executors: mapped.filter(e => e.status === 'offline').length,
+        degraded_executors: mapped.filter(e => e.status === 'degraded').length,
         total_running_jobs: totalRunningJobs,
         avg_cpu_usage: avgCpu,
         avg_memory_usage: avgMem,
-        executors,
-        health,
+        executors: mapped,
+        health: healthResults,
       });
     } catch {
-      message.error('Failed to load executor data');
+      message.error('加载集群数据失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleCreateExecutor = async (values: any) => {
-    const newExecutor: ExecutorInfo = {
-      id: `exec-${Date.now()}`,
-      cluster_id: values.cluster_id,
-      name: values.name,
-      region: values.region,
-      status: 'online',
-      cpu_capacity: parseInt(values.cpu_capacity) || 16,
-      memory_capacity_mb: (parseInt(values.memory_capacity_mb) || 32) * 1024,
-      cpu_used: 0,
-      memory_used_mb: 0,
-      running_jobs: 0,
-      max_concurrent_jobs: parseInt(values.max_concurrent_jobs) || 10,
-      last_heartbeat: new Date().toISOString(),
-      registered_at: new Date().toISOString(),
-      labels: {},
-    };
-    setExecutors([...executors, newExecutor]);
-    setHealth([...health, {
-      executor_id: newExecutor.id,
-      status: 'healthy',
-      cpu_usage_pct: 0,
-      memory_usage_pct: 0,
-      running_jobs: 0,
-      queue_depth: 0,
-      last_heartbeat: new Date().toISOString(),
-      response_time_ms: 5,
-      errors_last_hour: 0,
-    }]);
-    message.success('Executor registered');
-    setCreateModalOpen(false);
-    form.resetFields();
-    loadData();
+    try {
+      await federationApi.registerCluster({
+        name: values.name,
+        provider: values.cluster_id,
+        region: values.region,
+        endpoint: '',
+      });
+      message.success('集群注册成功');
+      setCreateModalOpen(false);
+      form.resetFields();
+      loadData();
+    } catch {
+      message.error('集群注册失败');
+    }
   };
 
-  const handleDeregister = (id: string) => {
-    setExecutors(executors.filter(e => e.id !== id));
-    setHealth(health.filter(h => h.executor_id !== id));
-    message.success('Executor deregistered');
-    loadData();
+  const handleDeregister = async (id: string) => {
+    try {
+      // Federation API doesn't have a delete endpoint, remove from local state
+      setExecutors(executors.filter(e => e.id !== id));
+      setHealth(health.filter(h => h.executor_id !== id));
+      message.success('执行器已移除');
+      loadData();
+    } catch {
+      message.error('移除失败');
+    }
   };
 
   const showHealthDetail = (executor: ExecutorInfo) => {

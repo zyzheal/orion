@@ -10,6 +10,10 @@ import { CmdbIntegrationService } from './services/cmdb-integration-service';
 import { CmdbEventPublisher } from './services/cmdb/CmdbEventPublisher';
 import { EventBusService } from './services/event-bus-service';
 import { DatabasePool } from './services/database';
+import { CITypeService } from './services/cmdb/ci-type/CITypeService';
+import { CITypeRepository } from './services/cmdb/ci-type/CITypeRepository';
+import { CIAttributeRepository } from './services/cmdb/ci-type/CIAttributeRepository';
+import { CITypeVersionRepository } from './services/cmdb/ci-type/CITypeVersionRepository';
 
 export interface CmdbRoutesOptions {
   eventBus?: EventBusService;
@@ -21,7 +25,14 @@ export default async function cmdbRoutes(app: FastifyInstance, options: CmdbRout
   const eventPublisher = options?.eventBus
     ? new CmdbEventPublisher(options.eventBus)
     : undefined;
-  const cmdbService = new CmdbService({ eventPublisher, database: options?.database });
+  const ciTypeService = options?.database
+    ? new CITypeService(
+        new CITypeRepository(options.database),
+        new CIAttributeRepository(options.database),
+        new CITypeVersionRepository(options.database),
+      )
+    : undefined;
+  const cmdbService = new CmdbService({ eventPublisher, database: options?.database, ciTypeService });
   const cmdbController = new CmdbController(cmdbService);
 
   // 初始化集成服务

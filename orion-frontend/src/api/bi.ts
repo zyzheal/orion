@@ -38,7 +38,7 @@ export function getEngineerDashboard(engineerId: string, params?: { days?: numbe
  * Fetch efficiency score for an engineer
  */
 export function getEfficiencyScore(engineerId: string, params?: { start?: string; end?: string }) {
-  return api.get(`/v1/efficiency/score`, { params: { ...params, engineerId } });
+  return api.get(`/efficiency/score`, { params: { ...params, engineerId } });
 }
 
 /**
@@ -50,5 +50,5 @@ export function exportBIData(data: {
   start: string;
   end: string;
 }) {
-  return api.post('/v1/efficiency/export', data);
+  return api.post('/efficiency/export', data);
 }

@@ -9,15 +9,16 @@ import { BaseController } from './BaseController';
 import { CommunityService, ContributionInput, ContributionFilters } from '../../services/community/CommunityService';
 import { CommunityPluginService, PluginInput, PluginFilters } from '../../services/community/CommunityPluginService';
 import { OrionError, ErrorCode } from '../../errors';
+import { DatabasePool } from '../../services/database';
 
 export class CommunityController extends BaseController {
   private communityService: CommunityService;
   private pluginService: CommunityPluginService;
 
-  constructor() {
+  constructor(db?: DatabasePool) {
     super();
-    this.communityService = new CommunityService();
-    this.pluginService = new CommunityPluginService();
+    this.communityService = new CommunityService(db);
+    this.pluginService = new CommunityPluginService(db);
   }
 
   async createContribution(request: FastifyRequest, reply: FastifyReply): Promise<void> {

@@ -2,7 +2,7 @@
  * 控制台页面 - 管理员专用
  * 功能：插件管理、系统配置、用户管理
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -42,239 +42,79 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { getInstalledPlugins, activatePlugin, deactivatePlugin, type Plugin as ApiPlugin } from '@/api/plugins';
+import { listUsers, createUser, type User as ApiUser } from '@/api/users';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 
-// ==================== 模拟数据 ====================
-
-// 插件数据
-interface Plugin {
-  key: string;
-  name: string;
-  version: string;
-  description: string;
-  author: string;
-  status: 'active' | 'inactive' | 'error';
-  category: string;
-  updatedAt: string;
-}
-
-const plugins: Plugin[] = [
-  {
-    key: '1',
-    name: 'Pipeline 引擎',
-    version: 'v2.3.1',
-    description: 'CI/CD Pipeline 执行引擎，支持多阶段任务编排',
-    author: 'Orion Team',
-    status: 'active',
-    category: '核心',
-    updatedAt: '2026-04-10',
-  },
-  {
-    key: '2',
-    name: '数据库连接器',
-    version: 'v1.8.0',
-    description: '支持 MySQL/PostgreSQL/MongoDB 等多种数据库',
-    author: 'Orion Team',
-    status: 'active',
-    category: '数据',
-    updatedAt: '2026-04-08',
-  },
-  {
-    key: '3',
-    name: '监控告警',
-    version: 'v3.1.2',
-    description: '系统监控、指标采集、告警通知',
-    author: 'Orion Team',
-    status: 'active',
-    category: '监控',
-    updatedAt: '2026-04-11',
-  },
-  {
-    key: '4',
-    name: '知识库管理',
-    version: 'v2.0.5',
-    description: '文档管理、知识分享、版本控制',
-    author: 'Orion Team',
-    status: 'inactive',
-    category: '协作',
-    updatedAt: '2026-04-05',
-  },
-  {
-    key: '5',
-    name: '代码质量分析',
-    version: 'v1.2.0',
-    description: '静态代码分析、代码规范检查',
-    author: 'Community',
-    status: 'error',
-    category: '工具',
-    updatedAt: '2026-03-28',
-  },
-];
-
-// 系统配置项
-interface ConfigItem {
-  key: string;
-  name: string;
-  description: string;
-  enabled: boolean;
-  category: string;
-  requiresRestart: boolean;
-}
-
-const configItems: ConfigItem[] = [
-  {
-    key: '1',
-    name: 'JWT 认证',
-    description: '启用 JWT Token 进行用户认证',
-    enabled: true,
-    category: '安全',
-    requiresRestart: false,
-  },
-  {
-    key: '2',
-    name: '操作日志',
-    description: '记录所有用户操作日志',
-    enabled: true,
-    category: '审计',
-    requiresRestart: false,
-  },
-  {
-    key: '3',
-    name: '自动备份',
-    description: '每日自动备份数据库',
-    enabled: true,
-    category: '数据',
-    requiresRestart: false,
-  },
-  {
-    key: '4',
-    name: '邮件通知',
-    description: '启用邮件通知功能',
-    enabled: false,
-    category: '通知',
-    requiresRestart: false,
-  },
-  {
-    key: '5',
-    name: 'Webhook 集成',
-    description: '支持 Webhook 事件推送',
-    enabled: true,
-    category: '集成',
-    requiresRestart: true,
-  },
-  {
-    key: '6',
-    name: 'API 限流',
-    description: '启用 API 请求限流保护',
-    enabled: true,
-    category: '安全',
-    requiresRestart: false,
-  },
-  {
-    key: '7',
-    name: '缓存加速',
-    description: '启用 Redis 缓存加速',
-    enabled: true,
-    category: '性能',
-    requiresRestart: true,
-  },
-  {
-    key: '8',
-    name: '深色模式',
-    description: '允许用户切换深色/浅色主题',
-    enabled: true,
-    category: '界面',
-    requiresRestart: false,
-  },
-];
-
-// 用户数据
-interface User {
-  key: string;
-  username: string;
-  email: string;
-  role: 'admin' | 'user' | 'guest';
-  status: 'active' | 'inactive' | 'locked';
-  lastLogin: string;
-  createdAt: string;
-}
-
-const users: User[] = [
-  {
-    key: '1',
-    username: 'heal',
-    email: 'heal@orion.design',
-    role: 'admin',
-    status: 'active',
-    lastLogin: '2 分钟前',
-    createdAt: '2026-01-15',
-  },
-  {
-    key: '2',
-    username: 'developer1',
-    email: 'dev1@orion.design',
-    role: 'user',
-    status: 'active',
-    lastLogin: '1 小时前',
-    createdAt: '2026-02-20',
-  },
-  {
-    key: '3',
-    username: 'tester1',
-    email: 'test@orion.design',
-    role: 'user',
-    status: 'active',
-    lastLogin: '3 小时前',
-    createdAt: '2026-03-10',
-  },
-  {
-    key: '4',
-    username: 'guest_user',
-    email: 'guest@orion.design',
-    role: 'guest',
-    status: 'inactive',
-    lastLogin: '30 天前',
-    createdAt: '2026-01-01',
-  },
-];
-
 // ==================== 组件 ====================
 
 const Console: React.FC = () => {
-  const [pluginData, setPluginData] = useState<Plugin[]>(plugins);
-  const [configData, setConfigData] = useState<ConfigItem[]>(configItems);
-  const [_userData, _setUserData] = useState<User[]>(users);
+  const [pluginData, setPluginData] = useState<ApiPlugin[]>([]);
+  const [userData, setUserData] = useState<ApiUser[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [pluginRes, userRes] = await Promise.all([
+        getInstalledPlugins().catch(() => ({ data: { data: [] } })),
+        listUsers({ limit: 50 }).catch(() => ({ data: { data: [] } })),
+      ]);
+      setPluginData((pluginRes.data as any)?.data || []);
+      setUserData((userRes as any)?.data?.data || []);
+    } catch {
+      message.error('加载数据失败');
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
   // 统计信息
   const stats = {
-    totalPlugins: plugins.length,
-    activePlugins: plugins.filter((p) => p.status === 'active').length,
-    totalUsers: users.length,
-    onlineUsers: 12,
+    totalPlugins: pluginData.length,
+    activePlugins: pluginData.filter((p) => p.state === 'ACTIVE' || p.status === 'enabled').length,
+    totalUsers: userData.length,
+    onlineUsers: userData.filter((u) => u.status === 'active').length,
   };
 
+  // 系统配置项（保持本地状态，无对应 API）
+  interface ConfigItem {
+    key: string;
+    name: string;
+    description: string;
+    enabled: boolean;
+    category: string;
+    requiresRestart: boolean;
+  }
+
+  const [configData, setConfigData] = useState<ConfigItem[]>([
+    { key: '1', name: 'JWT 认证', description: '启用 JWT Token 进行用户认证', enabled: true, category: '安全', requiresRestart: false },
+    { key: '2', name: '操作日志', description: '记录所有用户操作日志', enabled: true, category: '审计', requiresRestart: false },
+    { key: '3', name: '自动备份', description: '每日自动备份数据库', enabled: true, category: '数据', requiresRestart: false },
+    { key: '4', name: '邮件通知', description: '启用邮件通知功能', enabled: false, category: '通知', requiresRestart: false },
+    { key: '5', name: 'Webhook 集成', description: '支持 Webhook 事件推送', enabled: true, category: '集成', requiresRestart: true },
+    { key: '6', name: 'API 限流', description: '启用 API 请求限流保护', enabled: true, category: '安全', requiresRestart: false },
+    { key: '7', name: '缓存加速', description: '启用 Redis 缓存加速', enabled: true, category: '性能', requiresRestart: true },
+    { key: '8', name: '深色模式', description: '允许用户切换深色/浅色主题', enabled: true, category: '界面', requiresRestart: false },
+  ]);
+
   // 插件状态颜色
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      active: 'green',
-      inactive: 'default',
-      error: 'red',
-    };
-    return colors[status] || 'default';
+  const getStatusColor = (plugin: ApiPlugin) => {
+    if (plugin.state === 'ACTIVE' || plugin.status === 'enabled') return 'green';
+    if (plugin.state === 'INACTIVE' || plugin.status === 'disabled') return 'default';
+    return 'red';
   };
 
   // 插件状态图标
-  const getStatusIcon = (status: string) => {
-    const icons: Record<string, React.ReactNode> = {
-      active: <CheckCircleOutlined />,
-      inactive: <CloseCircleOutlined />,
-      error: <SyncOutlined spin />,
-    };
-    return icons[status] || null;
+  const getStatusIcon = (plugin: ApiPlugin) => {
+    if (plugin.state === 'ACTIVE' || plugin.status === 'enabled') return <CheckCircleOutlined />;
+    if (plugin.state === 'INACTIVE' || plugin.status === 'disabled') return <CloseCircleOutlined />;
+    return <SyncOutlined spin />;
   };
 
   // 用户角色颜色
@@ -288,12 +128,18 @@ const Console: React.FC = () => {
   };
 
   // 处理插件开关
-  const handlePluginToggle = (pluginKey: string, checked: boolean) => {
-    setPluginData((prev) =>
-      prev.map((p) => (p.key === pluginKey ? { ...p, status: checked ? 'active' : 'inactive' } : p))
-    );
-    const plugin = pluginData.find((p) => p.key === pluginKey);
-    message.success(`插件 "${plugin?.name}" 已${checked ? '启用' : '禁用'}`);
+  const handlePluginToggle = async (pluginId: string, checked: boolean) => {
+    try {
+      if (checked) {
+        await activatePlugin(pluginId);
+      } else {
+        await deactivatePlugin(pluginId);
+      }
+      message.success(`插件已${checked ? '启用' : '禁用'}`);
+      loadData();
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   // 处理配置开关
@@ -324,7 +170,7 @@ const Console: React.FC = () => {
       title: '插件名称',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: Plugin) => (
+      render: (name: string, record: ApiPlugin) => (
         <Space direction="vertical" size={0}>
           <Space>
             <AppstoreOutlined style={{ color: colors.primary[500] }} />
@@ -339,19 +185,22 @@ const Console: React.FC = () => {
     },
     {
       title: '状态',
-      dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag icon={getStatusIcon(status)} color={getStatusColor(status)}>
-          {status === 'active' ? '运行中' : status === 'inactive' ? '已禁用' : '异常'}
-        </Tag>
-      ),
+      render: (_: unknown, record: ApiPlugin) => {
+        const isActive = record.state === 'ACTIVE' || record.status === 'enabled';
+        const isError = record.healthStatus === 'error';
+        return (
+          <Tag icon={getStatusIcon(record)} color={getStatusColor(record)}>
+            {isActive ? '运行中' : isError ? '异常' : '已禁用'}
+          </Tag>
+        );
+      },
     },
     {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      render: (category: string) => <Tag color="purple">{category}</Tag>,
+      render: (category: string, record: ApiPlugin) => <Tag color="purple">{category || record.type}</Tag>,
     },
     {
       title: '作者',
@@ -363,32 +212,36 @@ const Console: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
+      render: (v: string) => v ? new Date(v).toLocaleDateString() : '-',
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: Plugin) => (
-        <Space size="small">
-          <Tooltip title="配置">
-            <Button
-              type="text"
+      render: (_: unknown, record: ApiPlugin) => {
+        const isActive = record.state === 'ACTIVE' || record.status === 'enabled';
+        return (
+          <Space size="small">
+            <Tooltip title="配置">
+              <Button
+                type="text"
+                size="small"
+                icon={<SettingOutlined />}
+                disabled={!isActive}
+              />
+            </Tooltip>
+            <Tooltip title="详情">
+              <Button type="text" size="small" icon={<EditOutlined />} />
+            </Tooltip>
+            <Switch
               size="small"
-              icon={<SettingOutlined />}
-              disabled={record.status === 'inactive'}
+              checked={isActive}
+              onChange={(checked) => handlePluginToggle(record.id, checked)}
+              checkedChildren="开"
+              unCheckedChildren="关"
             />
-          </Tooltip>
-          <Tooltip title="详情">
-            <Button type="text" size="small" icon={<EditOutlined />} />
-          </Tooltip>
-          <Switch
-            size="small"
-            checked={record.status === 'active'}
-            onChange={(checked) => handlePluginToggle(record.key, checked)}
-            checkedChildren="开"
-            unCheckedChildren="关"
-          />
-        </Space>
-      ),
+          </Space>
+        );
+      },
     },
   ];
 
@@ -441,7 +294,7 @@ const Console: React.FC = () => {
       title: '用户名',
       dataIndex: 'username',
       key: 'username',
-      render: (username: string, record: User) => (
+      render: (username: string, record: ApiUser) => (
         <Space>
           <Avatar icon={<UserOutlined />} style={{ background: colors.primary[500] }} />
           <div>
@@ -455,7 +308,7 @@ const Console: React.FC = () => {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
-      render: (role: string) => <Tag color={getRoleColor(role)}>{role.toUpperCase()}</Tag>,
+      render: (role: string) => <Tag color={getRoleColor(role)}>{(role || 'user').toUpperCase()}</Tag>,
     },
     {
       title: '状态',
@@ -473,13 +326,14 @@ const Console: React.FC = () => {
     },
     {
       title: '最后登录',
-      dataIndex: 'lastLogin',
-      key: 'lastLogin',
+      dataIndex: 'last_login_at',
+      key: 'last_login_at',
+      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: User) => (
+      render: (_: unknown, record: ApiUser) => (
         <Space size="small">
           <Button type="link" size="small">
             编辑
@@ -595,6 +449,8 @@ const Console: React.FC = () => {
             <Table
               columns={pluginColumns}
               dataSource={pluginData}
+              rowKey="id"
+              loading={loading}
               pagination={{ pageSize: 5 }}
               size="middle"
             />
@@ -620,6 +476,7 @@ const Console: React.FC = () => {
             <Table
               columns={configColumns}
               dataSource={configData}
+              rowKey="key"
               pagination={false}
               size="middle"
             />
@@ -644,7 +501,9 @@ const Console: React.FC = () => {
             </div>
             <Table
               columns={userColumns}
-              dataSource={_userData}
+              dataSource={userData}
+              rowKey="id"
+              loading={loading}
               pagination={{ pageSize: 5 }}
               size="middle"
             />
@@ -665,10 +524,21 @@ const Console: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          onFinish={() => {
-            setIsModalOpen(false);
-            message.success('用户添加成功');
-            form.resetFields();
+          onFinish={async (values) => {
+            try {
+              await createUser({
+                username: values.username,
+                email: values.email,
+                passwordHash: values.password,
+                role: values.role,
+              });
+              message.success('用户添加成功');
+              setIsModalOpen(false);
+              form.resetFields();
+              loadData();
+            } catch {
+              message.error('用户添加失败');
+            }
           }}
         >
           <Form.Item

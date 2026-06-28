@@ -20,6 +20,7 @@ import {
   Statistic,
   Progress,
   Tabs,
+  Popconfirm,
 } from 'antd';
 import {
   SafetyCertificateOutlined,
@@ -33,33 +34,16 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import {
+  listQualityRules,
+  createQualityRule,
+  runQualityCheck,
+  listQualityChecks,
+  type QualityRule,
+  type QualityCheck,
+} from '@/api/data-quality';
 
 const { Title, Text } = Typography;
-
-interface QualityRule {
-  id: string;
-  name: string;
-  table_name: string;
-  column_name?: string;
-  rule_type: 'not_null' | 'unique' | 'range' | 'regex' | 'custom' | 'freshness' | 'volume';
-  config: Record<string, unknown>;
-  severity: 'info' | 'warning' | 'error' | 'critical';
-  enabled: boolean;
-  last_check_at: string | null;
-  last_status: 'pass' | 'fail' | 'error' | null;
-  pass_rate: number;
-}
-
-interface QualityCheck {
-  id: string;
-  rule_id: string;
-  rule_name: string;
-  status: 'pass' | 'fail' | 'error';
-  actual_value: string;
-  expected_value: string;
-  checked_at: string;
-  details?: string;
-}
 
 const ruleTypeOptions = [
   { label: '非空检查', value: 'not_null' },
@@ -89,8 +73,8 @@ export default function DataQualityPage() {
   const fetchRules = async () => {
     setLoading(true);
     try {
-      // TODO: integrate with data quality API
-      setRules([]);
+      const res = await listQualityRules();
+      setRules((res.data as any)?.data || []);
     } catch {
       message.error('获取规则失败');
     } finally {
@@ -100,8 +84,8 @@ export default function DataQualityPage() {
 
   const fetchChecks = async () => {
     try {
-      // TODO: integrate with data quality API
-      setChecks([]);
+      const res = await listQualityChecks();
+      setChecks((res.data as any)?.data || []);
     } catch {
       // silently handle
     }
@@ -112,9 +96,15 @@ export default function DataQualityPage() {
     fetchChecks();
   }, []);
 
-  const handleCreate = async (_values: any) => {
+  const handleCreate = async (values: any) => {
     try {
-      // TODO: integrate with data quality API
+      await createQualityRule({
+        name: values.name,
+        table_name: values.table_name,
+        column_name: values.column_name,
+        rule_type: values.rule_type,
+        severity: values.severity,
+      });
       message.success('规则创建成功');
       setModalVisible(false);
       form.resetFields();
@@ -192,11 +182,34 @@ export default function DataQualityPage() {
     {
       title: '操作',
       key: 'action',
-      render: () => (
+      render: (_: unknown, record: QualityRule) => (
         <Space>
-          <Button size="small">运行</Button>
-          <Button size="small">编辑</Button>
-          <Button size="small" danger>删除</Button>
+          <Button size="small" onClick={async () => {
+            try {
+              await runQualityCheck(record.id);
+              message.success('检查完成');
+              fetchRules();
+              fetchChecks();
+            } catch {
+              message.error('检查失败');
+            }
+          }}>运行</Button>
+          <Button size="small" onClick={() => {
+            form.setFieldsValue(record);
+            setModalVisible(true);
+          }}>编辑</Button>
+          <Popconfirm title="确认删除?" onConfirm={async () => {
+            try {
+              const { deleteQualityRule } = await import('@/api/data-quality');
+              await deleteQualityRule(record.id);
+              message.success('规则已删除');
+              fetchRules();
+            } catch {
+              message.error('删除失败');
+            }
+          }}>
+            <Button size="small" danger>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },

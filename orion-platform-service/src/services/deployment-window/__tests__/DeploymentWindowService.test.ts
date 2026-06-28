@@ -351,7 +351,7 @@ describe('DeploymentWindowService', () => {
       mockPool.query.mockResolvedValue({
         rows: [{
           id: 'w-1',
-          days: ['sun'],
+          days: ['wed'],
           start_time: '00:00',
           end_time: '23:59',
         }],

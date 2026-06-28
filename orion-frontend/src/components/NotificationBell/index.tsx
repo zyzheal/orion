@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { getNotifications, markAllAsRead } from '@/api/notifications';
-import type { MockNotification } from '@/pages/__mocks__/mockNotificationData';
+import type { MockNotification } from '@/api/notifications';
 import { colors } from '@/tokens/colors';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';

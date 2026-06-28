@@ -127,17 +127,17 @@ describe('ArtifactBrowser Page', { timeout: 15000 }, () => {
     });
   });
 
-  it('shows error on API failure and falls back to mock data', async () => {
+  it('shows empty table on API failure (no mock fallback)', async () => {
     vi.mocked(artifactVersionApi.getArtifactVersions).mockRejectedValue(new Error('API error'));
 
     const ArtifactBrowser = (await import('../index')).default;
 
     render(<ArtifactBrowser />);
 
-    // Should still render with mock data fallback
+    // API failure → table renders with 0 rows (mock fallback removed)
     await waitFor(() => {
       const rowCount = screen.getByTestId('row-count');
-      expect(parseInt(rowCount.textContent || '0')).toBeGreaterThan(0);
+      expect(rowCount.textContent).toBe('0');
     });
   });
 });

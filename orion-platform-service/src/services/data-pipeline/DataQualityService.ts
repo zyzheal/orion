@@ -3,11 +3,15 @@
  *
  * Defines quality rules for data pipelines, validates data against rules,
  * tracks quality metrics over time.
+ *
+ * Migrated from Map-based in-memory storage to PostgreSQL Repository pattern
+ * with Map fallback for graceful degradation.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
+import { PipelineDataQualityRuleEntity, PipelineValidationResultEntity } from '../../repositories/DataQualityRepository';
 
 export type RuleType = 'not_null' | 'unique' | 'range' | 'pattern' | 'custom' | 'referential' | 'completeness';
 export type RuleSeverity = 'critical' | 'warning' | 'info';
@@ -57,67 +61,111 @@ export interface CreateQualityRuleInput {
 }
 
 // ============================================================
-// Repository
+// Converter functions
 // ============================================================
 
-class QualityRuleRepository {
-  private pool: DatabasePool | null;
+function entityToRule(e: DataQualityRuleEntity): DataQualityRule {
+  return {
+    id: e.id,
+    tenantId: e.tenantId,
+    pipelineId: e.pipelineId,
+    stageId: e.stageId || undefined,
+    name: e.name,
+    description: e.description || undefined,
+    ruleType: e.ruleType as RuleType,
+    severity: e.severity as RuleSeverity,
+    targetField: e.targetField,
+    condition: e.condition || {},
+    enabled: e.enabled,
+    createdBy: e.createdBy,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  };
+}
+
+function ruleToEntity(r: DataQualityRule): DataQualityRuleEntity {
+  return {
+    id: r.id,
+    tenantId: r.tenantId,
+    pipelineId: r.pipelineId,
+    stageId: r.stageId || null,
+    name: r.name,
+    description: r.description || null,
+    ruleType: r.ruleType as DataQualityRuleEntity['ruleType'],
+    severity: r.severity as DataQualityRuleEntity['severity'],
+    targetField: r.targetField,
+    condition: r.condition || {},
+    enabled: r.enabled,
+    createdBy: r.createdBy,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
+
+// ============================================================
+// Repository with Map fallback
+// ============================================================
+
+class QualityRuleRepositoryAdapter {
+  private pgRepo: DataQualityRuleRepository | null;
   private memory = new Map<string, DataQualityRule>();
 
-  constructor(pool?: DatabasePool) { this.pool = pool || null; }
-  private isDbAvailable(): boolean { return this.pool !== null; }
+  constructor(pool?: DatabasePool) {
+    if (pool) {
+      this.pgRepo = new DataQualityRuleRepository(pool);
+    } else {
+      this.pgRepo = null;
+    }
+  }
+
+  private isDbAvailable(): boolean {
+    return this.pgRepo !== null;
+  }
 
   async save(rule: DataQualityRule): Promise<void> {
-    if (!this.isDbAvailable()) { this.memory.set(rule.id, rule); return; }
-    await this.pool!.query(
-      `INSERT INTO data_quality_rules (
-        id, tenant_id, pipeline_id, stage_id, name, description, rule_type,
-        severity, target_field, condition, enabled, created_by, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-      ON CONFLICT (id) DO UPDATE SET
-        name=EXCLUDED.name, description=EXCLUDED.description, rule_type=EXCLUDED.rule_type,
-        severity=EXCLUDED.severity, target_field=EXCLUDED.target_field,
-        condition=EXCLUDED.condition, enabled=EXCLUDED.enabled, updated_at=EXCLUDED.updated_at`,
-      [
-        rule.id, rule.tenantId, rule.pipelineId, rule.stageId || null, rule.name,
-        rule.description || null, rule.ruleType, rule.severity, rule.targetField,
-        JSON.stringify(rule.condition), rule.enabled, rule.createdBy,
-        rule.createdAt, rule.updatedAt,
-      ]
-    );
+    this.memory.set(rule.id, rule);
+    if (this.isDbAvailable()) {
+      await this.pgRepo!.save(ruleToEntity(rule));
+    }
   }
 
   async findByPipeline(tenantId: string, pipelineId: string): Promise<DataQualityRule[]> {
-    if (!this.isDbAvailable()) {
-      return Array.from(this.memory.values()).filter(r => r.tenantId === tenantId && r.pipelineId === pipelineId);
+    const fromDb = this.isDbAvailable()
+      ? await this.pgRepo!.findByPipeline(tenantId, pipelineId)
+      : [];
+    // Merge: DB results + memory-only rules (memory takes precedence for recent writes)
+    const entityMap = new Map<string, DataQualityRule>();
+    for (const e of fromDb) {
+      entityMap.set(e.id, entityToRule(e));
     }
-    const rows = (await this.pool!.query(
-      'SELECT * FROM data_quality_rules WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at',
-      [tenantId, pipelineId]
-    )).rows;
-    return rows.map((r: any) => this.rowToRule(r));
+    // Also scan memory for rules matching the tenant/pipeline filter
+    for (const m of this.memory.values()) {
+      if (m.tenantId === tenantId && m.pipelineId === pipelineId) {
+        entityMap.set(m.id, m);
+      }
+    }
+    return Array.from(entityMap.values());
   }
 
   async findById(id: string): Promise<DataQualityRule | null> {
-    if (!this.isDbAvailable()) return this.memory.get(id) || null;
-    const rows = (await this.pool!.query('SELECT * FROM data_quality_rules WHERE id = $1', [id])).rows;
-    return rows.length ? this.rowToRule(rows[0]) : null;
+    // Check memory first
+    const mem = this.memory.get(id);
+    if (mem) return mem;
+    // Fall back to DB
+    if (this.isDbAvailable()) {
+      const entities = await this.pgRepo!.findById(id);
+      if (entities) return entityToRule(entities);
+    }
+    return null;
   }
 
   async deleteById(id: string): Promise<boolean> {
-    if (!this.isDbAvailable()) return this.memory.delete(id);
-    const result = await this.pool!.query('DELETE FROM data_quality_rules WHERE id = $1', [id]);
-    return (result as any).rowCount > 0;
-  }
-
-  private rowToRule(row: any): DataQualityRule {
-    return {
-      id: row.id, tenantId: row.tenant_id, pipelineId: row.pipeline_id,
-      stageId: row.stage_id || undefined, name: row.name, description: row.description || undefined,
-      ruleType: row.rule_type as RuleType, severity: row.severity as RuleSeverity,
-      targetField: row.target_field, condition: (row.condition as Record<string, unknown>) || {},
-      enabled: row.enabled, createdBy: row.created_by, createdAt: row.created_at, updatedAt: row.updated_at,
-    };
+    const exists = this.memory.has(id);
+    this.memory.delete(id);
+    if (this.isDbAvailable()) {
+      return await this.pgRepo!.delete(id);
+    }
+    return exists;
   }
 }
 
@@ -126,11 +174,13 @@ class QualityRuleRepository {
 // ============================================================
 
 export class DataQualityService {
-  private repository: QualityRuleRepository;
+  private repository: QualityRuleRepositoryAdapter;
+  private validationResultRepo: ValidationResultRepository | null;
   private validationHistory: ValidationResult[] = [];
 
   constructor(database?: DatabasePool) {
-    this.repository = new QualityRuleRepository(database);
+    this.repository = new QualityRuleRepositoryAdapter(database);
+    this.validationResultRepo = database ? new ValidationResultRepository(database) : null;
   }
 
   async createRule(tenantId: string, input: CreateQualityRuleInput, createdBy: string): Promise<DataQualityRule> {
@@ -157,7 +207,7 @@ export class DataQualityService {
   async updateRule(id: string, updates: Partial<DataQualityRule>, updatedBy: string): Promise<DataQualityRule> {
     const rule = await this.repository.findById(id);
     if (!rule) throw new OrionError(`Quality rule '${id}' not found`, ErrorCode.NOT_FOUND);
-    Object.assign(rule, updates, { updatedAt: new Date() });
+    Object.assign(rule, updates, { updatedAt: new Date(), createdBy: rule.createdBy });
     await this.repository.save(rule);
     return rule;
   }
@@ -203,7 +253,30 @@ export class DataQualityService {
       failureRate: data.length > 0 ? (data.length - passedCount) / data.length : 0,
       failureSamples, validatedAt: new Date(), durationMs: Date.now() - startTime,
     };
+
+    // Persist to memory history
     this.validationHistory.push(result);
+
+    // Persist to DB if available (with tenantId from rule)
+    if (this.validationResultRepo) {
+      const entity: ValidationResultEntity = {
+        id: result.id,
+        ruleId: result.ruleId,
+        pipelineId: result.pipelineId,
+        tenantId: rule.tenantId,
+        executionId: result.executionId || null,
+        status: result.status as ValidationResultEntity['status'],
+        totalRecords: result.totalRecords,
+        passedRecords: result.passedRecords,
+        failedRecords: result.failedRecords,
+        failureRate: result.failureRate,
+        failureSamples: result.failureSamples,
+        durationMs: result.durationMs,
+        validatedAt: result.validatedAt,
+      };
+      await this.validationResultRepo.save(entity);
+    }
+
     return result;
   }
 

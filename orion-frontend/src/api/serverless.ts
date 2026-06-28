@@ -138,15 +138,15 @@ export function createServerlessFunction(data: {
   code: string;
   replicas?: { min?: number; max?: number };
 }) {
-  return api.post('/serverless/functions', data);
+  return api.post('/v1/serverless/functions', data);
 }
 
 export function listServerlessFunctions(params?: { status?: FunctionStatus; runtime?: FunctionRuntime }) {
-  return api.get<{ data: ServerlessFunction[] }>('/serverless/functions', { params });
+  return api.get<{ data: ServerlessFunction[] }>('/v1/serverless/functions', { params });
 }
 
 export function getServerlessFunction(id: string) {
-  return api.get<{ data: ServerlessFunction }>(`/serverless/functions/${id}`);
+  return api.get<{ data: ServerlessFunction }>(`/v1/serverless/functions/${id}`);
 }
 
 export function updateServerlessFunction(id: string, data: {
@@ -160,43 +160,43 @@ export function updateServerlessFunction(id: string, data: {
   code?: string;
   replicas?: { min?: number; max?: number };
 }) {
-  return api.put(`/serverless/functions/${id}`, data);
+  return api.put(`/v1/serverless/functions/${id}`, data);
 }
 
 export function deleteServerlessFunction(id: string) {
-  return api.delete(`/serverless/functions/${id}`);
+  return api.delete(`/v1/serverless/functions/${id}`);
 }
 
 // ---- Deployment ----
 
 export function deployServerlessFunction(id: string) {
-  return api.post(`/serverless/functions/${id}/deploy`);
+  return api.post(`/v1/serverless/functions/${id}/deploy`);
 }
 
 export function listDeployments(id: string) {
-  return api.get<{ data: ServerlessDeployment[] }>(`/serverless/functions/${id}/deployments`);
+  return api.get<{ data: ServerlessDeployment[] }>(`/v1/serverless/functions/${id}/deployments`);
 }
 
 // ---- Invocation ----
 
 export function invokeServerlessFunction(id: string, payload?: Record<string, unknown>) {
-  return api.post(`/serverless/functions/${id}/invoke`, payload);
+  return api.post(`/v1/serverless/functions/${id}/invoke`, payload);
 }
 
 // ---- Logs ----
 
 export function getFunctionLogs(id: string, params?: { level?: string; limit?: number }) {
-  return api.get<{ data: ServerlessLog[] }>(`/serverless/functions/${id}/logs`, { params });
+  return api.get<{ data: ServerlessLog[] }>(`/v1/serverless/functions/${id}/logs`, { params });
 }
 
 // ---- Metrics ----
 
 export function getFunctionMetrics(id: string) {
-  return api.get<{ data: ServerlessMetrics[] }>(`/serverless/functions/${id}/metrics`);
+  return api.get<{ data: ServerlessMetrics[] }>(`/v1/serverless/functions/${id}/metrics`);
 }
 
 export function getAggregateMetrics() {
-  return api.get<{ data: AggregateMetrics }>('/serverless/metrics');
+  return api.get<{ data: AggregateMetrics }>('/v1/serverless/metrics');
 }
 
 // ---- Triggers ----
@@ -207,19 +207,19 @@ export function createTrigger(data: {
   name: string;
   config: ServerlessTrigger['config'];
 }) {
-  return api.post('/serverless/triggers', data);
+  return api.post('/v1/serverless/triggers', data);
 }
 
 export function listTriggers(params?: { functionId?: string; type?: TriggerType }) {
-  return api.get<{ data: ServerlessTrigger[] }>('/serverless/triggers', { params });
+  return api.get<{ data: ServerlessTrigger[] }>('/v1/serverless/triggers', { params });
 }
 
 export function deleteTrigger(id: string) {
-  return api.delete(`/serverless/triggers/${id}`);
+  return api.delete(`/v1/serverless/triggers/${id}`);
 }
 
 // ---- Auto-scaling ----
 
 export function getAutoScalingRecommendations() {
-  return api.get<{ data: AutoScalingRecommendation[] }>('/serverless/autoscaling');
+  return api.get<{ data: AutoScalingRecommendation[] }>('/v1/serverless/autoscaling');
 }

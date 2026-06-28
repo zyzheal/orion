@@ -101,6 +101,30 @@ export class TicketWorkflowService {
     }
   }
 
+  /**
+   * Load cached data from PostgreSQL on startup
+   */
+  async loadFromDb(): Promise<void> {
+    if (this.assignmentRuleRepository) {
+      const { entities } = await this.assignmentRuleRepository.findAll();
+      this.assignmentRules = entities.map(e => ({
+        id: e.id,
+        name: e.name,
+        categories: e.categories as any,
+        assignee: e.assignee,
+        priorities: e.priorities as any,
+        enabled: e.enabled,
+        order: e.ruleOrder,
+      }));
+    }
+    // Load tickets into cache from TicketingRepository
+    const tickets = await this.ticketingRepository.findAll({ limit: 1000 });
+    this.ticketsCache.clear();
+    for (const ticket of tickets) {
+      this.ticketsCache.set(ticket.id, ticket as any);
+    }
+  }
+
   /** Escalation intervals (ms per priority) */
   private escalationIntervals: Record<TicketPriority, number> = {
     critical: 30 * 60 * 1000,   // 30 min

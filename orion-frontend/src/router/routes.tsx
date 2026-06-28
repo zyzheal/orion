@@ -1061,6 +1061,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/WorkflowDependencies')),
     protected: true,
   },
+  // Process Step Engine
+  {
+    path: '/process-steps',
+    element: React.lazy(() => import('@/pages/ProcessStep')),
+    protected: true,
+  },
   // Document Center - 统一指向PandaWiki知识空间
   {
     path: '/documents',

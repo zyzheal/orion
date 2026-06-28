@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import { getCollections, type VectorCollection } from '@/api/vector-store';
 
 const { Title } = Typography;
 
@@ -40,6 +41,19 @@ interface VectorIndex {
   vector_count: number;
   created_at: string;
 }
+
+const mapCollectionToIndex = (c: VectorCollection): VectorIndex => ({
+  id: c.name,
+  collection_id: c.name,
+  collection_name: c.displayName || c.name,
+  index_type: (c.indexType as VectorIndex['index_type']) || 'hnsw',
+  metric: c.distanceMetric === 'euclidean' ? 'l2' : c.distanceMetric === 'dot_product' ? 'ip' : 'cosine',
+  dimension: c.dimensions,
+  parameters: {},
+  status: c.status === 'active' ? 'ready' : c.status === 'creating' ? 'building' : 'error',
+  vector_count: c.documentCount,
+  created_at: c.createdAt,
+});
 
 const indexTypeOptions = [
   { label: 'HNSW (推荐)', value: 'hnsw', description: '高召回率，适合中小规模数据集' },
@@ -65,8 +79,9 @@ export default function IndexManagementPage() {
   const fetchIndexes = async () => {
     setLoading(true);
     try {
-      // TODO: integrate with vector-store API
-      setIndexes([]);
+      const res = await getCollections();
+      const collections = (res.data as any) || [];
+      setIndexes(collections.map(mapCollectionToIndex));
     } catch {
       message.error('获取索引列表失败');
     } finally {

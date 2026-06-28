@@ -2,7 +2,7 @@
  * ChatOps 审批配置后台
  * 全局审批开关、能力域审批规则、审批人配置
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Tabs,
@@ -35,6 +35,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { spacing } from '@/tokens';
+import { chatopsAdminApi } from '@/api/chatops-admin';
 
 const { Text } = Typography;
 
@@ -72,126 +73,7 @@ export interface GlobalApprovalSettings {
   approvalMode: 'strict' | 'relaxed' | 'log_only';
 }
 
-// ============== Mock Data ==============
-const MOCK_APPROVAL_CONFIGS: ApprovalConfig[] = [
-  {
-    id: 'ap-1',
-    capabilityId: 'deployment_operations.deploy_prod',
-    capabilityName: '生产环境部署',
-    riskLevel: 4,
-    enabled: true,
-    approvalMode: 'strict',
-    approvalLevel: 1,
-    approverRoles: ['super_admin'],
-    approverUsers: ['admin1'],
-    proxyRoles: ['admin'],
-    proxyUsers: [],
-    timeoutMinutes: 30,
-    timeoutAction: 'remind',
-    secondTimeoutMinutes: 120,
-    secondTimeoutAction: 'escalate',
-    environments: ['prod'],
-  },
-  {
-    id: 'ap-2',
-    capabilityId: 'deployment_operations.rollback',
-    capabilityName: '回滚操作',
-    riskLevel: 4,
-    enabled: true,
-    approvalMode: 'strict',
-    approvalLevel: 1,
-    approverRoles: ['super_admin'],
-    approverUsers: [],
-    proxyRoles: ['admin'],
-    proxyUsers: [],
-    timeoutMinutes: 30,
-    timeoutAction: 'auto_approve',
-    secondTimeoutMinutes: 60,
-    secondTimeoutAction: 'escalate',
-    environments: ['prod'],
-  },
-  {
-    id: 'ap-3',
-    capabilityId: 'infrastructure_operations.env_restart',
-    capabilityName: '环境重启',
-    riskLevel: 3,
-    enabled: true,
-    approvalMode: 'relaxed',
-    approvalLevel: 1,
-    approverRoles: ['admin'],
-    approverUsers: [],
-    proxyRoles: [],
-    proxyUsers: [],
-    timeoutMinutes: 60,
-    timeoutAction: 'remind',
-    secondTimeoutMinutes: 120,
-    secondTimeoutAction: 'escalate',
-    environments: ['prod', 'staging'],
-  },
-  {
-    id: 'ap-4',
-    capabilityId: 'chatops_config.webhook',
-    capabilityName: 'Webhook 配置',
-    riskLevel: 3,
-    enabled: true,
-    approvalMode: 'strict',
-    approvalLevel: 1,
-    approverRoles: ['admin'],
-    approverUsers: [],
-    proxyRoles: [],
-    proxyUsers: [],
-    timeoutMinutes: 60,
-    timeoutAction: 'remind',
-    secondTimeoutMinutes: 0,
-    secondTimeoutAction: 'escalate',
-    environments: ['prod'],
-  },
-  {
-    id: 'ap-5',
-    capabilityId: 'bulk_operations.delete',
-    capabilityName: '批量删除',
-    riskLevel: 4,
-    enabled: false,
-    approvalMode: 'strict',
-    approvalLevel: 2,
-    approverRoles: ['super_admin'],
-    approverUsers: [],
-    proxyRoles: ['admin'],
-    proxyUsers: [],
-    timeoutMinutes: 60,
-    timeoutAction: 'auto_reject',
-    secondTimeoutMinutes: 240,
-    secondTimeoutAction: 'auto_reject',
-    environments: ['prod', 'staging', 'dev'],
-  },
-];
 
-const MOCK_APPROVERS: ApproverInfo[] = [
-  {
-    id: 'approver-1',
-    role: 'super_admin',
-    userName: '张三',
-    userId: 'admin1',
-    status: 'online',
-    isDefault: true,
-  },
-  {
-    id: 'approver-2',
-    role: 'admin',
-    userName: '李四',
-    userId: 'admin2',
-    status: 'online',
-    isDefault: true,
-  },
-  {
-    id: 'approver-3',
-    role: 'oncall',
-    userName: '王五',
-    userId: 'ops1',
-    status: 'offline',
-    isDefault: false,
-  },
-];
 
 // ============== Global Settings Tab ==============
 export const GlobalSettingsTab: React.FC = () => {
@@ -200,13 +82,28 @@ export const GlobalSettingsTab: React.FC = () => {
     approvalMode: 'strict',
   });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    setLoading(true);
+    chatopsAdminApi.getGlobalApprovalConfig()
+      .then((res) => {
+        const data = res.data as any;
+        if (data) setSettings({ enabled: data.enabled ?? true, approvalMode: data.mode || 'strict' });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      await chatopsAdminApi.updateGlobalApprovalConfig({ enabled: settings.enabled, mode: settings.approvalMode });
       message.success('全局审批设置已保存');
-    }, 500);
+    } catch {
+      message.error('保存失败');
+    }
+    setSaving(false);
   };
 
   const modeDescriptions: Record<string, string> = {
@@ -225,7 +122,7 @@ export const GlobalSettingsTab: React.FC = () => {
         style={{ marginBottom: spacing.lg }}
       />
 
-      <Card style={{ maxWidth: 700 }}>
+      <Card style={{ maxWidth: 700 }} loading={loading}>
         <Form layout="vertical">
           <Form.Item label="启用审批流程">
             <Switch
@@ -272,10 +169,42 @@ export const GlobalSettingsTab: React.FC = () => {
 
 // ============== Capability Approval Tab ==============
 const CapabilityApprovalTab: React.FC = () => {
-  const [configs, setConfigs] = useState<ApprovalConfig[]>(MOCK_APPROVAL_CONFIGS);
+  const [configs, setConfigs] = useState<ApprovalConfig[]>([]);
+  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingConfig, setEditingConfig] = useState<ApprovalConfig | null>(null);
   const [form] = Form.useForm();
+
+  const loadConfigs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await chatopsAdminApi.getApprovalConfigs();
+      const data = (res.data as any) || [];
+      setConfigs(Array.isArray(data) ? data.map((c: any) => ({
+        id: c.id || c.capability,
+        capabilityId: c.capability || c.capability_id || '',
+        capabilityName: c.capability_name || c.capability || '',
+        riskLevel: c.risk_level ?? 3,
+        enabled: c.enabled ?? true,
+        approvalMode: c.approval_mode || 'strict',
+        approvalLevel: c.approval_level ?? 1,
+        approverRoles: c.approvers || [],
+        approverUsers: c.approver_users || [],
+        proxyRoles: c.proxy_roles || [],
+        proxyUsers: c.proxy_users || [],
+        timeoutMinutes: c.timeout_minutes ?? 30,
+        timeoutAction: c.timeout_action || 'remind',
+        secondTimeoutMinutes: c.second_timeout_minutes ?? 0,
+        secondTimeoutAction: c.second_timeout_action || 'escalate',
+        environments: c.environments || [],
+      })) : []);
+    } catch {
+      message.error('加载审批配置失败');
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadConfigs(); }, [loadConfigs]);
 
   const riskLevelColors: Record<number, string> = {
     3: 'orange',
@@ -292,10 +221,13 @@ const CapabilityApprovalTab: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (editingConfig) {
-        setConfigs(configs.map(c =>
-          c.id === editingConfig.id ? { ...c, ...values } : c
-        ));
+        await chatopsAdminApi.updateApprovalConfig(editingConfig.capabilityId, {
+          enabled: values.enabled,
+          approvers: values.approverRoles,
+          threshold: values.approvalLevel,
+        });
         message.success('审批规则已更新');
+        loadConfigs();
       }
       setModalVisible(false);
     } catch {
@@ -303,21 +235,41 @@ const CapabilityApprovalTab: React.FC = () => {
     }
   };
 
-  const handleToggle = (id: string, enabled: boolean) => {
-    setConfigs(configs.map(c =>
-      c.id === id ? { ...c, enabled } : c
-    ));
-    message.success(enabled ? '审批规则已启用' : '审批规则已禁用');
+  const handleToggle = async (id: string, enabled: boolean) => {
+    try {
+      const config = configs.find(c => c.id === id);
+      if (config) {
+        await chatopsAdminApi.updateApprovalConfig(config.capabilityId, { enabled });
+        message.success(enabled ? '审批规则已启用' : '审批规则已禁用');
+        loadConfigs();
+      }
+    } catch {
+      message.error('操作失败');
+    }
   };
 
-  const handleBatchEnable = () => {
-    setConfigs(configs.map(c => ({ ...c, enabled: true })));
-    message.success('已批量启用');
+  const handleBatchEnable = async () => {
+    try {
+      await chatopsAdminApi.batchUpdateApprovalConfigs(
+        configs.map(c => ({ capability: c.capabilityId, enabled: true, approvers: c.approverRoles, threshold: c.approvalLevel }))
+      );
+      message.success('已批量启用');
+      loadConfigs();
+    } catch {
+      message.error('批量操作失败');
+    }
   };
 
-  const handleBatchDisable = () => {
-    setConfigs(configs.map(c => ({ ...c, enabled: false })));
-    message.success('已批量禁用');
+  const handleBatchDisable = async () => {
+    try {
+      await chatopsAdminApi.batchUpdateApprovalConfigs(
+        configs.map(c => ({ capability: c.capabilityId, enabled: false, approvers: c.approverRoles, threshold: c.approvalLevel }))
+      );
+      message.success('已批量禁用');
+      loadConfigs();
+    } catch {
+      message.error('批量操作失败');
+    }
   };
 
   const columns: ColumnsType<ApprovalConfig> = [
@@ -416,6 +368,7 @@ const CapabilityApprovalTab: React.FC = () => {
         columns={columns}
         dataSource={configs}
         rowKey="id"
+        loading={loading}
         pagination={false}
       />
 
@@ -526,7 +479,26 @@ const CapabilityApprovalTab: React.FC = () => {
 
 // ============== Approver Config Tab ==============
 const ApproverConfigTab: React.FC = () => {
-  const [approvers] = useState<ApproverInfo[]>(MOCK_APPROVERS);
+  const [approvers, setApprovers] = useState<ApproverInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    chatopsAdminApi.getApprovers()
+      .then((res) => {
+        const data = (res.data as any) || [];
+        setApprovers(Array.isArray(data) ? data.map((a: any) => ({
+          id: a.user_id || a.id,
+          role: a.role || '',
+          userName: a.user_name || '',
+          userId: a.user_id || '',
+          status: a.is_on_duty ? 'online' : 'offline',
+          isDefault: true,
+        })) : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnsType<ApproverInfo> = [
     {
@@ -588,6 +560,7 @@ const ApproverConfigTab: React.FC = () => {
         columns={columns}
         dataSource={approvers}
         rowKey="id"
+        loading={loading}
         pagination={false}
       />
 

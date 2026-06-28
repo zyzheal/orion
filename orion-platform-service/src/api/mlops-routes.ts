@@ -19,8 +19,7 @@ export default async function mlopsRoutes(
   app: FastifyInstance,
   options: MLOpsRoutesOptions = {}
 ): Promise<void> {
-  void options.database;
-  const mlopsService = new MLOpsService();
+  const mlopsService = options.database ? new MLOpsService(options.database) : new MLOpsService();
   // ==================== Experiments ====================
 
   app.post('/mlops/experiments', {

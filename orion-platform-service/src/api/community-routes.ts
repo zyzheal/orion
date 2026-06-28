@@ -8,10 +8,14 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { CommunityController } from './controllers/CommunityController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
-const controller = new CommunityController();
+export default async function communityRoutes(
+  app: FastifyInstance,
+  options: { database?: DatabasePool } = {},
+): Promise<void> {
+  const controller = new CommunityController(options.database);
 
-export default async function communityRoutes(app: FastifyInstance): Promise<void> {
   // POST /v1/community/contributions - Create contribution
   app.post('/contributions', { onRequest: [authenticateUser, requirePermission({ resource: 'community', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createContribution(request, reply);

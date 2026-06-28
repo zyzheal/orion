@@ -67,7 +67,8 @@ const DORAMetricsTab: React.FC = () => {
         getEfficiencyDashboard(),
         getDoraBenchmarks(),
       ]);
-      setDashboardData(dashboardRes.data || null);
+      // Response wraps in { dashboard: {...} }
+      setDashboardData((dashboardRes.data as any)?.dashboard || dashboardRes.data || null);
       setBenchmarks(benchmarksRes.data || null);
     } catch (error: unknown) {
       message.error(`加载 DORA 指标失败: ${(error as Error).message}`);

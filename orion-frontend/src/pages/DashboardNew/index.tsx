@@ -196,38 +196,13 @@ const DashboardNew: React.FC = () => {
     pending: recentRuns.filter((r) => r.status === 'pending').length,
   };
 
-  // Mock tasks (until tasks API is available)
-  const tasks: TaskRecord[] = [
-    {
-      key: '1',
-      title: '检查失败的 Pipeline 运行',
-      priority: 'high',
-      status: 'todo',
-      assignee: '当前用户',
-      due: '今天',
-    },
-    {
-      key: '2',
-      title: '处理待确认的告警',
-      priority: 'high',
-      status: 'todo',
-      assignee: '当前用户',
-      due: '今天',
-    },
-    {
-      key: '3',
-      title: 'Review 待审批的部署',
-      priority: 'medium',
-      status: 'todo',
-      assignee: '当前用户',
-      due: '本周',
-    },
-  ];
+  // Tasks: backend API not yet available, show empty state
+  const tasks: TaskRecord[] = [];
 
   const taskStats = {
-    total: tasks.length,
-    inProgress: tasks.filter((t) => t.status === 'in-progress').length,
-    todo: tasks.filter((t) => t.status === 'todo').length,
+    total: 0,
+    inProgress: 0,
+    todo: 0,
     completed: 0,
   };
 

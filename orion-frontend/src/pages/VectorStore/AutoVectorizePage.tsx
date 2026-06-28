@@ -2,7 +2,7 @@
  * Auto-Vectorization Configuration Page
  * Configure automatic vectorization rules for uploaded documents
  */
-import _React, { useState, useEffect } from 'react';
+import _React, { useState, useEffect, useCallback } from 'react';
 import { InputNumber,
   Card,
   Table,
@@ -19,6 +19,7 @@ import { InputNumber,
   Row,
   Col,
   Statistic,
+  Popconfirm,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -31,22 +32,15 @@ import {
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import {
+  listVectorizeRules,
+  createVectorizeRule,
+  toggleVectorizeRule,
+  deleteVectorizeRule,
+  type VectorizeRule,
+} from '@/api/vectorize-rules';
 
 const { Title, Text } = Typography;
-
-interface VectorizeRule {
-  id: string;
-  name: string;
-  source_type: 'upload' | 'git' | 'api' | 'database';
-  file_types: string[];
-  chunk_size: number;
-  chunk_overlap: number;
-  embedding_model: string;
-  target_collection: string;
-  enabled: boolean;
-  last_run: string | null;
-  processed_count: number;
-}
 
 const sourceTypeOptions = [
   { label: '文件上传', value: 'upload' },
@@ -78,23 +72,31 @@ export default function AutoVectorizePage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchRules = async () => {
+  const fetchRules = useCallback(async () => {
     setLoading(true);
     try {
-      // TODO: integrate with knowledge/vectorize API
-      setRules([]);
+      const res = await listVectorizeRules();
+      setRules((res.data as any)?.data || []);
     } catch {
       message.error('获取规则失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchRules(); }, []);
+  useEffect(() => { fetchRules(); }, [fetchRules]);
 
-  const handleCreate = async (_values: any) => {
+  const handleCreate = async (values: any) => {
     try {
-      // TODO: integrate with knowledge/vectorize API
+      await createVectorizeRule({
+        name: values.name,
+        source_type: values.source_type,
+        file_types: values.file_types,
+        chunk_size: values.chunk_size,
+        chunk_overlap: values.chunk_overlap,
+        embedding_model: values.embedding_model,
+        target_collection: values.target_collection,
+      });
       message.success('规则创建成功');
       setModalVisible(false);
       form.resetFields();
@@ -104,13 +106,23 @@ export default function AutoVectorizePage() {
     }
   };
 
-  const handleToggle = async (_id: string, enabled: boolean) => {
+  const handleToggle = async (id: string, enabled: boolean) => {
     try {
-      // TODO: integrate with knowledge/vectorize API
+      await toggleVectorizeRule(id, enabled);
       message.success(enabled ? '已启用' : '已禁用');
       fetchRules();
     } catch {
       message.error('操作失败');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteVectorizeRule(id);
+      message.success('规则已删除');
+      fetchRules();
+    } catch {
+      message.error('删除失败');
     }
   };
 
@@ -172,10 +184,12 @@ export default function AutoVectorizePage() {
     {
       title: '操作',
       key: 'action',
-      render: () => (
+      render: (_: unknown, record: VectorizeRule) => (
         <Space>
           <Button size="small" icon={<SettingOutlined />}>编辑</Button>
-          <Button size="small" danger>删除</Button>
+          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" danger>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },

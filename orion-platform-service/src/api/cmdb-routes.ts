@@ -13,6 +13,10 @@ import { TopologyService } from '../services/cmdb/TopologyService';
 import { DatabasePool } from '../services/database';
 import { CmdbIntegrationService } from '../services/cmdb-integration-service';
 import { CmdbIntegrationController } from './controllers/CmdbIntegrationController';
+import { CITypeService } from '../services/cmdb/ci-type/CITypeService';
+import { CITypeRepository } from '../services/cmdb/ci-type/CITypeRepository';
+import { CIAttributeRepository } from '../services/cmdb/ci-type/CIAttributeRepository';
+import { CITypeVersionRepository } from '../services/cmdb/ci-type/CITypeVersionRepository';
 
 interface CmdbRoutesOptions {
   database?: DatabasePool;
@@ -23,8 +27,16 @@ export default async function cmdbRoutes(
   options?: CmdbRoutesOptions
 ): Promise<void> {
   // Initialize services
+  const ciTypeService = options?.database
+    ? new CITypeService(
+        new CITypeRepository(options.database),
+        new CIAttributeRepository(options.database),
+        new CITypeVersionRepository(options.database),
+      )
+    : undefined;
   const cmdbService = new CmdbService({
     database: options?.database,
+    ciTypeService,
   });
   const topologyService = new TopologyService(cmdbService);
 

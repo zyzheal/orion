@@ -3,7 +3,10 @@
  *
  * Works with the existing sso_states table (migration 183).
  * Provides state storage for CSRF protection during SSO flows.
+ * Migrated to BaseRepository pattern.
  */
+
+import { BaseRepository } from '../db/base-repository';
 
 export interface SsoStateEntity {
   id: string;
@@ -14,15 +17,17 @@ export interface SsoStateEntity {
   createdAt: Date;
 }
 
-export class SsoStateRepository {
+export class SsoStateRepository extends BaseRepository<SsoStateEntity> {
   constructor(
-    private db: {
+    db: {
       query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
     },
-  ) {}
+  ) {
+    super(db, 'sso_states');
+  }
 
-  /** Store a new SSO state */
-  async create(state: string, provider: string, data: string, ttlSeconds: number): Promise<void> {
+  /** Store a new SSO state (custom INSERT with conflict handling) */
+  async createState(state: string, provider: string, data: string, ttlSeconds: number): Promise<void> {
     await this.db.query(
       `INSERT INTO sso_states (state, provider, data, expires_at)
        VALUES ($1, $2, $3, NOW() + ($4 || ' seconds')::interval)

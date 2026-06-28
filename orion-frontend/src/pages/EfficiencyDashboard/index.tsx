@@ -27,11 +27,12 @@ import {
   getDoraMetrics,
   getDoraBenchmarks,
   getEfficiencyDashboard,
+  getDORTrends,
   getClickHouseStatus,
   getTeams,
   getTeamComparison,
 } from '@/api/efficiency';
-import type { TeamInfo, TeamMetrics } from '@/api/efficiency';
+import type { TeamInfo, TeamMetrics, TrendHistoryPoint } from '@/api/efficiency';
 import { DORA_TOOLTIPS, STORAGE_KEYS, ONBOARDING_STEPS, DORA_LEVELS } from '@/constants/dora-guidance';
 
 const { Title, Text } = Typography;
@@ -111,6 +112,7 @@ const EfficiencyDashboard: React.FC = () => {
   const [teamComparison, setTeamComparison] = useState<TeamMetrics[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [trendHistory, setTrendHistory] = useState<TrendHistoryPoint[]>([]);
 
   // Check if user has seen onboarding
   useEffect(() => {
@@ -126,15 +128,24 @@ const EfficiencyDashboard: React.FC = () => {
     setShowOnboarding(false);
   };
 
-  // Generate mock time-series data for trend chart (until backend provides historical API)
+  // Generate time-series data for trend chart from real API data
   const trendData: TrendDataPoint[][] = React.useMemo(() => {
+    if (trendHistory.length > 0) {
+      const weeks = trendHistory.map(t => t.week);
+      return [
+        weeks.map((period, i) => ({ period, value: trendHistory[i].deploymentFrequency, label: '部署频率' })),
+        weeks.map((period, i) => ({ period, value: trendHistory[i].leadTime, label: '交付周期(h)' })),
+        weeks.map((period, i) => ({ period, value: trendHistory[i].mttr, label: 'MTTR(h)' })),
+      ];
+    }
+
+    // Fallback: generate empty 12-week placeholder when no real data yet
     const now = new Date();
     const weeks = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now);
       d.setDate(d.getDate() - (11 - i) * 7);
       return `${d.getMonth() + 1}/${d.getDate()}`;
     });
-
     const baseDeployFreq = dashboardData?.dora?.deploymentFrequency ?? 5;
     const baseLeadTime = dashboardData?.dora?.leadTime ?? 24;
 
@@ -148,45 +159,45 @@ const EfficiencyDashboard: React.FC = () => {
         return { period, value: Math.round(variation), label: '交付周期(h)' };
       }),
       weeks.map((period, i) => {
-        const variation = (1 - i * 0.05 + Math.random() * 0.1) * baseLeadTime * 0.3;
+        const variation = (1 - i * 0.05) * baseLeadTime * 0.3;
         return { period, value: Math.round(variation * 10) / 10, label: 'MTTR(h)' };
       }),
     ];
-  }, [dashboardData]);
+  }, [dashboardData, trendHistory]);
 
-  // Team-level mock data for deployment frequency chart
+  // Team deployment data from real API
   const deploymentByTeam: BarDataItem[] = React.useMemo(() => {
-    const teams = [
-      { team: '平台组', deployments: 45 },
-      { team: '前端组', deployments: 32 },
-      { team: '后端组', deployments: 58 },
-      { team: 'QA组', deployments: 18 },
-      { team: 'SRE组', deployments: 25 },
-      { team: 'AI组', deployments: 37 },
-    ];
-    const total = teams.reduce((sum, t) => sum + t.deployments, 0);
-    const scale = (dashboardData?.summary?.totalDeployments ?? total) / total;
-    return teams.map((t) => ({
-      label: t.team,
-      value: Math.round(t.deployments * scale),
+    if (teams.length === 0) return [];
+    const total = dashboardData?.summary?.totalDeployments ?? 0;
+    if (total === 0) {
+      return teams.map((t) => ({ label: t.teamName, value: 0 }));
+    }
+    const perTeam = Math.floor(total / teams.length);
+    const remainder = total - perTeam * teams.length;
+    return teams.map((t, i) => ({
+      label: t.teamName,
+      value: i === 0 ? perTeam + remainder : perTeam,
     }));
-  }, [dashboardData]);
+  }, [dashboardData, teams]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes] = await Promise.all([
+      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes, trendsRes] = await Promise.all([
         getDoraMetrics(),
         getDoraBenchmarks(),
         getEfficiencyDashboard(),
         getClickHouseStatus(),
         getTeams(),
+        getDORTrends({ weeks: 12 }),
       ]);
       setDoraMetrics(metricsRes.data);
       setBenchmarks(benchmarksRes.data);
-      setDashboardData(dashboardRes.data as unknown as EfficiencyDashboardData | null);
+      // Dashboard response wraps data in { dashboard: {...} }
+      setDashboardData((dashboardRes.data as any)?.dashboard ?? dashboardRes.data);
       setClickHouseStatus(statusRes.data);
       setTeams(teamsRes.data?.teams || []);
+      setTrendHistory(trendsRes.data?.trends || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
       message.error(msg);

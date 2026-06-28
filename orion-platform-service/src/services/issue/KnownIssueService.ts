@@ -6,6 +6,9 @@
  * - Track issue resolution status
  * - Link issues to tickets
  * - Search by fingerprint
+ *
+ * Migration: Map-based in-memory storage → PostgreSQL via KnownIssueRepository
+ * Dual-path: repository is primary, Map is fallback when DB unavailable.
  */
 
 import pino from 'pino';
@@ -50,7 +53,7 @@ export interface KnownIssue {
 export class KnownIssueService {
   private repository: KnownIssueRepository | null = null;
 
-  // In-memory fallback
+  // In-memory fallback (synced with repository when available)
   private issues = new Map<string, KnownIssueEntity>();
 
   constructor(db?: DatabasePool) {
@@ -76,16 +79,17 @@ export class KnownIssueService {
     const now = new Date();
 
     if (this.repository) {
-      const result = await this.db.query(
-        `INSERT INTO known_issues
-          (id, tenant_id, title, description, fingerprint, ticket_id, resolved, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, false, $7)
-         RETURNING *`,
-        [issueId, input.tenantId, input.title, input.description ?? null, input.fingerprint, input.ticketId ?? null, now]
-      );
+      const entity = await this.repository.create({
+        id: issueId,
+        tenantId: input.tenantId,
+        title: input.title,
+        description: input.description ?? null,
+        fingerprint: input.fingerprint,
+        ticketId: input.ticketId ?? null,
+      });
 
       logger.info({ issueId, fingerprint: input.fingerprint }, '[KnownIssueService] Created known issue');
-      return this.mapRowToEntity(result.rows[0]);
+      return this.mapEntityToKnownIssue(entity);
     }
 
     // Memory fallback
@@ -111,9 +115,9 @@ export class KnownIssueService {
    */
   async getIssue(id: string): Promise<KnownIssue | null> {
     if (this.repository) {
-      const result = await this.repository.findById(id);
-      if (!result) return null;
-      return this.mapEntityToKnownIssue(result);
+      const entity = await this.repository.findById(id);
+      if (!entity) return null;
+      return this.mapEntityToKnownIssue(entity);
     }
 
     const issue = this.issues.get(id);
@@ -139,7 +143,6 @@ export class KnownIssueService {
       if (options?.fingerprint) {
         entities = await this.repository.findByFingerprint(options.fingerprint);
       } else if (options?.tenantId && options.resolved !== undefined) {
-        // Need to filter manually
         const all = await this.repository.findByTenantId(options.tenantId);
         entities = all.filter((e) => e.resolved === options.resolved);
       } else if (options?.tenantId) {
@@ -185,56 +188,28 @@ export class KnownIssueService {
       return null;
     }
 
+    // Determine what changed
+    const changes: Partial<Pick<KnownIssueEntity, 'title' | 'description' | 'fingerprint' | 'ticketId'>> = {};
+    if (updates.title !== undefined) changes.title = updates.title;
+    if (updates.description !== undefined) changes.description = updates.description;
+    if (updates.fingerprint !== undefined) changes.fingerprint = updates.fingerprint;
+    if (updates.ticketId !== undefined) changes.ticketId = updates.ticketId;
+
     if (this.repository) {
-      const fields: string[] = [];
-      const params: any[] = [];
-      let paramIndex = 1;
+      let entity: KnownIssueEntity | null = null;
 
-      if (updates.title !== undefined) {
-        fields.push(`title = $${paramIndex}`);
-        params.push(updates.title);
-        paramIndex++;
-      }
-      if (updates.description !== undefined) {
-        fields.push(`description = $${paramIndex}`);
-        params.push(updates.description);
-        paramIndex++;
-      }
-      if (updates.fingerprint !== undefined) {
-        fields.push(`fingerprint = $${paramIndex}`);
-        params.push(updates.fingerprint);
-        paramIndex++;
-      }
-      if (updates.ticketId !== undefined) {
-        fields.push(`ticket_id = $${paramIndex}`);
-        params.push(updates.ticketId);
-        paramIndex++;
-      }
-      if (updates.resolved !== undefined) {
-        fields.push(`resolved = $${paramIndex}`);
-        params.push(updates.resolved);
-        paramIndex++;
-        if (updates.resolved) {
-          fields.push(`resolved_at = $${paramIndex}`);
-          params.push(new Date());
-          paramIndex++;
-        }
+      if (Object.keys(changes).length > 0) {
+        entity = await this.repository.update(id, changes);
+        if (!entity) return null;
       }
 
-      if (fields.length === 0) {
-        return existing;
+      if (updates.resolved !== undefined && updates.resolved) {
+        entity = await this.repository.resolve(id, new Date());
+        if (!entity) return null;
       }
-
-      params.push(id);
-      const result = await this.db.query(
-        `UPDATE known_issues SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-        params
-      );
-
-      if (result.rows.length === 0) return null;
 
       logger.info({ issueId: id, updates }, '[KnownIssueService] Updated known issue');
-      return this.mapRowToEntity(result.rows[0]);
+      return this.mapEntityToKnownIssue(entity);
     }
 
     // Memory fallback
@@ -259,9 +234,9 @@ export class KnownIssueService {
    */
   async deleteIssue(id: string): Promise<boolean> {
     if (this.repository) {
-      const result = await this.db.query('DELETE FROM known_issues WHERE id = $1', [id]);
-      logger.info({ issueId: id, deleted: result.rowCount > 0 }, '[KnownIssueService] Deleted known issue');
-      return (result.rowCount ?? 0) > 0;
+      const deleted = await this.repository.delete(id);
+      logger.info({ issueId: id, deleted }, '[KnownIssueService] Deleted known issue');
+      return deleted;
     }
 
     const deleted = this.issues.delete(id);
@@ -278,10 +253,10 @@ export class KnownIssueService {
     const time = resolvedAt ?? new Date();
 
     if (this.repository) {
-      const result = await this.repository.resolve(id, time);
-      if (!result) return null;
+      const entity = await this.repository.resolve(id, time);
+      if (!entity) return null;
       logger.info({ issueId: id, resolvedAt: time }, '[KnownIssueService] Resolved known issue');
-      return this.mapEntityToKnownIssue(result);
+      return this.mapEntityToKnownIssue(entity);
     }
 
     // Memory fallback
@@ -361,24 +336,6 @@ export class KnownIssueService {
   }
 
   // ==================== Private Helpers ====================
-
-  private get db() {
-    return (this.repository as any)?.db;
-  }
-
-  private mapRowToEntity(row: any): KnownIssue {
-    return {
-      id: row.id,
-      tenantId: row.tenant_id,
-      title: row.title,
-      description: row.description,
-      fingerprint: row.fingerprint,
-      ticketId: row.ticket_id,
-      resolved: row.resolved ?? false,
-      resolvedAt: row.resolved_at,
-      createdAt: row.created_at,
-    };
-  }
 
   private mapEntityToKnownIssue(entity: KnownIssueEntity): KnownIssue {
     return {

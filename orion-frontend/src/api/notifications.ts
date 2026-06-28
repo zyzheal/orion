@@ -1,14 +1,35 @@
 /**
  * Notification API Service
  * - Real backend API calls for notifications
- * - Maps backend Notification schema to frontend MockNotification format
+ * - Maps backend Notification schema to frontend Notification format
  */
 import { api } from './client';
-import { mockNotifications, type MockNotification } from '@/pages/__mocks__/mockNotificationData';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+/** Frontend notification item (mapped from backend response) */
+export interface MockNotification {
+  id: string;
+  title: string;
+  content: string;
+  type:
+    | 'ticket_assigned'
+    | 'ticket_escalated'
+    | 'sla_warning'
+    | 'sla_breached'
+    | 'pipeline_completed'
+    | 'system_alert'
+    | 'comment_mention'
+    | 'transfer_request';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  read: boolean;
+  createdAt: string;
+  relatedId?: string;
+  sender: string;
+  actions?: Array<{ label: string; type: string }>;
+}
 
 export interface BackendNotification {
   id: string;
@@ -117,132 +138,79 @@ export const getNotifications = async (
 ): Promise<{ data: MockNotification[]; total: number }> => {
   const userId = getCurrentUserId();
 
-  try {
-    const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/v1/notifications/${userId}`, {
-      params: {
-        limit: params?.pageSize || 20,
-        page: params?.page || 1,
-      },
-    });
+  const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/v1/notifications/${userId}`, {
+    params: {
+      limit: params?.pageSize || 20,
+      page: params?.page || 1,
+    },
+  });
 
-    // 拦截器已自动解包，response.data 直接是响应数据
-    const result = response.data;
+  // 拦截器已自动解包，response.data 直接是响应数据
+  const result = response.data;
 
-    // Backend returns { data: [...], total: N } or just [...]
-    const backendNotifications = (result as { data?: BackendNotification[] }).data ?? [];
-    let notifications: MockNotification[] = Array.isArray(backendNotifications)
-      ? backendNotifications.map(mapBackendToNotification)
-      : [];
-    let total = (result as { total?: number }).total ?? backendNotifications.length;
+  // Backend returns { data: [...], total: N } or just [...]
+  const backendNotifications = (result as { data?: BackendNotification[] }).data ?? [];
+  let notifications: MockNotification[] = Array.isArray(backendNotifications)
+    ? backendNotifications.map(mapBackendToNotification)
+    : [];
+  let total = (result as { total?: number }).total ?? backendNotifications.length;
 
-    // Apply client-side filtering for tabs that backend doesn't support directly
-    if (params?.type) {
-      const typeMap: Record<string, string[]> = {
-        tickets: ['ticket_assigned', 'ticket_escalated', 'transfer_request'],
-        system: ['system_alert', 'sla_warning', 'sla_breached', 'pipeline_completed'],
-      };
-      const types = typeMap[params.type];
-      if (types?.length) {
-        notifications = notifications.filter((n) => types.includes(n.type));
-      }
+  // Apply client-side filtering for tabs that backend doesn't support directly
+  if (params?.type) {
+    const typeMap: Record<string, string[]> = {
+      tickets: ['ticket_assigned', 'ticket_escalated', 'transfer_request'],
+      system: ['system_alert', 'sla_warning', 'sla_breached', 'pipeline_completed'],
+    };
+    const types = typeMap[params.type];
+    if (types?.length) {
+      notifications = notifications.filter((n) => types.includes(n.type));
     }
-
-    if (params?.read !== undefined) {
-      notifications = notifications.filter((n) => n.read === params.read);
-    }
-
-    if (params?.priority) {
-      notifications = notifications.filter((n) => n.priority === params.priority);
-    }
-
-    // Sort by date descending
-    notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    // If backend returned 0 items, use mock fallback
-    if (notifications.length === 0) {
-      throw new Error('No notifications from backend');
-    }
-
-    // Backend already handles pagination - just return the data with total
-    return { data: notifications, total: total || notifications.length };
-  } catch (error) {
-    console.warn('[Notifications] Backend unavailable, using mock data');
-    // Fallback to mock data when backend is not available
-    let filtered = [...mockNotifications];
-
-    if (params?.type) {
-      const typeMap: Record<string, string[]> = {
-        all: [],
-        unread: [],
-        tickets: ['ticket_assigned', 'ticket_escalated', 'transfer_request'],
-        system: ['system_alert', 'sla_warning', 'sla_breached', 'pipeline_completed'],
-        read: [],
-      };
-      const types = typeMap[params.type];
-      if (types?.length) {
-        filtered = filtered.filter((n) => types.includes(n.type));
-      }
-    }
-    if (params?.read !== undefined) {
-      filtered = filtered.filter((n) => n.read === params.read);
-    }
-    if (params?.priority) {
-      filtered = filtered.filter((n) => n.priority === params.priority);
-    }
-
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const page = params?.page || 1;
-    const pageSize = params?.pageSize || 20;
-    const start = (page - 1) * pageSize;
-    const paged = filtered.slice(start, start + pageSize);
-
-    return { data: paged, total: filtered.length };
   }
+
+  if (params?.read !== undefined) {
+    notifications = notifications.filter((n) => n.read === params.read);
+  }
+
+  if (params?.priority) {
+    notifications = notifications.filter((n) => n.priority === params.priority);
+  }
+
+  // Sort by date descending
+  notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Backend already handles pagination - just return the data with total
+  return { data: notifications, total: total || notifications.length };
 };
 
 /**
  * 获取单个通知详情
  */
 export const getNotification = async (id: string): Promise<MockNotification> => {
-  try {
-    const response = await api.get(`/v1/notifications/${id}`);
-    // 拦截器已自动解包，response.data 直接是 BackendNotification
-    return mapBackendToNotification(response.data as BackendNotification);
-  } catch (error) {
-    const notification = mockNotifications.find((n) => n.id === id);
-    if (!notification) throw new Error('Notification not found');
-    return notification;
-  }
+  const response = await api.get(`/v1/notifications/${id}`);
+  // 拦截器已自动解包，response.data 直接是 BackendNotification
+  return mapBackendToNotification(response.data as BackendNotification);
 };
 
 /**
  * 标记通知为已读
  */
 export const markAsRead = async (id: string): Promise<void> => {
-  try {
-    await api.put(`/v1/notifications/${id}/read`);
-  } catch (error) {
-    console.warn('Backend markAsRead failed, using mock fallback:', error);
-  }
+  await api.put(`/v1/notifications/${id}/read`);
 };
 
 /**
  * 标记所有通知为已读
  */
 export const markAllAsRead = async (): Promise<void> => {
-  try {
-    const userId = getCurrentUserId();
-    const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    // 拦截器已自动解包，response.data 直接是 BackendNotification[]
-    const notifications: BackendNotification[] = response.data as BackendNotification[] | [];
-    // Mark each unread notification as read
-    for (const n of notifications) {
-      if (n.status !== 'read' && !n.read_at) {
-        await api.put(`/v1/notifications/${n.id}/read`);
-      }
+  const userId = getCurrentUserId();
+  const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
+  // 拦截器已自动解包，response.data 直接是 BackendNotification[]
+  const notifications: BackendNotification[] = response.data as BackendNotification[] | [];
+  // Mark each unread notification as read
+  for (const n of notifications) {
+    if (n.status !== 'read' && !n.read_at) {
+      await api.put(`/v1/notifications/${n.id}/read`);
     }
-  } catch (error) {
-    console.warn('Backend markAllAsRead failed, using mock fallback:', error);
   }
 };
 
@@ -250,12 +218,8 @@ export const markAllAsRead = async (): Promise<void> => {
  * 删除通知
  */
 export const deleteNotification = async (id: string): Promise<void> => {
-  try {
-    // Backend doesn't have a delete endpoint yet, mark as read for now
-    await api.put(`/v1/notifications/${id}/read`);
-  } catch (error) {
-    console.warn('Backend deleteNotification failed, using mock fallback:', error);
-  }
+  // Backend doesn't have a delete endpoint yet, mark as read for now
+  await api.put(`/v1/notifications/${id}/read`);
 };
 
 /**
@@ -263,88 +227,57 @@ export const deleteNotification = async (id: string): Promise<void> => {
  */
 export const getNotificationStats = async (): Promise<NotificationStats> => {
   const userId = getCurrentUserId();
-  try {
-    const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/v1/notifications/${userId}/unread-count`);
-    // 拦截器已自动解包，response1.data 直接是响应数据
-    const data1 = response1.data as { data?: { unreadCount?: number } };
-    const unreadCount = Number(data1.data?.unreadCount) || 0;
 
-    // Fetch recent notifications for other stats
-    const response2 = await api.get<{ data?: BackendNotification[] }>(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    // 拦截器已自动解包，response2.data 直接是响应数据
-    const data2 = response2.data as { data?: BackendNotification[] };
-    const backendNotifications: BackendNotification[] = data2.data ?? [];
-    const notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
+  const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/v1/notifications/${userId}/unread-count`);
+  // 拦截器已自动解包，response1.data 直接是响应数据
+  const data1 = response1.data as { data?: { unreadCount?: number } };
+  const unreadCount = Number(data1.data?.unreadCount) || 0;
 
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  // Fetch recent notifications for other stats
+  const response2 = await api.get<{ data?: BackendNotification[] }>(`/v1/notifications/${userId}`, { params: { limit: 100 } });
+  // 拦截器已自动解包，response2.data 直接是响应数据
+  const data2 = response2.data as { data?: BackendNotification[] };
+  const backendNotifications: BackendNotification[] = data2.data ?? [];
+  const notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
-    return {
-      unread: unreadCount,
-      critical: notifications.filter((n) => n.priority === 'critical' && !n.read).length,
-      today: notifications.filter((n) => new Date(n.createdAt) >= todayStart).length,
-      thisWeek: notifications.filter((n) => new Date(n.createdAt) >= weekStart).length,
-    };
-  } catch (error) {
-    console.warn('Backend getNotificationStats failed, using mock data:', error);
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
-    return {
-      unread: mockNotifications.filter((n) => !n.read).length,
-      critical: mockNotifications.filter((n) => n.priority === 'critical' && !n.read).length,
-      today: mockNotifications.filter((n) => new Date(n.createdAt) >= todayStart).length,
-      thisWeek: mockNotifications.filter((n) => new Date(n.createdAt) >= weekStart).length,
-    };
-  }
+  return {
+    unread: unreadCount,
+    critical: notifications.filter((n) => n.priority === 'critical' && !n.read).length,
+    today: notifications.filter((n) => new Date(n.createdAt) >= todayStart).length,
+    thisWeek: notifications.filter((n) => new Date(n.createdAt) >= weekStart).length,
+  };
 };
 
 /**
  * 获取通知设置
  */
 export const getNotificationSettings = async (): Promise<NotificationSettings> => {
-  try {
-    const userId = getCurrentUserId();
-    const tenantId = getCurrentTenantId();
-    const response = await api.get(`/v1/notifications/settings/${userId}`, {
-      params: { tenantId },
-    });
-    // 拦截器已自动解包，response.data 直接是响应数据
-    const data = response.data as unknown as Record<string, unknown>;
+  const userId = getCurrentUserId();
+  const tenantId = getCurrentTenantId();
+  const response = await api.get(`/v1/notifications/settings/${userId}`, {
+    params: { tenantId },
+  });
+  // 拦截器已自动解包，response.data 直接是响应数据
+  const data = response.data as unknown as Record<string, unknown>;
 
-    return {
-      emailEnabled: Boolean(data?.email_enabled ?? true),
-      soundEnabled: Boolean(data?.sms_enabled ?? false),
-      desktopEnabled: Boolean(data?.webhook_enabled ?? false),
-      ticketAssigned: Boolean(data?.ticket_assigned ?? true),
-      ticketEscalated: Boolean(data?.ticket_escalated ?? true),
-      slaWarning: Boolean(data?.sla_warning ?? true),
-      slaBreached: Boolean(data?.sla_breached ?? true),
-      pipelineCompleted: Boolean(data?.pipeline_completed ?? true),
-      systemAlert: Boolean(data?.system_alert ?? true),
-      commentMention: Boolean(data?.comment_mention ?? true),
-      transferRequest: Boolean(data?.transfer_request ?? true),
-    };
-  } catch (error) {
-    console.warn('Backend getNotificationSettings failed, using default:', error);
-    return {
-      emailEnabled: true,
-      soundEnabled: true,
-      desktopEnabled: false,
-      ticketAssigned: true,
-      ticketEscalated: true,
-      slaWarning: true,
-      slaBreached: true,
-      pipelineCompleted: true,
-      systemAlert: true,
-      commentMention: true,
-      transferRequest: true,
-    };
-  }
+  return {
+    emailEnabled: Boolean(data?.email_enabled ?? true),
+    soundEnabled: Boolean(data?.sms_enabled ?? false),
+    desktopEnabled: Boolean(data?.webhook_enabled ?? false),
+    ticketAssigned: Boolean(data?.ticket_assigned ?? true),
+    ticketEscalated: Boolean(data?.ticket_escalated ?? true),
+    slaWarning: Boolean(data?.sla_warning ?? true),
+    slaBreached: Boolean(data?.sla_breached ?? true),
+    pipelineCompleted: Boolean(data?.pipeline_completed ?? true),
+    systemAlert: Boolean(data?.system_alert ?? true),
+    commentMention: Boolean(data?.comment_mention ?? true),
+    transferRequest: Boolean(data?.transfer_request ?? true),
+  };
 };
 
 /**

@@ -86,6 +86,13 @@ export class CITypeService {
   }
 
   /**
+   * Get a single CI type by name. Returns undefined if not found.
+   */
+  async getTypeByName(name: string): Promise<CITypeEntity | undefined> {
+    return this.typeRepo.getByName(name);
+  }
+
+  /**
    * Create a new CI type.
    */
   async createType(input: CreateTypeInput): Promise<CITypeEntity> {

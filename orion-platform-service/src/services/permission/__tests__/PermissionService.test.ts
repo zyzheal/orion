@@ -28,7 +28,7 @@ describe('PermissionService', () => {
         { id: 'p1', resource: 'pipeline', action: 'read' },
         { id: 'p2', resource: 'pipeline', action: 'write' },
       ];
-      mockRepo.findAll.mockResolvedValue(perms);
+      mockRepo.findAll.mockResolvedValue({ entities: perms, total: 2 });
 
       const result = await service.listPermissions();
       expect(result).toHaveLength(2);
@@ -36,7 +36,7 @@ describe('PermissionService', () => {
     });
 
     it('should return empty array when no permissions', async () => {
-      mockRepo.findAll.mockResolvedValue([]);
+      mockRepo.findAll.mockResolvedValue({ entities: [], total: 0 });
       const result = await service.listPermissions();
       expect(result).toHaveLength(0);
     });
@@ -68,13 +68,13 @@ describe('PermissionService', () => {
 
       const result = await service.createPermission('pipeline', 'read', 'View pipelines');
       expect(result).toEqual(perm);
-      expect(mockRepo.create).toHaveBeenCalledWith('pipeline', 'read', 'View pipelines');
+      expect(mockRepo.create).toHaveBeenCalledWith({ resource: 'pipeline', action: 'read', description: 'View pipelines' });
     });
 
     it('should create permission without description', async () => {
       mockRepo.create.mockResolvedValue({ id: 'p1' });
       await service.createPermission('pipeline', 'read');
-      expect(mockRepo.create).toHaveBeenCalledWith('pipeline', 'read', undefined);
+      expect(mockRepo.create).toHaveBeenCalledWith({ resource: 'pipeline', action: 'read', description: null });
     });
 
     it('should throw INVALID_INPUT when resource is empty', async () => {
@@ -151,7 +151,7 @@ describe('PermissionService', () => {
 
   describe('seedCommonPermissions', () => {
     it('should create missing permissions', async () => {
-      mockRepo.findAll.mockResolvedValue([]);
+      mockRepo.findAll.mockResolvedValue({ entities: [], total: 0 });
       mockRepo.createBatch.mockResolvedValue(new Array(37).fill(null).map((_, i) => ({ id: `p${i}` })));
 
       const result = await service.seedCommonPermissions();
@@ -199,7 +199,7 @@ describe('PermissionService', () => {
         { id: 'p35', resource: 'api_key', action: 'write' },
         { id: 'p36', resource: 'api_key', action: 'delete' },
       ];
-      mockRepo.findAll.mockResolvedValue(existing);
+      mockRepo.findAll.mockResolvedValue({ entities: existing, total: existing.length });
 
       const result = await service.seedCommonPermissions();
       expect(result.created).toBe(0);
@@ -208,10 +208,13 @@ describe('PermissionService', () => {
     });
 
     it('should create only missing permissions when some exist', async () => {
-      mockRepo.findAll.mockResolvedValue([
-        { id: 'p1', resource: 'pipeline', action: 'read' },
-        { id: 'p2', resource: 'pipeline', action: 'write' },
-      ]);
+      mockRepo.findAll.mockResolvedValue({
+        entities: [
+          { id: 'p1', resource: 'pipeline', action: 'read' },
+          { id: 'p2', resource: 'pipeline', action: 'write' },
+        ],
+        total: 2,
+      });
       mockRepo.createBatch.mockResolvedValue(new Array(35).fill(null).map((_, i) => ({ id: `new${i}` })));
 
       const result = await service.seedCommonPermissions();

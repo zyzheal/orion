@@ -77,7 +77,7 @@ class PostgresSsoStateStore implements SsoStateStore {
   async set(key: string, value: string, ttl: number): Promise<void> {
     // Extract the raw state from the key (format: "sso:state:{state}")
     const state = key.replace('sso:state:', '');
-    await this.repository.create(state, this.provider, value, ttl);
+    await this.repository.createState(state, this.provider, value, ttl);
   }
 
   async get(key: string): Promise<string | null> {

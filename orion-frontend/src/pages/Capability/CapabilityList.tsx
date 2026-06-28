@@ -2,7 +2,7 @@
  * 能力列表页面
  * 查看系统中定义的所有能力，支持按类别、风险等级筛选
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   Tag,
@@ -17,6 +17,7 @@ import {
   Tooltip,
   Badge,
   Empty,
+  message,
 } from 'antd';
 import {
   SearchOutlined,
@@ -25,6 +26,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { capabilityApi, type Capability as ApiCapability } from '@/api/capability';
 
 const { Text } = Typography;
 
@@ -48,267 +50,23 @@ export interface Capability {
   updatedAt: string;
 }
 
-// ==================== Mock 数据 ====================
+// ==================== API 数据映射 ====================
 
-const mockCapabilities: Capability[] = [
-  // ChatOps 分类
-  {
-    id: 'chatops_view',
-    name: 'ChatOps 查看',
-    description: '查看命令目录、执行记录、配置',
-    category: 'ChatOps',
-    riskLevel: 1,
-    requiresApproval: false,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 5,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'chatops_card_manage',
-    name: '问答卡片管理',
-    description: '新增、编辑、删除问答卡片',
-    category: 'ChatOps',
-    riskLevel: 2,
-    requiresApproval: false,
-    parentId: 'chatops_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 3,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'chatops_command_manage',
-    name: '命令配置管理',
-    description: '新增、编辑、删除命令配置',
-    category: 'ChatOps',
-    riskLevel: 3,
-    requiresApproval: true,
-    parentId: 'chatops_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 2,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'chatops_platform_manage',
-    name: '平台配置管理',
-    description: '修改平台 Webhook、Token 等敏感配置',
-    category: 'ChatOps',
-    riskLevel: 4,
-    requiresApproval: true,
-    parentId: 'chatops_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 1,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'chatops_notification_manage',
-    name: '通知设置管理',
-    description: '修改通知偏好、免打扰设置',
-    category: 'ChatOps',
-    riskLevel: 2,
-    requiresApproval: false,
-    parentId: 'chatops_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 4,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  // Pipeline 分类
-  {
-    id: 'pipeline_view',
-    name: '流水线查看',
-    description: '查看流水线列表、运行记录',
-    category: 'Pipeline',
-    riskLevel: 1,
-    requiresApproval: false,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 5,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'pipeline_create',
-    name: '流水线创建',
-    description: '创建新的流水线',
-    category: 'Pipeline',
-    riskLevel: 2,
-    requiresApproval: false,
-    parentId: 'pipeline_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 3,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'pipeline_edit',
-    name: '流水线编辑',
-    description: '编辑现有流水线配置',
-    category: 'Pipeline',
-    riskLevel: 2,
-    requiresApproval: false,
-    parentId: 'pipeline_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 3,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'pipeline_delete',
-    name: '流水线删除',
-    description: '删除流水线',
-    category: 'Pipeline',
-    riskLevel: 3,
-    requiresApproval: true,
-    parentId: 'pipeline_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 1,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'pipeline_trigger',
-    name: '流水线触发',
-    description: '手动触发流水线执行',
-    category: 'Pipeline',
-    riskLevel: 2,
-    requiresApproval: false,
-    parentId: 'pipeline_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 4,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'pipeline_trigger_prod',
-    name: '生产环境流水线触发',
-    description: '触发生产环境的流水线执行',
-    category: 'Pipeline',
-    riskLevel: 4,
-    requiresApproval: true,
-    parentId: 'pipeline_trigger',
-    enabled: true,
-    childCount: 0,
-    roleCount: 1,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  // Deployment 分类
-  {
-    id: 'deployment_view',
-    name: '部署查看',
-    description: '查看部署记录、历史版本',
-    category: 'Deployment',
-    riskLevel: 1,
-    requiresApproval: false,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 5,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'deployment_operations',
-    name: '部署操作',
-    description: '执行部署、回滚等操作',
-    category: 'Deployment',
-    riskLevel: 3,
-    requiresApproval: true,
-    parentId: 'deployment_view',
-    enabled: true,
-    childCount: 0,
-    roleCount: 2,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'deployment_rollback',
-    name: '部署回滚',
-    description: '执行部署回滚操作',
-    category: 'Deployment',
-    riskLevel: 4,
-    requiresApproval: true,
-    parentId: 'deployment_operations',
-    enabled: true,
-    childCount: 0,
-    roleCount: 1,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  // 环境操作
-  {
-    id: 'environment_operations',
-    name: '环境操作',
-    description: '创建、修改、删除环境',
-    category: 'Environment',
-    riskLevel: 3,
-    requiresApproval: true,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 2,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  // 安全操作
-  {
-    id: 'secret_operations',
-    name: '密钥操作',
-    description: '管理敏感凭据、密钥',
-    category: 'Security',
-    riskLevel: 4,
-    requiresApproval: true,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 1,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'backup_operations',
-    name: '备份操作',
-    description: '执行数据备份',
-    category: 'Security',
-    riskLevel: 3,
-    requiresApproval: true,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 2,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-  {
-    id: 'disaster_recovery',
-    name: '灾备操作',
-    description: '执行灾备切换、恢复',
-    category: 'Security',
-    riskLevel: 4,
-    requiresApproval: true,
-    parentId: null,
-    enabled: true,
-    childCount: 0,
-    roleCount: 1,
-    createdAt: '2026-04-01',
-    updatedAt: '2026-05-15',
-  },
-];
+/** 将 API 返回的 snake_case 能力数据映射为组件使用的 camelCase 格式 */
+const mapApiCapability = (cap: ApiCapability): Capability => ({
+  id: cap.capability_id || cap.id,
+  name: cap.name,
+  description: cap.description || '',
+  category: cap.category,
+  riskLevel: (cap.risk_level || 1) as 1 | 2 | 3 | 4,
+  requiresApproval: cap.requires_approval ?? false,
+  parentId: cap.parent_capability_id ?? null,
+  enabled: cap.enabled ?? true,
+  childCount: cap.child_count ?? 0,
+  roleCount: cap.role_count ?? 0,
+  createdAt: cap.created_at ?? '',
+  updatedAt: cap.updated_at ?? '',
+});
 
 // ==================== 工具函数 ====================
 
@@ -359,12 +117,27 @@ const getCategoryColor = (category: string): string => {
  */
 const CapabilityList: React.FC = () => {
   // 状态
-  const [data, setData] = useState<Capability[]>(mockCapabilities);
+  const [data, setData] = useState<Capability[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [riskLevelFilter, setRiskLevelFilter] = useState<number | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
+
+  // 加载数据
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await capabilityApi.list();
+      const items = (res.data as any)?.data || [];
+      setData(items.map(mapApiCapability));
+    } catch {
+      message.error('加载能力列表失败');
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   // 统计
   const totalCount = data.length;
@@ -377,7 +150,7 @@ const CapabilityList: React.FC = () => {
   );
 
   // 获取所有分类
-  const categories = Array.from(new Set(mockCapabilities.map((c) => c.category)));
+  const categories = Array.from(new Set(data.map((c) => c.category)));
 
   // 筛选数据
   const filteredData = data.filter((cap) => {
@@ -409,12 +182,8 @@ const CapabilityList: React.FC = () => {
 
   // 刷新数据
   const handleRefresh = useCallback(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setData([...mockCapabilities]);
-      setLoading(false);
-    }, 500);
-  }, []);
+    loadData();
+  }, [loadData]);
 
   // 表格列定义
   const columns = [

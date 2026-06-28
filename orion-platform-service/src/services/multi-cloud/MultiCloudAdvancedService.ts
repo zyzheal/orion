@@ -1,8 +1,12 @@
 import { OrionError, ErrorCode } from '../../errors';
+import { MultiCloudRepository, CrossZoneDREntity, DRTestResultEntity, CloudNetworkEntity, SchedulingPolicyEntity, SchedulingDecisionEntity } from '../../repositories/MultiCloudRepository';
+import { DatabasePool } from '../database';
 /**
  * Multi-Cloud Advanced Service - Phase 4
  *
  * 多云混合云进阶功能：跨区容灾、多云成本、云网络、合规检查、资源调度
+ *
+ * PostgreSQL Repository pattern with Map fallback for graceful degradation.
  */
 
 export interface CrossZoneDR {
@@ -160,11 +164,18 @@ export interface ResourceScheduleRequest {
 }
 
 export class MultiCloudAdvancedService {
-  private crossZoneDRs = new Map<string, CrossZoneDR>();
-  private drTestResults = new Map<string, DRTestResult>();
-  private cloudNetworks = new Map<string, CloudNetwork>();
-  private schedulingPolicies = new Map<string, SchedulingPolicy>();
-  private schedulingDecisions = new Map<string, SchedulingDecision>();
+  private repository: MultiCloudRepository | null;
+  private memoryDR = new Map<string, CrossZoneDR>();
+  private memoryDRTest = new Map<string, DRTestResult>();
+  private memoryNetwork = new Map<string, CloudNetwork>();
+  private memoryPolicy = new Map<string, SchedulingPolicy>();
+  private memoryDecision = new Map<string, SchedulingDecision>();
+
+  constructor(database?: DatabasePool) {
+    if (database) {
+      this.repository = new MultiCloudRepository(database);
+    }
+  }
 
   // ========== Cross-Zone DR Management ==========
 
@@ -173,6 +184,7 @@ export class MultiCloudAdvancedService {
     config: DRConfig,
   ): Promise<CrossZoneDR> {
     const id = `dr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
     const dr: CrossZoneDR = {
       id,
       tenantId,
@@ -184,19 +196,47 @@ export class MultiCloudAdvancedService {
       rto: config.rto || 600,
       status: 'configured',
       lastTestAt: null,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     };
-    this.crossZoneDRs.set(id, dr);
+
+    if (this.repository) {
+      await this.repository.createCrossZoneDR({
+        id,
+        tenant_id: tenantId,
+        name: config.name,
+        primary_zone: config.primaryZone,
+        secondary_zone: config.secondaryZone,
+        strategy: dr.strategy,
+        rpo: dr.rpo,
+        rto: dr.rto,
+        status: dr.status,
+        last_test_at: null,
+        created_at: new Date(now),
+      });
+    }
+    this.memoryDR.set(id, dr);
     return dr;
   }
 
   async testCrossZoneDR(drId: string): Promise<DRTestResult> {
-    const dr = this.crossZoneDRs.get(drId);
+    let dr = this.memoryDR.get(drId);
+    if (!dr) {
+      if (this.repository) {
+        const entity = await this.repository.findCrossZoneDRById(drId);
+        if (entity) {
+          dr = this.entityToDR(entity);
+          this.memoryDR.set(dr.id, dr);
+        }
+      }
+    }
     if (!dr) {
       throw new OrionError(`Cross-zone DR not found: ${drId}`, ErrorCode.NOT_FOUND);
     }
 
     dr.status = 'testing';
+    if (this.repository) {
+      await this.repository.updateCrossZoneDRStatus(drId, 'testing');
+    }
 
     const testId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const duration = Math.floor(Math.random() * 300) + 60;
@@ -213,10 +253,26 @@ export class MultiCloudAdvancedService {
       },
       testedAt: new Date().toISOString(),
     };
-    this.drTestResults.set(testId, result);
+
+    if (this.repository) {
+      await this.repository.createDRTestResult({
+        id: testId,
+        dr_id: drId,
+        status: result.status,
+        duration,
+        details: result.details,
+        tested_at: new Date(result.testedAt),
+        created_at: new Date(result.testedAt),
+      });
+    }
+    this.memoryDRTest.set(testId, result);
 
     dr.status = result.status === 'success' ? 'active' : 'failed';
     dr.lastTestAt = result.testedAt;
+    if (this.repository) {
+      await this.repository.updateCrossZoneDRStatus(drId, dr.status, new Date(dr.lastTestAt || undefined));
+    }
+    this.memoryDR.set(drId, dr);
 
     return result;
   }
@@ -284,6 +340,7 @@ export class MultiCloudAdvancedService {
     config: CloudNetworkConfig,
   ): Promise<CloudNetwork> {
     const id = `network-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
     const network: CloudNetwork = {
       id,
       tenantId,
@@ -292,9 +349,22 @@ export class MultiCloudAdvancedService {
       subnets: config.subnets || [],
       securityGroups: config.securityGroups || [],
       status: 'provisioning',
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     };
-    this.cloudNetworks.set(id, network);
+
+    if (this.repository) {
+      await this.repository.createCloudNetwork({
+        id,
+        tenant_id: tenantId,
+        name: config.name,
+        vpc_id: config.vpcId,
+        subnets: network.subnets,
+        security_groups: network.securityGroups,
+        status: network.status,
+        created_at: new Date(now),
+      });
+    }
+    this.memoryNetwork.set(id, network);
     return network;
   }
 
@@ -451,13 +521,27 @@ export class MultiCloudAdvancedService {
     policy: Omit<SchedulingPolicy, 'id' | 'tenantId' | 'createdAt'>,
   ): Promise<SchedulingPolicy> {
     const id = `policy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
     const newPolicy: SchedulingPolicy = {
       id,
       tenantId,
       ...policy,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     };
-    this.schedulingPolicies.set(id, newPolicy);
+
+    if (this.repository) {
+      await this.repository.createSchedulingPolicy({
+        id,
+        tenant_id: tenantId,
+        name: policy.name,
+        strategy: newPolicy.strategy,
+        constraints: policy.constraints,
+        priority: policy.priority,
+        enabled: policy.enabled,
+        created_at: new Date(now),
+      });
+    }
+    this.memoryPolicy.set(id, newPolicy);
     return newPolicy;
   }
 
@@ -465,7 +549,11 @@ export class MultiCloudAdvancedService {
    * List scheduling policies for a tenant
    */
   async listSchedulingPolicies(tenantId: string): Promise<SchedulingPolicy[]> {
-    return Array.from(this.schedulingPolicies.values())
+    if (this.repository) {
+      const entities = await this.repository.findSchedulingPoliciesByTenant(tenantId);
+      return entities.map(e => this.entityToPolicy(e));
+    }
+    return Array.from(this.memoryPolicy.values())
       .filter(p => p.tenantId === tenantId);
   }
 
@@ -479,7 +567,14 @@ export class MultiCloudAdvancedService {
     // Get the scheduling policy
     let policy: SchedulingPolicy | undefined;
     if (request.policyId) {
-      policy = this.schedulingPolicies.get(request.policyId);
+      policy = this.memoryPolicy.get(request.policyId);
+      if (!policy && this.repository) {
+        const entity = await this.repository.findSchedulingPolicyById(request.policyId);
+        if (entity) {
+          policy = this.entityToPolicy(entity);
+          this.memoryPolicy.set(policy.id, policy);
+        }
+      }
     }
 
     // Default cost estimates per provider/region
@@ -543,7 +638,23 @@ export class MultiCloudAdvancedService {
       decidedAt: new Date().toISOString(),
     };
 
-    this.schedulingDecisions.set(decisionId, decision);
+    this.memoryDecision.set(decisionId, decision);
+
+    if (this.repository) {
+      await this.repository.createSchedulingDecision({
+        id: decisionId,
+        policy_id: decision.policyId,
+        resource_type: decision.resourceType,
+        selected_provider: decision.selectedProvider,
+        selected_region: decision.selectedRegion,
+        estimated_cost: decision.estimatedCost,
+        reason: decision.reason,
+        alternatives: decision.alternatives,
+        decided_at: new Date(decision.decidedAt),
+        created_at: new Date(decision.decidedAt),
+      });
+    }
+
     return decision;
   }
 
@@ -551,7 +662,62 @@ export class MultiCloudAdvancedService {
    * Get scheduling decision history
    */
   async getSchedulingHistory(tenantId: string): Promise<SchedulingDecision[]> {
-    return Array.from(this.schedulingDecisions.values());
+    if (this.repository) {
+      // Get all policies for tenant, then decisions
+      const policies = await this.repository.findSchedulingPoliciesByTenant(tenantId);
+      const allDecisions: SchedulingDecision[] = [];
+      for (const policy of policies) {
+        const entities = await this.repository.findSchedulingDecisionsByPolicyId(policy.id);
+        allDecisions.push(...entities.map(e => this.entityToDecision(e)));
+      }
+      return allDecisions;
+    }
+    return Array.from(this.memoryDecision.values());
+  }
+
+  // ==================== Entity Converters ====================
+
+  private entityToDR(entity: CrossZoneDREntity): CrossZoneDR {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      name: entity.name,
+      primaryZone: entity.primary_zone,
+      secondaryZone: entity.secondary_zone,
+      strategy: entity.strategy,
+      rpo: entity.rpo,
+      rto: entity.rto,
+      status: entity.status,
+      lastTestAt: entity.last_test_at?.toISOString() ?? null,
+      createdAt: entity.created_at,
+    };
+  }
+
+  private entityToPolicy(entity: SchedulingPolicyEntity): SchedulingPolicy {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      name: entity.name,
+      strategy: entity.strategy,
+      constraints: entity.constraints,
+      priority: entity.priority,
+      enabled: entity.enabled,
+      createdAt: entity.created_at,
+    };
+  }
+
+  private entityToDecision(entity: SchedulingDecisionEntity): SchedulingDecision {
+    return {
+      id: entity.id,
+      policyId: entity.policy_id,
+      resourceType: entity.resource_type,
+      selectedProvider: entity.selected_provider,
+      selectedRegion: entity.selected_region,
+      estimatedCost: entity.estimated_cost,
+      reason: entity.reason,
+      alternatives: entity.alternatives,
+      decidedAt: entity.decided_at,
+    };
   }
 
   // ==================== Internal Helpers ====================

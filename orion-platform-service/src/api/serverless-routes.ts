@@ -18,8 +18,7 @@ export default async function serverlessRoutes(
   app: FastifyInstance,
   options: ServerlessRoutesOptions = {}
 ): Promise<void> {
-  void options.database;
-  const serverlessService = new ServerlessService();
+  const serverlessService = options.database ? new ServerlessService(options.database) : new ServerlessService();
 
   // ============================================================================
   // Functions CRUD

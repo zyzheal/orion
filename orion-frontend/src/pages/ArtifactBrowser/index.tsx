@@ -35,46 +35,13 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
-// ---- Mock pipeline options (would come from API in production) ----
+// ---- Pipeline options (fetched from API or static config) ----
 const pipelineOptions = [
   { label: 'orion-core-build', value: 'pipe-001' },
   { label: 'orion-ai-build', value: 'pipe-002' },
   { label: 'orion-gateway-deploy', value: 'pipe-003' },
   { label: 'orion-frontend-build', value: 'pipe-004' },
 ];
-
-// ---- Mock data generator for demo ----
-function generateMockVersions(): ArtifactVersion[] {
-  const pipelines = ['pipe-001', 'pipe-002', 'pipe-003', 'pipe-004'];
-  const stages = ['build', 'test', 'package', 'deploy'];
-  const branches = ['main', 'develop', 'feature/auth', 'release/v2.5', 'hotfix/fix-login'];
-  const artifacts = ['orion-core.jar', 'orion-ai-service.tar', 'orion-gateway.war', 'orion-frontend.zip'];
-
-  const versions: ArtifactVersion[] = [];
-  for (let i = 1; i <= 30; i++) {
-    const idx = i - 1;
-    const pipelineIdx = idx % pipelines.length;
-    const hour = 20 - Math.floor(idx / 5);
-    versions.push({
-      id: `av-${String(i).padStart(3, '0')}`,
-      tenantId: 'tenant-1',
-      pipelineId: pipelines[pipelineIdx],
-      runId: `run-${String(i).padStart(4, '0')}`,
-      stageName: stages[idx % stages.length],
-      artifactName: artifacts[pipelineIdx],
-      version: `1.${Math.floor(idx / 10)}.${idx % 10}`,
-      commitSha: `abc${String(idx).padStart(5, '0')}def${String(idx * 7).padStart(3, '0')}`,
-      branch: branches[idx % branches.length],
-      metadata: {
-        imageTag: `v1.${Math.floor(idx / 10)}.${idx % 10}`,
-        fileSize: `${(100 + idx * 10)}MB`,
-      },
-      storagePath: `/artifacts/${artifacts[pipelineIdx]}`,
-      createdAt: `2024-03-${String(Math.max(1, 20 - Math.floor(idx / 3))).padStart(2, '0')}T${String(Math.min(23, hour)).padStart(2, '0')}:${String((idx * 7) % 60).padStart(2, '0')}:00Z`,
-    });
-  }
-  return versions;
-}
 
 // ---- Main Component ----
 
@@ -113,46 +80,21 @@ const ArtifactBrowser: React.FC = () => {
   const loadVersions = async () => {
     setLoading(true);
     try {
-      // Try API call, fall back to mock data
-      const params: any = {
+      const params: Record<string, unknown> = {
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
       };
       if (filters.pipelineId) params.pipelineId = filters.pipelineId;
       if (filters.branch) params.branch = filters.branch;
 
-      try {
-        const res = await getArtifactVersions(params);
-        const data = res.data;
-        if (data && Array.isArray(data.versions)) {
-          setVersions(data.versions);
-          setTotal(data.total || data.versions.length);
-        } else {
-          throw new Error('Invalid response format');
-        }
-      } catch {
-        // Fall back to mock data for demo
-        const mockData = generateMockVersions();
-        let filtered = mockData;
-
-        if (filters.pipelineId) {
-          filtered = filtered.filter((v) => v.pipelineId === filters.pipelineId);
-        }
-        if (filters.branch) {
-          filtered = filtered.filter((v) => v.branch === filters.branch);
-        }
-        if (filters.dateRange) {
-          const [start, end] = filters.dateRange;
-          filtered = filtered.filter((v) => {
-            const date = v.createdAt.slice(0, 10);
-            return date >= start && date <= end;
-          });
-        }
-
-        const start = (currentPage - 1) * pageSize;
-        const pageData = filtered.slice(start, start + pageSize);
-        setVersions(pageData);
-        setTotal(filtered.length);
+      const res = await getArtifactVersions(params);
+      const data = res.data;
+      if (data && Array.isArray(data.versions)) {
+        setVersions(data.versions);
+        setTotal(data.total || data.versions.length);
+      } else {
+        setVersions([]);
+        setTotal(0);
       }
     } catch (error: unknown) {
       message.error(`加载版本数据失败: ${(error as Error).message}`);
@@ -177,40 +119,9 @@ const ArtifactBrowser: React.FC = () => {
     try {
       const res = await getTraceabilityChain(record.id);
       setTraceChain(res.data || null);
-    } catch {
-      // Fall back to mock traceability data
-      setTraceChain({
-        version: record,
-        pipelineRun: {
-          id: record.runId,
-          pipelineId: record.pipelineId,
-          triggerType: 'git',
-          status: 'success',
-          startedAt: record.createdAt,
-          completedAt: dayjs(record.createdAt).add(3, 'minute').toISOString(),
-          context: { ref: record.branch || 'main' },
-        },
-        deployments: [
-          {
-            id: `deploy-${record.id}`,
-            environment: 'staging',
-            status: 'success',
-            deployedAt: dayjs(record.createdAt).add(10, 'minute').toISOString(),
-            deployedBy: 'ci-bot',
-          },
-          ...(record.stageName === 'deploy'
-            ? [
-                {
-                  id: `deploy-prod-${record.id}`,
-                  environment: 'production',
-                  status: 'success',
-                  deployedAt: dayjs(record.createdAt).add(30, 'minute').toISOString(),
-                  deployedBy: 'admin',
-                },
-              ]
-            : []),
-        ],
-      });
+    } catch (error: unknown) {
+      message.error(`加载追溯链失败: ${(error as Error).message}`);
+      setTraceChain(null);
     } finally {
       setTraceLoading(false);
     }
@@ -229,36 +140,9 @@ const ArtifactBrowser: React.FC = () => {
     try {
       const res = await getVersionDiff(a.pipelineId, a.version, b.version);
       setDiff(res.data || null);
-    } catch {
-      // Fall back to mock diff data
-      setDiff({
-        pipelineId: a.pipelineId,
-        versionA: a.version,
-        versionB: b.version,
-        changes: {
-          commitDiff: {
-            from: a.commitSha || 'unknown',
-            to: b.commitSha || 'unknown',
-          },
-          branchDiff: {
-            from: a.branch || 'unknown',
-            to: b.branch || 'unknown',
-          },
-          metadataAdded: Object.keys(b.metadata).filter(
-            (k) => !(k in a.metadata)
-          ),
-          metadataRemoved: Object.keys(a.metadata).filter(
-            (k) => !(k in b.metadata)
-          ),
-          metadataChanged: Object.keys(a.metadata)
-            .filter((k) => k in b.metadata && a.metadata[k] !== b.metadata[k])
-            .map((k) => ({
-              key: k,
-              oldValue: a.metadata[k],
-              newValue: b.metadata[k],
-            })),
-        },
-      });
+    } catch (error: unknown) {
+      message.error(`加载版本对比失败: ${(error as Error).message}`);
+      setDiff(null);
     } finally {
       setDiffLoading(false);
     }
@@ -285,10 +169,8 @@ const ArtifactBrowser: React.FC = () => {
       await deployVersion(deployVersionItem.id, values);
       message.success(`版本 ${deployVersionItem.version} 已触发部署到 ${values.environment}`);
       setDeployModalVisible(false);
-    } catch {
-      // Mock success for demo
-      message.success(`版本 ${deployVersionItem.version} 部署到 ${values.environment} 已触发（演示模式）`);
-      setDeployModalVisible(false);
+    } catch (error: unknown) {
+      message.error(`部署失败: ${(error as Error).message}`);
     } finally {
       setDeploySubmitting(false);
     }
