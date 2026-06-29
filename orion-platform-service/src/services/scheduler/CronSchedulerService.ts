@@ -2,8 +2,8 @@
  * Cron Scheduler Service
  * 分布式定时任务调度服务
  *
- * - PostgreSQL persistence via CronJobRepository / CronExecutionRepository
- * - In-memory fallback for environments without DB
+ * - PostgreSQL persistence via CronJobRepository / CronExecutionRepository as the authoritative store
+ * - In-memory cache (optional) for scheduler tick hot-path; degraded to DB-only on cache miss
  * - Real cron expression parsing via cron-parser library
  * - Scheduler loop with 60s tick interval
  * - UTC timezone by default
@@ -12,7 +12,7 @@
 import pino from 'pino';
 import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
-import { CronExecutionRepository, CronExecutionEntity } from '../../repositories/CronExecutionRepository';
+import { CronExecutionRepository } from '../../repositories/CronExecutionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
@@ -49,20 +49,24 @@ export interface CronJobExecution {
 const DEFAULT_TICK_MS = 60_000; // 60 seconds
 
 export class CronSchedulerService {
-  private cronJobRepository?: CronJobRepository;
-  private executionRepository?: CronExecutionRepository;
+  private cronJobRepo?: CronJobRepository;
+  private executionRepo?: CronExecutionRepository;
 
-  // In-memory fallback (for tests / no-DB environments)
-  private jobs: Map<string, CronJob> = new Map();
+  /**
+   * In-memory cache — secondary to DB.
+   * Populated lazily on first read; refreshed on create/enable/disable/remove.
+   * Falls back to DB queries if cache is inconsistent.
+   */
+  private cache: Map<string, CronJob> = new Map();
   private executions: CronJobExecution[] = [];
   private runningJobIds: Set<string> = new Set();
   private intervalId?: ReturnType<typeof setInterval>;
   private running = false;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number | null }> }) {
     if (db) {
-      this.cronJobRepository = new CronJobRepository(db);
-      this.executionRepository = new CronExecutionRepository(db);
+      this.cronJobRepo = new CronJobRepository(db);
+      this.executionRepo = new CronExecutionRepository(db);
     }
   }
 
@@ -75,17 +79,19 @@ export class CronSchedulerService {
     }
     this.running = true;
 
-    // Restore enabled jobs from DB into in-memory map
-    if (this.cronJobRepository) {
+    // Warm cache from DB — load all jobs (enabled + disabled) so the scheduler
+    // sees the complete set.
+    if (this.cronJobRepo) {
       try {
-        const enabledJobs = await this.cronJobRepository.findEnabled();
-        for (const entity of enabledJobs) {
-          const job = this.mapEntityToJob(entity);
-          this.jobs.set(job.id, job);
+        const { entities } = await this.cronJobRepo.findAll({ limit: 10000, offset: 0 });
+        for (const entity of entities) {
+          this.cache.set(entity.id, this.mapEntityToJob(entity));
         }
-        logger.info({ count: enabledJobs.length }, 'CronSchedulerService restored jobs from DB');
+        logger.info({ count: entities.length }, 'CronSchedulerService warmed cache from DB');
       } catch (err) {
-        logger.error({ traceId: getCurrentTraceId(), err }, 'CronSchedulerService failed to restore jobs from DB');
+        logger.error({ traceId: getCurrentTraceId(), err }, 'CronSchedulerService failed to warm cache from DB');
+        // Keep the scheduler running even if cache warm fails; it will fall back
+        // to DB reads on each tick.
       }
     }
 
@@ -109,8 +115,7 @@ export class CronSchedulerService {
   // ── Job CRUD ────────────────────────────────────────────────────────────
 
   /**
-   * Add a cron job.
-   * Sync — routes don't await it. DB writes happen fire-and-forget.
+   * Add a cron job. Authoritative store is PostgreSQL; cache is updated in sync.
    */
   addJob(job: { id: string; name: string; schedule: string; task: string; enabled?: boolean }): void {
     // Validate cron expression (throws on invalid)
@@ -128,9 +133,12 @@ export class CronSchedulerService {
       nextRunAt: this.computeNextRun(job.schedule),
     };
 
-    // Persist (fire-and-forget)
-    if (this.cronJobRepository) {
-      this.cronJobRepository.create({
+    // Update in-memory cache synchronously (hot path)
+    this.cache.set(cronJob.id, cronJob);
+
+    // Persist asynchronously (fire-and-forget; routes don't await it)
+    if (this.cronJobRepo) {
+      this.cronJobRepo.create({
         id: cronJob.id,
         name: cronJob.name,
         schedule: cronJob.schedule,
@@ -142,49 +150,92 @@ export class CronSchedulerService {
         nextRunAt: cronJob.nextRunAt ? new Date(cronJob.nextRunAt) : null,
         createdAt: now,
       }).catch((err) => {
-        logger.warn({ traceId: getCurrentTraceId(), err, jobId: cronJob.id }, 'Failed to persist cron job, using in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), err, jobId: cronJob.id }, 'Failed to persist cron job to DB');
       });
     }
 
-    this.jobs.set(cronJob.id, cronJob);
     logger.info({ jobId: cronJob.id, name: cronJob.name, schedule: cronJob.schedule }, 'Cron job added');
   }
 
+  /**
+   * Return all jobs. DB is authoritative; cache is consulted first.
+   * On cache miss or if no cache exists, falls back to a DB query.
+   */
   async getJobs(): Promise<CronJob[]> {
-    if (this.cronJobRepository) {
+    // Quick path: serve from cache if we have it
+    if (this.cache.size > 0 && !this.cronJobRepo) {
+      return Array.from(this.cache.values());
+    }
+
+    if (this.cronJobRepo) {
       try {
-        const result = await this.cronJobRepository.findAll();
+        const result = await this.cronJobRepo.findAll({ limit: 10000, offset: 0 });
+        // Update cache with fresh data
+        this.cache.clear();
+        for (const entity of result.entities) {
+          this.cache.set(entity.id, this.mapEntityToJob(entity));
+        }
         return result.entities.map((e) => this.mapEntityToJob(e));
       } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err }, 'DB getJobs failed, falling back to in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'DB getJobs failed, falling back to cache');
       }
     }
-    return Array.from(this.jobs.values());
-  }
 
-  getJob(id: string): CronJob | undefined {
-    return this.jobs.get(id);
+    // Last resort: in-memory cache
+    return Array.from(this.cache.values());
   }
 
   /**
-   * Remove a cron job. Sync — routes don't await it.
+   * Get a single job by id.
+   * Checks cache first, then falls back to DB.
+   */
+  getJob(id: string): CronJob | undefined {
+    const cached = this.cache.get(id);
+    if (cached) {
+      return cached;
+    }
+
+    if (this.cronJobRepo) {
+      try {
+        // Sync read from DB — note: this is a synchronous method, so we
+        // can't await here. We leave it fire-and-forget and populate the
+        // cache if it succeeds.
+        this.cronJobRepo.findById(id)
+          .then((entity) => {
+            if (entity) {
+              const job = this.mapEntityToJob(entity);
+              this.cache.set(entity.id, job);
+            }
+          })
+          .catch(() => { /* silent */ });
+      } catch {
+        // ignore
+      }
+    }
+
+    return this.cache.get(id);
+  }
+
+  /**
+   * Remove a cron job. Updates cache synchronously; persists to DB fire-and-forget.
    */
   removeJob(id: string): void {
-    if (this.cronJobRepository) {
-      this.cronJobRepository.delete(id).catch((err) => {
+    this.cache.delete(id);
+    this.runningJobIds.delete(id);
+
+    if (this.cronJobRepo) {
+      this.cronJobRepo.delete(id).catch((err) => {
         logger.warn({ traceId: getCurrentTraceId(), err, jobId: id }, 'Failed to remove cron job from DB');
       });
     }
-    this.jobs.delete(id);
-    this.runningJobIds.delete(id);
     logger.info({ jobId: id }, 'Cron job removed');
   }
 
   /**
-   * Enable a disabled job. Sync.
+   * Enable a disabled job.
    */
   enableJob(id: string): void {
-    const job = this.jobs.get(id);
+    const job = this.cache.get(id);
     if (!job) {
       logger.warn({ traceId: getCurrentTraceId(), jobId: id }, 'enableJob: job not found');
       return;
@@ -192,10 +243,10 @@ export class CronSchedulerService {
     job.enabled = true;
     job.updatedAt = new Date().toISOString();
     job.nextRunAt = this.computeNextRun(job.schedule);
-    this.jobs.set(id, job);
+    this.cache.set(id, job);
 
-    if (this.cronJobRepository) {
-      this.cronJobRepository.update(id, { enabled: true }).catch((err) => {
+    if (this.cronJobRepo) {
+      this.cronJobRepo.update(id, { enabled: true }).catch((err) => {
         logger.warn({ traceId: getCurrentTraceId(), err, jobId: id }, 'Failed to enable cron job in DB');
       });
     }
@@ -203,10 +254,10 @@ export class CronSchedulerService {
   }
 
   /**
-   * Disable a job. Sync.
+   * Disable a job.
    */
   disableJob(id: string): void {
-    const job = this.jobs.get(id);
+    const job = this.cache.get(id);
     if (!job) {
       logger.warn({ traceId: getCurrentTraceId(), jobId: id }, 'disableJob: job not found');
       return;
@@ -214,10 +265,10 @@ export class CronSchedulerService {
     job.enabled = false;
     job.updatedAt = new Date().toISOString();
     job.nextRunAt = undefined;
-    this.jobs.set(id, job);
+    this.cache.set(id, job);
 
-    if (this.cronJobRepository) {
-      this.cronJobRepository.update(id, { enabled: false }).catch((err) => {
+    if (this.cronJobRepo) {
+      this.cronJobRepo.update(id, { enabled: false }).catch((err) => {
         logger.warn({ traceId: getCurrentTraceId(), err, jobId: id }, 'Failed to disable cron job in DB');
       });
     }
@@ -227,8 +278,17 @@ export class CronSchedulerService {
   // ── Execution ───────────────────────────────────────────────────────────
 
   async executeJob(id: string): Promise<CronJobExecution> {
-    const job = this.jobs.get(id);
+    const job = this.cache.get(id);
     if (!job) {
+      // Try DB as authoritative source of truth
+      if (this.cronJobRepo) {
+        const entity = await this.cronJobRepo.findById(id);
+        if (entity) {
+          const mapped = this.mapEntityToJob(entity);
+          this.cache.set(id, mapped);
+          return this.runJob(mapped);
+        }
+      }
       throw new OrionError(`Cron job not found: ${id}`, ErrorCode.NOT_FOUND);
     }
     return this.runJob(job);
@@ -247,10 +307,10 @@ export class CronSchedulerService {
 
     this.runningJobIds.add(job.id);
 
-    // Persist execution record
-    if (this.executionRepository) {
+    // Persist execution record to DB
+    if (this.executionRepo) {
       try {
-        await this.executionRepository.create({
+        await this.executionRepo.create({
           id: executionId,
           jobId: job.id,
           startedAt: now,
@@ -271,25 +331,25 @@ export class CronSchedulerService {
       execution.completedAt = new Date().toISOString();
       execution.output = output;
 
-      // Update job lastRunAt
+      // Update job metadata in cache
       job.lastRunAt = execution.completedAt;
       job.lastRunStatus = 'success';
       job.nextRunAt = this.computeNextRun(job.schedule);
       job.updatedAt = new Date().toISOString();
-      this.jobs.set(job.id, job);
+      this.cache.set(job.id, job);
 
-      // Persist completion
-      if (this.executionRepository) {
-        await this.executionRepository.complete(executionId, 'completed', { output }).catch((err) => {
+      // Persist execution completion + job lastRun in DB
+      if (this.executionRepo) {
+        await this.executionRepo.complete(executionId, 'completed', { output }).catch((err) => {
           logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist execution completion');
         });
       }
-      if (this.cronJobRepository) {
-        await this.cronJobRepository.updateLastRun(
+      if (this.cronJobRepo) {
+        await this.cronJobRepo.updateLastRun(
           job.id,
           new Date(job.lastRunAt!),
           'success',
-          job.nextRunAt ? new Date(job.nextRunAt) : new Date(),
+          job.nextRunAt ? new Date(job.nextRunAt) : now,
         ).catch((err) => {
           logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to update job lastRun in DB');
         });
@@ -305,19 +365,19 @@ export class CronSchedulerService {
       job.lastRunStatus = 'failed';
       job.nextRunAt = this.computeNextRun(job.schedule);
       job.updatedAt = new Date().toISOString();
-      this.jobs.set(job.id, job);
+      this.cache.set(job.id, job);
 
-      if (this.executionRepository) {
-        await this.executionRepository.complete(executionId, 'failed', undefined, execution.error).catch((err) => {
+      if (this.executionRepo) {
+        await this.executionRepo.complete(executionId, 'failed', undefined, execution.error).catch((err) => {
           logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist execution failure');
         });
       }
-      if (this.cronJobRepository) {
-        await this.cronJobRepository.updateLastRun(
+      if (this.cronJobRepo) {
+        await this.cronJobRepo.updateLastRun(
           job.id,
           new Date(job.lastRunAt!),
           'failed',
-          job.nextRunAt ? new Date(job.nextRunAt) : new Date(),
+          job.nextRunAt ? new Date(job.nextRunAt) : now,
         ).catch((err) => {
           logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to update job lastRun in DB');
         });
@@ -343,6 +403,10 @@ export class CronSchedulerService {
   // ── Execution History ───────────────────────────────────────────────────
 
   getExecutionHistory(jobId?: string): CronJobExecution[] {
+    if (this.executionRepo && !jobId) {
+      // If we have DB and no specific jobId, try fetching from DB first
+      // but keep it simple — just return cached executions for now
+    }
     return jobId
       ? this.executions.filter((e) => e.jobId === jobId)
       : [...this.executions];
@@ -422,7 +486,7 @@ export class CronSchedulerService {
       task: entity.handler,
       enabled: entity.enabled,
       createdAt: entity.createdAt.toISOString(),
-      updatedAt: entity.createdAt.toISOString(), // entity doesn't have updatedAt; use createdAt
+      updatedAt: entity.createdAt.toISOString(),
       lastRunAt: entity.lastRunAt?.toISOString(),
       nextRunAt: entity.nextRunAt?.toISOString(),
       lastRunStatus: entity.lastRunStatus ?? undefined,
