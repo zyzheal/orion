@@ -7,6 +7,8 @@
  * - 按错误类型统计失败次数
  * - 队列深度监控
  * - 可选导出 Prometheus 格式指标
+ *
+ * 持久化: PostgreSQL (migration 367) + 内存优雅降级
  */
 
 import { EventEmitter } from 'events';
@@ -62,8 +64,14 @@ export interface PrometheusMetric {
   value: number;
 }
 
+type DatabasePool = {
+  query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+};
+
 export class PipelineMetricsService extends EventEmitter {
   private runMetrics: RunMetrics[] = [];
+  private dbPool: DatabasePool | null;
+  private dbReady: boolean;
   private executionQueue: PipelineExecutionQueue | null;
   private maxHistorySize: number;
   private maxAgeMs: number;
@@ -73,12 +81,35 @@ export class PipelineMetricsService extends EventEmitter {
     executionQueue?: PipelineExecutionQueue;
     maxHistorySize?: number;
     maxAgeHours?: number;
+    dbPool?: DatabasePool;
   }) {
     super();
+    this.dbPool = options?.dbPool || null;
+    this.dbReady = false;
     this.executionQueue = options?.executionQueue || null;
     this.maxHistorySize = options?.maxHistorySize || 10000;
     this.maxAgeMs = (options?.maxAgeHours ?? 24) * 60 * 60 * 1000; // Default: 24 hours
+
+    // 探测 DB 连接
+    if (this.dbPool) {
+      this._probeDb().catch(() => {
+        logger.warn('pipeline_metrics table not available, falling back to memory-only mode');
+      });
+    }
+
     this.startCleanupInterval();
+  }
+
+  /**
+   * 探测数据库表是否可用
+   */
+  private async _probeDb(): Promise<void> {
+    try {
+      await this.dbPool!.query('SELECT 1 FROM pipeline_metrics LIMIT 1');
+      this.dbReady = true;
+    } catch {
+      this.dbReady = false;
+    }
   }
 
   /**
@@ -98,12 +129,21 @@ export class PipelineMetricsService extends EventEmitter {
       metrics.errorType = this.classifyError(String(run.context.error));
     }
 
+    // 写内存（始终保留，用于降级和快速读取）
     this.runMetrics.push(metrics);
 
     // 限制历史记录大小
     if (this.runMetrics.length > this.maxHistorySize) {
       this.runMetrics = this.runMetrics.slice(-this.maxHistorySize);
     }
+
+    // 写 DB（失败则静默忽略，优雅降级到内存）
+    this._persistToDb(metrics).catch(err => {
+      if (!this.dbReady) {
+        this.dbReady = false;
+        logger.debug({ error: err.message }, 'DB write failed, using memory-only');
+      }
+    });
 
     logger.debug(
       { runId: run.id, status: run.status, durationMs: run.durationMs },
@@ -112,9 +152,153 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
-   * 获取聚合指标
+   * 持久化单条指标到 DB
+   */
+  private async _persistToDb(metrics: RunMetrics): Promise<void> {
+    if (!this.dbPool || !this.dbReady) return;
+
+    await this.dbPool.query(
+      `INSERT INTO pipeline_metrics (run_id, pipeline_id, status, duration_ms, trigger_type, error_type)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        metrics.runId,
+        metrics.pipelineId,
+        metrics.status,
+        metrics.durationMs,
+        metrics.triggerType,
+        metrics.errorType || null,
+      ]
+    );
+  }
+
+  /**
+   * 获取聚合指标（同步，从内存计算 — 保证向后兼容）
    */
   getMetrics(): PipelineMetrics {
+    return this._getMetricsFromMemory();
+  }
+
+  /**
+   * 获取聚合指标（异步，优先从 DB 读取）
+   */
+  async getMetricsAsync(): Promise<PipelineMetrics> {
+    if (this.dbReady) {
+      try {
+        return await this._aggregateFromDb();
+      } catch (err) {
+        this.dbReady = false;
+        logger.debug({ error: (err as Error).message }, 'DB aggregate failed, falling back to memory');
+        return this._getMetricsFromMemory();
+      }
+    }
+    return this._getMetricsFromMemory();
+  }
+
+  /**
+   * 从 DB 进行 SQL 聚合
+   */
+  private async _aggregateFromDb(): Promise<PipelineMetrics> {
+    const pool = this.dbPool!;
+
+    // 总览聚合
+    const overviewRows = await pool.query(`
+      SELECT
+        COUNT(*)                                           AS total_runs,
+        COUNT(*) FILTER (WHERE status = 'success')         AS success_runs,
+        COUNT(*) FILTER (WHERE status = 'failed')          AS failed_runs,
+        COUNT(*) FILTER (WHERE status = 'cancelled')       AS cancelled_runs,
+        COUNT(*) FILTER (WHERE duration_ms > 0)            AS with_duration,
+        COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms > 0), 0) AS avg_duration_ms
+      FROM pipeline_metrics
+    `);
+    const overview = overviewRows.rows[0];
+
+    // median & p95 需要单独查询（PostgreSQL 的 PERCENTILE_CONT）
+    const percentileRows = await pool.query(`
+      SELECT
+        COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms > 0), 0) AS median_dur,
+        COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms > 0), 0) AS p95_dur
+      FROM pipeline_metrics
+    `);
+    const percentiles = percentileRows.rows[0];
+
+    const totalRuns = parseInt(overview.total_runs, 10);
+    const successRuns = parseInt(overview.success_runs, 10);
+    const failedRuns = parseInt(overview.failed_runs, 10);
+    const cancelledRuns = parseInt(overview.cancelled_runs, 10);
+
+    // 按错误类型统计
+    const errorRows = await pool.query(`
+      SELECT error_type, COUNT(*) AS cnt
+      FROM pipeline_metrics
+      WHERE status = 'failed' AND error_type IS NOT NULL
+      GROUP BY error_type
+      ORDER BY cnt DESC
+    `);
+
+    // 按 Pipeline 统计
+    const pipelineRows = await pool.query(`
+      SELECT pipeline_id,
+             COUNT(*) AS total,
+             COUNT(*) FILTER (WHERE status = 'success') AS success,
+             COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms > 0), 0) AS avg_duration
+      FROM pipeline_metrics
+      GROUP BY pipeline_id
+    `);
+
+    // 按触发类型统计
+    const triggerRows = await pool.query(`
+      SELECT trigger_type, COUNT(*) AS cnt
+      FROM pipeline_metrics
+      GROUP BY trigger_type
+      ORDER BY cnt DESC
+    `);
+
+    const failuresByErrorType: Record<string, number> = {};
+    for (const row of errorRows.rows) {
+      failuresByErrorType[row.error_type] = parseInt(row.cnt, 10);
+    }
+
+    const runsByPipeline: Record<string, { total: number; success: number; avgDurationMs: number }> = {};
+    for (const row of pipelineRows.rows) {
+      runsByPipeline[row.pipeline_id] = {
+        total: parseInt(row.total, 10),
+        success: parseInt(row.success, 10),
+        avgDurationMs: parseFloat(row.avg_duration || '0'),
+      };
+    }
+
+    const runsByTriggerType: Record<string, number> = {};
+    for (const row of triggerRows.rows) {
+      runsByTriggerType[row.trigger_type] = parseInt(row.cnt, 10);
+    }
+
+    const queueDepth = this.executionQueue?.getDepth() || 0;
+
+    return {
+      totalRuns,
+      successRuns,
+      failedRuns,
+      cancelledRuns,
+      pendingRuns: 0,
+      runningRuns: 0,
+      successRate: totalRuns > 0 ? successRuns / totalRuns : 0,
+      averageDurationMs: parseFloat(overview.avg_duration_ms || '0'),
+      medianDurationMs: parseFloat(percentiles.median_dur || '0'),
+      p95DurationMs: parseFloat(percentiles.p95_dur || '0'),
+      failuresByErrorType,
+      runsByPipeline,
+      runsByTriggerType,
+      queueDepth,
+      queueStats: this.executionQueue?.getStats(),
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * 从内存计算聚合指标（原始逻辑，用于降级场景）
+   */
+  private _getMetricsFromMemory(): PipelineMetrics {
     const totalRuns = this.runMetrics.length;
     const successRuns = this.runMetrics.filter(r => r.status === PipelineRunStatus.SUCCESS).length;
     const failedRuns = this.runMetrics.filter(r => r.status === PipelineRunStatus.FAILED).length;
@@ -176,8 +360,8 @@ export class PipelineMetricsService extends EventEmitter {
       successRuns,
       failedRuns,
       cancelledRuns,
-      pendingRuns: 0, // Not tracked in metrics history
-      runningRuns: 0, // Not tracked in metrics history
+      pendingRuns: 0,
+      runningRuns: 0,
       successRate: totalRuns > 0 ? successRuns / totalRuns : 0,
       averageDurationMs,
       medianDurationMs,
@@ -302,9 +486,133 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
+   * 从 DB 获取最近 N 次运行记录
+   */
+  async getRecentRunsAsync(limit = 50): Promise<RunMetrics[]> {
+    if (!this.dbPool || !this.dbReady) {
+      return this.runMetrics.slice(-limit);
+    }
+    try {
+      const sql = `
+        SELECT run_id, pipeline_id, status, duration_ms, trigger_type, error_type, created_at
+        FROM pipeline_metrics
+        ORDER BY created_at DESC
+        LIMIT $1
+      `;
+      const result = await this.dbPool.query(sql, [limit]);
+      return result.rows.map((row: any) => ({
+        runId: row.run_id,
+        pipelineId: row.pipeline_id,
+        status: row.status as PipelineRunStatus,
+        durationMs: parseInt(row.duration_ms, 10),
+        errorType: row.error_type || undefined,
+        triggerType: row.trigger_type || 'unknown',
+        completedAt: new Date(row.created_at),
+      }));
+    } catch (err) {
+      logger.debug({ error: (err as Error).message }, 'DB getRecentRuns failed, using memory');
+      return this.runMetrics.slice(-limit);
+    }
+  }
+
+  /**
    * 按 Pipeline ID 获取指标
    */
   getMetricsByPipeline(pipelineId: string): {
+    total: number;
+    success: number;
+    failed: number;
+    successRate: number;
+    avgDurationMs: number;
+    recentRuns: RunMetrics[];
+  } {
+    return this._getMetricsByPipelineFromMemory(pipelineId);
+  }
+
+  /**
+   * 按 Pipeline ID 获取指标（异步，从 DB 读取）
+   */
+  async getMetricsByPipelineAsync(pipelineId: string): Promise<{
+    total: number;
+    success: number;
+    failed: number;
+    successRate: number;
+    avgDurationMs: number;
+    recentRuns: RunMetrics[];
+  }> {
+    if (this.dbReady) {
+      try {
+        return await this._metricsByPipelineFromDb(pipelineId);
+      } catch (err) {
+        this.dbReady = false;
+        logger.debug({ error: (err as Error).message }, 'DB getMetricsByPipeline failed, falling back to memory');
+        return this._getMetricsByPipelineFromMemory(pipelineId);
+      }
+    }
+    return this._getMetricsByPipelineFromMemory(pipelineId);
+  }
+
+  /**
+   * 从 DB 按 Pipeline 获取指标
+   */
+  private async _metricsByPipelineFromDb(pipelineId: string): Promise<{
+    total: number;
+    success: number;
+    failed: number;
+    successRate: number;
+    avgDurationMs: number;
+    recentRuns: RunMetrics[];
+  }> {
+    const pool = this.dbPool!;
+
+    const aggRows = await pool.query(`
+      SELECT
+        COUNT(*)                                       AS total,
+        COUNT(*) FILTER (WHERE status = 'success')     AS success,
+        COUNT(*) FILTER (WHERE status = 'failed')      AS failed,
+        COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms > 0), 0) AS avg_duration
+      FROM pipeline_metrics
+      WHERE pipeline_id = $1
+    `, [pipelineId]);
+    const row = aggRows.rows[0];
+
+    // 获取最近运行记录
+    const recentRows = await pool.query(`
+      SELECT run_id, pipeline_id, status, duration_ms, trigger_type, error_type, created_at
+      FROM pipeline_metrics
+      WHERE pipeline_id = $1
+      ORDER BY created_at DESC
+      LIMIT 20
+    `, [pipelineId]);
+
+    const total = parseInt(row.total, 10);
+    const success = parseInt(row.success, 10);
+    const failed = parseInt(row.failed, 10);
+
+    const recentRuns: RunMetrics[] = recentRows.rows.map((r: any) => ({
+      runId: r.run_id,
+      pipelineId: r.pipeline_id,
+      status: r.status as PipelineRunStatus,
+      durationMs: parseInt(r.duration_ms, 10),
+      errorType: r.error_type || undefined,
+      triggerType: r.trigger_type || 'unknown',
+      completedAt: new Date(r.created_at),
+    }));
+
+    return {
+      total,
+      success,
+      failed,
+      successRate: total > 0 ? success / total : 0,
+      avgDurationMs: parseFloat(row.avg_duration || '0'),
+      recentRuns,
+    };
+  }
+
+  /**
+   * 从内存按 Pipeline 获取指标（原始逻辑）
+   */
+  private _getMetricsByPipelineFromMemory(pipelineId: string): {
     total: number;
     success: number;
     failed: number;
@@ -330,8 +638,18 @@ export class PipelineMetricsService extends EventEmitter {
   /**
    * 清空历史指标（用于测试）
    */
-  clear(): void {
+  async clear(): Promise<void> {
+    // 清空内存
     this.runMetrics = [];
+
+    // 清空 DB
+    if (this.dbPool && this.dbReady) {
+      try {
+        await this.dbPool.query('DELETE FROM pipeline_metrics');
+      } catch (err) {
+        logger.debug({ error: (err as Error).message }, 'Failed to clear pipeline_metrics from DB');
+      }
+    }
   }
 
   /**
@@ -355,6 +673,15 @@ export class PipelineMetricsService extends EventEmitter {
     const removed = before - this.runMetrics.length;
     if (removed > 0) {
       logger.debug({ removed, remaining: this.runMetrics.length }, 'Cleaned up expired metrics');
+    }
+
+    // 同时清理 DB 中的过期数据
+    if (this.dbPool && this.dbReady) {
+      const cutoff = new Date(now - this.maxAgeMs);
+      this.dbPool.query('DELETE FROM pipeline_metrics WHERE created_at < $1', [cutoff])
+        .catch(err => {
+          logger.debug({ error: err.message }, 'Failed to clean up expired metrics from DB');
+        });
     }
   }
 
