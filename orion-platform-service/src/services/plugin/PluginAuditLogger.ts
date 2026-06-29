@@ -24,6 +24,7 @@ import {
 import { PluginAuditLogRepository } from '../../repositories/PluginAuditLogRepository';
 import { PluginSecurityEventRepository } from '../../repositories/PluginSecurityEventRepository';
 import { PluginAuditEntryRepository } from '../../repositories/PluginAuditEntryRepository';
+import { PluginAuditLogRepository as PgAuditLogRepo } from '../../repositories/PluginAuditLogPgRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -84,6 +85,9 @@ export class PluginAuditLogger extends EventEmitter {
   private securityEventRepository?: PluginSecurityEventRepository;
   private securityEvents: Map<string, SecurityEvent> = new Map(); // in-memory cache
 
+  /** Plugin audit logs - migrated to PostgreSQL with in-memory fallback */
+  private pgAuditLogRepo?: PgAuditLogRepo;
+
   private config: AuditLoggerConfig;
   private cleanupInterval?: NodeJS.Timeout;
 
@@ -98,6 +102,7 @@ export class PluginAuditLogger extends EventEmitter {
     if (db) {
       this.auditEntryRepository = new PluginAuditEntryRepository(db);
       this.securityEventRepository = new PluginSecurityEventRepository(db);
+      this.pgAuditLogRepo = new PgAuditLogRepo(db, config?.maxEntries || 10000);
     }
 
     // 启动定期清理
@@ -348,7 +353,32 @@ export class PluginAuditLogger extends EventEmitter {
     action?: string;
     limit?: number;
   }): Promise<AuditLogEntry[]> {
-    // Read from repository when available
+    // Try PG audit log table first
+    if (this.pgAuditLogRepo) {
+      try {
+        const pgEntries = await this.pgAuditLogRepo.findByFilters({
+          pluginId: options?.pluginId,
+          severity: options?.level as string | undefined,
+          limit: options?.limit,
+        });
+        if (pgEntries.length > 0) {
+          return pgEntries.map(e => ({
+            id: e.id,
+            timestamp: e.createdAt,
+            level: e.severity as AuditLogLevel,
+            taskId: '',
+            pluginId: e.pluginId,
+            action: e.action as AuditLogEntry['action'],
+            message: '',
+            metadata: e.details,
+          }));
+        }
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to read audit logs from PG table, falling back');
+      }
+    }
+
+    // Try audit entry repository
     if (this.auditEntryRepository) {
       try {
         const entities = await this.auditEntryRepository.findByFilters({
@@ -466,7 +496,17 @@ export class PluginAuditLogger extends EventEmitter {
       }
     }
 
-    // Persist cleanup to repositories
+    // Persist cleanup to PG audit log repo
+    if (this.pgAuditLogRepo) {
+      try {
+        const dbRemoved = await this.pgAuditLogRepo.cleanupExpired(this.config.retentionMs);
+        removedCount += dbRemoved;
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to cleanup expired audit logs from PG table');
+      }
+    }
+
+    // Persist cleanup to audit entry repository
     if (this.auditEntryRepository) {
       try {
         const dbRemoved = await this.auditEntryRepository.cleanupExpired(this.config.retentionMs);
@@ -514,7 +554,7 @@ export class PluginAuditLogger extends EventEmitter {
     this.logs.set(entry.id, entry);
     this.emit('log:created', entry);
 
-    // Persist to repository
+    // Persist to audit entry repository
     if (this.auditEntryRepository) {
       const tenantId = entry.metadata?.tenantId as string | undefined;
       this.auditEntryRepository.create({
@@ -533,6 +573,42 @@ export class PluginAuditLogger extends EventEmitter {
       }).catch(err => {
         logger.warn({ entryId: entry.id, error: err }, 'Failed to persist audit entry to repository');
       });
+    }
+
+    // Persist to PG audit log table (with in-memory fallback)
+    if (this.pgAuditLogRepo) {
+      const tenantId = entry.metadata?.tenantId as string | undefined;
+      this.pgAuditLogRepo.create({
+        tenantId: tenantId || '00000000-0000-0000-0000-000000000000',
+        pluginId: entry.pluginId,
+        action: entry.action,
+        userId: entry.metadata?.userId as string | undefined,
+        details: {
+          taskId: entry.taskId,
+          level: entry.level,
+          message: entry.message,
+          ...(entry.durationMs != null && { durationMs: entry.durationMs }),
+          ...(entry.input != null && { inputSnapshot: entry.input }),
+          ...(entry.output != null && { outputSnapshot: entry.output }),
+          metadata: entry.metadata,
+        },
+        severity: this.mapLevelToSeverity(entry.level),
+      }).catch(err => {
+        logger.warn({ entryId: entry.id, error: err }, 'Failed to persist audit log to PG table');
+      });
+    }
+  }
+
+  /**
+   * 将日志级别映射到严重性等级
+   */
+  private mapLevelToSeverity(level: AuditLogLevel): string {
+    switch (level) {
+      case 'ERROR': return 'error';
+      case 'WARN': return 'warning';
+      case 'DEBUG': return 'debug';
+      case 'INFO':
+      default: return 'info';
     }
   }
 
