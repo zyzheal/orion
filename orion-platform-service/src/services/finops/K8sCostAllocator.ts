@@ -3,10 +3,12 @@
  *
  * 根据资源使用情况将 Kubernetes 集群成本分摊到命名空间、部署、Pod 级别
  * 支持多租户成本归因
+ * 持久化：PostgreSQL (finops_k8s_costs) + 内存降级 (fallback)
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { K8sCost } from './types';
+import { DatabasePool } from '../../database';
 
 /**
  * 集群资源使用数据
@@ -84,13 +86,28 @@ export interface NamespaceCostSummary {
  * K8s 成本分摊服务
  */
 export class K8sCostAllocator {
-  /** 已计算的成本记录 */
+  /** 已计算的成本记录（内存后备存储，DB 失败时使用） */
   private costRecords: K8sCost[] = [];
+
+  /** PostgreSQL 数据库连接池（可选） */
+  private db: DatabasePool | null = null;
+
+  /**
+   * 构造函数
+   *
+   * @param db - 可选的数据库连接池，提供则持久化到 PostgreSQL
+   */
+  constructor(db?: DatabasePool) {
+    if (db) {
+      this.db = db;
+    }
+  }
 
   /**
    * 分配集群成本
    *
    * 根据集群节点资源使用情况，将成本分摊到各个 Pod
+   * 同时将记录持久化到 PostgreSQL（失败时降级到内存）
    *
    * @param clusterUsage 集群资源使用数据
    * @param podUsage Pod 资源使用数据列表
@@ -135,15 +152,64 @@ export class K8sCostAllocator {
       records.push(record);
     }
 
+    // 持久化到 PostgreSQL（失败不影响业务）
+    this.persistToDatabase(records);
+
+    // 内存中备份
     this.costRecords.push(...records);
     return records;
   }
 
   /**
-   * 获取命名空间级别成本汇总
+   * 将成本记录持久化到 PostgreSQL
+   * 若 DB 不可用则静默降级到内存模式
    */
-  getNamespaceCosts(filter?: { namespace?: string; startTime?: Date; endTime?: Date }): NamespaceCostSummary[] {
-    let records = [...this.costRecords];
+  private persistToDatabase(records: K8sCost[]): void {
+    if (!this.db) {
+      return; // 未配置数据库，直接使用内存
+    }
+
+    try {
+      for (const record of records) {
+        this.db.query(
+          `INSERT INTO finops_k8s_costs
+            (id, namespace, deployment, pod_name, cpu_cost, memory_cost, storage_cost, network_cost,
+             total_cost, tenant_id, timestamp, cluster_name, node_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+           ON CONFLICT (id) DO NOTHING`,
+          [
+            record.id,
+            record.namespace,
+            record.deployment,
+            record.podName || null,
+            record.cpuCost,
+            record.memoryCost,
+            record.storageCost,
+            record.networkCost,
+            record.totalCost,
+            record.tenantId || null,
+            record.timestamp,
+            record.clusterName || null,
+            record.nodeName || null,
+          ]
+        ).catch(() => {
+          // DB 写入失败静默降级，已在内存中保留副本
+        });
+      }
+    } catch {
+      // DB 连接异常等不可恢复错误，仅记录不抛出
+    }
+  }
+
+  /**
+   * 获取命名空间级别成本汇总
+   *
+   * 优先从 PostgreSQL 读取，DB 不可用时降级到内存
+   */
+  async getNamespaceCosts(filter?: { namespace?: string; startTime?: Date; endTime?: Date }): Promise<NamespaceCostSummary[]> {
+    // 优先从数据库读取
+    const dbRecords = await this.fetchFromDatabase(filter);
+    let records = dbRecords.length > 0 ? dbRecords : [...this.costRecords];
 
     if (filter?.namespace) {
       records = records.filter((r) => r.namespace === filter.namespace);

@@ -2,9 +2,15 @@
  * TASK-502: ROI 分析引擎
  *
  * 计算基础设施投资 ROI、自动化节省评估、效率指标分析
+ *
+ * P1-15: Migrated from pure in-memory Map to PostgreSQL-backed storage
+ * with in-memory cache for read performance. Falls back to memory-only
+ * when no database pool is provided.
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import type { DatabasePool } from '../database';
+import { FinOpsRepository } from './FinOpsRepository';
 import {
   ROIAnalysis,
   ROIInvestmentType,
@@ -49,17 +55,74 @@ export interface PeriodComparisonInput {
 }
 
 /**
+ * 数据库行映射为 ROIAnalysis
+ */
+function rowToROIAnalysis(row: any): ROIAnalysis {
+  return {
+    id: row.id,
+    investmentType: row.investment_type || 'infrastructure',
+    name: row.name,
+    cost: parseFloat(row.cost) || 0,
+    savings: parseFloat(row.savings) || 0,
+    period: (row.period || 'yearly') as CostPeriod,
+    roiPercentage: parseFloat(row.roi_percentage) || 0,
+    paybackMonths: parseFloat(row.payback_months) || 0,
+    analyzedAt: new Date(row.analyzed_at || row.created_at),
+    description: row.description || undefined,
+    details: typeof row.details === 'string' ? JSON.parse(row.details) : (row.details || {}),
+  };
+}
+
+/**
+ * 数据库行映射为 CostComparison
+ */
+function rowToCostComparison(row: any): CostComparison {
+  return {
+    id: row.id,
+    description: row.description,
+    beforeCost: parseFloat(row.before_cost) || 0,
+    afterCost: parseFloat(row.after_cost) || 0,
+    savings: parseFloat(row.savings) || 0,
+    savingsPercent: parseFloat(row.savings_percent) || 0,
+    timeSavingsHours: row.time_savings_hours ? parseFloat(row.time_savings_hours) : undefined,
+    period: (row.period || 'monthly') as CostPeriod,
+  };
+}
+
+/**
  * ROI 分析引擎
  *
  * 评估各类投资的回报率，包括基础设施投资、自动化工具、
  * 迁移项目等的成本效益分析
+ *
+ * P1-15: 支持 PostgreSQL 持久化 + 内存回退
  */
 export class ROIAnalyzer {
-  /** ROI 分析历史记录 */
+  /** ROI 分析内存缓存（读加速 + DB 不可用时的持久化） */
   private analyses: ROIAnalysis[] = [];
 
-  /** 前后对比记录 */
+  /** 前后对比记录内存缓存 */
   private comparisons: CostComparison[] = [];
+
+  /** PostgreSQL 连接池（可选） */
+  private pool?: DatabasePool | null;
+
+  /** 数据库仓库（可选） */
+  private repository?: FinOpsRepository | null;
+
+  /**
+   * 构造函数
+   *
+   * @param db - DatabasePool 实例；传入 null 或 undefined 则使用纯内存模式
+   */
+  constructor(db?: DatabasePool | null) {
+    this.pool = db;
+    if (db) {
+      this.repository = new FinOpsRepository(db);
+    }
+  }
+
+  // ==================== 公共写入接口 ====================
 
   /**
    * 计算 ROI
@@ -100,7 +163,14 @@ export class ROIAnalyzer {
       },
     };
 
+    // 写入内存缓存
     this.analyses.push(analysis);
+
+    // 异步持久化到数据库（非阻塞）
+    this._persistROIAnalysis(analysis).catch(() => {
+      /* DB 写入失败不阻断调用方 */
+    });
+
     return analysis;
   }
 
@@ -177,9 +247,18 @@ export class ROIAnalyzer {
       period: input.period,
     };
 
+    // 写入内存缓存
     this.comparisons.push(comparison);
+
+    // 异步持久化到数据库（非阻塞）
+    this._persistCostComparison(comparison).catch(() => {
+      /* DB 写入失败不阻断调用方 */
+    });
+
     return comparison;
   }
+
+  // ==================== 公共查询接口 ====================
 
   /**
    * 获取 ROI 历史记录
@@ -188,6 +267,7 @@ export class ROIAnalyzer {
     investmentType?: ROIInvestmentType;
     minROI?: number;
   }): ROIAnalysis[] {
+    // 优先使用内存缓存
     let analyses = [...this.analyses];
 
     if (filter?.investmentType) {
@@ -209,6 +289,7 @@ export class ROIAnalyzer {
    * 获取前后对比历史
    */
   getComparisons(filter?: { period?: CostPeriod }): CostComparison[] {
+    // 优先使用内存缓存
     let comparisons = [...this.comparisons];
 
     if (filter?.period) {
@@ -263,5 +344,55 @@ export class ROIAnalyzer {
   clearAll(): void {
     this.analyses = [];
     this.comparisons = [];
+  }
+
+  // ==================== 私有数据库操作 ====================
+
+  /**
+   * 异步持久化 ROI 分析记录
+   */
+  private async _persistROIAnalysis(analysis: ROIAnalysis): Promise<void> {
+    if (!this.repository) return;
+    if (!this.pool) return;
+
+    // 设置 RLS 租户上下文（如有需要从 analysis.details 中提取）
+    const details = analysis.details || {};
+    const tenantId = (details as any).tenantId;
+    if (tenantId) {
+      try {
+        await this.pool.query("SET app.current_tenant_id = $1", [tenantId]);
+      } catch {
+        // RLS 设置失败不影响返回值
+      }
+    }
+
+    await this.repository.insertROIAnalysis({
+      investmentType: analysis.investmentType,
+      name: analysis.name,
+      cost: analysis.cost,
+      savings: analysis.savings,
+      period: analysis.period,
+      roiPercentage: analysis.roiPercentage,
+      paybackMonths: analysis.paybackMonths,
+      description: analysis.description,
+      details: analysis.details,
+    });
+  }
+
+  /**
+   * 异步持久化成本对比记录
+   */
+  private async _persistCostComparison(comparison: CostComparison): Promise<void> {
+    if (!this.repository) return;
+
+    await this.repository.insertCostComparison({
+      description: comparison.description,
+      beforeCost: comparison.beforeCost,
+      afterCost: comparison.afterCost,
+      savings: comparison.savings,
+      savingsPercent: comparison.savingsPercent,
+      timeSavingsHours: comparison.timeSavingsHours,
+      period: comparison.period,
+    });
   }
 }
