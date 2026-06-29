@@ -2,14 +2,14 @@
  * MessageQueueService - 消息队列核心服务
  *
  * F005: 任务入队/消费/确认/重试
- * - enqueue: 任务入队 (Redis LPUSH + PostgreSQL 异步落盘)
- * - dequeue: 任务出队 (Redis RPOP + 消费确认)
+ * - enqueue: 任务入队 (PostgreSQL 持久化 + 内存缓存)
+ * - dequeue: 任务出队 (最高优先级 pending 消息)
  * - ack: 消费确认
  * - nack: 消费失败 + 重试计数
- * - retry: 指数退避重试
+ * - retry: 手动重试
  *
  * F006: 延迟队列 + 死信队列
- * - schedule: 延迟入队 (Redis ZADD)
+ * - schedule: 延迟入队
  * - moveToDeadLetter: 超限任务移入 DLQ
  * - replayDeadLetter: 死信重放回主队列
  *
@@ -97,6 +97,158 @@ interface InMemoryQueue {
   pending: string[]; // taskIds in order
 }
 
+// ─── Repository for core message queue persistence ────────────────────────
+
+interface MessageQueuePersistenceEntity {
+  id: string;
+  messageId: string;
+  queueName: string;
+  payload: Record<string, any>;
+  status: string;
+  priority: number;
+  maxRetries: number;
+  retryCount: number;
+  error: string | null;
+  deliveredAt: Date | null;
+  deliveredTo: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+class MessageQueuePersistenceRepository {
+  constructor(
+    private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {}
+
+  async insert(message: Message): Promise<void> {
+    await this.db.query(
+      `INSERT INTO message_queue_persistence (message_id, queue_name, payload, status, priority, max_retries, retry_count, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+      [message.taskId, message.queueName, JSON.stringify(message.payload), message.status, message.priority, message.maxRetries, message.retryCount],
+    );
+  }
+
+  async updateStatus(id: string, status: string): Promise<void> {
+    await this.db.query(
+      `UPDATE message_queue_persistence SET status = $1, updated_at = NOW() WHERE id = $2`,
+      [status, id],
+    );
+  }
+
+  async updateProcessing(id: string, status: string, deliveredTo: string | null): Promise<void> {
+    await this.db.query(
+      `UPDATE message_queue_persistence SET status = $1, delivered_at = NOW(), delivered_to = $2, updated_at = NOW() WHERE id = $3`,
+      [status, deliveredTo, id],
+    );
+  }
+
+  async complete(id: string): Promise<void> {
+    await this.db.query(
+      `UPDATE message_queue_persistence SET status = $1, updated_at = NOW() WHERE id = $2`,
+      ['completed', id],
+    );
+  }
+
+  async markError(id: string, error: string | null): Promise<void> {
+    await this.db.query(
+      `UPDATE message_queue_persistence SET status = $1, error = $2, retry_count = retry_count + 1, updated_at = NOW() WHERE id = $3`,
+      ['failed', error, id],
+    );
+  }
+
+  async findByStatusAndQueue(status: string, queueName: string, limit: number): Promise<MessageQueuePersistenceEntity[]> {
+    const result = await this.db.query(
+      `SELECT id, message_id, queue_name, payload, status, priority, max_retries, retry_count, error,
+              delivered_at, delivered_to, created_at, updated_at
+       FROM message_queue_persistence
+       WHERE status = $1 AND queue_name = $2
+       ORDER BY priority DESC, created_at ASC
+       LIMIT $3`,
+      [status, queueName, limit],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findByAnyQueue(status: string, limit: number): Promise<MessageQueuePersistenceEntity[]> {
+    const result = await this.db.query(
+      `SELECT id, message_id, queue_name, payload, status, priority, max_retries, retry_count, error,
+              delivered_at, delivered_to, created_at, updated_at
+       FROM message_queue_persistence
+       WHERE status = $1
+       ORDER BY priority DESC, created_at ASC
+       LIMIT $2`,
+      [status, limit],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findById(id: string): Promise<MessageQueuePersistenceEntity | undefined> {
+    const result = await this.db.query(
+      `SELECT id, message_id, queue_name, payload, status, priority, max_retries, retry_count, error,
+              delivered_at, delivered_to, created_at, updated_at
+       FROM message_queue_persistence WHERE id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async findAll(options: { queueName?: string; status?: string; limit?: number } = {}): Promise<MessageQueuePersistenceEntity[]> {
+    let query = `SELECT id, message_id, queue_name, payload, status, priority, max_retries, retry_count, error, delivered_at, delivered_to, created_at, updated_at FROM message_queue_persistence WHERE 1=1`;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (options.queueName) {
+      query += ` AND queue_name = $${paramIndex++}`;
+      params.push(options.queueName);
+    }
+    if (options.status) {
+      query += ` AND status = $${paramIndex++}`;
+      params.push(options.status);
+    }
+    const limit = options.limit ?? 100;
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex++}`;
+    params.push(limit);
+
+    const result = await this.db.query(query, params);
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async countByStatusAndQueue(status: string, queueName: string): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*)::int FROM message_queue_persistence WHERE status = $1 AND queue_name = $2`,
+      [status, queueName],
+    );
+    return parseInt(result.rows[0].count, 10);
+  }
+
+  async countByQueue(queueName: string): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*)::int FROM message_queue_persistence WHERE queue_name = $1`,
+      [queueName],
+    );
+    return parseInt(result.rows[0].count, 10);
+  }
+
+  private mapRowToEntity(row: any): MessageQueuePersistenceEntity {
+    return {
+      id: row.id,
+      messageId: row.message_id,
+      queueName: row.queue_name,
+      payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : (row.payload || {}),
+      status: row.status,
+      priority: row.priority,
+      maxRetries: row.max_retries,
+      retryCount: row.retry_count,
+      error: row.error,
+      deliveredAt: row.delivered_at,
+      deliveredTo: row.delivered_to,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+}
+
 // ─── Service ───────────────────────────────────────────────────────────────
 
 export class MessageQueueService {
@@ -108,6 +260,7 @@ export class MessageQueueService {
     executeAt: Date;
     timer?: NodeJS.Timeout;
   }> = [];
+  private persistence?: MessageQueuePersistenceRepository;
   private deadLetterRepo?: DeadLetterMessageRepository;
   private consumerRepo?: ConsumerRegistryRepository;
 
@@ -122,8 +275,13 @@ export class MessageQueueService {
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
-      this.deadLetterRepo = new DeadLetterMessageRepository(db);
-      this.consumerRepo = new ConsumerRegistryRepository(db);
+      try {
+        this.persistence = new MessageQueuePersistenceRepository(db);
+        this.deadLetterRepo = new DeadLetterMessageRepository(db);
+        this.consumerRepo = new ConsumerRegistryRepository(db);
+      } catch (err) {
+        logger.warn({ error: String(err) }, 'Failed to initialize repositories, falling back to pure in-memory');
+      }
     }
   }
 
@@ -160,6 +318,11 @@ export class MessageQueueService {
       const msgA = queue.messages.get(a)!;
       const msgB = queue.messages.get(b)!;
       return msgB.priority - msgA.priority;
+    });
+
+    // Persist to DB asynchronously (fire-and-forget, degrade gracefully)
+    this.persistEnqueue(message).catch((err) => {
+      logger.warn({ messageId: message.id, error: String(err) }, 'Failed to persist enqueued message');
     });
 
     this.stats.totalEnqueued++;
@@ -201,6 +364,11 @@ export class MessageQueueService {
       queue.processing.set(message.taskId, options.consumerId);
     }
 
+    // Persist processing state
+    this.persistProcessing(message, options.consumerId || null).catch((err) => {
+      logger.warn({ messageId: message.id, error: String(err) }, 'Failed to persist processing state');
+    });
+
     this.stats.totalDequeued++;
     logger.debug({ taskId: message.taskId, queueName }, 'Message dequeued');
 
@@ -237,6 +405,11 @@ export class MessageQueueService {
         }
       }
     }
+
+    // Persist completion
+    this.persistComplete(message).catch((err) => {
+      logger.warn({ messageId, error: String(err) }, 'Failed to persist ack');
+    });
 
     this.stats.totalCompleted++;
     logger.info({ taskId: message.taskId, messageId }, 'Message acknowledged');
@@ -378,6 +551,29 @@ export class MessageQueueService {
     this.deadLetters.set(dlqEntry.id, dlqEntry);
     this.stats.totalDeadLettered++;
 
+    // Persist to DLQ repo
+    if (this.deadLetterRepo) {
+      this.deadLetterRepo.create({
+        id: dlqEntry.id,
+        originalQueueId: dlqEntry.originalQueueId,
+        queueName: dlqEntry.queueName,
+        taskId: dlqEntry.taskId,
+        payload: dlqEntry.payload,
+        retryCount: dlqEntry.retryCount,
+        lastError: dlqEntry.lastError,
+        deadReason: dlqEntry.deadReason,
+        deadAt: dlqEntry.deadAt,
+        replayStatus: dlqEntry.replayStatus,
+      }).catch((err) => {
+        logger.warn({ dlqId: dlqEntry.id, error: String(err) }, 'Failed to persist dead letter');
+      });
+    }
+
+    // Persist message status update
+    this.markDeadInPersist(message).catch((err) => {
+      logger.warn({ messageId: message.id, error: String(err) }, 'Failed to persist dead status');
+    });
+
     logger.warn(
       { taskId: message.taskId, reason, retryCount: message.retryCount },
       'Message moved to dead letter queue',
@@ -456,6 +652,22 @@ export class MessageQueueService {
     };
 
     this.consumers.set(cid, consumer);
+
+    // Persist consumer registration
+    if (this.consumerRepo) {
+      this.consumerRepo.create({
+        id: cid,
+        consumerId: cid,
+        groupName,
+        queueName,
+        lastHeartbeat: consumer.lastHeartbeat,
+        messagesProcessed: consumer.messagesProcessed,
+        status: 'active',
+      }).catch((err) => {
+        logger.warn({ consumerId: cid, error: String(err) }, 'Failed to persist consumer registration');
+      });
+    }
+
     logger.info({ consumerId: cid, groupName, queueName }, 'Consumer registered');
 
     return consumer;
@@ -603,5 +815,43 @@ export class MessageQueueService {
       { taskId: message.taskId, retryCount: message.retryCount },
       'Message re-enqueued for retry',
     );
+  }
+
+  // ─── Persistence helpers (fire-and-forget, degrade gracefully) ──────────
+
+  private async persistEnqueue(message: Message): Promise<void> {
+    if (!this.persistence) return;
+    await this.persistence.insert(message);
+  }
+
+  private async persistProcessing(message: Message, consumerId: string | null): Promise<void> {
+    if (!this.persistence) return;
+    const entity = await this.persistence.findByAnyQueue('pending', 1).then(rows =>
+      rows.find(r => r.messageId === message.taskId),
+    );
+    // Update by taskId (message_id column) — find and update
+    if (entity) {
+      await this.persistence.updateProcessing(entity.id, 'processing', consumerId);
+    }
+  }
+
+  private async persistComplete(message: Message): Promise<void> {
+    if (!this.persistence) return;
+    const entity = await this.persistence.findByAnyQueue('processing', 1).then(rows =>
+      rows.find(r => r.messageId === message.taskId),
+    );
+    if (entity) {
+      await this.persistence.complete(entity.id);
+    }
+  }
+
+  private async markDeadInPersist(message: Message): Promise<void> {
+    if (!this.persistence) return;
+    const entity = await this.persistence.findAll({ queueName: message.queueName }).then(rows =>
+      rows.find(r => r.messageId === message.taskId),
+    );
+    if (entity) {
+      await this.persistence.markError(entity.id, message.error || null);
+    }
   }
 }
