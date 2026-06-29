@@ -83,66 +83,66 @@ export interface AuditFinding {
 export const complianceApi = {
   // Compliance Policies
   definePolicy: async (data: { name: string; framework: string; description: string; rules: ComplianceRule[] }) => {
-    const response = await apiClient.post('/api/v1/compliance/policies', data);
+    const response = await apiClient.post('/v1/compliance/policies', data);
     return response.data as CompliancePolicy;
   },
 
   listPolicies: async (params?: { framework?: string; status?: string }) => {
-    const response = await apiClient.get('/api/v1/compliance/policies', { params });
+    const response = await apiClient.get('/v1/compliance/policies', { params });
     return response.data as CompliancePolicy[];
   },
 
   // Compliance Evaluation
   evaluateCompliance: async (data: { policyId: string; scope?: string[] }) => {
-    const response = await apiClient.post('/api/v1/compliance/evaluate', data);
+    const response = await apiClient.post('/v1/compliance/evaluate', data);
     return response.data as ComplianceEvaluation;
   },
 
   // Compliance Reports
   getComplianceReport: async (policyId: string) => {
-    const response = await apiClient.get(`/api/v1/compliance/report/${policyId}`);
+    const response = await apiClient.get(`/v1/compliance/report/${policyId}`);
     return response.data as ComplianceReport;
   },
 
   getComplianceScore: async () => {
-    const response = await apiClient.get('/api/v1/compliance/score');
+    const response = await apiClient.get('/v1/compliance/score');
     return response.data as ComplianceScore;
   },
 
   autoRemediateCompliance: async (data: { policyId?: string; violations?: string[] }) => {
-    const response = await apiClient.post('/api/v1/compliance/remediate', data);
+    const response = await apiClient.post('/v1/compliance/remediate', data);
     return response.data;
   },
 
   // Audit Plans
   createAuditPlan: async (data: { name: string; scope: string[]; schedule: string }) => {
-    const response = await apiClient.post('/api/v1/audit/plans', data);
+    const response = await apiClient.post('/v1/compliance/audit/plans', data);
     return response.data as AuditPlan;
   },
 
   listAuditPlans: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/audit/plans', { params });
+    const response = await apiClient.get('/v1/compliance/audit/plans', { params });
     return response.data as AuditPlan[];
   },
 
   // Audit Execution
   executeAudit: async (auditId: string) => {
-    const response = await apiClient.post(`/api/v1/audit/${auditId}/execute`);
+    const response = await apiClient.post(`/v1/compliance/audit/${auditId}/execute`);
     return response.data;
   },
 
   getAuditReport: async (auditId: string) => {
-    const response = await apiClient.get(`/api/v1/audit/${auditId}/report`);
+    const response = await apiClient.get(`/v1/compliance/audit/${auditId}/report`);
     return response.data as AuditReport;
   },
 
   getAuditFindings: async (auditId: string) => {
-    const response = await apiClient.get(`/api/v1/audit/${auditId}/findings`);
+    const response = await apiClient.get(`/v1/compliance/audit/${auditId}/findings`);
     return response.data as AuditFinding[];
   },
 
   closeFinding: async (findingId: string, data?: { resolution?: string }) => {
-    const response = await apiClient.post(`/api/v1/audit/findings/${findingId}/close`, data);
+    const response = await apiClient.post(`/v1/compliance/audit/findings/${findingId}/close`, data);
     return response.data;
   },
 };

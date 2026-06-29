@@ -47,32 +47,32 @@ export const disasterRecoveryApi = {
     rto: number;
     services: string[];
   }) => {
-    const response = await apiClient.post('/api/v1/disaster-recovery/plans', data);
+    const response = await apiClient.post('/v1/disaster-recovery/plans', data);
     return response.data as DRPlan;
   },
 
   listDRPlans: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/disaster-recovery/plans', { params });
+    const response = await apiClient.get('/v1/disaster-recovery/plans', { params });
     return response.data as DRPlan[];
   },
 
   executeFailoverTest: async (planId: string) => {
-    const response = await apiClient.post(`/api/v1/disaster-recovery/plans/${planId}/failover-test`);
+    const response = await apiClient.post(`/v1/disaster-recovery/plans/${planId}/failover-test`);
     return response.data as FailoverTest;
   },
 
   createBackup: async (data: { sourceService: string; type?: string }) => {
-    const response = await apiClient.post('/api/v1/disaster-recovery/backups', data);
+    const response = await apiClient.post('/v1/disaster-recovery/backups', data);
     return response.data as BackupRecord;
   },
 
   executeFailover: async (planId: string, data?: { reason?: string; dryRun?: boolean }) => {
-    const response = await apiClient.post(`/api/v1/disaster-recovery/plans/${planId}/failover`, data);
+    const response = await apiClient.post(`/v1/disaster-recovery/plans/${planId}/failover`, data);
     return response.data;
   },
 
   getDRStatus: async () => {
-    const response = await apiClient.get('/api/v1/disaster-recovery/status');
+    const response = await apiClient.get('/v1/disaster-recovery/status');
     return response.data as DRStatus;
   },
 };
