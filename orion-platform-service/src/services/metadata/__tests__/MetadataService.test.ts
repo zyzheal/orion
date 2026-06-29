@@ -445,15 +445,19 @@ describe('MetadataService', () => {
   });
 
   describe('multiple instances', () => {
-    it('should share module-level state across instances', async () => {
+    it('should isolate state per instance (after PG migration)', async () => {
       const service1 = new MetadataService();
       const service2 = new MetadataService();
 
-      const item = await service1.createCatalogItem({ name: 'shared', type: 'table' }, tenantA);
+      const item = await service1.createCatalogItem({ name: 'isolated', type: 'table' }, tenantA);
+      // service2 should NOT see service1's data (instance-level storage)
       const found = await service2.getCatalogItem(item.id);
+      expect(found).toBeUndefined();
 
-      expect(found).toBeDefined();
-      expect(found!.name).toBe('shared');
+      // service1 should still see its own data
+      const own = await service1.getCatalogItem(item.id);
+      expect(own).toBeDefined();
+      expect(own!.name).toBe('isolated');
     });
   });
 });
