@@ -151,6 +151,24 @@ export class SupplyChainService {
   }
 
   /**
+   * 持久化制品签名
+   */
+  async persistArtifactSignature(
+    tenantId: string,
+    artifactId: string,
+    signature: string,
+    signedBy: string,
+    signatureType = 'sha256',
+  ): Promise<any> {
+    const result = await this.pool.query(
+      `INSERT INTO artifact_signatures (tenant_id, artifact_id, signature, signature_type, signed_by, verified)
+       VALUES ($1, $2, $3, $4, $5, false) RETURNING *`,
+      [tenantId, artifactId, signature, signatureType, signedBy],
+    );
+    return result.rows[0];
+  }
+
+  /**
    * 签名验证
    */
   async verifySignature(artifactId: string, signature: string): Promise<any> {

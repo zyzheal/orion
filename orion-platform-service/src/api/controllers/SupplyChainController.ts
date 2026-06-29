@@ -28,11 +28,18 @@ export class SupplyChainController extends BaseController {
     this.artifactSigner = new ArtifactSigner();
   }
 
+  /**
+   * POST /supply-chain/sbom - Generate SBOM
+   */
   async generateSBOM(request: FastifyRequest, reply: FastifyReply) {
     try {
       const tenantId = this.getTenantId(request);
-      const { artifactId, pipelineId, format, version, components, dependencies } =
-        request.body as any;
+      const body = request.body as any;
+      const { artifactId, pipelineId, format, version, components, dependencies } = body;
+
+      if (!artifactId || !components) {
+        return reply.status(400).send({ success: false, error: 'artifactId and components are required' });
+      }
 
       const sbom = await this.supplyChainService.generateSBOM(tenantId, {
         artifactId,
@@ -40,94 +47,151 @@ export class SupplyChainController extends BaseController {
         format,
         version,
         components,
-        dependencies,
+        dependencies: dependencies || [],
       });
 
       reply.status(201).send({ success: true, data: sbom });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 
+  /**
+   * GET /supply-chain/sbom/:sbomId - Get SBOM
+   */
   async getSBOM(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { sbomId } = request.params as { sbomId: string };
-      const sbom = await this.supplyChainService.getSBOM(sbomId);
+      const tenantId = this.getTenantId(request);
+      const sbom = await this.supplyChainService.getSBOM(sbomId, tenantId);
 
       if (!sbom) {
-        return reply.status(404).send({ error: 'SBOM not found' });
+        return reply.status(404).send({ success: false, error: 'SBOM not found' });
       }
 
       reply.send({ success: true, data: sbom });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 
+  /**
+   * GET /supply-chain/dependencies/:package/:version/analyze - Analyze dependencies
+   */
   async analyzeDependencies(request: FastifyRequest, reply: FastifyReply) {
     try {
       const tenantId = this.getTenantId(request);
-      const { package: packageName, version: packageVersion, depth } = request.params as any;
+      const { package: packageName, version: packageVersion } = request.params as any;
+      const query = request.query as any;
+      const depth = query.depth ? parseInt(query.depth, 10) : 3;
+
+      if (!packageName || !packageVersion) {
+        return reply.status(400).send({ success: false, error: 'package and version are required' });
+      }
 
       const result = await this.supplyChainService.analyzeDependencies(tenantId, {
         packageName,
         packageVersion,
-        depth: parseInt(depth, 10) || 3,
+        depth,
       });
 
       reply.send({ success: true, data: result });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 
+  /**
+   * POST /supply-chain/dependencies/graph - Get dependency graph
+   */
   async getDependencyGraph(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { packages } = request.body as any;
+
+      if (!packages || !Array.isArray(packages)) {
+        return reply.status(400).send({ success: false, error: 'packages array is required' });
+      }
+
       const graph = await this.dependencyGraphService.buildDependencyGraph(packages);
       reply.send({ success: true, data: graph });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 
+  /**
+   * POST /supply-chain/artifacts/:id/sign - Sign artifact
+   */
   async signArtifact(request: FastifyRequest, reply: FastifyReply) {
     try {
       const tenantId = this.getTenantId(request);
+      const user = this.getUser(request);
       const { id: artifactId } = request.params as { id: string };
-      const { privateKey, signedBy } = request.body as any;
+      const { privateKey, signedBy, signatureType } = request.body as any;
 
-      const result = await this.artifactSigner.signArtifact(artifactId, privateKey, signedBy);
+      if (!artifactId) {
+        return reply.status(400).send({ success: false, error: 'artifactId is required' });
+      }
 
-      reply.status(201).send({ success: true, data: result });
+      // Generate signature
+      const signerResult = await this.artifactSigner.signArtifact(
+        artifactId,
+        privateKey || '',
+        signedBy || user?.username || 'system',
+      );
+
+      // Persist signature to artifact_signatures table via service
+      const persisted = await this.supplyChainService.persistArtifactSignature(
+        tenantId,
+        artifactId,
+        signerResult.signature,
+        signedBy || user?.username || 'system',
+        signatureType || 'sha256',
+      );
+
+      reply.status(201).send({ success: true, data: { ...signerResult, persistedId: persisted?.id } });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 
+  /**
+   * POST /supply-chain/artifacts/:id/verify - Verify signature
+   */
   async verifySignature(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { id: artifactId } = request.params as { id: string };
       const { signature, publicKey } = request.body as any;
 
+      if (!artifactId || !signature) {
+        return reply.status(400).send({ success: false, error: 'artifactId and signature are required' });
+      }
+
       const verified = await this.supplyChainService.verifySignature(artifactId, signature);
 
       reply.send({ success: true, data: verified });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 
+  /**
+   * GET /supply-chain/reports/:pipelineId - Get supply chain report
+   */
   async getSupplyChainReport(request: FastifyRequest, reply: FastifyReply) {
     try {
       const tenantId = this.getTenantId(request);
       const { pipelineId } = request.params as { pipelineId?: string };
 
+      if (!pipelineId) {
+        return reply.status(400).send({ success: false, error: 'pipelineId is required' });
+      }
+
       const report = await this.supplyChainService.getSupplyChainReport(tenantId, pipelineId);
 
       reply.send({ success: true, data: report });
     } catch (error: any) {
-      reply.status(500).send({ error: error.message });
+      this.sendInternalError(reply, error);
     }
   }
 }
