@@ -223,7 +223,7 @@ describe('BaseAgent', () => {
 
       await agent.execute({ key: 'value' }, createContext());
 
-      const logs = agent.getAuditLog();
+      const logs = await agent.getAuditLog();
       expect(logs.length).toBe(1);
       expect(logs[0].agentId).toBe('test-agent');
       expect(logs[0].success).toBe(true);
@@ -241,7 +241,7 @@ describe('BaseAgent', () => {
 
       await expect(agent.execute('input', createContext())).rejects.toThrow('boom');
 
-      const logs = agent.getAuditLog();
+      const logs = await agent.getAuditLog();
       expect(logs.length).toBe(1);
       expect(logs[0].success).toBe(false);
       expect(logs[0].error).toBe('boom');
@@ -504,10 +504,10 @@ describe('BaseAgent', () => {
       );
 
       await agent.execute('input', createContext());
-      expect(agent.getAuditLog().length).toBe(1);
+      expect((await agent.getAuditLog()).length).toBe(1);
 
       BaseAgent.clearAuditLogs();
-      expect(agent.getAuditLog().length).toBe(0);
+      expect((await agent.getAuditLog()).length).toBe(0);
     });
 
     it('should limit returned logs with limit parameter', async () => {
@@ -521,9 +521,9 @@ describe('BaseAgent', () => {
       await agent.execute('b', createContext());
       await agent.execute('c', createContext());
 
-      expect(agent.getAuditLog().length).toBe(3);
-      expect(agent.getAuditLog(1).length).toBe(1);
-      expect(agent.getAuditLog(2).length).toBe(2);
+      expect((await agent.getAuditLog()).length).toBe(3);
+      expect((await agent.getAuditLog(1)).length).toBe(1);
+      expect((await agent.getAuditLog(2)).length).toBe(2);
     });
   });
 

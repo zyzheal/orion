@@ -68,7 +68,7 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
     }
 
     const limit = parseInt((request.query as any)?.limit || '100', 10);
-    const logs = agent.getAuditLog(limit);
+    const logs = await agent.getAuditLog(limit);
 
     return { success: true, data: logs };
   });

@@ -20,6 +20,7 @@ import {
 import { ToolAdapter } from './ToolAdapter';
 import { AIGateway } from '../../ai/AIGateway';
 import { OrionError, ErrorCode } from '../../../errors';
+import { AgentAuditLogRepository } from '../../../repositories/AgentAuditLogRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -40,6 +41,8 @@ export abstract class BaseAgent {
   /** 内存审计日志存储（带容量限制，防止内存泄漏） */
   private static auditLogs: AgentAuditLog[] = [];
   private static readonly maxAuditLogs = 10000;
+  /** Optional PostgreSQL repository for audit log persistence */
+  private static auditRepo?: AgentAuditLogRepository;
 
   constructor(
     config: AgentConfig,
@@ -278,23 +281,75 @@ export abstract class BaseAgent {
   }
 
   /**
-   * 获取审计日志
-   *
-   * @param limit 返回最近 N 条记录
-   * @returns 审计日志列表
+   * 获取审计日志 — 优先查 DB，回退内存
    */
-  getAuditLog(limit: number = 100): AgentAuditLog[] {
-    return BaseAgent.auditLogs.slice(-limit);
+  async getAuditLog(limit: number = 100): Promise<AgentAuditLog[]> {
+    if (BaseAgent.auditRepo) {
+      try {
+        const rows = await BaseAgent.auditRepo.findRecent(this.config.id, limit);
+        return rows.map((r: { agent_id: string; created_at: Date | string; action: string; status: string; input_data: unknown; output_data: unknown; error_message: string | null; duration_ms: number; user_id: string | null; tenant_id: string | null; trace_id: string | null; tokens_input: number; tokens_output: number; tokens_total: number }) => ({
+          agentId: r.agent_id,
+          context: {
+            userId: r.user_id ?? '',
+            tenantId: r.tenant_id ?? '',
+            traceId: r.trace_id ?? '',
+          },
+          input: r.input_data,
+          output: r.output_data,
+          durationMs: r.duration_ms,
+          tokenUsage: {
+            input: r.tokens_input,
+            output: r.tokens_output,
+            total: r.tokens_total,
+          },
+          success: r.status === 'success',
+          error: r.error_message ?? undefined,
+        }));
+      } catch (err) {
+        logger.warn({ err }, 'DB getAuditLog failed, falling back to memory');
+      }
+    }
+    return BaseAgent.auditLogs.filter(l => l.agentId === this.config.id).slice(-limit);
   }
 
   /**
-   * 记录审计日志 — 持久化到内存存储
+   * 初始化审计日志 PostgreSQL 持久化（在应用启动时调用）
+   */
+  static initAuditPersistence(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }): void {
+    BaseAgent.auditRepo = new AgentAuditLogRepository(db);
+    logger.info('BaseAgent audit log PostgreSQL persistence initialized');
+  }
+
+  /**
+   * 记录审计日志 — 内存 + PostgreSQL 双写（fire-and-forget）
    */
   protected recordAuditLog(auditLog: AgentAuditLog): void {
     // 持久化到内存（带容量限制）
     BaseAgent.auditLogs.push(auditLog);
     if (BaseAgent.auditLogs.length > BaseAgent.maxAuditLogs) {
       BaseAgent.auditLogs = BaseAgent.auditLogs.slice(-BaseAgent.maxAuditLogs);
+    }
+
+    // Fire-and-forget 写入 PostgreSQL
+    if (BaseAgent.auditRepo) {
+      BaseAgent.auditRepo.append({
+        agentId: auditLog.agentId,
+        agentType: this.config.scenario,
+        action: 'execute',
+        status: auditLog.success ? 'success' : 'failed',
+        inputData: auditLog.input,
+        outputData: auditLog.output,
+        errorMessage: auditLog.error,
+        durationMs: auditLog.durationMs,
+        tenantId: auditLog.context?.tenantId,
+        userId: auditLog.context?.userId,
+        traceId: auditLog.context?.traceId,
+        tokensInput: auditLog.tokenUsage?.input ?? 0,
+        tokensOutput: auditLog.tokenUsage?.output ?? 0,
+        tokensTotal: auditLog.tokenUsage?.total ?? 0,
+      }).catch(err => {
+        logger.warn({ err, agentId: auditLog.agentId }, 'Failed to persist audit log to DB');
+      });
     }
 
     logger.info({
