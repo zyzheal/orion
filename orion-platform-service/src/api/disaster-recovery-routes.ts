@@ -18,7 +18,8 @@ export default async function disasterRecoveryRoutes(
   app: FastifyInstance,
   options: DisasterRecoveryRoutesOptions = {}
 ): Promise<void> {
-  const controller = new DisasterRecoveryController();
+  const controller = new DisasterRecoveryController(options.database);
+
   // POST /v1/disaster-recovery/plans - Create DR plan
   app.post('/plans', {
     onRequest: [authenticateUser, requirePermission({ resource: 'disaster-recovery', action: 'write' })],
