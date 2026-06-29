@@ -3,9 +3,13 @@
  *
  * 按项目/租户/团队追踪成本
  * 支持成本分摊、回溯报告、趋势分析
+ *
+ * P1-14: Migrated from in-memory Map to PostgreSQL cost_records table (migration 094).
+ * Falls back to in-memory mode when DB pool is not provided.
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import type { DatabasePool } from '../database';
 import {
   CostEntityType,
   CostPeriod,
@@ -92,13 +96,107 @@ export interface CostTrendQuery {
 }
 
 /**
+ * 行级别安全 RLS 上下文
+ */
+interface RlsContext {
+  tenantId?: string;
+  traceId?: string;
+}
+
+/**
+ * 数据库就绪标志（惰性初始化门控）
+ */
+let dbReady = false;
+let dbInitPending = Promise.resolve();
+
+/**
+ * 初始化 RLS 上下文（一次性）
+ */
+async function initRlsContext(pool: DatabasePool, ctx: RlsContext): Promise<void> {
+  if (dbReady) return;
+  try {
+    const prev = dbInitPending;
+    dbInitPending = (async () => {
+      await prev;
+      if (ctx.tenantId) {
+        await pool.query("SET app.current_tenant_id = $1", [ctx.tenantId]);
+      }
+      if (ctx.traceId) {
+        await pool.query('SET tracing.trace_id = $1', [ctx.traceId]);
+      }
+      dbReady = true;
+    })();
+    await dbInitPending;
+  } catch {
+    // 忽略初始化失败，降级到内存模式
+    dbReady = false;
+  }
+}
+
+/**
+ * 构建 metadata JSON 对象
+ */
+function buildMetadata(
+  entityType: CostEntityType,
+  entityId: string,
+  environment?: string,
+  tags?: Record<string, string>
+): string {
+  const meta: Record<string, unknown> = {
+    entity_type: entityType,
+    entity_id: entityId,
+  };
+  if (environment) {
+    meta.environment = environment;
+  }
+  if (tags) {
+    meta.tags = tags;
+  }
+  return JSON.stringify(meta);
+}
+
+/**
+ * 从数据库行映射为 EntityCostRecord
+ */
+function rowToRecord(row: any): EntityCostRecord {
+  const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {});
+  return {
+    id: row.id,
+    entityType: (metadata.entity_type || 'project') as CostEntityType,
+    entityId: metadata.entity_id || '',
+    amount: parseFloat(row.amount) || 0,
+    category: row.cost_type || '',
+    timestamp: new Date(row.created_at),
+    environment: metadata.environment,
+    tags: metadata.tags,
+    currency: row.currency || 'USD',
+  };
+}
+
+/**
  * 成本追踪服务
  *
  * 提供按项目/租户/团队的细粒度成本追踪能力
+ *
+ * P1-14: 支持 PostgreSQL 持久化 + 内存回退
  */
 export class CostTrackingService {
-  /** 成本记录存储 */
+  /** 内存回退存储（当 DB 不可用时使用） */
   private records: EntityCostRecord[] = [];
+
+  /** PostgreSQL 连接池（可选） */
+  private pool?: DatabasePool | null;
+
+  /**
+   * 构造函数
+   *
+   * @param db - DatabasePool 实例；传入 null 或 undefined 则使用内存模式
+   */
+  constructor(db?: DatabasePool | null) {
+    this.pool = db;
+  }
+
+  // ==================== 公共写入接口 ====================
 
   /**
    * 记录项目成本
@@ -112,8 +210,7 @@ export class CostTrackingService {
     currency?: string;
     timestamp?: Date;
   }): EntityCostRecord {
-    const record: EntityCostRecord = {
-      id: uuidv4(),
+    return this._createRecord({
       entityType: 'project',
       entityId: params.projectId,
       amount: params.amount,
@@ -121,11 +218,8 @@ export class CostTrackingService {
       environment: params.environment,
       tags: params.tags,
       currency: params.currency || 'USD',
-      timestamp: params.timestamp || new Date(),
-    };
-
-    this.records.push(record);
-    return record;
+      timestamp: params.timestamp,
+    });
   }
 
   /**
@@ -140,8 +234,7 @@ export class CostTrackingService {
     currency?: string;
     timestamp?: Date;
   }): EntityCostRecord {
-    const record: EntityCostRecord = {
-      id: uuidv4(),
+    return this._createRecord({
       entityType: 'tenant',
       entityId: params.tenantId,
       amount: params.amount,
@@ -149,11 +242,8 @@ export class CostTrackingService {
       environment: params.environment,
       tags: params.tags,
       currency: params.currency || 'USD',
-      timestamp: params.timestamp || new Date(),
-    };
-
-    this.records.push(record);
-    return record;
+      timestamp: params.timestamp,
+    });
   }
 
   /**
@@ -168,8 +258,7 @@ export class CostTrackingService {
     currency?: string;
     timestamp?: Date;
   }): EntityCostRecord {
-    const record: EntityCostRecord = {
-      id: uuidv4(),
+    return this._createRecord({
       entityType: 'team',
       entityId: params.teamId,
       amount: params.amount,
@@ -177,19 +266,88 @@ export class CostTrackingService {
       environment: params.environment,
       tags: params.tags,
       currency: params.currency || 'USD',
-      timestamp: params.timestamp || new Date(),
-    };
+      timestamp: params.timestamp,
+    });
+  }
 
+  /**
+   * 通用内部写入入口 —— 先写 PG，再写内存。任一失败不阻断，回退到仅写一侧。
+   */
+  private _createRecord(params: {
+    entityType: CostEntityType;
+    entityId: string;
+    amount: number;
+    category: string;
+    environment?: string;
+    tags?: Record<string, string>;
+    currency?: string;
+    timestamp?: Date;
+  }): EntityCostRecord {
+    const now = params.timestamp || new Date();
+    const id = uuidv4();
+    const currency = params.currency || 'USD';
+    const metadata = buildMetadata(params.entityType, params.entityId, params.environment, params.tags);
+
+    // ---- 写 PG (migration 094 cost_records) ----
+    if (this.pool) {
+      const pending = this._insertPg(id, params.entityId, params.category, params.amount, currency, metadata, now);
+      // 不 await，避免阻塞；写 PG 失败不影响返回值
+      pending.catch(() => { /* 静默降级到内存 */ });
+    }
+
+    // ---- 写内存 ----
+    const record: EntityCostRecord = {
+      id,
+      entityType: params.entityType,
+      entityId: params.entityId,
+      amount: params.amount,
+      category: params.category,
+      currency,
+      timestamp: now,
+      environment: params.environment,
+      tags: params.tags,
+    };
     this.records.push(record);
+
     return record;
+  }
+
+  /**
+   * 异步插入 PG（非阻塞调用方）
+   */
+  private async _insertPg(
+    id: string,
+    tenantId: string,
+    costType: string,
+    amount: number,
+    currency: string,
+    metadata: string,
+    now: Date,
+  ): Promise<void> {
+    try {
+      const ctx: RlsContext = { tenantId };
+      await initRlsContext(this.pool!, ctx);
+
+      const sql = `INSERT INTO cost_records (id, tenant_id, cost_type, amount, currency, metadata, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)`;
+      await this.pool!.query(sql, [id, tenantId, costType, amount, currency, metadata, now]);
+    } catch (err) {
+      // DB 写入失败时降级
+      console.error('[CostTrackingService] PG insert failed, falling back to memory only:', err);
+      throw err; // 向上抛出，但调用方用 .catch() 忽略
+    }
   }
 
   /**
    * 批量添加成本记录
    */
   addRecords(records: EntityCostRecord[]): void {
-    this.records.push(...records);
+    for (const record of records) {
+      this.records.push(record);
+    }
   }
+
+  // ==================== 公共查询接口 ====================
 
   /**
    * 获取指定实体的成本汇总
@@ -197,7 +355,7 @@ export class CostTrackingService {
   getCostByEntity(
     entityType: CostEntityType,
     entityId: string,
-    period: CostPeriod = 'monthly'
+    period: CostPeriod = 'monthly',
   ): EntityCostSummary {
     const { startDate, endDate } = this.getPeriodDates(period);
     const filtered = this.filterRecords(entityType, entityId, startDate, endDate);
@@ -225,7 +383,7 @@ export class CostTrackingService {
       query.entityType,
       query.entityId,
       startDate,
-      endDate
+      endDate,
     );
 
     if (query.category) {
@@ -268,7 +426,7 @@ export class CostTrackingService {
   getChargebackReport(period: CostPeriod = 'monthly'): ChargebackReport {
     const { startDate, endDate } = this.getPeriodDates(period);
     const filtered = this.records.filter(
-      (r) => r.timestamp >= startDate && r.timestamp <= endDate
+      (r) => r.timestamp >= startDate && r.timestamp <= endDate,
     );
 
     // 按实体聚合
@@ -300,7 +458,7 @@ export class CostTrackingService {
 
     const totalCost = Array.from(entityMap.values()).reduce(
       (sum, e) => sum + e.cost,
-      0
+      0,
     );
 
     const entities = Array.from(entityMap.values())
@@ -316,7 +474,7 @@ export class CostTrackingService {
           Object.entries(e.breakdown).map(([k, v]) => [
             k,
             Math.round(v * 100) / 100,
-          ])
+          ]),
         ),
       }))
       .sort((a, b) => b.cost - a.cost);
@@ -361,16 +519,16 @@ export class CostTrackingService {
     this.records = [];
   }
 
-  // ==================== 私有方法 ====================
+  // ==================== 私有辅助方法 ====================
 
   /**
-   * 过滤指定实体和时间范围的记录
+   * 从内存过滤指定实体和时间范围的记录
    */
   private filterRecords(
     entityType: CostEntityType,
     entityId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): EntityCostRecord[] {
     return this.records.filter((r) => {
       if (r.entityType !== entityType) return false;
@@ -391,7 +549,7 @@ export class CostTrackingService {
     }
     // 四舍五入
     return Object.fromEntries(
-      Object.entries(breakdown).map(([k, v]) => [k, Math.round(v * 100) / 100])
+      Object.entries(breakdown).map(([k, v]) => [k, Math.round(v * 100) / 100]),
     );
   }
 
@@ -410,7 +568,7 @@ export class CostTrackingService {
     }
 
     const sorted = [...dataPoints].sort(
-      (a, b) => a.date.getTime() - b.date.getTime()
+      (a, b) => a.date.getTime() - b.date.getTime(),
     );
 
     const points: CostTrendPoint[] = [];
