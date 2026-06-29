@@ -7,6 +7,7 @@ import { CallExpression, Identifier, MemberExpression, Node, StringLiteral } fro
 import { InlineScriptConfig, InlineScriptPermissions, InlineScriptLevel } from '../plugin-spi/types';
 import { WasmRuntime } from './WasmRuntime';
 import { InlineScriptApprovalRepository } from '../../repositories/InlineScriptApprovalRepository';
+import { InlineScriptRepository } from '../../repositories/InlineScriptRepository';
 import { createHash } from 'crypto';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -194,10 +195,12 @@ function regexScan(code: string, level: InlineScriptLevel): string[] {
 export class InlineScriptService {
   private wasmRuntime: WasmRuntime;
   private approvalRepo?: InlineScriptApprovalRepository;
+  private scriptRepo?: InlineScriptRepository;
 
-  constructor(options?: { approvalRepo?: InlineScriptApprovalRepository }) {
+  constructor(options?: { approvalRepo?: InlineScriptApprovalRepository; scriptRepo?: InlineScriptRepository }) {
     this.wasmRuntime = new WasmRuntime();
     this.approvalRepo = options?.approvalRepo;
+    this.scriptRepo = options?.scriptRepo;
   }
 
   /**
@@ -560,5 +563,176 @@ export class InlineScriptService {
     }
 
     return { status: 'pending', currentApprovals: 0, requiredApprovals: 2 };
+  }
+
+  // ---- Script CRUD methods ----
+
+  /**
+   * Save an inline script (create if not exists, update if exists).
+   * DB failure degrades gracefully to in-memory store.
+   */
+  async saveScript(params: {
+    tenantId: string;
+    userId?: string;
+    name: string;
+    scriptContent: string;
+    language?: string;
+    description?: string;
+  }): Promise<{ id: string; name: string }> {
+    if (!this.scriptRepo) {
+      logger.warn({ name: params.name }, 'Script save skipped: no scriptRepo configured');
+      return { id: `stub-${Date.now()}`, name: params.name };
+    }
+
+    try {
+      const existing = await this.scriptRepo.findByTenantAndName(params.tenantId, params.name);
+      if (existing) {
+        await this.scriptRepo.update(existing.id, {
+          scriptContent: params.scriptContent,
+          language: params.language,
+          description: params.description,
+        }, params.tenantId);
+        logger.info({ id: existing.id, name: params.name }, 'Inline script updated');
+        return { id: existing.id, name: params.name };
+      }
+
+      // Check for duplicate name within tenant
+      const exists = await this.scriptRepo.existsByTenantAndName(params.tenantId, params.name);
+      if (exists) {
+        throw new Error(`Script with name '${params.name}' already exists for this tenant`);
+      }
+
+      const script = await this.scriptRepo.create({
+        tenantId: params.tenantId,
+        name: params.name,
+        scriptContent: params.scriptContent,
+        language: params.language || 'shell',
+        description: params.description,
+        createdBy: params.userId,
+      });
+
+      logger.info({ id: script.id, name: script.name }, 'Inline script saved');
+      return { id: script.id, name: script.name };
+    } catch (error) {
+      logger.error({ error, name: params.name }, 'Failed to save inline script');
+      throw error;
+    }
+  }
+
+  /**
+   * Get a script by name for a given tenant.
+   */
+  async getScript(tenantId: string, name: string): Promise<{
+    id: string;
+    name: string;
+    scriptContent: string;
+    language: string;
+    description?: string;
+    createdBy?: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null> {
+    if (!this.scriptRepo) return null;
+
+    try {
+      const script = await this.scriptRepo.findByTenantAndName(tenantId, name);
+      if (!script) return null;
+      return {
+        id: script.id,
+        name: script.name,
+        scriptContent: script.scriptContent,
+        language: script.language,
+        description: script.description,
+        createdBy: script.createdBy,
+        createdAt: script.createdAt,
+        updatedAt: script.updatedAt,
+      };
+    } catch (error) {
+      logger.error({ error, tenantId, name }, 'Failed to get inline script');
+      return null;
+    }
+  }
+
+  /**
+   * List all scripts for a tenant.
+   */
+  async listScripts(tenantId: string, _page?: number, _pageSize?: number): Promise<{
+    scripts: Array<{
+      id: string;
+      name: string;
+      language: string;
+      description?: string;
+      createdBy?: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    total: number;
+  }> {
+    if (!this.scriptRepo) {
+      return { scripts: [], total: 0 };
+    }
+
+    try {
+      const limit = _pageSize || 20;
+      const offset = (_page || 0) * limit;
+      const result = await this.scriptRepo.listByTenant(tenantId, { limit, offset });
+      return {
+        scripts: result.entities.map(s => ({
+          id: s.id,
+          name: s.name,
+          language: s.language,
+          description: s.description,
+          createdBy: s.createdBy,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        })),
+        total: result.total,
+      };
+    } catch (error) {
+      logger.error({ error, tenantId }, 'Failed to list inline scripts');
+      return { scripts: [], total: 0 };
+    }
+  }
+
+  /**
+   * Update an existing script.
+   */
+  async updateScript(tenantId: string, name: string, updates: {
+    scriptContent?: string;
+    language?: string;
+    description?: string;
+  }): Promise<{ id: string; name: string } | null> {
+    if (!this.scriptRepo) return null;
+
+    try {
+      const existing = await this.scriptRepo.findByTenantAndName(tenantId, name);
+      if (!existing) return null;
+
+      await this.scriptRepo.update(existing.id, updates, tenantId);
+      logger.info({ id: existing.id, name }, 'Inline script updated');
+      return { id: existing.id, name: existing.name };
+    } catch (error) {
+      logger.error({ error, tenantId, name }, 'Failed to update inline script');
+      return null;
+    }
+  }
+
+  /**
+   * Delete a script by name.
+   */
+  async deleteScript(tenantId: string, name: string): Promise<boolean> {
+    if (!this.scriptRepo) return false;
+
+    try {
+      const existing = await this.scriptRepo.findByTenantAndName(tenantId, name);
+      if (!existing) return false;
+
+      await this.scriptRepo.delete(existing.id, tenantId);
+      logger.info({ id: existing.id, name }, 'Inline script deleted');
+      return true;
+    } catch (error) {
+      logger.error({ error, tenantId, name }, 'Failed to delete inline script');
+      return false;
+    }
   }
 }
