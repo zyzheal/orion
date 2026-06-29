@@ -7,11 +7,14 @@
  * - pipeline.viewer: Can only view
  * - pipeline.approver: Can approve/reject approval gates
  *
+ * Persistence: PostgreSQL via RBACRuleRepository with graceful degradation
+ * to in-memory cache on DB failure.
+ *
  * If no RBAC rules exist for a pipeline, default to allow (backward compatible).
  */
 
 import pino from 'pino';
-import { RBACRuleRepository, RBACRuleEntity } from '../../repositories/RBACRuleRepository';
+import { RBACRuleRepository } from '../../repositories/RBACRuleRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -53,12 +56,67 @@ const ROLE_PERMISSIONS: Record<PipelineRole, string[]> = {
 
 export class PipelineRBACService {
   private repository: RBACRuleRepository | null = null;
+  /** Database pool reference for graceful degradation fallback */
+  private dbPool: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> } | null = null;
   /** In-memory cache for fast permission checks. Key: pipelineId, Value: Map<userId, role> */
   private rulesCache: Map<string, Map<string, PipelineRole>> = new Map();
   private cacheInitialized = new Set<string>();
+  /** Whether DB operations have failed — triggers fallback mode */
+  private dbFailed = false;
 
-  constructor(repository?: RBACRuleRepository | null) {
-    this.repository = repository || null;
+  /**
+   * Constructor accepting either a Repository or a raw DB pool.
+   * If a Repository is provided, it is stored directly.
+   * If a raw pool is provided, a wrapper Repository is created internally.
+   * @param dataSource — RBACRuleRepository instance or raw database pool
+   */
+  constructor(dataSource?: RBACRuleRepository | { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> } | null) {
+    if (dataSource && 'findByPipelineId' in dataSource && typeof (dataSource as RBACRuleRepository).findByPipelineId === 'function') {
+      this.repository = dataSource as RBACRuleRepository;
+    } else if (dataSource && 'query' in dataSource) {
+      this.dbPool = dataSource as typeof this.dbPool;
+    }
+  }
+
+  /**
+   * Get the effective repository — fall back to raw pool queries if repo is not available.
+   * Returns null when neither repo nor pool is configured.
+   */
+  private getEffectiveRepo(): RBACRuleRepository | null {
+    if (this.repository) return this.repository;
+    if (this.dbPool) {
+      // Create an on-the-fly repository wrapping the raw pool
+      if (!this._fallbackRepo) {
+        this._fallbackRepo = new RBACRuleRepository(this.dbPool);
+      }
+      return this._fallbackRepo;
+    }
+    return null;
+  }
+  private _fallbackRepo: RBACRuleRepository | null = null;
+
+  /**
+   * Execute a DB operation with automatic failure detection.
+   * On failure, marks dbFailed=true and falls back to in-memory cache.
+   */
+  private async safeDB<T>(fn: (repo: RBACRuleRepository) => Promise<T>): Promise<{ success: boolean; data?: T }> {
+    if (this.dbFailed) {
+      logger.warn('DB marked as failed, skipping database operation');
+      return { success: false };
+    }
+
+    try {
+      const repo = this.getEffectiveRepo();
+      if (!repo) {
+        return { success: false };
+      }
+      const data = await fn(repo);
+      return { success: true, data };
+    } catch (err) {
+      this.dbFailed = true;
+      logger.error({ err }, 'DB operation failed for Pipeline RBAC, falling back to in-memory cache');
+      return { success: false };
+    }
   }
 
   /**
@@ -67,15 +125,15 @@ export class PipelineRBACService {
    * @param userRules - Array of { userId, role } rules
    */
   async setRules(pipelineId: string, userRules: { userId: string; role: PipelineRole }[]): Promise<void> {
-    if (this.repository) {
-      // Delete existing rules and insert new ones
-      await this.repository.deleteByPipelineId(pipelineId);
+    // Persist to DB with graceful degradation
+    await this.safeDB(async repo => {
+      await repo.deleteByPipelineId(pipelineId);
       for (const rule of userRules) {
-        await this.repository.upsert(pipelineId, rule.userId, rule.role);
+        await repo.upsert(pipelineId, rule.userId, rule.role);
       }
-    }
+    });
 
-    // Update cache
+    // Always update in-memory cache (authoritative)
     const userMap = new Map<string, PipelineRole>();
     for (const rule of userRules) {
       userMap.set(rule.userId, rule.role);
@@ -89,11 +147,10 @@ export class PipelineRBACService {
    * Add a single RBAC rule for a pipeline.
    */
   async addRule(pipelineId: string, userId: string, role: PipelineRole): Promise<void> {
-    if (this.repository) {
-      await this.repository.upsert(pipelineId, userId, role);
-    }
+    await this.safeDB(async repo => {
+      await repo.upsert(pipelineId, userId, role);
+    });
 
-    // Update cache
     if (!this.rulesCache.has(pipelineId)) {
       this.rulesCache.set(pipelineId, new Map());
     }
@@ -106,9 +163,9 @@ export class PipelineRBACService {
    * Remove a rule for a pipeline.
    */
   async removeRule(pipelineId: string, userId: string): Promise<void> {
-    if (this.repository) {
-      await this.repository.deleteByPipelineAndUser(pipelineId, userId);
-    }
+    await this.safeDB(async repo => {
+      await repo.deleteByPipelineAndUser(pipelineId, userId);
+    });
 
     const userMap = this.rulesCache.get(pipelineId);
     if (userMap) {
@@ -139,19 +196,27 @@ export class PipelineRBACService {
   }
 
   /**
-   * Ensure cache is loaded from database for a pipeline
+   * Ensure cache is loaded from database for a pipeline.
+   * On DB failure, marks dbFailed=true and continues using whatever is in cache.
    */
   private async ensureCacheLoaded(pipelineId: string): Promise<void> {
     if (this.cacheInitialized.has(pipelineId)) return;
-    if (!this.repository) return;
 
-    const rules = await this.repository.findByPipelineId(pipelineId);
-    const userMap = new Map<string, PipelineRole>();
-    for (const rule of rules) {
-      userMap.set(rule.userId, rule.role as PipelineRole);
+    const result = await this.safeDB(async repo => {
+      return repo.findByPipelineId(pipelineId);
+    });
+
+    if (result.success && result.data) {
+      const userMap = new Map<string, PipelineRole>();
+      for (const rule of result.data) {
+        userMap.set(rule.userId, rule.role as PipelineRole);
+      }
+      this.rulesCache.set(pipelineId, userMap);
+      this.cacheInitialized.add(pipelineId);
+    } else if (result.success === false && !this.dbFailed) {
+      // DB failed during ensureCacheLoaded — leave cache empty, defaults to allow
+      logger.info({ pipelineId }, 'Pipeline RBAC cache miss after DB fallback, defaulting to allow');
     }
-    this.rulesCache.set(pipelineId, userMap);
-    this.cacheInitialized.add(pipelineId);
   }
 
   /**
@@ -212,5 +277,13 @@ export class PipelineRBACService {
   async canApprove(runId: string, userId: string, _tenantId?: string, pipelineId?: string): Promise<PermissionResult> {
     const key = pipelineId || runId;
     return this.hasPermission(key, userId, 'approve');
+  }
+
+  /**
+   * Reset the dbFailed flag (call after DB is restored).
+   */
+  resetDBFailure(): void {
+    this.dbFailed = false;
+    logger.info('Pipeline RBAC DB failure flag reset');
   }
 }
