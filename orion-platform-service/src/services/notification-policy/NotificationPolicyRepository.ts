@@ -65,15 +65,24 @@ export class NotificationPolicyRepository extends BaseRepository<NotificationPol
       tenantId: row.tenant_id,
       name: row.name,
       description: row.description ?? null,
-      conditions: typeof row.conditions === 'string' ? JSON.parse(row.conditions) : (row.conditions ?? []),
-      channels: typeof row.channels === 'string' ? JSON.parse(row.channels) : (row.channels ?? []),
-      recipients: typeof row.recipients === 'string' ? JSON.parse(row.recipients) : (row.recipients ?? []),
+      conditions: this.parseJsonB(row.conditions, []),
+      channels: this.parseJsonB(row.channels, []),
+      recipients: this.parseJsonB(row.recipients, []),
       throttleMinutes: row.throttle_minutes ?? 0,
       enabled: row.enabled,
       createdBy: row.created_by ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  private parseJsonB(value: unknown, fallback: unknown[]): unknown[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { /* fall through */ }
+    }
+    if (typeof value === 'object' && value !== null) return value as unknown[];
+    return fallback;
   }
 }
 
@@ -109,11 +118,20 @@ export class NotificationWorkflowRepository extends BaseRepository<NotificationW
       name: row.name,
       description: row.description ?? null,
       policyId: row.policy_id,
-      steps: typeof row.steps === 'string' ? JSON.parse(row.steps) : (row.steps ?? []),
+      steps: this.parseJsonB(row.steps, []),
       enabled: row.enabled,
       createdBy: row.created_by ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  private parseJsonB(value: unknown, fallback: unknown[]): unknown[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { /* fall through */ }
+    }
+    if (typeof value === 'object' && value !== null) return value as unknown[];
+    return fallback;
   }
 }
