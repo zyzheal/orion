@@ -19,7 +19,7 @@ import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
-import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   ConfigChangeRequestRepository,
   ConfigChangeHistoryRepository,
@@ -127,7 +127,6 @@ export class ConfigChangeService {
   private repository: ConfigChangeRequestRepository | null;
   private historyRepository: ConfigChangeHistoryRepository | null;
   private memory = new Map<string, ChangeRequest>();
-  private historyMemory: ChangeHistoryEntry[] = [];
 
   private configService?: ConfigService;
   private approvalService?: ConfigApprovalService;
@@ -480,22 +479,22 @@ export class ConfigChangeService {
     filter?: ChangeHistoryFilter
   ): Promise<ChangeHistoryEntry[]> {
     if (!this.isDbAvailable()) {
-      let results = this.historyMemory.filter((h) => h.tenantId === tenantId || h.tenantId === 'default');
-      if (filter?.configKey) results = results.filter((h) => h.configKey === filter.configKey);
-      if (filter?.configGroup) results = results.filter((h) => h.configGroup === filter.configGroup);
-      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const offset = filter?.offset || 0;
-      const limit = filter?.limit || 100;
-      return results.slice(offset, offset + limit).map(h => ({ ...h }));
+      logger.warn('[ConfigChangeService] History repository unavailable, returning empty history');
+      return [];
     }
 
-    const entities = await this.historyRepository!.findByTenant(tenantId, {
-      configKey: filter?.configKey,
-      configGroup: filter?.configGroup,
-      limit: filter?.limit,
-      offset: filter?.offset,
-    });
-    return entities.map(e => this.historyEntityToEntry(e));
+    try {
+      const entities = await this.historyRepository!.findByTenant(tenantId, {
+        configKey: filter?.configKey,
+        configGroup: filter?.configGroup,
+        limit: filter?.limit,
+        offset: filter?.offset,
+      });
+      return entities.map(e => this.historyEntityToEntry(e));
+    } catch (error) {
+      logger.warn(`[ConfigChangeService] Failed to query history from DB: ${(error as Error).message}`);
+      return [];
+    }
   }
 
   private async persistToDB(changeRequest: ChangeRequest): Promise<void> {
@@ -504,83 +503,86 @@ export class ConfigChangeService {
       return;
     }
 
-    // Use upsert with explicit INSERT ... ON CONFLICT
-    await this.repository!.getDb().query(
-      `INSERT INTO config_change_requests (
-        id, tenant_id, config_key, config_group, environment, change_type,
-        old_value, new_value, reason, risk_level, requester, status,
-        execution_plan, rollback_plan, approvals, required_approvals,
-        executed_at, executed_by, approved_at, approved_by,
-        rolled_back_at, rolled_back_by, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        status = EXCLUDED.status,
-        approvals = EXCLUDED.approvals,
-        executed_at = EXCLUDED.executed_at,
-        executed_by = EXCLUDED.executed_by,
-        approved_at = EXCLUDED.approved_at,
-        approved_by = EXCLUDED.approved_by,
-        rolled_back_at = EXCLUDED.rolled_back_at,
-        rolled_back_by = EXCLUDED.rolled_back_by,
-        updated_at = EXCLUDED.updated_at`,
-      [
-        changeRequest.id,
-        changeRequest.tenantId,
-        changeRequest.configKey,
-        changeRequest.configGroup || null,
-        changeRequest.environment,
-        changeRequest.changeType,
-        changeRequest.oldValue ? JSON.stringify(changeRequest.oldValue) : null,
-        changeRequest.newValue ? JSON.stringify(changeRequest.newValue) : null,
-        changeRequest.reason,
-        changeRequest.riskLevel,
-        changeRequest.requester,
-        changeRequest.status,
-        changeRequest.executionPlan ? JSON.stringify(changeRequest.executionPlan) : null,
-        changeRequest.rollbackPlan ? JSON.stringify(changeRequest.rollbackPlan) : null,
-        JSON.stringify(changeRequest.approvals),
-        changeRequest.requiredApprovals,
-        changeRequest.executedAt || null,
-        changeRequest.executedBy || null,
-        changeRequest.approvedAt || null,
-        changeRequest.approvedBy || null,
-        changeRequest.rolledBackAt || null,
-        changeRequest.rolledBackBy || null,
-        changeRequest.createdAt,
-        changeRequest.updatedAt,
-      ]
-    );
+    try {
+      // Try insert first; on conflict, update
+      await this.repository!.create({
+        id: changeRequest.id,
+        tenantId: changeRequest.tenantId,
+        configKey: changeRequest.configKey,
+        configGroup: changeRequest.configGroup,
+        environment: changeRequest.environment,
+        changeType: changeRequest.changeType,
+        oldValue: changeRequest.oldValue,
+        newValue: changeRequest.newValue,
+        reason: changeRequest.reason,
+        riskLevel: changeRequest.riskLevel,
+        requester: changeRequest.requester,
+        status: changeRequest.status,
+        executionPlan: changeRequest.executionPlan,
+        rollbackPlan: changeRequest.rollbackPlan,
+        approvals: changeRequest.approvals,
+        requiredApprovals: changeRequest.requiredApprovals,
+        executedAt: changeRequest.executedAt,
+        executedBy: changeRequest.executedBy,
+        approvedAt: changeRequest.approvedAt,
+        approvedBy: changeRequest.approvedBy,
+        rolledBackAt: changeRequest.rolledBackAt,
+        rolledBackBy: changeRequest.rolledBackBy,
+        createdAt: changeRequest.createdAt,
+        updatedAt: changeRequest.updatedAt,
+      });
+    } catch (error) {
+      // On conflict/duplicate, fall back to update
+      if ((error as OrionError).code === 'OPERATION_FAILED') {
+        try {
+          await this.repository!.update(changeRequest.id, {
+            status: changeRequest.status,
+            approvals: changeRequest.approvals,
+            executedAt: changeRequest.executedAt,
+            executedBy: changeRequest.executedBy,
+            approvedAt: changeRequest.approvedAt,
+            approvedBy: changeRequest.approvedBy,
+            rolledBackAt: changeRequest.rolledBackAt,
+            rolledBackBy: changeRequest.rolledBackBy,
+            updatedAt: changeRequest.updatedAt,
+          });
+        } catch (updateError) {
+          logger.warn(`[ConfigChangeService] Failed to persist change request to DB: ${(updateError as Error).message}`);
+        }
+      } else {
+        logger.warn(`[ConfigChangeService] Failed to persist change request to DB: ${(error as Error).message}`);
+      }
+    }
   }
 
   private async recordHistory(entry: ChangeHistoryEntry): Promise<void> {
     if (!this.isDbAvailable()) {
-      this.historyMemory.push(entry);
+      // History is append-only audit trail; if no DB, log and continue
+      logger.warn('[ConfigChangeService] History repository unavailable, audit entry skipped:', {
+        changeRequestId: entry.changeRequestId,
+        action: entry.action,
+      });
       return;
     }
 
-    await this.historyRepository!.getDb().query(
-      `INSERT INTO config_change_history (
-        id, tenant_id, change_request_id, config_key, config_group,
-        environment, action, actor, old_value, new_value, notes, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [
-        entry.id,
-        entry.tenantId || getCurrentTenantId() || '00000000-0000-0000-0000-000000000000',
-        entry.changeRequestId || null,
-        entry.configKey,
-        entry.configGroup || null,
-        entry.environment,
-        entry.action,
-        entry.actor,
-        entry.oldValue ? JSON.stringify(entry.oldValue) : null,
-        entry.newValue ? JSON.stringify(entry.newValue) : null,
-        entry.notes || null,
-        entry.createdAt,
-      ]
-    );
+    try {
+      await this.historyRepository!.create({
+        id: entry.id,
+        tenantId: entry.tenantId || '00000000-0000-0000-0000-000000000000',
+        changeRequestId: entry.changeRequestId || '',
+        configKey: entry.configKey,
+        configGroup: entry.configGroup,
+        environment: entry.environment,
+        action: entry.action,
+        actor: entry.actor,
+        oldValue: entry.oldValue,
+        newValue: entry.newValue,
+        notes: entry.notes,
+        createdAt: entry.createdAt,
+      });
+    } catch (error) {
+      logger.warn(`[ConfigChangeService] Failed to persist history entry to DB: ${(error as Error).message}`);
+    }
   }
 
   private entityToChangeRequest(entity: ChangeRequestEntity): ChangeRequest {
