@@ -101,11 +101,16 @@ export class SupplyChainService {
   /**
    * 获取 SBOM
    */
-  async getSBOM(sbomId: string): Promise<any | null> {
-    const result = await this.pool.query(
-      `SELECT * FROM supply_chain_sboms WHERE id = $1`,
-      [sbomId],
-    );
+  async getSBOM(sbomId: string, tenantId?: string): Promise<any | null> {
+    const result = tenantId
+      ? await this.pool.query(
+          `SELECT * FROM supply_chain_sboms WHERE id = $1 AND tenant_id = $2`,
+          [sbomId, tenantId],
+        )
+      : await this.pool.query(
+          `SELECT * FROM supply_chain_sboms WHERE id = $1`,
+          [sbomId],
+        );
     return result.rows[0] || null;
   }
 
@@ -168,31 +173,63 @@ export class SupplyChainService {
   }
 
   /**
-   * 供应链安全报告
+   * 供应链安全报告 — 按 pipelineId 查询单条报告
+   * 返回格式对齐前端 SupplyChainReport 接口:
+   * { pipelineId, sbomId, signatureStatus, dependencyRisk, vulnerabilities, generatedAt }
    */
   async getSupplyChainReport(tenantId: string, pipelineId?: string): Promise<any> {
-    const sbomQuery = pipelineId
-      ? `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2`
-      : `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1`;
+    // 查询 SBOM 信息
+    const sbomRows = pipelineId
+      ? await this.pool.query(
+          `SELECT id AS sbom_id, components, vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at DESC LIMIT 1`,
+          [tenantId, pipelineId],
+        )
+      : await this.pool.query(
+          `SELECT id AS sbom_id, components, vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [tenantId],
+        );
 
-    const sbomParams = pipelineId ? [tenantId, pipelineId] : [tenantId];
-    const sbomResult = await this.pool.query(sbomQuery, sbomParams);
+    const sbom = sbomRows.rows[0];
+    const sbomId = sbom?.sbom_id || null;
 
-    const sigResult = await this.pool.query(
-      `SELECT COUNT(*) as total_signatures, COUNT(*) FILTER (WHERE verified = true) as verified_count FROM artifact_signatures WHERE tenant_id = $1`,
-      [tenantId],
+    // 查询签名信息
+    const sigRows = await this.pool.query(
+      `SELECT verified, signature_type FROM artifact_signatures WHERE tenant_id = $1 AND artifact_id = $2 ORDER BY signed_at DESC LIMIT 1`,
+      [tenantId, pipelineId || ''],
     );
+    const sig = sigRows.rows[0];
+    const signatureStatus = sig?.verified
+      ? 'verified'
+      : sig
+        ? 'signed'
+        : 'unsigned';
 
-    const vulnResult = await this.pool.query(
-      `SELECT SUM(jsonb_array_length(vulnerabilities)) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1`,
-      [tenantId],
-    );
+    // 统计漏洞数量
+    const vulnList = sbom?.vulnerabilities;
+    const vulnerabilities = Array.isArray(vulnList) ? vulnList.length : 0;
+
+    // 依赖风险等级
+    let dependencyRisk: 'low' | 'medium' | 'high' | 'critical' = 'low';
+    if (vulnerabilities > 0) {
+      const criticalCount = Array.isArray(vulnList)
+        ? vulnList.filter((v: any) => v?.severity === 'critical' || v?.severity === 'high').length
+        : 0;
+      if (criticalCount > 0) {
+        dependencyRisk = 'critical';
+      } else if (vulnerabilities > 5) {
+        dependencyRisk = 'high';
+      } else if (vulnerabilities > 2) {
+        dependencyRisk = 'medium';
+      }
+    }
 
     return {
-      totalSboms: parseInt(sbomResult.rows[0]?.total_sboms || '0', 10),
-      totalSignatures: parseInt(sigResult.rows[0]?.total_signatures || '0', 10),
-      verifiedSignatures: parseInt(sigResult.rows[0]?.verified_count || '0', 10),
-      totalVulnerabilities: parseInt(vulnResult.rows[0]?.total_vulnerabilities || '0', 10),
+      pipelineId: pipelineId || '',
+      sbomId: sbomId || '',
+      signatureStatus,
+      dependencyRisk,
+      vulnerabilities,
+      generatedAt: new Date().toISOString(),
     };
   }
 
