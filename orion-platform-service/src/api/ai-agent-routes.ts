@@ -28,7 +28,7 @@ export function registerAgent(id: string, agent: BaseAgent): void {
  * 注册所有 AI Agent 路由
  */
 export function registerAIAgentRoutes(app: FastifyInstance): void {
-  const prefix = '/api/v1/ai-agents';
+  const prefix = '/ai-agents';
 
   // 获取所有 Agent 列表
   app.get(`${prefix}/list`, async (request, reply) => {

@@ -83,7 +83,9 @@ import { escalationScheduler } from '../services/escalation/EscalationScheduler'
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
 import branchPolicyRoutes from './branch-policy-routes';
+import codeRepoRoutes from './code-repo-routes';
 import workbenchRoutes from './workbench-routes';
+import inceptionRoutes from './inception-routes';
 import biDashboardRoutes from './bi-dashboard-routes';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { PipelineBudgetRepository } from '../repositories/PipelineBudgetRepository';
@@ -466,12 +468,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)
-
-  // 注册 Branch Policy API 路由 (PostgreSQL backed)
+  // Branch Policy API (PostgreSQL backed)
   await app.register(branchPolicyRoutes, {
     prefix: '/code-repo/branch-policies',
     database: options.database,
   });
+
+  // Code Repo API (adapters, repos, branches, PRs, code-owners, webhooks)
+  await app.register(codeRepoRoutes, { prefix: '/code-repo' });
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
   await registerWithRoleGuard(app, configRoutes, '/config', { database: options.database, redis: options.redis });
@@ -627,6 +631,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
   await registerWithRoleGuard(app, workbenchRoutes, '/workbench', { database: options.database });
+
+  // 注册 Inception SQL Audit 路由
+  await app.register(inceptionRoutes, { prefix: '/inception' });
 
   // 注册 BI Dashboard API 路由 — Executive/Manager/Engineer 仪表盘 (auth guarded)
   await registerWithRoleGuard(app, biDashboardRoutes, '', { database: options.database });

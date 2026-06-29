@@ -166,6 +166,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/DeploymentDetail')),
     protected: true,
   },
+  // Deploy (deployment management)
+  {
+    path: '/deploy',
+    element: React.lazy(() => import('@/pages/deploy/DeployPage')),
+    protected: true,
+  },
   {
     path: '/alerts',
     element: React.lazy(() => import('@/pages/AlertList')),
@@ -299,7 +305,7 @@ export const routes: AppRoute[] = [
   // FinOps
   {
     path: '/finops',
-    element: React.lazy(() => import('@/pages/FinOpsDashboard')),
+    element: React.lazy(() => import('@/pages/finops/FinOpsPage')),
     protected: true,
   },
   // Pipeline Budget
@@ -308,6 +314,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/PipelineBudget')),
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Cost Operations
+  {
+    path: '/cost-operations',
+    element: React.lazy(() => import('@/pages/cost-operations/CostOperationsPage')),
+    protected: true,
   },
   // SBOM Attestation
   {
@@ -1031,6 +1043,12 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
+  // Approval Workflow (enhanced approval page)
+  {
+    path: '/approvals/workflows',
+    element: React.lazy(() => import('@/pages/approval/ApprovalPage')),
+    protected: true,
+  },
   // Workflow Designer (Lowcode)
   {
     path: '/workflows',
@@ -1095,7 +1113,7 @@ export const routes: AppRoute[] = [
   // Environment Management
   {
     path: '/environments',
-    element: React.lazy(() => import('@/pages/Environments')),
+    element: React.lazy(() => import('@/pages/env/EnvironmentPage')),
     protected: true,
   },
   // Vector Store Management
@@ -1693,6 +1711,32 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/CapabilityAdmin')),
     protected: true,
     roles: ['super_admin', 'platform_admin'],
+  } as any,
+
+  // ==================== Previously Orphaned Pages ====================
+  // Report Designer (M33)
+  {
+    path: '/console/report-designer',
+    element: React.lazy(() => import('@/pages/ReportDesigner')),
+    protected: true,
+  } as any,
+  // CI Type Designer (CMDB Extension)
+  {
+    path: '/console/ci-type-designer',
+    element: React.lazy(() => import('@/pages/CITypeDesigner')),
+    protected: true,
+  } as any,
+  // Change Request Management (RFC/Approval)
+  {
+    path: '/console/change-request-management',
+    element: React.lazy(() => import('@/pages/ChangeRequestManagement')),
+    protected: true,
+  } as any,
+  // Sprint Board (RDM Extension)
+  {
+    path: '/console/sprint-board',
+    element: React.lazy(() => import('@/pages/SprintBoard')),
+    protected: true,
   } as any,
 
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前

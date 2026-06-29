@@ -85,7 +85,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
 
   await app.register(async (instance: FastifyInstance) => {
     // GET /api/v1/apk-upload-history - 列出上传历史
-    instance.get('/api/v1/apk-upload-history', {
+    instance.get('/apk-upload-history', {
       onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
     }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
@@ -126,7 +126,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
     });
 
     // GET /api/v1/apk-upload-history/recent-failures - 获取最近的失败记录
-    instance.get('/api/v1/apk-upload-history/recent-failures', {
+    instance.get('/apk-upload-history/recent-failures', {
       onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
     }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
@@ -148,7 +148,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
     });
 
     // GET /api/v1/apk-upload-history/stats - 获取上传统计信息
-    instance.get('/api/v1/apk-upload-history/stats', {
+    instance.get('/apk-upload-history/stats', {
       onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
     }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
@@ -167,7 +167,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
     });
 
     // GET /api/v1/apk-upload-history/:id - 获取单条记录（租户隔离）
-    instance.get('/api/v1/apk-upload-history/:id', {
+    instance.get('/apk-upload-history/:id', {
       onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
     }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {

@@ -65,15 +65,15 @@ export interface AuditResponse<T> {
 // ============================================================================
 
 export function listTerminalConnectLogs(params?: AuditQueryParams) {
-  return api.get('/visor/audit/terminal-connect-log', { params });
+  return api.get('/cmdb/terminal-audit/connect-logs', { params });
 }
 
 export function getTerminalConnectLog(id: string) {
-  return api.get(`/visor/audit/terminal-connect-log/${id}`);
+  return api.get(`/cmdb/terminal-audit/connect-logs/${id}`);
 }
 
 export function terminateSession(id: string) {
-  return api.post(`/visor/audit/terminal-connect-log/${id}/terminate`);
+  return api.post(`/cmdb/terminal-audit/connect-logs/${id}/terminate`);
 }
 
 // ============================================================================
@@ -81,7 +81,7 @@ export function terminateSession(id: string) {
 // ============================================================================
 
 export function getSessionRecords(logId: string) {
-  return api.get(`/visor/audit/terminal-connect-log/${logId}/records`);
+  return api.get(`/cmdb/terminal-audit/connect-logs/${logId}/records`);
 }
 
 // ============================================================================
@@ -89,9 +89,9 @@ export function getSessionRecords(logId: string) {
 // ============================================================================
 
 export function listTerminalFileLogs(params?: AuditQueryParams) {
-  return api.get('/visor/audit/terminal-file-log', { params });
+  return api.get('/cmdb/terminal-audit/file-logs', { params });
 }
 
 export function getTerminalFileLog(id: string) {
-  return api.get(`/visor/audit/terminal-file-log/${id}`);
+  return api.get(`/cmdb/terminal-audit/file-logs/${id}`);
 }

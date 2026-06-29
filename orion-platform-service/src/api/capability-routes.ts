@@ -1,7 +1,8 @@
 /**
  * Capability API Routes
  *
- * 路由前缀: /api/v1/capabilities
+ * Mounted at: /api/v1/capabilities (via routes.ts prefix + mount)
+ * Relative paths (no /api/v1 prefix — Fastify handles prefix chaining):
  * - GET /                          - 列出能力
  * - GET /tree                      - 获取能力树
  * - GET /:id                       - 获取能力详情
@@ -84,7 +85,7 @@ export default async function capabilityRoutes(
   };
 
   // GET /api/v1/capabilities - 列出能力
-  app.get('/api/v1/capabilities', {
+  app.get('/capabilities', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -97,7 +98,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/tree - 获取能力树
-  app.get('/api/v1/capabilities/tree', {
+  app.get('/capabilities/tree', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -109,7 +110,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities - 创建能力
-  app.post('/api/v1/capabilities', {
+  app.post('/capabilities', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -125,7 +126,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/:id - 获取能力详情
-  app.get('/api/v1/capabilities/:id', {
+  app.get('/capabilities/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -141,7 +142,7 @@ export default async function capabilityRoutes(
   });
 
   // PUT /api/v1/capabilities/:id - 更新能力
-  app.put('/api/v1/capabilities/:id', {
+  app.put('/capabilities/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -157,7 +158,7 @@ export default async function capabilityRoutes(
   });
 
   // DELETE /api/v1/capabilities/:id - 删除能力
-  app.delete('/api/v1/capabilities/:id', {
+  app.delete('/capabilities/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -175,7 +176,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/:id/roles - 分配给角色
-  app.post('/api/v1/capabilities/:id/roles', {
+  app.post('/capabilities/:id/roles', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -192,7 +193,7 @@ export default async function capabilityRoutes(
   });
 
   // DELETE /api/v1/capabilities/:id/roles/:roleName - 从角色撤销
-  app.delete('/api/v1/capabilities/:id/roles/:roleName', {
+  app.delete('/capabilities/:id/roles/:roleName', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -205,7 +206,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/:id/users - 分配给用户
-  app.post('/api/v1/capabilities/:id/users', {
+  app.post('/capabilities/:id/users', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -222,7 +223,7 @@ export default async function capabilityRoutes(
   });
 
   // DELETE /api/v1/capabilities/:id/users/:userId - 从用户撤销
-  app.delete('/api/v1/capabilities/:id/users/:userId', {
+  app.delete('/capabilities/:id/users/:userId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -235,7 +236,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/commands/mapping - 映射命令到能力
-  app.post('/api/v1/capabilities/commands/mapping', {
+  app.post('/capabilities/commands/mapping', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -250,7 +251,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/commands/:command/actions/:action - 获取命令需要的能力
-  app.get('/api/v1/capabilities/commands/:command/actions/:action', {
+  app.get('/capabilities/commands/:command/actions/:action', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -264,7 +265,7 @@ export default async function capabilityRoutes(
   });
 
   // Permission check endpoint
-  app.post('/api/v1/capabilities/check', {
+  app.post('/capabilities/check', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -284,7 +285,7 @@ export default async function capabilityRoutes(
   // ==================== Temporary Permissions ====================
 
   // POST /api/v1/capabilities/temporary - 授予临时权限（管理员操作）
-  app.post('/api/v1/capabilities/temporary', {
+  app.post('/capabilities/temporary', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -318,7 +319,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/temporary/:userId - 查询用户的活跃临时权限
-  app.get('/api/v1/capabilities/temporary/:userId', {
+  app.get('/capabilities/temporary/:userId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -332,7 +333,7 @@ export default async function capabilityRoutes(
   });
 
   // DELETE /api/v1/capabilities/temporary/:id - 撤销临时权限
-  app.delete('/api/v1/capabilities/temporary/:id', {
+  app.delete('/capabilities/temporary/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -352,7 +353,7 @@ export default async function capabilityRoutes(
   // ==================== Permission Audit ====================
 
   // GET /api/v1/capabilities/audit - 查询权限审计日志
-  app.get('/api/v1/capabilities/audit', {
+  app.get('/capabilities/audit', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -379,7 +380,7 @@ export default async function capabilityRoutes(
   // ==================== Permission Request ====================
 
   // POST /api/v1/capabilities/request - 提交权限申请
-  app.post('/api/v1/capabilities/request', {
+  app.post('/capabilities/request', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -422,7 +423,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/request/:ticketId - 查询权限申请详情
-  app.get('/api/v1/capabilities/request/:ticketId', {
+  app.get('/capabilities/request/:ticketId', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -438,7 +439,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/cleanup - 清理过期临时权限（管理员/定时任务）
-  app.post('/api/v1/capabilities/cleanup', {
+  app.post('/capabilities/cleanup', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -452,7 +453,7 @@ export default async function capabilityRoutes(
   // ==================== Simplified Permission Request API ====================
 
   // POST /api/v1/capabilities/request/permission - 简化版：申请权限
-  app.post('/api/v1/capabilities/request/permission', {
+  app.post('/capabilities/request/permission', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -485,7 +486,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/request/:ticketId/approve - 审批权限申请
-  app.post('/api/v1/capabilities/request/:ticketId/approve', {
+  app.post('/capabilities/request/:ticketId/approve', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -509,7 +510,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/request/:ticketId/reject - 拒绝权限申请
-  app.post('/api/v1/capabilities/request/:ticketId/reject', {
+  app.post('/capabilities/request/:ticketId/reject', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -529,7 +530,7 @@ export default async function capabilityRoutes(
   });
 
   // POST /api/v1/capabilities/grant - 简化版：授予临时权限
-  app.post('/api/v1/capabilities/grant', {
+  app.post('/capabilities/grant', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -562,7 +563,7 @@ export default async function capabilityRoutes(
   });
 
   // DELETE /api/v1/capabilities/grant/:id - 简化版：撤销临时权限
-  app.delete('/api/v1/capabilities/grant/:id', {
+  app.delete('/capabilities/grant/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -583,7 +584,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/user/effective - 获取用户有效能力
-  app.get('/api/v1/capabilities/user/effective', {
+  app.get('/capabilities/user/effective', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -601,7 +602,7 @@ export default async function capabilityRoutes(
   });
 
   // GET /api/v1/capabilities/request/user/:userId - 获取用户的权限申请记录
-  app.get('/api/v1/capabilities/request/user/:userId', {
+  app.get('/capabilities/request/user/:userId', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
