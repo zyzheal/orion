@@ -3,8 +3,8 @@
  * Alert Correlation Service - Intelligent alert deduplication and correlation
  * Uses clustering and root cause analysis to reduce alert fatigue
  *
- * 持久化：使用 AlertCorrelationGroupRepository 和 AlertTopologyNodeRepository
- * 内存缓存：nodeHealth, dependencyMap, impactMap, topologyEdges 用于快速拓扑查询
+ * 持久化：AlertCorrelationGroupRepository、AlertTopologyNodeRepository、
+ *        AlertBufferRepository、AlertTopologyEdgeRepository
  */
 
 import pino from 'pino';
@@ -12,6 +12,8 @@ import { AlertSourceType } from './AlertTypes';
 import type { AlertTopologyNode, AlertTopologyEdge, RootCauseAnalysis } from './AlertTypes';
 import { AlertCorrelationGroupRepository, AlertCorrelationGroupEntity } from '../../repositories/AlertCorrelationGroupRepository';
 import { AlertTopologyNodeRepository, AlertTopologyNodeEntity } from '../../repositories/AlertTopologyNodeRepository';
+import { AlertBufferRepository, AlertBufferEntity } from '../../repositories/AlertBufferRepository';
+import { AlertTopologyEdgeRepository, AlertTopologyEdgeEntity } from '../../repositories/AlertTopologyEdgeRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -60,14 +62,19 @@ const DEFAULT_OPTIONS: Required<CorrelationOptions> = {
 
 export class AlertCorrelationService {
   private options: Required<CorrelationOptions>;
-  private alertBuffer: Alert[] = [];
   private groupRepository: AlertCorrelationGroupRepository;
   private topologyNodeRepository: AlertTopologyNodeRepository;
+  private bufferRepository: AlertBufferRepository;
+  private edgeRepository: AlertTopologyEdgeRepository;
 
   // In-memory caches for fast topology queries (derived from persisted data)
-  private topologyEdges: AlertTopologyEdge[] = [];
   private dependencyMap: Map<string, string[]> = new Map();
   private impactMap: Map<string, string[]> = new Map();
+  // Store all edges with relationType for getTopology()
+  private edgeList: AlertTopologyEdge[] = [];
+
+  // Flag to track whether topology caches have been loaded from DB
+  private topologyLoaded = false;
 
   constructor(
     options: CorrelationOptions | undefined,
@@ -76,18 +83,111 @@ export class AlertCorrelationService {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.groupRepository = new AlertCorrelationGroupRepository(db);
     this.topologyNodeRepository = new AlertTopologyNodeRepository(db);
+    this.bufferRepository = new AlertBufferRepository(db);
+    this.edgeRepository = new AlertTopologyEdgeRepository(db);
     logger.info(this.options, '[AlertCorrelation] Initialized');
   }
+
+  // ==================== Helper: rebuild topology caches ====================
+
+  /** Rebuild dependencyMap, impactMap and edgeList from persisted edges */
+  private async loadTopologyEdges(): Promise<void> {
+    if (this.topologyLoaded) return;
+    try {
+      const entities = await this.edgeRepository.findByTenantId('default');
+      this.dependencyMap.clear();
+      this.impactMap.clear();
+      this.edgeList = [];
+      for (const e of entities) {
+        this.edgeList.push({
+          source: e.source,
+          target: e.target,
+          relationType: e.relationType as AlertTopologyEdge['relationType'],
+        });
+
+        const deps = this.dependencyMap.get(e.source) || [];
+        deps.push(e.target);
+        this.dependencyMap.set(e.source, deps);
+
+        const impacts = this.impactMap.get(e.target) || [];
+        impacts.push(e.source);
+        this.impactMap.set(e.target, impacts);
+      }
+      this.topologyLoaded = true;
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[AlertCorrelation] Failed to load topology edges, using empty cache');
+      this.dependencyMap.clear();
+      this.impactMap.clear();
+      this.edgeList = [];
+      this.topologyLoaded = true;
+    }
+  }
+
+  // ==================== Alert Buffer Operations ====================
+
+  /** Persist an alert to the buffer table */
+  private async saveAlertToBuffer(alert: Alert): Promise<void> {
+    try {
+      await this.bufferRepository.create({
+        id: alert.id,
+        tenantId: 'default',
+        name: alert.name,
+        severity: alert.severity,
+        source: alert.source,
+        service: alert.service,
+        environment: alert.environment,
+        message: alert.message,
+        labels: alert.labels,
+        value: alert.value ?? null,
+        threshold: alert.threshold ?? null,
+        firedAt: alert.firedAt,
+      });
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err, alertId: alert.id }, '[AlertCorrelation] Failed to persist alert to buffer');
+    }
+  }
+
+  /** Fetch buffered alerts from DB, respecting time window */
+  private async getBufferAlerts(): Promise<Alert[]> {
+    try {
+      const entities = await this.bufferRepository.findByTenantId('default');
+      const cutoff = Date.now() - this.options.timeWindowMs * 2;
+      return entities
+        .filter(e => e.firedAt.getTime() > cutoff)
+        .map(e => this.bufferEntityToAlert(e));
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[AlertCorrelation] Failed to load buffer from DB');
+      return [];
+    }
+  }
+
+  private bufferEntityToAlert(entity: AlertBufferEntity): Alert {
+    return {
+      id: entity.id,
+      name: entity.name,
+      severity: entity.severity as 'critical' | 'warning' | 'info',
+      source: entity.source,
+      service: entity.service,
+      environment: entity.environment,
+      message: entity.message,
+      labels: entity.labels,
+      value: entity.value ?? undefined,
+      threshold: entity.threshold ?? undefined,
+      firedAt: entity.firedAt,
+    };
+  }
+
+  // ==================== Public API ====================
 
   /**
    * Add alert to correlation engine
    */
   async addAlert(alert: Alert): Promise<AlertGroup | null> {
-    // Add to buffer
-    this.alertBuffer.push(alert);
+    // Persist alert to buffer
+    await this.saveAlertToBuffer(alert);
 
     // Clean old alerts
-    this.cleanupBuffer();
+    await this.cleanupBuffer();
 
     // Find or create group
     const group = await this.findOrCreateGroup(alert);
@@ -312,9 +412,8 @@ export class AlertCorrelationService {
   /**
    * Clean up old alerts from buffer
    */
-  private cleanupBuffer(): void {
-    const cutoff = Date.now() - this.options.timeWindowMs * 2;
-    this.alertBuffer = this.alertBuffer.filter(a => a.firedAt.getTime() > cutoff);
+  private async cleanupBuffer(): Promise<void> {
+    await this.bufferRepository.deleteOlderThan(this.options.timeWindowMs * 2);
   }
 
   /**
@@ -346,8 +445,10 @@ export class AlertCorrelationService {
     bySeverity: Record<string, number>;
     deduplicationRate: number;
   }> {
+    // Load buffered alerts from DB instead of in-memory array
+    const bufferedAlerts = await this.getBufferAlerts();
     const groups = await this.getActiveGroups();
-    const totalAlerts = this.alertBuffer.length + groups.reduce(
+    const totalAlerts = bufferedAlerts.length + groups.reduce(
       (sum, g) => sum + g.correlatedAlerts.length, 0
     );
 
@@ -393,7 +494,11 @@ export class AlertCorrelationService {
     for (const g of groups) {
       await this.groupRepository.delete(g.id);
     }
-    this.alertBuffer = [];
+    // Also clear buffer
+    const buffer = await this.bufferRepository.findByTenantId('default');
+    for (const b of buffer) {
+      await this.bufferRepository.delete(b.id);
+    }
   }
 
   // ==================== Topology & Dependency Management ====================
@@ -412,11 +517,22 @@ export class AlertCorrelationService {
       name: n.name,
       status: n.status || 'healthy',
     }));
-    const edges = this.topologyEdges.map(e => ({
-      source: e.source,
-      target: e.target,
-      relationType: e.relationType,
-    }));
+
+    // If we already loaded edges into dependencyMap, use them with stored relationType
+    // Store relationType mapping alongside dependencyMap for quick lookup
+    const edges: Array<{ source: string; target: string; relationType: string }> = [];
+    await this.loadTopologyEdges();
+    for (const [source, targets] of this.dependencyMap.entries()) {
+      for (const target of targets) {
+        // Find the edge from the edge entities to get relationType
+        // Build edge list from cached edges with relationType info
+        const edgeInfo = this.edgeRelationCache.get(`${source}->${target}`);
+        if (edgeInfo) {
+          edges.push({ source, target, relationType: edgeInfo });
+        }
+      }
+    }
+
     return { nodes, edges };
   }
 
@@ -429,9 +545,10 @@ export class AlertCorrelationService {
   }): Promise<void> {
     // Clear old topology
     await this.topologyNodeRepository.deleteByTenant('default');
-    this.topologyEdges = topology.edges;
+    await this.edgeRepository.deleteByTenant('default');
     this.dependencyMap.clear();
     this.impactMap.clear();
+    this.topologyLoaded = false;
 
     // Build node map and persist
     for (const node of topology.nodes) {
@@ -450,20 +567,21 @@ export class AlertCorrelationService {
       }
     }
 
-    // Build parent-child relationships
-    for (const node of topology.nodes) {
-      if (node.parentId) {
-        // Update parent's children_ids in DB
-        const parent = await this.topologyNodeRepository.findById(node.parentId);
-        if (parent) {
-          const children = [...(parent.childrenIds || []), node.id];
-          await this.topologyNodeRepository.update(node.parentId, { childrenIds: children });
-        }
-      }
-    }
-
-    // Build dependency and impact maps (always in-memory for fast lookup)
+    // Persist edges to DB and build in-memory caches
     for (const edge of topology.edges) {
+      try {
+        await this.edgeRepository.create({
+          id: `${edge.source}->${edge.target}-${Date.now()}`,
+          tenantId: 'default',
+          source: edge.source,
+          target: edge.target,
+          relationType: edge.relationType,
+        });
+      } catch (err) {
+        logger.warn({ traceId: getCurrentTraceId(), err, edge: `${edge.source}->${edge.target}` }, 'Failed to persist topology edge');
+      }
+
+      // Build dependency and impact maps
       const deps = this.dependencyMap.get(edge.source) || [];
       deps.push(edge.target);
       this.dependencyMap.set(edge.source, deps);
@@ -473,22 +591,29 @@ export class AlertCorrelationService {
       this.impactMap.set(edge.target, impacts);
     }
 
+    // Mark as loaded since we just built the caches ourselves
+    this.topologyLoaded = true;
+
     const nodeCount = (await this.topologyNodeRepository.findByTenantId('default')).length;
+    const edgeCount = topology.edges.length;
     logger.info(
-      { nodeCount, edgeCount: this.topologyEdges.length },
+      { nodeCount, edgeCount },
       '[AlertCorrelation] Topology set'
     );
   }
 
   /**
-   * Get dependencies of a node (what this node depends on)
+   * Get dependencies of a node (what this node depends on).
+   * Synchronous — reads in-memory cache populated by setTopology().
+   * For lazy-loading from DB, use loadTopologyEdges() first.
    */
   getDependencies(nodeId: string): string[] {
     return this.dependencyMap.get(nodeId) || [];
   }
 
   /**
-   * Get impact scope of a node (what is impacted if this node fails)
+   * Get impact scope of a node (what is impacted if this node fails).
+   * Synchronous — reads in-memory cache populated by setTopology().
    */
   getImpactScope(nodeId: string): string[] {
     return this.impactMap.get(nodeId) || [];
@@ -531,6 +656,7 @@ export class AlertCorrelationService {
    * Propagate health degradation to impacted nodes (persisted via topologyNodeRepository)
    */
   private async propagateHealthDegradation(nodeId: string, health: 'healthy' | 'degraded' | 'unhealthy'): Promise<void> {
+    await this.loadTopologyEdges();
     const impacted = this.impactMap.get(nodeId) || [];
     for (const impactedId of impacted) {
       const node = await this.topologyNodeRepository.findById(impactedId);
@@ -545,7 +671,9 @@ export class AlertCorrelationService {
   }
 
   /**
-   * Analyze root cause for a set of alerts
+   * Analyze root cause for a set of alerts (synchronous, uses in-memory cache)
+   * dependencyMap is populated by setTopology or lazy-loaded via loadTopologyEdges.
+   * If not loaded yet, falls back to empty dependency check.
    */
   analyzeRootCause(alerts: Array<{ id: string; sourceId?: string; severity?: string }>): RootCauseAnalysis | null {
     if (alerts.length === 0) return null;
@@ -566,7 +694,7 @@ export class AlertCorrelationService {
     // Check if root cause alert has upstream dependencies that are also alerting
     const alertingSourceIds = new Set(alerts.map(a => (a as any).sourceId || a.id));
     const rootSourceId = (rootCauseAlert as any).sourceId || rootCauseAlert.id;
-    const rootDeps = this.getDependencies(rootSourceId);
+    const rootDeps = this.dependencyMap.get(rootSourceId) || [];
 
     let actualRootCause = rootCauseAlert;
     for (const depId of rootDeps) {

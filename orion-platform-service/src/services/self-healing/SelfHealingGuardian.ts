@@ -10,11 +10,10 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { HealingAuditRepository } from '../../repositories/HealingAuditRepository';
+import { HealingAuditRepository, HealingAuditEntity } from '../../repositories/HealingAuditRepository';
 import pino from 'pino';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LSelf-LHealing-LGuardian' });
+const logger = pino({ name: 'SelfHealingGuardian' });
 
 // ==================== Types ====================
 
@@ -64,15 +63,13 @@ export const DEFAULT_DUAL_APPROVAL_CONFIG: DualApprovalConfig = {
 
 // ==================== Guardian ====================
 
-/** I2 Fix: Maximum size for storm window Map to prevent unbounded memory growth */
 const MAX_STORM_WINDOW_SIZE = 10_000;
 
 export class SelfHealingGuardian {
-  private auditLog: HealingAuditEntry[] = [];
   private stormWindow: Map<string, { count: number; resetAt: number }> = new Map();
   private stormRules: StormSuppressionRule[];
   private dualApprovalConfig: DualApprovalConfig;
-  /** I1 Fix: Optional PostgreSQL repository for persistent audit log */
+  /** PostgreSQL repository — injected by SelfHealingService */
   private auditRepo?: HealingAuditRepository;
 
   constructor(options?: {
@@ -89,7 +86,8 @@ export class SelfHealingGuardian {
 
   /**
    * 记录自愈操作审计条目
-   * I1 Fix: Persists to PostgreSQL if repository is available, falls back to in-memory
+   * Migrated: When auditRepo is provided, writes exclusively to PostgreSQL.
+   * DB failure is logged silently — the audit entry object is still returned.
    */
   async recordAudit(entry: Omit<HealingAuditEntry, 'id' | 'timestamp'>): Promise<HealingAuditEntry> {
     const auditEntry: HealingAuditEntry = {
@@ -98,7 +96,6 @@ export class SelfHealingGuardian {
       timestamp: new Date(),
     };
 
-    // I1 Fix: Try to persist to PostgreSQL first
     if (this.auditRepo) {
       try {
         await this.auditRepo.insert({
@@ -114,12 +111,8 @@ export class SelfHealingGuardian {
           result: auditEntry.result,
         });
       } catch (err) {
-        logger.warn('[SelfHealingGuardian] Failed to persist audit entry to DB, keeping in-memory:', err);
-        // Fall back to in-memory
-        this.auditLog.push(auditEntry);
+        logger.error('[SelfHealingGuardian] Failed to persist audit entry to DB:', err);
       }
-    } else {
-      this.auditLog.push(auditEntry);
     }
 
     return auditEntry;
@@ -127,7 +120,7 @@ export class SelfHealingGuardian {
 
   /**
    * 查询审计日志
-   * I1 Fix: Queries PostgreSQL if repository is available, merges with in-memory
+   * Migrated: When auditRepo is provided, queries exclusively from PostgreSQL.
    */
   async queryAudit(options?: {
     incidentId?: string;
@@ -136,56 +129,49 @@ export class SelfHealingGuardian {
     status?: string;
     limit?: number;
   }): Promise<HealingAuditEntry[]> {
-    let entries: HealingAuditEntry[] = [];
-
-    // I1 Fix: Query from PostgreSQL first (authoritative source)
-    if (this.auditRepo) {
-      try {
-        let dbEntries;
-        if (options?.incidentId) {
-          dbEntries = await this.auditRepo.findByIncident(options.incidentId, options.limit);
-        } else if (options?.environment) {
-          dbEntries = await this.auditRepo.findByEnvironment(options.environment, options.limit);
-        } else if (options?.status) {
-          dbEntries = await this.auditRepo.findByStatus(options.status, options.limit);
-        } else {
-          const limit = options?.limit ?? 100;
-          dbEntries = (await this.auditRepo.findAll({ limit })).entities;
-        }
-        // Map entity to entry (createdAt -> timestamp)
-        entries = dbEntries.map((e: import('../../repositories/HealingAuditRepository').HealingAuditEntity) => this.entityToEntry(e));
-      } catch (err) {
-        logger.warn('[SelfHealingGuardian] Failed to query audit entries from DB, falling back to memory:', err);
-      }
+    if (!this.auditRepo) {
+      return [];
     }
 
-    // If no DB results, fall back to in-memory
-    if (entries.length === 0) {
-      entries = [...this.auditLog];
-
+    try {
+      let dbEntities: HealingAuditEntity[];
       if (options?.incidentId) {
-        entries = entries.filter((e) => e.incidentId === options.incidentId);
+        dbEntities = await this.auditRepo.findByIncident(options.incidentId, options.limit);
+      } else if (options?.environment) {
+        dbEntities = await this.auditRepo.findByEnvironment(options.environment, options.limit);
+      } else if (options?.status) {
+        dbEntities = await this.auditRepo.findByStatus(options.status, options.limit);
+      } else {
+        const limit = options?.limit ?? 100;
+        const result = await this.auditRepo.findAll({
+          limit,
+          orderBy: 'created_at',
+          orderDir: 'DESC',
+        });
+        dbEntities = result.entities;
       }
+
+      // Convert entities to entries
+      let entries = dbEntities.map((e) => this.entityToEntry(e));
+
+      // Apply actionType filter (not available in DB queries)
       if (options?.actionType) {
         entries = entries.filter((e) => e.actionType === options.actionType);
-      }
-      if (options?.environment) {
-        entries = entries.filter((e) => e.environment === options.environment);
-      }
-      if (options?.status) {
-        entries = entries.filter((e) => e.status === options.status);
       }
 
       const limit = options?.limit ?? 100;
       entries = entries.slice(-limit);
-    }
 
-    return entries.reverse(); // Most recent first
+      return entries.reverse(); // Most recent first
+    } catch (err) {
+      logger.error('[SelfHealingGuardian] Failed to query audit entries from DB:', err);
+      return [];
+    }
   }
 
   /**
    * 获取审计统计
-   * I1 Fix: Uses PostgreSQL counts if repository is available
+   * Migrated: When auditRepo is provided, uses PostgreSQL aggregates.
    */
   async getAuditStats(): Promise<{
     total: number;
@@ -193,38 +179,22 @@ export class SelfHealingGuardian {
     byRiskLevel: Record<string, number>;
     byEnvironment: Record<string, number>;
   }> {
-    // I1 Fix: Get stats from PostgreSQL if available
-    if (this.auditRepo) {
-      try {
-        const [total, byStatus, byRiskLevel, byEnvironment] = await Promise.all([
-          this.auditRepo.totalCount(),
-          this.auditRepo.countByStatus(),
-          this.auditRepo.countByRiskLevel(),
-          this.auditRepo.countByEnvironment(),
-        ]);
-        return { total, byStatus, byRiskLevel, byEnvironment };
-      } catch (err) {
-        logger.warn('[SelfHealingGuardian] Failed to get audit stats from DB, falling back to memory:', err);
-      }
+    if (!this.auditRepo) {
+      return { total: 0, byStatus: {}, byRiskLevel: {}, byEnvironment: {} };
     }
 
-    // Fall back to in-memory
-    const byStatus: Record<string, number> = {};
-    const byRiskLevel: Record<string, number> = {};
-    const byEnvironment: Record<string, number> = {};
-
-    for (const entry of this.auditLog) {
-      byStatus[entry.status] = (byStatus[entry.status] || 0) + 1;
-      byRiskLevel[entry.riskLevel] = (byRiskLevel[entry.riskLevel] || 0) + 1;
-      byEnvironment[entry.environment] = (byEnvironment[entry.environment] || 0) + 1;
+    try {
+      const [total, byStatus, byRiskLevel, byEnvironment] = await Promise.all([
+        this.auditRepo.totalCount(),
+        this.auditRepo.countByStatus(),
+        this.auditRepo.countByRiskLevel(),
+        this.auditRepo.countByEnvironment(),
+      ]);
+      return { total, byStatus, byRiskLevel, byEnvironment };
+    } catch (err) {
+      logger.error('[SelfHealingGuardian] Failed to get audit stats from DB:', err);
+      return { total: 0, byStatus: {}, byRiskLevel: {}, byEnvironment: {} };
     }
-
-    return {
-      total: this.auditLog.length,
-      byStatus,
-      byRiskLevel,
-      byEnvironment,
-    };
   }
 
   // ==================== 2. 风暴抑制 ====================
@@ -232,17 +202,14 @@ export class SelfHealingGuardian {
   /**
    * 检查是否应该抑制当前自愈动作
    * 返回 true 表示应该抑制（不执行）
-   * I2 Fix: Enforces MAX_STORM_WINDOW_SIZE to prevent unbounded memory growth
    */
   shouldSuppress(alert: {
     appName: string;
     environment: string;
     alertType: string;
   }): boolean {
-    // Clean up expired windows
     this.cleanStormWindows();
 
-    // I2 Fix: If still over limit after cleanup, evict oldest entries
     if (this.stormWindow.size >= MAX_STORM_WINDOW_SIZE) {
       this.evictOldestStormEntries(MAX_STORM_WINDOW_SIZE / 2);
     }
@@ -254,10 +221,8 @@ export class SelfHealingGuardian {
 
       if (window) {
         if (now > window.resetAt) {
-          // Window expired, reset
           this.stormWindow.set(key, { count: 1, resetAt: now + rule.windowMs });
         } else if (window.count >= rule.maxExecutions) {
-          // Suppressed!
           logger.info(
             `[SelfHealingGuardian] Storm suppression: ${key} (count=${window.count}, max=${rule.maxExecutions})`
           );
@@ -273,13 +238,9 @@ export class SelfHealingGuardian {
     return false;
   }
 
-  /**
-   * I2 Fix: Evict the oldest entries from the storm window to free memory
-   */
   private evictOldestStormEntries(keepCount: number): void {
     if (this.stormWindow.size <= keepCount) return;
 
-    // Sort by resetAt (oldest first) and delete entries until we're under limit
     const sortedKeys = Array.from(this.stormWindow.entries())
       .sort(([, a], [, b]) => a.resetAt - b.resetAt)
       .slice(0, this.stormWindow.size - keepCount);
@@ -335,14 +296,12 @@ export class SelfHealingGuardian {
     }
 
     if (!this.requiresDualApproval(riskLevel)) {
-      // 不需要双人确认，单人审批即可
       if (approvers.length >= 1) {
         return { approved: true, reason: 'Single approval sufficient' };
       }
       return { approved: false, reason: 'No approver yet' };
     }
 
-    // 需要双人确认
     if (approvers.length < 2) {
       return {
         approved: false,
@@ -350,7 +309,6 @@ export class SelfHealingGuardian {
       };
     }
 
-    // 检查是否是同一个人审批了两次
     const uniqueApprovers = new Set(approvers);
     if (uniqueApprovers.size < 2) {
       return {
@@ -365,10 +323,9 @@ export class SelfHealingGuardian {
   // ==================== Private Helpers ====================
 
   /**
-   * I1 Fix: Convert repository entity to audit entry format
-   * Maps createdAt -> timestamp for compatibility
+   * Convert repository entity to audit entry format.
    */
-  private entityToEntry(entity: import('../../repositories/HealingAuditRepository').HealingAuditEntity): HealingAuditEntry {
+  private entityToEntry(entity: HealingAuditEntity): HealingAuditEntry {
     return {
       id: entity.id,
       incidentId: entity.incidentId,
