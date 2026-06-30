@@ -213,7 +213,6 @@ import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineLogSSEService } from '../services/pipeline/PipelineLogSSEService';
 import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleManager';
-import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -942,7 +941,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // Hook Chain - hook chain orchestration
-  await registerWithRoleGuard(app, hookChainRoutes, '/hook-chains');
+  await registerWithRoleGuard(app, hookChainRoutes, '/hook-chains', {
+    database: options.database,
+  });
 
   // Performance Analysis
   await registerWithRoleGuard(app, performanceRoutes, '/performance', {
@@ -1192,11 +1193,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Plugin Hot Reload
   if (options.database) {
-    const pluginRegistry = new PluginRegistry();
+    const { PluginRegistryRepository } = await import('../repositories/PluginRegistryRepository');
+    const { PluginRegistry } = await import('../services/plugin-spi/PluginRegistry');
+    const pluginRepo = new PluginRegistryRepository(options.database);
+    const pluginRegistry = new PluginRegistry(pluginRepo);
     const pluginLifecycleManager = new PluginLifecycleManager(pluginRegistry);
     await registerWithRoleGuard(app, pluginHotReloadRoutes, '/plugins/hotreload', {
       lifecycleManager: pluginLifecycleManager,
       registry: pluginRegistry,
+      database: options.database,
     });
   }
 

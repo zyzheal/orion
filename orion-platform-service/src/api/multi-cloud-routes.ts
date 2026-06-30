@@ -31,7 +31,9 @@ export default async function multiCloudRoutes(
     : undefined;
 
   const multiCloudService = new MultiCloudManagerService(options.database);
-  const advancedService = new MultiCloudAdvancedService();
+  const advancedService = options.database
+    ? new MultiCloudAdvancedService(options.database)
+    : undefined;
   if (repository) {
     multiCloudService.setRepository(repository);
   }
@@ -479,6 +481,9 @@ export default async function multiCloudRoutes(
     const body = request.body as { categories?: string[] };
 
     try {
+      if (!advancedService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
       const report = await advancedService.runComplianceCheck(tenantId, body.categories);
       return reply.send({ success: true, data: report });
     } catch (error: unknown) {
@@ -494,6 +499,9 @@ export default async function multiCloudRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'multi-cloud', action: 'read' })],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
+      if (!advancedService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
       const rules = advancedService.getComplianceRules();
       return reply.send({ success: true, data: rules });
     } catch (error: unknown) {
@@ -522,6 +530,9 @@ export default async function multiCloudRoutes(
     };
 
     try {
+      if (!advancedService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
       const policy = await advancedService.createSchedulingPolicy(tenantId, {
         name: body.name,
         strategy: (body.strategy as any) ?? 'balanced',
@@ -545,6 +556,9 @@ export default async function multiCloudRoutes(
     const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
 
     try {
+      if (!advancedService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
       const policies = await advancedService.listSchedulingPolicies(tenantId);
       return reply.send({ success: true, data: policies });
     } catch (error: unknown) {
@@ -569,6 +583,9 @@ export default async function multiCloudRoutes(
     };
 
     try {
+      if (!advancedService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
       const decision = await advancedService.scheduleResource(tenantId, {
         resourceType: body.resourceType,
         spec: body.spec ?? {},
@@ -592,6 +609,9 @@ export default async function multiCloudRoutes(
     const tenantId = String((request as unknown as { user?: { tenantId?: string } }).user?.tenantId || 1);
 
     try {
+      if (!advancedService) {
+        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+      }
       const history = await advancedService.getSchedulingHistory(tenantId);
       return reply.send({ success: true, data: history });
     } catch (error: unknown) {

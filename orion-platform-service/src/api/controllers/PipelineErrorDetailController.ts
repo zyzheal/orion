@@ -10,6 +10,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../../services/database';
 import { ErrorClassifier } from '../../services/pipeline/ErrorClassifier';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
+import { PipelineRunRepository } from '../../services/pipeline/PipelineRunRepository';
+import { PipelineEventPublisher } from '../../events/PipelineEventPublisher';
 import { Stage } from '../../models/Stage';
 import { Task } from '../../models/Task';
 import pino from 'pino';
@@ -253,7 +255,8 @@ export class PipelineErrorDetailController {
 
   constructor(database: DatabasePool) {
     this.classifier = new ErrorClassifier(database);
-    this.runService = new PipelineRunService();
+    const runRepo = new PipelineRunRepository(database);
+    this.runService = new PipelineRunService(new PipelineEventPublisher(), runRepo);
   }
 
   /**

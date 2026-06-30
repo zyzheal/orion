@@ -27,7 +27,7 @@ export function initPluginSpiController(service: PluginService): void {
  */
 function getService(): PluginService {
   if (!pluginService) {
-    pluginService = new PluginService();
+    throw new Error('PluginSpiController not initialized. Call initPluginSpiController() first.');
   }
   return pluginService;
 }
