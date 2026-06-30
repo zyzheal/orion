@@ -33,21 +33,22 @@ export class ExecutionGuardian extends EventEmitter {
   private config: GuardianConfig;
   private heartbeatWatchdog: HeartbeatWatchdog;
   private processKiller: ProcessKiller;
-  private repository?: GuardianTaskRepository;
+  private repository: GuardianTaskRepository;
   // In-memory timer state (timers cannot be persisted to DB)
   private timerStates: Map<string, TaskTimerState> = new Map();
 
   constructor(
     config: Partial<GuardianConfig> = {},
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     super();
+    if (!db) {
+      throw new Error('ExecutionGuardian requires a database connection');
+    }
     this.config = { ...DEFAULT_GUARDIAN_CONFIG, ...config };
     this.heartbeatWatchdog = new HeartbeatWatchdog(db);
     this.processKiller = new ProcessKiller(db);
-    if (db) {
-      this.repository = new GuardianTaskRepository(db);
-    }
+    this.repository = new GuardianTaskRepository(db);
   }
 
   start(): void {
@@ -85,19 +86,17 @@ export class ExecutionGuardian extends EventEmitter {
     this.timerStates.set(taskId, timerState);
 
     // Persist to DB
-    if (this.repository) {
-      this.repository.create({
-        id: uuidv4(),
-        taskId,
-        startTime: Date.now(),
-        globalTimeoutMs: globalTimeout,
-        stepTimeoutMs: stepTimeout,
-        aborted: false,
-        status: 'active',
-      }).catch((err) => {
-        logger.warn({ err, taskId }, 'Failed to persist guardian task');
-      });
-    }
+    this.repository.create({
+      id: uuidv4(),
+      taskId,
+      startTime: Date.now(),
+      globalTimeoutMs: globalTimeout,
+      stepTimeoutMs: stepTimeout,
+      aborted: false,
+      status: 'active',
+    }).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to persist guardian task');
+    });
 
     logger.info({ taskId, globalTimeout, stepTimeout }, 'Task registered with guardian');
   }
@@ -115,11 +114,9 @@ export class ExecutionGuardian extends EventEmitter {
     this.timerStates.delete(taskId);
 
     // Remove from DB
-    if (this.repository) {
-      this.repository.markCompleted(taskId).catch((err) => {
-        logger.warn({ err, taskId }, 'Failed to mark guardian task as completed');
-      });
-    }
+    this.repository.markCompleted(taskId).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to mark guardian task as completed');
+    });
 
     logger.debug({ taskId }, 'Task unregistered from guardian');
   }
@@ -155,11 +152,9 @@ export class ExecutionGuardian extends EventEmitter {
     this.heartbeatWatchdog.unregister(taskId);
 
     // Mark as aborted in DB
-    if (this.repository) {
-      this.repository.markAborted(taskId).catch((err) => {
-        logger.warn({ err, taskId }, 'Failed to mark guardian task as aborted');
-      });
-    }
+    this.repository.markAborted(taskId).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to mark guardian task as aborted');
+    });
 
     logger.info({ taskId, reason }, 'Task aborted and cleaned up');
   }

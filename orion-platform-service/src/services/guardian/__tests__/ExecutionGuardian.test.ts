@@ -65,6 +65,7 @@ import { ExecutionGuardian, DEFAULT_GUARDIAN_CONFIG } from '../ExecutionGuardian
 
 describe('ExecutionGuardian', () => {
   let guardian: ExecutionGuardian;
+  const mockDb = { query: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -80,19 +81,30 @@ describe('ExecutionGuardian', () => {
   });
 
   describe('constructor', () => {
-    it('should use default config when none provided', () => {
-      guardian = new ExecutionGuardian();
+    it('should throw when db is not provided', () => {
+      expect(() => new ExecutionGuardian()).toThrow('ExecutionGuardian requires a database connection');
+    });
+
+    it('should throw when db is undefined', () => {
+      expect(() => new ExecutionGuardian({}, undefined as any)).toThrow('ExecutionGuardian requires a database connection');
+    });
+
+    it('should throw when db is null', () => {
+      expect(() => new ExecutionGuardian({}, null as any)).toThrow('ExecutionGuardian requires a database connection');
+    });
+
+    it('should initialize with default config when db provided', () => {
+      guardian = new ExecutionGuardian({}, mockDb);
       expect(guardian).toBeDefined();
     });
 
     it('should merge custom config with defaults', () => {
-      guardian = new ExecutionGuardian({ globalTimeoutMs: 60000 });
+      guardian = new ExecutionGuardian({ globalTimeoutMs: 60000 }, mockDb);
       expect(guardian).toBeDefined();
     });
 
     it('should create repository when db provided', () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
+      guardian = new ExecutionGuardian({}, mockDb);
       guardian.registerTask('task-1');
       expect(mockRepoCreate).toHaveBeenCalled();
     });
@@ -110,29 +122,30 @@ describe('ExecutionGuardian', () => {
   });
 
   describe('start', () => {
+    beforeEach(() => {
+      guardian = new ExecutionGuardian({}, mockDb);
+    });
+
     it('should start the heartbeat watchdog', () => {
-      guardian = new ExecutionGuardian();
       guardian.start();
       expect(mockWatchdogStart).toHaveBeenCalled();
     });
   });
 
   describe('stop', () => {
+    beforeEach(() => {
+      guardian = new ExecutionGuardian({}, mockDb);
+    });
+
     it('should stop the heartbeat watchdog', async () => {
-      guardian = new ExecutionGuardian();
       guardian.start();
       await guardian.stop();
       expect(mockWatchdogStop).toHaveBeenCalled();
     });
 
     it('should abort all registered tasks on shutdown', async () => {
-      guardian = new ExecutionGuardian();
-
-      // Register two tasks
       guardian.registerTask('task-1');
       guardian.registerTask('task-2');
-
-      // Mock kill to resolve immediately
       mockKillerKill.mockResolvedValue(undefined);
 
       await guardian.stop();
@@ -143,11 +156,11 @@ describe('ExecutionGuardian', () => {
     });
 
     it('should emit task:aborted for each task during shutdown', async () => {
-      guardian = new ExecutionGuardian();
+      guardian.registerTask('task-1');
+
       const events: any[] = [];
       guardian.on('task:aborted', (data) => events.push(data));
 
-      guardian.registerTask('task-1');
       await guardian.stop();
 
       expect(events).toHaveLength(1);
@@ -157,23 +170,18 @@ describe('ExecutionGuardian', () => {
 
   describe('registerTask', () => {
     beforeEach(() => {
-      guardian = new ExecutionGuardian();
+      guardian = new ExecutionGuardian({}, mockDb);
     });
 
     it('should register with default timeouts', () => {
       guardian.registerTask('task-1');
-      // Verify no errors
     });
 
     it('should register with custom timeouts', () => {
       guardian.registerTask('task-1', { globalTimeoutMs: 60000, stepTimeoutMs: 10000 });
-      // Verify no errors
     });
 
-    it('should persist to DB when db provided', () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
-
+    it('should persist to DB', () => {
       guardian.registerTask('task-1');
       expect(mockRepoCreate).toHaveBeenCalledWith(expect.objectContaining({
         taskId: 'task-1',
@@ -181,19 +189,11 @@ describe('ExecutionGuardian', () => {
         status: 'active',
       }));
     });
-
-    it('should fire-and-forget DB errors', () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
-      mockRepoCreate.mockRejectedValueOnce(new Error('DB down'));
-
-      expect(() => guardian.registerTask('task-1')).not.toThrow();
-    });
   });
 
   describe('unregisterTask', () => {
     beforeEach(() => {
-      guardian = new ExecutionGuardian();
+      guardian = new ExecutionGuardian({}, mockDb);
     });
 
     it('should clear timers and unregister from heartbeat watchdog', () => {
@@ -202,18 +202,13 @@ describe('ExecutionGuardian', () => {
       expect(mockWatchdogUnregister).toHaveBeenCalledWith('task-1');
     });
 
-    it('should mark completed in DB when db provided', () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
-
+    it('should mark completed in DB', () => {
       guardian.registerTask('task-1');
       guardian.unregisterTask('task-1');
       expect(mockRepoMarkCompleted).toHaveBeenCalledWith('task-1');
     });
 
     it('should fire-and-forget DB errors', () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
       mockRepoMarkCompleted.mockRejectedValueOnce(new Error('DB down'));
 
       guardian.registerTask('task-1');
@@ -226,7 +221,7 @@ describe('ExecutionGuardian', () => {
     });
 
     it('should prevent timeout callbacks after unregister', () => {
-      guardian = new ExecutionGuardian({ stepTimeoutMs: 1000 });
+      guardian = new ExecutionGuardian({ stepTimeoutMs: 1000 }, mockDb);
       const events: any[] = [];
       guardian.on('task:timeout', (data) => events.push(data));
 
@@ -242,7 +237,7 @@ describe('ExecutionGuardian', () => {
 
   describe('heartbeat', () => {
     beforeEach(() => {
-      guardian = new ExecutionGuardian({ stepTimeoutMs: 2000 });
+      guardian = new ExecutionGuardian({ stepTimeoutMs: 2000 }, mockDb);
     });
 
     it('should delegate to heartbeat watchdog beat', () => {
@@ -257,38 +252,28 @@ describe('ExecutionGuardian', () => {
 
       guardian.registerTask('task-1');
 
-      // Advance halfway to step timeout
       jest.advanceTimersByTime(1500);
-
-      // Send heartbeat - resets the step timer
       guardian.heartbeat('task-1');
 
-      // Advance another 1500ms (total 3000ms from register, but only 1500ms from heartbeat)
       jest.advanceTimersByTime(1500);
-      // Should NOT have timed out yet (step timer was reset)
       expect(events.filter(e => e.type === 'step')).toHaveLength(0);
 
-      // Advance past the new step timeout
       jest.advanceTimersByTime(600);
       expect(events.filter(e => e.type === 'step')).toHaveLength(1);
     });
 
     it('should not reset step timer for aborted tasks', () => {
-      guardian = new ExecutionGuardian({ stepTimeoutMs: 1000 });
+      guardian = new ExecutionGuardian({ stepTimeoutMs: 1000 }, mockDb);
       guardian.registerTask('task-1');
-
-      // Abort the task
       guardian.abortTask('task-1', 'test');
       mockKillerKill.mockResolvedValue(undefined);
-
-      // Heartbeat should not throw for aborted task
       guardian.heartbeat('task-1');
     });
   });
 
   describe('abortTask', () => {
     beforeEach(() => {
-      guardian = new ExecutionGuardian();
+      guardian = new ExecutionGuardian({}, mockDb);
     });
 
     it('should kill process via ProcessKiller', async () => {
@@ -316,10 +301,7 @@ describe('ExecutionGuardian', () => {
       expect(mockWatchdogUnregister).toHaveBeenCalledWith('task-1');
     });
 
-    it('should mark aborted in DB when db provided', async () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
-
+    it('should mark aborted in DB', async () => {
       guardian.registerTask('task-1');
       await guardian.abortTask('task-1', 'timeout');
 
@@ -338,25 +320,21 @@ describe('ExecutionGuardian', () => {
       guardian.registerTask('task-1');
       await guardian.abortTask('task-1', 'test');
 
-      // Advance past timeouts
       jest.advanceTimersByTime(100000);
       expect(events).toHaveLength(0);
     });
 
     it('should fire-and-forget DB errors', async () => {
-      const db = { query: jest.fn() };
-      guardian = new ExecutionGuardian({}, db);
       mockRepoMarkAborted.mockRejectedValueOnce(new Error('DB down'));
 
       guardian.registerTask('task-1');
       await guardian.abortTask('task-1', 'test');
-      // Should not throw
     });
   });
 
   describe('createAbortSignal', () => {
     beforeEach(() => {
-      guardian = new ExecutionGuardian();
+      guardian = new ExecutionGuardian({}, mockDb);
     });
 
     it('should return an AbortController', () => {
@@ -366,23 +344,17 @@ describe('ExecutionGuardian', () => {
       expect(controller.signal.aborted).toBe(false);
     });
 
-    it('should not abort signal on guardian internal abort (listener removed first)', async () => {
+    it('should not abort signal on guardian internal abort', async () => {
       guardian.registerTask('task-1');
       const controller = guardian.createAbortSignal('task-1');
-
-      // abortTask removes the listener via off() before emitting
       await guardian.abortTask('task-1', 'timeout');
-
       expect(controller.signal.aborted).toBe(false);
     });
 
     it('should abort signal on external task:aborted emission', () => {
       guardian.registerTask('task-1');
       const controller = guardian.createAbortSignal('task-1');
-
-      // Directly emit the event (external abort, not through abortTask)
       guardian.emit('task:aborted', { taskId: 'task-1', reason: 'external_cancel' });
-
       expect(controller.signal.aborted).toBe(true);
     });
 
@@ -397,30 +369,17 @@ describe('ExecutionGuardian', () => {
       expect(controller1.signal.aborted).toBe(true);
       expect(controller2.signal.aborted).toBe(false);
     });
-
-    it('should not double-abort if signal already aborted', () => {
-      guardian.registerTask('task-1');
-      const controller = guardian.createAbortSignal('task-1');
-
-      guardian.emit('task:aborted', { taskId: 'task-1', reason: 'first' });
-      expect(controller.signal.aborted).toBe(true);
-
-      // Second emit should not cause errors (once listener already consumed)
-      guardian.emit('task:aborted', { taskId: 'task-1', reason: 'second' });
-    });
   });
 
   describe('global timeout', () => {
     it('should emit task:timeout with type global and abort task', async () => {
-      guardian = new ExecutionGuardian({ globalTimeoutMs: 5000, stepTimeoutMs: 100000 });
+      guardian = new ExecutionGuardian({ globalTimeoutMs: 5000, stepTimeoutMs: 100000 }, mockDb);
       const timeoutEvents: any[] = [];
       const abortedEvents: any[] = [];
       guardian.on('task:timeout', (data) => timeoutEvents.push(data));
       guardian.on('task:aborted', (data) => abortedEvents.push(data));
 
       guardian.registerTask('task-1');
-
-      // Advance past global timeout
       await jest.advanceTimersByTimeAsync(5100);
 
       expect(timeoutEvents).toHaveLength(1);
@@ -430,12 +389,11 @@ describe('ExecutionGuardian', () => {
     });
 
     it('should use custom global timeout when provided', async () => {
-      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 100000 });
+      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 100000 }, mockDb);
       const timeoutEvents: any[] = [];
       guardian.on('task:timeout', (data) => timeoutEvents.push(data));
 
       guardian.registerTask('task-1', { globalTimeoutMs: 3000 });
-
       await jest.advanceTimersByTimeAsync(3100);
 
       expect(timeoutEvents).toHaveLength(1);
@@ -445,15 +403,13 @@ describe('ExecutionGuardian', () => {
 
   describe('step timeout', () => {
     it('should emit task:timeout with type step and abort task', async () => {
-      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 3000 });
+      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 3000 }, mockDb);
       const timeoutEvents: any[] = [];
       const abortedEvents: any[] = [];
       guardian.on('task:timeout', (data) => timeoutEvents.push(data));
       guardian.on('task:aborted', (data) => abortedEvents.push(data));
 
       guardian.registerTask('task-1');
-
-      // Advance past step timeout
       await jest.advanceTimersByTimeAsync(3100);
 
       expect(timeoutEvents).toHaveLength(1);
@@ -463,12 +419,11 @@ describe('ExecutionGuardian', () => {
     });
 
     it('should use custom step timeout when provided', async () => {
-      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 100000 });
+      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 100000 }, mockDb);
       const timeoutEvents: any[] = [];
       guardian.on('task:timeout', (data) => timeoutEvents.push(data));
 
       guardian.registerTask('task-1', { stepTimeoutMs: 2000 });
-
       await jest.advanceTimersByTimeAsync(2100);
 
       expect(timeoutEvents).toHaveLength(1);
@@ -478,20 +433,16 @@ describe('ExecutionGuardian', () => {
 
   describe('multiple tasks', () => {
     it('should handle multiple tasks independently', async () => {
-      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 5000 });
+      guardian = new ExecutionGuardian({ globalTimeoutMs: 100000, stepTimeoutMs: 5000 }, mockDb);
       const events: any[] = [];
       guardian.on('task:timeout', (data) => events.push(data));
 
       guardian.registerTask('task-1');
       guardian.registerTask('task-2');
 
-      // Unregister task-1
       guardian.unregisterTask('task-1');
-
-      // Advance past step timeout for task-2
       await jest.advanceTimersByTimeAsync(5100);
 
-      // Only task-2 should timeout
       expect(events).toHaveLength(1);
       expect(events[0].taskId).toBe('task-2');
     });

@@ -14,54 +14,45 @@ interface ProcessInfo {
 }
 
 export class ProcessKiller {
-  private repository?: ProcessRegistryRepository;
+  private repository: ProcessRegistryRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new ProcessRegistryRepository(db);
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (!db) {
+      throw new Error('ProcessKiller requires a database connection');
     }
+    this.repository = new ProcessRegistryRepository(db);
   }
 
   register(processInfo: ProcessInfo): void {
-    if (this.repository) {
-      this.repository.create({
-        id: uuidv4(),
-        taskId: processInfo.taskId,
-        pid: processInfo.pid,
-        pgid: processInfo.pgid ?? null,
-        containerId: processInfo.containerId ?? null,
-        status: 'active',
-      }).catch((err) => {
-        logger.warn({ err, taskId: processInfo.taskId }, 'Failed to persist process registration');
-      });
-    }
+    this.repository.create({
+      id: uuidv4(),
+      taskId: processInfo.taskId,
+      pid: processInfo.pid,
+      pgid: processInfo.pgid ?? null,
+      containerId: processInfo.containerId ?? null,
+      status: 'active',
+    }).catch((err) => {
+      logger.warn({ err, taskId: processInfo.taskId }, 'Failed to persist process registration');
+    });
   }
 
   unregister(taskId: string): void {
-    if (this.repository) {
-      this.repository.deleteByTaskId(taskId).catch((err) => {
-        logger.warn({ err, taskId }, 'Failed to delete process from DB');
-      });
-    }
+    this.repository.deleteByTaskId(taskId).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to delete process from DB');
+    });
   }
 
   async kill(taskId: string, reason: string): Promise<void> {
     let processInfo: ProcessInfo | undefined;
 
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findByTaskId(taskId);
-        if (entity) {
-          processInfo = {
-            taskId: entity.taskId,
-            pid: entity.pid,
-            pgid: entity.pgid ?? undefined,
-            containerId: entity.containerId ?? undefined,
-          };
-        }
-      } catch (err) {
-        logger.warn({ err, taskId }, 'Failed to find process in DB');
-      }
+    const entity = await this.repository.findByTaskId(taskId);
+    if (entity) {
+      processInfo = {
+        taskId: entity.taskId,
+        pid: entity.pid,
+        pgid: entity.pgid ?? undefined,
+        containerId: entity.containerId ?? undefined,
+      };
     }
 
     if (!processInfo) {
@@ -115,11 +106,9 @@ export class ProcessKiller {
     }
 
     // Mark as killed in DB
-    if (this.repository) {
-      this.repository.markKilled(taskId).catch((err) => {
-        logger.warn({ err, taskId }, 'Failed to mark process as killed in DB');
-      });
-    }
+    this.repository.markKilled(taskId).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to mark process as killed in DB');
+    });
   }
 
   private isAlive(pid: number): boolean {

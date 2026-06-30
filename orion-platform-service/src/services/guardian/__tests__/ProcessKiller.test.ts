@@ -67,11 +67,13 @@ import { ProcessKiller } from '../ProcessKiller';
 describe('ProcessKiller', () => {
   let processKiller: ProcessKiller;
   let killSpy: jest.SpyInstance;
+  const mockDb = { query: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     mockSpawn.mockImplementation(() => createMockChildProcess(0));
+    processKiller = new ProcessKiller(mockDb);
   });
 
   afterEach(() => {
@@ -80,17 +82,16 @@ describe('ProcessKiller', () => {
   });
 
   describe('constructor', () => {
-    it('should create without db - no repository', () => {
-      processKiller = new ProcessKiller();
-      expect(processKiller).toBeDefined();
-      // register/unregister should not call DB methods
-      processKiller.register({ taskId: 't1', pid: 100 });
-      expect(mockCreate).not.toHaveBeenCalled();
+    it('should throw when db is not provided', () => {
+      expect(() => new ProcessKiller()).toThrow('ProcessKiller requires a database connection');
+    });
+
+    it('should throw when db is undefined', () => {
+      expect(() => new ProcessKiller(undefined as any)).toThrow('ProcessKiller requires a database connection');
     });
 
     it('should create with db - repository instantiated', () => {
-      const db = { query: jest.fn() };
-      processKiller = new ProcessKiller(db);
+      processKiller = new ProcessKiller(mockDb);
       expect(processKiller).toBeDefined();
       processKiller.register({ taskId: 't1', pid: 100 });
       expect(mockCreate).toHaveBeenCalled();
@@ -98,11 +99,6 @@ describe('ProcessKiller', () => {
   });
 
   describe('register', () => {
-    beforeEach(() => {
-      const db = { query: jest.fn() };
-      processKiller = new ProcessKiller(db);
-    });
-
     it('should persist process info to DB', () => {
       processKiller.register({ taskId: 'task-1', pid: 1234, pgid: 1200, containerId: 'ctr-abc' });
       expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
@@ -126,17 +122,11 @@ describe('ProcessKiller', () => {
 
     it('should fire-and-forget DB errors', () => {
       mockCreate.mockRejectedValueOnce(new Error('DB down'));
-      // register() calls .catch() on the DB promise, so it won't throw synchronously
       expect(() => processKiller.register({ taskId: 'task-3', pid: 100 })).not.toThrow();
     });
   });
 
   describe('unregister', () => {
-    beforeEach(() => {
-      const db = { query: jest.fn() };
-      processKiller = new ProcessKiller(db);
-    });
-
     it('should delete process from DB', () => {
       processKiller.unregister('task-1');
       expect(mockDeleteByTaskId).toHaveBeenCalledWith('task-1');
@@ -149,28 +139,21 @@ describe('ProcessKiller', () => {
   });
 
   describe('kill', () => {
-    beforeEach(() => {
-      const db = { query: jest.fn() };
-      processKiller = new ProcessKiller(db);
-    });
-
     it('should return early when process not found in DB', async () => {
       mockFindByTaskId.mockResolvedValueOnce(undefined);
       await processKiller.kill('unknown-task', 'test');
       expect(mockMarkKilled).not.toHaveBeenCalled();
     });
 
-    it('should return early when no repository', async () => {
-      processKiller = new ProcessKiller(); // no db
-      await processKiller.kill('task-1', 'test');
-      expect(mockFindByTaskId).not.toHaveBeenCalled();
+    it('should propagate DB lookup errors', async () => {
+      mockFindByTaskId.mockRejectedValueOnce(new Error('DB connection lost'));
+      await expect(processKiller.kill('task-1', 'test')).rejects.toThrow('DB connection lost');
     });
 
     it('should send SIGTERM to process group and complete when process dies', async () => {
       mockFindByTaskId.mockResolvedValueOnce({
         taskId: 'task-1', pid: 1234, pgid: 1200, containerId: null,
       });
-      // Process dies immediately (isAlive returns false)
       killSpy = jest.spyOn(process, 'kill').mockImplementation((..._args: any[]) => {
         throw new Error('No such process');
       });
@@ -190,9 +173,7 @@ describe('ProcessKiller', () => {
       let callCount = 0;
       killSpy = jest.spyOn(process, 'kill').mockImplementation((...args: any[]) => {
         callCount++;
-        // First call: SIGTERM to process group - fails
         if (callCount === 1) throw new Error('ESRCH');
-        // All other calls (fallback SIGTERM + isAlive checks): throw (process dead)
         throw new Error('No such process');
       });
 
@@ -216,7 +197,6 @@ describe('ProcessKiller', () => {
       await jest.advanceTimersByTimeAsync(200);
       await killPromise;
 
-      // pgid is null, so targetPid = pid = 1234
       expect(killSpy).toHaveBeenCalledWith(-1234, 'SIGTERM');
     });
 
@@ -235,17 +215,6 @@ describe('ProcessKiller', () => {
       expect(mockMarkKilled).toHaveBeenCalledWith('task-1');
     });
 
-    it('should handle DB lookup failure gracefully', async () => {
-      mockFindByTaskId.mockRejectedValueOnce(new Error('DB connection lost'));
-      killSpy = jest.spyOn(process, 'kill').mockImplementation(() => {
-        throw new Error('No such process');
-      });
-
-      // Should not throw - process not found, returns early
-      await processKiller.kill('task-1', 'test');
-      expect(mockMarkKilled).not.toHaveBeenCalled();
-    });
-
     it('should handle markKilled DB error gracefully', async () => {
       mockFindByTaskId.mockResolvedValueOnce({
         taskId: 'task-1', pid: 1234, pgid: 1200, containerId: null,
@@ -258,7 +227,6 @@ describe('ProcessKiller', () => {
       const killPromise = processKiller.kill('task-1', 'test');
       await jest.advanceTimersByTimeAsync(200);
       await killPromise;
-      // Should not throw
     });
   });
 });
