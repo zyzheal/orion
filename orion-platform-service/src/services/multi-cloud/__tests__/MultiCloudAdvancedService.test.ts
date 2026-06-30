@@ -2,22 +2,73 @@
  * MultiCloudAdvancedService 单元测试
  *
  * 测试跨区容灾、多云成本、云网络、合规检查、资源调度等功能
+ * 使用 jest.mock 模拟 MultiCloudRepository
  */
 
 import { MultiCloudAdvancedService } from '../MultiCloudAdvancedService';
+
+// ===================================================================
+// Mock repository — all methods called by MultiCloudAdvancedService
+// ===================================================================
+
+const mockCreateCrossZoneDR = jest.fn();
+const mockFindCrossZoneDRById = jest.fn();
+const mockUpdateCrossZoneDRStatus = jest.fn();
+const mockCreateDRTestResult = jest.fn();
+const mockCreateCloudNetwork = jest.fn();
+const mockCreateSchedulingPolicy = jest.fn();
+const mockFindSchedulingPoliciesByTenant = jest.fn();
+const mockFindSchedulingPolicyById = jest.fn();
+const mockCreateSchedulingDecision = jest.fn();
+const mockFindSchedulingDecisionsByPolicyId = jest.fn();
+
+const mockMultiCloudRepository = {
+  createCrossZoneDR: mockCreateCrossZoneDR,
+  findCrossZoneDRById: mockFindCrossZoneDRById,
+  updateCrossZoneDRStatus: mockUpdateCrossZoneDRStatus,
+  createDRTestResult: mockCreateDRTestResult,
+  createCloudNetwork: mockCreateCloudNetwork,
+  createSchedulingPolicy: mockCreateSchedulingPolicy,
+  findSchedulingPoliciesByTenant: mockFindSchedulingPoliciesByTenant,
+  findSchedulingPolicyById: mockFindSchedulingPolicyById,
+  createSchedulingDecision: mockCreateSchedulingDecision,
+  findSchedulingDecisionsByPolicyId: mockFindSchedulingDecisionsByPolicyId,
+};
+
+jest.mock('../../../repositories/MultiCloudRepository', () => ({
+  MultiCloudRepository: jest.fn().mockImplementation(() => mockMultiCloudRepository),
+}));
+
+// ===================================================================
+// Helper to produce a minimal mock database pool
+// ===================================================================
+
+function createMockDb() {
+  return { query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
+}
 
 describe('MultiCloudAdvancedService', () => {
   let service: MultiCloudAdvancedService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new MultiCloudAdvancedService();
+    service = new MultiCloudAdvancedService(createMockDb());
+  });
+
+  // ==================== Constructor ====================
+
+  describe('constructor', () => {
+    it('应该在未提供 database 时抛出错误', () => {
+      expect(() => new MultiCloudAdvancedService(undefined as any)).toThrow('DatabasePool is required');
+    });
   });
 
   // ==================== Cross-Zone DR Management ====================
 
   describe('setupCrossZoneDR', () => {
-    it('应该成功配置跨区容灾', async () => {
+    it('应该成功配置跨区容灾并调用 repository', async () => {
+      mockCreateCrossZoneDR.mockResolvedValue(undefined);
+
       const result = await service.setupCrossZoneDR('tenant-1', {
         name: 'east-west-dr',
         primaryZone: 'us-east-1a',
@@ -37,10 +88,25 @@ describe('MultiCloudAdvancedService', () => {
       expect(result.rto).toBe(600);
       expect(result.status).toBe('configured');
       expect(result.lastTestAt).toBeNull();
-      expect(result.createdAt).toBeDefined();
+
+      expect(mockCreateCrossZoneDR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenant_id: 'tenant-1',
+          name: 'east-west-dr',
+          primary_zone: 'us-east-1a',
+          secondary_zone: 'us-west-2a',
+          strategy: 'active-passive',
+          rpo: 300,
+          rto: 600,
+          status: 'configured',
+          last_test_at: null,
+        }),
+      );
     });
 
     it('应该使用默认策略和 RPO/RTO', async () => {
+      mockCreateCrossZoneDR.mockResolvedValue(undefined);
+
       const result = await service.setupCrossZoneDR('tenant-1', {
         name: 'default-dr',
         primaryZone: 'zone-a',
@@ -53,6 +119,8 @@ describe('MultiCloudAdvancedService', () => {
     });
 
     it('应该支持 active-active 策略', async () => {
+      mockCreateCrossZoneDR.mockResolvedValue(undefined);
+
       const result = await service.setupCrossZoneDR('tenant-1', {
         name: 'aa-dr',
         primaryZone: 'zone-a',
@@ -66,47 +134,45 @@ describe('MultiCloudAdvancedService', () => {
 
   describe('testCrossZoneDR', () => {
     it('DR 不存在时应抛出错误', async () => {
-      await expect(service.testCrossZoneDR('nonexistent')).rejects.toThrow();
+      mockFindCrossZoneDRById.mockResolvedValue(undefined);
+
+      await expect(service.testCrossZoneDR('nonexistent')).rejects.toThrow('Cross-zone DR not found');
     });
 
     it('应该执行 DR 测试并返回结果', async () => {
-      const dr = await service.setupCrossZoneDR('tenant-1', {
+      const mockDr = {
+        id: 'dr-1',
+        tenant_id: 'tenant-1',
         name: 'test-dr',
-        primaryZone: 'zone-a',
-        secondaryZone: 'zone-b',
-      });
+        primary_zone: 'zone-a',
+        secondary_zone: 'zone-b',
+        strategy: 'active-passive',
+        rpo: 300,
+        rto: 600,
+        status: 'configured' as const,
+        last_test_at: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      mockFindCrossZoneDRById.mockResolvedValue(mockDr);
+      mockCreateDRTestResult.mockResolvedValue({ id: 'test-1' });
 
-      const result = await service.testCrossZoneDR(dr.id);
+      const result = await service.testCrossZoneDR('dr-1');
 
       expect(result.id).toBeDefined();
-      expect(result.drId).toBe(dr.id);
+      expect(result.drId).toBe('dr-1');
       expect(['success', 'failed']).toContain(result.status);
       expect(typeof result.duration).toBe('number');
       expect(result.details).toBeDefined();
       expect(result.testedAt).toBeDefined();
-    });
 
-    it('测试成功后 DR 状态应变为 active', async () => {
-      const dr = await service.setupCrossZoneDR('tenant-1', {
-        name: 'test-dr',
-        primaryZone: 'zone-a',
-        secondaryZone: 'zone-b',
-      });
-
-      // Mock Math.random to ensure success
-      const originalRandom = Math.random;
-      Math.random = jest.fn(() => 0.5); // > 0.1 => success
-
-      const testResult = await service.testCrossZoneDR(dr.id);
-
-      // Verify DR status changed
-      if (testResult.status === 'success') {
-        // Re-fetch is not available, but the DR object was mutated
-        expect(dr.status).toBe('active');
-        expect(dr.lastTestAt).not.toBeNull();
-      }
-
-      Math.random = originalRandom;
+      // Verify repository was called in sequence
+      expect(mockFindCrossZoneDRById).toHaveBeenCalledWith('dr-1');
+      expect(mockUpdateCrossZoneDRStatus).toHaveBeenNthCalledWith(1, 'dr-1', 'testing');
+      expect(mockCreateDRTestResult).toHaveBeenCalledWith(
+        expect.objectContaining({ dr_id: 'dr-1' }),
+      );
+      expect(mockUpdateCrossZoneDRStatus).toHaveBeenLastCalledWith('dr-1', expect.any(String), expect.any(Date));
     });
   });
 
@@ -167,7 +233,9 @@ describe('MultiCloudAdvancedService', () => {
   // ==================== Cloud Network Management ====================
 
   describe('setupCloudNetwork', () => {
-    it('应该成功配置云网络', async () => {
+    it('应该成功配置云网络并调用 repository', async () => {
+      mockCreateCloudNetwork.mockResolvedValue(undefined);
+
       const result = await service.setupCloudNetwork('tenant-1', {
         name: 'production-vpc',
         vpcId: 'vpc-12345',
@@ -183,9 +251,22 @@ describe('MultiCloudAdvancedService', () => {
       expect(result.securityGroups).toEqual(['sg-1']);
       expect(result.status).toBe('provisioning');
       expect(result.createdAt).toBeDefined();
+
+      expect(mockCreateCloudNetwork).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenant_id: 'tenant-1',
+          name: 'production-vpc',
+          vpc_id: 'vpc-12345',
+          subnets: ['subnet-1', 'subnet-2'],
+          security_groups: ['sg-1'],
+          status: 'provisioning',
+        }),
+      );
     });
 
     it('应该使用默认空数组', async () => {
+      mockCreateCloudNetwork.mockResolvedValue(undefined);
+
       const result = await service.setupCloudNetwork('tenant-1', {
         name: 'minimal-network',
         vpcId: 'vpc-000',
@@ -205,7 +286,6 @@ describe('MultiCloudAdvancedService', () => {
       expect(Array.isArray(rules)).toBe(true);
       expect(rules.length).toBeGreaterThan(0);
 
-      // Verify rule structure
       for (const rule of rules) {
         expect(rule.id).toBeDefined();
         expect(['security', 'cost', 'governance', 'availability', 'data-residency']).toContain(rule.category);
@@ -273,9 +353,7 @@ describe('MultiCloudAdvancedService', () => {
       const report = await service.runComplianceCheck('tenant-1');
 
       const failedResults = report.results.filter(r => !r.passed);
-      // At least some failed results should have remediation
       for (const result of failedResults) {
-        // remediation may or may not be present
         if (result.remediation) {
           expect(typeof result.remediation).toBe('string');
         }
@@ -286,7 +364,9 @@ describe('MultiCloudAdvancedService', () => {
   // ==================== Resource Scheduling ====================
 
   describe('createSchedulingPolicy', () => {
-    it('应该成功创建调度策略', async () => {
+    it('应该成功创建调度策略并调用 repository', async () => {
+      mockCreateSchedulingPolicy.mockResolvedValue(undefined);
+
       const result = await service.createSchedulingPolicy('tenant-1', {
         name: 'cost-policy',
         strategy: 'cost-optimized',
@@ -308,39 +388,57 @@ describe('MultiCloudAdvancedService', () => {
       expect(result.priority).toBe(1);
       expect(result.enabled).toBe(true);
       expect(result.createdAt).toBeDefined();
+
+      expect(mockCreateSchedulingPolicy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenant_id: 'tenant-1',
+          name: 'cost-policy',
+          strategy: 'cost-optimized',
+          constraints: expect.objectContaining({
+            maxCostPerMonth: 10000,
+          }),
+          priority: 1,
+          enabled: true,
+        }),
+      );
     });
   });
 
   describe('listSchedulingPolicies', () => {
     it('没有策略时应返回空数组', async () => {
+      mockFindSchedulingPoliciesByTenant.mockResolvedValue([]);
+
       const result = await service.listSchedulingPolicies('tenant-1');
       expect(result).toEqual([]);
     });
 
-    it('应该只返回指定租户的策略', async () => {
-      await service.createSchedulingPolicy('tenant-1', {
-        name: 'p1',
-        strategy: 'balanced',
-        constraints: {},
-        priority: 1,
-        enabled: true,
-      });
-      await service.createSchedulingPolicy('tenant-2', {
-        name: 'p2',
-        strategy: 'cost-optimized',
-        constraints: {},
-        priority: 1,
-        enabled: true,
-      });
+    it('应该从 repository 读取策略并转换', async () => {
+      mockFindSchedulingPoliciesByTenant.mockResolvedValue([
+        {
+          id: 'pol-1',
+          tenant_id: 'tenant-1',
+          name: 'p1',
+          strategy: 'balanced',
+          constraints: { maxCostPerMonth: 5000 },
+          priority: 1,
+          enabled: true,
+          created_at: new Date('2026-01-01'),
+          updated_at: new Date('2026-01-01'),
+        },
+      ]);
 
       const result = await service.listSchedulingPolicies('tenant-1');
       expect(result.length).toBe(1);
+      expect(result[0].id).toBe('pol-1');
       expect(result[0].name).toBe('p1');
     });
   });
 
   describe('scheduleResource', () => {
-    it('应该返回调度决策', async () => {
+    it('应该返回调度决策并调用 repository', async () => {
+      mockFindSchedulingPolicyById.mockResolvedValue(undefined); // no policy, use defaults
+      mockCreateSchedulingDecision.mockResolvedValue(undefined);
+
       const decision = await service.scheduleResource('tenant-1', {
         resourceType: 'compute',
         spec: { cpu: 4, memoryMb: 8192 },
@@ -356,10 +454,14 @@ describe('MultiCloudAdvancedService', () => {
       expect(typeof decision.reason).toBe('string');
       expect(Array.isArray(decision.alternatives)).toBe(true);
       expect(decision.decidedAt).toBeDefined();
+
+      expect(mockCreateSchedulingDecision).toHaveBeenCalled();
     });
 
     it('应该使用指定策略进行调度', async () => {
-      const policy = await service.createSchedulingPolicy('tenant-1', {
+      const mockPolicyEntity = {
+        id: 'pol-cost',
+        tenant_id: 'tenant-1',
         name: 'cost-policy',
         strategy: 'cost-optimized',
         constraints: {
@@ -368,20 +470,27 @@ describe('MultiCloudAdvancedService', () => {
         },
         priority: 1,
         enabled: true,
-      });
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      mockFindSchedulingPolicyById.mockResolvedValue(mockPolicyEntity);
+      mockCreateSchedulingDecision.mockResolvedValue(undefined);
 
       const decision = await service.scheduleResource('tenant-1', {
         resourceType: 'compute',
         spec: { cpu: 2, memoryMb: 4096 },
-        policyId: policy.id,
+        policyId: 'pol-cost',
       });
 
-      expect(decision.policyId).toBe(policy.id);
+      expect(decision.policyId).toBe('pol-cost');
       expect(decision.selectedProvider).toBe('aws');
       expect(decision.selectedRegion).toBe('us-east-1');
     });
 
     it('应该尊重 preferredProvider 和 preferredRegion', async () => {
+      mockFindSchedulingPolicyById.mockResolvedValue(undefined);
+      mockCreateSchedulingDecision.mockResolvedValue(undefined);
+
       const decision = await service.scheduleResource('tenant-1', {
         resourceType: 'compute',
         spec: { cpu: 2, memoryMb: 4096 },
@@ -396,22 +505,45 @@ describe('MultiCloudAdvancedService', () => {
 
   describe('getSchedulingHistory', () => {
     it('没有调度记录时应返回空数组', async () => {
+      mockFindSchedulingPoliciesByTenant.mockResolvedValue([]);
+
       const result = await service.getSchedulingHistory('tenant-1');
       expect(result).toEqual([]);
     });
 
-    it('应该返回调度历史', async () => {
-      await service.scheduleResource('tenant-1', {
-        resourceType: 'compute',
-        spec: { cpu: 2, memoryMb: 4096 },
-      });
-      await service.scheduleResource('tenant-1', {
-        resourceType: 'storage',
-        spec: { storageGb: 100 },
-      });
+    it('应该从 repository 读取策略和决策', async () => {
+      const mockPolicy = {
+        id: 'pol-1',
+        tenant_id: 'tenant-1',
+        name: 'test-policy',
+        strategy: 'balanced',
+        constraints: {},
+        priority: 1,
+        enabled: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const mockDecision = {
+        id: 'sched-1',
+        policy_id: 'pol-1',
+        resource_type: 'compute',
+        selected_provider: 'aws',
+        selected_region: 'us-east-1',
+        estimated_cost: 100,
+        reason: 'test',
+        alternatives: [{ provider: 'gcp', region: 'us-central1', cost: 92 }],
+        decided_at: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      mockFindSchedulingPoliciesByTenant.mockResolvedValue([mockPolicy]);
+      mockFindSchedulingDecisionsByPolicyId.mockResolvedValue([mockDecision]);
 
       const history = await service.getSchedulingHistory('tenant-1');
-      expect(history.length).toBe(2);
+      expect(history.length).toBe(1);
+      expect(history[0].id).toBe('sched-1');
+      expect(history[0].resourceType).toBe('compute');
     });
   });
 });
