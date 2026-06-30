@@ -2,8 +2,8 @@
  * TASK-703: Metric Collector
  *
  * Collects system metrics (CPU, memory, disk, network), application metrics
- * (latency, error rate, throughput), and custom metrics. Supports both
- * in-memory Map storage (legacy) and PostgreSQL Repository persistence.
+ * (latency, error rate, throughput), and custom metrics. Uses PostgreSQL
+ * Repository for persistent storage.
  */
 
 import os from 'os';
@@ -72,19 +72,19 @@ interface RegisteredMetric {
  * - Application metrics (latency, error rate, throughput)
  * - Custom metric registration and recording
  * - Time-series storage with configurable retention
- * - PostgreSQL Repository persistence (optional) or in-memory Map (fallback)
+ * - PostgreSQL Repository persistence (required)
  */
 export class MetricCollector {
-  /** Optional PostgreSQL repository for persistent storage */
-  private readonly repository?: MetricStorageRepository;
+  /** PostgreSQL repository for persistent storage (required) */
+  private readonly repository: MetricStorageRepository;
 
   /** Default tenant ID for repository operations */
   private readonly defaultTenantId: string;
 
-  /** Registered metric metadata (in-memory cache) */
+  /** Registered metric metadata (in-memory cache for fast lookups) */
   private registeredMetrics: Map<string, RegisteredMetric> = new Map();
 
-  /** Raw metric storage: metricName -> DataPoint[] (in-memory fallback) */
+  /** Raw metric storage: metricName -> DataPoint[] (in-memory cache for real-time access) */
   private metricStorage: Map<string, { points: DataPoint[]; tags: Record<string, string>[] }> = new Map();
 
   /** Metric retention period in milliseconds (default: 24 hours) */
@@ -104,7 +104,10 @@ export class MetricCollector {
   }) {
     this.retentionMs = options?.retentionMs ?? 24 * 60 * 60 * 1000; // 24 hours
     this.maxDataPoints = options?.maxDataPointsPerMetric ?? 10000;
-    this.repository = options?.repository;
+    if (!options?.repository) {
+      throw new Error('MetricStorageRepository is required for MetricCollector');
+    }
+    this.repository = options.repository;
     this.defaultTenantId = options?.defaultTenantId || '00000000-0000-0000-0000-000000000000';
   }
 
@@ -303,21 +306,19 @@ export class MetricCollector {
       description: params.description,
     });
 
-    // Initialize storage if not exists
+    // Initialize in-memory cache
     if (!this.metricStorage.has(params.name)) {
       this.metricStorage.set(params.name, { points: [], tags: [] });
     }
 
-    // Also persist to repository if available
-    if (this.repository) {
-      this.repository.registerMetric({
-        tenant_id: params.tenantId || this.defaultTenantId,
-        name: params.name,
-        unit: params.unit,
-        default_tags: params.defaultTags,
-        description: params.description,
-      }).catch(err => logger.warn('[MetricCollector] Failed to register metric in repository:', err));
-    }
+    // Persist to repository (required)
+    this.repository.registerMetric({
+      tenant_id: params.tenantId || this.defaultTenantId,
+      name: params.name,
+      unit: params.unit,
+      default_tags: params.defaultTags,
+      description: params.description,
+    }).catch(err => logger.warn('[MetricCollector] Failed to register metric in repository:', err));
   }
 
   /**
@@ -327,11 +328,9 @@ export class MetricCollector {
     this.registeredMetrics.delete(name);
     this.metricStorage.delete(name);
 
-    if (this.repository) {
-      this.repository.unregisterMetric(name).catch(err =>
-        logger.warn('[MetricCollector] Failed to unregister metric in repository:', err)
-      );
-    }
+    this.repository.unregisterMetric(name).catch(err =>
+      logger.warn('[MetricCollector] Failed to unregister metric in repository:', err)
+    );
 
     return true;
   }
@@ -357,7 +356,7 @@ export class MetricCollector {
     const ts = timestamp || new Date();
     const point: DataPoint = { timestamp: ts, value };
 
-    // In-memory path (always active for real-time access)
+    // Update in-memory cache for real-time access
     if (!this.metricStorage.has(name)) {
       this.metricStorage.set(name, { points: [], tags: [] });
     }
@@ -366,26 +365,24 @@ export class MetricCollector {
     storage.points.push(point);
     storage.tags.push(tags || {});
 
-    // Enforce retention
+    // Enforce retention on in-memory cache
     this.enforceRetention(name);
 
-    // Enforce max data points
+    // Enforce max data points on in-memory cache
     if (storage.points.length > this.maxDataPoints) {
       const excess = storage.points.length - this.maxDataPoints;
       storage.points = storage.points.slice(excess);
       storage.tags = storage.tags.slice(excess);
     }
 
-    // Also persist to repository if available (fire-and-forget)
-    if (this.repository) {
-      this.repository.insertDataPoint({
-        tenant_id: this.defaultTenantId,
-        metric_name: name,
-        value,
-        tags: tags || {},
-        timestamp: ts,
-      }).catch(err => logger.warn('[MetricCollector] Failed to persist data point:', err));
-    }
+    // Persist to repository (fire-and-forget)
+    this.repository.insertDataPoint({
+      tenant_id: this.defaultTenantId,
+      metric_name: name,
+      value,
+      tags: tags || {},
+      timestamp: ts,
+    }).catch(err => logger.warn('[MetricCollector] Failed to persist data point:', err));
   }
 
   /**
@@ -443,21 +440,17 @@ export class MetricCollector {
   // ==================== Metric Retrieval ====================
 
   /**
-   * Get metric time-series data (in-memory, backward compatible)
+   * Get metric time-series data from in-memory cache (fast, real-time)
    */
   getMetricSeries(query: MetricQuery): MetricSeries {
     return this.getMetricSeriesFromMemory(query);
   }
 
   /**
-   * Async version of getMetricSeries that queries the repository.
-   * Use this in routes/controllers that support async and need historical data.
+   * Async version of getMetricSeries that queries the repository for persisted data.
    */
   async getMetricSeriesAsync(query: MetricQuery): Promise<MetricSeries> {
-    if (this.repository) {
-      return this.repository.queryMetricSeries(query, this.defaultTenantId);
-    }
-    return this.getMetricSeriesFromMemory(query);
+    return this.repository.queryMetricSeries(query, this.defaultTenantId);
   }
 
   private getMetricSeriesFromMemory(query: MetricQuery): MetricSeries {
@@ -564,7 +557,7 @@ export class MetricCollector {
   }
 
   /**
-   * Get the latest value for a metric (in-memory)
+   * Get the latest value for a metric (in-memory cache)
    */
   getLatestValue(name: string, tags?: Record<string, string>): number | null {
     const storage = this.metricStorage.get(name);
@@ -586,10 +579,7 @@ export class MetricCollector {
    * Async version that queries repository for latest persisted value.
    */
   async getLatestValueAsync(name: string, tags?: Record<string, string>): Promise<number | null> {
-    if (this.repository) {
-      return this.repository.getLatestValue(name, tags, this.defaultTenantId);
-    }
-    return this.getLatestValue(name, tags);
+    return this.repository.getLatestValue(name, tags, this.defaultTenantId);
   }
 
   // ==================== Maintenance ====================
@@ -614,12 +604,10 @@ export class MetricCollector {
       }
     }
 
-    // Also prune repository
-    if (this.repository) {
-      this.repository.pruneExpired(this.retentionMs, this.defaultTenantId)
-        .then(count => logger.info(`[MetricCollector] Pruned ${count} expired points from repository`))
-        .catch(err => logger.warn('[MetricCollector] Failed to prune from repository:', err));
-    }
+    // Also prune repository (required)
+    this.repository.pruneExpired(this.retentionMs, this.defaultTenantId)
+      .then(count => logger.info(`[MetricCollector] Pruned ${count} expired points from repository`))
+      .catch(err => logger.warn('[MetricCollector] Failed to prune from repository:', err));
 
     return pruned;
   }
@@ -632,16 +620,14 @@ export class MetricCollector {
     this.registeredMetrics.clear();
     this.natsMessageCounts.clear();
 
-    if (this.repository) {
-      this.repository.clearAll(this.defaultTenantId)
-        .catch(err => logger.warn('[MetricCollector] Failed to clear repository:', err));
-    }
+    this.repository.clearAll(this.defaultTenantId)
+      .catch(err => logger.warn('[MetricCollector] Failed to clear repository:', err));
   }
 
   // ==================== Private Methods ====================
 
   /**
-   * Enforce retention policy on a metric's storage
+   * Enforce retention policy on a metric's in-memory storage
    */
   private enforceRetention(name: string): void {
     const cutoff = Date.now() - this.retentionMs;
