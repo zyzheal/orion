@@ -23,11 +23,13 @@ export default async function crossDomainRoutes(
   app: FastifyInstance,
   options: CrossDomainRoutesOptions
 ): Promise<void> {
+  if (!options.database) {
+    return;
+  }
+
   // Initialize services
-  const domainConnector = new DomainConnector();
-  const orchestrator = new CrossDomainOrchestrator({
-    domainConnector,
-  });
+  const domainConnector = new DomainConnector(options.database);
+  const orchestrator = new CrossDomainOrchestrator(options.database, domainConnector);
   const controller = new CrossDomainOrchestrationController(orchestrator);
 
   // POST /api/v1/orchestration - Create orchestration

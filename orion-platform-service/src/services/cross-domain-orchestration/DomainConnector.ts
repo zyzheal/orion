@@ -1,21 +1,16 @@
-import { ErrorCode } from '../../errors';
 /**
  * DomainConnector - 领域连接器
  *
  * 负责注册、调用和补偿跨域服务。每个"领域"代表一个独立的服务边界
  * (如 pipeline、deploy、alert、monitoring 等)，通过 HTTP/RPC 调用。
  *
- * 功能：
- * - registerDomain(domainName, endpoint) — 注册领域
- * - invokeDomain(domainName, action, payload) — 调用领域服务
- * - handleCrossDomainTransaction(domainA, domainB, payload) — 跨域事务
- * - compensateTransaction(orchestrationId) — 补偿事务
+ * PostgreSQL Repository pattern — database is the single source of truth.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import pino from 'pino';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LDomain-LConnector' });
@@ -77,23 +72,15 @@ interface ConnectorRow {
 }
 
 class DomainConnectorRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, DomainRegistration>();
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
+  constructor(pool: DatabasePool) {
+    if (!pool) throw new Error('DatabasePool is required');
+    this.pool = pool;
   }
 
   async save(connector: DomainRegistration): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(`${connector.tenantId}:${connector.domainName}`, connector);
-      return;
-    }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO domain_connectors (
         id, tenant_id, domain_name, endpoint, status, auth_config,
         health_status, last_health_check, created_by, created_at, updated_at
@@ -123,12 +110,8 @@ class DomainConnectorRepository {
     tenantId: string,
     domainName: string
   ): Promise<DomainRegistration | null> {
-    const key = `${tenantId}:${domainName}`;
-    if (!this.isDbAvailable()) {
-      return this.memory.get(key) || null;
-    }
     const rows = (
-      await this.pool!.query(
+      await this.pool.query(
         'SELECT * FROM domain_connectors WHERE tenant_id = $1 AND domain_name = $2',
         [tenantId, domainName]
       )
@@ -138,11 +121,8 @@ class DomainConnectorRepository {
   }
 
   async findByTenant(tenantId: string): Promise<DomainRegistration[]> {
-    if (!this.isDbAvailable()) {
-      return Array.from(this.memory.values()).filter((d) => d.tenantId === tenantId);
-    }
     const rows = (
-      await this.pool!.query('SELECT * FROM domain_connectors WHERE tenant_id = $1', [tenantId])
+      await this.pool.query('SELECT * FROM domain_connectors WHERE tenant_id = $1', [tenantId])
     ).rows;
     return rows.map((r: ConnectorRow) => this.rowToRegistration(r));
   }
@@ -169,10 +149,10 @@ class DomainConnectorRepository {
 
 export class DomainConnector {
   private repository: DomainConnectorRepository;
-  private domains = new Map<string, DomainRegistration>();
   private transactionLog = new Map<string, CrossDomainTransaction>();
 
-  constructor(database?: DatabasePool) {
+  constructor(database: DatabasePool) {
+    if (!database) throw new Error('DatabasePool is required for DomainConnector');
     this.repository = new DomainConnectorRepository(database);
   }
 
@@ -200,8 +180,6 @@ export class DomainConnector {
     };
 
     await this.repository.save(registration);
-    this.domains.set(`${tenantId}:${domainName}`, registration);
-
     return { ...registration };
   }
 
@@ -213,23 +191,11 @@ export class DomainConnector {
     action: string,
     payload: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
-    const startTime = Date.now();
-
-    // Find domain registration (try any tenant - for cross-domain, domain is globally unique)
+    // Try to find domain registration from common tenants
     let domain: DomainRegistration | null = null;
-    for (const [key, reg] of this.domains) {
-      if (reg.domainName === domainName && reg.status === 'active') {
-        domain = reg;
-        break;
-      }
-    }
-
-    if (!domain) {
-      // Fallback: try to find from repository (check common tenants)
-      for (const tenantId of ['default', 'system']) {
-        domain = await this.repository.findByTenantAndDomain(tenantId, domainName);
-        if (domain && domain.status === 'active') break;
-      }
+    for (const tenantId of ['default', 'system']) {
+      domain = await this.repository.findByTenantAndDomain(tenantId, domainName);
+      if (domain && domain.status === 'active') break;
     }
 
     if (!domain) {
@@ -253,7 +219,7 @@ export class DomainConnector {
       // Update health status
       domain.healthStatus = 'unhealthy';
       domain.updatedAt = new Date();
-      this.domains.set(`${domain.tenantId}:${domain.domainName}`, domain);
+      await this.repository.save(domain);
 
       throw new OrionError('Invalid domain configuration', ErrorCode.VALIDATION_ERROR);
     }

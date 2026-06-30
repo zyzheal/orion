@@ -5,14 +5,16 @@
  */
 
 import { ApprovalGateCoordinator } from '../ApprovalGateCoordinator';
+import { createMockPool } from './mock-db';
 
 describe('ApprovalGateCoordinator', () => {
   let coordinator: ApprovalGateCoordinator;
+  let mockPool: ReturnType<typeof createMockPool>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // 不传 database 参数，使用内存模式
-    coordinator = new ApprovalGateCoordinator();
+    mockPool = createMockPool();
+    coordinator = new ApprovalGateCoordinator(mockPool);
   });
 
   // ==================== createGate ====================
@@ -366,7 +368,6 @@ describe('ApprovalGateCoordinator', () => {
     });
 
     it('skipped 状态的门应被视为通过', async () => {
-      // Create a gate and manually skip it via repository
       const gate = await coordinator.createGate('tenant-1', {
         orchestrationId: 'orch-1',
         stepName: 'step-1',
@@ -374,9 +375,6 @@ describe('ApprovalGateCoordinator', () => {
         requiredApprovers: ['alice'],
       });
 
-      // Directly modify the gate in memory repo to simulate skip
-      // We can't directly access the repo, but we can test the logic
-      // by approving all gates
       await coordinator.approveGate(gate.id, 'alice');
 
       const result = await coordinator.isOrchestrationCleared('orch-1');

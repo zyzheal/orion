@@ -7,7 +7,7 @@
  * - 状态查询
  * - 跨域事务补偿
  *
- * 复用 saga/ 目录下的 SagaCoordinator、TransactionLog、IdempotencyChecker
+ * PostgreSQL Repository pattern — database is the single source of truth.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -19,8 +19,6 @@ import {
   SagaDefinition,
   SagaStep,
   SagaContext,
-  SagaStatus,
-  SagaStepStatus,
   createSagaContext,
 } from '../../saga/types';
 import { DomainConnector } from './DomainConnector';
@@ -158,23 +156,15 @@ interface OrchestrationStepRow {
 }
 
 class OrchestrationRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, CrossDomainOrchestRATION>();
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
+  constructor(pool: DatabasePool) {
+    if (!pool) throw new Error('DatabasePool is required');
+    this.pool = pool;
   }
 
   async save(orchestration: CrossDomainOrchestRATION): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(orchestration.id, orchestration);
-      return;
-    }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO cross_domain_orchestrations (
         id, tenant_id, name, description, status, input, output, error,
         domains, current_step, step_count, completed_steps, created_by,
@@ -213,11 +203,8 @@ class OrchestrationRepository {
   }
 
   async findById(id: string): Promise<CrossDomainOrchestRATION | null> {
-    if (!this.isDbAvailable()) {
-      return this.memory.get(id) || null;
-    }
     const rows = (
-      await this.pool!.query(
+      await this.pool.query(
         'SELECT * FROM cross_domain_orchestrations WHERE id = $1',
         [id]
       )
@@ -227,21 +214,6 @@ class OrchestrationRepository {
   }
 
   async findByTenant(tenantId: string, filter?: OrchestrationListFilter): Promise<CrossDomainOrchestRATION[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter((o) => o.tenantId === tenantId);
-      if (filter?.status) {
-        const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
-        results = results.filter((o) => statuses.includes(o.status));
-      }
-      if (filter?.domain) {
-        results = results.filter((o) => o.domains.includes(filter.domain!));
-      }
-      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const offset = filter?.offset || 0;
-      const limit = filter?.limit || 100;
-      return results.slice(offset, offset + limit);
-    }
-
     let query = 'SELECT * FROM cross_domain_orchestrations WHERE tenant_id = $1';
     const params: unknown[] = [tenantId];
     let paramIdx = 2;
@@ -269,24 +241,12 @@ class OrchestrationRepository {
       params.push(filter.offset);
     }
 
-    const rows = (await this.pool!.query(query, params)).rows;
+    const rows = (await this.pool.query(query, params)).rows;
     return rows.map((r: OrchestrationRow) => this.rowToOrchestration(r));
   }
 
   async saveStep(step: OrchestrationStep, orchestrationId: string): Promise<void> {
-    if (!this.isDbAvailable()) {
-      const orch = this.memory.get(orchestrationId);
-      if (orch) {
-        const idx = orch.steps.findIndex((s) => s.stepName === step.stepName && s.sequence === step.sequence);
-        if (idx >= 0) {
-          orch.steps[idx] = step;
-        } else {
-          orch.steps.push(step);
-        }
-      }
-      return;
-    }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO cross_domain_orchestration_steps (
         id, orchestration_id, step_name, domain_name, sequence, status,
         input, output, error, retry_count, max_retries,
@@ -322,12 +282,8 @@ class OrchestrationRepository {
   }
 
   async findStepsByOrchestrationId(orchestrationId: string): Promise<OrchestrationStep[]> {
-    if (!this.isDbAvailable()) {
-      const orch = this.memory.get(orchestrationId);
-      return orch ? [...orch.steps] : [];
-    }
     const rows = (
-      await this.pool!.query(
+      await this.pool.query(
         'SELECT * FROM cross_domain_orchestration_steps WHERE orchestration_id = $1 ORDER BY sequence',
         [orchestrationId]
       )
@@ -382,14 +338,11 @@ export class CrossDomainOrchestrator {
   private repository: OrchestrationRepository;
   private sagaCoordinator: SagaCoordinator;
   private domainConnector: DomainConnector;
-  private orchestrations = new Map<string, CrossDomainOrchestRATION>();
 
-  constructor(options: {
-    database?: DatabasePool;
-    domainConnector?: DomainConnector;
-  } = {}) {
-    this.repository = new OrchestrationRepository(options.database);
-    this.domainConnector = options.domainConnector || new DomainConnector(options.database);
+  constructor(database: DatabasePool, domainConnector?: DomainConnector) {
+    if (!database) throw new Error('DatabasePool is required for CrossDomainOrchestrator');
+    this.repository = new OrchestrationRepository(database);
+    this.domainConnector = domainConnector || new DomainConnector(database);
 
     const transactionLog = new TransactionLog();
     const idempotencyChecker = new IdempotencyChecker();
@@ -452,7 +405,6 @@ export class CrossDomainOrchestrator {
     for (const step of orchestration.steps) {
       await this.repository.saveStep(step, orchestration.id);
     }
-    this.orchestrations.set(id, orchestration);
 
     return { ...orchestration };
   }

@@ -3,6 +3,8 @@
  *
  * Manages approval gates across cross-domain orchestration steps,
  * ensuring changes are properly reviewed before execution.
+ *
+ * PostgreSQL Repository pattern — database is the single source of truth.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -41,16 +43,16 @@ export interface CreateApprovalGateInput {
 // Repository
 // ============================================================
 
-class ApprovalGateRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, ApprovalGate>();
+class ApprovalGateCoordRepository {
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) { this.pool = pool || null; }
-  private isDbAvailable(): boolean { return this.pool !== null; }
+  constructor(pool: DatabasePool) {
+    if (!pool) throw new Error('DatabasePool is required');
+    this.pool = pool;
+  }
 
   async save(gate: ApprovalGate): Promise<void> {
-    if (!this.isDbAvailable()) { this.memory.set(gate.id, gate); return; }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO approval_gates (
         id, tenant_id, orchestration_id, step_name, domain_name, type, status,
         required_approvers, actual_approvers, auto_approve_condition,
@@ -70,10 +72,7 @@ class ApprovalGateRepository {
   }
 
   async findByOrchestration(orchestrationId: string): Promise<ApprovalGate[]> {
-    if (!this.isDbAvailable()) {
-      return Array.from(this.memory.values()).filter(g => g.orchestrationId === orchestrationId);
-    }
-    const rows = (await this.pool!.query(
+    const rows = (await this.pool.query(
       'SELECT * FROM approval_gates WHERE orchestration_id = $1 ORDER BY created_at',
       [orchestrationId]
     )).rows;
@@ -81,8 +80,7 @@ class ApprovalGateRepository {
   }
 
   async findById(id: string): Promise<ApprovalGate | null> {
-    if (!this.isDbAvailable()) return this.memory.get(id) || null;
-    const rows = (await this.pool!.query('SELECT * FROM approval_gates WHERE id = $1', [id])).rows;
+    const rows = (await this.pool.query('SELECT * FROM approval_gates WHERE id = $1', [id])).rows;
     return rows.length ? this.rowToGate(rows[0]) : null;
   }
 
@@ -104,10 +102,11 @@ class ApprovalGateRepository {
 // ============================================================
 
 export class ApprovalGateCoordinator {
-  private repository: ApprovalGateRepository;
+  private repository: ApprovalGateCoordRepository;
 
-  constructor(database?: DatabasePool) {
-    this.repository = new ApprovalGateRepository(database);
+  constructor(database: DatabasePool) {
+    if (!database) throw new Error('DatabasePool is required for ApprovalGateCoordinator');
+    this.repository = new ApprovalGateCoordRepository(database);
   }
 
   async createGate(tenantId: string, input: CreateApprovalGateInput): Promise<ApprovalGate> {

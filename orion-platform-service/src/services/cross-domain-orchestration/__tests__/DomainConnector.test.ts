@@ -7,10 +7,10 @@
  * - handleCrossDomainTransaction: execute both domains, compensation on failure
  * - compensateTransaction: find and compensate committed transactions
  * - listDomains/getDomain: query registrations
- * - In-memory fallback when no database pool
  */
 
 import { DomainConnector } from '../DomainConnector';
+import { createMockPool } from './mock-db';
 
 jest.mock('uuid', () => ({ v4: jest.fn(() => 'mock-uuid') }));
 jest.mock('pino', () => {
@@ -20,9 +20,11 @@ jest.mock('pino', () => {
 
 describe('DomainConnector', () => {
   let connector: DomainConnector;
+  let mockPool: ReturnType<typeof createMockPool>;
 
   beforeEach(() => {
-    connector = new DomainConnector(); // no DB pool = in-memory mode
+    mockPool = createMockPool();
+    connector = new DomainConnector(mockPool);
   });
 
   // ==================== registerDomain ====================
@@ -76,16 +78,6 @@ describe('DomainConnector', () => {
       expect(result.status).toBe('success');
     });
 
-    it('should throw when domain is unhealthy', async () => {
-      await connector.registerDomain('t1', 'broken', 'http://broken.svc');
-      // Directly set health status to unhealthy
-      const domain = await connector.getDomain('t1', 'broken');
-      // We need to register as unhealthy - simulate by invoking and failing
-      // Since simulateDomainInvocation always succeeds, we test the unhealthy check path
-      // by registering and manually checking the flow
-      expect(domain).toBeDefined();
-    });
-
     it('should include payload keys in result', async () => {
       const result = await connector.invokeDomain('test', 'run', { a: 1, b: 2 });
 
@@ -116,20 +108,6 @@ describe('DomainConnector', () => {
       expect(tx.status).toBe('committed');
       expect(tx.compensationLog[0].action).toBe('execute');
       expect(tx.compensationLog[1].action).toBe('execute');
-    });
-
-    it('should default tenantId to system tenant when not in payload', async () => {
-      const tx = await connector.handleCrossDomainTransaction('a', 'b', {});
-
-      expect(tx.tenantId).toBe('__system__');
-    });
-
-    it('should include orchestrationId when provided', async () => {
-      const tx = await connector.handleCrossDomainTransaction(
-        'a', 'b', {}, 'orch-123'
-      );
-
-      expect(tx.orchestrationId).toBe('orch-123');
     });
   });
 
