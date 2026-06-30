@@ -23,13 +23,97 @@ jest.mock('pino', () => {
 
 import { ConfigChangeService, SubmitChangeRequestInput } from '../ConfigChangeService';
 import { OrionError } from '../../../errors';
+import { ChangeRequestEntity, ChangeHistoryEntity } from '../../../repositories/ConfigChangeRepository';
 
 describe('ConfigChangeService', () => {
   let service: ConfigChangeService;
 
+  // In-memory stores for mock repositories
+  let store: Map<string, ChangeRequestEntity>;
+  let historyStore: ChangeHistoryEntity[];
+
+  let mockRepo: {
+    create: jest.Mock;
+    findById: jest.Mock;
+    findByTenant: jest.Mock;
+    update: jest.Mock;
+  };
+
+  let mockHistoryRepo: {
+    create: jest.Mock;
+    findByTenant: jest.Mock;
+  };
+
   beforeEach(() => {
     uuidCounter = 0;
-    service = new ConfigChangeService(); // No database = in-memory
+    jest.clearAllMocks();
+
+    store = new Map<string, ChangeRequestEntity>();
+    historyStore = [];
+
+    mockRepo = {
+      create: jest.fn(async (data: ChangeRequestEntity) => {
+        const entity = { ...data };
+        store.set(data.id, entity);
+        return entity;
+      }),
+      findById: jest.fn(async (id: string) => {
+        const found = store.get(id);
+        return found ? { ...found } : null;
+      }),
+      findByTenant: jest.fn(async (tenantId: string, filter?: any) => {
+        let results = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+        if (filter?.status) results = results.filter(e => e.status === filter.status);
+        if (filter?.configKey) results = results.filter(e => e.configKey === filter.configKey);
+        if (filter?.configGroup) results = results.filter(e => e.configGroup === filter.configGroup);
+        if (filter?.environment) results = results.filter(e => e.environment === filter.environment);
+        if (filter?.requester) results = results.filter(e => e.requester === filter.requester);
+        if (filter?.riskLevel) results = results.filter(e => e.riskLevel === filter.riskLevel);
+        return results;
+      }),
+      update: jest.fn(async (id: string, data: Partial<ChangeRequestEntity>) => {
+        const existing = store.get(id);
+        if (!existing) return null;
+        const updated = { ...existing, ...data };
+        store.set(id, updated);
+        return updated;
+      }),
+    };
+
+    mockHistoryRepo = {
+      create: jest.fn(async (data: ChangeHistoryEntity) => {
+        historyStore.push({ ...data });
+      }),
+      findByTenant: jest.fn(async (tenantId: string, filter?: any) => {
+        let results = historyStore.filter(e => e.tenantId === tenantId);
+        if (filter?.configKey) results = results.filter(e => e.configKey === filter.configKey);
+        if (filter?.configGroup) results = results.filter(e => e.configGroup === filter.configGroup);
+        return results;
+      }),
+    };
+
+    service = new ConfigChangeService({
+      repository: mockRepo as any,
+      historyRepository: mockHistoryRepo as any,
+    });
+  });
+
+  // ==================== Constructor ====================
+
+  describe('constructor', () => {
+    it('should throw if repository is not provided', () => {
+      expect(() => new ConfigChangeService({
+        repository: undefined as any,
+        historyRepository: undefined as any,
+      })).toThrow('ConfigChangeRequestRepository is required');
+    });
+
+    it('should throw if historyRepository is not provided', () => {
+      expect(() => new ConfigChangeService({
+        repository: mockRepo as any,
+        historyRepository: undefined as any,
+      })).toThrow('ConfigChangeHistoryRepository is required');
+    });
   });
 
   // ==================== submitChangeRequest ====================
@@ -247,7 +331,6 @@ describe('ConfigChangeService', () => {
     it('should rollback a failed change request', async () => {
       const request = await submitTestRequest();
       await service.approveChangeRequest(request.id, 'reviewer', 'approve');
-      // Execute will succeed in memory mode, so we test the rollback path
       await service.executeChangeRequest(request.id);
 
       const rolledBack = await service.rollbackChangeRequest(request.id);
@@ -280,7 +363,6 @@ describe('ConfigChangeService', () => {
       const result = await service.getChangeHistory('tenant-1');
 
       expect(result.changeRequests).toHaveLength(2);
-      // Note: history entries may be empty in-memory mode if tenantId is not set on entries
     });
 
     it('should filter by status', async () => {

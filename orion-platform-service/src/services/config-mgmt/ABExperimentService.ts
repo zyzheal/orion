@@ -7,11 +7,12 @@
  * - Traffic splitting
  * - Experiment results tracking
  *
- * Persistence: PostgreSQL via ABExperimentRepository (with Map fallback)
+ * Persistence: PostgreSQL via ABExperimentRepository
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { ABExperimentRepository, ABExperiment, ExperimentVariant } from '../../repositories/ABExperimentRepository';
+import pino from 'pino';
 
 // Re-export for backward compatibility
 export type ExperimentStatus = 'draft' | 'running' | 'completed' | 'cancelled';
@@ -45,44 +46,20 @@ export interface CreateExperimentInput {
   metrics?: ExperimentMetric[];
 }
 
-// ============================================================
-// In-memory fallback storage
-// ============================================================
-
-class InMemoryStore {
-  private store = new Map<string, ABExperiment>();
-
-  save(exp: ABExperiment): void {
-    this.store.set(exp.id, exp);
-  }
-
-  findById(id: string): ABExperiment | undefined {
-    return this.store.get(id);
-  }
-
-  findByTenant(tenantId: string, status?: string): ABExperiment[] {
-    let results = Array.from(this.store.values()).filter(e => e.tenantId === tenantId);
-    if (status) results = results.filter(e => e.status === status);
-    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-
-  deleteById(id: string): boolean {
-    return this.store.delete(id);
-  }
-}
+const logger = pino({ name: 'ABExperimentService' });
 
 // ============================================================
 // Service
 // ============================================================
 
 export class ABExperimentService {
-  private repository: ABExperimentRepository | null;
-  private memory = new InMemoryStore();
-  private useMemory: boolean;
+  private repository: ABExperimentRepository;
 
   constructor(repo?: ABExperimentRepository) {
-    this.repository = repo ?? null;
-    this.useMemory = !repo;
+    if (!repo) {
+      throw new Error('ABExperimentRepository is required');
+    }
+    this.repository = repo;
   }
 
   // ---- public CRUD ----
@@ -122,53 +99,32 @@ export class ABExperimentService {
       updatedAt: now,
     };
 
-    if (this.useMemory) {
-      this.memory.save(exp);
-    } else {
-      await this.repository!.create(exp);
-    }
-    return exp;
+    const created = await this.repository.create(exp);
+    logger.info({ experimentId: created.id, tenantId }, 'Experiment created');
+    return created;
   }
 
   async getExperiment(id: string): Promise<ABExperiment | null> {
-    if (this.useMemory) {
-      const exp = this.memory.findById(id);
-      return exp ?? null;
-    }
-    const exp = await this.repository!.findById(id);
+    const exp = await this.repository.findById(id);
     return exp ?? null;
   }
 
   async listExperiments(tenantId: string, status?: string): Promise<ABExperiment[]> {
-    if (this.useMemory) return this.memory.findByTenant(tenantId, status);
-    return this.repository!.findByTenant(tenantId, status);
+    return this.repository.findByTenant(tenantId, status);
   }
 
   async deleteExperiment(id: string): Promise<boolean> {
-    // Guard: running experiments cannot be deleted
-    if (this.useMemory) {
-      const exp = this.memory.findById(id);
-      if (exp && exp.status === 'running') {
-        throw new Error('Cannot delete running experiment');
-      }
-      return this.memory.deleteById(id);
-    }
-    const exp = await this.repository!.findById(id);
+    const exp = await this.repository.findById(id);
     if (exp && exp.status === 'running') {
       throw new Error('Cannot delete running experiment');
     }
-    return this.repository!.delete(id);
+    return this.repository.delete(id);
   }
 
   // ---- lifecycle ----
 
   async startExperiment(id: string): Promise<ABExperiment> {
-    let exp: ABExperiment | undefined;
-    if (this.useMemory) {
-      exp = this.memory.findById(id);
-    } else {
-      exp = await this.repository!.findById(id);
-    }
+    const exp = await this.repository.findById(id);
     if (!exp) throw new Error(`Experiment '${id}' not found`);
     if (exp.status !== 'draft') throw new Error(`Experiment cannot be started from '${exp.status}' state`);
 
@@ -176,21 +132,13 @@ export class ABExperimentService {
     exp.startDate = new Date();
     exp.updatedAt = new Date();
 
-    if (this.useMemory) {
-      this.memory.save(exp);
-    } else {
-      await this.repository!.updateById(id, exp);
-    }
-    return exp;
+    const updated = await this.repository.updateById(id, exp);
+    logger.info({ experimentId: id }, 'Experiment started');
+    return updated!;
   }
 
   async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
-    let exp: ABExperiment | undefined;
-    if (this.useMemory) {
-      exp = this.memory.findById(id);
-    } else {
-      exp = await this.repository!.findById(id);
-    }
+    const exp = await this.repository.findById(id);
     if (!exp) throw new Error(`Experiment '${id}' not found`);
     if (exp.status !== 'running') throw new Error(`Experiment is not running`);
 
@@ -199,21 +147,13 @@ export class ABExperimentService {
     exp.updatedAt = new Date();
     exp.results = this.generateResults(exp, winnerVariant);
 
-    if (this.useMemory) {
-      this.memory.save(exp);
-    } else {
-      await this.repository!.updateById(id, exp);
-    }
-    return exp;
+    const updated = await this.repository.updateById(id, exp);
+    logger.info({ experimentId: id }, 'Experiment stopped');
+    return updated!;
   }
 
   async cancelExperiment(id: string): Promise<ABExperiment> {
-    let exp: ABExperiment | undefined;
-    if (this.useMemory) {
-      exp = this.memory.findById(id);
-    } else {
-      exp = await this.repository!.findById(id);
-    }
+    const exp = await this.repository.findById(id);
     if (!exp) throw new Error(`Experiment '${id}' not found`);
     if (exp.status === 'completed') throw new Error('Cannot cancel completed experiment');
 
@@ -221,23 +161,15 @@ export class ABExperimentService {
     exp.endDate = new Date();
     exp.updatedAt = new Date();
 
-    if (this.useMemory) {
-      this.memory.save(exp);
-    } else {
-      await this.repository!.updateById(id, exp);
-    }
-    return exp;
+    const updated = await this.repository.updateById(id, exp);
+    logger.info({ experimentId: id }, 'Experiment cancelled');
+    return updated!;
   }
 
   // ---- traffic assignment ----
 
   async getAssignedVariant(experimentId: string, userId: string): Promise<ExperimentVariant | null> {
-    let exp: ABExperiment | undefined;
-    if (this.useMemory) {
-      exp = this.memory.findById(experimentId);
-    } else {
-      exp = await this.repository!.findById(experimentId);
-    }
+    const exp = await this.repository.findById(experimentId);
     if (!exp || exp.status !== 'running') return null;
 
     const hash = this.hashUser(userId, experimentId);

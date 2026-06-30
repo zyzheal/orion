@@ -21,15 +21,59 @@ jest.mock('pino', () => {
   }));
 });
 
-import { ConfigDriftDetector } from '../ConfigDriftDetector';
+import { ConfigDriftDetector, DriftReport } from '../ConfigDriftDetector';
+import { ConfigDriftEntity } from '../../../repositories/ConfigDriftRepository';
 import { OrionError } from '../../../errors';
+
+// In-memory store for testing
+const store = new Map<string, ConfigDriftEntity>();
+
+const mockRepo = {
+  upsert: jest.fn(async (report: any) => {
+    store.set(report.id, { ...report } as ConfigDriftEntity);
+  }),
+  findById: jest.fn(async (id: string) => {
+    const e = store.get(id);
+    return e ? { ...e } : undefined;
+  }),
+  findByTenant: jest.fn(async (tenantId: string, configGroup?: string) => {
+    let results = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+    if (configGroup) results = results.filter(e => e.configGroup === configGroup);
+    return results.sort((a, b) => {
+      const aTime = a.detectedAt instanceof Date ? a.detectedAt.getTime() : new Date(a.detectedAt).getTime();
+      const bTime = b.detectedAt instanceof Date ? b.detectedAt.getTime() : new Date(b.detectedAt).getTime();
+      return bTime - aTime;
+    });
+  }),
+  isDbAvailable: jest.fn(() => true),
+};
 
 describe('ConfigDriftDetector', () => {
   let detector: ConfigDriftDetector;
 
   beforeEach(() => {
     uuidCounter = 0;
-    detector = new ConfigDriftDetector(); // No database = in-memory
+    store.clear();
+    jest.clearAllMocks();
+    // Re-assign mock implementations after clearAllMocks
+    mockRepo.upsert.mockImplementation(async (report: any) => {
+      store.set(report.id, { ...report } as ConfigDriftEntity);
+    });
+    mockRepo.findById.mockImplementation(async (id: string) => {
+      const e = store.get(id);
+      return e ? { ...e } : undefined;
+    });
+    mockRepo.findByTenant.mockImplementation(async (tenantId: string, configGroup?: string) => {
+      let results = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+      if (configGroup) results = results.filter(e => e.configGroup === configGroup);
+      return results.sort((a, b) => {
+        const aTime = a.detectedAt instanceof Date ? a.detectedAt.getTime() : new Date(a.detectedAt).getTime();
+        const bTime = b.detectedAt instanceof Date ? b.detectedAt.getTime() : new Date(b.detectedAt).getTime();
+        return bTime - aTime;
+      });
+    });
+
+    detector = new ConfigDriftDetector({ repository: mockRepo as any });
   });
 
   // ==================== compareConfig ====================
@@ -270,6 +314,14 @@ describe('ConfigDriftDetector', () => {
       for (const item of dbItems) {
         expect(['high', 'critical']).toContain(item.severity);
       }
+    });
+  });
+
+  // ==================== Constructor validation ====================
+
+  describe('constructor', () => {
+    it('should throw error when no repository provided', () => {
+      expect(() => new ConfigDriftDetector()).toThrow('ConfigDriftRepository is required');
     });
   });
 });

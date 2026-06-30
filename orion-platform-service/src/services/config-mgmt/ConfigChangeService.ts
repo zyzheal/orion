@@ -8,18 +8,14 @@
  * - 回滚变更
  * - 查询变更历史
  *
- * 复用现有的 ConfigService + ConfigApprovalService 基础能力
- *
- * PostgreSQL Repository pattern with Map fallback for graceful degradation.
+ * Persistence: PostgreSQL via ConfigChangeRequestRepository + ConfigChangeHistoryRepository
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../database';
 import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
-import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   ConfigChangeRequestRepository,
   ConfigChangeHistoryRepository,
@@ -29,19 +25,8 @@ import {
 
 const logger = pino({ name: 'LConfig-LChange-LService' });
 
-// ============================================================
-// Types
-// ============================================================
-
 export type ChangeRequestType = 'create' | 'modify' | 'delete';
-export type ChangeRequestStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'executing'
-  | 'executed'
-  | 'failed'
-  | 'rolled_back';
+export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected' | 'executing' | 'executed' | 'failed' | 'rolled_back';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 export interface ChangeRequest {
@@ -119,45 +104,26 @@ export interface ChangeHistoryEntry {
   createdAt: Date;
 }
 
-// ============================================================
-// Service
-// ============================================================
-
 export class ConfigChangeService {
-  private repository: ConfigChangeRequestRepository | null;
-  private historyRepository: ConfigChangeHistoryRepository | null;
-  private memory = new Map<string, ChangeRequest>();
-
+  private repository: ConfigChangeRequestRepository;
+  private historyRepository: ConfigChangeHistoryRepository;
   private configService?: ConfigService;
   private approvalService?: ConfigApprovalService;
 
   constructor(options: {
-    database?: DatabasePool;
+    repository: ConfigChangeRequestRepository;
+    historyRepository: ConfigChangeHistoryRepository;
     configService?: ConfigService;
     approvalService?: ConfigApprovalService;
-  } = {}) {
-    if (options.database) {
-      this.repository = new ConfigChangeRequestRepository(options.database);
-      this.historyRepository = new ConfigChangeHistoryRepository(options.database);
-    } else {
-      this.repository = null;
-      this.historyRepository = null;
-    }
+  }) {
+    if (!options.repository) throw new Error('ConfigChangeRequestRepository is required');
+    if (!options.historyRepository) throw new Error('ConfigChangeHistoryRepository is required');
+    this.repository = options.repository;
+    this.historyRepository = options.historyRepository;
     this.configService = options.configService;
     this.approvalService = options.approvalService;
   }
 
-  private isDbAvailable(): boolean {
-    return this.repository !== null;
-  }
-
-  // ============================================================
-  // Public API
-  // ============================================================
-
-  /**
-   * 提交配置变更请求
-   */
   async submitChangeRequest(
     tenantId: string,
     input: SubmitChangeRequestInput,
@@ -187,14 +153,8 @@ export class ConfigChangeService {
       updatedAt: now,
     };
 
-    // Persist via repo or memory
-    if (this.repository) {
-      await this.persistToDB(changeRequest);
-    } else {
-      this.memory.set(id, changeRequest);
-    }
+    await this.persistToDB(changeRequest);
 
-    // Persist history
     await this.recordHistory({
       id: uuidv4(),
       tenantId,
@@ -213,9 +173,6 @@ export class ConfigChangeService {
     return { ...changeRequest };
   }
 
-  /**
-   * 审批变更请求
-   */
   async approveChangeRequest(
     requestId: string,
     reviewerId: string,
@@ -231,7 +188,6 @@ export class ConfigChangeService {
       throw new OrionError(`Change request is not pending (current: ${changeRequest.status})`, ErrorCode.NOT_FOUND);
     }
 
-    // Check if reviewer already voted
     const existingApproval = changeRequest.approvals.find((a) => a.approver === reviewerId);
     if (existingApproval) {
       throw new OrionError(`Reviewer '${reviewerId}' has already voted on this change request`, ErrorCode.NOT_FOUND);
@@ -250,25 +206,17 @@ export class ConfigChangeService {
     changeRequest.updatedAt = now;
 
     if (action === 'approve') {
-      const approvedCount = changeRequest.approvals.filter(
-        (a) => a.action === 'approve'
-      ).length;
-
+      const approvedCount = changeRequest.approvals.filter((a) => a.action === 'approve').length;
       if (approvedCount >= changeRequest.requiredApprovals) {
         changeRequest.status = 'approved';
         changeRequest.approvedAt = now;
         changeRequest.approvedBy = reviewerId;
       }
     } else {
-      // Rejection is immediate
       changeRequest.status = 'rejected';
     }
 
-    if (this.repository) {
-      await this.persistToDB(changeRequest);
-    } else {
-      this.memory.set(requestId, changeRequest);
-    }
+    await this.persistToDB(changeRequest);
 
     await this.recordHistory({
       id: uuidv4(),
@@ -287,16 +235,10 @@ export class ConfigChangeService {
     return { ...changeRequest };
   }
 
-  /**
-   * 执行变更请求
-   */
-  async executeChangeRequest(
-    requestId: string,
-    executorId?: string
-  ): Promise<ChangeRequest> {
+  async executeChangeRequest(requestId: string, executorId?: string): Promise<ChangeRequest> {
     const changeRequest = await this.getChangeRequest(requestId);
     if (!changeRequest) {
-      throw new OrionError(`Change request '${requestId}' not found`, 'NOT_FOUND')
+      throw new OrionError(`Change request '${requestId}' not found`, 'NOT_FOUND');
     }
 
     if (changeRequest.status !== 'approved') {
@@ -305,18 +247,12 @@ export class ConfigChangeService {
 
     changeRequest.status = 'executing';
     changeRequest.updatedAt = new Date();
-    if (this.repository) {
-      await this.persistToDB(changeRequest);
-    } else {
-      this.memory.set(requestId, changeRequest);
-    }
+    await this.persistToDB(changeRequest);
 
     try {
-      // Execute the actual config change
       if (this.configService) {
         await this.applyConfigChange(changeRequest);
       } else {
-        // Simulate execution
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
@@ -324,19 +260,11 @@ export class ConfigChangeService {
       changeRequest.executedAt = new Date();
       changeRequest.executedBy = executorId || 'system';
       changeRequest.updatedAt = new Date();
-      if (this.repository) {
-        await this.persistToDB(changeRequest);
-      } else {
-        this.memory.set(requestId, changeRequest);
-      }
+      await this.persistToDB(changeRequest);
     } catch (error) {
       changeRequest.status = 'failed';
       changeRequest.updatedAt = new Date();
-      if (this.repository) {
-        await this.persistToDB(changeRequest);
-      } else {
-        this.memory.set(requestId, changeRequest);
-      }
+      await this.persistToDB(changeRequest);
       throw error;
     }
 
@@ -357,20 +285,14 @@ export class ConfigChangeService {
     return { ...changeRequest };
   }
 
-  /**
-   * 回滚变更请求
-   */
-  async rollbackChangeRequest(
-    requestId: string,
-    rolledBackBy?: string
-  ): Promise<ChangeRequest> {
+  async rollbackChangeRequest(requestId: string, rolledBackBy?: string): Promise<ChangeRequest> {
     const changeRequest = await this.getChangeRequest(requestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (changeRequest.status !== 'executed' && changeRequest.status !== 'failed') {
-      throw new OrionError(`Can only rollback executed or failed changes (current: ${changeRequest.status})`, 'OPERATION_FAILED')
+      throw new OrionError(`Can only rollback executed or failed changes (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
     changeRequest.status = 'rolled_back';
@@ -378,16 +300,10 @@ export class ConfigChangeService {
     changeRequest.rolledBackBy = rolledBackBy || 'system';
     changeRequest.updatedAt = new Date();
 
-    if (this.repository) {
-      await this.persistToDB(changeRequest);
-    } else {
-      this.memory.set(requestId, changeRequest);
-    }
+    await this.persistToDB(changeRequest);
 
-    // Apply rollback if config service available
     if (this.configService && changeRequest.oldValue) {
       try {
-        // Restore old value (simplified — actual implementation would use config service)
         logger.info(`[ConfigChangeService] Rollback applied for request ${requestId}`);
       } catch (error) {
         logger.error(`[ConfigChangeService] Rollback failed for request ${requestId}:`, error);
@@ -411,80 +327,44 @@ export class ConfigChangeService {
     return { ...changeRequest };
   }
 
-  /**
-   * 获取变更历史
-   */
-  async getChangeHistory(
-    tenantId: string,
-    filter?: ChangeHistoryFilter
-  ): Promise<{
+  async getChangeHistory(tenantId: string, filter?: ChangeHistoryFilter): Promise<{
     changeRequests: ChangeRequest[];
     history: ChangeHistoryEntry[];
   }> {
     const changeRequests = await this.listChangeRequests(tenantId, filter);
     const history = await this.getChangeHistoryEntries(tenantId, filter);
-
     return { changeRequests, history };
   }
 
-  /**
-   * 获取变更请求详情
-   */
   async getChangeRequestById(id: string): Promise<ChangeRequest | null> {
     return this.getChangeRequest(id);
   }
 
-  /**
-   * 列出变更请求
-   */
-  async listChangeRequests(
-    tenantId: string,
-    filter?: ChangeHistoryFilter
-  ): Promise<ChangeRequest[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter((r) => r.tenantId === tenantId);
-      if (filter?.status) results = results.filter((r) => r.status === filter.status);
-      if (filter?.configKey) results = results.filter((r) => r.configKey === filter.configKey);
-      if (filter?.configGroup) results = results.filter((r) => r.configGroup === filter.configGroup);
-      if (filter?.environment) results = results.filter((r) => r.environment === filter.environment);
-      if (filter?.requester) results = results.filter((r) => r.requester === filter.requester);
-      if (filter?.riskLevel) results = results.filter((r) => r.riskLevel === filter.riskLevel);
-      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const offset = filter?.offset || 0;
-      const limit = filter?.limit || 100;
-      return results.slice(offset, offset + limit).map(r => ({ ...r }));
-    }
-
-    const entities = await this.repository!.findByTenant(tenantId, filter);
+  async listChangeRequests(tenantId: string, filter?: ChangeHistoryFilter): Promise<ChangeRequest[]> {
+    const entities = await this.repository.findByTenant(tenantId, {
+      status: filter?.status,
+      configKey: filter?.configKey,
+      configGroup: filter?.configGroup,
+      environment: filter?.environment,
+      requester: filter?.requester,
+      riskLevel: filter?.riskLevel,
+      limit: filter?.limit,
+      offset: filter?.offset,
+    });
     return entities.map(e => this.entityToChangeRequest(e));
   }
 
-  // ============================================================
-  // Internal Methods
-  // ============================================================
+  // ==================== Internal Methods ====================
 
   private async getChangeRequest(id: string): Promise<ChangeRequest | null> {
-    if (!this.isDbAvailable()) {
-      const entity = this.memory.get(id);
-      return entity ? { ...entity } : null;
-    }
-
-    const entity = await this.repository!.findById(id);
+    const entity = await this.repository.findById(id);
     if (!entity) return null;
     return this.entityToChangeRequest(entity);
   }
 
-  private async getChangeHistoryEntries(
-    tenantId: string,
-    filter?: ChangeHistoryFilter
-  ): Promise<ChangeHistoryEntry[]> {
-    if (!this.isDbAvailable()) {
-      logger.warn('[ConfigChangeService] History repository unavailable, returning empty history');
-      return [];
-    }
-
+  private async getChangeHistoryEntries(tenantId: string, filter?: ChangeHistoryFilter): Promise<ChangeHistoryEntry[]> {
     try {
-      const entities = await this.historyRepository!.findByTenant(tenantId, {
+      const entities = await this.historyRepository.findByTenant(tenantId, {
         configKey: filter?.configKey,
         configGroup: filter?.configGroup,
         limit: filter?.limit,
@@ -492,20 +372,14 @@ export class ConfigChangeService {
       });
       return entities.map(e => this.historyEntityToEntry(e));
     } catch (error) {
-      logger.warn(`[ConfigChangeService] Failed to query history from DB: ${(error as Error).message}`);
+      logger.warn(`[ConfigChangeService] Failed to query history: ${(error as Error).message}`);
       return [];
     }
   }
 
   private async persistToDB(changeRequest: ChangeRequest): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(changeRequest.id, changeRequest);
-      return;
-    }
-
     try {
-      // Try insert first; on conflict, update
-      await this.repository!.create({
+      await this.repository.create({
         id: changeRequest.id,
         tenantId: changeRequest.tenantId,
         configKey: changeRequest.configKey,
@@ -532,41 +406,30 @@ export class ConfigChangeService {
         updatedAt: changeRequest.updatedAt,
       });
     } catch (error) {
-      // On conflict/duplicate, fall back to update
       if ((error as OrionError).code === 'OPERATION_FAILED') {
         try {
-          await this.repository!.update(changeRequest.id, {
-            status: changeRequest.status,
-            approvals: changeRequest.approvals,
-            executedAt: changeRequest.executedAt,
-            executedBy: changeRequest.executedBy,
-            approvedAt: changeRequest.approvedAt,
-            approvedBy: changeRequest.approvedBy,
-            rolledBackAt: changeRequest.rolledBackAt,
-            rolledBackBy: changeRequest.rolledBackBy,
-            updatedAt: changeRequest.updatedAt,
+          await this.repository.updateStatus(changeRequest.id, changeRequest.status, {
+            approvals: JSON.stringify(changeRequest.approvals),
+            executed_at: changeRequest.executedAt,
+            executed_by: changeRequest.executedBy,
+            approved_at: changeRequest.approvedAt,
+            approved_by: changeRequest.approvedBy,
+            rolled_back_at: changeRequest.rolledBackAt,
+            rolled_back_by: changeRequest.rolledBackBy,
+            updated_at: changeRequest.updatedAt,
           });
         } catch (updateError) {
-          logger.warn(`[ConfigChangeService] Failed to persist change request to DB: ${(updateError as Error).message}`);
+          logger.warn(`[ConfigChangeService] Failed to persist: ${(updateError as Error).message}`);
         }
       } else {
-        logger.warn(`[ConfigChangeService] Failed to persist change request to DB: ${(error as Error).message}`);
+        logger.warn(`[ConfigChangeService] Failed to persist: ${(error as Error).message}`);
       }
     }
   }
 
   private async recordHistory(entry: ChangeHistoryEntry): Promise<void> {
-    if (!this.isDbAvailable()) {
-      // History is append-only audit trail; if no DB, log and continue
-      logger.warn('[ConfigChangeService] History repository unavailable, audit entry skipped:', {
-        changeRequestId: entry.changeRequestId,
-        action: entry.action,
-      });
-      return;
-    }
-
     try {
-      await this.historyRepository!.create({
+      await this.historyRepository.create({
         id: entry.id,
         tenantId: entry.tenantId || '00000000-0000-0000-0000-000000000000',
         changeRequestId: entry.changeRequestId || '',
@@ -581,7 +444,7 @@ export class ConfigChangeService {
         createdAt: entry.createdAt,
       });
     } catch (error) {
-      logger.warn(`[ConfigChangeService] Failed to persist history entry to DB: ${(error as Error).message}`);
+      logger.warn(`[ConfigChangeService] Failed to persist history: ${(error as Error).message}`);
     }
   }
 
@@ -633,15 +496,11 @@ export class ConfigChangeService {
 
   private calculateRequiredApprovals(riskLevel: RiskLevel): number {
     switch (riskLevel) {
-      case 'critical':
-        return 3;
-      case 'high':
-        return 2;
-      case 'medium':
-        return 1;
+      case 'critical': return 3;
+      case 'high': return 2;
+      case 'medium': return 1;
       case 'low':
-      default:
-        return 1;
+      default: return 1;
     }
   }
 
@@ -661,10 +520,7 @@ export class ConfigChangeService {
         }
         break;
       case 'delete':
-        await this.configService.delete(
-          changeRequest.tenantId,
-          changeRequest.configKey
-        );
+        await this.configService.delete(changeRequest.tenantId, changeRequest.configKey);
         break;
     }
   }

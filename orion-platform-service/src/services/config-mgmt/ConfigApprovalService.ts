@@ -4,12 +4,7 @@
  * Manages approval workflows for configuration changes.
  * Supports multi-level approval, auto-apply on approval, and audit trail.
  *
- * Features:
- *   - Create change requests for config modifications
- *   - Multi-level approval (configurable number of approvers)
- *   - Approval/rejection with comments
- *   - Auto-apply approved changes to configuration
- *   - Full audit trail for all config changes
+ * Persistence: PostgreSQL via ConfigApprovalRepository
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -19,7 +14,6 @@ import {
   CreateChangeRequestInput,
   ApproveChangeInput,
   ApprovalRecord,
-  ConfigItem,
   ConfigEnvironment,
   IEventPublisher,
   ConfigEvents,
@@ -27,32 +21,29 @@ import {
 import { ConfigApprovalRepository } from '../../repositories/ConfigApprovalRepository';
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LConfig-LApproval-LService' });
 
 export interface ConfigApprovalServiceConfig {
   configService: ConfigService;
+  repository: ConfigApprovalRepository;
   eventPublisher?: IEventPublisher;
   /** Auto-apply approved changes (default: true) */
   autoApply?: boolean;
-  /** Optional PostgreSQL repository for persistence */
-  repository?: ConfigApprovalRepository;
 }
 
 export class ConfigApprovalService {
-  private changeRequests: Map<string, ConfigChangeRequest>;
+  private repository: ConfigApprovalRepository;
   private configService: ConfigService;
   private eventPublisher: IEventPublisher | null;
   private autoApply: boolean;
-  private repository?: ConfigApprovalRepository;
 
   constructor(config: ConfigApprovalServiceConfig) {
-    this.changeRequests = new Map();
+    if (!config.repository) throw new Error('ConfigApprovalRepository is required');
+    this.repository = config.repository;
     this.configService = config.configService;
     this.eventPublisher = config.eventPublisher || null;
     this.autoApply = config.autoApply !== false;
-    this.repository = config.repository;
   }
 
   setEventPublisher(publisher: IEventPublisher): void {
@@ -63,12 +54,7 @@ export class ConfigApprovalService {
     this.autoApply = enabled;
   }
 
-  /**
-   * Create a new configuration change request
-   */
-  async createChangeRequest(
-    input: CreateChangeRequestInput
-  ): Promise<ConfigChangeRequest> {
+  async createChangeRequest(input: CreateChangeRequestInput): Promise<ConfigChangeRequest> {
     const config = await this.configService.getConfigById(input.configId);
     if (!config) {
       throw new OrionError(`Config '${input.configId}' not found`, ErrorCode.NOT_FOUND);
@@ -77,11 +63,10 @@ export class ConfigApprovalService {
     const now = new Date();
     const id = uuidv4();
 
-    // Extract actual value (may be nested due to repository storage format)
     const rawValue = config.value as any;
     const actualValue = rawValue?.value !== undefined ? rawValue.value : rawValue;
 
-    const changeRequest: ConfigChangeRequest = {
+    const created = await this.repository.create({
       id,
       configId: input.configId,
       configKey: config.key,
@@ -90,46 +75,15 @@ export class ConfigApprovalService {
       newValue: input.newValue,
       reason: input.reason,
       requester: input.requester,
-      status: 'pending',
-      approvals: [],
       requiredApprovals: input.requiredApprovals || 1,
-      createdAt: now,
-      updatedAt: now,
-    };
+    });
 
-    // Persist to PostgreSQL if repository is available, otherwise use in-memory fallback
-    if (this.repository) {
-      try {
-        await this.repository.create({
-          id: changeRequest.id,
-          configId: changeRequest.configId,
-          configKey: changeRequest.configKey,
-          environment: changeRequest.environment,
-          oldValue: changeRequest.oldValue,
-          newValue: changeRequest.newValue,
-          reason: changeRequest.reason,
-          requester: changeRequest.requester,
-          requiredApprovals: changeRequest.requiredApprovals,
-        });
-      } catch (err) {
-        logger.error('[ConfigApprovalService] Failed to persist change request to DB, falling back to memory:', err);
-        this.changeRequests.set(id, changeRequest);
-      }
-    } else {
-      this.changeRequests.set(id, changeRequest);
-    }
-
-    return { ...changeRequest };
+    logger.info({ changeRequestId: id }, 'Change request created');
+    return created;
   }
 
-  /**
-   * Approve a change request
-   */
-  async approveChange(
-    changeRequestId: string,
-    input: ApproveChangeInput
-  ): Promise<ConfigChangeRequest> {
-    const changeRequest = this.changeRequests.get(changeRequestId);
+  async approveChange(changeRequestId: string, input: ApproveChangeInput): Promise<ConfigChangeRequest> {
+    const changeRequest = await this.repository.findById(changeRequestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${changeRequestId}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -138,10 +92,7 @@ export class ConfigApprovalService {
       throw new OrionError(`Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
-    // Check if this approver has already approved
-    const existingApproval = changeRequest.approvals.find(
-      (a) => a.approver === input.approver
-    );
+    const existingApproval = changeRequest.approvals.find((a) => a.approver === input.approver);
     if (existingApproval) {
       throw new OrionError(`Approver '${input.approver}' has already voted on this change request`, 'OPERATION_FAILED');
     }
@@ -157,18 +108,10 @@ export class ConfigApprovalService {
     };
 
     changeRequest.approvals.push(approval);
-    changeRequest.updatedAt = now;
 
-    // Check if all required approvals have been met
-    const approvedCount = changeRequest.approvals.filter(
-      (a) => a.status === 'approved'
-    ).length;
+    const approvedCount = changeRequest.approvals.filter((a) => a.status === 'approved').length;
 
     if (approvedCount >= changeRequest.requiredApprovals) {
-      changeRequest.status = 'approved';
-      changeRequest.approvedBy = input.approver;
-      changeRequest.approvedAt = now;
-
       await this.publishEvent(ConfigEvents.CONFIG_APPROVED, {
         changeRequestId,
         configId: changeRequest.configId,
@@ -176,23 +119,46 @@ export class ConfigApprovalService {
         approvedBy: input.approver,
       });
 
-      // Auto-apply the change
       if (this.autoApply) {
-        await this.applyChange(changeRequest);
+        try {
+          await this.configService.updateConfig(
+            changeRequest.configId,
+            { value: changeRequest.newValue, updatedBy: `approval:${changeRequest.id}` },
+          );
+          const updated = await this.repository.update(changeRequestId, {
+            status: 'applied',
+            approvals: changeRequest.approvals,
+            appliedAt: new Date(),
+            appliedBy: 'system-auto-apply',
+            approvedAt: now,
+            approvedBy: input.approver,
+          });
+          logger.info({ changeRequestId }, 'Change auto-applied');
+          return updated!;
+        } catch (error: any) {
+          logger.error({ changeRequestId, error: error.message }, 'Auto-apply failed');
+          throw new OrionError(`Change request approved but auto-apply failed: ${error.message}`, 'OPERATION_FAILED');
+        }
       }
+
+      const updated = await this.repository.update(changeRequestId, {
+        status: 'approved',
+        approvals: changeRequest.approvals,
+        approvedAt: now,
+        approvedBy: input.approver,
+      });
+      return updated!;
     }
 
-    return { ...changeRequest };
+    // Not enough approvals yet, just save the approval record
+    const updated = await this.repository.update(changeRequestId, {
+      approvals: changeRequest.approvals,
+    });
+    return updated!;
   }
 
-  /**
-   * Reject a change request
-   */
-  async rejectChange(
-    changeRequestId: string,
-    input: ApproveChangeInput
-  ): Promise<ConfigChangeRequest> {
-    const changeRequest = this.changeRequests.get(changeRequestId);
+  async rejectChange(changeRequestId: string, input: ApproveChangeInput): Promise<ConfigChangeRequest> {
+    const changeRequest = await this.repository.findById(changeRequestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${changeRequestId}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -201,10 +167,7 @@ export class ConfigApprovalService {
       throw new OrionError(`Change request '${changeRequestId}' is not in pending state (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
-    // Check if this approver has already voted
-    const existingApproval = changeRequest.approvals.find(
-      (a) => a.approver === input.approver
-    );
+    const existingApproval = changeRequest.approvals.find((a) => a.approver === input.approver);
     if (existingApproval) {
       throw new OrionError(`Approver '${input.approver}' has already voted on this change request`, 'OPERATION_FAILED');
     }
@@ -220,8 +183,11 @@ export class ConfigApprovalService {
     };
 
     changeRequest.approvals.push(approval);
-    changeRequest.status = 'rejected';
-    changeRequest.updatedAt = now;
+
+    await this.repository.update(changeRequestId, {
+      status: 'rejected',
+      approvals: changeRequest.approvals,
+    });
 
     await this.publishEvent(ConfigEvents.CONFIG_REJECTED, {
       changeRequestId,
@@ -231,60 +197,29 @@ export class ConfigApprovalService {
       comment: input.comment,
     });
 
-    return { ...changeRequest };
+    const updated = await this.repository.findById(changeRequestId);
+    return updated!;
   }
 
-  /**
-   * Get a change request by ID
-   */
-  async getChangeRequest(
-    changeRequestId: string
-  ): Promise<ConfigChangeRequest | null> {
-    const changeRequest = this.changeRequests.get(changeRequestId);
-    return changeRequest ? { ...changeRequest } : null;
+  async getChangeRequest(changeRequestId: string): Promise<ConfigChangeRequest | null> {
+    return this.repository.findById(changeRequestId);
   }
 
-  /**
-   * List change requests with optional filters
-   */
   async listChangeRequests(options?: {
     status?: string;
     configId?: string;
     requester?: string;
     environment?: string;
   }): Promise<ConfigChangeRequest[]> {
-    let results = Array.from(this.changeRequests.values());
-
-    if (options?.status) {
-      results = results.filter((cr) => cr.status === options.status);
-    }
-    if (options?.configId) {
-      results = results.filter((cr) => cr.configId === options.configId);
-    }
-    if (options?.requester) {
-      results = results.filter((cr) => cr.requester === options.requester);
-    }
-    if (options?.environment) {
-      results = results.filter(
-        (cr) => cr.environment === options.environment
-      );
-    }
-
-    return results.map((cr) => ({ ...cr }));
+    return this.repository.findMany(options);
   }
 
-  /**
-   * List pending change requests awaiting approval
-   */
   async listPendingApprovals(): Promise<ConfigChangeRequest[]> {
     return this.listChangeRequests({ status: 'pending' });
   }
 
-  /**
-   * Cancel a pending change request
-   */
   async cancelChangeRequest(changeRequestId: string): Promise<ConfigChangeRequest> {
-    const changeRequest = this.changeRequests.get(changeRequestId);
+    const changeRequest = await this.repository.findById(changeRequestId);
     if (!changeRequest) {
       throw new OrionError(`Change request '${changeRequestId}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -293,51 +228,18 @@ export class ConfigApprovalService {
       throw new OrionError(`Only pending change requests can be cancelled (current: ${changeRequest.status})`, 'OPERATION_FAILED');
     }
 
-    changeRequest.status = 'rejected';
-    changeRequest.updatedAt = new Date();
-
-    return { ...changeRequest };
+    const updated = await this.repository.update(changeRequestId, { status: 'rejected' });
+    return updated!;
   }
 
-  /**
-   * Get audit trail for a specific config
-   */
   async getAuditTrail(configId: string): Promise<ConfigChangeRequest[]> {
-    return Array.from(this.changeRequests.values())
-      .filter((cr) => cr.configId === configId)
-      .map((cr) => ({ ...cr }));
-  }
-
-  // ==================== Internal Methods ====================
-
-  private async applyChange(changeRequest: ConfigChangeRequest): Promise<void> {
-    try {
-      await this.configService.updateConfig(
-        changeRequest.configId,
-        { value: changeRequest.newValue, updatedBy: `approval:${changeRequest.id}` },
-      );
-
-      changeRequest.status = 'applied';
-      changeRequest.appliedAt = new Date();
-      changeRequest.appliedBy = 'system-auto-apply';
-      changeRequest.updatedAt = new Date();
-
-      this.changeRequests.set(changeRequest.id, changeRequest);
-    } catch (error: any) {
-      // Failed to apply - log but don't reject the approval
-      changeRequest.status = 'approved'; // Keep as approved even if auto-apply failed
-      changeRequest.updatedAt = new Date();
-      this.changeRequests.set(changeRequest.id, changeRequest);
-      throw new OrionError(`Change request approved but auto-apply failed: ${error.message}`, 'OPERATION_FAILED');
-    }
+    return this.repository.findByConfig(configId);
   }
 
   private async publishEvent(type: string, data: any): Promise<void> {
     if (!this.eventPublisher) return;
     try {
-      await this.eventPublisher.publish(type, data, {
-        source: 'config-approval-service',
-      });
+      await this.eventPublisher.publish(type, data, { source: 'config-approval-service' });
     } catch {
       // Best-effort event publishing
     }

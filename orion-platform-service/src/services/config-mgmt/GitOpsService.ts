@@ -4,12 +4,7 @@
  * Manages synchronization between configuration items and a Git repository.
  * Supports drift detection, auto-sync, and sync status tracking.
  *
- * Features:
- *   - Pull configs from Git repository (YAML/JSON format)
- *   - Detect configuration drift between Git and platform state
- *   - Auto-sync with configurable interval
- *   - Sync status tracking and history
- *   - Auto-rollback on sync failure detection
+ * Persistence: PostgreSQL via GitOpsRepository
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +15,6 @@ import {
   CreateGitOpsInput,
   SyncStatus,
   ConfigDiff,
-  ConfigItem,
   GitOpsStatus,
   SyncDirection,
   IEventPublisher,
@@ -43,8 +37,8 @@ export interface GitOpsServiceConfig {
   eventPublisher?: IEventPublisher;
   /** Git client interface (mockable for testing) */
   gitClient?: IGitClient;
-  /** PostgreSQL repository for persistence */
-  repository?: GitOpsRepository;
+  /** PostgreSQL repository for persistence (required) */
+  repository: GitOpsRepository;
 }
 
 /** Interface for Git operations (allows mocking) */
@@ -95,20 +89,16 @@ export class GitOpsService {
   private gitClient: IGitClient;
   private syncTimer: NodeJS.Timeout | null;
   private repoDir: string;
-  private repository?: GitOpsRepository;
-  // Memory fallback for when no repository
-  private gitOpsConfigs: Map<string, GitOpsConfig>;
-  private syncHistory: SyncStatus[];
+  private repository: GitOpsRepository;
 
   constructor(config: GitOpsServiceConfig) {
+    if (!config.repository) throw new Error('GitOpsRepository is required');
+    this.repository = config.repository;
     this.configService = config.configService;
     this.eventPublisher = config.eventPublisher || null;
     this.gitClient = config.gitClient || new MockGitClient();
     this.syncTimer = null;
     this.repoDir = '/tmp/orion-config-repo';
-    this.repository = config.repository;
-    this.gitOpsConfigs = new Map();
-    this.syncHistory = [];
   }
 
   setGitClient(client: IGitClient): void {
@@ -139,15 +129,10 @@ export class GitOpsService {
       createdAt: now,
     };
 
-    // Persist to repository or memory
-    if (this.repository) {
-      await this.repository.createGitOpsConfig(gitOpsConfig);
-    } else {
-      this.gitOpsConfigs.set(id, gitOpsConfig);
-    }
+    await this.repository.createGitOpsConfig(gitOpsConfig);
 
     // Start sync timer
-    this.startSyncTimer();
+    await this.startSyncTimer();
 
     return { ...gitOpsConfig };
   }
@@ -156,32 +141,16 @@ export class GitOpsService {
    * Disable GitOps synchronization
    */
   async disableGitOps(gitOpsConfigId: string): Promise<GitOpsConfig> {
-    // Try repository first, fallback to memory
-    let config = this.repository
-      ? await this.repository.findById(gitOpsConfigId)
-      : null;
-
-    if (!config) {
-      config = this.gitOpsConfigs.get(gitOpsConfigId) || null;
-    }
+    const config = await this.repository.findById(gitOpsConfigId);
 
     if (!config) {
       throw new OrionError(`GitOps config '${gitOpsConfigId}' not found`, ErrorCode.NOT_FOUND);
     }
 
-    config.status = 'disabled';
-
-    // Update in repository or memory
-    if (this.repository) {
-      await this.repository.update(gitOpsConfigId, { status: 'disabled' });
-    } else {
-      this.gitOpsConfigs.set(gitOpsConfigId, config);
-    }
+    await this.repository.update(gitOpsConfigId, { status: 'disabled' });
 
     // Stop sync timer if this was the only active config
-    const allConfigs = this.repository
-      ? await this.repository.findByStatus('enabled')
-      : Array.from(this.gitOpsConfigs.values());
+    const allConfigs = await this.repository.findByStatus('enabled');
 
     const hasActive = allConfigs.some(
       (c) => c.status === 'enabled' || c.status === 'syncing'
@@ -191,19 +160,14 @@ export class GitOpsService {
       this.syncTimer = null;
     }
 
-    return { ...config };
+    return { ...config, status: 'disabled' };
   }
 
   /**
    * Get GitOps configuration by ID
    */
   async getGitOpsConfig(gitOpsConfigId: string): Promise<GitOpsConfig | null> {
-    // Try repository first, fallback to memory
-    if (this.repository) {
-      const config = await this.repository.findById(gitOpsConfigId);
-      return config ? { ...config } : null;
-    }
-    const config = this.gitOpsConfigs.get(gitOpsConfigId);
+    const config = await this.repository.findById(gitOpsConfigId);
     return config ? { ...config } : null;
   }
 
@@ -211,33 +175,20 @@ export class GitOpsService {
    * List all GitOps configurations
    */
   async listGitOpsConfigs(): Promise<GitOpsConfig[]> {
-    // Use repository if available
-    if (this.repository) {
-      const configs = await this.repository.findAll();
-      return configs.map((c) => ({ ...c }));
-    }
-    return Array.from(this.gitOpsConfigs.values()).map((c) => ({ ...c }));
+    const configs = await this.repository.findAll();
+    return configs.map((c) => ({ ...c }));
   }
 
   /**
    * Trigger a manual sync from Git repository
    */
   async syncFromGit(gitOpsConfigId?: string): Promise<SyncStatus> {
-    // Get configs from repository or memory
     let configs: GitOpsConfig[] = [];
-    if (this.repository) {
-      if (gitOpsConfigId) {
-        const config = await this.repository.findById(gitOpsConfigId);
-        configs = config ? [config] : [];
-      } else {
-        configs = await this.repository.findByStatus('enabled');
-      }
+    if (gitOpsConfigId) {
+      const config = await this.repository.findById(gitOpsConfigId);
+      configs = config ? [config] : [];
     } else {
-      configs = gitOpsConfigId
-        ? [this.gitOpsConfigs.get(gitOpsConfigId)].filter(Boolean) as GitOpsConfig[]
-        : Array.from(this.gitOpsConfigs.values()).filter(
-          (c) => c.status === 'enabled'
-        );
+      configs = await this.repository.findByStatus('enabled');
     }
 
     const syncStatus: SyncStatus = {
@@ -255,13 +206,7 @@ export class GitOpsService {
       for (const gitConfig of configs) {
         if (!gitConfig) continue;
 
-        gitConfig.status = 'syncing';
-        // Update status in repository or memory
-        if (this.repository) {
-          await this.repository.update(gitConfig.id, { status: 'syncing' });
-        } else {
-          this.gitOpsConfigs.set(gitConfig.id, gitConfig);
-        }
+        await this.repository.update(gitConfig.id, { status: 'syncing' });
 
         // Clone/pull repository
         try {
@@ -273,14 +218,7 @@ export class GitOpsService {
           } catch (error: any) {
             syncStatus.status = 'failure';
             syncStatus.error = `Failed to access Git repository: ${error.message}`;
-            gitConfig.status = 'error';
-            gitConfig.lastError = error.message;
-            // Update in repository or memory
-            if (this.repository) {
-              await this.repository.update(gitConfig.id, { status: 'error', lastError: error.message });
-            } else {
-              this.gitOpsConfigs.set(gitConfig.id, gitConfig);
-            }
+            await this.repository.update(gitConfig.id, { status: 'error', lastError: error.message });
             continue;
           }
         }
@@ -320,28 +258,21 @@ export class GitOpsService {
           syncStatus.itemsSynced = parsedConfigs.length;
         }
 
-        gitConfig.lastSync = new Date();
-        gitConfig.status = syncStatus.driftDetected
+        const lastSync = new Date();
+        const newStatus = syncStatus.driftDetected
           ? 'drift_detected'
           : 'enabled';
 
-        // Update in repository or memory
-        if (this.repository) {
-          await this.repository.update(gitConfig.id, {
-            lastSync: gitConfig.lastSync,
-            status: gitConfig.status,
-          });
-        } else {
-          this.gitOpsConfigs.set(gitConfig.id, gitConfig);
-        }
+        await this.repository.update(gitConfig.id, {
+          lastSync,
+          status: newStatus,
+        });
       }
 
       syncStatus.completedAt = new Date();
 
       // Persist sync history
-      if (this.repository) {
-        await this.repository.createSyncStatus(syncStatus);
-      }
+      await this.repository.createSyncStatus(syncStatus);
 
       // Cleanup
       try {
@@ -354,8 +285,6 @@ export class GitOpsService {
       syncStatus.error = error.message;
       syncStatus.completedAt = new Date();
     }
-
-    this.syncHistory.push(syncStatus);
 
     await this.publishEvent(ConfigEvents.CONFIG_SYNCED, {
       syncId: syncStatus.id,
@@ -374,24 +303,13 @@ export class GitOpsService {
   async detectDrift(gitOpsConfigId?: string): Promise<ConfigDiff[]> {
     let configs: GitOpsConfig[] = [];
 
-    if (this.repository) {
-      if (gitOpsConfigId) {
-        const config = await this.repository.findById(gitOpsConfigId);
-        configs = config ? [config] : [];
-      } else {
-        const enabled = await this.repository.findByStatus('enabled');
-        const driftDetected = await this.repository.findByStatus('drift_detected');
-        configs = [...enabled, ...driftDetected];
-      }
+    if (gitOpsConfigId) {
+      const config = await this.repository.findById(gitOpsConfigId);
+      configs = config ? [config] : [];
     } else {
-      if (gitOpsConfigId) {
-        const c = this.gitOpsConfigs.get(gitOpsConfigId);
-        if (c) configs = [c];
-      } else {
-        configs = Array.from(this.gitOpsConfigs.values()).filter(
-          (c) => c.status === 'enabled' || c.status === 'drift_detected'
-        );
-      }
+      const enabled = await this.repository.findByStatus('enabled');
+      const driftDetected = await this.repository.findByStatus('drift_detected');
+      configs = [...enabled, ...driftDetected];
     }
 
     const allDriftItems: ConfigDiff[] = [];
@@ -430,23 +348,24 @@ export class GitOpsService {
     limit?: number;
     gitOpsConfigId?: string;
   }): Promise<SyncStatus[]> {
-    // Use repository if available
-    if (this.repository && options?.gitOpsConfigId) {
+    const gitOpsConfigId = options?.gitOpsConfigId;
+    if (gitOpsConfigId) {
       return this.repository.findSyncHistory(
-        options.gitOpsConfigId,
+        gitOpsConfigId,
         options.limit || 20
       );
     }
 
-    // Fallback to memory
-    let results = [...this.syncHistory].reverse();
-
-    if (options?.gitOpsConfigId) {
-      results = results.filter((s) => s.gitOpsConfigId === options.gitOpsConfigId);
+    // No specific configId: get all configs and fetch their history
+    const allConfigs = await this.repository.findAll();
+    const allHistory: SyncStatus[] = [];
+    for (const config of allConfigs) {
+      const history = await this.repository.findSyncHistory(config.id, options?.limit || 20);
+      allHistory.push(...history);
     }
-
-    const limit = options?.limit || 20;
-    return results.slice(0, limit);
+    // Sort by startedAt descending
+    allHistory.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+    return allHistory.slice(0, options?.limit || 20);
   }
 
   /**
@@ -455,30 +374,32 @@ export class GitOpsService {
   async getLatestSyncStatus(
     gitOpsConfigId?: string
   ): Promise<SyncStatus | null> {
-    // Use repository if available
-    if (this.repository && gitOpsConfigId) {
+    if (gitOpsConfigId) {
       return this.repository.findLatestSyncStatus(gitOpsConfigId);
     }
 
-    // Fallback to memory
-    const filtered = gitOpsConfigId
-      ? this.syncHistory.filter((s) => s.gitOpsConfigId === gitOpsConfigId)
-      : this.syncHistory;
-
-    return filtered.length > 0 ? filtered[filtered.length - 1] : null;
+    // No specific configId: find the latest across all configs
+    const allConfigs = await this.repository.findAll();
+    let latest: SyncStatus | null = null;
+    for (const config of allConfigs) {
+      const status = await this.repository.findLatestSyncStatus(config.id);
+      if (status && (!latest || status.startedAt > latest.startedAt)) {
+        latest = status;
+      }
+    }
+    return latest;
   }
 
   // ==================== Internal Methods ====================
 
-  private startSyncTimer(): void {
+  private async startSyncTimer(): Promise<void> {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
     }
 
+    const configs = await this.repository.findByStatus('enabled');
     const minInterval = Math.min(
-      ...Array.from(this.gitOpsConfigs.values())
-        .filter((c) => c.status === 'enabled')
-        .map((c) => c.syncInterval * 1000)
+      ...configs.map((c) => c.syncInterval * 1000)
     );
 
     if (isFinite(minInterval) && minInterval > 0) {

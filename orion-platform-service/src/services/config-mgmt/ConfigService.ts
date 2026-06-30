@@ -2,7 +2,6 @@
  * ConfigService - Business logic layer for Configuration operations
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import { ConfigRepository, ConfigEntry, ConfigHistory } from './ConfigRepository';
 import { ConfigItem, ConfigStatus, ConfigEnvironment } from './types';
 import { CacheService } from '../cache/CacheService';
@@ -75,11 +74,11 @@ function buildValueObject(input: CreateConfigInput | UpdateConfigInput): Record<
 
 export class ConfigService {
   private repository: ConfigRepository;
-  private history: Map<string, ConfigHistory[]> = new Map();
   private cache: CacheService;
 
-  constructor(repository?: ConfigRepository, cache?: CacheService) {
-    this.repository = repository || new ConfigRepository();
+  constructor(repository: ConfigRepository, cache?: CacheService) {
+    if (!repository) throw new Error('ConfigRepository is required');
+    this.repository = repository;
     this.cache = cache || new CacheService(null);
   }
 
@@ -101,7 +100,6 @@ export class ConfigService {
         entry.created_by = input.createdBy;
       }
       const item = entryToItem(entry);
-      this.addHistoryRecord(entry.id, input.key, null, item.value, input.createdBy, 'Initial creation');
       // Invalidate list cache
       await this.cache.del('config:list:*');
       return item;
@@ -132,7 +130,6 @@ export class ConfigService {
         throw new OrionError(`Config '${tenantIdOrId}' not found`, ErrorCode.NOT_FOUND);
       }
       const rawValue = existing.value as any;
-      const oldValue = rawValue?.value !== undefined ? rawValue.value : rawValue;
       const updatedValue = {
         ...rawValue,
         value: input.value,
@@ -150,7 +147,6 @@ export class ConfigService {
       entry.updatedAt = new Date();
       entry.updated_at = new Date();
       const item = entryToItem(entry);
-      this.addHistoryRecord(entry.id, existing.key, typeof oldValue === 'string' ? oldValue : JSON.stringify(oldValue), item.value, input.updatedBy, `Updated by ${input.updatedBy}`);
       // Invalidate cache on update
       await this.cache.del(`config:${tenantIdOrId}`);
       await this.cache.del(`config:${existing.tenant_id}:${existing.key}`);
@@ -171,13 +167,6 @@ export class ConfigService {
     }
     // Invalidate cache on delete
     await this.cache.del(`config:${configId}`);
-    if (!this.isDbAvailable()) {
-      // Soft delete for in-memory: set status to deprecated
-      existing.status = 'deprecated';
-      existing.updatedAt = new Date();
-      existing.updated_by = changedBy || '';
-      return true;
-    }
     await this.cache.del(`config:${existing.tenant_id}:${existing.key}`);
     return this.repository.delete(existing.tenant_id, existing.key);
   }
@@ -231,28 +220,14 @@ export class ConfigService {
 
   async getConfigVersions(tenantIdOrId: string, key?: string): Promise<ConfigHistory[]> {
     if (!key) {
-      // Called with configId directly - check in-memory first
-      const inMemory = this.history.get(tenantIdOrId);
-      if (inMemory && inMemory.length > 0) return inMemory;
-      // Fall back to repository
-      if (this.repository) {
-        return this.repository.getHistoryByConfigId(tenantIdOrId);
-      }
-      return [];
+      // Called with configId directly — delegate to repository
+      return this.repository.getHistoryByConfigId(tenantIdOrId);
     }
     // Called with tenantId and key
     const entry = await this.repository.findByKey(tenantIdOrId, key);
     if (!entry) {
-      // Check in-memory history as fallback
-      for (const [configId, records] of this.history) {
-        const match = records.find(r => (r as any).key === key);
-        if (match) return records;
-      }
       return [];
     }
-    // Check in-memory first
-    const inMemory = this.history.get(entry.id);
-    if (inMemory && inMemory.length > 0) return inMemory;
     return this.repository.getHistory(entry.tenant_id, entry.key);
   }
 
@@ -270,11 +245,9 @@ export class ConfigService {
       throw new OrionError(`Target version ${targetVersion} must be less than current version ${existing.version}`, ErrorCode.NOT_FOUND);
     }
     const targetValue = typeof target.value === 'string' ? target.value : ((target as any).newValue?.value || (target as any).new_value?.value || JSON.stringify(target.value));
-    const oldValueStr = typeof (existing.value as any)?.value === 'string' ? (existing.value as any).value : JSON.stringify(existing.value);
     const updatedValue = { ...(existing.value as any), value: targetValue };
     const entry = await this.repository.set(existing.tenant_id, existing.key, updatedValue, changedBy);
     const item = entryToItem(entry);
-    this.addHistoryRecord(entry.id, existing.key, oldValueStr, targetValue, changedBy, `Rolled back to version ${targetVersion}`);
     return item;
   }
 
@@ -376,39 +349,5 @@ export class ConfigService {
 
   async getConfigVersionsById(configId: string, limit?: number): Promise<ConfigHistory[]> {
     return this.getConfigVersions(configId);
-  }
-
-  // ==================== Internal Methods ====================
-
-  private isDbAvailable(): boolean {
-    // Check if repository has DB connection (for in-memory fallback)
-    return (this.repository as any).isDbAvailable?.() || false;
-  }
-
-  private addHistoryRecord(configId: string, configKey: string, oldValue: string | null, newValue: string, changedBy: string | undefined, changeLog: string): void {
-    if (!this.isDbAvailable()) {
-      const historyList = this.history.get(configId) || [];
-      const versionNum = historyList.length + 1;
-      const buildRecordValue = (v: string): Record<string, any> => ({ value: v });
-      historyList.push({
-        id: uuidv4(),
-        config_id: configId,
-        configId,
-        changed_by: changedBy || null,
-        changedBy: changedBy,
-        old_value: oldValue !== null ? buildRecordValue(oldValue) : null,
-        oldValue: oldValue !== null ? buildRecordValue(oldValue) : null,
-        new_value: buildRecordValue(newValue),
-        newValue: buildRecordValue(newValue),
-        key: configKey,
-        value: newValue as unknown as Record<string, any>,
-        version: versionNum,
-        changeLog,
-        createdBy: changedBy,
-        createdAt: new Date(),
-        created_at: new Date(),
-      });
-      this.history.set(configId, historyList);
-    }
   }
 }

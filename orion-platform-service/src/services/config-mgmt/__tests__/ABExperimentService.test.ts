@@ -25,14 +25,70 @@ import {
   ABExperimentService,
   CreateExperimentInput,
 } from '../ABExperimentService';
-import { OrionError } from '../../../errors';
+import { ABExperiment } from '../../../repositories/ABExperimentRepository';
+
+// In-memory store for testing
+const store = new Map<string, ABExperiment>();
+
+const mockRepo = {
+  create: jest.fn(async (exp: ABExperiment) => {
+    store.set(exp.id, { ...exp });
+    return { ...exp };
+  }),
+  findById: jest.fn(async (id: string) => {
+    const exp = store.get(id);
+    return exp ? { ...exp } : undefined;
+  }),
+  findByTenant: jest.fn(async (tenantId: string, status?: string) => {
+    let results = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+    if (status) results = results.filter(e => e.status === status);
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }),
+  updateById: jest.fn(async (id: string, data: Partial<ABExperiment>) => {
+    const existing = store.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...data };
+    store.set(id, updated);
+    return { ...updated };
+  }),
+  delete: jest.fn(async (id: string) => {
+    return store.delete(id);
+  }),
+};
 
 describe('ABExperimentService', () => {
   let service: ABExperimentService;
 
   beforeEach(() => {
     uuidCounter = 0;
-    service = new ABExperimentService(); // No database = in-memory
+    store.clear();
+    jest.clearAllMocks();
+    // Re-assign mock implementations after clearAllMocks
+    mockRepo.create.mockImplementation(async (exp: ABExperiment) => {
+      store.set(exp.id, { ...exp });
+      return { ...exp };
+    });
+    mockRepo.findById.mockImplementation(async (id: string) => {
+      const exp = store.get(id);
+      return exp ? { ...exp } : undefined;
+    });
+    mockRepo.findByTenant.mockImplementation(async (tenantId: string, status?: string) => {
+      let results = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+      if (status) results = results.filter(e => e.status === status);
+      return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    });
+    mockRepo.updateById.mockImplementation(async (id: string, data: Partial<ABExperiment>) => {
+      const existing = store.get(id);
+      if (!existing) return null;
+      const updated = { ...existing, ...data };
+      store.set(id, updated);
+      return { ...updated };
+    });
+    mockRepo.delete.mockImplementation(async (id: string) => {
+      return store.delete(id);
+    });
+
+    service = new ABExperimentService(mockRepo as any);
   });
 
   // ==================== createExperiment ====================
@@ -384,6 +440,14 @@ describe('ABExperimentService', () => {
       await service.startExperiment(exp.id);
       const cancelled = await service.cancelExperiment(exp.id);
       expect(cancelled.status).toBe('cancelled');
+    });
+  });
+
+  // ==================== Constructor validation ====================
+
+  describe('constructor', () => {
+    it('should throw error when no repository provided', () => {
+      expect(() => new ABExperimentService()).toThrow('ABExperimentRepository is required');
     });
   });
 

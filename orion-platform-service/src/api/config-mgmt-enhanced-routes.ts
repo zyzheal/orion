@@ -11,6 +11,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ConfigChangeService } from '../services/config-mgmt/ConfigChangeService';
 import { ConfigDriftDetector } from '../services/config-mgmt/ConfigDriftDetector';
+import { ConfigChangeRequestRepository, ConfigChangeHistoryRepository } from '../repositories/ConfigChangeRepository';
+import { ConfigDriftRepository } from '../repositories/ConfigDriftRepository';
 import { ConfigManagementController } from './controllers/ConfigManagementController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
@@ -23,9 +25,17 @@ export default async function configMgmtEnhancedRoutes(
   app: FastifyInstance,
   options: ConfigMgmtEnhancedRoutesOptions
 ): Promise<void> {
+  if (!options.database) {
+    return;
+  }
+  // Initialize repositories
+  const changeRequestRepo = new ConfigChangeRequestRepository(options.database);
+  const changeHistoryRepo = new ConfigChangeHistoryRepository(options.database);
+  const driftRepo = new ConfigDriftRepository(options.database);
+
   // Initialize services
-  const changeService = new ConfigChangeService({ database: options.database });
-  const driftDetector = new ConfigDriftDetector();
+  const changeService = new ConfigChangeService({ repository: changeRequestRepo, historyRepository: changeHistoryRepo });
+  const driftDetector = new ConfigDriftDetector({ repository: driftRepo });
   const controller = new ConfigManagementController(changeService, driftDetector);
 
   // ==================== Change Requests ====================

@@ -3,19 +3,16 @@
  *
  * 检测并报告实际配置与期望配置之间的差异，支持自动修复。
  *
- * 功能：
- * - detectDrift(tenantId, configGroup) — 检测配置漂移
- * - compareConfig(expected, actual) — 对比配置差异
- * - autoRemediateDrift(driftId) — 自动修复漂移
- * - getDriftReport(tenantId) — 漂移报告
- *
- * 数据持久化：ConfigDriftRepository (PostgreSQL + Map fallback)
+ * 数据持久化：ConfigDriftRepository (PostgreSQL)
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigDriftRepository, ConfigDriftEntity } from '../../repositories/ConfigDriftRepository';
 import { ConfigService } from './ConfigService';
 import { OrionError, ErrorCode } from '../../errors';
+import pino from 'pino';
+
+const logger = pino({ name: 'ConfigDriftDetector' });
 
 // ============================================================
 // Types
@@ -108,20 +105,6 @@ function entityToDriftReport(e: ConfigDriftEntity): DriftReport {
   };
 }
 
-function driftToEntity(report: DriftReport): Omit<ConfigDriftEntity, 'id' | 'tenantId' | 'detectedAt' | 'lastCheckedAt' | 'createdAt' | 'configGroup'> & { configGroup?: string } {
-  return {
-    configGroup: report.configGroup,
-    driftStatus: report.driftStatus,
-    expectedConfig: report.expectedConfig,
-    actualConfig: report.actualConfig,
-    driftItems: report.driftItems,
-    totalDrifts: report.totalDrifts,
-    criticalDrifts: report.criticalDrifts,
-    autoRemediationEnabled: report.autoRemediationEnabled,
-    remediationLog: report.remediationLog,
-  };
-}
-
 // ============================================================
 // Service
 // ============================================================
@@ -130,13 +113,15 @@ export class ConfigDriftDetector {
   private repository: ConfigDriftRepository;
   private configService?: ConfigService;
   private expectedConfigs = new Map<string, Record<string, unknown>>();
-  private memory = new Map<string, DriftReport>();
 
   constructor(options: {
     repository?: ConfigDriftRepository;
     configService?: ConfigService;
   } = {}) {
-    this.repository = options.repository || new ConfigDriftRepository(null as any);
+    if (!options.repository) {
+      throw new Error('ConfigDriftRepository is required');
+    }
+    this.repository = options.repository;
     this.configService = options.configService;
   }
 
@@ -367,13 +352,7 @@ export class ConfigDriftDetector {
    */
   async getDriftReport(tenantId: string, configGroup?: string): Promise<DriftReport | null> {
     const reports = await this.repository.findByTenant(tenantId, configGroup);
-    if (reports.length === 0) {
-      // Fallback to memory
-      let results: DriftReport[] = Array.from(this.memory.values()).filter((r) => r.tenantId === tenantId);
-      if (configGroup) results = results.filter((r) => r.configGroup === configGroup);
-      results.sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
-      return results.length > 0 ? results[0] : null;
-    }
+    if (reports.length === 0) return null;
     return entityToDriftReport(reports[0]);
   }
 
@@ -382,13 +361,7 @@ export class ConfigDriftDetector {
    */
   async getAllDriftReports(tenantId: string): Promise<DriftReport[]> {
     const reports = await this.repository.findByTenant(tenantId);
-    if (reports.length > 0) {
-      return reports.map(entityToDriftReport);
-    }
-    // Fallback to memory when no DB
-    const results = Array.from(this.memory.values()).filter((r) => r.tenantId === tenantId);
-    results.sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
-    return results;
+    return reports.map(entityToDriftReport);
   }
 
   // ============================================================
@@ -396,42 +369,27 @@ export class ConfigDriftDetector {
   // ============================================================
 
   private async saveReport(report: DriftReport): Promise<void> {
-    // Save to DB via repository
-    try {
-      await this.repository.upsert({
-        id: report.id,
-        tenantId: report.tenantId,
-        configGroup: report.configGroup,
-        driftStatus: report.driftStatus,
-        expectedConfig: report.expectedConfig,
-        actualConfig: report.actualConfig,
-        driftItems: report.driftItems,
-        totalDrifts: report.totalDrifts,
-        criticalDrifts: report.criticalDrifts,
-        autoRemediationEnabled: report.autoRemediationEnabled,
-        remediationLog: report.remediationLog,
-        detectedAt: report.detectedAt,
-        lastCheckedAt: report.lastCheckedAt,
-        createdAt: report.createdAt,
-      });
-    } catch {
-      // DB unavailable — fall back to memory only
-    }
-    // Always sync to memory
-    this.memory.set(report.id, report);
+    await this.repository.upsert({
+      id: report.id,
+      tenantId: report.tenantId,
+      configGroup: report.configGroup,
+      driftStatus: report.driftStatus,
+      expectedConfig: report.expectedConfig,
+      actualConfig: report.actualConfig,
+      driftItems: report.driftItems,
+      totalDrifts: report.totalDrifts,
+      criticalDrifts: report.criticalDrifts,
+      autoRemediationEnabled: report.autoRemediationEnabled,
+      remediationLog: report.remediationLog,
+      detectedAt: report.detectedAt,
+      lastCheckedAt: report.lastCheckedAt,
+      createdAt: report.createdAt,
+    });
   }
 
   private async getDriftReportById(id: string): Promise<DriftReport | null> {
-    // Try DB first
-    try {
-      const entity = await this.repository.findById(id);
-      if (entity) return entityToDriftReport(entity);
-    } catch {
-      // DB unavailable — fall back to memory
-    }
-    // Try memory
-    const mem = this.memory.get(id);
-    if (mem) return mem;
+    const entity = await this.repository.findById(id);
+    if (entity) return entityToDriftReport(entity);
     return null;
   }
 
@@ -471,15 +429,12 @@ export class ConfigDriftDetector {
     expected: unknown,
     actual: unknown
   ): 'low' | 'medium' | 'high' | 'critical' {
-    // Critical paths
     if (path.includes('security') || path.includes('auth') || path.includes('credential')) {
       return 'critical';
     }
-    // High paths
     if (path.includes('database') || path.includes('connection') || path.includes('port')) {
       return 'high';
     }
-    // Medium paths
     if (path.includes('timeout') || path.includes('retry') || path.includes('limit')) {
       return 'medium';
     }
