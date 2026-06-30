@@ -14,6 +14,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { ConfirmationRepository } from '../repositories/ConfirmationRepository';
 import { ConfirmationService } from '../services/confirmation/ConfirmationService';
 import { ConfirmationController } from './controllers/ConfirmationController';
 import { authenticateUser } from '../middleware/authMiddleware';
@@ -24,8 +25,12 @@ interface ConfirmationRoutesOptions {
 }
 
 export default async function confirmationRoutes(app: FastifyInstance, options: ConfirmationRoutesOptions = {}): Promise<void> {
-  // D7 Fix: Initialize with PostgreSQL Repository if database is available
-  const service = new ConfirmationService(options.database);
+  if (!options.database) {
+    return;
+  }
+  // D7 Fix: Initialize with PostgreSQL Repository
+  const repository = new ConfirmationRepository(options.database);
+  const service = new ConfirmationService(repository);
   const controller = new ConfirmationController(service);
 
   // GET /confirmations - List confirmations

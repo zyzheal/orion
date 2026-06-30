@@ -4,8 +4,7 @@
  * Provides CRUD for confirmation requests, approval/rejection,
  * audit logging, batch operations, and notification settings.
  *
- * D7 Fix: Migrated from in-memory Map to PostgreSQL Repository pattern.
- * In-memory fallback retained for graceful degradation when DB is unavailable.
+ * Persistence: PostgreSQL via ConfirmationRepository
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -78,25 +77,14 @@ export interface AuditListParams {
   limit?: number;
 }
 
-/**
- * In-memory fallback storage (used when PostgreSQL is unavailable)
- */
-const confirmations = new Map<string, ConfirmationRequest>();
-const auditLogs = new Map<string, ConfirmationAudit[]>();
-const notificationSettings = new Map<string, NotificationSettings>();
-
 export class ConfirmationService {
-  private repository?: ConfirmationRepository;
+  private repository: ConfirmationRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new ConfirmationRepository(db);
-    }
+  constructor(repository: ConfirmationRepository) {
+    if (!repository) throw new Error('ConfirmationRepository is required');
+    this.repository = repository;
   }
 
-  /**
-   * Create a confirmation request
-   */
   async create(input: {
     sceneType: string;
     priority: 'P0' | 'P1' | 'P2' | 'P3';
@@ -105,207 +93,71 @@ export class ConfirmationService {
     context?: Record<string, unknown>;
     tenantId?: string;
   }): Promise<ConfirmationRequest> {
-    const request: ConfirmationRequest = {
-      id: uuidv4(),
+    const entity = await this.repository.insert({
       sceneType: input.sceneType,
       priority: input.priority,
       aiSuggestion: input.aiSuggestion,
       aiConfidence: input.aiConfidence,
-      status: 'pending',
-      pushTime: new Date().toISOString(),
       context: input.context,
       tenantId: input.tenantId,
-    };
+    });
 
-    if (this.repository) {
-      try {
-        await this.repository.insert({
-          sceneType: request.sceneType,
-          priority: request.priority,
-          aiSuggestion: request.aiSuggestion,
-          aiConfidence: request.aiConfidence,
-          context: request.context,
-          tenantId: request.tenantId,
-        });
-      } catch (err) {
-        logger.warn('[ConfirmationService] Failed to persist to DB, keeping in-memory:', err);
-        confirmations.set(request.id, request);
-        auditLogs.set(request.id, []);
-        return request;
-      }
-    } else {
-      confirmations.set(request.id, request);
-      auditLogs.set(request.id, []);
-    }
-
-    return request;
+    return this.entityToRequest(entity);
   }
 
-  /**
-   * Get confirmation by ID
-   */
   async getById(id: string): Promise<ConfirmationRequest | null> {
-    // Check in-memory first
-    const cached = confirmations.get(id);
-    if (cached) return cached;
-
-    // Try repository
-    if (this.repository) {
-      const entity = await this.repository.findById(id);
-      return entity ? this.entityToRequest(entity) : null;
-    }
-
-    return null;
+    const entity = await this.repository.findById(id);
+    return entity ? this.entityToRequest(entity) : null;
   }
 
-  /**
-   * List confirmations with filters
-   */
   async list(params: ConfirmationListParams = {}): Promise<ConfirmationRequest[]> {
-    if (this.repository) {
-      try {
-        const result = await this.repository.findAll({
-          sceneType: params.sceneType,
-          priority: params.priority,
-          status: params.status,
-          tenantId: params.tenantId,
-          offset: params.offset,
-          limit: params.limit,
-        });
-        return result.entities.map((e) => this.entityToRequest(e));
-      } catch (err) {
-        logger.warn('[ConfirmationService] DB query failed, falling back to memory:', err);
-      }
-    }
-
-    // Fallback to in-memory
-    let result = Array.from(confirmations.values());
-
-    if (params.sceneType) {
-      result = result.filter(r => r.sceneType === params.sceneType);
-    }
-    if (params.priority) {
-      result = result.filter(r => r.priority === params.priority);
-    }
-    if (params.status) {
-      result = result.filter(r => r.status === params.status);
-    }
-    if (params.tenantId) {
-      result = result.filter(r => r.tenantId === params.tenantId);
-    }
-
-    result.sort((a, b) => new Date(b.pushTime).getTime() - new Date(a.pushTime).getTime());
-
-    const offset = params.offset || 0;
-    const limit = params.limit || 50;
-    return result.slice(offset, offset + limit);
+    const result = await this.repository.findAll({
+      sceneType: params.sceneType,
+      priority: params.priority,
+      status: params.status,
+      tenantId: params.tenantId,
+      offset: params.offset,
+      limit: params.limit,
+    });
+    return result.entities.map((e) => this.entityToRequest(e));
   }
 
-  /**
-   * Approve a confirmation
-   */
   async approve(id: string, input: ConfirmationInput): Promise<ConfirmationRequest | null> {
-    const request = confirmations.get(id) || await this.getById(id);
-    if (!request || request.status !== 'pending') {
-      return null;
-    }
+    const entity = await this.repository.findById(id);
+    if (!entity || entity.status !== 'pending') return null;
 
-    const updated: ConfirmationRequest = {
-      ...request,
-      status: 'confirmed',
-      responseTime: new Date().toISOString(),
-      responder: input.responder || 'system',
-      comment: input.comment || input.reason,
-    };
+    const now = new Date();
+    await this.repository.updateStatus(id, 'confirmed', input.responder || 'system', input.comment || input.reason, now);
 
-    confirmations.set(id, updated);
-
-    // Add audit log
-    const logs = auditLogs.get(id) || [];
-    logs.push({
-      id: uuidv4(),
+    await this.repository.insertAudit({
       confirmationId: id,
       action: 'approved',
       user: input.responder || 'system',
-      timestamp: new Date().toISOString(),
       details: input.comment || input.reason,
     });
-    auditLogs.set(id, logs);
 
-    // Persist to repository
-    if (this.repository) {
-      try {
-        await this.repository.updateStatus(
-          id, 'confirmed', updated.responder, updated.comment, new Date(updated.responseTime!)
-        );
-        await this.repository.insertAudit({
-          confirmationId: id,
-          action: 'approved',
-          user: input.responder || 'system',
-          details: input.comment || input.reason,
-        });
-      } catch (err) {
-        logger.warn('[ConfirmationService] Failed to persist approval to DB:', err);
-      }
-    }
-
-    return updated;
+    const updated = await this.repository.findById(id);
+    return updated ? this.entityToRequest(updated) : null;
   }
 
-  /**
-   * Reject a confirmation
-   */
   async reject(id: string, input: ConfirmationInput): Promise<ConfirmationRequest | null> {
-    const request = confirmations.get(id) || await this.getById(id);
-    if (!request || request.status !== 'pending') {
-      return null;
-    }
+    const entity = await this.repository.findById(id);
+    if (!entity || entity.status !== 'pending') return null;
 
-    const updated: ConfirmationRequest = {
-      ...request,
-      status: 'rejected',
-      responseTime: new Date().toISOString(),
-      responder: input.responder || 'system',
-      comment: input.comment || input.reason,
-    };
+    const now = new Date();
+    await this.repository.updateStatus(id, 'rejected', input.responder || 'system', input.comment || input.reason, now);
 
-    confirmations.set(id, updated);
-
-    // Add audit log
-    const logs = auditLogs.get(id) || [];
-    logs.push({
-      id: uuidv4(),
+    await this.repository.insertAudit({
       confirmationId: id,
       action: 'rejected',
       user: input.responder || 'system',
-      timestamp: new Date().toISOString(),
       details: input.comment || input.reason,
     });
-    auditLogs.set(id, logs);
 
-    // Persist to repository
-    if (this.repository) {
-      try {
-        await this.repository.updateStatus(
-          id, 'rejected', updated.responder, updated.comment, new Date(updated.responseTime!)
-        );
-        await this.repository.insertAudit({
-          confirmationId: id,
-          action: 'rejected',
-          user: input.responder || 'system',
-          details: input.comment || input.reason,
-        });
-      } catch (err) {
-        logger.warn('[ConfirmationService] Failed to persist rejection to DB:', err);
-      }
-    }
-
-    return updated;
+    const updated = await this.repository.findById(id);
+    return updated ? this.entityToRequest(updated) : null;
   }
 
-  /**
-   * Batch approve confirmations
-   */
   async batchApprove(input: BatchApproveInput): Promise<{
     success: number;
     failed: number;
@@ -332,86 +184,30 @@ export class ConfirmationService {
     return { success, failed, details };
   }
 
-  /**
-   * Get audit logs
-   */
   async getAuditLogs(params: AuditListParams = {}): Promise<ConfirmationAudit[]> {
-    if (this.repository) {
-      try {
-        if (params.confirmationId) {
-          const audits = await this.repository.findAuditsByConfirmation(params.confirmationId);
-          return audits.map((a) => this.entityToAudit(a));
-        }
-
-        const result = await this.repository.findAllAudits({
-          user: params.user,
-          tenantId: params.tenantId,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          offset: params.offset,
-          limit: params.limit,
-        });
-        return result.entities.map((a) => this.entityToAudit(a));
-      } catch (err) {
-        logger.warn('[ConfirmationService] DB audit query failed, falling back to memory:', err);
-      }
-    }
-
-    // Fallback to in-memory
-    let result: ConfirmationAudit[] = [];
-
     if (params.confirmationId) {
-      result = auditLogs.get(params.confirmationId) || [];
-    } else {
-      for (const logs of auditLogs.values()) {
-        result.push(...logs);
-      }
+      const audits = await this.repository.findAuditsByConfirmation(params.confirmationId);
+      return audits.map((a) => this.entityToAudit(a));
     }
 
-    if (params.user) {
-      result = result.filter(l => l.user === params.user);
-    }
-    if (params.tenantId) {
-      result = result.filter(l => {
-        const conf = confirmations.get(l.confirmationId);
-        return conf?.tenantId === params.tenantId;
-      });
-    }
-    if (params.startDate) {
-      result = result.filter(l => l.timestamp >= params.startDate!);
-    }
-    if (params.endDate) {
-      result = result.filter(l => l.timestamp <= params.endDate!);
-    }
-
-    result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    const offset = params.offset || 0;
-    const limit = params.limit || 100;
-    return result.slice(offset, offset + limit);
+    const result = await this.repository.findAllAudits({
+      user: params.user,
+      tenantId: params.tenantId,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      offset: params.offset,
+      limit: params.limit,
+    });
+    return result.entities.map((a) => this.entityToAudit(a));
   }
 
-  /**
-   * Get notification settings
-   */
   async getNotificationSettings(userId: string): Promise<NotificationSettings> {
-    if (this.repository) {
-      try {
-        const settings = await this.repository.findNotificationSettings(userId);
-        if (settings) {
-          const result = this.entityToNotification(settings);
-          notificationSettings.set(userId, result);
-          return result;
-        }
-      } catch (err) {
-        logger.warn('[ConfirmationService] DB notification settings query failed, falling back to memory:', err);
-      }
+    const settings = await this.repository.findNotificationSettings(userId);
+    if (settings) {
+      return this.entityToNotification(settings);
     }
 
-    // Fallback to in-memory
-    const existing = notificationSettings.get(userId);
-    if (existing) return existing;
-
+    // Create defaults
     const defaults: NotificationSettings = {
       userId,
       channels: ['email', 'slack'],
@@ -421,13 +217,18 @@ export class ConfirmationService {
       autoApproveAfterMinutes: 30,
     };
 
-    notificationSettings.set(userId, defaults);
-    return defaults;
+    const created = await this.repository.upsertNotificationSettings({
+      userId: defaults.userId,
+      channels: defaults.channels,
+      dndStart: defaults.dndStart,
+      dndEnd: defaults.dndEnd,
+      autoApproveP3: defaults.autoApproveP3,
+      autoApproveAfterMinutes: defaults.autoApproveAfterMinutes,
+    });
+
+    return this.entityToNotification(created);
   }
 
-  /**
-   * Update notification settings
-   */
   async updateNotificationSettings(
     userId: string,
     data: Partial<NotificationSettings>
@@ -435,28 +236,18 @@ export class ConfirmationService {
     const existing = await this.getNotificationSettings(userId);
     const updated = { ...existing, ...data, userId };
 
-    if (this.repository) {
-      try {
-        await this.repository.upsertNotificationSettings({
-          userId: updated.userId,
-          channels: updated.channels,
-          dndStart: updated.dndStart,
-          dndEnd: updated.dndEnd,
-          autoApproveP3: updated.autoApproveP3,
-          autoApproveAfterMinutes: updated.autoApproveAfterMinutes,
-        });
-      } catch (err) {
-        logger.warn('[ConfirmationService] Failed to persist notification settings to DB:', err);
-      }
-    }
+    const entity = await this.repository.upsertNotificationSettings({
+      userId: updated.userId,
+      channels: updated.channels,
+      dndStart: updated.dndStart,
+      dndEnd: updated.dndEnd,
+      autoApproveP3: updated.autoApproveP3,
+      autoApproveAfterMinutes: updated.autoApproveAfterMinutes,
+    });
 
-    notificationSettings.set(userId, updated);
-    return updated;
+    return this.entityToNotification(entity);
   }
 
-  /**
-   * Get statistics
-   */
   async getStats(tenantId?: string): Promise<{
     total: number;
     pending: number;
@@ -464,27 +255,7 @@ export class ConfirmationService {
     rejected: number;
     expired: number;
   }> {
-    if (this.repository) {
-      try {
-        return await this.repository.getStats(tenantId);
-      } catch (err) {
-        logger.warn('[ConfirmationService] DB stats query failed, falling back to memory:', err);
-      }
-    }
-
-    // Fallback to in-memory
-    let all = Array.from(confirmations.values());
-    if (tenantId) {
-      all = all.filter(r => r.tenantId === tenantId);
-    }
-
-    return {
-      total: all.length,
-      pending: all.filter(r => r.status === 'pending').length,
-      confirmed: all.filter(r => r.status === 'confirmed').length,
-      rejected: all.filter(r => r.status === 'rejected').length,
-      expired: all.filter(r => r.status === 'expired').length,
-    };
+    return this.repository.getStats(tenantId);
   }
 
   // ==================== Entity Mappers ====================
