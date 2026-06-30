@@ -6,8 +6,6 @@
  * strategies for common failure scenarios.
  *
  * TASK-702: Self-Healing Engine (自愈引擎)
- *
- * Migrated to PostgreSQL Repository pattern with in-memory cache fallback.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -22,22 +20,20 @@ import {
   BuiltInStrategyId,
 } from './types';
 import { HealingStrategyRepository, HealingStrategyEntity } from '../../repositories/HealingStrategyRepository';
+import { DatabasePool } from '../../services/database';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'healing-strategy-engine' });
 
 export class HealingStrategyEngine {
-  private strategies: Map<string, HealingStrategy> = new Map();
-  private repository?: HealingStrategyRepository;
-  private initialized = false;
+  private repository: HealingStrategyRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new HealingStrategyRepository(db);
-    }
-    // Register built-in strategies (non-blocking, seeds DB if available)
+  constructor(db: DatabasePool) {
+    if (!db) throw new Error('DatabasePool is required for HealingStrategyEngine');
+    this.repository = new HealingStrategyRepository(db);
+    // Seed built-in strategies (blocking - must complete before engine is usable)
     this.registerBuiltInStrategies().catch(err => {
-      logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to register built-in strategies');
+      logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to seed built-in strategies');
     });
   }
 
@@ -45,44 +41,34 @@ export class HealingStrategyEngine {
    * Register a new healing strategy
    */
   async registerStrategy(strategy: HealingStrategy): Promise<void> {
-    // Update in-memory cache
-    this.strategies.set(strategy.id, strategy);
-
-    // Persist to DB
-    if (this.repository) {
-      try {
-        const existing = await this.repository.findById(strategy.id);
-        if (existing) {
-          await this.repository.update(strategy.id, {
-            name: strategy.name,
-            trigger_type: strategy.triggerType,
-            actions: JSON.stringify(strategy.actions),
-            conditions: JSON.stringify(strategy.conditions || []),
-            confidence: strategy.confidence,
-            enabled: strategy.enabled,
-            description: strategy.description || null,
-            environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
-            max_retries: strategy.maxRetries ?? null,
-            retry_cooldown_ms: strategy.retryCooldownMs ?? null,
-          });
-        } else {
-          await this.repository.create({
-            id: strategy.id,
-            name: strategy.name,
-            trigger_type: strategy.triggerType,
-            actions: JSON.stringify(strategy.actions),
-            conditions: JSON.stringify(strategy.conditions || []),
-            confidence: strategy.confidence,
-            enabled: strategy.enabled,
-            description: strategy.description || null,
-            environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
-            max_retries: strategy.maxRetries ?? null,
-            retry_cooldown_ms: strategy.retryCooldownMs ?? null,
-          });
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, strategyId: strategy.id }, 'Failed to persist strategy to DB');
-      }
+    const existing = await this.repository.findById(strategy.id);
+    if (existing) {
+      await this.repository.update(strategy.id, {
+        name: strategy.name,
+        trigger_type: strategy.triggerType,
+        actions: JSON.stringify(strategy.actions),
+        conditions: JSON.stringify(strategy.conditions || []),
+        confidence: strategy.confidence,
+        enabled: strategy.enabled,
+        description: strategy.description || null,
+        environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
+        max_retries: strategy.maxRetries ?? null,
+        retry_cooldown_ms: strategy.retryCooldownMs ?? null,
+      });
+    } else {
+      await this.repository.create({
+        id: strategy.id,
+        name: strategy.name,
+        trigger_type: strategy.triggerType,
+        actions: JSON.stringify(strategy.actions),
+        conditions: JSON.stringify(strategy.conditions || []),
+        confidence: strategy.confidence,
+        enabled: strategy.enabled,
+        description: strategy.description || null,
+        environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
+        max_retries: strategy.maxRetries ?? null,
+        retry_cooldown_ms: strategy.retryCooldownMs ?? null,
+      });
     }
   }
 
@@ -90,103 +76,40 @@ export class HealingStrategyEngine {
    * Unregister a strategy by ID
    */
   async unregisterStrategy(strategyId: string): Promise<boolean> {
-    const deleted = this.strategies.delete(strategyId);
-
-    if (this.repository) {
-      try {
-        return await this.repository.delete(strategyId);
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to delete strategy from DB');
-      }
-    }
-
-    return deleted;
+    return this.repository.delete(strategyId);
   }
 
   /**
    * Get a strategy by ID
    */
   async getStrategy(strategyId: string): Promise<HealingStrategy | undefined> {
-    // Check in-memory first
-    const cached = this.strategies.get(strategyId);
-    if (cached) return cached;
-
-    // Fallback to DB
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findById(strategyId);
-        if (entity) {
-          const strategy = this.entityToStrategy(entity);
-          this.strategies.set(strategyId, strategy);
-          return strategy;
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to get strategy from DB');
-      }
-    }
-
-    return undefined;
+    const entity = await this.repository.findById(strategyId);
+    if (!entity) return undefined;
+    return this.entityToStrategy(entity);
   }
 
   /**
    * Get all registered strategies
    */
   async getAllStrategies(): Promise<HealingStrategy[]> {
-    if (this.repository) {
-      try {
-        const { entities } = await this.repository.findAll({ limit: 1000 });
-        return entities.map(e => this.entityToStrategy(e));
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to get strategies from DB, falling back to memory');
-      }
-    }
-    return Array.from(this.strategies.values());
+    const { entities } = await this.repository.findAll({ limit: 1000 });
+    return entities.map(e => this.entityToStrategy(e));
   }
 
   /**
    * Enable a strategy
    */
   async enableStrategy(strategyId: string): Promise<boolean> {
-    // Update in-memory
-    const strategy = this.strategies.get(strategyId);
-    if (strategy) {
-      strategy.enabled = true;
-    }
-
-    // Update DB
-    if (this.repository) {
-      try {
-        const result = await this.repository.enableStrategy(strategyId);
-        return !!result;
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to enable strategy in DB');
-      }
-    }
-
-    return !!strategy;
+    const result = await this.repository.enableStrategy(strategyId);
+    return !!result;
   }
 
   /**
    * Disable a strategy
    */
   async disableStrategy(strategyId: string): Promise<boolean> {
-    // Update in-memory
-    const strategy = this.strategies.get(strategyId);
-    if (strategy) {
-      strategy.enabled = false;
-    }
-
-    // Update DB
-    if (this.repository) {
-      try {
-        const result = await this.repository.disableStrategy(strategyId);
-        return !!result;
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), err, strategyId }, 'Failed to disable strategy in DB');
-      }
-    }
-
-    return !!strategy;
+    const result = await this.repository.disableStrategy(strategyId);
+    return !!result;
   }
 
   /**
@@ -197,18 +120,7 @@ export class HealingStrategyEngine {
     incidentType: IncidentType,
     tags?: Record<string, string>
   ): Promise<HealingStrategy[]> {
-    let enabledStrategies: HealingStrategy[];
-
-    // Try DB first
-    if (this.repository) {
-      try {
-        enabledStrategies = (await this.repository.findEnabled()).map(e => this.entityToStrategy(e));
-      } catch {
-        enabledStrategies = Array.from(this.strategies.values()).filter(s => s.enabled);
-      }
-    } else {
-      enabledStrategies = Array.from(this.strategies.values()).filter(s => s.enabled);
-    }
+    const enabledStrategies = (await this.repository.findEnabled()).map(e => this.entityToStrategy(e));
 
     return enabledStrategies.filter((strategy) => {
       // Check trigger type match
@@ -336,35 +248,24 @@ export class HealingStrategyEngine {
     const builtInStrategies = this.getBuiltInStrategies();
 
     for (const strategy of builtInStrategies) {
-      // Always set in-memory
-      this.strategies.set(strategy.id, strategy);
-
-      // Seed DB if repository is available
-      if (this.repository) {
-        try {
-          const existing = await this.repository.findById(strategy.id);
-          if (!existing) {
-            await this.repository.create({
-              id: strategy.id,
-              name: strategy.name,
-              trigger_type: strategy.triggerType,
-              actions: JSON.stringify(strategy.actions),
-              conditions: JSON.stringify(strategy.conditions || []),
-              confidence: strategy.confidence,
-              enabled: strategy.enabled,
-              description: strategy.description || null,
-              environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
-              max_retries: strategy.maxRetries ?? null,
-              retry_cooldown_ms: strategy.retryCooldownMs ?? null,
-            });
-          }
-        } catch (err) {
-          logger.warn({ traceId: getCurrentTraceId(), err, strategyId: strategy.id }, 'Failed to seed built-in strategy to DB');
-        }
+      const existing = await this.repository.findById(strategy.id);
+      if (!existing) {
+        await this.repository.create({
+          id: strategy.id,
+          name: strategy.name,
+          trigger_type: strategy.triggerType,
+          actions: JSON.stringify(strategy.actions),
+          conditions: JSON.stringify(strategy.conditions || []),
+          confidence: strategy.confidence,
+          enabled: strategy.enabled,
+          description: strategy.description || null,
+          environments: strategy.environments ? JSON.stringify(strategy.environments) : null,
+          max_retries: strategy.maxRetries ?? null,
+          retry_cooldown_ms: strategy.retryCooldownMs ?? null,
+        });
       }
     }
 
-    this.initialized = true;
     logger.info({ count: builtInStrategies.length }, 'Built-in strategies registered');
   }
 

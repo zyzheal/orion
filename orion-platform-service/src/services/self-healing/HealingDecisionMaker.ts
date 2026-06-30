@@ -23,6 +23,7 @@ import {
   IncidentSeverity,
   IncidentType,
 } from './types';
+import { DatabasePool } from '../../services/database';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LHealing-LDecision-LMaker' });
@@ -71,20 +72,18 @@ const RISK_LEVEL_SCORES: Record<RiskLevel, number> = {
 
 export class HealingDecisionMaker {
   private config: Required<DecisionMakerConfig>;
-  private approvalRequests: Map<string, ApprovalRequest> = new Map();
   private riskAssessor?: IRiskAssessor;
-  private repository?: HealingApprovalRequestRepository;
+  private repository: HealingApprovalRequestRepository;
 
   constructor(
     config?: DecisionMakerConfig,
     riskAssessor?: IRiskAssessor,
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    db: DatabasePool = null as any,
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.riskAssessor = riskAssessor;
-    if (db) {
-      this.repository = new HealingApprovalRequestRepository(db);
-    }
+    if (!db) throw new Error('DatabasePool is required for HealingDecisionMaker');
+    this.repository = new HealingApprovalRequestRepository(db);
   }
 
   /**
@@ -199,18 +198,19 @@ export class HealingDecisionMaker {
   /**
    * Create an approval request for manual intervention
    */
-  createApprovalRequest(params: {
+  async createApprovalRequest(params: {
     incidentId: string;
     decision: HealingDecision;
     appName: string;
     environment: string;
     incidentType: IncidentType;
     requestedBy?: string;
-  }): ApprovalRequest {
+  }): Promise<ApprovalRequest> {
     const now = new Date();
+    const id = uuidv4();
 
-    const request: ApprovalRequest = {
-      id: uuidv4(),
+    await this.repository.create({
+      id,
       incidentId: params.incidentId,
       title: `Self-Healing Approval: ${params.incidentType} in ${params.appName}`,
       description: `Auto-healing ${
@@ -221,107 +221,97 @@ export class HealingDecisionMaker {
       status: 'pending',
       requestedBy: params.requestedBy || 'system',
       requestedAt: now,
-      expiresAt: new Date(now.getTime() + this.config.approvalExpirationMs),
-    };
+      expiresAt: new Date(now.getTime() + this.config.approvalExpirationMs) || null,
+    });
 
-    this.approvalRequests.set(request.id, request);
-
-    // Persist to DB (fire-and-forget)
-    if (this.repository) {
-      this.repository.create({
-        id: request.id,
-        incidentId: request.incidentId,
-        title: request.title,
-        description: request.description,
-        riskLevel: request.riskLevel,
-        recommendedActions: request.recommendedActions,
-        status: request.status,
-        requestedBy: request.requestedBy,
-        requestedAt: request.requestedAt,
-        expiresAt: request.expiresAt || null,
-      }).catch((err) => logger.warn({ err, requestId: request.id }, 'Failed to persist approval request'));
-    }
-
-    return request;
+    return this.entityToApprovalRequest(await this.repository.findById(id)!);
   }
 
   /**
    * Respond to an approval request
    */
-  respondToApproval(
+  async respondToApproval(
     requestId: string,
     response: ApprovalResponse
-  ): ApprovalRequest {
-    const request = this.approvalRequests.get(requestId);
-    if (!request) {
+  ): Promise<ApprovalRequest> {
+    const entity = await this.repository.findById(requestId);
+    if (!entity) {
       throw new OrionError(`Approval request '${requestId}' not found`, ErrorCode.NOT_FOUND);
     }
 
-    if (request.status !== 'pending') {
+    if (entity.status !== 'pending') {
       throw new OrionError('Approval request is not pending', ErrorCode.VALIDATION_ERROR);
     }
 
     // Check expiration
-    if (request.expiresAt && new Date() > request.expiresAt) {
-      request.status = 'expired';
-      throw new OrionError(`Approval request '${requestId}' has expired`, 'OPERATION_FAILED')
+    if (entity.expiresAt && new Date() > entity.expiresAt) {
+      await this.repository.updateStatus(requestId, 'expired');
+      throw new OrionError(`Approval request '${requestId}' has expired`, 'OPERATION_FAILED');
     }
 
-    request.status = response.approved ? 'approved' : 'rejected';
-    request.approvedBy = response.respondedBy;
-    request.approvalReason = response.reason;
-    request.respondedAt = new Date();
+    const updated = await this.repository.updateStatus(
+      requestId,
+      response.approved ? 'approved' : 'rejected',
+      response.respondedBy,
+      response.reason
+    );
 
-    // Persist to DB (fire-and-forget)
-    if (this.repository) {
-      this.repository.updateStatus(requestId, request.status, response.respondedBy, response.reason)
-        .catch((err) => logger.warn({ err, requestId }, 'Failed to persist approval status'));
-    }
-
-    return request;
+    return this.entityToApprovalRequest(updated);
   }
 
   /**
    * Get an approval request by ID
    */
   async getApprovalRequest(requestId: string): Promise<ApprovalRequest | undefined> {
-    // Check in-memory first
-    const cached = this.approvalRequests.get(requestId);
-    if (cached) return cached;
-
-    // Fallback to DB
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findById(requestId);
-        if (entity) {
-          return this.entityToApprovalRequest(entity);
-        }
-      } catch {
-        // DB unavailable
-      }
-    }
-    return undefined;
+    const entity = await this.repository.findById(requestId);
+    if (!entity) return undefined;
+    return this.entityToApprovalRequest(entity);
   }
 
   /**
    * Get all approval requests, optionally filtered by status
    */
   async getApprovalRequests(status?: ApprovalRequest['status']): Promise<ApprovalRequest[]> {
-    if (this.repository) {
-      try {
-        const entities = status
-          ? await this.repository.findByStatus(status)
-          : (await this.repository.findAll({ limit: 1000 })).entities;
-        return entities.map(e => this.entityToApprovalRequest(e));
-      } catch {
-        // Fallback to in-memory
+    let entities;
+    if (status) {
+      entities = await this.repository.findByStatus(status);
+    } else {
+      entities = (await this.repository.findAll({ limit: 1000 })).entities;
+    }
+    return entities.map(e => this.entityToApprovalRequest(e));
+  }
+
+  /**
+   * Mark expired requests in the database
+   */
+  async checkExpiredRequests(): Promise<number> {
+    // Use a large limit to fetch all pending requests
+    const pending = await this.repository.findByStatus('pending', 10000);
+    const now = new Date();
+    let count = 0;
+    for (const entity of pending) {
+      if (entity.expiresAt && now >= entity.expiresAt) {
+        await this.repository.updateStatus(entity.id, 'expired');
+        count++;
       }
     }
-    const all = Array.from(this.approvalRequests.values());
-    if (status) {
-      return all.filter((r) => r.status === status);
+    return count;
+  }
+
+  /**
+   * Delete responded requests older than threshold
+   */
+  async clearExpiredRequests(maxAgeMs: number = 3600000): Promise<number> {
+    const cutoff = new Date(Date.now() - maxAgeMs);
+    const entities = (await this.repository.findAll({ limit: 10000 })).entities;
+    let count = 0;
+    for (const entity of entities) {
+      if (entity.respondedAt && entity.respondedAt < cutoff) {
+        await this.repository.delete(entity.id);
+        count++;
+      }
     }
-    return all;
+    return count;
   }
 
   private entityToApprovalRequest(entity: import('../../repositories/HealingApprovalRequestRepository').HealingApprovalRequestEntity): ApprovalRequest {
@@ -340,34 +330,6 @@ export class HealingDecisionMaker {
       approvalReason: entity.approvalReason || undefined,
       respondedAt: entity.respondedAt || undefined,
     };
-  }
-
-  /**
-   * Check if an expired request should be marked as expired
-   */
-  checkExpiredRequests(): void {
-    const now = new Date();
-    for (const [id, request] of this.approvalRequests.entries()) {
-      if (
-        request.status === 'pending' &&
-        request.expiresAt &&
-        now >= request.expiresAt
-      ) {
-        request.status = 'expired';
-      }
-    }
-  }
-
-  /**
-   * Clear expired approval requests older than threshold
-   */
-  clearExpiredRequests(maxAgeMs: number = 3600000): void {
-    const cutoff = new Date(Date.now() - maxAgeMs);
-    for (const [id, request] of this.approvalRequests.entries()) {
-      if (request.respondedAt && request.respondedAt < cutoff) {
-        this.approvalRequests.delete(id);
-      }
-    }
   }
 
   // ==================== Private Methods ====================

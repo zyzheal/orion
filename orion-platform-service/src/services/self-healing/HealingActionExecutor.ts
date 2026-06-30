@@ -7,7 +7,7 @@
  * TASK-702: Self-Healing Engine (自愈引擎)
  *
  * Phase 1.1: Connected to real K8s APIs via @kubernetes/client-node
- * with simulated mode as fallback (configurable via K8S_SIMULATE env flag).
+ * with simulated mode (configurable via K8S_SIMULATE env flag).
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +20,7 @@ import {
 } from './types';
 import { OrionError, ErrorCode } from '../../errors';
 import { HealingActionResultRepository } from '../../repositories/HealingActionResultRepository';
+import { DatabasePool } from '../../services/database';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'healing-action-executor' });
@@ -142,18 +143,14 @@ function isSimulateMode(): boolean {
 }
 
 export class HealingActionExecutor {
-  // Track executed actions for potential rollback (in-memory cache + DB persistence)
-  private executedActions: Map<string, HealingActionResult> = new Map();
-  private repository?: HealingActionResultRepository;
+  private repository: HealingActionResultRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new HealingActionResultRepository(db);
-    }
+  constructor(db: DatabasePool) {
+    if (!db) throw new Error('DatabasePool is required for HealingActionExecutor');
+    this.repository = new HealingActionResultRepository(db);
     // Initialize K8s client on construction (non-blocking)
     k8sManager.initialize().catch(() => {
       // Initialization errors are logged but don't prevent operation
-      // The executor will fall back to simulated mode
     });
   }
 
@@ -188,10 +185,8 @@ export class HealingActionExecutor {
           );
       }
 
-      // Store for potential rollback
-      const actionKey = `${action.type}-${Date.now()}`;
-      this.executedActions.set(actionKey, result);
-      this.persistActionResult(result).catch((err) => logger.warn({ err, actionType: action.type }, 'Failed to persist action result'));
+      // Persist to DB
+      await this.persistActionResult(result);
 
       return result;
     } catch (error: any) {
@@ -201,10 +196,8 @@ export class HealingActionExecutor {
         error.message || 'Unknown error during execution'
       );
 
-      // Store for potential rollback
-      const actionKey = `${action.type}-${Date.now()}`;
-      this.executedActions.set(actionKey, result);
-      this.persistActionResult(result).catch((err) => logger.warn({ err, actionType: action.type }, 'Failed to persist action result'));
+      // Persist failure to DB
+      await this.persistActionResult(result);
 
       return result;
     }
@@ -307,6 +300,9 @@ export class HealingActionExecutor {
       result.rollbackNeeded = true;
       result.rollbackSuccess = result.success;
 
+      // Persist to DB
+      await this.persistActionResult(result);
+
       return result;
     } catch (error: any) {
       const result = this.createFailureResult(
@@ -316,6 +312,10 @@ export class HealingActionExecutor {
       );
       result.rollbackNeeded = true;
       result.rollbackSuccess = false;
+
+      // Persist to DB
+      await this.persistActionResult(result);
+
       return result;
     }
   }
@@ -324,54 +324,47 @@ export class HealingActionExecutor {
    * Get history of executed actions
    */
   async getExecutedActions(): Promise<HealingActionResult[]> {
-    if (this.repository) {
-      try {
-        const { entities } = await this.repository.findAll({ limit: 1000 });
-        return entities.map(e => ({
-          type: e.actionType as HealingActionType,
-          success: e.success,
-          durationMs: e.durationMs,
-          message: e.message || undefined,
-          error: e.error || undefined,
-          executedAt: e.executedAt,
-          verified: e.verified,
-          rollbackNeeded: e.rollbackNeeded,
-          rollbackSuccess: e.rollbackSuccess || undefined,
-        }));
-      } catch {
-        // Fallback to in-memory
-      }
-    }
-    return Array.from(this.executedActions.values());
+    const { entities } = await this.repository.findAll({ limit: 1000 });
+    return entities.map(e => ({
+      type: e.actionType as HealingActionType,
+      success: e.success,
+      durationMs: e.durationMs,
+      message: e.message || undefined,
+      error: e.error || undefined,
+      executedAt: e.executedAt,
+      verified: e.verified,
+      rollbackNeeded: e.rollbackNeeded,
+      rollbackSuccess: e.rollbackSuccess || undefined,
+    }));
   }
 
   /**
    * Clear executed actions history
    */
-  clearExecutedActions(): void {
-    this.executedActions.clear();
+  async clearExecutedActions(): Promise<void> {
+    // Delete all action results from DB
+    const entities = (await this.repository.findAll({ limit: 10000 })).entities;
+    for (const entity of entities) {
+      await this.repository.delete(entity.id);
+    }
   }
 
   /**
-   * Persist action result to DB (fire-and-forget)
+   * Persist action result to DB
    */
   private async persistActionResult(result: HealingActionResult): Promise<void> {
-    if (!this.repository) return;
-    try {
-      await this.repository.create({
-        actionType: result.type,
-        success: result.success,
-        durationMs: result.durationMs,
-        message: result.message || null,
-        error: result.error || null,
-        executedAt: result.executedAt,
-        verified: result.verified,
-        rollbackNeeded: result.rollbackNeeded || false,
-        rollbackSuccess: result.rollbackSuccess || null,
-      });
-    } catch (err) {
-      logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist healing action result to DB');
-    }
+    await this.repository.create({
+      id: uuidv4(),
+      actionType: result.type,
+      success: result.success,
+      durationMs: result.durationMs,
+      message: result.message || null,
+      error: result.error || null,
+      executedAt: result.executedAt,
+      verified: result.verified,
+      rollbackNeeded: result.rollbackNeeded || false,
+      rollbackSuccess: result.rollbackSuccess || null,
+    });
   }
 
   // ==================== Action Implementations ====================
@@ -806,7 +799,7 @@ export class HealingActionExecutor {
       if (!isSimulateMode() && k8sManager.isAvailable()) {
         const rollbackPromise = this.delay(Math.min(5000, timeoutMs));
         const timeoutPromise = this.delay(timeoutMs).then(() => {
-          throw new OrionError(`Rollback timed out after ${timeoutMs}ms`, 'OPERATION_FAILED')
+          throw new OrionError(`Rollback timed out after ${timeoutMs}ms`, 'OPERATION_FAILED');
         });
 
         await Promise.race([rollbackPromise, timeoutPromise]);
