@@ -1,10 +1,100 @@
 /**
  * QueueService Error & Compatibility Tests
  *
- * 覆盖: QueueServiceError 类、兼容方法 (push/pop/complete/fail/retry/list/findById)
+ * Covers: QueueServiceError class, compatibility methods (push/pop/complete/fail/retry/list/findById)
  */
 
 import { QueueService, QueueServiceError } from '../QueueService';
+
+// Mock repository for compatibility tests
+type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+interface MockJob {
+  id: string;
+  tenantId: string | null;
+  queueName: string;
+  jobType: string;
+  payload: Record<string, unknown>;
+  status: JobStatus;
+  priority: number;
+  result: Record<string, unknown> | null;
+  errorMessage: string | null;
+  maxAttempts: number;
+  attempts: number;
+  nextRetryAt: Date | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+class MockJobRepository {
+  private jobs: Map<string, MockJob> = new Map();
+  private statsRecord: Record<string, number> = {};
+  private avgTimes = { avgWaitTime: 0, avgExecutionTime: 0 };
+
+  setStats(stats: Record<string, number>) {
+    this.statsRecord = stats;
+  }
+
+  setAvgTimes(times: { avgWaitTime: number; avgExecutionTime: number }) {
+    this.avgTimes = times;
+  }
+
+  async create(job: MockJob): Promise<MockJob> {
+    this.jobs.set(job.id, { ...job });
+    return { ...job };
+  }
+
+  async findById(id: string): Promise<MockJob | undefined> {
+    const job = this.jobs.get(id);
+    return job ? { ...job } : undefined;
+  }
+
+  async findByTenant(_tenantId: string, options?: { limit?: number; offset?: number }): Promise<MockJob[]> {
+    const all = Array.from(this.jobs.values());
+    const limit = options?.limit ?? 20;
+    const offset = options?.offset ?? 0;
+    return all.slice(offset, offset + limit).map(j => ({ ...j }));
+  }
+
+  async findPending(limit: number = 10): Promise<MockJob[]> {
+    const pending = Array.from(this.jobs.values())
+      .filter(j => j.status === 'pending' && (!j.nextRetryAt || j.nextRetryAt <= new Date()))
+      .sort((a, b) => {
+        if (b.priority !== a.priority) return b.priority - a.priority;
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      })
+      .slice(0, limit);
+    return pending.map(j => ({ ...j }));
+  }
+
+  async findByStatus(status: JobStatus, options?: { limit?: number }): Promise<MockJob[]> {
+    const limit = options?.limit ?? 50;
+    const all = Array.from(this.jobs.values()).filter(j => j.status === status);
+    return all.slice(0, limit).map(j => ({ ...j }));
+  }
+
+  async update(id: string, updates: Partial<MockJob>): Promise<MockJob | undefined> {
+    const job = this.jobs.get(id);
+    if (!job) return undefined;
+    const updated = { ...job, ...updates, updatedAt: new Date() };
+    this.jobs.set(id, updated);
+    return updated;
+  }
+
+  async countByOptions(_options: any): Promise<number> {
+    return this.jobs.size;
+  }
+
+  async getStats(): Promise<Record<string, number>> {
+    return this.statsRecord;
+  }
+
+  async getAverageTimes(): Promise<{ avgWaitTime: number; avgExecutionTime: number }> {
+    return this.avgTimes;
+  }
+}
 
 describe('QueueServiceError', () => {
   it('should create error with message and code', () => {
@@ -33,9 +123,11 @@ describe('QueueServiceError', () => {
 
 describe('QueueService - Compatibility Methods', () => {
   let service: QueueService;
+  let mockRepo: MockJobRepository;
 
   beforeEach(() => {
-    service = new QueueService(null); // Use in-memory mode
+    mockRepo = new MockJobRepository();
+    service = new QueueService(mockRepo as any);
   });
 
   describe('push', () => {
@@ -132,7 +224,7 @@ describe('QueueService - Compatibility Methods', () => {
       await service.dequeue();
 
       const result = await service.list({ status: 'running' });
-      expect(result.data.every(j => j.status === 'running')).toBe(true);
+      expect(result.data.every((j: any) => j.status === 'running')).toBe(true);
     });
   });
 
