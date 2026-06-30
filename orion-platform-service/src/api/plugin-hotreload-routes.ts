@@ -8,12 +8,15 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginHotReloadService, HotReloadConfig, HotReloadEvent } from '../services/plugin-spi/PluginHotReloadService';
 import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleManager';
 import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
+import { PluginVersionSnapshotRepository } from '../repositories/PluginVersionSnapshotRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 
 export interface HotReloadRoutesOptions {
   lifecycleManager: PluginLifecycleManager;
   registry: PluginRegistry;
+  database?: DatabasePool;
   watchPaths?: string[];
 }
 
@@ -24,6 +27,12 @@ export default async function registerPluginHotReloadRoutes(
   app: FastifyInstance,
   options: HotReloadRoutesOptions
 ): Promise<void> {
+  if (!options.database) {
+    return;
+  }
+
+  const snapshotRepo = new PluginVersionSnapshotRepository(options.database);
+
   const hotReloadConfig: Partial<HotReloadConfig> = {
     watchPaths: options.watchPaths || [],
     autoReload: true,
@@ -34,6 +43,7 @@ export default async function registerPluginHotReloadRoutes(
   const hotReloadService = new PluginHotReloadService(
     options.lifecycleManager,
     options.registry,
+    snapshotRepo,
     hotReloadConfig
   );
 

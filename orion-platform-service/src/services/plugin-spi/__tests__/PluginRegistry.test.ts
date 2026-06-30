@@ -3,13 +3,92 @@
  *
  * Tests for plugin registration, discovery, validation,
  * version compatibility, and listing functionality.
+ * Uses mock PluginRegistryRepository (in-memory Map store).
  */
 
 import { PluginRegistry } from '../PluginRegistry';
+import { PluginRegistryRepository, PluginRegistryEntity } from '../../../repositories/PluginRegistryRepository';
 import { PluginManifest, PluginStatus } from '../types';
+
+// Mock repository backed by in-memory store
+function createMockRepo() {
+  const store = new Map<string, PluginRegistryEntity>();
+
+  const repo = {
+    create: jest.fn().mockImplementation(async (data: Partial<PluginRegistryEntity>) => {
+      const entity: PluginRegistryEntity = {
+        id: `plugin-${data.name || Date.now()}`,
+        name: data.name || '',
+        version: data.version || '1.0.0',
+        description: data.description || null,
+        author: data.author || null,
+        status: data.status || 'installed',
+        installDate: new Date(),
+        enabledDate: null,
+        errorMessage: null,
+        config: data.config || {},
+        manifest: data.manifest || {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      store.set(entity.id, entity);
+      return entity;
+    }),
+
+    findByName: jest.fn().mockImplementation(async (name: string) => {
+      for (const entity of store.values()) {
+        if (entity.name === name) return entity;
+      }
+      return undefined;
+    }),
+
+    findByStatus: jest.fn().mockImplementation(async (status: string) => {
+      return Array.from(store.values()).filter(e => e.status === status);
+    }),
+
+    updateStatus: jest.fn().mockImplementation(async (id: string, status: string, errorMessage?: string) => {
+      const entity = store.get(id);
+      if (!entity) throw new Error(`Plugin ${id} not found`);
+      entity.status = status;
+      if (status === 'enabled') entity.enabledDate = new Date();
+      if (errorMessage) entity.errorMessage = errorMessage;
+      entity.updatedAt = new Date();
+      store.set(id, entity);
+      return entity;
+    }),
+
+    updateConfig: jest.fn().mockImplementation(async (id: string, config: Record<string, any>) => {
+      const entity = store.get(id);
+      if (!entity) throw new Error(`Plugin ${id} not found`);
+      entity.config = { ...entity.config, ...config };
+      entity.updatedAt = new Date();
+      store.set(id, entity);
+      return entity;
+    }),
+
+    delete: jest.fn().mockImplementation(async (id: string) => {
+      return store.delete(id);
+    }),
+
+    existsByName: jest.fn().mockImplementation(async (name: string) => {
+      for (const entity of store.values()) {
+        if (entity.name === name) return true;
+      }
+      return false;
+    }),
+
+    countAll: jest.fn().mockImplementation(async () => store.size),
+
+    _store: store,
+    _reset: () => store.clear(),
+  };
+
+  return repo as unknown as PluginRegistryRepository;
+}
 
 describe('PluginRegistry', () => {
   let registry: PluginRegistry;
+  let mockRepo: ReturnType<typeof createMockRepo>;
 
   const createManifest = (overrides: Partial<PluginManifest> = {}): PluginManifest => ({
     name: 'test-plugin',
@@ -22,8 +101,19 @@ describe('PluginRegistry', () => {
     ...overrides,
   });
 
-  beforeEach(async () => {
-    registry = new PluginRegistry();
+  beforeEach(() => {
+    mockRepo = createMockRepo();
+    registry = new PluginRegistry(mockRepo);
+  });
+
+  describe('constructor', () => {
+    it('should throw if repository is not provided', () => {
+      expect(() => new PluginRegistry(null as any)).toThrow('PluginRegistryRepository is required');
+    });
+
+    it('should throw if repository is undefined', () => {
+      expect(() => new PluginRegistry(undefined as any)).toThrow('PluginRegistryRepository is required');
+    });
   });
 
   describe('register', () => {
@@ -260,7 +350,7 @@ describe('PluginRegistry', () => {
 
   describe('discover', () => {
     it('should return empty array when plugin directory does not exist', async () => {
-      const nonExistentRegistry = new PluginRegistry({
+      const nonExistentRegistry = new PluginRegistry(mockRepo, {
         pluginDirectory: '/nonexistent/plugin/path',
       });
 

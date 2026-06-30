@@ -36,13 +36,12 @@ export class PluginRegistry {
   private plugins: Map<string, PluginInfo> = new Map(); // in-memory cache
   private pluginDirectory: string;
   private listeners: Map<PluginEventType, Array<(data: any) => void>> = new Map();
-  private repository?: PluginRegistryRepository;
+  private repository: PluginRegistryRepository;
 
-  constructor(options?: { pluginDirectory?: string; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
+  constructor(repository: PluginRegistryRepository, options?: { pluginDirectory?: string }) {
+    if (!repository) throw new Error('PluginRegistryRepository is required');
+    this.repository = repository;
     this.pluginDirectory = options?.pluginDirectory || path.join(process.cwd(), 'plugins');
-    if (options?.db) {
-      this.repository = new PluginRegistryRepository(options.db);
-    }
   }
 
   /**
@@ -65,21 +64,15 @@ export class PluginRegistry {
     this.plugins.set(manifest.name, pluginInfo);
 
     // Persist to repository
-    if (this.repository) {
-      try {
-        await this.repository.create({
-          name: manifest.name,
-          version: manifest.version,
-          description: manifest.description,
-          author: manifest.author,
-          status: 'installed',
-          config: config || {},
-          manifest: manifest as any,
-        });
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), pluginId: manifest.name, error: err }, 'Failed to persist plugin to repository');
-      }
-    }
+    await this.repository.create({
+      name: manifest.name,
+      version: manifest.version,
+      description: manifest.description,
+      author: manifest.author,
+      status: 'installed',
+      config: config || {},
+      manifest: manifest as any,
+    });
 
     logger.info({ pluginId: manifest.name, version: manifest.version }, 'Plugin registered');
     this.emit('plugin:registered', { pluginId: manifest.name, version: manifest.version });
@@ -218,15 +211,9 @@ export class PluginRegistry {
     }
 
     // Persist to repository
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findByName(name);
-        if (entity) {
-          await this.repository.updateStatus(entity.id, status, error);
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), pluginId: name, error: err }, 'Failed to persist status update to repository');
-      }
+    const entity = await this.repository.findByName(name);
+    if (entity) {
+      await this.repository.updateStatus(entity.id, status, error);
     }
 
     return plugin;
@@ -244,15 +231,9 @@ export class PluginRegistry {
     plugin.config = { ...plugin.config, ...config };
 
     // Persist to repository
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findByName(name);
-        if (entity) {
-          await this.repository.updateConfig(entity.id, config);
-        }
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), pluginId: name, error: err }, 'Failed to persist config update to repository');
-      }
+    const entity = await this.repository.findByName(name);
+    if (entity) {
+      await this.repository.updateConfig(entity.id, config);
     }
 
     return plugin;
@@ -265,15 +246,9 @@ export class PluginRegistry {
     const existed = this.plugins.delete(name);
     if (existed) {
       // Remove from repository
-      if (this.repository) {
-        try {
-          const entity = await this.repository.findByName(name);
-          if (entity) {
-            await this.repository.delete(entity.id);
-          }
-        } catch (err) {
-          logger.warn({ traceId: getCurrentTraceId(), pluginId: name, error: err }, 'Failed to remove plugin from repository');
-        }
+      const entity = await this.repository.findByName(name);
+      if (entity) {
+        await this.repository.delete(entity.id);
       }
       logger.info({ pluginId: name }, 'Plugin removed from registry');
     }

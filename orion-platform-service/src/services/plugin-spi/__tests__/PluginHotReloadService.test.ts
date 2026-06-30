@@ -2,33 +2,26 @@
  * PluginHotReloadService Tests
  *
  * Covers:
- * - constructor: default config, custom config, with db (repository)
+ * - constructor: default config, custom config, required repository
  * - getConfig: returns merged config
  * - hotReload: success flow, plugin not found, already reloading, rollback on failure
  * - rollback: no snapshots, target version not found
- * - getVersionHistory: from in-memory, empty
+ * - getVersionHistory: from repository, empty
  * - getStats: returns correct counts
  * - triggerReload: delegates to hotReload
  * - cleanup: clears all state
  * - startWatching / stopWatching: browser guard, cleanup
  */
 
-import { PluginHotReloadService } from '../PluginHotReloadService';
+import { PluginHotReloadService, PluginVersionSnapshot } from '../PluginHotReloadService';
 import { PluginInfo, PluginManifest } from '../types';
+import { PluginVersionSnapshotRepository, PluginVersionSnapshotEntity } from '../../../repositories/PluginVersionSnapshotRepository';
 import { EventEmitter } from 'events';
 
 jest.mock('pino', () => {
   const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
   return jest.fn(() => mockLogger);
 });
-
-jest.mock('../../../repositories/PluginVersionSnapshotRepository', () => ({
-  PluginVersionSnapshotRepository: jest.fn().mockImplementation(() => ({
-    findByPluginId: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({}),
-    pruneOldSnapshots: jest.fn().mockResolvedValue(0),
-  })),
-}));
 
 function createMockManifest(overrides: Partial<PluginManifest> = {}): PluginManifest {
   return {
@@ -73,19 +66,67 @@ function createMockRegistry() {
   };
 }
 
+// Mock snapshot repository backed by in-memory store
+function createMockSnapshotRepo() {
+  const store = new Map<string, PluginVersionSnapshotEntity[]>();
+
+  return {
+    findByPluginId: jest.fn().mockImplementation(async (pluginId: string, _limit?: number) => {
+      return store.get(pluginId) || [];
+    }),
+
+    create: jest.fn().mockImplementation(async (data: Partial<PluginVersionSnapshotEntity>) => {
+      const entity: PluginVersionSnapshotEntity = {
+        id: `snapshot-${Date.now()}-${Math.random()}`,
+        pluginId: data.pluginId || '',
+        version: data.version || '1.0.0',
+        manifest: data.manifest || {},
+        config: data.config || {},
+        status: data.status || 'enabled',
+        checksum: data.checksum || null,
+        snapshotAt: new Date(),
+        createdAt: new Date(),
+      };
+      const existing = store.get(entity.pluginId) || [];
+      existing.push(entity);
+      store.set(entity.pluginId, existing);
+      return entity;
+    }),
+
+    pruneOldSnapshots: jest.fn().mockResolvedValue(0),
+
+    _store: store,
+    _reset: () => store.clear(),
+  } as unknown as PluginVersionSnapshotRepository;
+}
+
 describe('PluginHotReloadService', () => {
   let lifecycleManager: ReturnType<typeof createMockLifecycleManager>;
   let registry: ReturnType<typeof createMockRegistry>;
+  let snapshotRepo: ReturnType<typeof createMockSnapshotRepo>;
   let service: PluginHotReloadService;
 
   beforeEach(() => {
     lifecycleManager = createMockLifecycleManager();
     registry = createMockRegistry();
-    service = new PluginHotReloadService(lifecycleManager, registry);
+    snapshotRepo = createMockSnapshotRepo();
+    service = new PluginHotReloadService(lifecycleManager, registry, snapshotRepo);
     jest.clearAllMocks();
   });
 
   describe('constructor', () => {
+    it('should throw if snapshotRepository is not provided', () => {
+      expect(() => new PluginHotReloadService(lifecycleManager, registry, null as any)).toThrow(
+        'PluginVersionSnapshotRepository is required'
+      );
+    });
+
+    it('should throw if snapshotRepository is undefined', () => {
+      expect(() => new PluginHotReloadService(lifecycleManager, registry, undefined as any)).toThrow(
+        'PluginVersionSnapshotRepository is required'
+      );
+    });
+
     it('should create instance with default config', () => {
       const config = service.getConfig();
       expect(config.autoReload).toBe(true);
@@ -96,7 +137,7 @@ describe('PluginHotReloadService', () => {
     });
 
     it('should accept custom config', () => {
-      const custom = new PluginHotReloadService(lifecycleManager, registry, {
+      const custom = new PluginHotReloadService(lifecycleManager, registry, snapshotRepo, {
         autoReload: false,
         reloadDelay: 5000,
         maxRetries: 5,
@@ -105,12 +146,6 @@ describe('PluginHotReloadService', () => {
       expect(config.autoReload).toBe(false);
       expect(config.reloadDelay).toBe(5000);
       expect(config.maxRetries).toBe(5);
-    });
-
-    it('should initialize snapshot repository when db is provided', () => {
-      const mockDb = { query: jest.fn() };
-      const withDb = new PluginHotReloadService(lifecycleManager, registry, {}, mockDb as any);
-      expect(withDb).toBeDefined();
     });
 
     it('should setup lifecycle event listeners', () => {
@@ -157,9 +192,6 @@ describe('PluginHotReloadService', () => {
     it('should throw when plugin not found in registry', async () => {
       registry.getPlugin.mockReturnValue(undefined);
 
-      // When plugin not found, the error propagates to catch which calls rollback.
-      // Rollback also fails (no snapshots), so the rollback error overrides.
-      // The key behavior is that an error IS thrown.
       await expect(service.hotReload('nonexistent')).rejects.toThrow();
     });
 
@@ -192,7 +224,7 @@ describe('PluginHotReloadService', () => {
       registry.getPlugin.mockReturnValue(createMockPluginInfo({ status: 'enabled' }));
       lifecycleManager.installPlugin.mockRejectedValue(new Error('install failed'));
 
-      // Mock rollback to prevent cascading errors from file system access
+      // Mock rollback to prevent cascading errors
       jest.spyOn(service, 'rollback').mockResolvedValue(createMockPluginInfo({ version: '1.0.0' }));
 
       const events: string[] = [];
@@ -217,7 +249,7 @@ describe('PluginHotReloadService', () => {
     });
 
     it('should not call rollback when rollbackEnabled is false', async () => {
-      service = new PluginHotReloadService(lifecycleManager, registry, { rollbackEnabled: false });
+      service = new PluginHotReloadService(lifecycleManager, registry, snapshotRepo, { rollbackEnabled: false });
       registry.getPlugin.mockReturnValue(createMockPluginInfo());
       lifecycleManager.installPlugin.mockRejectedValue(new Error('fail'));
 
@@ -235,18 +267,43 @@ describe('PluginHotReloadService', () => {
     });
 
     it('should throw when target version not found in snapshots', async () => {
-      (service as any).versionSnapshots.set('test-plugin', [
-        { pluginId: 'test-plugin', version: '1.0.0', manifest: createMockManifest(), config: {}, status: 'enabled', timestamp: new Date() },
+      // Populate snapshot repo with one snapshot
+      (snapshotRepo.findByPluginId as jest.Mock).mockResolvedValue([
+        {
+          pluginId: 'test-plugin',
+          version: '1.0.0',
+          manifest: createMockManifest(),
+          config: {},
+          status: 'enabled',
+          snapshotAt: new Date(),
+          checksum: null,
+        },
       ]);
 
       await expect(service.rollback('test-plugin', '9.9.9')).rejects.toThrow('Snapshot not found');
     });
 
-    it('should rollback using in-memory snapshots', async () => {
-      // Manually populate in-memory snapshots
-      (service as any).versionSnapshots.set('test-plugin', [
-        { pluginId: 'test-plugin', version: '1.0.0', manifest: createMockManifest({ version: '1.0.0' }), config: {}, status: 'enabled', timestamp: new Date('2024-01-01') },
-        { pluginId: 'test-plugin', version: '2.0.0', manifest: createMockManifest({ version: '2.0.0' }), config: {}, status: 'enabled', timestamp: new Date('2024-01-02') },
+    it('should rollback using repository snapshots', async () => {
+      // Populate snapshot repo with two snapshots
+      (snapshotRepo.findByPluginId as jest.Mock).mockResolvedValue([
+        {
+          pluginId: 'test-plugin',
+          version: '2.0.0',
+          manifest: createMockManifest({ version: '2.0.0' }),
+          config: {},
+          status: 'enabled',
+          snapshotAt: new Date('2024-01-02'),
+          checksum: null,
+        },
+        {
+          pluginId: 'test-plugin',
+          version: '1.0.0',
+          manifest: createMockManifest({ version: '1.0.0' }),
+          config: {},
+          status: 'enabled',
+          snapshotAt: new Date('2024-01-01'),
+          checksum: null,
+        },
       ]);
 
       // Mock the registry to return current plugin (v2.0.0)
@@ -269,9 +326,17 @@ describe('PluginHotReloadService', () => {
       expect(history).toEqual([]);
     });
 
-    it('should return in-memory snapshots', async () => {
-      (service as any).versionSnapshots.set('test-plugin', [
-        { pluginId: 'test-plugin', version: '1.0.0', manifest: createMockManifest(), config: {}, status: 'enabled', timestamp: new Date() },
+    it('should return snapshots from repository', async () => {
+      (snapshotRepo.findByPluginId as jest.Mock).mockResolvedValue([
+        {
+          pluginId: 'test-plugin',
+          version: '1.0.0',
+          manifest: createMockManifest(),
+          config: {},
+          status: 'enabled',
+          snapshotAt: new Date(),
+          checksum: null,
+        },
       ]);
 
       const history = await service.getVersionHistory('test-plugin');
@@ -336,7 +401,7 @@ describe('PluginHotReloadService', () => {
 
   describe('startWatching / stopWatching', () => {
     it('should not throw with empty watchPaths', () => {
-      service = new PluginHotReloadService(lifecycleManager, registry, { watchPaths: [] });
+      service = new PluginHotReloadService(lifecycleManager, registry, snapshotRepo, { watchPaths: [] });
       expect(() => service.startWatching()).not.toThrow();
     });
 

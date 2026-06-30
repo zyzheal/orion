@@ -67,7 +67,7 @@ export class PluginHotReloadService extends EventEmitter {
   private config: HotReloadConfig;
 
   // 版本快照存储 (用于回滚) - migrated to repository
-  private snapshotRepository?: PluginVersionSnapshotRepository;
+  private snapshotRepository: PluginVersionSnapshotRepository;
   private versionSnapshots: Map<string, PluginVersionSnapshot[]> = new Map(); // in-memory cache
   private maxSnapshots = 5; // 每个插件最多保存 5 个版本快照
 
@@ -81,16 +81,15 @@ export class PluginHotReloadService extends EventEmitter {
   constructor(
     lifecycleManager: PluginLifecycleManager,
     registry: PluginRegistry,
+    snapshotRepository: PluginVersionSnapshotRepository,
     config: Partial<HotReloadConfig> = {},
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
   ) {
     super();
+    if (!snapshotRepository) throw new Error('PluginVersionSnapshotRepository is required');
     this.lifecycleManager = lifecycleManager;
     this.registry = registry;
+    this.snapshotRepository = snapshotRepository;
     this.config = { ...DEFAULT_CONFIG, ...config };
-    if (db) {
-      this.snapshotRepository = new PluginVersionSnapshotRepository(db);
-    }
 
     // 监听生命周期事件
     this.setupEventListeners();
@@ -371,30 +370,17 @@ export class PluginHotReloadService extends EventEmitter {
    * 回滚到上一个版本
    */
   async rollback(pluginId: string, targetVersion?: string): Promise<PluginInfo> {
-    // Try reading from repository first
-    let snapshots: PluginVersionSnapshot[] | undefined;
-
-    if (this.snapshotRepository) {
-      try {
-        const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
-        snapshots = entities.map(e => ({
-          pluginId: e.pluginId,
-          version: e.version,
-          manifest: e.manifest as PluginManifest,
-          config: e.config,
-          status: e.status as PluginVersionSnapshot['status'],
-          timestamp: e.snapshotAt,
-          checksum: e.checksum || undefined,
-        }));
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), pluginId, error: err }, 'Failed to read snapshots from repository for rollback, falling back to in-memory');
-      }
-    }
-
-    // Fallback to in-memory cache
-    if (!snapshots || snapshots.length === 0) {
-      snapshots = this.versionSnapshots.get(pluginId);
-    }
+    // Read from repository
+    const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
+    const snapshots: PluginVersionSnapshot[] = entities.map(e => ({
+      pluginId: e.pluginId,
+      version: e.version,
+      manifest: e.manifest as PluginManifest,
+      config: e.config,
+      status: e.status as PluginVersionSnapshot['status'],
+      timestamp: e.snapshotAt,
+      checksum: e.checksum || undefined,
+    }));
 
     if (!snapshots || snapshots.length === 0) {
       throw new OrionError(`No snapshots available for plugin "${pluginId}"`, ErrorCode.NOT_FOUND);
@@ -461,21 +447,15 @@ export class PluginHotReloadService extends EventEmitter {
     this.versionSnapshots.set(pluginId, snapshots);
 
     // Persist to repository
-    if (this.snapshotRepository) {
-      try {
-        await this.snapshotRepository.create({
-          pluginId,
-          version: plugin.version,
-          manifest: plugin.manifest as any,
-          config: plugin.config || {},
-          status: plugin.status,
-        });
-        // Prune old snapshots
-        await this.snapshotRepository.pruneOldSnapshots(pluginId, this.maxSnapshots);
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), pluginId, error: err }, 'Failed to persist snapshot to repository');
-      }
-    }
+    await this.snapshotRepository.create({
+      pluginId,
+      version: plugin.version,
+      manifest: plugin.manifest as any,
+      config: plugin.config || {},
+      status: plugin.status,
+    });
+    // Prune old snapshots
+    await this.snapshotRepository.pruneOldSnapshots(pluginId, this.maxSnapshots);
 
     logger.debug({ pluginId, version: plugin.version }, 'Snapshot saved');
   }
@@ -497,26 +477,17 @@ export class PluginHotReloadService extends EventEmitter {
    * 获取插件版本历史
    */
   async getVersionHistory(pluginId: string): Promise<PluginVersionSnapshot[]> {
-    // Read from repository when available
-    if (this.snapshotRepository) {
-      try {
-        const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
-        return entities.map(e => ({
-          pluginId: e.pluginId,
-          version: e.version,
-          manifest: e.manifest as PluginManifest,
-          config: e.config,
-          status: e.status as PluginVersionSnapshot['status'],
-          timestamp: e.snapshotAt,
-          checksum: e.checksum || undefined,
-        }));
-      } catch (err) {
-        logger.warn({ traceId: getCurrentTraceId(), pluginId, error: err }, 'Failed to read version history from repository, falling back to in-memory');
-      }
-    }
-
-    // Fallback to in-memory cache
-    return this.versionSnapshots.get(pluginId) || [];
+    // Read from repository
+    const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
+    return entities.map(e => ({
+      pluginId: e.pluginId,
+      version: e.version,
+      manifest: e.manifest as PluginManifest,
+      config: e.config,
+      status: e.status as PluginVersionSnapshot['status'],
+      timestamp: e.snapshotAt,
+      checksum: e.checksum || undefined,
+    }));
   }
 
   /**

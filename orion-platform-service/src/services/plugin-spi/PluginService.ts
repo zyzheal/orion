@@ -14,6 +14,7 @@
 import pino from 'pino';
 import { EventEmitter } from 'events';
 import { PluginRegistry } from './PluginRegistry';
+import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';
 import { PluginLifecycleManager } from './PluginLifecycleManager';
 import { PluginSandboxSPI } from './PluginSandbox';
 import { PluginDependencyResolver } from './PluginDependencyResolver';
@@ -40,14 +41,14 @@ export class PluginService extends EventEmitter {
   private dependencyResolver: PluginDependencyResolver;
   private initialized = false;
 
-  constructor(options?: {
+  constructor(repository: PluginRegistryRepository, options?: {
     pluginDirectory?: string;
     sandboxConfig?: Partial<PluginSandboxConfig>;
   }) {
     super();
 
     // Initialize components
-    this.registry = new PluginRegistry({
+    this.registry = new PluginRegistry(repository, {
       pluginDirectory: options?.pluginDirectory,
     });
 
