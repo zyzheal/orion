@@ -5,6 +5,12 @@
  * - 实时读取 Pod 日志
  * - WebSocket/SSE 推送支持
  * - 日志持久化
+ *
+ * 持久化方式：PostgreSQL Repository (BuildLogRepository)
+ *
+ * 注意：此服务同时维护 in-memory Map 用于实时日志流（WebSocket/SSE）。
+ * logs Map 不是 fallback，而是实时日志订阅的核心数据结构。
+ * 持久化操作通过 repository 始终写入数据库。
  */
 
 import {
@@ -38,16 +44,22 @@ interface LogSubscriber {
 }
 
 export class BuildLogService {
-  private subscribers: Map<string, LogSubscriber>;
-  private logs: Map<string, BuildLog>;
-  private repository?: BuildLogRepository;
+  /** In-memory store for real-time log subscriptions (WebSocket/SSE) */
+  private readonly logs: Map<string, BuildLog>;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    this.subscribers = new Map();
-    this.logs = new Map();
-    if (db) {
-      this.repository = new BuildLogRepository(db);
+  /** Log subscribers for WebSocket/SSE push notifications */
+  private subscribers: Map<string, LogSubscriber>;
+
+  /** PostgreSQL repository for persistence (required) */
+  private readonly repository: BuildLogRepository;
+
+  constructor(repository: BuildLogRepository) {
+    if (!repository) {
+      throw new Error('BuildLogRepository is required for BuildLogService');
     }
+    this.repository = repository;
+    this.logs = new Map();
+    this.subscribers = new Map();
   }
 
   /**
@@ -64,20 +76,16 @@ export class BuildLogService {
     const log = createBuildLog(options);
     this.logs.set(log.id, log);
 
-    if (this.repository) {
-      try {
-        await this.repository.create({
-          id: log.id,
-          buildId: log.runId || log.id,
-          projectId: options?.taskId,
-          stage: options?.stageId || 'default',
-          logContent: '',
-          createdAt: log.createdAt,
-        });
-      } catch (err) {
-        logger.warn(`[BuildLogService] Failed to persist log record: ${err}`);
-      }
-    }
+    // Persist to repository
+    await this.repository.create({
+      id: log.id,
+      buildId: log.runId || log.id,
+      projectId: options?.taskId,
+      stage: options?.stageId || 'default',
+      logContent: '',
+      createdAt: log.createdAt,
+    });
+
     return log;
   }
 
@@ -88,30 +96,29 @@ export class BuildLogService {
     const memLog = this.logs.get(id);
     if (memLog) return memLog;
 
-    if (this.repository) {
-      const dbLogs = await this.repository.findByBuildId(id);
-      if (dbLogs.length > 0) {
-        const dbLog = dbLogs[0];
-        // Parse logContent string into LogEntry[]
-        const entries: LogEntry[] = dbLog.logContent
-          ? dbLog.logContent.split('\n').filter(line => line.trim()).map(line => parseLogLine(line))
-          : [];
+    const dbLogs = await this.repository.findByBuildId(id);
+    if (dbLogs.length > 0) {
+      const dbLog = dbLogs[0];
+      // Parse logContent string into LogEntry[]
+      const entries: LogEntry[] = dbLog.logContent
+        ? dbLog.logContent.split('\n').filter(line => line.trim()).map(line => parseLogLine(line))
+        : [];
 
-        return {
-          id: dbLog.id,
-          runId: dbLog.buildId,
-          entries,
-          isComplete: false,
-          totalLines: entries.length,
-          createdAt: dbLog.createdAt,
-        };
-      }
+      return {
+        id: dbLog.id,
+        runId: dbLog.buildId,
+        entries,
+        isComplete: false,
+        totalLines: entries.length,
+        createdAt: dbLog.createdAt,
+      };
     }
+
     return null;
   }
 
   /**
-   * 查询日志
+   * 查询日志（从内存中的实时日志）
    */
   async queryLogs(options: BuildLogQueryOptions): Promise<BuildLog[]> {
     let result = Array.from(this.logs.values());
@@ -156,10 +163,16 @@ export class BuildLogService {
     if (!log) return null;
 
     const updated = appendLogEntry(log, message, options);
-this.logs.set(logId, updated);
+    this.logs.set(logId, updated);
 
-    // 通知订阅者
+    // Persist updated log content to repository
     const newEntry = updated.entries[updated.entries.length - 1];
+    const content = updated.entries.map(e =>
+      `[${e.timestamp}] [${e.level}]${e.source ? ` [${e.source}]` : ''} ${e.message}`
+    ).join('\n');
+    await this.repository.appendLogContent(logId, content);
+
+    // Notify subscribers
     this.notifySubscribers(log, newEntry);
 
     return updated;
@@ -173,9 +186,15 @@ this.logs.set(logId, updated);
     if (!log) return null;
 
     const updated = appendLogEntries(log, entries);
-this.logs.set(logId, updated);
+    this.logs.set(logId, updated);
 
-    // 通知订阅者
+    // Persist updated log content to repository
+    const content = updated.entries.map(e =>
+      `[${e.timestamp}] [${e.level}]${e.source ? ` [${e.source}]` : ''} ${e.message}`
+    ).join('\n');
+    await this.repository.appendLogContent(logId, content);
+
+    // Notify subscribers
     for (const entry of entries) {
       this.notifySubscribers(log, entry);
     }
@@ -198,7 +217,7 @@ this.logs.set(logId, updated);
     const entries = lines.map(line => parseLogLine(line, options?.source));
 
     const updated = appendLogEntries(log, entries);
-this.logs.set(logId, updated);
+    this.logs.set(logId, updated);
 
     return updated;
   }
@@ -211,9 +230,9 @@ this.logs.set(logId, updated);
     if (!log) return null;
 
     const updated = completeBuildLog(log);
-this.logs.set(logId, updated);
+    this.logs.set(logId, updated);
 
-    // 通知订阅者日志已完成
+    // Notify subscribers log is complete
     const subscribers = Array.from(this.subscribers.values()).filter(
       sub => this.matchSubscriber(sub, log)
     );
@@ -337,5 +356,3 @@ this.logs.set(logId, updated);
     return this.subscribers.size;
   }
 }
-
-export const buildLogService = new BuildLogService();

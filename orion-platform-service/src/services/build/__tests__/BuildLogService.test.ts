@@ -1,15 +1,40 @@
 /**
- * BuildLogService 单元测试
+ * BuildLogService 单元测试 - PostgreSQL Repository 模式
  */
 
 import { BuildLogService } from '../BuildLogService';
 import { LogLevel } from '../../../models/BuildLog';
 
+// Mock repository matching BuildLogRepository's actual API
+const createMockRepo = () => ({
+  create: jest.fn().mockResolvedValue(undefined),
+  findByBuildId: jest.fn().mockResolvedValue([]),
+  findByProjectId: jest.fn().mockResolvedValue([]),
+  appendLogContent: jest.fn().mockResolvedValue(undefined),
+  mapRowToEntity: jest.fn(),
+});
+
 describe('BuildLogService', () => {
+  let mockRepo: ReturnType<typeof createMockRepo>;
   let service: BuildLogService;
 
   beforeEach(() => {
-    service = new BuildLogService();
+    mockRepo = createMockRepo();
+    service = new BuildLogService(mockRepo as any);
+  });
+
+  describe('constructor', () => {
+    it('should throw when no repository provided', () => {
+      expect(() => new BuildLogService()).toThrow('BuildLogRepository is required for BuildLogService');
+    });
+
+    it('should throw when repository is null', () => {
+      expect(() => new BuildLogService(null as any)).toThrow('BuildLogRepository is required for BuildLogService');
+    });
+
+    it('should accept a repository and initialize', () => {
+      expect(() => new BuildLogService(mockRepo as any)).not.toThrow();
+    });
   });
 
   describe('createLog', () => {
@@ -26,12 +51,14 @@ describe('BuildLogService', () => {
       expect(log.containerName).toBe('build');
       expect(log.entries).toEqual([]);
       expect(log.isComplete).toBe(false);
+      expect(mockRepo.create).toHaveBeenCalled();
     });
 
     it('should create a log without options', async () => {
       const log = await service.createLog();
       expect(log).toBeDefined();
       expect(log.entries).toEqual([]);
+      expect(mockRepo.create).toHaveBeenCalled();
     });
   });
 
@@ -105,6 +132,7 @@ describe('BuildLogService', () => {
       expect(updated?.entries.length).toBe(1);
       expect(updated?.entries[0].message).toBe('Build started');
       expect(updated?.entries[0].level).toBe(LogLevel.INFO);
+      expect(mockRepo.appendLogContent).toHaveBeenCalled();
     });
 
     it('should append entry with custom level', async () => {
@@ -155,6 +183,7 @@ describe('BuildLogService', () => {
 
       expect(updated?.entries.length).toBe(2);
       expect(updated?.totalLines).toBe(2);
+      expect(mockRepo.appendLogContent).toHaveBeenCalled();
     });
   });
 

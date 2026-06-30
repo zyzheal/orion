@@ -22,8 +22,26 @@ describe('ArtifactService - PostgreSQL Repository', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Pass mockRepo directly as the repository (matches constructor(repository?: BuildArtifactRepository))
+    // Pass mockRepo directly as the repository (matches constructor(repository: BuildArtifactRepository))
     service = new ArtifactService(mockRepo as any);
+  });
+
+  describe('constructor', () => {
+    it('should throw when no repository provided', () => {
+      expect(() => new ArtifactService()).toThrow('BuildArtifactRepository is required for ArtifactService');
+    });
+
+    it('should throw when repository is null', () => {
+      expect(() => new ArtifactService(null as any)).toThrow('BuildArtifactRepository is required for ArtifactService');
+    });
+
+    it('should throw when repository is undefined', () => {
+      expect(() => new ArtifactService(undefined as any)).toThrow('BuildArtifactRepository is required for ArtifactService');
+    });
+
+    it('should accept a repository and initialize', () => {
+      expect(() => new ArtifactService(mockRepo as any)).not.toThrow();
+    });
   });
 
   describe('createArtifact', () => {
