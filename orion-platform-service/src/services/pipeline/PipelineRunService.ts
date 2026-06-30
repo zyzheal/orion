@@ -1,8 +1,8 @@
 /**
  * PipelineRun Service - PipelineRun 管理
  *
- * Migrated from Map() in-memory storage to PostgreSQL Repository pattern.
- * Maintains backward-compatible API for controllers and engine.
+ * PostgreSQL Repository pattern — repository is the single source of truth.
+ * All in-memory fallback paths have been removed.
  */
 
 import {
@@ -11,10 +11,6 @@ import {
   TriggerType,
   PipelineRunCreateInput,
   PipelineRunFilter,
-  createPipelineRun,
-  startPipelineRun,
-  completePipelineRun,
-  cancelPipelineRun,
 } from '../../models/PipelineRun';
 import { Stage, StageStatus } from '../../models/Stage';
 import { Task, TaskStatus } from '../../models/Task';
@@ -27,16 +23,16 @@ import {
   CreateRunInput,
 } from './PipelineRunRepository';
 import { EnvironmentService, ResolvedVariables } from './EnvironmentService';
-import { v4 as uuidv4 } from 'uuid';
 
 export class PipelineRunService {
   private eventPublisher: PipelineEventPublisher;
-  private repository: PipelineRunRepository | null = null;
+  private repository: PipelineRunRepository;
   private environmentService: EnvironmentService | null = null;
 
-  constructor(eventPublisher?: PipelineEventPublisher, repository?: PipelineRunRepository, environmentService?: EnvironmentService) {
+  constructor(eventPublisher: PipelineEventPublisher, repository: PipelineRunRepository, environmentService?: EnvironmentService) {
+    if (!repository) throw new Error('PipelineRunRepository is required');
     this.eventPublisher = eventPublisher || new PipelineEventPublisher();
-    this.repository = repository || null;
+    this.repository = repository;
     this.environmentService = environmentService || null;
   }
 
@@ -49,9 +45,6 @@ export class PipelineRunService {
 
   // ==================== Mapping helpers ====================
 
-  /**
-   * Map database PipelineRunRecord to domain PipelineRun model
-   */
   private mapRun(record: PipelineRunRecord): PipelineRun {
     return {
       id: record.id,
@@ -70,11 +63,7 @@ export class PipelineRunService {
     };
   }
 
-  /**
-   * Map domain PipelineRunCreateInput to database CreateRunInput
-   */
   private mapCreateInput(input: PipelineRunCreateInput): CreateRunInput {
-    // P4 Security: Extract tenantId from context instead of hardcoding
     const contextTenantId = (input.context as any)?.tenantId;
     return {
       tenant_id: contextTenantId || '00000000-0000-0000-0000-000000000000',
@@ -86,9 +75,6 @@ export class PipelineRunService {
     };
   }
 
-  /**
-   * Map database StageExecutionRecord to domain Stage model
-   */
   private mapStageExecution(record: StageExecutionRecord, runId: string, sequence: number): Stage {
     return {
       id: record.id,
@@ -108,9 +94,6 @@ export class PipelineRunService {
     };
   }
 
-  /**
-   * Map database TaskExecutionRecord to domain Task model
-   */
   private mapTaskExecution(record: TaskExecutionRecord, stageId: string, sequence: number): Task {
     return {
       id: record.id,
@@ -136,258 +119,149 @@ export class PipelineRunService {
 
   // ==================== PipelineRun CRUD ====================
 
-  /**
-   * Create PipelineRun
-   */
   async createRun(input: PipelineRunCreateInput): Promise<PipelineRun> {
-    // If repository is available, use database
-    if (this.repository) {
-      const dbInput = this.mapCreateInput(input);
-      const record = await this.repository.create(dbInput);
-      const run = this.mapRun(record);
-
-      await this.eventPublisher.publishRunCreated(run);
-      return run;
-    }
-
-    // Fallback: in-memory (legacy)
-    const run = createPipelineRun(input);
+    const dbInput = this.mapCreateInput(input);
+    const record = await this.repository.create(dbInput);
+    const run = this.mapRun(record);
     await this.eventPublisher.publishRunCreated(run);
     return run;
   }
 
-  /**
-   * Get PipelineRun by ID
-   */
   async getRun(id: string): Promise<PipelineRun | null> {
-    if (this.repository) {
-      const record = await this.repository.findById(id);
-      return record ? this.mapRun(record) : null;
-    }
-
-    return null;
+    const record = await this.repository.findById(id);
+    return record ? this.mapRun(record) : null;
   }
 
-  /**
-   * Find all runs with a specific status (for crash recovery)
-   */
   async findRunsByStatus(status: string): Promise<PipelineRun[]> {
-    if (this.repository) {
-      const records = await this.repository.findByStatus(status);
-      return records.map(r => this.mapRun(r));
-    }
-    return [];
+    const records = await this.repository.findByStatus(status);
+    return records.map(r => this.mapRun(r));
   }
 
-  /**
-   * Get PipelineRun list with filtering
-   */
   async listRuns(filter?: PipelineRunFilter): Promise<PipelineRun[]> {
-    if (this.repository) {
-      const records = await this.repository.findAll({
-        pipelineId: filter?.pipelineId,
-        status: filter?.status
-          ? (Array.isArray(filter.status) ? filter.status : [filter.status])
-          : undefined,
-        triggerType: filter?.triggerType,
-        limit: filter?.limit,
-        offset: filter?.offset,
-      });
-      return records.map(r => this.mapRun(r));
-    }
-
-    return [];
+    const records = await this.repository.findAll({
+      pipelineId: filter?.pipelineId,
+      status: filter?.status
+        ? (Array.isArray(filter.status) ? filter.status : [filter.status])
+        : undefined,
+      triggerType: filter?.triggerType,
+      limit: filter?.limit,
+      offset: filter?.offset,
+    });
+    return records.map(r => this.mapRun(r));
   }
 
-  /**
-   * Start PipelineRun
-   */
   async startRun(runId: string): Promise<PipelineRun | null> {
-    if (this.repository) {
-      const run = await this.repository.findById(runId);
-      if (!run) return null;
+    const run = await this.repository.findById(runId);
+    if (!run) return null;
 
-      const updatedRun = await this.repository.updateStatus(runId, 'running', new Date());
-      if (!updatedRun) return null;
+    const updatedRun = await this.repository.updateStatus(runId, 'running', new Date());
+    if (!updatedRun) return null;
 
-      const domainRun = this.mapRun(updatedRun);
-      await this.eventPublisher.publishRunStarted(domainRun);
-      return domainRun;
-    }
-
-    return null;
+    const domainRun = this.mapRun(updatedRun);
+    await this.eventPublisher.publishRunStarted(domainRun);
+    return domainRun;
   }
 
-  /**
-   * Complete PipelineRun
-   */
   async completeRun(runId: string, status: PipelineRunStatus.SUCCESS | PipelineRunStatus.FAILED): Promise<PipelineRun | null> {
-    if (this.repository) {
-      const run = await this.repository.findById(runId);
-      if (!run) return null;
+    const run = await this.repository.findById(runId);
+    if (!run) return null;
 
-      const completedAt = new Date();
-      const startedAt = run.started_at || run.created_at;
-      const updatedRun = await this.repository.updateStatus(
-        runId, status, startedAt, completedAt
-      );
-      if (!updatedRun) return null;
+    const completedAt = new Date();
+    const startedAt = run.started_at || run.created_at;
+    const updatedRun = await this.repository.updateStatus(
+      runId, status, startedAt, completedAt
+    );
+    if (!updatedRun) return null;
 
-      const domainRun = this.mapRun(updatedRun);
-      if (status === PipelineRunStatus.SUCCESS) {
-        await this.eventPublisher.publishRunCompleted(domainRun);
-      } else {
-        await this.eventPublisher.publishRunFailed(domainRun);
-      }
-      return domainRun;
+    const domainRun = this.mapRun(updatedRun);
+    if (status === PipelineRunStatus.SUCCESS) {
+      await this.eventPublisher.publishRunCompleted(domainRun);
+    } else {
+      await this.eventPublisher.publishRunFailed(domainRun);
     }
-
-    return null;
+    return domainRun;
   }
 
-  /**
-   * Cancel PipelineRun
-   */
   async cancelRun(runId: string): Promise<PipelineRun | null> {
-    if (this.repository) {
-      const run = await this.repository.findById(runId);
-      if (!run || (run.status !== 'running' && run.status !== 'pending')) {
-        return null;
-      }
-
-      const completedAt = new Date();
-      const startedAt = run.started_at || run.created_at;
-      const updatedRun = await this.repository.updateStatus(
-        runId, 'cancelled', startedAt, completedAt, 'Cancelled by user'
-      );
-      if (!updatedRun) return null;
-
-      const domainRun = this.mapRun(updatedRun);
-      await this.eventPublisher.publishRunCancelled(domainRun);
-      return domainRun;
+    const run = await this.repository.findById(runId);
+    if (!run || (run.status !== 'running' && run.status !== 'pending')) {
+      return null;
     }
 
-    return null;
+    const completedAt = new Date();
+    const startedAt = run.started_at || run.created_at;
+    const updatedRun = await this.repository.updateStatus(
+      runId, 'cancelled', startedAt, completedAt, 'Cancelled by user'
+    );
+    if (!updatedRun) return null;
+
+    const domainRun = this.mapRun(updatedRun);
+    await this.eventPublisher.publishRunCancelled(domainRun);
+    return domainRun;
   }
 
   // ==================== Stage Management ====================
 
-  /**
-   * Add Stage to PipelineRun
-   */
   async addStage(runId: string, stage: Stage): Promise<void> {
-    if (this.repository) {
-      await this.repository.createStageExecution(runId, stage.id || null, stage.name);
-      return;
-    }
+    await this.repository.createStageExecution(runId, stage.id || null, stage.name);
   }
 
-  /**
-   * Get stages for a run
-   */
   async getStages(runId: string): Promise<Stage[]> {
-    if (this.repository) {
-      const records = await this.repository.findStageExecutionsByRun(runId);
-      return records.map((r, i) => this.mapStageExecution(r, runId, i + 1));
-    }
-
-    return [];
+    const records = await this.repository.findStageExecutionsByRun(runId);
+    return records.map((r, i) => this.mapStageExecution(r, runId, i + 1));
   }
 
-  /**
-   * Get stage by ID
-   */
   async getStage(stageId: string): Promise<Stage | null> {
-    if (this.repository) {
-      const record = await this.repository.findStageExecutionById(stageId);
-      if (!record) return null;
-      return this.mapStageExecution(record, record.run_id, 1);
-    }
-
-    return null;
+    const record = await this.repository.findStageExecutionById(stageId);
+    if (!record) return null;
+    return this.mapStageExecution(record, record.run_id, 1);
   }
 
-  /**
-   * Update stage
-   */
   async updateStage(stage: Stage): Promise<void> {
-    if (this.repository) {
-      await this.repository.updateStageExecutionStatus(
-        stage.id,
-        stage.status,
-        stage.startedAt,
-        stage.completedAt,
-        stage.error
-      );
-    }
+    await this.repository.updateStageExecutionStatus(
+      stage.id,
+      stage.status,
+      stage.startedAt,
+      stage.completedAt,
+      stage.error
+    );
   }
 
   // ==================== Task Management ====================
 
-  /**
-   * Add Task to Stage
-   */
   async addTask(stageId: string, task: Task): Promise<void> {
-    if (this.repository) {
-      await this.repository.createTaskExecution(stageId, task.name, task.type);
-    }
+    await this.repository.createTaskExecution(stageId, task.name, task.type);
   }
 
-  /**
-   * Get tasks for a stage
-   */
   async getTasks(stageId: string): Promise<Task[]> {
-    if (this.repository) {
-      const records = await this.repository.findTaskExecutionsByExecution(stageId);
-      return records.map((r, i) => this.mapTaskExecution(r, stageId, i + 1));
-    }
-
-    return [];
+    const records = await this.repository.findTaskExecutionsByExecution(stageId);
+    return records.map((r, i) => this.mapTaskExecution(r, stageId, i + 1));
   }
 
-  /**
-   * Get task by ID
-   */
   async getTask(taskId: string): Promise<Task | null> {
-    if (this.repository) {
-      const record = await this.repository.findTaskExecutionById(taskId);
-      if (!record) return null;
-      return this.mapTaskExecution(record, record.execution_id, 1);
-    }
-
-    return null;
+    const record = await this.repository.findTaskExecutionById(taskId);
+    if (!record) return null;
+    return this.mapTaskExecution(record, record.execution_id, 1);
   }
 
-  /**
-   * Update task
-   */
   async updateTask(task: Task): Promise<void> {
-    if (this.repository) {
-      await this.repository.updateTaskExecution(task.id, {
-        status: task.status,
-        output: task.result,
-        startedAt: task.startedAt,
-        completedAt: task.completedAt,
-        errorMessage: task.error,
-        logs: task.log,
-      });
-    }
+    await this.repository.updateTaskExecution(task.id, {
+      status: task.status,
+      output: task.result,
+      startedAt: task.startedAt,
+      completedAt: task.completedAt,
+      errorMessage: task.error,
+      logs: task.log,
+    });
   }
 
   // ==================== Run Detail ====================
 
-  /**
-   * Get PipelineRun detail with stages and tasks
-   */
   async getRunDetail(runId: string): Promise<{
     run: PipelineRun | null;
     stages: Stage[];
     tasks: Task[];
   } | null> {
-    if (!this.repository) {
-      return null;
-    }
-
     const runRecord = await this.repository.findById(runId);
     if (!runRecord) {
       return null;
@@ -408,17 +282,10 @@ export class PipelineRunService {
 
   // ==================== Run Completion Check ====================
 
-  /**
-   * Check if all stages of a run are complete
-   */
   async checkRunCompletion(runId: string): Promise<{
     isComplete: boolean;
     allSuccess: boolean;
   } | null> {
-    if (!this.repository) {
-      return null;
-    }
-
     const run = await this.repository.findById(runId);
     if (!run) {
       return null;
@@ -444,24 +311,12 @@ export class PipelineRunService {
 
   // ==================== Environment Variable Resolution ====================
 
-  /**
-   * Resolve environment variables for a pipeline run.
-   * If the run has an environment specified and EnvironmentService is available,
-   * merges pipeline-level variables with environment-level variables.
-   * Environment variables take precedence over pipeline-level variables.
-   *
-   * @param tenantId - The tenant ID for environment lookup
-   * @param runId - The pipeline run ID (must have environment field set)
-   * @param pipelineVariables - Pipeline-level variables (lower priority)
-   * @returns Resolved variables, or pipelineVariables if environment not available
-   */
   async resolveEnvironmentVariables(
     tenantId: string,
     runId: string,
     pipelineVariables: Record<string, string> = {},
   ): Promise<ResolvedVariables> {
     if (!this.environmentService) {
-      // EnvironmentService not available, return pipeline variables as-is
       return {
         variables: pipelineVariables,
         environment: {
@@ -472,9 +327,8 @@ export class PipelineRunService {
       };
     }
 
-    const run = await this.repository?.findById(runId);
+    const run = await this.repository.findById(runId);
     if (!run || !run.environment_name) {
-      // No environment set on run, return pipeline variables as-is
       return {
         variables: pipelineVariables,
         environment: {
@@ -492,13 +346,6 @@ export class PipelineRunService {
     );
   }
 
-  /**
-   * Check if approval is required for a pipeline run's target environment.
-   *
-   * @param tenantId - The tenant ID
-   * @param runId - The pipeline run ID
-   * @returns Approval requirement info
-   */
   async checkRunApprovalRequired(
     tenantId: string,
     runId: string,
@@ -507,7 +354,7 @@ export class PipelineRunService {
       return { required: false, approvalCount: 0, environmentFound: false };
     }
 
-    const run = await this.repository?.findById(runId);
+    const run = await this.repository.findById(runId);
     if (!run || !run.environment_name) {
       return { required: false, approvalCount: 0, environmentFound: false };
     }

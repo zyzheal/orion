@@ -409,10 +409,10 @@ describe('SubPipelineService', () => {
       expect(results[1].id).toBe('inv-2');
     });
 
-    it('should return empty array when repository not available', async () => {
-      const service = new SubPipelineService(null);
-      const results = await service.getByParentRunId('run-parent-1');
-      expect(results).toEqual([]);
+    it('should throw when repository is null', () => {
+      expect(() => new SubPipelineService(null as any)).toThrow(
+        'SubPipelineRepository is required'
+      );
     });
   });
 

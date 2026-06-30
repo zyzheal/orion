@@ -5,12 +5,10 @@
  * backed by PostgreSQL.
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import {
   PipelineStatus,
   PipelineCreateInput,
   PipelineUpdateInput,
-  createPipeline,
   parsePipelineYaml,
 } from '../../models/Pipeline';
 import {
@@ -21,7 +19,6 @@ import {
   Pipeline as PipelineEntity,
   CreatePipelineInput as RepoCreatePipelineInput,
 } from './PipelineRepository';
-import type { DatabasePool } from '../database';
 import { CacheService } from '../cache/CacheService';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
@@ -66,60 +63,39 @@ export interface PipelineRunResult {
 }
 
 export class PipelineService {
-  private repository: PipelineRepository | null;
+  private repository: PipelineRepository;
   private stageRepository: PipelineStageRepository | null;
   private runRepository: PipelineRunRepository | null;
   private stageExecutionRepository: StageExecutionRepository | null;
   private cache: CacheService;
 
   /**
-   * @param repository - PostgreSQL repository instance, mock repository (for tests),
-   *                     or DatabasePool. Pass null to fall back to in-memory mode.
+   * @param repository - PipelineRepository instance (required). Pass a mock for testing.
    * @param cache - Optional Redis-backed cache service for high-frequency reads.
    */
   constructor(
-    repository: PipelineRepository | DatabasePool | null,
+    repository: PipelineRepository,
     cache?: CacheService,
   ) {
-    this.cache = cache || new CacheService(null);
     if (!repository) {
-      // No repository provided - use in-memory fallback
-      this.repository = null;
-      this.stageRepository = null;
-      this.runRepository = null;
-      this.stageExecutionRepository = null;
-    } else if (
-      'findById' in repository &&
-      'findAll' in repository &&
-      'create' in repository &&
-      'update' in repository &&
-      'delete' in repository
-    ) {
-      // Looks like a PipelineRepository (or mock thereof)
-      this.repository = repository as PipelineRepository;
-      // Check if the repository also has stage/run methods (full-featured mock)
-      this.stageRepository = ('findStagesByPipeline' in repository && 'createStage' in repository)
-        ? repository as unknown as PipelineStageRepository
-        : null;
-      this.runRepository = ('findRunById' in repository && 'createRun' in repository)
-        ? repository as unknown as PipelineRunRepository
-        : null;
-      this.stageExecutionRepository = null;
-    } else {
-      // It's a raw DatabasePool - build repositories
-      const db = repository as DatabasePool;
-      this.repository = new PipelineRepository(db);
-      this.stageRepository = new PipelineStageRepository(db);
-      this.runRepository = new PipelineRunRepository(db);
-      this.stageExecutionRepository = new StageExecutionRepository(db);
+      throw new Error('PipelineRepository is required');
     }
+    this.repository = repository;
+    this.cache = cache || new CacheService(null);
+
+    // Check if the repository also has stage/run methods (full-featured mock)
+    this.stageRepository = ('findStagesByPipeline' in repository && 'createStage' in repository)
+      ? repository as unknown as PipelineStageRepository
+      : null;
+    this.runRepository = ('findRunById' in repository && 'createRun' in repository)
+      ? repository as unknown as PipelineRunRepository
+      : null;
+    this.stageExecutionRepository = null;
   }
 
   // ==================== Core CRUD ====================
 
   async getById(id: string, _tenantId?: string): Promise<PipelineEntity | undefined | null> {
-    if (!this.repository) return undefined;
-
     // Try cache first
     const cached = await this.cache.get<PipelineEntity>(`pipeline:${id}`);
     if (cached) return cached;
@@ -134,7 +110,6 @@ export class PipelineService {
 
   async list(tenantId?: string): Promise<PipelineEntity[]> {
     const repo = this.repository as any;
-    if (!repo) return [];
     if (tenantId) {
       // Try findByTenant first (PostgreSQL repository), fall back to filtered findAll (mock)
       if ('findByTenant' in repo) {
@@ -153,29 +128,6 @@ export class PipelineService {
     input: PipelineCreateInput & { tenant_id?: string; created_by?: string; project_id?: string },
     _tenantId?: string,
   ): Promise<PipelineEntity> {
-    if (!this.repository) {
-      // Fallback to in-memory mode (legacy behavior)
-      const pipeline = createPipeline(input);
-      // Convert to entity shape for compatibility
-      const entity: PipelineEntity = {
-        id: pipeline.id,
-        tenant_id: (pipeline as any).tenant_id || input.tenant_id || getCurrentTenantId(),
-        project_id: (input as any).project_id || null,
-        name: pipeline.name,
-        description: pipeline.description || null,
-        trigger_type: 'manual',
-        config: {},
-        status: pipeline.status,
-        version: typeof pipeline.version === 'string' ? parseInt(pipeline.version, 10) : 1,
-        yamlDefinition: pipeline.yamlDefinition,
-        spec: pipeline.spec || null,
-        created_at: pipeline.createdAt,
-        updated_at: pipeline.updatedAt,
-        created_by: ((input as any).created_by || input.createdBy || null) || undefined,
-      };
-      return entity;
-    }
-
     let spec: Record<string, any> | undefined;
     if (input.yamlDefinition) {
       try {
@@ -207,11 +159,6 @@ export class PipelineService {
     id: string,
     input: PipelineUpdateInput,
   ): Promise<PipelineEntity | undefined> {
-    if (!this.repository) {
-      // Fallback to in-memory mode (never stored, so return undefined)
-      return undefined;
-    }
-
     try {
       let spec: Record<string, any> | undefined;
       if (input.yamlDefinition) {
@@ -243,8 +190,6 @@ export class PipelineService {
   }
 
   async delete(id: string): Promise<boolean> {
-    if (!this.repository) return false;
-
     // Invalidate cache on delete
     await this.cache.del(`pipeline:${id}`);
 
@@ -257,7 +202,6 @@ export class PipelineService {
     _tenantId: string,
     pipelineId: string,
   ): Promise<PipelineVersion[]> {
-    if (!this.repository) return [];
     const pipelines = await this.repository.findVersions(pipelineId);
     if (pipelines.length === 0) return [];
     return pipelines.map(p => ({
@@ -311,21 +255,6 @@ export class PipelineService {
     pipelineId: string,
     _options?: PipelineRunOptions,
   ): Promise<PipelineRunResult> {
-    if (!this.repository) {
-      // Fallback to in-memory mode
-      const pipeline = await this.getById(pipelineId);
-      if (!pipeline) {
-        throw new OrionError(`Pipeline '${pipelineId}' not found`, ErrorCode.NOT_FOUND);
-      }
-      const runId = `run-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      return {
-        id: runId,
-        pipelineId,
-        pipeline_id: pipelineId,
-        status: 'pending',
-      };
-    }
-
     // Verify pipeline exists
     const pipeline = await this.repository.findById(pipelineId);
     if (!pipeline) {
@@ -437,9 +366,6 @@ export class PipelineService {
     runningRuns: number;
     avgDuration: number;
   }> {
-    if (!this.repository) {
-      return { totalRuns: 0, successRuns: 0, failedRuns: 0, runningRuns: 0, avgDuration: 0 };
-    }
     // Check if repository has native getPipelineStats (mock) or getStats (PostgreSQL)
     if ('getPipelineStats' in this.repository) {
       return (this.repository as any).getPipelineStats(pipelineId);
@@ -463,10 +389,6 @@ export class PipelineService {
     offset?: number;
     name?: string;
   }): Promise<{ data: PipelineEntity[]; total: number }> {
-    if (!this.repository) {
-      return { data: [], total: 0 };
-    }
-
     // If the repository has a native listPipelines-style method, use it
     if ('findAll' in this.repository) {
       const where: Record<string, any> = {};

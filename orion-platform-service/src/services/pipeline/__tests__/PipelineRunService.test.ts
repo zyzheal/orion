@@ -100,18 +100,10 @@ describe('PipelineRunService', () => {
       );
     });
 
-    it('should fallback to in-memory mode when no repository', async () => {
-      const svcNoRepo = new PipelineRunService(mockEventPublisher);
-
-      const result = await svcNoRepo.createRun({
-        pipelineId: 'p-1',
-        pipelineVersion: '1',
-        triggerType: 'manual' as any,
-      });
-
-      expect(result.pipelineId).toBe('p-1');
-      expect(result.status).toBe('pending');
-      expect(mockEventPublisher.publishRunCreated).toHaveBeenCalled();
+    it('should throw when no repository provided', () => {
+      expect(() => new PipelineRunService(mockEventPublisher, null as any)).toThrow(
+        'PipelineRunRepository is required'
+      );
     });
   });
 
@@ -153,9 +145,9 @@ describe('PipelineRunService', () => {
       expect(result).toHaveLength(1);
     });
 
-    it('should return empty array when no repository', async () => {
-      const svcNoRepo = new PipelineRunService(mockEventPublisher);
-      const result = await svcNoRepo.findRunsByStatus('running');
+    it('should return empty array from repository', async () => {
+      (repository.findByStatus as jest.Mock).mockResolvedValue([]);
+      const result = await service.findRunsByStatus('running');
 
       expect(result).toEqual([]);
     });
@@ -489,18 +481,10 @@ describe('PipelineRunService', () => {
       expect(result!.tasks).toHaveLength(1);
     });
 
-    it('should return null when run not found', async () => {
+    it('should return null when run not found in repository', async () => {
       (repository.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await service.getRunDetail('nonexistent');
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null when no repository', async () => {
-      const svcNoRepo = new PipelineRunService(mockEventPublisher);
-
-      const result = await svcNoRepo.getRunDetail('r-1');
 
       expect(result).toBeNull();
     });

@@ -4,18 +4,14 @@
  * Handles invoking child pipelines as sub-processes within a parent pipeline run.
  * Enables reusable workflow composition (GAP-03).
  *
- * Features:
- * - invoke(): Start a child pipeline run with parameter mapping
- * - waitForCompletion(): Poll for child pipeline completion
- * - getResults(): Retrieve output results from a completed child run
- * - cancel(): Cancel a running child pipeline
+ * PostgreSQL Repository pattern — repository is the single source of truth.
+ * All in-memory fallback paths have been removed.
  */
 
 import { SubPipelineRepository, SubPipelineRecord } from '../../repositories/SubPipelineRepository';
 import {
   SubPipelineInvocation,
   SubPipelineInvocationCreateInput,
-  createSubPipelineInvocation,
   startSubPipeline,
   completeSubPipeline,
   failSubPipeline,
@@ -43,25 +39,23 @@ export interface SubPipelineResult {
 }
 
 export class SubPipelineService {
-  private repository: SubPipelineRepository | null;
+  private repository: SubPipelineRepository;
   private pipelineEngine: PipelineEngine | null;
   private pipelineService: PipelineService | null;
 
   constructor(
-    repository?: SubPipelineRepository | null,
+    repository: SubPipelineRepository,
     pipelineEngine?: PipelineEngine | null,
     pipelineService?: PipelineService | null
   ) {
-    this.repository = repository || null;
+    if (!repository) throw new Error('SubPipelineRepository is required');
+    this.repository = repository;
     this.pipelineEngine = pipelineEngine || null;
     this.pipelineService = pipelineService || null;
   }
 
   // ==================== Mapping helpers ====================
 
-  /**
-   * Map database SubPipelineRecord to domain SubPipelineInvocation model
-   */
   private mapInvocation(record: SubPipelineRecord): SubPipelineInvocation {
     return {
       id: record.id,
@@ -81,41 +75,16 @@ export class SubPipelineService {
 
   // ==================== Core operations ====================
 
-  /**
-   * Invoke a child pipeline as a sub-pipeline stage.
-   *
-   * Creates an invocation record, then triggers the child pipeline run
-   * via the PipelineEngine. Returns immediately with the invocation ID
-   * and child run ID.
-   *
-   * @param input - Sub-pipeline invocation parameters
-   * @returns The created invocation with childRunId
-   */
   async invoke(input: InvokeSubPipelineInput): Promise<SubPipelineResult> {
     // 1. Create invocation record
-    const createInput: SubPipelineInvocationCreateInput = {
-      parentRunId: input.parentRunId,
-      childPipelineId: input.childPipelineId,
-      inputParams: input.inputParams,
-      stageName: input.stageName,
-      outputMapping: input.outputMapping,
-    };
-
-    let invocation: SubPipelineInvocation;
-
-    if (this.repository) {
-      const record = await this.repository.create({
-        parent_run_id: createInput.parentRunId,
-        child_pipeline_id: createInput.childPipelineId,
-        input_params: createInput.inputParams,
-        stage_name: createInput.stageName,
-        output_mapping: createInput.outputMapping,
-      });
-      invocation = this.mapInvocation(record);
-    } else {
-      // In-memory fallback
-      invocation = createSubPipelineInvocation(createInput);
-    }
+    const record = await this.repository.create({
+      parent_run_id: input.parentRunId,
+      child_pipeline_id: input.childPipelineId,
+      input_params: input.inputParams,
+      stage_name: input.stageName,
+      output_mapping: input.outputMapping,
+    });
+    let invocation = this.mapInvocation(record);
 
     if (!this.pipelineEngine) {
       throw new OrionError('PipelineEngine not available for sub-pipeline invocation', ErrorCode.SERVICE_UNAVAILABLE);
@@ -157,10 +126,7 @@ export class SubPipelineService {
 
       // 4. Update invocation with child run ID
       invocation = startSubPipeline(invocation, childRun.id);
-
-      if (this.repository) {
-        await this.repository.updateChildRun(invocation.id, childRun.id, 'running');
-      }
+      await this.repository.updateChildRun(invocation.id, childRun.id, 'running');
 
       logger.info(
         {
@@ -180,30 +146,17 @@ export class SubPipelineService {
         error instanceof Error ? error.message : 'Failed to start child pipeline'
       );
 
-      if (this.repository) {
-        await this.repository.updateStatus(
-          invocation.id,
-          'failed',
-          {},
-          invocation.error
-        );
-      }
+      await this.repository.updateStatus(
+        invocation.id,
+        'failed',
+        {},
+        invocation.error
+      );
 
       throw error;
     }
   }
 
-  /**
-   * Wait for a child pipeline run to complete.
-   *
-   * Polls the child run status until it reaches a terminal state
-   * (success, failed, cancelled) or the timeout is reached.
-   *
-   * @param childRunId - The child pipeline run ID
-   * @param timeoutMs - Maximum time to wait in milliseconds (default: 1 hour)
-   * @param pollIntervalMs - Poll interval in milliseconds (default: 1 second)
-   * @returns The final invocation state
-   */
   async waitForCompletion(
     childRunId: string,
     timeoutMs = 3600000,
@@ -212,21 +165,12 @@ export class SubPipelineService {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-      // Find the invocation record
-      let invocation: SubPipelineInvocation | null = null;
-
-      if (this.repository) {
-        const record = await this.repository.findByChildRunId(childRunId);
-        if (record) {
-          invocation = this.mapInvocation(record);
-        }
-      }
-
-      if (!invocation) {
+      const record = await this.repository.findByChildRunId(childRunId);
+      if (!record) {
         throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
       }
+      const invocation = this.mapInvocation(record);
 
-      // Check if child has reached a terminal state
       if (invocation.status === 'completed') {
         return invocation;
       }
@@ -246,25 +190,12 @@ export class SubPipelineService {
     throw new OrionError(`Sub-pipeline timed out after ${timeoutMs}ms`, ErrorCode.NOT_FOUND);
   }
 
-  /**
-   * Get the output results from a completed child pipeline run.
-   *
-   * @param childRunId - The child pipeline run ID
-   * @returns The output results map
-   */
   async getResults(childRunId: string): Promise<Record<string, string>> {
-    let invocation: SubPipelineInvocation | null = null;
-
-    if (this.repository) {
-      const record = await this.repository.findByChildRunId(childRunId);
-      if (record) {
-        invocation = this.mapInvocation(record);
-      }
-    }
-
-    if (!invocation) {
+    const record = await this.repository.findByChildRunId(childRunId);
+    if (!record) {
       throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
+    const invocation = this.mapInvocation(record);
 
     if (invocation.status !== 'completed') {
       throw new OrionError(`Sub-pipeline is not completed (status: ${invocation.status}). ` +
@@ -290,25 +221,12 @@ export class SubPipelineService {
     return mappedResults;
   }
 
-  /**
-   * Cancel a running child pipeline.
-   *
-   * @param childRunId - The child pipeline run ID
-   * @returns The updated invocation
-   */
   async cancel(childRunId: string): Promise<SubPipelineInvocation> {
-    let invocation: SubPipelineInvocation | null = null;
-
-    if (this.repository) {
-      const record = await this.repository.findByChildRunId(childRunId);
-      if (record) {
-        invocation = this.mapInvocation(record);
-      }
-    }
-
-    if (!invocation) {
+    const record = await this.repository.findByChildRunId(childRunId);
+    if (!record) {
       throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
+    let invocation = this.mapInvocation(record);
 
     if (invocation.status !== 'running') {
       throw new OrionError(`Cannot cancel sub-pipeline with status: ${invocation.status}`, ErrorCode.NOT_FOUND);
@@ -321,121 +239,57 @@ export class SubPipelineService {
 
     // Update invocation
     invocation = cancelSubPipeline(invocation);
-
-    if (this.repository) {
-      await this.repository.updateStatus(invocation.id, 'cancelled');
-    }
+    await this.repository.updateStatus(invocation.id, 'cancelled');
 
     return invocation;
   }
 
-  /**
-   * Complete a sub-pipeline invocation with results.
-   * Called by the PipelineEngine when the child run finishes.
-   *
-   * @param childRunId - The child pipeline run ID
-   * @param results - Output results from the child run
-   */
   async markCompleted(
     childRunId: string,
     results: Record<string, string>
   ): Promise<SubPipelineInvocation> {
-    let invocation: SubPipelineInvocation | null = null;
-
-    if (this.repository) {
-      const record = await this.repository.findByChildRunId(childRunId);
-      if (record) {
-        invocation = this.mapInvocation(record);
-      }
-    }
-
-    if (!invocation) {
+    const record = await this.repository.findByChildRunId(childRunId);
+    if (!record) {
       throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
+    let invocation = this.mapInvocation(record);
 
     invocation = completeSubPipeline(invocation, results);
-
-    if (this.repository) {
-      await this.repository.updateStatus(
-        invocation.id,
-        'completed',
-        results
-      );
-    }
+    await this.repository.updateStatus(invocation.id, 'completed', results);
 
     return invocation;
   }
 
-  /**
-   * Mark a sub-pipeline invocation as failed.
-   * Called by the PipelineEngine when the child run fails.
-   *
-   * @param childRunId - The child pipeline run ID
-   * @param error - Error message
-   */
   async markFailed(
     childRunId: string,
     error: string
   ): Promise<SubPipelineInvocation> {
-    let invocation: SubPipelineInvocation | null = null;
-
-    if (this.repository) {
-      const record = await this.repository.findByChildRunId(childRunId);
-      if (record) {
-        invocation = this.mapInvocation(record);
-      }
-    }
-
-    if (!invocation) {
+    const record = await this.repository.findByChildRunId(childRunId);
+    if (!record) {
       throw new OrionError(`Sub-pipeline invocation not found for childRunId: ${childRunId}`, ErrorCode.NOT_FOUND);
     }
+    let invocation = this.mapInvocation(record);
 
     invocation = failSubPipeline(invocation, error);
-
-    if (this.repository) {
-      await this.repository.updateStatus(
-        invocation.id,
-        'failed',
-        undefined,
-        error
-      );
-    }
+    await this.repository.updateStatus(invocation.id, 'failed', undefined, error);
 
     return invocation;
   }
 
   // ==================== Query methods ====================
 
-  /**
-   * Get all sub-pipeline invocations for a parent run
-   */
   async getByParentRunId(parentRunId: string): Promise<SubPipelineInvocation[]> {
-    if (this.repository) {
-      const records = await this.repository.findByParentRunId(parentRunId);
-      return records.map((r) => this.mapInvocation(r));
-    }
-    return [];
+    const records = await this.repository.findByParentRunId(parentRunId);
+    return records.map((r) => this.mapInvocation(r));
   }
 
-  /**
-   * Get a sub-pipeline invocation by ID
-   */
   async getById(id: string): Promise<SubPipelineInvocation | null> {
-    if (this.repository) {
-      const record = await this.repository.findById(id);
-      return record ? this.mapInvocation(record) : null;
-    }
-    return null;
+    const record = await this.repository.findById(id);
+    return record ? this.mapInvocation(record) : null;
   }
 
-  /**
-   * Get sub-pipeline invocations by child pipeline ID
-   */
   async getByPipelineId(childPipelineId: string): Promise<SubPipelineInvocation[]> {
-    if (this.repository) {
-      const records = await this.repository.findByPipelineId(childPipelineId);
-      return records.map((r) => this.mapInvocation(r));
-    }
-    return [];
+    const records = await this.repository.findByPipelineId(childPipelineId);
+    return records.map((r) => this.mapInvocation(r));
   }
 }
