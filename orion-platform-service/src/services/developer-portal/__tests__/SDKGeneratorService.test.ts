@@ -11,9 +11,96 @@ import {
   SDKGenerationTask,
   SDKLanguage,
 } from '../SDKGeneratorService';
+import { DevPortalSDKTaskRepository, DevPortalSDKTaskEntity } from '../../../repositories/DevPortalSDKTaskRepository';
 
 // The service uses a 500ms setTimeout to simulate SDK generation
 const GENERATION_WAIT_MS = 700;
+
+// ==================== Test Helpers ====================
+
+/**
+ * Create an in-memory mock repository that simulates the DevPortalSDKTaskRepository.
+ * The entity shape mirrors what DevPortalSDKTaskRepository.mapRowToEntity produces:
+ * - camelCase business fields (id, tenantId, packageName, ...)
+ * - snake_case persistence fields (created_at, updated_at)
+ * - completedAt (camelCase alias of DB completed_at)
+ */
+function createMockRepository(): DevPortalSDKTaskRepository {
+  const store = new Map<string, DevPortalSDKTaskEntity>();
+  let idCounter = 0;
+
+  return {
+    async create(data: Partial<DevPortalSDKTaskEntity> & Pick<DevPortalSDKTaskEntity, 'id'>): Promise<DevPortalSDKTaskEntity> {
+      const entity: DevPortalSDKTaskEntity = {
+        id: data.id || `mock-sdk-task-${idCounter++}`,
+        tenantId: data.tenantId!,
+        name: data.name!,
+        apiSpec: data.apiSpec ?? '',
+        language: data.language ?? 'typescript',
+        packageName: data.packageName ?? 'unknown',
+        version: data.version ?? '1.0.0',
+        status: data.status ?? 'pending',
+        output: data.output ?? '',
+        error: data.error ?? null,
+        completedAt: data.completedAt ?? null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      } as DevPortalSDKTaskEntity;
+      store.set(entity.id, entity);
+      return entity;
+    },
+
+    async findById(id: string): Promise<DevPortalSDKTaskEntity | undefined> {
+      return store.get(id);
+    },
+
+    async findByTenant(tenantId: string, options?: { language?: string; status?: string }): Promise<DevPortalSDKTaskEntity[]> {
+      let entities = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+      if (options?.language) {
+        entities = entities.filter(e => e.language === options.language);
+      }
+      if (options?.status) {
+        entities = entities.filter(e => e.status === options.status);
+      }
+      entities.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+      return entities;
+    },
+
+    async updateStatus(id: string, status: string, output?: string, error?: string): Promise<DevPortalSDKTaskEntity> {
+      const existing = store.get(id);
+      if (!existing) {
+        throw new Error(`Not found: ${id}`);
+      }
+      const completedAt = (status === 'completed' || status === 'failed') ? new Date() : existing.completedAt;
+      const updated: DevPortalSDKTaskEntity = {
+        ...existing,
+        status,
+        output: output ?? existing.output,
+        error: error ?? existing.error,
+        completedAt,
+        updated_at: new Date(),
+      } as DevPortalSDKTaskEntity;
+      store.set(id, updated);
+      return updated;
+    },
+
+    async update(id: string, data: Partial<DevPortalSDKTaskEntity>): Promise<DevPortalSDKTaskEntity> {
+      const existing = store.get(id);
+      if (!existing) throw new Error('Not found');
+      const updated = { ...existing, ...data, updated_at: new Date() };
+      store.set(id, updated);
+      return updated as DevPortalSDKTaskEntity;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      return store.delete(id);
+    },
+
+    // Inherited from BaseRepository
+    getDb: () => ({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    findAll: async () => ({ entities: Array.from(store.values()), total: store.size }),
+  } as unknown as DevPortalSDKTaskRepository;
+}
 
 describe('SDKGeneratorService', () => {
   let service: SDKGeneratorService;
@@ -27,7 +114,20 @@ describe('SDKGeneratorService', () => {
   };
 
   beforeEach(() => {
-    service = new SDKGeneratorService();
+    const mockRepo = createMockRepository();
+    service = new SDKGeneratorService(mockRepo);
+  });
+
+  // ==================== Constructor ====================
+
+  describe('constructor', () => {
+    it('should throw when repository is null', () => {
+      expect(() => new SDKGeneratorService(null as any)).toThrow('DevPortalSDKTaskRepository is required');
+    });
+
+    it('should throw when repository is undefined', () => {
+      expect(() => new SDKGeneratorService(undefined as any)).toThrow('DevPortalSDKTaskRepository is required');
+    });
   });
 
   // ==================== getSupportedLanguages ====================

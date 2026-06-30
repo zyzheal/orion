@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import { DevPortalMockRuleRepository, DevPortalMockRuleEntity } from '../../repositories/DevPortalMockRuleRepository';
 
 // ==================== Type Definitions ====================
@@ -75,13 +76,13 @@ export class MockServiceManagerError extends Error {
 // ==================== Service ====================
 
 export class MockServiceManager {
-  private rules: Map<string, MockRule> = new Map();
-  private repository: DevPortalMockRuleRepository | null = null;
+  private repository: DevPortalMockRuleRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new DevPortalMockRuleRepository(db);
+  constructor(repository: DevPortalMockRuleRepository) {
+    if (!repository) {
+      throw new Error('DevPortalMockRuleRepository is required');
     }
+    this.repository = repository;
   }
 
   /**
@@ -123,26 +124,21 @@ export class MockServiceManager {
       updatedAt: now,
     };
 
-    this.rules.set(rule.id, rule);
-
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.create({
-        id: rule.id,
-        tenantId: rule.tenantId,
-        name: rule.name,
-        description: rule.description,
-        method: rule.method,
-        path: rule.path,
-        statusCode: rule.statusCode,
-        headers: rule.headers,
-        body: rule.body,
-        delay: rule.delay,
-        enabled: rule.enabled,
-        priority: rule.priority,
-        matchType: rule.matchType,
-      }).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    await this.repository.create({
+      id: rule.id,
+      tenantId: rule.tenantId,
+      name: rule.name,
+      description: rule.description,
+      method: rule.method,
+      path: rule.path,
+      statusCode: rule.statusCode,
+      headers: rule.headers,
+      body: rule.body,
+      delay: rule.delay,
+      enabled: rule.enabled,
+      priority: rule.priority,
+      matchType: rule.matchType,
+    });
 
     return rule;
   }
@@ -151,22 +147,11 @@ export class MockServiceManager {
    * 获取 Mock 规则详情
    */
   async getRuleById(id: string): Promise<MockRule> {
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findById(id);
-        if (entity) {
-          const rule = this.entityToRule(entity);
-          this.rules.set(id, rule); // update cache
-          return rule;
-        }
-      } catch { /* fallback to Map */ }
-    }
-    const rule = this.rules.get(id);
-    if (!rule) {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
       throw new MockServiceManagerError(`Mock rule not found: ${id}`, 'RULE_NOT_FOUND');
     }
-    return rule;
+    return this.entityToRule(entity);
   }
 
   /**
@@ -179,35 +164,13 @@ export class MockServiceManager {
     const page = options?.page ?? 1;
     const pageSize = options?.pageSize ?? 20;
 
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entities = await this.repository.findByTenant(tenantId, {
-          enabled: options?.enabled,
-          method: options?.method,
-        });
-        const total = entities.length;
-        const start = (page - 1) * pageSize;
-        const data = entities.slice(start, start + pageSize).map(e => this.entityToRule(e));
-        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
-      } catch { /* fallback to Map */ }
-    }
-
-    let rules = Array.from(this.rules.values()).filter((r) => r.tenantId === tenantId);
-
-    if (options?.enabled !== undefined) {
-      rules = rules.filter((r) => r.enabled === options.enabled);
-    }
-    if (options?.method) {
-      rules = rules.filter((r) => r.method === options.method!.toUpperCase());
-    }
-
-    // Sort by priority DESC, then createdAt DESC
-    rules.sort((a, b) => b.priority - a.priority || b.createdAt.getTime() - a.createdAt.getTime());
-
-    const total = rules.length;
+    const entities = await this.repository.findByTenant(tenantId, {
+      enabled: options?.enabled,
+      method: options?.method,
+    });
+    const total = entities.length;
     const start = (page - 1) * pageSize;
-    const data = rules.slice(start, start + pageSize);
+    const data = entities.slice(start, start + pageSize).map(e => this.entityToRule(e));
 
     return { data, total, page, totalPages: Math.ceil(total / pageSize) };
   }
@@ -216,10 +179,12 @@ export class MockServiceManager {
    * 更新 Mock 规则
    */
   async updateRule(id: string, input: MockRuleUpdateInput): Promise<MockRule> {
-    const rule = this.rules.get(id);
-    if (!rule) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
       throw new MockServiceManagerError(`Mock rule not found: ${id}`, 'RULE_NOT_FOUND');
     }
+
+    const rule = this.entityToRule(existing);
 
     if (input.method) {
       const validMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
@@ -242,22 +207,19 @@ export class MockServiceManager {
 
     rule.updatedAt = new Date();
 
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.update(id, {
-        name: rule.name,
-        description: rule.description,
-        method: rule.method,
-        path: rule.path,
-        statusCode: rule.statusCode,
-        headers: rule.headers,
-        body: rule.body as any,
-        delay: rule.delay,
-        enabled: rule.enabled,
-        priority: rule.priority,
-        matchType: rule.matchType,
-      }).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    await this.repository.update(id, {
+      name: rule.name,
+      description: rule.description,
+      method: rule.method,
+      path: rule.path,
+      statusCode: rule.statusCode,
+      headers: rule.headers,
+      body: rule.body,
+      delay: rule.delay,
+      enabled: rule.enabled,
+      priority: rule.priority,
+      matchType: rule.matchType,
+    });
 
     return rule;
   }
@@ -266,14 +228,11 @@ export class MockServiceManager {
    * 删除 Mock 规则
    */
   async deleteRule(id: string): Promise<boolean> {
-    if (!this.rules.has(id)) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
       throw new MockServiceManagerError(`Mock rule not found: ${id}`, 'RULE_NOT_FOUND');
     }
-    this.rules.delete(id);
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.delete(id).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    await this.repository.delete(id);
     return true;
   }
 
@@ -281,17 +240,13 @@ export class MockServiceManager {
    * 切换 Mock 规则启用状态
    */
   async toggleRule(id: string): Promise<MockRule> {
-    const rule = this.rules.get(id);
-    if (!rule) {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
       throw new MockServiceManagerError(`Mock rule not found: ${id}`, 'RULE_NOT_FOUND');
     }
-    rule.enabled = !rule.enabled;
-    rule.updatedAt = new Date();
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.toggleEnabled(id).catch(() => { /* 持久化失败不阻塞 */ });
-    }
-    return rule;
+
+    const updated = await this.repository.toggleEnabled(id);
+    return this.entityToRule(updated);
   }
 
   /**
@@ -302,23 +257,8 @@ export class MockServiceManager {
     method: string,
     path: string
   ): Promise<MockMatchResult> {
-    let rules: MockRule[];
-
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entities = await this.repository.findEnabledByTenant(tenantId, method);
-        rules = entities.map(e => this.entityToRule(e));
-      } catch {
-        rules = Array.from(this.rules.values())
-          .filter((r) => r.tenantId === tenantId && r.enabled && r.method === method.toUpperCase())
-          .sort((a, b) => b.priority - a.priority);
-      }
-    } else {
-      rules = Array.from(this.rules.values())
-        .filter((r) => r.tenantId === tenantId && r.enabled && r.method === method.toUpperCase())
-        .sort((a, b) => b.priority - a.priority);
-    }
+    const entities = await this.repository.findEnabledByTenant(tenantId, method);
+    const rules = entities.map(e => this.entityToRule(e));
 
     for (const rule of rules) {
       let matched = false;
@@ -358,27 +298,15 @@ export class MockServiceManager {
    * 获取 Mock 统计
    */
   async getStats(tenantId: string): Promise<{ total: number; enabled: number; disabled: number }> {
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entities = await this.repository.findByTenant(tenantId);
-        return {
-          total: entities.length,
-          enabled: entities.filter((r) => r.enabled).length,
-          disabled: entities.filter((r) => !r.enabled).length,
-        };
-      } catch { /* fallback to Map */ }
-    }
-
-    const rules = Array.from(this.rules.values()).filter((r) => r.tenantId === tenantId);
+    const entities = await this.repository.findByTenant(tenantId);
     return {
-      total: rules.length,
-      enabled: rules.filter((r) => r.enabled).length,
-      disabled: rules.filter((r) => !r.enabled).length,
+      total: entities.length,
+      enabled: entities.filter((r) => r.enabled).length,
+      disabled: entities.filter((r) => !r.enabled).length,
     };
   }
 
-  private entityToRule(entity: any): MockRule {
+  private entityToRule(entity: DevPortalMockRuleEntity): MockRule {
     return {
       id: entity.id,
       tenantId: entity.tenantId,

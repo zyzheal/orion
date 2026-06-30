@@ -10,6 +10,78 @@ import {
   MockServiceManagerError,
   MockRule,
 } from '../MockServiceManager';
+import { DevPortalMockRuleRepository, DevPortalMockRuleEntity } from '../../../repositories/DevPortalMockRuleRepository';
+
+// ==================== Test Helpers ====================
+
+/**
+ * Create an in-memory mock repository that simulates the DevPortalMockRuleRepository.
+ * This replaces the real DB dependency with an in-memory store so tests run fast.
+ */
+function createMockRepository(): DevPortalMockRuleRepository {
+  const store = new Map<string, DevPortalMockRuleEntity>();
+  let idCounter = 0;
+
+  return {
+    async create(data: Partial<DevPortalMockRuleEntity> & Pick<DevPortalMockRuleEntity, 'id'>): Promise<DevPortalMockRuleEntity> {
+      const entity: DevPortalMockRuleEntity = {
+        ...data as DevPortalMockRuleEntity,
+        id: data.id || `mock-id-${idCounter++}`,
+        created_at: data.created_at || new Date(),
+        updated_at: data.updated_at || new Date(),
+      } as DevPortalMockRuleEntity;
+      store.set(entity.id, entity);
+      return entity;
+    },
+
+    async findById(id: string): Promise<DevPortalMockRuleEntity | undefined> {
+      return store.get(id);
+    },
+
+    async findByTenant(tenantId: string, options?: { enabled?: boolean; method?: string }): Promise<DevPortalMockRuleEntity[]> {
+      let entities = Array.from(store.values()).filter(e => e.tenantId === tenantId);
+      if (options?.enabled !== undefined) {
+        entities = entities.filter(e => e.enabled === options.enabled);
+      }
+      if (options?.method) {
+        entities = entities.filter(e => e.method === options.method!.toUpperCase());
+      }
+      entities.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return entities;
+    },
+
+    async findEnabledByTenant(tenantId: string, method: string): Promise<DevPortalMockRuleEntity[]> {
+      let entities = Array.from(store.values())
+        .filter(e => e.tenantId === tenantId && e.enabled && e.method === method.toUpperCase());
+      entities.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+      return entities;
+    },
+
+    async update(id: string, data: Partial<DevPortalMockRuleEntity>): Promise<DevPortalMockRuleEntity> {
+      const existing = store.get(id);
+      if (!existing) throw new Error('NOT_FOUND');
+      const updated = { ...existing, ...data, id, updated_at: new Date() };
+      store.set(id, updated);
+      return updated;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      return store.delete(id);
+    },
+
+    async toggleEnabled(id: string): Promise<DevPortalMockRuleEntity> {
+      const existing = store.get(id);
+      if (!existing) throw new Error('NOT_FOUND');
+      const updated = { ...existing, enabled: !existing.enabled, updated_at: new Date() };
+      store.set(id, updated);
+      return updated;
+    },
+
+    // Inherited from BaseRepository
+    getDb: () => ({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    findAll: async () => ({ entities: Array.from(store.values()), total: store.size }),
+  } as unknown as DevPortalMockRuleRepository;
+}
 
 describe('MockServiceManager', () => {
   let manager: MockServiceManager;
@@ -21,8 +93,21 @@ describe('MockServiceManager', () => {
     path: '/api/v1/users',
   };
 
+  // ==================== Constructor ====================
+
+  describe('constructor', () => {
+    it('should throw when repository is null', () => {
+      expect(() => new MockServiceManager(null as any)).toThrow('DevPortalMockRuleRepository is required');
+    });
+
+    it('should throw when repository is undefined', () => {
+      expect(() => new MockServiceManager(undefined as any)).toThrow('DevPortalMockRuleRepository is required');
+    });
+  });
+
   beforeEach(() => {
-    manager = new MockServiceManager();
+    const mockRepo = createMockRepository();
+    manager = new MockServiceManager(mockRepo);
   });
 
   // ==================== createRule ====================

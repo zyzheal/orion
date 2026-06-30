@@ -93,13 +93,13 @@ export class SDKGeneratorServiceError extends Error {
 // ==================== Service ====================
 
 export class SDKGeneratorService {
-  private tasks: Map<string, SDKGenerationTask> = new Map();
-  private repository: DevPortalSDKTaskRepository | null = null;
+  private repository: DevPortalSDKTaskRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new DevPortalSDKTaskRepository(db);
+  constructor(repository: DevPortalSDKTaskRepository) {
+    if (!repository) {
+      throw new Error('DevPortalSDKTaskRepository is required');
     }
+    this.repository = repository;
   }
 
   /**
@@ -127,8 +127,9 @@ export class SDKGeneratorService {
     }
 
     const now = new Date();
+    const id = randomUUID();
     const task: SDKGenerationTask = {
-      id: randomUUID(),
+      id,
       tenantId: input.tenantId,
       name: input.name.trim(),
       apiSpec: input.apiSpec,
@@ -142,27 +143,22 @@ export class SDKGeneratorService {
       completedAt: null,
     };
 
-    this.tasks.set(task.id, task);
-
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.create({
-        id: task.id,
-        tenantId: task.tenantId,
-        name: task.name,
-        apiSpec: task.apiSpec,
-        language: task.language,
-        packageName: task.packageName,
-        version: task.version,
-        status: 'pending',
-        output: '',
-        error: null,
-        completedAt: null,
-      }).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    await this.repository.create({
+      id: task.id,
+      tenantId: task.tenantId,
+      name: task.name,
+      apiSpec: task.apiSpec,
+      language: task.language,
+      packageName: task.packageName,
+      version: task.version,
+      status: 'pending',
+      output: '',
+      error: null,
+      completedAt: null,
+    });
 
     // Simulate async SDK generation
-    this.processTask(task.id).catch(() => { /* swallowed */ });
+    this.processTask(task.id, task.language, task.packageName, task.version).catch(() => { /* swallowed */ });
 
     return task;
   }
@@ -171,22 +167,11 @@ export class SDKGeneratorService {
    * 获取任务详情
    */
   async getTaskById(id: string): Promise<SDKGenerationTask> {
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entity = await this.repository.findById(id);
-        if (entity) {
-          const task = this.entityToTask(entity);
-          this.tasks.set(id, task); // update cache
-          return task;
-        }
-      } catch { /* fallback to Map */ }
-    }
-    const task = this.tasks.get(id);
-    if (!task) {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
       throw new SDKGeneratorServiceError(`SDK generation task not found: ${id}`, 'TASK_NOT_FOUND');
     }
-    return task;
+    return this.entityToTask(entity);
   }
 
   /**
@@ -199,34 +184,13 @@ export class SDKGeneratorService {
     const page = options?.page ?? 1;
     const pageSize = options?.pageSize ?? 20;
 
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entities = await this.repository.findByTenant(tenantId, {
-          language: options?.language,
-          status: options?.status,
-        });
-        const total = entities.length;
-        const start = (page - 1) * pageSize;
-        const data = entities.slice(start, start + pageSize).map(e => this.entityToTask(e));
-        return { data, total, page, totalPages: Math.ceil(total / pageSize) };
-      } catch { /* fallback to Map */ }
-    }
-
-    let tasks = Array.from(this.tasks.values()).filter((t) => t.tenantId === tenantId);
-
-    if (options?.language) {
-      tasks = tasks.filter((t) => t.language === options.language);
-    }
-    if (options?.status) {
-      tasks = tasks.filter((t) => t.status === options.status);
-    }
-
-    tasks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const total = tasks.length;
+    const entities = await this.repository.findByTenant(tenantId, {
+      language: options?.language,
+      status: options?.status,
+    });
+    const total = entities.length;
     const start = (page - 1) * pageSize;
-    const data = tasks.slice(start, start + pageSize);
+    const data = entities.slice(start, start + pageSize).map(e => this.entityToTask(e));
 
     return { data, total, page, totalPages: Math.ceil(total / pageSize) };
   }
@@ -235,14 +199,11 @@ export class SDKGeneratorService {
    * 删除 SDK 生成任务
    */
   async deleteTask(id: string): Promise<boolean> {
-    if (!this.tasks.has(id)) {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
       throw new SDKGeneratorServiceError(`SDK generation task not found: ${id}`, 'TASK_NOT_FOUND');
     }
-    this.tasks.delete(id);
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.delete(id).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    await this.repository.delete(id);
     return true;
   }
 
@@ -250,26 +211,26 @@ export class SDKGeneratorService {
    * 重新生成 SDK
    */
   async regenerateTask(id: string): Promise<SDKGenerationTask> {
-    // Try repository first
-    let task = this.tasks.get(id);
-    if (!task && this.repository) {
-      try {
-        const entity = await this.repository.findById(id);
-        if (entity) {
-          task = this.entityToTask(entity);
-          this.tasks.set(id, task); // update cache
-        }
-      } catch { /* fallback */ }
-    }
-    if (!task) {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
       throw new SDKGeneratorServiceError(`SDK generation task not found: ${id}`, 'TASK_NOT_FOUND');
     }
+
+    const task = this.entityToTask(entity);
     task.status = 'pending';
     task.output = '';
     task.error = null;
     task.completedAt = null;
 
-    this.processTask(task.id).catch(() => { /* swallowed */ });
+    // Reset the task in repository
+    await this.repository.update(id, {
+      status: 'pending',
+      output: '',
+      error: null,
+      completedAt: null,
+    });
+
+    this.processTask(task.id, task.language, task.packageName, task.version).catch(() => { /* swallowed */ });
 
     return task;
   }
@@ -278,70 +239,49 @@ export class SDKGeneratorService {
    * 获取 SDK 生成统计
    */
   async getStats(tenantId: string): Promise<{ total: number; completed: number; failed: number; pending: number }> {
-    // Try repository first
-    if (this.repository) {
-      try {
-        const entities = await this.repository.findByTenant(tenantId);
-        return {
-          total: entities.length,
-          completed: entities.filter((t) => t.status === 'completed').length,
-          failed: entities.filter((t) => t.status === 'failed').length,
-          pending: entities.filter((t) => t.status === 'pending' || t.status === 'generating').length,
-        };
-      } catch { /* fallback to Map */ }
-    }
-
-    const tasks = Array.from(this.tasks.values()).filter((t) => t.tenantId === tenantId);
+    const entities = await this.repository.findByTenant(tenantId);
     return {
-      total: tasks.length,
-      completed: tasks.filter((t) => t.status === 'completed').length,
-      failed: tasks.filter((t) => t.status === 'failed').length,
-      pending: tasks.filter((t) => t.status === 'pending' || t.status === 'generating').length,
+      total: entities.length,
+      completed: entities.filter((t) => t.status === 'completed').length,
+      failed: entities.filter((t) => t.status === 'failed').length,
+      pending: entities.filter((t) => t.status === 'pending' || t.status === 'generating').length,
     };
   }
 
   // ==================== Internal ====================
 
   /**
-   * 模拟 SDK 生成过程
+   * Simulate async SDK generation.
+   * Reads task data from repo, generates code, updates status.
    */
-  private async processTask(taskId: string): Promise<void> {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-
-    task.status = 'generating';
+  private async processTask(taskId: string, language: string, packageName: string, version: string): Promise<void> {
+    // Mark task as generating
+    await this.repository.updateStatus(taskId, 'generating');
 
     // Simulate generation delay
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     try {
-      const config = LANGUAGE_CONFIGS[task.language];
-      task.output = this.generateSampleCode(task, config);
-      task.status = 'completed';
-      task.completedAt = new Date();
+      const config = LANGUAGE_CONFIGS[language as SDKLanguage];
+      const output = this.generateSampleCode(packageName, version, config);
+      await this.repository.updateStatus(taskId, 'completed', output);
     } catch (err) {
-      task.status = 'failed';
-      task.error = err instanceof Error ? err.message : 'Unknown generation error';
-      task.completedAt = new Date();
-    }
-
-    // PostgreSQL 持久化（异步）
-    if (this.repository) {
-      this.repository.updateStatus(taskId, task.status, task.output, task.error || undefined).catch((err) => console.warn('[SDKGeneratorService] Failed to persist task status:', err));
+      const errorMsg = err instanceof Error ? err.message : 'Unknown generation error';
+      await this.repository.updateStatus(taskId, 'failed', '', errorMsg);
     }
   }
 
   /**
    * 生成示例 SDK 代码骨架
    */
-  private generateSampleCode(task: SDKGenerationTask, config: SDKTemplateConfig): string {
-    const className = task.packageName.replace(/[-_.]/g, '')
+  private generateSampleCode(packageName: string, version: string, config: SDKTemplateConfig): string {
+    const className = packageName.replace(/[-_.]/g, '')
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
     switch (config.language) {
       case 'typescript':
         return `// Generated by Orion SDK Generator
-// Package: ${task.packageName} v${task.version}
+// Package: ${packageName} v${version}
 // HTTP Client: ${config.httpClient}
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
@@ -376,7 +316,7 @@ export default ${className}Client;`;
 
       case 'python':
         return `# Generated by Orion SDK Generator
-# Package: ${task.packageName} v${task.version}
+# Package: ${packageName} v${version}
 # HTTP Client: ${config.httpClient}
 
 from typing import Optional, Any
@@ -405,10 +345,10 @@ class ${className}Client:
 
       case 'go':
         return `// Generated by Orion SDK Generator
-// Package: ${task.packageName} v${task.version}
+// Package: ${packageName} v${version}
 // HTTP Client: ${config.httpClient}
 
-package ${task.packageName.replace(/-/g, '').replace(/\./g, '')}
+package ${packageName.replace(/-/g, '').replace(/\./g, '')}
 
 import (
 \t"bytes"
@@ -464,10 +404,10 @@ func (c *Client) Request(method, path string, body interface{}) (map[string]inte
 
       case 'java':
         return `// Generated by Orion SDK Generator
-// Package: ${task.packageName} v${task.version}
+// Package: ${packageName} v${version}
 // HTTP Client: ${config.httpClient}
 
-package ${task.packageName};
+package ${packageName};
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
@@ -515,7 +455,7 @@ public class ${className}Client {
 
       case 'csharp':
         return `// Generated by Orion SDK Generator
-// Package: ${task.packageName} v${task.version}
+// Package: ${packageName} v${version}
 // HTTP Client: ${config.httpClient}
 
 using System;
