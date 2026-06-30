@@ -9,10 +9,12 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'crypto';
 import { TenantContext, TenantInfo, tenantContext } from '../services/tenant/TenantContext';
-import { TenantQuotaService, TenantQuota, tenantQuotaService, QuotaCheckResult } from '../services/tenant/TenantQuotaService';
-import { NamespacePoolService, namespacePoolService } from '../services/tenant/NamespacePoolService';
+import { TenantQuotaService, TenantQuota, QuotaCheckResult } from '../services/tenant/TenantQuotaService';
+import { NamespacePoolService } from '../services/tenant/NamespacePoolService';
 import { TenantService, TenantServiceError } from '../services/tenant/TenantService';
 import { TenantRepository } from '../services/tenant/TenantRepository';
+import { TenantQuotaRepository } from '../repositories/TenantQuotaRepository';
+import { NamespaceAllocationRepository } from '../repositories/NamespaceAllocationRepository';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
@@ -51,24 +53,27 @@ export default async function tenantRoutes(
   app: FastifyInstance,
   options: TenantRoutesOptions
 ): Promise<void> {
+  if (!options.database) {
+    logger.warn('[TenantRoutes] Database not available, tenant routes will not be functional');
+    return;
+  }
+
+  // Initialize repositories
+  const quotaRepo = new TenantQuotaRepository(options.database);
+  const namespaceRepo = new NamespaceAllocationRepository(options.database);
+
   // Initialize services
   const context = new TenantContext();
-  const quotaService = options.database
-    ? new TenantQuotaService(options.database)
-    : tenantQuotaService;
-  const namespacePool = options.database
-    ? new NamespacePoolService({}, options.database)
-    : namespacePoolService;
+  const quotaService = new TenantQuotaService(quotaRepo);
+  const namespacePool = new NamespacePoolService(namespaceRepo);
+
+  // Initialize Namespace pool from DB
+  await namespacePool.initialize();
 
   // Initialize database-backed TenantService via Repository pattern
-  let tenantService: TenantService | null = null;
-  if (options.database) {
-    const tenantRepository = new TenantRepository(options.database);
-    tenantService = new TenantService(tenantRepository);
-    logger.info('[TenantRoutes] Database-backed TenantService and TenantQuotaService initialized');
-  } else {
-    logger.warn('[TenantRoutes] Database not available, tenant CRUD routes will not be functional');
-  }
+  const tenantRepository = new TenantRepository(options.database);
+  const tenantService = new TenantService(tenantRepository);
+  logger.info('[TenantRoutes] Database-backed services initialized');
 
   // ==================== Tenant Context ====================
 
@@ -309,32 +314,22 @@ export default async function tenantRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const {  page = '1', limit = '20', status, search  } = request.query as any as Record<string, string>;
 
-    if (tenantService) {
-      try {
-        const result = await tenantService.listTenants({
-          page: parseInt(page, 10),
-          limit: parseInt(limit, 10),
-          status,
-          
-        });
-        return success(reply, request, result.data, {
-          total: result.total,
-          page: result.page,
-          limit: result.limit,
-          totalPages: result.totalPages,
-        });
-      } catch (error: any) {
-        return internalError(reply, request, error.message);
-      }
-    }
+    try {
+      const result = await tenantService.listTenants({
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        status,
 
-    // Fallback: return empty list if no database
-    return success(reply, request, [], {
-      total: 0,
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      totalPages: 0,
-    });
+      });
+      return success(reply, request, result.data, {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      });
+    } catch (error: any) {
+      return internalError(reply, request, error.message);
+    }
   });
 
   // GET /tenant/:id - Get tenant by ID
@@ -343,19 +338,15 @@ export default async function tenantRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const {  id  } = request.params as any as { id: string };
 
-    if (tenantService) {
-      try {
-        const tenant = await tenantService.getTenant(id);
-        return success(reply, request, tenant);
-      } catch (error: any) {
-        if (error instanceof TenantServiceError && error.code === 'TENANT_NOT_FOUND') {
-          return notFound(reply, request, ErrorCodes.BIZ_TENANT_NOT_FOUND, error.message);
-        }
-        return internalError(reply, request, error.message);
+    try {
+      const tenant = await tenantService.getTenant(id);
+      return success(reply, request, tenant);
+    } catch (error: any) {
+      if (error instanceof TenantServiceError && error.code === 'TENANT_NOT_FOUND') {
+        return notFound(reply, request, ErrorCodes.BIZ_TENANT_NOT_FOUND, error.message);
       }
+      return internalError(reply, request, error.message);
     }
-
-    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // POST /tenant - Create new tenant (with auto quota + namespace allocation)
@@ -380,68 +371,62 @@ export default async function tenantRoutes(
       }>;
     };
 
-    if (tenantService) {
-      try {
-        // 1. Create tenant
-        const tenant = await tenantService.createTenant({
-          name: body.name,
-          display_name: body.display_name,
-          settings: body.settings,
+    try {
+      // 1. Create tenant
+      const tenant = await tenantService.createTenant({
+        name: body.name,
+        display_name: body.display_name,
+        settings: body.settings,
+      });
+
+      // 2. Initialize quota (with defaults or custom)
+      const defaultQuota = {
+        maxPipelines: 100,
+        maxPipelineRunsPerDay: 1000,
+        maxConcurrentRuns: 10,
+        maxTasksPerPipeline: 50,
+        maxRunners: 5,
+        maxCpuCores: 16,
+        maxMemoryGb: 32,
+        maxStorageGb: 100,
+        maxNamespaces: 10,
+        apiRateLimit: 1000,
+        apiRateLimitWindowSeconds: 60,
+      };
+
+      await quotaService.setQuota({
+        tenantId: 0,
+        ...defaultQuota,
+        ...body.customQuota,
+      });
+
+      // 3. Auto allocate namespaces if requested
+      const allocatedNamespaces: any[] = [];
+      const nsCount = body.autoAllocateNamespace ? (body.initialNamespaceCount || 1) : 0;
+      for (let i = 0; i < nsCount; i++) {
+        const result = await namespacePool.allocateNamespace(tenant.id, {
+          purpose: body.settings?.namespacePurpose || 'tenant-workspace',
         });
-
-        // 2. Initialize quota (with defaults or custom)
-        if (quotaService) {
-          const defaultQuota = {
-            maxPipelines: 100,
-            maxPipelineRunsPerDay: 1000,
-            maxConcurrentRuns: 10,
-            maxTasksPerPipeline: 50,
-            maxRunners: 5,
-            maxCpuCores: 16,
-            maxMemoryGb: 32,
-            maxStorageGb: 100,
-            maxNamespaces: 10,
-            apiRateLimit: 1000,
-            apiRateLimitWindowSeconds: 60,
-          };
-
-          await quotaService.setQuota({
-            tenantId: 0, // Will be overridden by tenant UUID in repo
-            ...defaultQuota,
-            ...body.customQuota,
-          });
+        if (result.success && result.namespace) {
+          allocatedNamespaces.push(result.namespace);
         }
-
-        // 3. Auto allocate namespaces if requested
-        const allocatedNamespaces: any[] = [];
-        const nsCount = body.autoAllocateNamespace ? (body.initialNamespaceCount || 1) : 0;
-        for (let i = 0; i < nsCount; i++) {
-          const result = await namespacePool.allocateNamespace(tenant.id, {
-            purpose: body.settings?.namespacePurpose || 'tenant-workspace',
-          });
-          if (result.success && result.namespace) {
-            allocatedNamespaces.push(result.namespace);
-          }
-        }
-
-        const message = body.autoAllocateNamespace
-          ? `Tenant created with ${allocatedNamespaces.length} namespace(s) allocated`
-          : 'Tenant created successfully';
-
-        return created(reply, request, {
-          ...tenant,
-          allocatedNamespaces: allocatedNamespaces.length > 0 ? allocatedNamespaces : undefined,
-          message,
-        });
-      } catch (error: any) {
-        if (error instanceof TenantServiceError) {
-          return badRequest(reply, request, ErrorCodes.BIZ_TENANT_NAME_EXISTS, error.message);
-        }
-        return internalError(reply, request, error.message);
       }
-    }
 
-    return serviceUnavailable(reply, request, 'Database not available');
+      const message = body.autoAllocateNamespace
+        ? `Tenant created with ${allocatedNamespaces.length} namespace(s) allocated`
+        : 'Tenant created successfully';
+
+      return created(reply, request, {
+        ...tenant,
+        allocatedNamespaces: allocatedNamespaces.length > 0 ? allocatedNamespaces : undefined,
+        message,
+      });
+    } catch (error: any) {
+      if (error instanceof TenantServiceError) {
+        return badRequest(reply, request, ErrorCodes.BIZ_TENANT_NAME_EXISTS, error.message);
+      }
+      return internalError(reply, request, error.message);
+    }
   });
 
   // PUT /tenant/:id - Update tenant
@@ -456,22 +441,18 @@ export default async function tenantRoutes(
       settings?: Record<string, any>;
     };
 
-    if (tenantService) {
-      try {
-        const tenant = await tenantService.updateTenant(id, body);
-        return success(reply, request, tenant);
-      } catch (error: any) {
-        if (error instanceof TenantServiceError) {
-          const code = error.code === 'TENANT_NOT_FOUND'
-            ? ErrorCodes.BIZ_TENANT_NOT_FOUND
-            : ErrorCodes.BIZ_TENANT_STATUS_INVALID;
-          return notFound(reply, request, code, error.message);
-        }
-        return internalError(reply, request, error.message);
+    try {
+      const tenant = await tenantService.updateTenant(id, body);
+      return success(reply, request, tenant);
+    } catch (error: any) {
+      if (error instanceof TenantServiceError) {
+        const code = error.code === 'TENANT_NOT_FOUND'
+          ? ErrorCodes.BIZ_TENANT_NOT_FOUND
+          : ErrorCodes.BIZ_TENANT_STATUS_INVALID;
+        return notFound(reply, request, code, error.message);
       }
+      return internalError(reply, request, error.message);
     }
-
-    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // DELETE /tenant/:id - Delete tenant (soft delete)
@@ -480,22 +461,18 @@ export default async function tenantRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const {  id  } = request.params as any as { id: string };
 
-    if (tenantService) {
-      try {
-        await tenantService.deleteTenant(id);
-        return noContent(reply, request);
-      } catch (error: any) {
-        if (error instanceof TenantServiceError) {
-          const code = error.code === 'TENANT_NOT_FOUND'
-            ? ErrorCodes.BIZ_TENANT_NOT_FOUND
-            : ErrorCodes.BIZ_TENANT_STATUS_INVALID;
-          return notFound(reply, request, code, error.message);
-        }
-        return internalError(reply, request, error.message);
+    try {
+      await tenantService.deleteTenant(id);
+      return noContent(reply, request);
+    } catch (error: any) {
+      if (error instanceof TenantServiceError) {
+        const code = error.code === 'TENANT_NOT_FOUND'
+          ? ErrorCodes.BIZ_TENANT_NOT_FOUND
+          : ErrorCodes.BIZ_TENANT_STATUS_INVALID;
+        return notFound(reply, request, code, error.message);
       }
+      return internalError(reply, request, error.message);
     }
-
-    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // POST /tenant/:id/split - 拆分租户
@@ -514,7 +491,7 @@ export default async function tenantRoutes(
       keepOriginalUsers?: boolean;       // 是否保留原租户访问权限
     };
 
-    if (!options.database || !tenantService) {
+    if (!options.database) {
       return serviceUnavailable(reply, request, 'Database not available');
     }
 
@@ -583,13 +560,11 @@ export default async function tenantRoutes(
       }
 
       // 6. 复制配额设置到新租户
-      if (quotaService) {
-        const originalQuota = await quotaService.getQuota(0, id);
-        await quotaService.setQuota({
-          ...originalQuota,
-          tenantId: 0, // 会根据新租户 UUID 重新存储
-        });
-      }
+      const originalQuota = await quotaService.getQuota(0, id);
+      await quotaService.setQuota({
+        ...originalQuota,
+        tenantId: 0,
+      });
 
       const message = `租户拆分完成：迁移 ${migratedUsers.length} 用户、${migratedNamespaces.length} Namespace、${migratedPipelines.length} Pipeline`;
 
@@ -623,16 +598,12 @@ export default async function tenantRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const {  status  } = request.query as any as Record<string, string>;
 
-    if (tenantService) {
-      try {
-        const result = await tenantService.listTenants({ limit: 1, status });
-        return success(reply, request, { total: result.total });
-      } catch (error: any) {
-        return internalError(reply, request, error.message);
-      }
+    try {
+      const result = await tenantService.listTenants({ limit: 1, status });
+      return success(reply, request, { total: result.total });
+    } catch (error: any) {
+      return internalError(reply, request, error.message);
     }
-
-    return success(reply, request, { total: 0 });
   });
 
   // ==================== Tenant Usage Statistics ====================

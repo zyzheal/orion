@@ -1,146 +1,108 @@
 /**
  * TenantQuotaService 单元测试
+ *
+ * 使用 mock TenantQuotaRepository（基于内存 Map）替代直接 mock DB query
  */
 
 import { TenantQuotaService, TenantQuota, QuotaAlert } from '../TenantQuotaService';
+import { TenantQuotaRepository, TenantQuotaEntity } from '../../../repositories/TenantQuotaRepository';
 
-// Mock database for testing
-const createMockDb = () => {
-  const mockQuotas: Map<string, any> = new Map();
+// Mock repository backed by in-memory store
+function createMockRepo() {
+  const store = new Map<string, TenantQuotaEntity>();
+  let idCounter = 1;
 
-  return {
-    query: jest.fn().mockImplementation((sql: string, params?: unknown[]) => {
-      // Handle SELECT queries
-      if (sql.includes('SELECT') && sql.includes('FROM tenant_quotas')) {
-        // findAll: SELECT * FROM tenant_quotas WHERE 1=1 ORDER BY ... LIMIT ... OFFSET ...
-        if (sql.includes('WHERE 1=1')) {
-          const rows = Array.from(mockQuotas.values());
-          return { rows, rowCount: rows.length };
-        }
-        // findByTenantId: SELECT * FROM tenant_quotas WHERE tenant_id = $1
-        if (sql.includes('WHERE tenant_id =')) {
-          const tenantId = params?.[0];
-          const quota = mockQuotas.get(tenantId);
-          if (quota) {
-            return { rows: [quota], rowCount: 1 };
-          }
-          return { rows: [], rowCount: 0 };
-        }
-        // findById: SELECT * FROM tenant_quotas WHERE id = $1
-        if (sql.includes('WHERE id =')) {
-          const id = params?.[0];
-          for (const quota of mockQuotas.values()) {
-            if (quota.id === id) {
-              return { rows: [quota], rowCount: 1 };
-            }
-          }
-          return { rows: [], rowCount: 0 };
-        }
-      }
-
-      // Handle INSERT queries (with RETURNING *)
-      if (sql.includes('INSERT INTO')) {
-        // BaseRepository.create flattens the object to columns and values
-        // Object keys: id, tenantId, maxUsers, maxPipelines, maxApiCallsPerHour, maxConcurrentBuilds,
-        //       maxProjects, maxStorageMb, maxCpuCores, maxMemoryGb, maxTasksPerPipeline,
-        //       maxRunners, apiRateLimit, apiRateLimitWindowSeconds, maxPipelineRunsPerDay, usage
-        const values = params as unknown[];
-        const now = new Date();
-
-        const entity = {
-          id: String(values[0]),
-          tenant_id: String(values[1]),
-          max_users: Number(values[2]) || 100,
-          max_pipelines: Number(values[3]) || 200,
-          max_api_calls_per_hour: Number(values[4]) || 10000,
-          max_concurrent_builds: Number(values[5]) || 10,
-          max_projects: Number(values[6]) || 50,
-          max_storage_mb: Number(values[7]) || 10240,
-          max_cpu_cores: Number(values[8]) || 16,
-          max_memory_gb: Number(values[9]) || 32,
-          max_tasks_per_pipeline: Number(values[10]) || 50,
-          max_runners: Number(values[11]) || 5,
-          api_rate_limit: Number(values[12]) || 1000,
-          api_rate_limit_window_seconds: Number(values[13]) || 60,
-          max_pipeline_runs_per_day: Number(values[14]) || 1000,
-          usage: values[15] || {},
-          created_at: now,
-          updated_at: now,
-        };
-
-        mockQuotas.set(entity.tenant_id, entity);
-        return { rows: [entity], rowCount: 1 };
-      }
-
-      // Handle UPDATE queries (with RETURNING *)
-      if (sql.includes('UPDATE tenant_quotas')) {
-        const values = params as unknown[];
-        const id = String(values[values.length - 1]);
-
-        // Usage-only update: SET usage = $1, updated_at = NOW() WHERE id = $2
-        // (from persistTenantUsage / resetTenantUsageInDb / cleanupExpiredUsageInDb)
-        if (sql.match(/SET\s+usage\s*=/) && !sql.includes('max_pipelines')) {
-          const existing = Array.from(mockQuotas.values()).find(q => q.id === id);
-          if (existing) {
-            const updated = { ...existing, usage: values[0], updated_at: new Date() };
-            mockQuotas.set(existing.tenant_id, updated);
-            return { rows: [updated], rowCount: 1 };
-          }
-          return { rows: [], rowCount: 0 };
-        }
-
-        // Full update from setQuota: BaseRepository.update() flattens the data object
-        // Object keys: maxPipelines, maxApiCallsPerHour, maxConcurrentBuilds, maxProjects,
-        // maxStorageMb, maxCpuCores, maxMemoryGb, maxTasksPerPipeline, maxRunners,
-        // apiRateLimit, apiRateLimitWindowSeconds, maxPipelineRunsPerDay, usage
-        const tenantId = id.replace('quota_', '');
-
-        const existing = mockQuotas.get(tenantId);
-        if (existing) {
-          const updated = {
-            ...existing,
-            max_pipelines: Number(values[0]) || existing.max_pipelines,
-            max_api_calls_per_hour: Number(values[1]) || existing.max_api_calls_per_hour,
-            max_concurrent_builds: Number(values[2]) || existing.max_concurrent_builds,
-            max_projects: Number(values[3]) || existing.max_projects,
-            max_storage_mb: Number(values[4]) || existing.max_storage_mb,
-            max_cpu_cores: Number(values[5]) || existing.max_cpu_cores,
-            max_memory_gb: Number(values[6]) || existing.max_memory_gb,
-            max_tasks_per_pipeline: Number(values[7]) || existing.max_tasks_per_pipeline,
-            max_runners: Number(values[8]) || existing.max_runners,
-            api_rate_limit: Number(values[9]) || existing.api_rate_limit,
-            api_rate_limit_window_seconds: Number(values[10]) || existing.api_rate_limit_window_seconds,
-            max_pipeline_runs_per_day: Number(values[11]) || existing.max_pipeline_runs_per_day,
-            usage: values[12] || existing.usage,
-            updated_at: new Date(),
-          };
-          mockQuotas.set(tenantId, updated);
-          return { rows: [updated], rowCount: 1 };
-        }
-        return { rows: [], rowCount: 0 };
-      }
-
-      return { rows: [], rowCount: 0 };
+  const repo = {
+    findAll: jest.fn().mockImplementation(async ({ limit }: { limit?: number } = {}) => {
+      const entities = Array.from(store.values());
+      return { entities: entities.slice(0, limit ?? entities.length), total: entities.length };
     }),
+
+    findByTenantId: jest.fn().mockImplementation(async (tenantId: string) => {
+      for (const entity of store.values()) {
+        if (entity.tenantId === tenantId) return entity;
+      }
+      return undefined;
+    }),
+
+    findByTenantAndType: jest.fn().mockImplementation(async () => undefined),
+
+    findById: jest.fn().mockImplementation(async (id: string) => {
+      return store.get(id);
+    }),
+
+    create: jest.fn().mockImplementation(async (data: Partial<TenantQuotaEntity>) => {
+      const entity: TenantQuotaEntity = {
+        id: data.id || `quota-${idCounter++}`,
+        tenantId: data.tenantId || '',
+        maxPipelines: data.maxPipelines ?? 100,
+        maxPipelineRunsPerDay: data.maxPipelineRunsPerDay ?? 1000,
+        maxConcurrentBuilds: data.maxConcurrentBuilds ?? 10,
+        maxTasksPerPipeline: data.maxTasksPerPipeline ?? 50,
+        maxRunners: data.maxRunners ?? 5,
+        maxCpuCores: data.maxCpuCores ?? 16,
+        maxMemoryGb: data.maxMemoryGb ?? 32,
+        maxStorageMb: data.maxStorageMb ?? 102400,
+        maxProjects: data.maxProjects ?? 10,
+        maxUsers: data.maxUsers ?? 100,
+        apiRateLimit: data.apiRateLimit ?? 1000,
+        apiRateLimitWindowSeconds: data.apiRateLimitWindowSeconds ?? 60,
+        usage: data.usage ?? {},
+        createdAt: data.createdAt || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+      };
+      store.set(entity.id, entity);
+      return entity;
+    }),
+
+    update: jest.fn().mockImplementation(async (id: string, data: Partial<TenantQuotaEntity>) => {
+      const existing = store.get(id);
+      if (!existing) return undefined;
+      const updated = { ...existing, ...data, updatedAt: new Date() };
+      store.set(id, updated);
+      return updated;
+    }),
+
+    delete: jest.fn().mockImplementation(async (id: string) => {
+      return store.delete(id);
+    }),
+
+    incrementUsage: jest.fn(),
+    resetUsage: jest.fn(),
+
+    _store: store,
     _reset: () => {
-      mockQuotas.clear();
+      store.clear();
+      idCounter = 1;
     },
   };
-};
+
+  return repo as unknown as TenantQuotaRepository;
+}
 
 describe('TenantQuotaService', () => {
   let quotaService: TenantQuotaService;
-  let mockDb: ReturnType<typeof createMockDb>;
+  let mockRepo: ReturnType<typeof createMockRepo>;
 
   beforeEach(() => {
-    mockDb = createMockDb();
-    quotaService = new TenantQuotaService(mockDb as any);
+    mockRepo = createMockRepo();
+    quotaService = new TenantQuotaService(mockRepo);
   });
 
   afterEach(() => {
     quotaService.resetTenantUsage(100);
     quotaService.resetTenantUsage(200);
-    mockDb._reset();
+    (mockRepo as any)._reset();
+  });
+
+  describe('constructor', () => {
+    it('should throw if repository is not provided', () => {
+      expect(() => new TenantQuotaService(null as any)).toThrow('TenantQuotaRepository is required');
+    });
+
+    it('should throw if repository is undefined', () => {
+      expect(() => new TenantQuotaService(undefined as any)).toThrow('TenantQuotaRepository is required');
+    });
   });
 
   describe('getQuota and setQuota', () => {
@@ -264,15 +226,13 @@ describe('TenantQuotaService', () => {
     });
 
     it('should deny when rate limit exceeded', async () => {
-      // Get the quota first to determine window
       const quota = await quotaService.getQuota(100);
       const windowIndex = Math.floor(Date.now() / (quota.apiRateLimitWindowSeconds * 1000));
 
-      // Record usage at the limit using the correct key format: tenantId:resourceType:resourceKey
       quotaService.recordUsage(
         100,
         'api_rate',
-        `${windowIndex}`, // resourceKey part of the key
+        `${windowIndex}`,
         1000,
         new Date(),
         new Date(Date.now() + quota.apiRateLimitWindowSeconds * 1000)
@@ -365,7 +325,6 @@ describe('TenantQuotaService', () => {
 
   describe('cleanupExpiredUsage', () => {
     it('should cleanup expired usage records', async () => {
-      // Add expired usage
       quotaService.recordUsage(
         100,
         'pipelines',
@@ -375,7 +334,6 @@ describe('TenantQuotaService', () => {
         new Date(Date.now() - 3600000)
       );
 
-      // Add valid usage
       quotaService.recordUsage(
         100,
         'pipelines',
@@ -405,9 +363,8 @@ describe('TenantQuotaService', () => {
     });
 
     it('should emit usage:reset event', (done) => {
-      // Use fresh service instance to avoid afterEach interference
-      const freshDb = createMockDb();
-      const freshService = new TenantQuotaService(freshDb as any);
+      const freshRepo = createMockRepo();
+      const freshService = new TenantQuotaService(freshRepo);
 
       freshService.on('usage:reset', (tenantId: number) => {
         expect(tenantId).toBe(100);

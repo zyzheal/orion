@@ -82,10 +82,6 @@ describe('tenant/index.ts barrel exports', () => {
       expect(tenantExports.TenantQuotaService).toBeDefined();
       expect(typeof tenantExports.TenantQuotaService).toBe('function');
     });
-
-    it('should export tenantQuotaService singleton', () => {
-      expect(tenantExports.tenantQuotaService).toBeDefined();
-    });
   });
 
   describe('NamespacePoolService exports', () => {

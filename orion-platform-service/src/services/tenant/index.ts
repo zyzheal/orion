@@ -46,14 +46,12 @@ export {
   TenantUsage,
   QuotaCheckResult,
   QuotaAlert,
-  tenantQuotaService,
 } from './TenantQuotaService';
 export {
   NamespacePoolService,
   NamespacePoolEntry,
   NamespaceAllocationResult,
   NamespacePoolConfig,
-  namespacePoolService,
 } from './NamespacePoolService';
 
 // Database-backed services
