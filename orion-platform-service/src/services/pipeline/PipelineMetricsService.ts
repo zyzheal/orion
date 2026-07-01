@@ -15,6 +15,8 @@ import { EventEmitter } from 'events';
 import pino from 'pino';
 import { PipelineRun, PipelineRunStatus } from '../../models/PipelineRun';
 import { PipelineExecutionQueue, QueueStats } from './PipelineExecutionQueue';
+import { PipelineMetricsRepository } from '../../repositories/PipelineMetricsRepository';
+import { DatabasePool } from '../database';
 
 const logger = pino({ name: 'pipeline-metrics' });
 
@@ -64,13 +66,10 @@ export interface PrometheusMetric {
   value: number;
 }
 
-type DatabasePool = {
-  query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
-};
-
 export class PipelineMetricsService extends EventEmitter {
   private runMetrics: RunMetrics[] = [];
   private dbPool: DatabasePool | null;
+  private metricsRepo: PipelineMetricsRepository | null;
   private dbReady: boolean;
   private executionQueue: PipelineExecutionQueue | null;
   private maxHistorySize: number;
@@ -85,6 +84,7 @@ export class PipelineMetricsService extends EventEmitter {
   }) {
     super();
     this.dbPool = options?.dbPool || null;
+    this.metricsRepo = options?.dbPool ? new PipelineMetricsRepository(options.dbPool) : null;
     this.dbReady = false;
     this.executionQueue = options?.executionQueue || null;
     this.maxHistorySize = options?.maxHistorySize || 10000;
@@ -152,23 +152,19 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
-   * 持久化单条指标到 DB
+   * 持久化单条指标到 DB（通过 Repository）
    */
   private async _persistToDb(metrics: RunMetrics): Promise<void> {
-    if (!this.dbPool || !this.dbReady) return;
+    if (!this.metricsRepo || !this.dbReady) return;
 
-    await this.dbPool.query(
-      `INSERT INTO pipeline_metrics (run_id, pipeline_id, status, duration_ms, trigger_type, error_type)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        metrics.runId,
-        metrics.pipelineId,
-        metrics.status,
-        metrics.durationMs,
-        metrics.triggerType,
-        metrics.errorType || null,
-      ]
-    );
+    await this.metricsRepo.insert({
+      runId: metrics.runId,
+      pipelineId: metrics.pipelineId,
+      status: metrics.status,
+      durationMs: metrics.durationMs,
+      triggerType: metrics.triggerType,
+      errorType: metrics.errorType,
+    });
   }
 
   /**
@@ -195,100 +191,57 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
-   * 从 DB 进行 SQL 聚合
+   * 从 DB 聚合指标（通过 Repository）
    */
   private async _aggregateFromDb(): Promise<PipelineMetrics> {
-    const pool = this.dbPool!;
-
-    // 总览聚合
-    const overviewRows = await pool.query(`
-      SELECT
-        COUNT(*)                                           AS total_runs,
-        COUNT(*) FILTER (WHERE status = 'success')         AS success_runs,
-        COUNT(*) FILTER (WHERE status = 'failed')          AS failed_runs,
-        COUNT(*) FILTER (WHERE status = 'cancelled')       AS cancelled_runs,
-        COUNT(*) FILTER (WHERE duration_ms > 0)            AS with_duration,
-        COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms > 0), 0) AS avg_duration_ms
-      FROM pipeline_metrics
-    `);
-    const overview = overviewRows.rows[0];
-
-    // median & p95 需要单独查询（PostgreSQL 的 PERCENTILE_CONT）
-    const percentileRows = await pool.query(`
-      SELECT
-        COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms > 0), 0) AS median_dur,
-        COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms > 0), 0) AS p95_dur
-      FROM pipeline_metrics
-    `);
-    const percentiles = percentileRows.rows[0];
-
-    const totalRuns = parseInt(overview.total_runs, 10);
-    const successRuns = parseInt(overview.success_runs, 10);
-    const failedRuns = parseInt(overview.failed_runs, 10);
-    const cancelledRuns = parseInt(overview.cancelled_runs, 10);
-
-    // 按错误类型统计
-    const errorRows = await pool.query(`
-      SELECT error_type, COUNT(*) AS cnt
-      FROM pipeline_metrics
-      WHERE status = 'failed' AND error_type IS NOT NULL
-      GROUP BY error_type
-      ORDER BY cnt DESC
-    `);
-
-    // 按 Pipeline 统计
-    const pipelineRows = await pool.query(`
-      SELECT pipeline_id,
-             COUNT(*) AS total,
-             COUNT(*) FILTER (WHERE status = 'success') AS success,
-             COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms > 0), 0) AS avg_duration
-      FROM pipeline_metrics
-      GROUP BY pipeline_id
-    `);
-
-    // 按触发类型统计
-    const triggerRows = await pool.query(`
-      SELECT trigger_type, COUNT(*) AS cnt
-      FROM pipeline_metrics
-      GROUP BY trigger_type
-      ORDER BY cnt DESC
-    `);
-
-    const failuresByErrorType: Record<string, number> = {};
-    for (const row of errorRows.rows) {
-      failuresByErrorType[row.error_type] = parseInt(row.cnt, 10);
+    if (!this.metricsRepo) {
+      return this._getMetricsFromMemory();
     }
 
-    const runsByPipeline: Record<string, { total: number; success: number; avgDurationMs: number }> = {};
-    for (const row of pipelineRows.rows) {
-      runsByPipeline[row.pipeline_id] = {
-        total: parseInt(row.total, 10),
-        success: parseInt(row.success, 10),
-        avgDurationMs: parseFloat(row.avg_duration || '0'),
+    const [overview, percentiles, failuresByErrorType, aggregatesByPipeline, countsByTriggerType] =
+      await Promise.all([
+        this.metricsRepo.getOverview(),
+        this.metricsRepo.getPercentiles(),
+        this.metricsRepo.getFailuresByErrorType(),
+        this.metricsRepo.getAggregatesByPipeline(),
+        this.metricsRepo.getCountsByTriggerType(),
+      ]);
+
+    const failuresMap: Record<string, number> = {};
+    for (const item of failuresByErrorType) {
+      failuresMap[item.errorType] = item.count;
+    }
+
+    const pipelineMap: Record<string, { total: number; success: number; avgDurationMs: number }> = {};
+    for (const item of aggregatesByPipeline) {
+      pipelineMap[item.pipelineId] = {
+        total: item.total,
+        success: item.success,
+        avgDurationMs: item.avgDurationMs,
       };
     }
 
-    const runsByTriggerType: Record<string, number> = {};
-    for (const row of triggerRows.rows) {
-      runsByTriggerType[row.trigger_type] = parseInt(row.cnt, 10);
+    const triggerMap: Record<string, number> = {};
+    for (const item of countsByTriggerType) {
+      triggerMap[item.triggerType] = item.count;
     }
 
     const queueDepth = this.executionQueue?.getDepth() || 0;
 
     return {
-      totalRuns,
-      successRuns,
-      failedRuns,
-      cancelledRuns,
+      totalRuns: overview.totalRuns,
+      successRuns: overview.successRuns,
+      failedRuns: overview.failedRuns,
+      cancelledRuns: overview.cancelledRuns,
       pendingRuns: 0,
       runningRuns: 0,
-      successRate: totalRuns > 0 ? successRuns / totalRuns : 0,
-      averageDurationMs: parseFloat(overview.avg_duration_ms || '0'),
-      medianDurationMs: parseFloat(percentiles.median_dur || '0'),
-      p95DurationMs: parseFloat(percentiles.p95_dur || '0'),
-      failuresByErrorType,
-      runsByPipeline,
-      runsByTriggerType,
+      successRate: overview.totalRuns > 0 ? overview.successRuns / overview.totalRuns : 0,
+      averageDurationMs: overview.avgDurationMs,
+      medianDurationMs: percentiles.medianDurationMs,
+      p95DurationMs: percentiles.p95DurationMs,
+      failuresByErrorType: failuresMap,
+      runsByPipeline: pipelineMap,
+      runsByTriggerType: triggerMap,
       queueDepth,
       queueStats: this.executionQueue?.getStats(),
       lastUpdated: new Date().toISOString(),
@@ -486,28 +439,22 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
-   * 从 DB 获取最近 N 次运行记录
+   * 从 DB 获取最近 N 次运行记录（通过 Repository）
    */
   async getRecentRunsAsync(limit = 50): Promise<RunMetrics[]> {
-    if (!this.dbPool || !this.dbReady) {
+    if (!this.metricsRepo) {
       return this.runMetrics.slice(-limit);
     }
     try {
-      const sql = `
-        SELECT run_id, pipeline_id, status, duration_ms, trigger_type, error_type, created_at
-        FROM pipeline_metrics
-        ORDER BY created_at DESC
-        LIMIT $1
-      `;
-      const result = await this.dbPool.query(sql, [limit]);
-      return result.rows.map((row: any) => ({
-        runId: row.run_id,
-        pipelineId: row.pipeline_id,
-        status: row.status as PipelineRunStatus,
-        durationMs: parseInt(row.duration_ms, 10),
-        errorType: row.error_type || undefined,
-        triggerType: row.trigger_type || 'unknown',
-        completedAt: new Date(row.created_at),
+      const rows = await this.metricsRepo.getRecentRuns(limit);
+      return rows.map(r => ({
+        runId: r.runId,
+        pipelineId: r.pipelineId,
+        status: r.status as PipelineRunStatus,
+        durationMs: r.durationMs,
+        errorType: r.errorType || undefined,
+        triggerType: r.triggerType,
+        completedAt: r.completedAt,
       }));
     } catch (err) {
       logger.debug({ error: (err as Error).message }, 'DB getRecentRuns failed, using memory');
@@ -553,7 +500,7 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
-   * 从 DB 按 Pipeline 获取指标
+   * 从 DB 按 Pipeline 获取指标（通过 Repository）
    */
   private async _metricsByPipelineFromDb(pipelineId: string): Promise<{
     total: number;
@@ -563,49 +510,27 @@ export class PipelineMetricsService extends EventEmitter {
     avgDurationMs: number;
     recentRuns: RunMetrics[];
   }> {
-    const pool = this.dbPool!;
+    if (!this.metricsRepo) {
+      return this._getMetricsByPipelineFromMemory(pipelineId);
+    }
 
-    const aggRows = await pool.query(`
-      SELECT
-        COUNT(*)                                       AS total,
-        COUNT(*) FILTER (WHERE status = 'success')     AS success,
-        COUNT(*) FILTER (WHERE status = 'failed')      AS failed,
-        COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms > 0), 0) AS avg_duration
-      FROM pipeline_metrics
-      WHERE pipeline_id = $1
-    `, [pipelineId]);
-    const row = aggRows.rows[0];
-
-    // 获取最近运行记录
-    const recentRows = await pool.query(`
-      SELECT run_id, pipeline_id, status, duration_ms, trigger_type, error_type, created_at
-      FROM pipeline_metrics
-      WHERE pipeline_id = $1
-      ORDER BY created_at DESC
-      LIMIT 20
-    `, [pipelineId]);
-
-    const total = parseInt(row.total, 10);
-    const success = parseInt(row.success, 10);
-    const failed = parseInt(row.failed, 10);
-
-    const recentRuns: RunMetrics[] = recentRows.rows.map((r: any) => ({
-      runId: r.run_id,
-      pipelineId: r.pipeline_id,
-      status: r.status as PipelineRunStatus,
-      durationMs: parseInt(r.duration_ms, 10),
-      errorType: r.error_type || undefined,
-      triggerType: r.trigger_type || 'unknown',
-      completedAt: new Date(r.created_at),
-    }));
+    const data = await this.metricsRepo.getAggregateByPipelineId(pipelineId);
 
     return {
-      total,
-      success,
-      failed,
-      successRate: total > 0 ? success / total : 0,
-      avgDurationMs: parseFloat(row.avg_duration || '0'),
-      recentRuns,
+      total: data.total,
+      success: data.success,
+      failed: data.failed,
+      successRate: data.total > 0 ? data.success / data.total : 0,
+      avgDurationMs: data.avgDurationMs,
+      recentRuns: data.recentRuns.map(r => ({
+        runId: r.runId,
+        pipelineId: r.pipelineId,
+        status: r.status as PipelineRunStatus,
+        durationMs: r.durationMs,
+        errorType: r.errorType || undefined,
+        triggerType: r.triggerType,
+        completedAt: r.completedAt,
+      })),
     };
   }
 
@@ -643,9 +568,9 @@ export class PipelineMetricsService extends EventEmitter {
     this.runMetrics = [];
 
     // 清空 DB
-    if (this.dbPool && this.dbReady) {
+    if (this.metricsRepo && this.dbReady) {
       try {
-        await this.dbPool.query('DELETE FROM pipeline_metrics');
+        await this.metricsRepo.deleteAll();
       } catch (err) {
         logger.debug({ error: (err as Error).message }, 'Failed to clear pipeline_metrics from DB');
       }
@@ -676,12 +601,11 @@ export class PipelineMetricsService extends EventEmitter {
     }
 
     // 同时清理 DB 中的过期数据
-    if (this.dbPool && this.dbReady) {
+    if (this.metricsRepo && this.dbReady) {
       const cutoff = new Date(now - this.maxAgeMs);
-      this.dbPool.query('DELETE FROM pipeline_metrics WHERE created_at < $1', [cutoff])
-        .catch(err => {
-          logger.debug({ error: err.message }, 'Failed to clean up expired metrics from DB');
-        });
+      this.metricsRepo.deleteOlderThan(cutoff).catch(err => {
+        logger.debug({ error: err.message }, 'Failed to clean up expired metrics from DB');
+      });
     }
   }
 
