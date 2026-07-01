@@ -14,8 +14,9 @@ import {
 describe('AlertCorrelationService', () => {
   let correlation: AlertCorrelationService;
 
-  // Mock db with in-memory storage for topology nodes
+  // Mock db with in-memory storage for topology nodes and edges
   const topologyNodes = new Map<string, any>();
+  const topologyEdges = new Map<string, any>();
   const mockDb = {
     query: jest.fn(async (text: string, params?: unknown[]) => {
       if (text.includes('INSERT INTO alert_topology_nodes')) {
@@ -51,8 +52,21 @@ describe('AlertCorrelationService', () => {
         topologyNodes.clear();
         return { rows: [], rowCount: count };
       }
+      if (text.includes('INSERT INTO alert_topology_edges') || text.includes('insert into alert_topology_edges')) {
+        const edge = {
+          id: params?.[0], source: params?.[1], target: params?.[2],
+          relation_type: params?.[3], tenant_id: params?.[4] || 'default',
+          created_at: new Date(), updated_at: new Date(),
+        };
+        topologyEdges.set(edge.id, edge);
+        return { rows: [edge], rowCount: 1 };
+      }
       if (text.includes('alert_correlation_groups')) {
         return { rows: [], rowCount: 0 };
+      }
+      if (text.includes('SELECT * FROM alert_topology_edges')) {
+        const rows = Array.from(topologyEdges.values());
+        return { rows, rowCount: rows.length };
       }
       return { rows: [], rowCount: 0 };
     }),
@@ -105,6 +119,7 @@ describe('AlertCorrelationService', () => {
 
   beforeEach(async () => {
     topologyNodes.clear();
+    topologyEdges.clear();
     mockDb.query.mockClear();
     correlation = new AlertCorrelationService(undefined, mockDb as any);
     await correlation.setTopology(createTopology());

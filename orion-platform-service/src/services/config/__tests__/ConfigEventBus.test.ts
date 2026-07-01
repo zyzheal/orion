@@ -199,15 +199,15 @@ describe('ConfigEventBus', () => {
   describe('getConnectionStatus', () => {
     it('should return connected status', () => {
       const status = eventBus.getConnectionStatus();
-      expect(status).toEqual({ connected: true });
+      expect(status.connected).toBe(true);
     });
   });
 
   // ==================== getHistory ====================
 
   describe('getHistory', () => {
-    it('should return empty history initially', () => {
-      const history = eventBus.getHistory();
+    it('should return empty history initially', async () => {
+      const history = await eventBus.getHistory();
       expect(history).toEqual([]);
     });
 
@@ -216,7 +216,7 @@ describe('ConfigEventBus', () => {
       await eventBus.publish(createTestEvent({ key: 'second' }));
       await eventBus.publish(createTestEvent({ key: 'third' }));
 
-      const history = eventBus.getHistory();
+      const history = await eventBus.getHistory();
       expect(history).toHaveLength(3);
       expect(history[0].key).toBe('first');
       expect(history[2].key).toBe('third');
@@ -227,7 +227,7 @@ describe('ConfigEventBus', () => {
         await eventBus.publish(createTestEvent({ key: `key-${i}` }));
       }
 
-      const history = eventBus.getHistory(3);
+      const history = await eventBus.getHistory(3);
       expect(history).toHaveLength(3);
       // Should return the last 3
       expect(history[0].key).toBe('key-7');
@@ -239,7 +239,7 @@ describe('ConfigEventBus', () => {
         await eventBus.publish(createTestEvent({ key: `key-${i}` }));
       }
 
-      const history = eventBus.getHistory();
+      const history = await eventBus.getHistory();
       expect(history).toHaveLength(50);
     });
 
@@ -249,7 +249,7 @@ describe('ConfigEventBus', () => {
       }
 
       // Internal history should be capped at 100
-      const history = eventBus.getHistory(200);
+      const history = await eventBus.getHistory(200);
       expect(history.length).toBeLessThanOrEqual(100);
     });
   });
@@ -270,7 +270,7 @@ describe('ConfigEventBus', () => {
       handler.mockClear();
       // Note: publish after close may still work since the bus is local,
       // but handlers and history should be cleared
-      const history = eventBus.getHistory();
+      const history = await eventBus.getHistory();
       expect(history).toEqual([]);
     });
   });

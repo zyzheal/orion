@@ -26,6 +26,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   const pluginManager = options?.pluginManager || new PluginManagerService();
   const pluginExecutor = new PluginExecutorService({
     pluginManager,
+    database: options?.database,
   });
 
   // Register for graceful shutdown

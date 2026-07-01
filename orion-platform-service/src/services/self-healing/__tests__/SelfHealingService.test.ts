@@ -26,6 +26,167 @@ import {
   HealingIncident,
 } from '../types';
 
+// Mock HealingStrategyRepository to return built-in strategies
+jest.mock('../../../repositories/HealingStrategyRepository', () => {
+  const DEFAULT_STRATEGIES = [
+    { id: 'restart-on-crash', name: 'Auto Restart on Crash', triggerType: 'pod_crash', confidence: 90, enabled: true, actions: [{ type: 'restart', params: {}, timeout: 30000 }], conditions: [], maxRetries: 3 },
+    { id: 'scale-on-high-cpu', name: 'Auto Scale on High CPU', triggerType: 'high_cpu', confidence: 75, enabled: true, actions: [{ type: 'scale', params: { direction: 'up' }, timeout: 60000 }], maxRetries: 2 },
+    { id: 'scale-on-high-memory', name: 'Auto Scale on High Memory', triggerType: 'high_memory', confidence: 70, enabled: true, actions: [{ type: 'scale', params: { direction: 'up' }, timeout: 60000 }], maxRetries: 2 },
+    { id: 'failover-on-node-failure', name: 'Failover on Node Failure', triggerType: 'node_failure', confidence: 85, enabled: true, actions: [{ type: 'failover', params: {}, timeout: 120000 }], maxRetries: 1 },
+    { id: 'rollback-on-deployment-failure', name: 'Auto Rollback on Deployment Failure', triggerType: 'deployment_failure', confidence: 95, enabled: true, actions: [{ type: 'rollback', params: {}, timeout: 60000 }], maxRetries: 1 },
+    { id: 'restart-on-service-down', name: 'Auto Restart on Service Down', triggerType: 'service_down', confidence: 80, enabled: true, actions: [{ type: 'restart', params: {}, timeout: 30000 }], maxRetries: 3 },
+    { id: 'scale-on-high-error-rate', name: 'Auto Scale on High Error Rate', triggerType: 'high_error_rate', confidence: 60, enabled: true, actions: [{ type: 'scale', params: { direction: 'up' }, timeout: 60000 }], maxRetries: 2 },
+    { id: 'restart-on-network-timeout', name: 'Auto Restart on Network Timeout', triggerType: 'network_timeout', confidence: 55, enabled: true, actions: [{ type: 'restart', params: {}, timeout: 30000 }], maxRetries: 2 },
+  ];
+
+  let _strategies: any[] = DEFAULT_STRATEGIES.map(s => ({ ...s, actions: s.actions.map(a => ({ ...a })) }));
+
+  return {
+    HealingStrategyRepository: jest.fn().mockImplementation(() => ({
+      create: jest.fn().mockImplementation(async (data: any) => {
+        // Handle JSON stringified fields from registerStrategy
+        // Also normalize snake_case to camelCase for entityToStrategy compatibility
+        const s = {
+          ...data,
+          enabled: !!data.enabled,
+          triggerType: data.triggerType || data.trigger_type,
+          maxRetries: data.maxRetries ?? data.max_retries ?? null,
+          retryCooldownMs: data.retryCooldownMs ?? data.retry_cooldown_ms ?? null,
+          actions: typeof data.actions === 'string' ? JSON.parse(data.actions) : data.actions,
+          conditions: typeof data.conditions === 'string' ? JSON.parse(data.conditions) : data.conditions,
+          environments: typeof data.environments === 'string' ? JSON.parse(data.environments) : data.environments,
+        };
+        _strategies.push(s);
+        return s;
+      }),
+      findById: jest.fn().mockImplementation((id: string) => {
+        const found = _strategies.find((s: any) => s.id === id);
+        return Promise.resolve(found || null);
+      }),
+      findAll: jest.fn().mockImplementation((opt?: any) => {
+        const limit = opt?.limit || 1000;
+        return Promise.resolve({ entities: _strategies.slice(0, limit), total: _strategies.length });
+      }),
+      update: jest.fn().mockImplementation(async (id: string, updates: any) => {
+        const idx = _strategies.findIndex((s: any) => s.id === id);
+        if (idx >= 0) {
+          // Handle JSON stringified fields and normalize snake_case to camelCase
+          const parsedUpdates: any = { ...updates };
+          if (parsedUpdates.actions && typeof parsedUpdates.actions === 'string') parsedUpdates.actions = JSON.parse(parsedUpdates.actions);
+          if (parsedUpdates.conditions && typeof parsedUpdates.conditions === 'string') parsedUpdates.conditions = JSON.parse(parsedUpdates.conditions);
+          if (parsedUpdates.environments && typeof parsedUpdates.environments === 'string') parsedUpdates.environments = JSON.parse(parsedUpdates.environments);
+          parsedUpdates.triggerType = parsedUpdates.triggerType || parsedUpdates.trigger_type;
+          parsedUpdates.maxRetries = parsedUpdates.maxRetries ?? parsedUpdates.max_retries;
+          parsedUpdates.retryCooldownMs = parsedUpdates.retryCooldownMs ?? parsedUpdates.retry_cooldown_ms;
+          _strategies[idx] = { ..._strategies[idx], ...parsedUpdates };
+        }
+        return _strategies[idx];
+      }),
+      delete: jest.fn().mockImplementation((id: string) => {
+        const idx = _strategies.findIndex((s: any) => s.id === id);
+        if (idx >= 0) { _strategies.splice(idx, 1); return true; }
+        return false;
+      }),
+      enableStrategy: jest.fn().mockImplementation((id: string) => {
+        const s = _strategies.find((s: any) => s.id === id);
+        if (s) { s.enabled = true; return true; }
+        return false;
+      }),
+      disableStrategy: jest.fn().mockImplementation((id: string) => {
+        const s = _strategies.find((s: any) => s.id === id);
+        if (s) { s.enabled = false; return true; }
+        return false;
+      }),
+      findEnabled: jest.fn().mockImplementation(() => {
+        return Promise.resolve(_strategies.filter((s: any) => s.enabled));
+      }),
+      // Exposed for test cleanup
+      _resetStrategies: () => {
+        _strategies = DEFAULT_STRATEGIES.map(s => ({ ...s, actions: s.actions.map(a => ({ ...a })) }));
+      },
+    })),
+  };
+});
+
+// Mock HealingActionResultRepository for HealingActionExecutor
+jest.mock('../../../repositories/HealingActionResultRepository', () => {
+  let _results: any[] = [];
+
+  return {
+    HealingActionResultRepository: jest.fn().mockImplementation(() => ({
+      create: jest.fn().mockImplementation((data: any) => {
+        _results.push(data);
+        return Promise.resolve(data);
+      }),
+      findAll: jest.fn().mockImplementation((_opt?: any) => {
+        return Promise.resolve({ entities: [..._results], total: _results.length });
+      }),
+      findById: jest.fn().mockImplementation((id: string) => {
+        const found = _results.find((r: any) => r.id === id);
+        return Promise.resolve(found || null);
+      }),
+      delete: jest.fn().mockImplementation((id: string) => {
+        const idx = _results.findIndex((r: any) => r.id === id);
+        if (idx >= 0) { _results.splice(idx, 1); return true; }
+        return false;
+      }),
+      _mockResults: {
+        get: () => _results,
+        clear: () => { _results = []; },
+      },
+    })),
+  };
+});
+
+// Mock HealingApprovalRequestRepository to avoid real DB calls in HealingDecisionMaker
+jest.mock('../../../repositories/HealingApprovalRequestRepository', () => {
+  let _requests: any[] = [];
+  let _counter = 0;
+
+  return {
+    HealingApprovalRequestRepository: jest.fn().mockImplementation((_db?: any) => ({
+      create: jest.fn().mockImplementation((data: any) => {
+        const entity = { ...data, id: data.id || `approval-req-${++_counter}` };
+        _requests.push(entity);
+        return Promise.resolve(entity);
+      }),
+      findById: jest.fn().mockImplementation((id: string) => {
+        const found = _requests.find((r: any) => r.id === id);
+        return Promise.resolve(found || null);
+      }),
+      updateStatus: jest.fn().mockImplementation((id: string, status: string, approvedBy?: string, reason?: string) => {
+        const entity = _requests.find((r: any) => r.id === id);
+        if (entity) {
+          entity.status = status;
+          entity.approvedBy = approvedBy || null;
+          entity.approvalReason = reason || null;
+          entity.respondedAt = new Date();
+        }
+        return Promise.resolve(entity || null);
+      }),
+      findByStatus: jest.fn().mockImplementation((status?: string, limit?: number) => {
+        let filtered = _requests;
+        if (status) filtered = _requests.filter((r: any) => r.status === status);
+        return Promise.resolve(filtered.slice(0, limit || 100));
+      }),
+      findAll: jest.fn().mockImplementation((opt?: any) => {
+        const limit = opt?.limit || 1000;
+        return Promise.resolve({ entities: _requests.slice(0, limit), total: _requests.length });
+      }),
+      delete: jest.fn().mockImplementation((id: string) => {
+        const idx = _requests.findIndex((r: any) => r.id === id);
+        if (idx >= 0) { _requests.splice(idx, 1); return true; }
+        return false;
+      }),
+      // Expose for test cleanup
+      _mockRequests: {
+        get: () => _requests,
+        clear: () => { _requests = []; _counter = 0; },
+      },
+    })),
+  };
+});
+
 // ==================== Mock Repository ====================
 
 class MockSelfHealingRepository {
@@ -190,6 +351,22 @@ const mockRepo = new MockSelfHealingRepository() as unknown as SelfHealingReposi
 
 // ==================== Helper Functions ====================
 
+// Mock DB that handles various queries
+const mockDb = {
+  query: jest.fn().mockImplementation((text: string, _params?: any[]) => {
+    const upper = text.toUpperCase();
+    if (upper.includes('COUNT(')) {
+      return Promise.resolve({ rows: [{ count: '0' }], rowCount: 1 });
+    }
+    const isInsert = /^INSERT/i.test(text);
+    const isUpdate = /^UPDATE/i.test(text);
+    if (isInsert || isUpdate) {
+      return Promise.resolve({ rows: [{ id: `mock-${Date.now()}`, updated_at: new Date() }], rowCount: 1 });
+    }
+    return Promise.resolve({ rows: [], rowCount: 0 });
+  }),
+};
+
 function createStrategy(
   overrides?: Partial<HealingStrategy>
 ): HealingStrategy {
@@ -245,7 +422,10 @@ describe('HealingStrategyEngine', () => {
   let engine: HealingStrategyEngine;
 
   beforeEach(() => {
-    engine = new HealingStrategyEngine();
+    // Reset mock strategy state before each test
+    const mockRepo = new (require('../../../repositories/HealingStrategyRepository').HealingStrategyRepository)();
+    if (mockRepo._resetStrategies) mockRepo._resetStrategies();
+    engine = new HealingStrategyEngine(mockDb as any);
   });
 
   describe('Built-in Strategies', () => {
@@ -426,7 +606,11 @@ describe('HealingActionExecutor', () => {
   let executor: HealingActionExecutor;
 
   beforeEach(() => {
-    executor = new HealingActionExecutor();
+    // Clear mock action results from previous tests
+    const mockRepo = new (require('../../../repositories/HealingActionResultRepository').HealingActionResultRepository)();
+    if (mockRepo._mockResults) mockRepo._mockResults.clear();
+    executor = new HealingActionExecutor(mockDb as any);
+    executor.clearExecutedActions();
   });
 
   describe('executeAction', () => {
@@ -551,7 +735,7 @@ describe('HealingActionExecutor', () => {
 
     it('should clear executed actions', async () => {
       await executor.executeAction(createAction({ type: 'restart', timeout: 100 }));
-      executor.clearExecutedActions();
+      await executor.clearExecutedActions();
 
       const actions = await executor.getExecutedActions();
       expect(actions.length).toBe(0);
@@ -565,7 +749,10 @@ describe('HealingDecisionMaker', () => {
   let decisionMaker: HealingDecisionMaker;
 
   beforeEach(() => {
-    decisionMaker = new HealingDecisionMaker();
+    // Reset mock approval request state
+    const mockRepo = new (require('../../../repositories/HealingApprovalRequestRepository').HealingApprovalRequestRepository)();
+    if (mockRepo._mockRequests) mockRepo._mockRequests.clear();
+    decisionMaker = new HealingDecisionMaker({}, undefined, mockDb as any);
   });
 
   describe('getDecision', () => {
@@ -648,7 +835,7 @@ describe('HealingDecisionMaker', () => {
     it('should return manual for disabled incident types', async () => {
       const dm = new HealingDecisionMaker({
         disabledIncidentTypes: ['pod_crash'],
-      });
+      }, undefined, mockDb as any);
 
       const decision = await dm.getDecision({
         strategy: createStrategy({ id: 'disabled-type', confidence: 90, triggerType: 'pod_crash' }),
@@ -689,7 +876,7 @@ describe('HealingDecisionMaker', () => {
   });
 
   describe('Approval Workflow', () => {
-    it('should create an approval request', () => {
+    it('should create an approval request', async () => {
       const decision = {
         type: 'manual' as const,
         reason: 'Test',
@@ -699,7 +886,7 @@ describe('HealingDecisionMaker', () => {
         recommendedActions: [createAction()],
       };
 
-      const request = decisionMaker.createApprovalRequest({
+      const request = await decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision,
         appName: 'test-app',
@@ -714,8 +901,8 @@ describe('HealingDecisionMaker', () => {
       expect(request.expiresAt).toBeDefined();
     });
 
-    it('should approve a pending request', () => {
-      const request = decisionMaker.createApprovalRequest({
+    it('should approve a pending request', async () => {
+      const request = await decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: {
           type: 'manual',
@@ -730,7 +917,7 @@ describe('HealingDecisionMaker', () => {
         incidentType: 'pod_crash',
       });
 
-      const updated = decisionMaker.respondToApproval(request.id, {
+      const updated = await decisionMaker.respondToApproval(request.id, {
         approved: true,
         reason: 'Looks good',
         respondedBy: 'admin',
@@ -741,8 +928,8 @@ describe('HealingDecisionMaker', () => {
       expect(updated.respondedAt).toBeDefined();
     });
 
-    it('should reject a pending request', () => {
-      const request = decisionMaker.createApprovalRequest({
+    it('should reject a pending request', async () => {
+      const request = await decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: {
           type: 'manual',
@@ -757,7 +944,7 @@ describe('HealingDecisionMaker', () => {
         incidentType: 'pod_crash',
       });
 
-      const updated = decisionMaker.respondToApproval(request.id, {
+      const updated = await decisionMaker.respondToApproval(request.id, {
         approved: false,
         reason: 'Too risky',
         respondedBy: 'admin',
@@ -767,17 +954,17 @@ describe('HealingDecisionMaker', () => {
       expect(updated.approvalReason).toBe('Too risky');
     });
 
-    it('should throw error for non-existent request', () => {
-      expect(() =>
+    it('should throw error for non-existent request', async () => {
+      await expect(
         decisionMaker.respondToApproval('non-existent', {
           approved: true,
           respondedBy: 'admin',
         })
-      ).toThrow('not found');
+      ).rejects.toThrow('not found');
     });
 
-    it('should throw error for already responded request', () => {
-      const request = decisionMaker.createApprovalRequest({
+    it('should throw error for already responded request', async () => {
+      const request = await decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: {
           type: 'manual',
@@ -792,30 +979,30 @@ describe('HealingDecisionMaker', () => {
         incidentType: 'pod_crash',
       });
 
-      decisionMaker.respondToApproval(request.id, {
+      await decisionMaker.respondToApproval(request.id, {
         approved: true,
         respondedBy: 'admin',
       });
 
-      expect(() =>
+      await expect(
         decisionMaker.respondToApproval(request.id, {
           approved: false,
           respondedBy: 'admin',
         })
-      ).toThrow('not pending');
+      ).rejects.toThrow('not pending');
     });
   });
 
   describe('getApprovalRequests', () => {
     it('should return all requests when no filter', async () => {
-      decisionMaker.createApprovalRequest({
+      await decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
         appName: 'test-app',
         environment: 'staging',
         incidentType: 'pod_crash',
       });
-      decisionMaker.createApprovalRequest({
+      await decisionMaker.createApprovalRequest({
         incidentId: 'incident-2',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
         appName: 'test-app',
@@ -828,14 +1015,14 @@ describe('HealingDecisionMaker', () => {
     });
 
     it('should filter by status', async () => {
-      const req1 = decisionMaker.createApprovalRequest({
+      const req1 = await decisionMaker.createApprovalRequest({
         incidentId: 'incident-1',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
         appName: 'test-app',
         environment: 'staging',
         incidentType: 'pod_crash',
       });
-      decisionMaker.createApprovalRequest({
+      await decisionMaker.createApprovalRequest({
         incidentId: 'incident-2',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
         appName: 'test-app',
@@ -843,7 +1030,7 @@ describe('HealingDecisionMaker', () => {
         incidentType: 'pod_crash',
       });
 
-      decisionMaker.respondToApproval(req1.id, { approved: true, respondedBy: 'admin' });
+      await decisionMaker.respondToApproval(req1.id, { approved: true, respondedBy: 'admin' });
 
       const pending = await decisionMaker.getApprovalRequests('pending');
       expect(pending.length).toBe(1);
@@ -854,9 +1041,9 @@ describe('HealingDecisionMaker', () => {
     it('should mark expired requests as expired', async () => {
       const dm = new HealingDecisionMaker({
         approvalExpirationMs: 0,
-      });
+      }, undefined, mockDb as any);
 
-      const request = dm.createApprovalRequest({
+      const request = await dm.createApprovalRequest({
         incidentId: 'incident-1',
         decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
         appName: 'test-app',
@@ -864,7 +1051,7 @@ describe('HealingDecisionMaker', () => {
         incidentType: 'pod_crash',
       });
 
-      dm.checkExpiredRequests();
+      await dm.checkExpiredRequests();
       const updated = await dm.getApprovalRequest(request.id);
       expect(updated?.status).toBe('expired');
     });
@@ -878,9 +1065,15 @@ describe('SelfHealingService', () => {
   let mockRepo: SelfHealingRepository;
 
   beforeEach(() => {
-    const repo = new MockSelfHealingRepository();
-    mockRepo = repo as unknown as SelfHealingRepository;
-    service = new SelfHealingService(mockRepo);
+    // Reset strategy enabled states that may have been modified by HealingStrategyEngine tests
+    // Access the mock repository's _resetStrategies method
+    const tempRepo = new (require('../../../repositories/HealingStrategyRepository')
+      .HealingStrategyRepository)();
+    if (tempRepo._resetStrategies) {
+      tempRepo._resetStrategies();
+    }
+    mockRepo = new MockSelfHealingRepository() as unknown as SelfHealingRepository;
+    service = new SelfHealingService(mockRepo, {}, mockDb as any);
   });
 
   describe('handleAlert', () => {
@@ -1211,7 +1404,7 @@ describe('SelfHealingService', () => {
 
     it('should return zero metrics for empty history', async () => {
       const freshRepo = new MockSelfHealingRepository() as unknown as SelfHealingRepository;
-      const freshService = new SelfHealingService(freshRepo);
+      const freshService = new SelfHealingService(freshRepo, {}, mockDb as any);
       const effectiveness = await freshService.getEffectiveness({});
 
       expect(effectiveness.totalIncidents).toBe(0);
@@ -1259,11 +1452,14 @@ describe('SelfHealingService', () => {
     });
 
     it('should toggle strategy', async () => {
-      const result = await service.toggleStrategy('restart-on-crash', false);
+      const result = await service.toggleStrategy('scale-on-high-cpu', false);
       expect(result).toBe(true);
 
-      const strategy = await service.getStrategy('restart-on-crash');
+      const strategy = await service.getStrategy('scale-on-high-cpu');
       expect(strategy?.enabled).toBe(false);
+
+      // Re-enable for other tests
+      await service.toggleStrategy('scale-on-high-cpu', true);
     });
 
     it('should register custom strategy', async () => {

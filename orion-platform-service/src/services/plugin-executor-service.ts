@@ -160,6 +160,7 @@ export class PluginExecutorService {
     pluginManager: PluginManagerService;
     eventBus?: EventBusService;
     config?: Partial<ExecutorConfig>;
+    database?: any;
   }) {
     this.pluginManager = options.pluginManager;
     this.eventBus = options.eventBus;
@@ -174,11 +175,11 @@ export class PluginExecutorService {
     this.initializeSecurityComponents();
 
     // Initialize ExecutionGuardian
-    this.guardian = new ExecutionGuardian();
+    this.guardian = new ExecutionGuardian({}, options.database);
     this.guardian.start();
 
     // Initialize ProcessKiller
-    this.processKiller = new ProcessKiller();
+    this.processKiller = new ProcessKiller(options.database);
 
     // Initialize WASM Runtime
     this.wasmRuntime = new WasmRuntime();

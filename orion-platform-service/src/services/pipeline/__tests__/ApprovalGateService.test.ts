@@ -68,7 +68,7 @@ describe('ApprovalGateService', () => {
 
   beforeEach(() => {
     mockRepo = createMockRepository();
-    service = new ApprovalGateService({ repository: mockRepo.repository });
+    service = new ApprovalGateService(mockRepo.repository);
   });
 
   describe('requestApproval', () => {

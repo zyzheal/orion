@@ -27,6 +27,11 @@ const VALID_RELATION_TYPES: TicketRelationType[] = [
   'duplicate', 'caused-by', 'related', 'blocks', 'blocked-by',
 ];
 
+/** Extract tenantId from authenticated request */
+function getTenantId(request: FastifyRequest): string {
+  return (request as any).user?.tenantId || (request.headers['x-tenant-id'] as string) || 'default';
+}
+
 export class TicketingController {
   private ticketService: TicketService;
   private ticketingService: TicketingService;
@@ -93,7 +98,7 @@ export class TicketingController {
       }
 
       const input = {
-        tenant_id: (body as any).tenantId || 'default',
+        tenant_id: getTenantId(request),
         title,
         description,
         type: category,
@@ -205,7 +210,7 @@ export class TicketingController {
     try {
       const result = await this.ticketingService.listTickets({
         page, limit,
-        tenantId: query.tenantId,
+        tenantId: getTenantId(request),
         status: query.status,
         assigneeId: query.assignee,
         priority: query.priority,

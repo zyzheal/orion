@@ -28,7 +28,7 @@ import {
   MonitoringAlertInstanceRepository,
   MonitoringAlertInstanceEntity,
 } from '../../repositories/MonitoringAlertInstanceRepository';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LAlert-LRule-LEngine' });
 
@@ -128,7 +128,7 @@ export class AlertRuleEngine {
     if (this.ruleRepo) {
       await this.ruleRepo.create({
         id: rule.id,
-        tenant_id: '00000000-0000-0000-0000-000000000000',
+        tenant_id: getCurrentTenantId(),
         name: rule.name,
         metric: rule.metric,
         condition: rule.condition,
@@ -645,7 +645,7 @@ export class AlertRuleEngine {
   private alertToEntity(alert: Alert): Record<string, any> {
     return {
       id: alert.id,
-      tenant_id: '00000000-0000-0000-0000-000000000000',
+      tenant_id: getCurrentTenantId(),
       rule_id: alert.ruleId,
       rule_name: alert.ruleName ?? null,
       metric: alert.metric,

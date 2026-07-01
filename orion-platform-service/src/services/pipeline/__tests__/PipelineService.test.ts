@@ -75,9 +75,13 @@ describe('PipelineService', () => {
   });
 
   describe('constructor', () => {
-    it('should work with null repository', () => {
-      const svc = new PipelineService(null);
+    it('should work with mock repository', () => {
+      const svc = new PipelineService(mockRepo as any);
       expect(svc).toBeDefined();
+    });
+
+    it('should throw when repository is null', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
 
     it('should detect repository by method presence', () => {
@@ -88,7 +92,7 @@ describe('PipelineService', () => {
     it('should build repos from DatabasePool', () => {
       const mockPool = { query: jest.fn() } as any;
       // This will create real repository instances
-      const svc = new PipelineService(mockPool);
+      const svc = new PipelineService(mockPool as any);
       expect(svc).toBeDefined();
     });
   });
@@ -112,12 +116,20 @@ describe('PipelineService', () => {
       expect(result).toBeNull();
     });
 
-    it('should return undefined when no repository', async () => {
-      const svc = new PipelineService(null);
-
+    it('should return null when no repository', async () => {
+      const mockRepoWithEmptyMethods = {
+        findById: jest.fn().mockResolvedValue(null),
+        findAll: jest.fn().mockResolvedValue({ entities: [], total: 0 }),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn().mockResolvedValue(false),
+        findByTenant: jest.fn().mockResolvedValue([]),
+        findVersions: jest.fn().mockResolvedValue([]),
+        getStats: jest.fn().mockResolvedValue({ totalRuns: 0, successRuns: 0, failedRuns: 0, runningRuns: 0, avgDuration: 0 }),
+      };
+      const svc = new PipelineService(mockRepoWithEmptyMethods as any);
       const result = await svc.getById('p-1');
-
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
@@ -139,12 +151,8 @@ describe('PipelineService', () => {
       expect(mockRepo.findByTenant).toHaveBeenCalledWith('t-1');
     });
 
-    it('should return empty when no repository', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.list();
-
-      expect(result).toEqual([]);
+    it('should throw when no repository', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
 
     it('should handle array result from findAll', async () => {
@@ -195,16 +203,8 @@ describe('PipelineService', () => {
       );
     });
 
-    it('should fallback to in-memory mode', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.create({
-        name: 'In-Memory Pipeline',
-        tenant_id: 't-1',
-      } as any);
-
-      expect(result.name).toBe('In-Memory Pipeline');
-      expect(result.tenant_id).toBe('t-1');
+    it('should throw when no repository for create', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 
@@ -218,12 +218,8 @@ describe('PipelineService', () => {
       expect(result).toEqual(updated);
     });
 
-    it('should return undefined when no repository', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.update('p-1', { description: 'test' });
-
-      expect(result).toBeUndefined();
+    it('should throw when no repository for update', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
 
     it('should handle update error', async () => {
@@ -253,12 +249,8 @@ describe('PipelineService', () => {
       expect(mockRepo.delete).toHaveBeenCalledWith('p-1');
     });
 
-    it('should return false when no repository', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.delete('p-1');
-
-      expect(result).toBe(false);
+    it('should throw when no repository for delete', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 
@@ -282,12 +274,8 @@ describe('PipelineService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return empty when no repository', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.getVersions('t-1', 'p-1');
-
-      expect(result).toEqual([]);
+    it('should throw when no repository for getVersions', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 
@@ -332,11 +320,8 @@ describe('PipelineService', () => {
       await expect(service.triggerRun('nonexistent')).rejects.toThrow('Pipeline not found');
     });
 
-    it('should fallback to in-memory mode', async () => {
-      const svc = new PipelineService(null);
-
-      // Since getById returns undefined (no repo), it should throw
-      await expect(svc.triggerRun('p-1')).rejects.toThrow();
+    it('should throw when no repository for triggerRun', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 
@@ -370,12 +355,8 @@ describe('PipelineService', () => {
       expect(result).toEqual(stats);
     });
 
-    it('should return zero stats when no repository', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.getPipelineStats('p-1');
-
-      expect(result.totalRuns).toBe(0);
+    it('should throw when no repository for getPipelineStats', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 
@@ -405,12 +386,8 @@ describe('PipelineService', () => {
       expect(result.total).toBe(1);
     });
 
-    it('should return empty when no repository', async () => {
-      const svc = new PipelineService(null);
-
-      const result = await svc.listPipelines();
-
-      expect(result).toEqual({ data: [], total: 0 });
+    it('should throw when no repository for listPipelines', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 });

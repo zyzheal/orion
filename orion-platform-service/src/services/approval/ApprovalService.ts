@@ -35,9 +35,21 @@ export interface ApprovalRequest {
 
 export class ApprovalService {
   private repository: ApprovalRepository;
+  private db: { transaction?: <T>(fn: (client: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) => Promise<T>) => Promise<T> };
 
-  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>; transaction?: <T>(fn: (client: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) => Promise<T>) => Promise<T> }) {
+    this.db = db;
     this.repository = new ApprovalRepository(db);
+  }
+
+  private async withTransaction<T>(fn: (repo: ApprovalRepository) => Promise<T>): Promise<T> {
+    if (this.db.transaction) {
+      return this.db.transaction(async (client) => {
+        const txRepo = new ApprovalRepository(client);
+        return fn(txRepo);
+      });
+    }
+    return fn(this.repository);
   }
 
   /**
@@ -89,8 +101,11 @@ export class ApprovalService {
 
   /**
    * Approve
+   * P1 Fix: Write operations (updateStepStatus, advanceStep, updateStatus) are wrapped in a transaction
+   * to ensure atomicity — if advanceStep fails after updateStepStatus succeeds, the approval won't be left in an inconsistent state.
    */
   async approve(approvalId: string, userId: string): Promise<ApprovalRequest> {
+    // Pre-read: entity and steps (read-only, can happen outside transaction)
     const entity = await this.repository.findById(approvalId);
     if (!entity) throw new OrionError(`Approval not found: ${approvalId}`, ErrorCode.NOT_FOUND);
     if (entity.status !== 'pending') throw new OrionError('Approval not pending', ErrorCode.OPERATION_FAILED);
@@ -103,24 +118,29 @@ export class ApprovalService {
       return this.entityToRequestWithSteps(entity, steps);
     }
 
-    await this.repository.updateStepStatus(matchingStep.id, 'approved', undefined, new Date());
-    await this.repository.advanceStep(approvalId);
+    // Atomic write: updateStepStatus → advanceStep → (optional) updateStatus → final read
+    return this.withTransaction(async (txRepo: ApprovalRepository) => {
+      await txRepo.updateStepStatus(matchingStep.id, 'approved', undefined, new Date());
+      await txRepo.advanceStep(approvalId);
 
-    const updatedSteps = await this.repository.findStepsByApproval(approvalId);
-    const approvedCount = updatedSteps.filter(s => s.status === 'approved').length;
+      const updatedSteps = await txRepo.findStepsByApproval(approvalId);
+      const approvedCount = updatedSteps.filter(s => s.status === 'approved').length;
 
-    if (approvedCount >= entity.requiredApprovals) {
-      await this.repository.updateStatus(approvalId, 'approved');
-    }
+      if (approvedCount >= entity.requiredApprovals) {
+        await txRepo.updateStatus(approvalId, 'approved');
+      }
 
-    const updatedEntity = await this.repository.findById(approvalId);
-    return this.entityToRequestWithSteps(updatedEntity!, updatedSteps);
+      const updatedEntity = await txRepo.findById(approvalId);
+      return this.entityToRequestWithSteps(updatedEntity!, updatedSteps);
+    });
   }
 
   /**
    * Reject
+   * P1 Fix: Write operations wrapped in transaction for atomicity.
    */
   async reject(approvalId: string, userId: string): Promise<ApprovalRequest> {
+    // Pre-read: entity and steps (read-only)
     const entity = await this.repository.findById(approvalId);
     if (!entity) throw new OrionError(`Approval not found: ${approvalId}`, ErrorCode.NOT_FOUND);
     if (entity.status !== 'pending') throw new OrionError('Approval not pending', ErrorCode.OPERATION_FAILED);
@@ -129,12 +149,15 @@ export class ApprovalService {
     const matchingStep = steps.find(s => s.approverId === userId);
     if (!matchingStep) throw new OrionError('Not authorized to reject', ErrorCode.VALIDATION_ERROR);
 
-    await this.repository.updateStepStatus(matchingStep.id, 'rejected', undefined, new Date());
-    await this.repository.updateStatus(approvalId, 'rejected');
+    // Atomic write: updateStepStatus → updateStatus → final reads
+    return this.withTransaction(async (txRepo: ApprovalRepository) => {
+      await txRepo.updateStepStatus(matchingStep.id, 'rejected', undefined, new Date());
+      await txRepo.updateStatus(approvalId, 'rejected');
 
-    const updatedSteps = await this.repository.findStepsByApproval(approvalId);
-    const updatedEntity = await this.repository.findById(approvalId);
-    return this.entityToRequestWithSteps(updatedEntity!, updatedSteps);
+      const updatedSteps = await txRepo.findStepsByApproval(approvalId);
+      const updatedEntity = await txRepo.findById(approvalId);
+      return this.entityToRequestWithSteps(updatedEntity!, updatedSteps);
+    });
   }
 
   /**

@@ -60,9 +60,10 @@ export class PipelineRBACService {
   private rulesCache: Map<string, Map<string, PipelineRole>> = new Map();
   private cacheInitialized = new Set<string>();
 
-  constructor(repository: RBACRuleRepository) {
-    if (!repository) throw new Error('RBACRuleRepository is required');
-    this.repository = repository;
+  constructor(repository?: RBACRuleRepository) {
+    if (repository) {
+      this.repository = repository;
+    }
   }
 
   /**
@@ -71,10 +72,11 @@ export class PipelineRBACService {
    * @param userRules - Array of { userId, role } rules
    */
   async setRules(pipelineId: string, userRules: { userId: string; role: PipelineRole }[]): Promise<void> {
-    // Persist to DB
-    await this.repository.deleteByPipelineId(pipelineId);
-    for (const rule of userRules) {
-      await this.repository.upsert(pipelineId, rule.userId, rule.role);
+    if (this.repository) {
+      await this.repository.deleteByPipelineId(pipelineId);
+      for (const rule of userRules) {
+        await this.repository.upsert(pipelineId, rule.userId, rule.role);
+      }
     }
 
     // Always update in-memory cache
@@ -91,7 +93,9 @@ export class PipelineRBACService {
    * Add a single RBAC rule for a pipeline.
    */
   async addRule(pipelineId: string, userId: string, role: PipelineRole): Promise<void> {
-    await this.repository.upsert(pipelineId, userId, role);
+    if (this.repository) {
+      await this.repository.upsert(pipelineId, userId, role);
+    }
 
     if (!this.rulesCache.has(pipelineId)) {
       this.rulesCache.set(pipelineId, new Map());
@@ -105,7 +109,9 @@ export class PipelineRBACService {
    * Remove a rule for a pipeline.
    */
   async removeRule(pipelineId: string, userId: string): Promise<void> {
-    await this.repository.deleteByPipelineAndUser(pipelineId, userId);
+    if (this.repository) {
+      await this.repository.deleteByPipelineAndUser(pipelineId, userId);
+    }
 
     const userMap = this.rulesCache.get(pipelineId);
     if (userMap) {
@@ -141,6 +147,7 @@ export class PipelineRBACService {
    */
   private async ensureCacheLoaded(pipelineId: string): Promise<void> {
     if (this.cacheInitialized.has(pipelineId)) return;
+    if (!this.repository) return; // No repository, skip DB load
 
     const rules = await this.repository.findByPipelineId(pipelineId);
     const userMap = new Map<string, PipelineRole>();

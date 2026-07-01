@@ -20,6 +20,10 @@ jest.mock('../../middleware/requirePermission', () => ({
   requirePermission: (_opts: any) => async (req: any, reply: any) => {},
 }));
 
+jest.mock('../../services/tenant/TenantContext', () => ({
+  tenantContext: { getCurrentTenant: () => null },
+}));
+
 import routePlugin from '../developer-portal-routes';
 
 const TEST_TOKEN = jwt.sign(

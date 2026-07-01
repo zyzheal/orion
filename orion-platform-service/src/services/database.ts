@@ -64,9 +64,9 @@ export class DatabasePool extends EventEmitter {
         user: this.config.user,
         password: this.config.password,
         database: this.config.database,
-        max: this.config.poolSize || 10,
+        max: this.config.poolSize || 25,
         connectionTimeoutMillis: this.config.connectionTimeout || 5000,
-        idleTimeoutMillis: this.config.idleTimeout || 10000,
+        idleTimeoutMillis: this.config.idleTimeout || 60000,
         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
       });
 

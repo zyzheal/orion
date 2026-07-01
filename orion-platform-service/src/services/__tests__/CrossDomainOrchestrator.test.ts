@@ -44,9 +44,146 @@ describe('CrossDomainOrchestrator', () => {
     steps: validSteps,
   };
 
+  // Stateful mock DB that persists orchestrations and steps
+  const orchestrationStore = new Map<string, any>();
+  const stepStore = new Map<string, any[]>();
+
+  function createMockDb() {
+    return {
+      query: jest.fn(async (sql: string, params?: any[]) => {
+        // INSERT orchestration (save)
+        if (sql.includes('INSERT INTO cross_domain_orchestrations')) {
+          const row = buildOrchestrationRow(params);
+          orchestrationStore.set(row.id, row);
+          return { rows: [row], rowCount: 1 };
+        }
+        // INSERT step (saveStep)
+        if (sql.includes('INSERT INTO cross_domain_orchestration_steps')) {
+          const stepId = params[0];
+          const orchId = params[1];
+          const stepRow = buildStepRow(stepId, orchId, params);
+          const existing = stepStore.get(orchId) || [];
+          existing.push(stepRow);
+          stepStore.set(orchId, existing);
+          return { rows: [stepRow], rowCount: 1 };
+        }
+        // SELECT by id (findById)
+        if (sql.includes('WHERE id = $1') && !sql.includes('orchestration_id')) {
+          const id = params?.[0];
+          const row = orchestrationStore.get(id);
+          return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+        }
+        // SELECT steps by orchestration_id
+        if (sql.includes('orchestration_id = $1') && sql.includes('ORDER BY sequence')) {
+          const orchId = params?.[0];
+          const steps = stepStore.get(orchId) || [];
+          return { rows: steps, rowCount: steps.length };
+        }
+        // SELECT by tenant (findByTenant) — mirrors the real repository's SQL construction
+        if (sql.includes('WHERE tenant_id = $1') && sql.includes('cross_domain_orchestrations')) {
+          const tenantId = params?.[0];
+          let results = Array.from(orchestrationStore.values()).filter(
+            (o: any) => o.tenant_id === tenantId
+          );
+          // Dynamically reconstruct the expected SQL to track param positions
+          // (mirrors OrchestrationRepository.findByTenant)
+          const expectedQueryParts: string[] = ['SELECT * FROM cross_domain_orchestrations WHERE tenant_id = $1'];
+          const mockParams: any[] = [tenantId];
+          let mockParamIdx = 2;
+          // Check if SQL has a status clause to find its param index
+          const statusMatch = sql.match(/AND\s+status\s*=\s*ANY\(\$(\d+)\)/i);
+          if (statusMatch) {
+            const statusIdx = parseInt(statusMatch[1]);
+            const statusParam = params?.[statusIdx - 1];
+            if (statusParam) {
+              const statuses = Array.isArray(statusParam) ? statusParam : [statusParam];
+              results = results.filter((o: any) => statuses.includes(o.status));
+            }
+          }
+          // Check if SQL has a domain clause
+          const domainMatch = sql.match(/AND\s+domains\s+@>\s+\$(\d+)::jsonb/i);
+          if (domainMatch) {
+            const domainIdx = parseInt(domainMatch[1]);
+            const domainJsonParam = params?.[domainIdx - 1];
+            if (domainJsonParam) {
+              const domains = JSON.parse(domainJsonParam as string) as string[];
+              results = results.filter((o: any) => {
+                const oDomains = Array.isArray(o.domains) ? o.domains : (typeof o.domains === 'string' ? JSON.parse(o.domains) : []);
+                return oDomains.some((d: string) => domains.includes(d));
+              });
+            }
+          }
+          // Sort by created_at DESC
+          results.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // Apply LIMIT and OFFSET (non-global regex to avoid lastIndex state)
+          const limitRe = /LIMIT\s+\$(\d+)/i;
+          const offsetRe = /OFFSET\s+\$(\d+)/i;
+          const limitMatch = sql.match(limitRe);
+          const offsetMatch = sql.match(offsetRe);
+          if (offsetMatch) {
+            const offset = params?.[parseInt(offsetMatch[1]) - 1];
+            results = results.slice((offset as number) || 0);
+          }
+          if (limitMatch) {
+            const limit = params?.[parseInt(limitMatch[1]) - 1];
+            results = results.slice(0, (limit as number) || results.length);
+          }
+          return { rows: results, rowCount: results.length };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+  }
+
+  function buildOrchestrationRow(params: any[]): any {
+    return {
+      id: params[0],
+      tenant_id: params[1],
+      name: params[2],
+      description: params[3],
+      status: params[4],
+      input: params[5],
+      output: params[6],
+      error: params[7],
+      domains: params[8],
+      current_step: params[9],
+      step_count: params[10],
+      completed_steps: params[11],
+      created_by: params[12],
+      metadata: params[13],
+      created_at: params[14],
+      updated_at: params[15],
+      completed_at: params[16],
+      started_at: params[17],
+    };
+  }
+
+  function buildStepRow(stepId: string, orchId: string, params: any[]): any {
+    return {
+      id: stepId,
+      orchestration_id: orchId,
+      step_name: params[2],
+      domain_name: params[3],
+      sequence: params[4],
+      status: params[5],
+      input: params[6],
+      output: params[7],
+      error: params[8],
+      retry_count: params[9],
+      max_retries: params[10],
+      started_at: params[11],
+      completed_at: params[12],
+      compensation_started_at: params[13],
+      compensation_completed_at: params[14],
+      created_at: new Date(),
+    };
+  }
+
   beforeEach(() => {
-    // No database = in-memory mode
-    orchestrator = new CrossDomainOrchestrator();
+    orchestrationStore.clear();
+    stepStore.clear();
+    const mockDb = createMockDb();
+    orchestrator = new CrossDomainOrchestrator(mockDb as any);
   });
 
   // ==================== createOrchestration ====================

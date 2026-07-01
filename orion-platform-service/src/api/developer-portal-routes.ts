@@ -14,6 +14,8 @@ import { MockServiceManager } from '../services/developer-portal/MockServiceMana
 import { SDKGeneratorService } from '../services/developer-portal/SDKGeneratorService';
 import { APISubscriptionService } from '../services/developer-portal/APISubscriptionService';
 import { APIPlaygroundService } from '../services/developer-portal/APIPlaygroundService';
+import { DevPortalMockRuleRepository } from '../repositories/DevPortalMockRuleRepository';
+import { DevPortalSDKTaskRepository } from '../repositories/DevPortalSDKTaskRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { tenantContext } from '../services/tenant/TenantContext';
@@ -40,10 +42,12 @@ export default async function developerPortalRoutes(
 
   const documentService = new PortalDocumentService(repository);
   const controller = new PortalDocumentController(documentService);
-  const mockManager = new MockServiceManager();
-  const sdkGenerator = new SDKGeneratorService();
-  const subscriptionService = new APISubscriptionService();
-  const playgroundService = new APIPlaygroundService();
+  const mockRuleRepo = new DevPortalMockRuleRepository(options.database);
+  const sdkTaskRepo = new DevPortalSDKTaskRepository(options.database);
+  const mockManager = new MockServiceManager(mockRuleRepo);
+  const sdkGenerator = new SDKGeneratorService(sdkTaskRepo);
+  const subscriptionService = new APISubscriptionService(options.database);
+  const playgroundService = new APIPlaygroundService(options.database);
 
   // Helper to get tenant ID
   const getTenantId = (): string => {

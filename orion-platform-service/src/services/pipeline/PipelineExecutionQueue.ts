@@ -159,6 +159,21 @@ export class PipelineExecutionQueue extends EventEmitter {
   }
 
   /**
+   * Non-async variant of dbPersistEnqueue for use when DB is disabled.
+   * Avoids the microtask yield that `await` on an `async` function would cause.
+   */
+  private dbPersistEnqueueSync(
+    runId: string,
+    pipelineId: string | undefined,
+    priorityWeight: number,
+    queuedAt: Date,
+    priorityLabel: string,
+  ): void {
+    // When dbEnabled is false, there's nothing to persist.
+    // When dbEnabled is true but pool is unavailable, silently skip.
+  }
+
+  /**
    * Transition an entry to "running" in the database.
    */
   private async dbMarkRunning(runId: string): Promise<void> {
@@ -347,14 +362,10 @@ export class PipelineExecutionQueue extends EventEmitter {
     const priorityWeight = PRIORITY_WEIGHT[run.priority];
     const queuedAt = new Date();
 
-    // 持久化到数据库（崩溃恢复用）
-    await this.dbPersistEnqueue(
-      run.runId,
-      run.pipelineId,
-      priorityWeight,
-      queuedAt,
-      run.priority,
-    );
+    // 持久化到数据库（崩溃恢复用）- use sync call when DB disabled to avoid async yield
+    this.dbEnabled
+      ? await this.dbPersistEnqueue(run.runId, run.pipelineId, priorityWeight, queuedAt, run.priority)
+      : this.dbPersistEnqueueSync(run.runId, run.pipelineId, priorityWeight, queuedAt, run.priority);
 
     // 背压检查：队列已满
     if (this.queue.length >= this.config.maxQueueSize) {

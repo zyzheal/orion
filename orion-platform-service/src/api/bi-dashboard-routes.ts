@@ -24,7 +24,7 @@ export default async function biDashboardRoutes(app: FastifyInstance, options: B
   };
 
   // GET /api/v1/tickets/bi/dashboard/executive
-  app.get('tickets/bi/dashboard/executive', {
+  app.get('/tickets/bi/dashboard/executive', {
     onRequest: [authenticateUser],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
@@ -46,7 +46,7 @@ export default async function biDashboardRoutes(app: FastifyInstance, options: B
   });
 
   // GET /api/v1/tickets/bi/dashboard/manager
-  app.get('tickets/bi/dashboard/manager', {
+  app.get('/tickets/bi/dashboard/manager', {
     onRequest: [authenticateUser],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
@@ -69,7 +69,7 @@ export default async function biDashboardRoutes(app: FastifyInstance, options: B
   });
 
   // GET /api/v1/tickets/bi/dashboard/engineer/:engineerId
-  app.get('tickets/bi/dashboard/engineer/:engineerId', {
+  app.get('/tickets/bi/dashboard/engineer/:engineerId', {
     onRequest: [authenticateUser],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
@@ -92,7 +92,7 @@ export default async function biDashboardRoutes(app: FastifyInstance, options: B
   });
 
   // GET /api/v1/efficiency/score
-  app.get('efficiency/score', {
+  app.get('/efficiency/score', {
     onRequest: [authenticateUser],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({

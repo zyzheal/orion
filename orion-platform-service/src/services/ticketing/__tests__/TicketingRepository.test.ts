@@ -22,16 +22,16 @@ describe('TicketingRepository', () => {
       const mockTicket = { id: 'ticket-1', title: 'Test ticket', status: 'open' };
       mockDb.query.mockResolvedValue({ rows: [mockTicket] });
 
-      const result = await repository.findById('ticket-1');
+      const result = await repository.findById('ticket-1', 'tenant-1');
 
       expect(result).toEqual(mockTicket);
-      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM tickets WHERE id = $1', ['ticket-1']);
+      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM tickets WHERE id = $1 AND tenant_id = $2', ['ticket-1', 'tenant-1']);
     });
 
     it('should return null when ticket not found', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      const result = await repository.findById('non-existent');
+      const result = await repository.findById('non-existent', 'tenant-1');
 
       expect(result).toBeNull();
     });
@@ -226,7 +226,7 @@ describe('TicketingRepository', () => {
       };
       mockDb.query.mockResolvedValue({ rows: [mockComment] });
 
-      const result = await repository.addComment('ticket-1', 'user-1', 'Test comment');
+      const result = await repository.addComment('ticket-1', 'tenant-1', 'user-1', 'Test comment');
 
       expect(result).toEqual(mockComment);
     });
@@ -234,7 +234,7 @@ describe('TicketingRepository', () => {
     it('should add internal comment', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'comment-1' }] });
 
-      await repository.addComment('ticket-1', 'user-1', 'Internal note', true);
+      await repository.addComment('ticket-1', 'tenant-1', 'user-1', 'Internal note', true);
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO ticket_comments'),
@@ -245,7 +245,7 @@ describe('TicketingRepository', () => {
     it('should add comment with null author', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'comment-1' }] });
 
-      await repository.addComment('ticket-1', null, 'System comment');
+      await repository.addComment('ticket-1', 'tenant-1', null, 'System comment');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO ticket_comments'),
@@ -259,7 +259,7 @@ describe('TicketingRepository', () => {
       const mockComments = [{ id: 'c1' }, { id: 'c2' }];
       mockDb.query.mockResolvedValue({ rows: mockComments });
 
-      const result = await repository.getComments('ticket-1');
+      const result = await repository.getComments('ticket-1', 'tenant-1');
 
       expect(result).toEqual(mockComments);
     });
@@ -267,7 +267,7 @@ describe('TicketingRepository', () => {
     it('should return empty array when no comments', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      const result = await repository.getComments('ticket-1');
+      const result = await repository.getComments('ticket-1', 'tenant-1');
 
       expect(result).toEqual([]);
     });
@@ -294,7 +294,7 @@ describe('TicketingRepository', () => {
         assignedBy: 'admin',
         reason: 'Manual assignment',
         matchScore: 0.95,
-      });
+      }, 'tenant-1');
 
       expect(result.id).toBeDefined();
       expect(result.ticketId).toBe('ticket-1');
@@ -306,7 +306,7 @@ describe('TicketingRepository', () => {
     it('should return assignments for ticket', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'a1', ticket_id: 'ticket-1' }] });
 
-      const result = await repository.getAssignmentsByTicket('ticket-1');
+      const result = await repository.getAssignmentsByTicket('ticket-1', 'tenant-1');
 
       expect(result).toHaveLength(1);
     });
@@ -316,7 +316,7 @@ describe('TicketingRepository', () => {
     it('should return assignments for assignee', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'a1', assignee_id: 'user-1' }] });
 
-      const result = await repository.getAssignmentsByAssignee('user-1');
+      const result = await repository.getAssignmentsByAssignee('user-1', 'tenant-1');
 
       expect(result).toHaveLength(1);
     });
@@ -324,11 +324,11 @@ describe('TicketingRepository', () => {
     it('should apply limit', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      await repository.getAssignmentsByAssignee('user-1', 10);
+      await repository.getAssignmentsByAssignee('user-1', 'tenant-1', 10);
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('LIMIT $2'),
-        ['user-1', 10]
+        expect.stringContaining('LIMIT $3'),
+        ['user-1', 'tenant-1', 10]
       );
     });
   });
@@ -356,7 +356,7 @@ describe('TicketingRepository', () => {
         createdBy: 'user-1',
         description: 'Blocks deployment',
         confidence: 0.9,
-      });
+      }, 'tenant-1');
 
       expect(result.id).toBeDefined();
       expect(result.ticketId).toBe('ticket-1');
@@ -368,7 +368,7 @@ describe('TicketingRepository', () => {
     it('should return relations for ticket', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'r1' }] });
 
-      const result = await repository.getRelationsByTicket('ticket-1');
+      const result = await repository.getRelationsByTicket('ticket-1', 'tenant-1');
 
       expect(result).toHaveLength(1);
     });
@@ -378,7 +378,7 @@ describe('TicketingRepository', () => {
     it('should return all relations', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'r1' }, { id: 'r2' }] });
 
-      const result = await repository.getAllRelations();
+      const result = await repository.getAllRelations('tenant-1');
 
       expect(result).toHaveLength(2);
     });
@@ -388,7 +388,7 @@ describe('TicketingRepository', () => {
     it('should delete an existing relation', async () => {
       mockDb.query.mockResolvedValue({ rowCount: 1 });
 
-      const result = await repository.deleteRelation('rel-1');
+      const result = await repository.deleteRelation('rel-1', 'tenant-1');
 
       expect(result).toBe(true);
     });
@@ -396,7 +396,7 @@ describe('TicketingRepository', () => {
     it('should return false when relation not found', async () => {
       mockDb.query.mockResolvedValue({ rowCount: 0 });
 
-      const result = await repository.deleteRelation('non-existent');
+      const result = await repository.deleteRelation('non-existent', 'tenant-1');
 
       expect(result).toBe(false);
     });
@@ -406,7 +406,7 @@ describe('TicketingRepository', () => {
     it('should find existing relation', async () => {
       mockDb.query.mockResolvedValue({ rows: [{ id: 'r1' }] });
 
-      const result = await repository.findExistingRelation('ticket-1', 'ticket-2');
+      const result = await repository.findExistingRelation('ticket-1', 'ticket-2', 'tenant-1');
 
       expect(result).toBeDefined();
     });
@@ -414,7 +414,7 @@ describe('TicketingRepository', () => {
     it('should return null when no relation exists', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      const result = await repository.findExistingRelation('ticket-1', 'ticket-2');
+      const result = await repository.findExistingRelation('ticket-1', 'ticket-2', 'tenant-1');
 
       expect(result).toBeNull();
     });
@@ -534,7 +534,7 @@ describe('TicketingRepository', () => {
         transferType: 'manual',
         reason: 'Workload',
         initiatedBy: 'admin',
-      });
+      }, 'tenant-1');
 
       expect(result.id).toBeDefined();
       expect(result.ticketId).toBe('ticket-1');
@@ -585,7 +585,7 @@ describe('TicketingRepository', () => {
       };
       mockDb.query.mockResolvedValue({ rows: [mockStats] });
 
-      const result = await repository.getTransferStats();
+      const result = await repository.getTransferStats('tenant-1');
 
       expect(result).toEqual(mockStats);
     });
@@ -595,11 +595,11 @@ describe('TicketingRepository', () => {
       const endDate = new Date('2026-01-31');
       mockDb.query.mockResolvedValue({ rows: [{}] });
 
-      await repository.getTransferStats(startDate, endDate);
+      await repository.getTransferStats('tenant-1', startDate, endDate);
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('transferred_at >= $1'),
-        expect.arrayContaining([startDate, endDate])
+        expect.stringContaining('transferred_at >= $2'),
+        expect.arrayContaining(['tenant-1', startDate, endDate])
       );
     });
   });
@@ -795,14 +795,16 @@ describe('TicketingRepository', () => {
 
   describe('updateSLA', () => {
     it('should update SLA fields', async () => {
-      mockDb.query.mockResolvedValue({ rows: [] });
+      const mockTicket = { id: 'ticket-1', title: 'Test' };
+      // First call: findById returns the ticket; second call: UPDATE ticket_sla
+      mockDb.query.mockResolvedValueOnce({ rows: [mockTicket] });
 
       await repository.updateSLA('ticket-1', {
-        resolvedAt: new Date(),
+        resolvedAt: new Date('2026-01-15'),
         responseBreached: true,
         resolutionBreached: false,
-        firstResponseAt: new Date(),
-      });
+        firstResponseAt: new Date('2026-01-10'),
+      }, 'tenant-1');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE ticket_sla'),
@@ -811,9 +813,21 @@ describe('TicketingRepository', () => {
     });
 
     it('should not update when no fields provided', async () => {
-      await repository.updateSLA('ticket-1', {});
+      // findById returns no ticket → updateSLA returns early without calling UPDATE
+      mockDb.query.mockResolvedValue({ rows: [] });
 
-      expect(mockDb.query).not.toHaveBeenCalled();
+      await repository.updateSLA('ticket-1', {}, 'tenant-1');
+
+      // findById is called internally, but no UPDATE should be issued
+      expect(mockDb.query).toHaveBeenCalledWith(
+        'SELECT * FROM tickets WHERE id = $1 AND tenant_id = $2',
+        ['ticket-1', 'tenant-1']
+      );
+      // Ensure no UPDATE was ever called
+      const updateCalls = mockDb.query.mock.calls.filter(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('UPDATE ticket_sla')
+      );
+      expect(updateCalls).toHaveLength(0);
     });
   });
 

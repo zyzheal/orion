@@ -310,7 +310,7 @@ export class ApkUploadHistoryService {
    * Always keeps a copy in the memory cache.
    */
   async create(input: ApkUploadRecordCreateInput): Promise<ApkUploadRecord> {
-    const id = `apk-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const id = `apk-upload-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const now = new Date();
 
     const record: ApkUploadRecord = {
@@ -489,7 +489,7 @@ export class ApkUploadHistoryService {
         let paramIdx = 2;
 
         if (options?.market) {
-          query += ` AND app_name = $${paramIdx++}`;
+          query += ` AND metadata->>'market' = $${paramIdx++}`;
           params.push(options.market);
         }
         if (options?.status) {
@@ -557,7 +557,7 @@ export class ApkUploadHistoryService {
         let paramIdx = 2;
 
         if (filters?.market) {
-          query += ` AND app_name = $${paramIdx++}`;
+          query += ` AND metadata->>'market' = $${paramIdx++}`;
           params.push(filters.market);
         }
         if (filters?.status) {

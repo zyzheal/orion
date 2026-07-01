@@ -36,13 +36,13 @@ const makeEntity = (overrides: Record<string, any> = {}) => ({
   ai_suggestion: 'Deploy hotfix',
   ai_confidence: 0.85,
   status: 'pending' as const,
-  push_time: new Date('2026-01-15T10:00:00Z'),
+  push_time: new Date('2026-01-15T10:00:00.000Z'),
   response_time: null,
   responder: null,
   comment: null,
   context: null,
   tenant_id: null,
-  created_at: new Date('2026-01-15T10:00:00Z'),
+  created_at: new Date('2026-01-15T10:00:00.000Z'),
   ...overrides,
 });
 
@@ -106,6 +106,7 @@ describe('ConfirmationService - Repository Path', () => {
 
       expect(mockRepo.insert).toHaveBeenCalledTimes(1);
       expect(mockRepo.insert).toHaveBeenCalledWith({
+        id: expect.any(String),
         sceneType: 'deploy',
         priority: 'P1',
         aiSuggestion: 'Deploy hotfix',
@@ -182,9 +183,10 @@ describe('ConfirmationService - Repository Path', () => {
 
     test('should set default values for created confirmation', async () => {
       const { service, mockRepo } = await createServiceWithRepo();
-      mockRepo.insert.mockResolvedValue(makeEntity());
 
       const before = Date.now();
+      mockRepo.insert.mockResolvedValue(makeEntity({ push_time: new Date() }));
+
       const result = await service.create({
         sceneType: 'scaling',
         priority: 'P3',
@@ -423,8 +425,8 @@ describe('ConfirmationService - Repository Path', () => {
     test('should update status and insert audit via repository', async () => {
       const { service, mockRepo } = await createServiceWithRepo();
 
-      // Create in-memory first (insert fails)
-      mockRepo.insert.mockRejectedValue(new Error('skip'));
+      // Create via DB (not fallback) so approve uses repository path
+      mockRepo.insert.mockResolvedValue(makeEntity());
       const created = await service.create({
         sceneType: 'deploy',
         priority: 'P1',
@@ -432,7 +434,22 @@ describe('ConfirmationService - Repository Path', () => {
         aiConfidence: 0.8,
       });
 
-      mockRepo.updateStatus.mockResolvedValue(true);
+      const state = { status: 'pending' as string, responder: null as string | null, comment: null as string | null, responseTime: null as string | null };
+      mockRepo.findById.mockImplementation(async (id: string) => {
+        if (id === created.id) {
+          return makeEntity({ id, status: state.status as any, responder: state.responder as any, comment: state.comment as any, response_time: state.responseTime ? new Date(state.responseTime) : null });
+        }
+        return makeEntity({ id, status: 'pending' as any });
+      });
+      mockRepo.updateStatus.mockImplementation(async (id: string, status: string, responder?: string, comment?: string, responseTime?: Date) => {
+        if (id === created.id) {
+          state.status = status;
+          state.responder = responder || null;
+          state.comment = comment || null;
+          state.responseTime = responseTime?.toISOString() || null;
+        }
+        return makeEntity({ id, status: status as any, responder: state.responder as any, comment: state.comment as any, response_time: state.responseTime ? new Date(state.responseTime) : null });
+      });
       mockRepo.insertAudit.mockResolvedValue(makeAuditEntity());
 
       const result = await service.approve(created.id, {
@@ -458,7 +475,9 @@ describe('ConfirmationService - Repository Path', () => {
 
     test('should use reason as comment when comment is not provided', async () => {
       const { service, mockRepo } = await createServiceWithRepo();
-      mockRepo.insert.mockRejectedValue(new Error('skip'));
+
+      // Create via DB path
+      mockRepo.insert.mockResolvedValue(makeEntity());
       const created = await service.create({
         sceneType: 'deploy',
         priority: 'P1',
@@ -466,7 +485,21 @@ describe('ConfirmationService - Repository Path', () => {
         aiConfidence: 0.8,
       });
 
-      mockRepo.updateStatus.mockResolvedValue(true);
+      const state = { status: 'pending' as string, responder: null as string | null, comment: null as string | null };
+      mockRepo.findById.mockImplementation(async (id: string) => {
+        if (id === created.id) {
+          return makeEntity({ id, status: state.status as any, responder: state.responder as any, comment: state.comment as any });
+        }
+        return makeEntity({ id, status: 'pending' as any });
+      });
+      mockRepo.updateStatus.mockImplementation(async (id: string, status: string, responder?: string, comment?: string) => {
+        if (id === created.id) {
+          state.status = status;
+          state.responder = responder || null;
+          state.comment = comment || null;
+        }
+        return makeEntity({ id, status: status as any, responder: state.responder as any, comment: state.comment as any });
+      });
       mockRepo.insertAudit.mockResolvedValue(makeAuditEntity());
 
       const result = await service.approve(created.id, {
@@ -482,7 +515,9 @@ describe('ConfirmationService - Repository Path', () => {
 
     test('should default responder to "system"', async () => {
       const { service, mockRepo } = await createServiceWithRepo();
-      mockRepo.insert.mockRejectedValue(new Error('skip'));
+
+      // Create via DB path
+      mockRepo.insert.mockResolvedValue(makeEntity());
       const created = await service.create({
         sceneType: 'deploy',
         priority: 'P1',
@@ -490,7 +525,21 @@ describe('ConfirmationService - Repository Path', () => {
         aiConfidence: 0.8,
       });
 
-      mockRepo.updateStatus.mockResolvedValue(true);
+      const state = { status: 'pending' as string, responder: null as string | null, comment: null as string | null };
+      mockRepo.findById.mockImplementation(async (id: string) => {
+        if (id === created.id) {
+          return makeEntity({ id, status: state.status as any, responder: state.responder as any, comment: state.comment as any });
+        }
+        return makeEntity({ id, status: 'pending' as any });
+      });
+      mockRepo.updateStatus.mockImplementation(async (id: string, status: string, responder?: string, comment?: string) => {
+        if (id === created.id) {
+          state.status = status;
+          state.responder = responder || null;
+          state.comment = comment || null;
+        }
+        return makeEntity({ id, status: status as any, responder: state.responder as any, comment: state.comment as any });
+      });
       mockRepo.insertAudit.mockResolvedValue(makeAuditEntity());
 
       const result = await service.approve(created.id, {});
@@ -614,7 +663,7 @@ describe('ConfirmationService - Repository Path', () => {
   describe('reject (DB path)', () => {
     test('should update status and insert audit via repository', async () => {
       const { service, mockRepo } = await createServiceWithRepo();
-      mockRepo.insert.mockRejectedValue(new Error('skip'));
+      mockRepo.insert.mockResolvedValue(makeEntity());
       const created = await service.create({
         sceneType: 'deploy',
         priority: 'P1',
@@ -622,7 +671,21 @@ describe('ConfirmationService - Repository Path', () => {
         aiConfidence: 0.8,
       });
 
-      mockRepo.updateStatus.mockResolvedValue(true);
+      const state = { status: 'pending' as string, responder: null as string | null, comment: null as string | null };
+      mockRepo.findById.mockImplementation(async (id: string) => {
+        if (id === created.id) {
+          return makeEntity({ id, status: state.status as any, responder: state.responder as any, comment: state.comment as any });
+        }
+        return makeEntity({ id, status: 'pending' as any });
+      });
+      mockRepo.updateStatus.mockImplementation(async (id: string, status: string, responder?: string, comment?: string) => {
+        if (id === created.id) {
+          state.status = status;
+          state.responder = responder || null;
+          state.comment = comment || null;
+        }
+        return makeEntity({ id, status: status as any, responder: state.responder as any, comment: state.comment as any });
+      });
       mockRepo.insertAudit.mockResolvedValue(makeAuditEntity({ action: 'rejected' }));
 
       const result = await service.reject(created.id, {
@@ -1032,7 +1095,16 @@ describe('ConfirmationService - Repository Path', () => {
     test('should upsert to repository', async () => {
       const { service, mockRepo } = await createServiceWithRepo();
       mockRepo.findNotificationSettings.mockResolvedValue(null); // defaults
-      mockRepo.upsertNotificationSettings.mockResolvedValue(makeNotificationEntity());
+      mockRepo.upsertNotificationSettings.mockImplementation(async (data: any) => {
+        return makeNotificationEntity({
+          user_id: data.userId,
+          channels: data.channels,
+          dnd_start: data.dndStart,
+          dnd_end: data.dndEnd,
+          auto_approve_p3: data.autoApproveP3,
+          auto_approve_after_minutes: data.autoApproveAfterMinutes,
+        });
+      });
 
       const result = await service.updateNotificationSettings('user-1', {
         channels: ['pagerduty'],
@@ -1068,7 +1140,15 @@ describe('ConfirmationService - Repository Path', () => {
         dnd_start: '22:00',
         dnd_end: '08:00',
       }));
-      mockRepo.upsertNotificationSettings.mockResolvedValue(makeNotificationEntity());
+      mockRepo.upsertNotificationSettings.mockImplementation(async (data: any) => {
+        return makeNotificationEntity({
+          channels: data.channels,
+          dnd_start: data.dndStart,
+          dnd_end: data.dndEnd,
+          auto_approve_p3: data.autoApproveP3,
+          auto_approve_after_minutes: data.autoApproveAfterMinutes,
+        });
+      });
 
       const result = await service.updateNotificationSettings('user-1', {
         dndStart: '23:00',

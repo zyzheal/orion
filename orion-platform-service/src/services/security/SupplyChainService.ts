@@ -191,63 +191,45 @@ export class SupplyChainService {
   }
 
   /**
-   * 供应链安全报告 — 按 pipelineId 查询单条报告
-   * 返回格式对齐前端 SupplyChainReport 接口:
-   * { pipelineId, sbomId, signatureStatus, dependencyRisk, vulnerabilities, generatedAt }
+   * 供应链安全报告 — 统计汇总
+   * 返回格式: { totalSboms, totalSignatures, verifiedSignatures, totalVulnerabilities }
    */
-  async getSupplyChainReport(tenantId: string, pipelineId?: string): Promise<any> {
-    // 查询 SBOM 信息
-    const sbomRows = pipelineId
-      ? await this.pool.query(
-          `SELECT id AS sbom_id, components, vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at DESC LIMIT 1`,
-          [tenantId, pipelineId],
-        )
-      : await this.pool.query(
-          `SELECT id AS sbom_id, components, vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
-          [tenantId],
-        );
+  async getSupplyChainReport(tenantId: string, pipelineId?: string): Promise<{
+    totalSboms: number;
+    totalSignatures: number;
+    verifiedSignatures: number;
+    totalVulnerabilities: number;
+  }> {
+    // Query SBOM count (with optional pipeline_id filter)
+    const sbomQuery = pipelineId
+      ? `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2`
+      : `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1`;
+    const sbomParams = pipelineId ? [tenantId, pipelineId] : [tenantId];
+    const sbomRows = await this.pool.query(sbomQuery, sbomParams);
+    const totalSboms = parseInt(sbomRows.rows[0]?.total_sboms) || 0;
 
-    const sbom = sbomRows.rows[0];
-    const sbomId = sbom?.sbom_id || null;
-
-    // 查询签名信息
+    // Query signature count and verified count
+    const artifactId = pipelineId || '';
     const sigRows = await this.pool.query(
-      `SELECT verified, signature_type FROM artifact_signatures WHERE tenant_id = $1 AND artifact_id = $2 ORDER BY signed_at DESC LIMIT 1`,
-      [tenantId, pipelineId || ''],
+      `SELECT COUNT(*) as total_signatures, COUNT(*) FILTER (WHERE verified = true) as verified_count FROM artifact_signatures WHERE tenant_id = $1 AND artifact_id = $2`,
+      [tenantId, artifactId],
     );
-    const sig = sigRows.rows[0];
-    const signatureStatus = sig?.verified
-      ? 'verified'
-      : sig
-        ? 'signed'
-        : 'unsigned';
+    const totalSignatures = parseInt(sigRows.rows[0]?.total_signatures) || 0;
+    const verifiedSignatures = parseInt(sigRows.rows[0]?.verified_count) || 0;
 
-    // 统计漏洞数量
-    const vulnList = sbom?.vulnerabilities;
-    const vulnerabilities = Array.isArray(vulnList) ? vulnList.length : 0;
-
-    // 依赖风险等级
-    let dependencyRisk: 'low' | 'medium' | 'high' | 'critical' = 'low';
-    if (vulnerabilities > 0) {
-      const criticalCount = Array.isArray(vulnList)
-        ? vulnList.filter((v: any) => v?.severity === 'critical' || v?.severity === 'high').length
-        : 0;
-      if (criticalCount > 0) {
-        dependencyRisk = 'critical';
-      } else if (vulnerabilities > 5) {
-        dependencyRisk = 'high';
-      } else if (vulnerabilities > 2) {
-        dependencyRisk = 'medium';
-      }
-    }
+    // Query vulnerability count from SBOMs
+    const vulnQuery = pipelineId
+      ? `SELECT COUNT(*) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2 AND vulnerabilities IS NOT NULL`
+      : `SELECT COUNT(*) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 AND vulnerabilities IS NOT NULL`;
+    const vulnParams = pipelineId ? [tenantId, pipelineId] : [tenantId];
+    const vulnRows = await this.pool.query(vulnQuery, vulnParams);
+    const totalVulnerabilities = parseInt(vulnRows.rows[0]?.total_vulnerabilities) || 0;
 
     return {
-      pipelineId: pipelineId || '',
-      sbomId: sbomId || '',
-      signatureStatus,
-      dependencyRisk,
-      vulnerabilities,
-      generatedAt: new Date().toISOString(),
+      totalSboms,
+      totalSignatures,
+      verifiedSignatures,
+      totalVulnerabilities,
     };
   }
 

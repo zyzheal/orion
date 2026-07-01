@@ -29,11 +29,12 @@ function createMockRepo() {
   return {
     insert: jest.fn(async (data: {
       sceneType: string; priority: string; aiSuggestion: string;
-      aiConfidence: number; context?: Record<string, unknown>; tenantId?: string;
+      aiConfidence: number; context?: Record<string, unknown>; tenantId?: string; id?: string;
     }): Promise<ConfirmationEntity> => {
       const now = new Date();
+      const entityId = data.id ?? `conf-${++idCounter}`;
       const entity: ConfirmationEntity = {
-        id: `conf-${++idCounter}`,
+        id: entityId,
         scene_type: data.sceneType,
         priority: data.priority as ConfirmationEntity['priority'],
         ai_suggestion: data.aiSuggestion,
@@ -47,7 +48,7 @@ function createMockRepo() {
         tenant_id: data.tenantId ?? null,
         created_at: now,
       };
-      confirmationStore.set(entity.id, entity);
+      confirmationStore.set(entityId, entity);
       return { ...entity };
     }),
 
@@ -188,8 +189,9 @@ describe('ConfirmationService', () => {
   // ==========================================================================
 
   describe('constructor', () => {
-    test('should throw if repository is not provided', () => {
-      expect(() => new ConfirmationService(undefined as any)).toThrow('ConfirmationRepository is required');
+    test('should work without repository (in-memory mode)', () => {
+      const service = new ConfirmationService();
+      expect(service).toBeDefined();
     });
   });
 

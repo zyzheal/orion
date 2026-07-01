@@ -357,8 +357,11 @@ describe('DeploymentWindowService', () => {
         }],
       });
 
-      const result = await service.checkDeploymentAllowed('tenant-1', 'production');
+      // Use a Monday (not in the Wednesday-only window) to ensure rejection
+      const monday = new Date('2026-06-29T10:00:00.000Z');
+      const result = await service.checkDeploymentAllowed('tenant-1', 'production', monday);
 
+      expect(result.allowed).toBe(false);
       expect(result.nextWindow).toBeDefined();
       expect(result.nextWindow).toBeInstanceOf(Date);
     });

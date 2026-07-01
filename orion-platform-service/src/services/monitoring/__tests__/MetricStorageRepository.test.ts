@@ -3,6 +3,11 @@
  */
 
 import { PostgresMetricStorageRepository } from '../MetricStorageRepository';
+import { getCurrentTenantId } from '../../../db/tenant-context-storage';
+
+jest.mock('../../../db/tenant-context-storage', () => ({
+  getCurrentTenantId: jest.fn(() => 'test-tenant-001'),
+}));
 
 // Mock DatabasePool
 const createMockPool = (rows: any[] = [], rowCount: number = 0) => ({
@@ -122,7 +127,7 @@ describe('PostgresMetricStorageRepository', () => {
       );
     });
 
-    it('should use default tenant ID when not provided', async () => {
+    it('should use current tenant ID from context when not provided', async () => {
       mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
 
       await repo.insertDataPoint({
@@ -131,7 +136,7 @@ describe('PostgresMetricStorageRepository', () => {
       });
 
       const callArgs = mockPool.query.mock.calls[0][1];
-      expect(callArgs[0]).toBe('00000000-0000-0000-0000-000000000000');
+      expect(callArgs[0]).toBe('test-tenant-001');
     });
   });
 

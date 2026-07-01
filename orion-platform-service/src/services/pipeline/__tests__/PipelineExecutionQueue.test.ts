@@ -118,6 +118,7 @@ describe('PipelineExecutionQueue', () => {
       const suppressRejection = (err: Error) => {};
       process.on('unhandledRejection', suppressRejection);
 
+      // Fire-and-forget: enqueue never resolves (blockingFn hangs), don't await
       queue.enqueue({ runId: 'blocker-1', pipelineId: 'p-1', priority: 'NORMAL', executeFn: blockingFn, resolve: jest.fn(), reject: jest.fn() }).catch(() => {});
       queue.enqueue({ runId: 'blocker-2', pipelineId: 'p-1', priority: 'NORMAL', executeFn: blockingFn, resolve: jest.fn(), reject: jest.fn() }).catch(() => {});
 

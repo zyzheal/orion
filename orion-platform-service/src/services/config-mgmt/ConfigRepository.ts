@@ -49,6 +49,8 @@ export class ConfigRepository {
   private pool: DatabasePool | null;
   private repo?: DbConfigEntryRepository;
   private inMemory: Map<string, ConfigEntry> = new Map();
+  private memoryHistory: Map<string, ConfigHistory[]> = new Map();
+  private memoryKeyToId: Map<string, string> = new Map();
   constructor(pool?: DatabasePool) {
     this.pool = pool || null;
     if (pool) {
@@ -114,6 +116,7 @@ export class ConfigRepository {
 
     if (!this.isDbAvailable()) {
       const existing = this.inMemory.get(key_);
+      const oldValue = existing ? existing.value : null;
       const entry: ConfigEntry = {
         id: existing?.id || `config-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         tenant_id: tenantId,
@@ -131,6 +134,26 @@ export class ConfigRepository {
         updatedAt: now
       };
       this.inMemory.set(key_, entry);
+      this.memoryKeyToId.set(`${tenantId}:${key}:${env}`, entry.id);
+
+      // Record history
+      const version = entry.version;
+      const historyEntry: ConfigHistory = {
+        id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        config_id: entry.id,
+        changed_by: changedBy || null,
+        old_value: oldValue,
+        new_value: value,
+        key,
+        version,
+        created_at: now,
+        createdBy: changedBy,
+        createdAt: now,
+      };
+      const existingHistory = this.memoryHistory.get(entry.id) || [];
+      existingHistory.push(historyEntry);
+      this.memoryHistory.set(entry.id, existingHistory);
+
       return entry;
     }
 
@@ -153,10 +176,29 @@ export class ConfigRepository {
     if (!this.isDbAvailable()) {
       for (const [k, entry] of this.inMemory) {
         if (entry.key === key) {
+          const oldValue = entry.value;
           entry.value = value;
           entry.version += 1;
           entry.updated_at = new Date();
           entry.updatedAt = new Date();
+
+          // Record history
+          const historyEntry: ConfigHistory = {
+            id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            config_id: entry.id,
+            changed_by: null,
+            old_value: oldValue,
+            new_value: value,
+            key: entry.key,
+            version: entry.version,
+            created_at: new Date(),
+            createdBy: null,
+            createdAt: new Date(),
+          };
+          const existingHistory = this.memoryHistory.get(entry.id) || [];
+          existingHistory.push(historyEntry);
+          this.memoryHistory.set(entry.id, existingHistory);
+
           return entry;
         }
       }
@@ -200,7 +242,26 @@ export class ConfigRepository {
 
   async getHistory(tenantId: string, key: string, limit: number = 10): Promise<ConfigHistory[]> {
     if (!this.isDbAvailable()) {
-      return [];
+      const configId = this.memoryKeyToId.get(`${tenantId}:${key}:default`) || this.memoryKeyToId.get(`${tenantId}:${key}:`);
+      if (!configId) return [];
+      const history = this.memoryHistory.get(configId) || [];
+      return history.slice(-limit).map(e => ({
+        id: e.id,
+        config_id: e.config_id,
+        configId: e.config_id,
+        changed_by: e.changed_by ?? null,
+        changedBy: e.changed_by ?? undefined,
+        old_value: e.old_value,
+        oldValue: e.old_value,
+        new_value: e.new_value,
+        newValue: e.new_value,
+        key: e.key,
+        version: e.version,
+        changeLog: e.changeLog,
+        createdBy: e.createdBy,
+        createdAt: e.createdAt,
+        created_at: e.created_at,
+      }));
     }
     if (this.repo) {
       const entities = await this.repo.findHistoryByKey(tenantId, key, limit);
@@ -233,7 +294,24 @@ export class ConfigRepository {
 
   async getHistoryByConfigId(configId: string, limit: number = 10): Promise<ConfigHistory[]> {
     if (!this.isDbAvailable()) {
-      return [];
+      const history = this.memoryHistory.get(configId) || [];
+      return history.slice(-limit).map(e => ({
+        id: e.id,
+        config_id: e.config_id,
+        configId: e.config_id,
+        changed_by: e.changed_by ?? null,
+        changedBy: e.changed_by ?? undefined,
+        old_value: e.old_value,
+        oldValue: e.old_value,
+        new_value: e.new_value,
+        newValue: e.new_value,
+        key: e.key,
+        version: e.version,
+        changeLog: e.changeLog,
+        createdBy: e.createdBy,
+        createdAt: e.createdAt,
+        created_at: e.created_at,
+      }));
     }
     if (this.repo) {
       const entities = await this.repo.findHistory(configId, limit);

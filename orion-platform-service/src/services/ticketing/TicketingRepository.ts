@@ -150,11 +150,8 @@ export class TicketingRepository {
 
   // ==================== Ticket CRUD ====================
 
-  async findById(id: string, tenantId?: string): Promise<TicketRecord | null> {
-    if (tenantId) {
-      return (await this.pool.query('SELECT * FROM tickets WHERE id = $1 AND tenant_id = $2', [id, tenantId])).rows[0] || null;
-    }
-    return (await this.pool.query('SELECT * FROM tickets WHERE id = $1', [id])).rows[0] || null;
+  async findById(id: string, tenantId: string): Promise<TicketRecord | null> {
+    return (await this.pool.query('SELECT * FROM tickets WHERE id = $1 AND tenant_id = $2', [id, tenantId])).rows[0] || null;
   }
 
   async findAll(options?: { tenantId?: string; status?: string; assigneeId?: string; priority?: string; limit?: number; offset?: number }): Promise<TicketRecord[]> {
@@ -195,7 +192,7 @@ export class TicketingRepository {
     return result.rows[0];
   }
 
-  async update(id: string, input: UpdateTicketInput): Promise<TicketRecord | null> {
+  async update(id: string, input: UpdateTicketInput, tenantId: string): Promise<TicketRecord | null> {
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -211,13 +208,16 @@ export class TicketingRepository {
       }
     }
     if (input.assignee_id !== undefined) { params.push(input.assignee_id); updates.push(`assignee_id = $${paramIndex++}`); }
-    if (updates.length === 0) return this.findById(id);
-    params.push(id);
-    const result = await this.pool.query(`UPDATE tickets SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`, params);
+    if (updates.length === 0) return this.findById(id, tenantId);
+    params.push(id, tenantId);
+    const result = await this.pool.query(`UPDATE tickets SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`, params);
     return result.rows[0] || null;
   }
 
-  async addComment(ticketId: string, authorId: string | null, content: string, isInternal: boolean = false): Promise<TicketCommentRecord> {
+  async addComment(ticketId: string, tenantId: string, authorId: string | null, content: string, isInternal: boolean = false): Promise<TicketCommentRecord> {
+    // Verify ticket belongs to tenant before adding comment
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) throw new Error(`Ticket not found or access denied: ${ticketId}`);
     const result = await this.pool.query(
       `INSERT INTO ticket_comments (ticket_id, author_id, content, is_internal) VALUES ($1, $2, $3, $4) RETURNING *`,
       [ticketId, authorId, content, isInternal]
@@ -225,13 +225,19 @@ export class TicketingRepository {
     return result.rows[0];
   }
 
-  async getComments(ticketId: string): Promise<TicketCommentRecord[]> {
+  async getComments(ticketId: string, tenantId: string): Promise<TicketCommentRecord[]> {
+    // Verify ticket belongs to tenant before returning comments
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return [];
     return (await this.pool.query('SELECT * FROM ticket_comments WHERE ticket_id = $1 ORDER BY created_at ASC', [ticketId])).rows;
   }
 
   // ==================== Ticket Assignments ====================
 
-  async createAssignment(input: CreateAssignmentInput): Promise<TicketAssignment> {
+  async createAssignment(input: CreateAssignmentInput, tenantId: string): Promise<TicketAssignment> {
+    // Verify ticket belongs to tenant before creating assignment
+    const ticket = await this.findById(input.ticketId, tenantId);
+    if (!ticket) throw new Error(`Ticket not found or access denied: ${input.ticketId}`);
     const id = `ASGN-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_assignments (id, ticket_id, assignee_id, assigned_by, assigned_at, reason, match_score)
@@ -241,7 +247,10 @@ export class TicketingRepository {
     return this.mapAssignmentRow(result.rows[0]);
   }
 
-  async getAssignmentsByTicket(ticketId: string): Promise<TicketAssignment[]> {
+  async getAssignmentsByTicket(ticketId: string, tenantId: string): Promise<TicketAssignment[]> {
+    // Verify ticket belongs to tenant
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return [];
     const result = await this.pool.query(
       'SELECT * FROM ticket_assignments WHERE ticket_id = $1 ORDER BY assigned_at ASC',
       [ticketId]
@@ -249,17 +258,25 @@ export class TicketingRepository {
     return result.rows.map(r => this.mapAssignmentRow(r));
   }
 
-  async getAssignmentsByAssignee(assignee: string, limit: number = 50): Promise<TicketAssignment[]> {
+  async getAssignmentsByAssignee(assignee: string, tenantId: string, limit: number = 50): Promise<TicketAssignment[]> {
+    // Join with tickets to filter by tenant
     const result = await this.pool.query(
-      'SELECT * FROM ticket_assignments WHERE assignee_id = $1 ORDER BY assigned_at DESC LIMIT $2',
-      [assignee, limit]
+      `SELECT a.* FROM ticket_assignments a
+       JOIN tickets t ON a.ticket_id = t.id
+       WHERE a.assignee_id = $1 AND t.tenant_id = $2
+       ORDER BY a.assigned_at DESC LIMIT $3`,
+      [assignee, tenantId, limit]
     );
     return result.rows.map(r => this.mapAssignmentRow(r));
   }
 
   // ==================== Ticket Relations ====================
 
-  async createRelation(input: CreateRelationInput): Promise<TicketRelation> {
+  async createRelation(input: CreateRelationInput, tenantId: string): Promise<TicketRelation> {
+    // Verify both tickets belong to tenant before creating relation
+    const ticket1 = await this.findById(input.ticketId, tenantId);
+    const ticket2 = await this.findById(input.relatedTicketId, tenantId);
+    if (!ticket1 || !ticket2) throw new Error(`One or both tickets not found or access denied`);
     const id = `REL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_relations (id, ticket_id, related_ticket_id, relation_type, confidence, description, created_by, created_at)
@@ -269,7 +286,10 @@ export class TicketingRepository {
     return this.mapRelationRow(result.rows[0]);
   }
 
-  async getRelationsByTicket(ticketId: string): Promise<TicketRelation[]> {
+  async getRelationsByTicket(ticketId: string, tenantId: string): Promise<TicketRelation[]> {
+    // Verify ticket belongs to tenant
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return [];
     const result = await this.pool.query(
       `SELECT * FROM ticket_relations WHERE ticket_id = $1 OR related_ticket_id = $1 ORDER BY created_at DESC`,
       [ticketId]
@@ -277,17 +297,37 @@ export class TicketingRepository {
     return result.rows.map(r => this.mapRelationRow(r));
   }
 
-  async getAllRelations(): Promise<TicketRelation[]> {
-    const result = await this.pool.query('SELECT * FROM ticket_relations ORDER BY created_at DESC');
+  async getAllRelations(tenantId: string): Promise<TicketRelation[]> {
+    // Get relations where both tickets belong to the tenant
+    const result = await this.pool.query(
+      `SELECT r.* FROM ticket_relations r
+       JOIN tickets t ON r.ticket_id = t.id
+       WHERE t.tenant_id = $1
+       UNION ALL
+       SELECT r.* FROM ticket_relations r
+       JOIN tickets t ON r.related_ticket_id = t.id
+       WHERE t.tenant_id = $1 AND r.ticket_id NOT IN (SELECT id FROM tickets WHERE tenant_id = $1)`,
+      [tenantId]
+    );
     return result.rows.map(r => this.mapRelationRow(r));
   }
 
-  async deleteRelation(relationId: string): Promise<boolean> {
-    const result = await this.pool.query('DELETE FROM ticket_relations WHERE id = $1', [relationId]);
+  async deleteRelation(relationId: string, tenantId: string): Promise<boolean> {
+    // Only delete if at least one ticket in the relation belongs to this tenant
+    const result = await this.pool.query(
+      `DELETE FROM ticket_relations WHERE id = $1 AND
+       (ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $2) OR
+        related_ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $2))`,
+      [relationId, tenantId]
+    );
     return (result.rowCount ?? 0) > 0;
   }
 
-  async findExistingRelation(ticketId: string, relatedTicketId: string): Promise<TicketRelation | null> {
+  async findExistingRelation(ticketId: string, relatedTicketId: string, tenantId: string): Promise<TicketRelation | null> {
+    // Verify at least one ticket belongs to tenant
+    const t1 = await this.findById(ticketId, tenantId);
+    const t2 = await this.findById(relatedTicketId, tenantId);
+    if (!t1 && !t2) return null;
     const result = await this.pool.query(
       `SELECT * FROM ticket_relations
        WHERE (ticket_id = $1 AND related_ticket_id = $2) OR (ticket_id = $2 AND related_ticket_id = $1)`,
@@ -344,7 +384,10 @@ export class TicketingRepository {
 
   // ==================== Ticket Transfers ====================
 
-  async createTransfer(input: CreateTransferInput): Promise<TicketTransfer> {
+  async createTransfer(input: CreateTransferInput, tenantId: string): Promise<TicketTransfer> {
+    // Verify ticket belongs to tenant before creating transfer
+    const ticket = await this.findById(input.ticketId, tenantId);
+    if (!ticket) throw new Error(`Ticket not found or access denied: ${input.ticketId}`);
     const id = `XFER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_transfers (id, ticket_id, from_engineer_id, to_engineer_id, transfer_type, reason, initiated_by, transferred_at, hold_duration_ms, accepted)
@@ -354,7 +397,10 @@ export class TicketingRepository {
     return this.mapTransferRow(result.rows[0]);
   }
 
-  async getTransfersByTicket(ticketId: string): Promise<TicketTransfer[]> {
+  async getTransfersByTicket(ticketId: string, tenantId: string): Promise<TicketTransfer[]> {
+    // Verify ticket belongs to tenant
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return [];
     const result = await this.pool.query(
       'SELECT * FROM ticket_transfers WHERE ticket_id = $1 ORDER BY transferred_at DESC',
       [ticketId]
@@ -362,14 +408,21 @@ export class TicketingRepository {
     return result.rows.map(r => this.mapTransferRow(r));
   }
 
-  async getTransfersByEngineer(engineerId: string): Promise<{ transferredFrom: TicketTransfer[]; transferredTo: TicketTransfer[] }> {
+  async getTransfersByEngineer(engineerId: string, tenantId: string): Promise<{ transferredFrom: TicketTransfer[]; transferredTo: TicketTransfer[] }> {
+    // Filter by tenant via the tickets involved in each transfer
     const fromResult = await this.pool.query(
-      'SELECT * FROM ticket_transfers WHERE from_engineer_id = $1 ORDER BY transferred_at DESC',
-      [engineerId]
+      `SELECT t.* FROM ticket_transfers t
+       JOIN tickets tk ON t.ticket_id = tk.id
+       WHERE t.from_engineer_id = $1 AND tk.tenant_id = $2
+       ORDER BY t.transferred_at DESC`,
+      [engineerId, tenantId]
     );
     const toResult = await this.pool.query(
-      'SELECT * FROM ticket_transfers WHERE to_engineer_id = $1 ORDER BY transferred_at DESC',
-      [engineerId]
+      `SELECT t.* FROM ticket_transfers t
+       JOIN tickets tk ON t.ticket_id = tk.id
+       WHERE t.to_engineer_id = $1 AND tk.tenant_id = $2
+       ORDER BY t.transferred_at DESC`,
+      [engineerId, tenantId]
     );
     return {
       transferredFrom: fromResult.rows.map(r => this.mapTransferRow(r)),
@@ -377,26 +430,31 @@ export class TicketingRepository {
     };
   }
 
-  async countTransfersByTicket(ticketId: string): Promise<number> {
+  async countTransfersByTicket(ticketId: string, tenantId: string): Promise<number> {
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return 0;
     const result = await this.pool.query('SELECT COUNT(*) as count FROM ticket_transfers WHERE ticket_id = $1', [ticketId]);
     return parseInt(result.rows[0].count, 10);
   }
 
-  async getTransferStats(periodStart?: Date, periodEnd?: Date): Promise<any> {
-    let whereClause = 'WHERE 1=1';
-    const params: any[] = [];
-    if (periodStart) { params.push(periodStart); whereClause += ` AND transferred_at >= $${params.length}`; }
-    if (periodEnd) { params.push(periodEnd); whereClause += ` AND transferred_at <= $${params.length}`; }
+  async getTransferStats(tenantId: string, periodStart?: Date, periodEnd?: Date): Promise<any> {
+    let whereClause = 'WHERE tk.tenant_id = $1';
+    const params: any[] = [tenantId];
+    let paramIndex = 2;
+    if (periodStart) { params.push(periodStart); whereClause += ` AND t.transferred_at >= $${paramIndex++}`; }
+    if (periodEnd) { params.push(periodEnd); whereClause += ` AND t.transferred_at <= $${paramIndex++}`; }
 
     const result = await this.pool.query(`
       SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE transfer_type = 'manual') as manual,
-        COUNT(*) FILTER (WHERE transfer_type = 'auto-timeout') as auto_timeout,
-        COUNT(*) FILTER (WHERE transfer_type = 'escalation') as escalation,
-        COUNT(*) FILTER (WHERE transfer_type = 'backup') as backup,
-        AVG(hold_duration_ms) FILTER (WHERE hold_duration_ms IS NOT NULL) as avg_hold_time_ms
-      FROM ticket_transfers ${whereClause}
+        COUNT(*) FILTER (WHERE t.transfer_type = 'manual') as manual,
+        COUNT(*) FILTER (WHERE t.transfer_type = 'auto-timeout') as auto_timeout,
+        COUNT(*) FILTER (WHERE t.transfer_type = 'escalation') as escalation,
+        COUNT(*) FILTER (WHERE t.transfer_type = 'backup') as backup,
+        AVG(t.hold_duration_ms) FILTER (WHERE t.hold_duration_ms IS NOT NULL) as avg_hold_time_ms
+      FROM ticket_transfers t
+      JOIN tickets tk ON t.ticket_id = tk.id
+      ${whereClause}
     `, params);
     return result.rows[0];
   }
@@ -458,7 +516,11 @@ export class TicketingRepository {
 
   // ==================== Workflow History ====================
 
-  async createWorkflowHistory(ticketId: string, fromStatus: string, toStatus: string, performedBy: string, reason?: string): Promise<WorkflowHistory> {
+  async createWorkflowHistory(ticketId: string, fromStatus: string, toStatus: string, performedBy: string, reason?: string, tenantId?: string): Promise<WorkflowHistory> {
+    if (tenantId) {
+      const ticket = await this.findById(ticketId, tenantId);
+      if (!ticket) throw new Error(`Ticket not found or access denied: ${ticketId}`);
+    }
     const id = `WH-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_workflow_history (id, ticket_id, from_status, to_status, triggered_by, triggered_type, comment, created_at)
@@ -468,7 +530,9 @@ export class TicketingRepository {
     return this.mapWorkflowHistoryRow(result.rows[0]);
   }
 
-  async getWorkflowHistory(ticketId: string): Promise<WorkflowHistory[]> {
+  async getWorkflowHistory(ticketId: string, tenantId: string): Promise<WorkflowHistory[]> {
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return [];
     const result = await this.pool.query(
       'SELECT * FROM ticket_workflow_history WHERE ticket_id = $1 ORDER BY created_at ASC',
       [ticketId]
@@ -478,9 +542,11 @@ export class TicketingRepository {
 
   // ==================== SLA Tracking ====================
 
-  async createSLA(ticketId: string, priority: string, targetResolutionTimeMs: number): Promise<TicketSLA> {
+  async createSLA(ticketId: string, priority: string, targetResolutionTimeMs: number, tenantId: string): Promise<TicketSLA> {
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) throw new Error(`Ticket not found or access denied: ${ticketId}`);
     const id = `SLA-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const responseTime = Math.round(targetResolutionTimeMs * 0.25 / 60000); // 25% for response
+    const responseTime = Math.round(targetResolutionTimeMs * 0.25 / 60000);
     const resolutionTime = Math.round(targetResolutionTimeMs / 60000);
     const result = await this.pool.query(
       `INSERT INTO ticket_sla (id, ticket_id, priority, response_time_minutes, resolution_time_minutes, response_breached, resolution_breached)
@@ -490,17 +556,24 @@ export class TicketingRepository {
     return this.mapSLARow(result.rows[0]);
   }
 
-  async getSLA(ticketId: string): Promise<TicketSLA | null> {
+  async getSLA(ticketId: string, tenantId: string): Promise<TicketSLA | null> {
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return null;
     const result = await this.pool.query('SELECT * FROM ticket_sla WHERE ticket_id = $1', [ticketId]);
     return result.rows.length > 0 ? this.mapSLARow(result.rows[0]) : null;
   }
 
-  async getAllSLA(): Promise<TicketSLA[]> {
-    const result = await this.pool.query('SELECT * FROM ticket_sla');
+  async getAllSLA(tenantId: string): Promise<TicketSLA[]> {
+    const result = await this.pool.query(
+      `SELECT s.* FROM ticket_sla s JOIN tickets t ON s.ticket_id = t.id WHERE t.tenant_id = $1`,
+      [tenantId]
+    );
     return result.rows.map(r => this.mapSLARow(r));
   }
 
-  async updateSLA(ticketId: string, updates: { resolvedAt?: Date; responseBreached?: boolean; resolutionBreached?: boolean; firstResponseAt?: Date }): Promise<void> {
+  async updateSLA(ticketId: string, updates: { resolvedAt?: Date; responseBreached?: boolean; resolutionBreached?: boolean; firstResponseAt?: Date }, tenantId: string): Promise<void> {
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return;
     const sets: string[] = [];
     const params: any[] = [];
     let idx = 1;

@@ -33,11 +33,23 @@ jest.mock('@kubernetes/client-node', () => ({
   AutoscalingV2Api: jest.fn(),
 }));
 
-// Mock HealingActionResultRepository
+// Mock HealingActionResultRepository — track create calls for findAll
+let _mockActions: any[] = [];
 jest.mock('../../../repositories/HealingActionResultRepository', () => ({
   HealingActionResultRepository: jest.fn().mockImplementation(() => ({
-    create: jest.fn().mockResolvedValue({}),
-    findAll: jest.fn().mockResolvedValue({ entities: [], total: 0 }),
+    create: jest.fn().mockImplementation((action: any) => {
+      _mockActions.push(action);
+      return Promise.resolve(action);
+    }),
+    findAll: jest.fn().mockImplementation((_opt?: any) => ({
+      entities: [..._mockActions],
+      total: _mockActions.length,
+    })),
+    delete: jest.fn().mockImplementation((id: string) => {
+      const idx = _mockActions.findIndex((a: any) => a.id === id);
+      if (idx >= 0) _mockActions.splice(idx, 1);
+      return Promise.resolve(true);
+    }),
   })),
 }));
 
@@ -54,12 +66,16 @@ jest.mock('pino', () => {
 import { HealingActionExecutor } from '../HealingActionExecutor';
 import { HealingAction } from '../types';
 
+// Mock DB for HealingActionExecutor constructor
+const mockDb = { query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
+
 describe('HealingActionExecutor', () => {
   let executor: HealingActionExecutor;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    executor = new HealingActionExecutor();
+    _mockActions = [];
+    executor = new HealingActionExecutor(mockDb);
     executor.clearExecutedActions();
   });
 
@@ -393,7 +409,7 @@ describe('HealingActionExecutor', () => {
         timeout: 5000,
       });
 
-      executor.clearExecutedActions();
+      await executor.clearExecutedActions();
 
       const actions = await executor.getExecutedActions();
       expect(actions).toEqual([]);
@@ -404,7 +420,8 @@ describe('HealingActionExecutor', () => {
 
   describe('constructor', () => {
     it('should initialize without db', () => {
-      const exec = new HealingActionExecutor();
+      const mockDb = { query: jest.fn() };
+      const exec = new HealingActionExecutor(mockDb);
       expect(exec).toBeDefined();
     });
 

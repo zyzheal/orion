@@ -112,10 +112,15 @@ class MockApprovalRepository {
 // Create a modified ApprovalService that accepts a repository directly
 class TestableApprovalService extends ApprovalService {
   constructor(repository: MockApprovalRepository) {
-    // Pass a dummy db - we'll override the repository
+    // Pass a dummy db with query method - we'll override the repository
     super({ query: async () => ({ rows: [], rowCount: 0 }) });
     // Replace the repository with our mock
     (this as any).repository = repository;
+  }
+
+  // Override withTransaction to use the mock repository directly (no real DB transaction)
+  private async withTransaction<T>(fn: (repo: ApprovalRepository) => Promise<T>): Promise<T> {
+    return fn((this as any).repository);
   }
 }
 

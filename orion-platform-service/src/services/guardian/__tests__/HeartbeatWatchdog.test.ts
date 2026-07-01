@@ -3,12 +3,13 @@
  * Tests: constructor, start, stop, register, beat, unregister, checkHeartbeats
  */
 
-// --- Module-level mocks ---
-const mockCreate = jest.fn().mockResolvedValue({});
+// --- Module-level mocks matching HeartbeatWatchdogRepository method signatures ---
+const mockUpsert = jest.fn().mockResolvedValue({});
 const mockFindActive = jest.fn().mockResolvedValue([]);
-const mockUpdateLastBeat = jest.fn().mockResolvedValue({});
-const mockMarkTimeout = jest.fn().mockResolvedValue({});
-const mockDeleteByTaskId = jest.fn().mockResolvedValue(true);
+const mockFindTimedOut = jest.fn().mockResolvedValue([]);
+const mockRecordBeat = jest.fn().mockResolvedValue({});
+const mockMarkFailure = jest.fn().mockResolvedValue({});
+const mockDelete = jest.fn().mockResolvedValue(true);
 
 jest.mock('pino', () => {
   const mockLogger = {
@@ -24,13 +25,14 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-hb'),
 }));
 
-jest.mock('../../../repositories/HeartbeatRegistryRepository', () => ({
-  HeartbeatRegistryRepository: jest.fn().mockImplementation(() => ({
-    create: mockCreate,
+jest.mock('../../../repositories/HeartbeatWatchdogRepository', () => ({
+  HeartbeatWatchdogRepository: jest.fn().mockImplementation(() => ({
+    upsert: mockUpsert,
     findActive: mockFindActive,
-    updateLastBeat: mockUpdateLastBeat,
-    markTimeout: mockMarkTimeout,
-    deleteByTaskId: mockDeleteByTaskId,
+    findTimedOut: mockFindTimedOut,
+    recordBeat: mockRecordBeat,
+    markFailure: mockMarkFailure,
+    delete: mockDelete,
   })),
 }));
 
@@ -44,6 +46,7 @@ describe('HeartbeatWatchdog', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     mockFindActive.mockResolvedValue([]);
+    mockFindTimedOut.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -76,9 +79,27 @@ describe('HeartbeatWatchdog', () => {
       const db = { query: jest.fn() };
       watchdog = new HeartbeatWatchdog(db);
       mockFindActive.mockResolvedValueOnce([
-        { taskId: 'task-1', lastBeat: Date.now(), timeoutMs: 15000 },
-        { taskId: 'task-2', lastBeat: Date.now(), timeoutMs: 15000 },
-      ]);
+        {
+          id: '1',
+          tenantId: '00000000-0000-0000-0000-000000000000',
+          serviceName: 'task-1',
+          lastHeartbeat: new Date(Date.now()),
+          status: 'healthy',
+          failureCount: 0,
+          errorMessage: null,
+          createdAt: new Date(),
+        },
+        {
+          id: '2',
+          tenantId: '00000000-0000-0000-0000-000000000000',
+          serviceName: 'task-2',
+          lastHeartbeat: new Date(Date.now()),
+          status: 'healthy',
+          failureCount: 0,
+          errorMessage: null,
+          createdAt: new Date(),
+        },
+      ] as unknown as Array<{ id: string; tenantId: string; serviceName: string; lastHeartbeat: Date; status: string; failureCount: number; errorMessage: string | null; createdAt: Date }>);
 
       await watchdog.start();
       expect(mockFindActive).toHaveBeenCalled();
@@ -137,18 +158,20 @@ describe('HeartbeatWatchdog', () => {
       watchdog = new HeartbeatWatchdog(db);
 
       watchdog.register('task-1', { intervalMs: 3000, timeoutMs: 10000 });
-      expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-        taskId: 'task-1',
-        intervalMs: 3000,
-        timeoutMs: 10000,
-        status: 'active',
+      expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'test-uuid-hb',
+        tenantId: '00000000-0000-0000-0000-000000000000',
+        serviceName: 'task-1',
+        lastHeartbeat: expect.any(Date),
+        status: 'healthy',
+        failureCount: 0,
       }));
     });
 
     it('should fire-and-forget DB errors', () => {
       const db = { query: jest.fn() };
       watchdog = new HeartbeatWatchdog(db);
-      mockCreate.mockRejectedValueOnce(new Error('DB down'));
+      mockUpsert.mockRejectedValueOnce(new Error('DB down'));
 
       expect(() => watchdog.register('task-1', {})).not.toThrow();
     });
@@ -160,19 +183,19 @@ describe('HeartbeatWatchdog', () => {
       watchdog = new HeartbeatWatchdog(db);
 
       watchdog.beat('task-1');
-      expect(mockUpdateLastBeat).toHaveBeenCalledWith('task-1', expect.any(Number));
+      expect(mockRecordBeat).toHaveBeenCalledWith('task-1');
     });
 
     it('should do nothing when no db', () => {
       watchdog = new HeartbeatWatchdog();
       watchdog.beat('task-1');
-      expect(mockUpdateLastBeat).not.toHaveBeenCalled();
+      expect(mockRecordBeat).not.toHaveBeenCalled();
     });
 
     it('should fire-and-forget DB errors', () => {
       const db = { query: jest.fn() };
       watchdog = new HeartbeatWatchdog(db);
-      mockUpdateLastBeat.mockRejectedValueOnce(new Error('DB down'));
+      mockRecordBeat.mockRejectedValueOnce(new Error('DB down'));
 
       expect(() => watchdog.beat('task-1')).not.toThrow();
     });
@@ -192,13 +215,13 @@ describe('HeartbeatWatchdog', () => {
       watchdog = new HeartbeatWatchdog(db);
 
       watchdog.unregister('task-1');
-      expect(mockDeleteByTaskId).toHaveBeenCalledWith('task-1');
+      expect(mockDelete).toHaveBeenCalledWith('task-1');
     });
 
     it('should fire-and-forget DB errors', () => {
       const db = { query: jest.fn() };
       watchdog = new HeartbeatWatchdog(db);
-      mockDeleteByTaskId.mockRejectedValueOnce(new Error('DB down'));
+      mockDelete.mockRejectedValueOnce(new Error('DB down'));
 
       expect(() => watchdog.unregister('task-1')).not.toThrow();
     });
@@ -212,16 +235,22 @@ describe('HeartbeatWatchdog', () => {
 
       watchdog.register('task-1', { timeoutMs: 15000, onTimeout: callback });
 
-      // Mock findActive to return an expired entry
       const now = Date.now();
-      mockFindActive.mockResolvedValue([{
-        taskId: 'task-1',
-        lastBeat: now - 20000, // 20 seconds ago, past 15s timeout
-        timeoutMs: 15000,
-      }]);
+      const timedOutEntities = [{
+        id: '1',
+        tenantId: '00000000-0000-0000-0000-000000000000',
+        serviceName: 'task-1',
+        lastHeartbeat: new Date(now - 20000),
+        status: 'healthy',
+        failureCount: 0,
+        errorMessage: null,
+        createdAt: new Date(now - 20000),
+      }] as unknown as Array<{ id: string; tenantId: string; serviceName: string; lastHeartbeat: Date; status: string; failureCount: number; errorMessage: string | null; createdAt: Date }>;
+
+      mockFindTimedOut.mockResolvedValueOnce(timedOutEntities);
 
       await watchdog.start();
-      await jest.advanceTimersByTimeAsync(5000); // trigger checkHeartbeats
+      await jest.advanceTimersByTimeAsync(5000);
 
       expect(callback).toHaveBeenCalledWith('task-1', expect.stringContaining('No heartbeat'));
     });
@@ -233,12 +262,8 @@ describe('HeartbeatWatchdog', () => {
 
       watchdog.register('task-1', { timeoutMs: 15000, onTimeout: callback });
 
-      const now = Date.now();
-      mockFindActive.mockResolvedValue([{
-        taskId: 'task-1',
-        lastBeat: now - 5000, // 5 seconds ago, within 15s timeout
-        timeoutMs: 15000,
-      }]);
+      // No timed-out entries returned
+      mockFindTimedOut.mockResolvedValueOnce([]);
 
       await watchdog.start();
       await jest.advanceTimersByTimeAsync(5000);
@@ -254,16 +279,21 @@ describe('HeartbeatWatchdog', () => {
       watchdog.register('task-1', { timeoutMs: 15000, onTimeout: callback });
 
       const now = Date.now();
-      mockFindActive.mockResolvedValue([{
-        taskId: 'task-1',
-        lastBeat: now - 20000,
-        timeoutMs: 15000,
-      }]);
+      mockFindTimedOut.mockResolvedValueOnce([{
+        id: '1',
+        tenantId: '00000000-0000-0000-0000-000000000000',
+        serviceName: 'task-1',
+        lastHeartbeat: new Date(now - 20000),
+        status: 'healthy',
+        failureCount: 0,
+        errorMessage: null,
+        createdAt: new Date(now - 20000),
+      }] as unknown as Array<{ id: string; tenantId: string; serviceName: string; lastHeartbeat: Date; status: string; failureCount: number; errorMessage: string | null; createdAt: Date }>);
 
       await watchdog.start();
       await jest.advanceTimersByTimeAsync(5000);
 
-      expect(mockMarkTimeout).toHaveBeenCalledWith('task-1');
+      expect(mockMarkFailure).toHaveBeenCalledWith('task-1', expect.stringContaining('No heartbeat'));
     });
 
     it('should handle DB query failure in checkHeartbeats', async () => {
@@ -271,7 +301,7 @@ describe('HeartbeatWatchdog', () => {
       watchdog = new HeartbeatWatchdog(db);
 
       await watchdog.start();
-      mockFindActive.mockRejectedValueOnce(new Error('DB error'));
+      mockFindTimedOut.mockRejectedValueOnce(new Error('DB error'));
 
       // Should not throw
       await jest.advanceTimersByTimeAsync(5000);

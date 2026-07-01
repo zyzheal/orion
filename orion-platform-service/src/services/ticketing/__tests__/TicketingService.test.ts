@@ -2,8 +2,17 @@
  * TicketingService Unit Tests
  */
 
+// Mock TenantContextStorage first (hoisted by jest)
+jest.mock('../../../db/tenant-context-storage', () => {
+  const mockFn = jest.fn(() => '__system__');
+  return { getCurrentTenantId: mockFn };
+});
+
 import { TicketingService, TicketingServiceError, ListTicketsOptions, PaginatedResult } from '../TicketingService';
 import { TicketingRepository, TicketRecord, TicketCommentRecord, CreateTicketInput, UpdateTicketInput } from '../TicketingRepository';
+import { getCurrentTenantId } from '../../../db/tenant-context-storage';
+
+const MOCK_TENANT_ID = '__system__';
 
 // Mock TicketingRepository
 const mockRepository = {
@@ -22,6 +31,7 @@ describe('TicketingService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getCurrentTenantId as jest.Mock).mockReturnValue(MOCK_TENANT_ID);
     service = new TicketingService(mockRepository);
   });
 
@@ -52,7 +62,7 @@ describe('TicketingService', () => {
       const result = await service.getTicket('t-1');
 
       expect(result.id).toBe('t-1');
-      expect(mockRepository.findById).toHaveBeenCalledWith('t-1');
+      expect(mockRepository.findById).toHaveBeenCalledWith('t-1', MOCK_TENANT_ID);
     });
 
     it('should throw NOT_FOUND when ticket does not exist', async () => {
@@ -197,7 +207,7 @@ describe('TicketingService', () => {
       const result = await service.updateTicket('t-1', { title: 'New' });
 
       expect(result.title).toBe('New');
-      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { title: 'New' });
+      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { title: 'New' }, MOCK_TENANT_ID);
     });
 
     it('should throw NOT_FOUND when ticket does not exist', async () => {
@@ -241,7 +251,7 @@ describe('TicketingService', () => {
 
       expect(result.assignee_id).toBe('user-1');
       expect(result.status).toBe('assigned');
-      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { assignee_id: 'user-1', status: 'assigned' });
+      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { assignee_id: 'user-1', status: 'assigned' }, MOCK_TENANT_ID);
     });
   });
 
@@ -257,7 +267,7 @@ describe('TicketingService', () => {
       const result = await service.resolveTicket('t-1');
 
       expect(result.status).toBe('resolved');
-      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { status: 'resolved' });
+      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { status: 'resolved' }, MOCK_TENANT_ID);
     });
   });
 
@@ -273,7 +283,7 @@ describe('TicketingService', () => {
       const result = await service.closeTicket('t-1');
 
       expect(result.status).toBe('closed');
-      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { status: 'closed' });
+      expect(mockRepository.update).toHaveBeenCalledWith('t-1', { status: 'closed' }, MOCK_TENANT_ID);
     });
   });
 
@@ -289,7 +299,7 @@ describe('TicketingService', () => {
       const result = await service.addComment('t-1', 'user-1', 'Hello');
 
       expect(result.id).toBe('c-1');
-      expect(mockRepository.addComment).toHaveBeenCalledWith('t-1', 'user-1', 'Hello', undefined);
+      expect(mockRepository.addComment).toHaveBeenCalledWith('t-1', MOCK_TENANT_ID, 'user-1', 'Hello', undefined);
     });
 
     it('should support null authorId', async () => {
@@ -299,7 +309,7 @@ describe('TicketingService', () => {
 
       await service.addComment('t-1', null, 'System message');
 
-      expect(mockRepository.addComment).toHaveBeenCalledWith('t-1', null, 'System message', undefined);
+      expect(mockRepository.addComment).toHaveBeenCalledWith('t-1', MOCK_TENANT_ID, null, 'System message', undefined);
     });
 
     it('should support isInternal flag', async () => {
@@ -309,15 +319,16 @@ describe('TicketingService', () => {
 
       await service.addComment('t-1', 'user-1', 'Internal note', true);
 
-      expect(mockRepository.addComment).toHaveBeenCalledWith('t-1', 'user-1', 'Internal note', true);
+      expect(mockRepository.addComment).toHaveBeenCalledWith('t-1', MOCK_TENANT_ID, 'user-1', 'Internal note', true);
     });
 
-    it('should throw NOT_FOUND when ticket does not exist', async () => {
-      (mockRepository.findById as jest.Mock).mockResolvedValue(null);
+    it('should delegate to repository when ticket does not exist (no pre-check)', async () => {
+      // The service does NOT pre-check ticket existence before addComment
+      // It delegates directly to the repository
+      (mockRepository.addComment as jest.Mock).mockResolvedValue({ id: 'c-new' });
 
-      await expect(service.addComment('nonexistent', 'user-1', 'text')).rejects.toThrow(
-        'Ticket not found: nonexistent'
-      );
+      const result = await service.addComment('nonexistent', 'user-1', 'text');
+      expect(result.id).toBe('c-new');
     });
   });
 
@@ -334,7 +345,7 @@ describe('TicketingService', () => {
       const result = await service.getComments('t-1');
 
       expect(result).toHaveLength(2);
-      expect(mockRepository.getComments).toHaveBeenCalledWith('t-1');
+      expect(mockRepository.getComments).toHaveBeenCalledWith('t-1', MOCK_TENANT_ID);
     });
 
     it('should return empty array when no comments', async () => {

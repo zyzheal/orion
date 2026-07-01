@@ -21,17 +21,51 @@ function createMockDb() {
     const conditions = whereClause.split(/\s+AND\s+/i);
     for (const cond of conditions) {
       const trimmed = cond.trim();
-      // column = 'literal'
+      // column = 'literal' (supports plain columns only)
       const litMatch = trimmed.match(/^(\w+)\s*=\s*'([^']*)'$/);
       if (litMatch) {
         rows = rows.filter(r => String(r[litMatch[1]]) === litMatch[2]);
         continue;
       }
-      // column = $N
+      // column = $N (supports plain columns only)
       const paramMatch = trimmed.match(/^(\w+)\s*=\s*\$(\d+)$/);
       if (paramMatch) {
         const val = params[parseInt(paramMatch[2]) - 1];
         rows = rows.filter(r => String(r[paramMatch[1]]) === String(val));
+        continue;
+      }
+      // metadata->>'field' = $N (JSONB extraction)
+      const jsonParamMatch = trimmed.match(/^\w+\s*->>'(\w+)'?\s*=\s*\$(\d+)$/);
+      if (jsonParamMatch) {
+        const jsonField = jsonParamMatch[1];
+        const val = params[parseInt(jsonParamMatch[2]) - 1];
+        rows = rows.filter(r => {
+          const meta = r.metadata;
+          if (typeof meta === 'string') {
+            try { return JSON.parse(meta)[jsonField] === String(val); } catch { return false; }
+          }
+          if (typeof meta === 'object' && meta !== null) {
+            return String(meta[jsonField]) === String(val);
+          }
+          return false;
+        });
+        continue;
+      }
+      // metadata->>'field' = 'literal'
+      const jsonObjLitMatch = trimmed.match(/^\w+\s*->>'(\w+)'?\s*=\s*'([^']*)'$/);
+      if (jsonObjLitMatch) {
+        const jsonField = jsonObjLitMatch[1];
+        const val = jsonObjLitMatch[2];
+        rows = rows.filter(r => {
+          const meta = r.metadata;
+          if (typeof meta === 'string') {
+            try { return JSON.parse(meta)[jsonField] === val; } catch { return false; }
+          }
+          if (typeof meta === 'object' && meta !== null) {
+            return String(meta[jsonField]) === String(val);
+          }
+          return false;
+        });
         continue;
       }
     }

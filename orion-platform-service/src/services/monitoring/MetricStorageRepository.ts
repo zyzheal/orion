@@ -8,6 +8,7 @@
 import { DatabasePool } from '../database';
 import { MetricQuery } from './MetricCollector';
 import { MetricAggregation, DataPoint, MetricSeries } from './types';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 // ==================== Registry Types ====================
 
@@ -74,7 +75,7 @@ export class PostgresMetricStorageRepository implements MetricStorageRepository 
   constructor(private pool: DatabasePool) {}
 
   async registerMetric(input: CreateMetricRegistryInput): Promise<MetricRegistryRecord> {
-    const tenantId = input.tenant_id || '00000000-0000-0000-0000-000000000000';
+    const tenantId = input.tenant_id || getCurrentTenantId();
     const defaultTags = input.default_tags || {};
     const result = await this.pool.query(
       `INSERT INTO metric_registry (tenant_id, name, unit, default_tags, description)
@@ -114,7 +115,7 @@ export class PostgresMetricStorageRepository implements MetricStorageRepository 
   }
 
   async insertDataPoint(input: InsertDataPointInput): Promise<void> {
-    const tenantId = input.tenant_id || '00000000-0000-0000-0000-000000000000';
+    const tenantId = input.tenant_id || getCurrentTenantId();
     const tags = input.tags || {};
     const timestamp = input.timestamp || new Date();
     await this.pool.query(

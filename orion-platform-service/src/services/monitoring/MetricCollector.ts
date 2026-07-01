@@ -20,7 +20,7 @@ const logger = pino({ name: 'LMetric-LCollector' });
 import {
   MetricStorageRepository,
 } from './MetricStorageRepository';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 /**
  * Custom metric registration parameters
@@ -78,9 +78,6 @@ export class MetricCollector {
   /** PostgreSQL repository for persistent storage (required) */
   private readonly repository: MetricStorageRepository;
 
-  /** Default tenant ID for repository operations */
-  private readonly defaultTenantId: string;
-
   /** Registered metric metadata (in-memory cache for fast lookups) */
   private registeredMetrics: Map<string, RegisteredMetric> = new Map();
 
@@ -100,7 +97,6 @@ export class MetricCollector {
     retentionMs?: number;
     maxDataPointsPerMetric?: number;
     repository?: MetricStorageRepository;
-    defaultTenantId?: string;
   }) {
     this.retentionMs = options?.retentionMs ?? 24 * 60 * 60 * 1000; // 24 hours
     this.maxDataPoints = options?.maxDataPointsPerMetric ?? 10000;
@@ -108,7 +104,6 @@ export class MetricCollector {
       throw new Error('MetricStorageRepository is required for MetricCollector');
     }
     this.repository = options.repository;
-    this.defaultTenantId = options?.defaultTenantId || '00000000-0000-0000-0000-000000000000';
   }
 
   // ==================== System Metrics Collection ====================
@@ -313,7 +308,7 @@ export class MetricCollector {
 
     // Persist to repository (required)
     this.repository.registerMetric({
-      tenant_id: params.tenantId || this.defaultTenantId,
+      tenant_id: params.tenantId || getCurrentTenantId(),
       name: params.name,
       unit: params.unit,
       default_tags: params.defaultTags,
@@ -377,7 +372,7 @@ export class MetricCollector {
 
     // Persist to repository (fire-and-forget)
     this.repository.insertDataPoint({
-      tenant_id: this.defaultTenantId,
+      tenant_id: getCurrentTenantId(),
       metric_name: name,
       value,
       tags: tags || {},
@@ -450,7 +445,7 @@ export class MetricCollector {
    * Async version of getMetricSeries that queries the repository for persisted data.
    */
   async getMetricSeriesAsync(query: MetricQuery): Promise<MetricSeries> {
-    return this.repository.queryMetricSeries(query, this.defaultTenantId);
+    return this.repository.queryMetricSeries(query, getCurrentTenantId());
   }
 
   private getMetricSeriesFromMemory(query: MetricQuery): MetricSeries {
@@ -579,7 +574,7 @@ export class MetricCollector {
    * Async version that queries repository for latest persisted value.
    */
   async getLatestValueAsync(name: string, tags?: Record<string, string>): Promise<number | null> {
-    return this.repository.getLatestValue(name, tags, this.defaultTenantId);
+    return this.repository.getLatestValue(name, tags, getCurrentTenantId());
   }
 
   // ==================== Maintenance ====================
@@ -605,7 +600,7 @@ export class MetricCollector {
     }
 
     // Also prune repository (required)
-    this.repository.pruneExpired(this.retentionMs, this.defaultTenantId)
+    this.repository.pruneExpired(this.retentionMs, getCurrentTenantId())
       .then(count => logger.info(`[MetricCollector] Pruned ${count} expired points from repository`))
       .catch(err => logger.warn('[MetricCollector] Failed to prune from repository:', err));
 
@@ -620,7 +615,7 @@ export class MetricCollector {
     this.registeredMetrics.clear();
     this.natsMessageCounts.clear();
 
-    this.repository.clearAll(this.defaultTenantId)
+    this.repository.clearAll(getCurrentTenantId())
       .catch(err => logger.warn('[MetricCollector] Failed to clear repository:', err));
   }
 

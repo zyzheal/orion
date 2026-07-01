@@ -19,19 +19,27 @@ describe('DependencyGraphService', () => {
   // ==================== buildDependencyGraph ====================
 
   describe('buildDependencyGraph', () => {
-    it('should build graph with nodes and edges', async () => {
+    it('should build graph with nodes and edges from DB', async () => {
       const packages = [
         { name: 'pkg-a', version: '1.0.0' },
         { name: 'pkg-b', version: '2.0.0' },
         { name: 'pkg-c', version: '3.0.0' },
       ];
 
+      // Mock DB returns direct_deps for pkg-a -> pkg-b
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ direct_deps: [{ name: 'pkg-b', version: '2.0.0' }] }],
+        rowCount: 1,
+      });
+      // pkg-b and pkg-c have no deps
+      mockPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      mockPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
       const result = await service.buildDependencyGraph(packages);
 
       expect(result.nodes).toHaveLength(3);
-      expect(result.edges).toHaveLength(2);
+      expect(result.edges).toHaveLength(1);
       expect(result.nodes[0].id).toBe('pkg-a@1.0.0');
-      expect(result.nodes[1].id).toBe('pkg-b@2.0.0');
       expect(result.edges[0].source).toBe('pkg-a@1.0.0');
       expect(result.edges[0].target).toBe('pkg-b@2.0.0');
       expect(result.edges[0].type).toBe('depends_on');
@@ -39,6 +47,7 @@ describe('DependencyGraphService', () => {
 
     it('should handle single package (no edges)', async () => {
       const packages = [{ name: 'pkg-a', version: '1.0.0' }];
+      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
       const result = await service.buildDependencyGraph(packages);
 
       expect(result.nodes).toHaveLength(1);
@@ -54,6 +63,7 @@ describe('DependencyGraphService', () => {
 
     it('should include name and version in nodes', async () => {
       const packages = [{ name: 'lodash', version: '4.17.21' }];
+      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
       const result = await service.buildDependencyGraph(packages);
 
       expect(result.nodes[0].name).toBe('lodash');

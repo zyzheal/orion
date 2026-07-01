@@ -361,6 +361,63 @@ export class K8sCostAllocator {
   }
 
   /**
+   * 从 PostgreSQL 获取成本记录
+   * 如果数据库不可用则返回空数组（调用方会降级到内存）
+   */
+  private async fetchFromDatabase(filter?: { namespace?: string; startTime?: Date; endTime?: Date }): Promise<K8sCost[]> {
+    if (!this.db) {
+      return [];
+    }
+
+    try {
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      let idx = 1;
+
+      if (filter?.namespace) {
+        conditions.push(`namespace = $${idx++}`);
+        params.push(filter.namespace);
+      }
+      if (filter?.startTime) {
+        conditions.push(`timestamp >= $${idx++}`);
+        params.push(filter.startTime);
+      }
+      if (filter?.endTime) {
+        conditions.push(`timestamp <= $${idx++}`);
+        params.push(filter.endTime);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const result = await this.db.query(
+        `SELECT id, namespace, deployment, pod_name, cpu_cost, memory_cost, storage_cost, network_cost,
+                total_cost, tenant_id, timestamp, cluster_name, node_name
+         FROM finops_k8s_costs ${whereClause}
+         ORDER BY timestamp DESC`,
+        params
+      );
+
+      return (result.rows || []).map((row) => ({
+        id: row.id,
+        namespace: row.namespace,
+        deployment: row.deployment,
+        podName: row.pod_name,
+        cpuCost: row.cpu_cost,
+        memoryCost: row.memory_cost,
+        storageCost: row.storage_cost,
+        networkCost: row.network_cost,
+        totalCost: row.total_cost,
+        tenantId: row.tenant_id || undefined,
+        timestamp: new Date(row.timestamp),
+        clusterName: row.cluster_name || undefined,
+        nodeName: row.node_name || undefined,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * 获取所有成本记录
    */
   getRecords(): K8sCost[] {

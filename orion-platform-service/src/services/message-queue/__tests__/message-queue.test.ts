@@ -247,12 +247,14 @@ describe('MessageQueueService', () => {
 
     test('should detect dead consumers', () => {
       const consumer = service.registerConsumer('default', 'group-1');
+      const consumerId = consumer.consumerId;
 
-      // With a very short timeout, consumer should be dead
-      expect(service.detectDeadConsumes(0)).toHaveLength(0); // 0ms threshold: no consumer is "dead" at exactly 0
+      // With a generous threshold, fresh consumer should NOT be dead
+      expect(service.detectDeadConsumes(10000)).toHaveLength(0); // 10s threshold: consumer is fresh
 
       // Simulate an old consumer
-      consumer.lastHeartbeat = new Date(Date.now() - 100000); // 100s ago
+      const c = service['consumers'].get(consumerId);
+      c.lastHeartbeat = new Date(Date.now() - 100000); // 100s ago
       expect(service.detectDeadConsumes(60000)).toHaveLength(1); // 60s timeout: should be dead
     });
 

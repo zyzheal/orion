@@ -2,6 +2,7 @@
  * TicketingService - Business logic layer for Ticketing operations
  */
 
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { TicketingRepository, TicketRecord, TicketCommentRecord, CreateTicketInput, UpdateTicketInput } from './TicketingRepository';
 
 export interface ListTicketsOptions {
@@ -30,7 +31,8 @@ export class TicketingService {
   constructor(repository: TicketingRepository) { this.repository = repository; }
 
   async getTicket(id: string): Promise<TicketRecord> {
-    const ticket = await this.repository.findById(id);
+    const tenantId = getCurrentTenantId();
+    const ticket = await this.repository.findById(id, tenantId);
     if (!ticket) throw new TicketingServiceError(`Ticket not found: ${id}`, 'NOT_FOUND');
     return ticket;
   }
@@ -39,8 +41,8 @@ export class TicketingService {
     const { page = 1, limit = 20, tenantId, status, assigneeId, priority } = options;
     const offset = (page - 1) * limit;
     const [tickets, total] = await Promise.all([
-      this.repository.findAll({ tenantId, status, assigneeId, priority, limit, offset }),
-      this.repository.count({ tenantId, status, assigneeId }),
+      this.repository.findAll({ tenantId: tenantId || getCurrentTenantId(), status, assigneeId, priority, limit, offset }),
+      this.repository.count({ tenantId: tenantId || getCurrentTenantId(), status, assigneeId }),
     ]);
     return { data: tickets, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
@@ -52,9 +54,10 @@ export class TicketingService {
   }
 
   async updateTicket(id: string, input: UpdateTicketInput): Promise<TicketRecord> {
-    const existing = await this.repository.findById(id);
+    const tenantId = getCurrentTenantId();
+    const existing = await this.repository.findById(id, tenantId);
     if (!existing) throw new TicketingServiceError(`Ticket not found: ${id}`, 'NOT_FOUND');
-    const updated = await this.repository.update(id, input);
+    const updated = await this.repository.update(id, input, tenantId);
     if (!updated) throw new TicketingServiceError(`Failed to update: ${id}`, 'UPDATE_FAILED');
     return updated;
   }
@@ -72,12 +75,12 @@ export class TicketingService {
   }
 
   async addComment(ticketId: string, authorId: string | null, content: string, isInternal?: boolean): Promise<TicketCommentRecord> {
-    const ticket = await this.repository.findById(ticketId);
-    if (!ticket) throw new TicketingServiceError(`Ticket not found: ${ticketId}`, 'NOT_FOUND');
-    return this.repository.addComment(ticketId, authorId, content, isInternal);
+    const tenantId = getCurrentTenantId();
+    return this.repository.addComment(ticketId, tenantId, authorId, content, isInternal);
   }
 
   async getComments(ticketId: string): Promise<TicketCommentRecord[]> {
-    return this.repository.getComments(ticketId);
+    const tenantId = getCurrentTenantId();
+    return this.repository.getComments(ticketId, tenantId);
   }
 }

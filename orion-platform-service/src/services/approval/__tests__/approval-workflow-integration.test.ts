@@ -31,6 +31,11 @@ class MockDatabase {
   private approvals: Map<string, any> = new Map();
   private steps: Map<string, any> = new Map();
 
+  async transaction<T>(fn: (client: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) => Promise<T>): Promise<T> {
+    // Mock: just execute the function sequentially (no real transaction isolation needed for tests)
+    return fn(this);
+  }
+
   async query(text: string, params?: unknown[]): Promise<{ rows: any[]; rowCount: number | null }> {
     // Handle INSERT INTO approvals
     if (text.includes('INSERT INTO approvals')) {

@@ -298,7 +298,7 @@ describe('DeploymentWindowService behavior via index', () => {
       pool.query.mockResolvedValue({
         rows: [{
           id: 'w-1',
-          days: ['wed'],
+          days: ['sat'],
           start_time: '00:00',
           end_time: '23:59',
         }],

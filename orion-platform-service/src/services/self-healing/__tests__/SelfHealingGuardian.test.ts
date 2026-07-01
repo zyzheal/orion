@@ -8,12 +8,118 @@
  */
 
 import { SelfHealingGuardian, HealingAuditEntry, StormSuppressionRule, DualApprovalConfig, HealingRiskLevel } from '../SelfHealingGuardian';
+import { HealingAuditRepository, HealingAuditEntity } from '../../../repositories/HealingAuditRepository';
 
 describe('SelfHealingGuardian', () => {
+  /** In-memory mock of HealingAuditRepository used by tests */
+  class MockAuditRepository {
+    private _entities: HealingAuditEntity[] = [];
+
+    async insert(data: {
+      incident_id: string;
+      action_type: string;
+      target: string;
+      environment: string;
+      risk_level: string;
+      approvers?: string[];
+      executor?: string;
+      status: string;
+      reason?: string;
+      result?: string;
+    }): Promise<HealingAuditEntity> {
+      const entity: HealingAuditEntity = {
+        id: Math.random().toString(36).slice(2, 10),
+        incidentId: data.incident_id,
+        actionType: data.action_type,
+        target: data.target,
+        environment: data.environment,
+        riskLevel: data.risk_level as HealingRiskLevel,
+        approvers: data.approvers || [],
+        executor: data.executor || 'system',
+        status: data.status as HealingAuditEntity['status'],
+        reason: data.reason,
+        result: data.result,
+        createdAt: new Date(),
+      };
+      this._entities.push(entity);
+      return entity;
+    }
+
+    async findAll(_options?: { where?: Record<string, any>; limit?: number; orderBy?: string; orderDir?: 'ASC' | 'DESC' }): Promise<{ entities: HealingAuditEntity[]; total: number }> {
+      // Source queryAudit() calls findAll with DESC order then reverses,
+      // so we return ASC (insertion order) to compensate.
+      // After source: reverse() on ASC gives DESC (most recent first).
+      const sorted = [...this._entities];
+      const limit = _options?.limit ?? 100;
+      const slice = sorted.slice(0, limit);
+      return { entities: slice, total: sorted.length };
+    }
+
+    async findByIncident(incidentId: string, limit: number = 50): Promise<HealingAuditEntity[]> {
+      return this._entities
+        .filter(e => e.incidentId === incidentId)
+        .reverse()
+        .slice(0, limit);
+    }
+
+    async findByStatus(status: string, limit: number = 50): Promise<HealingAuditEntity[]> {
+      return this._entities
+        .filter(e => e.status === status)
+        .reverse()
+        .slice(0, limit);
+    }
+
+    async findByEnvironment(environment: string, limit: number = 50): Promise<HealingAuditEntity[]> {
+      return this._entities
+        .filter(e => e.environment === environment)
+        .reverse()
+        .slice(0, limit);
+    }
+
+    async totalCount(): Promise<number> {
+      return this._entities.length;
+    }
+
+    async countByStatus(): Promise<Record<string, number>> {
+      const counts: Record<string, number> = {};
+      for (const e of this._entities) {
+        counts[e.status] = (counts[e.status] || 0) + 1;
+      }
+      return counts;
+    }
+
+    async countByRiskLevel(): Promise<Record<string, number>> {
+      const counts: Record<string, number> = {};
+      for (const e of this._entities) {
+        counts[e.riskLevel] = (counts[e.riskLevel] || 0) + 1;
+      }
+      return counts;
+    }
+
+    async countByEnvironment(): Promise<Record<string, number>> {
+      const counts: Record<string, number> = {};
+      for (const e of this._entities) {
+        counts[e.environment] = (counts[e.environment] || 0) + 1;
+      }
+      return counts;
+    }
+  }
+
+  function createGuardian() {
+    const mockRepo = new MockAuditRepository();
+    return {
+      guardian: new SelfHealingGuardian({ auditRepo: mockRepo }),
+      mockRepo,
+    };
+  }
+
   let guardian: SelfHealingGuardian;
+  let mockRepo: ReturnType<typeof createGuardian>['mockRepo'];
 
   beforeEach(() => {
-    guardian = new SelfHealingGuardian();
+    const { guardian: g, mockRepo: m } = createGuardian();
+    guardian = g;
+    mockRepo = m;
   });
 
   // ==================== 1. Audit Logging ====================

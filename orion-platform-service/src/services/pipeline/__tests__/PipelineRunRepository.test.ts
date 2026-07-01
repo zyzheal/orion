@@ -18,20 +18,20 @@ describe('PipelineRunRepository', () => {
   // ==================== Pipeline Runs ====================
 
   describe('findById', () => {
-    it('should return run by id', async () => {
+    it('should return run by id with tenant isolation', async () => {
       const mockRun = { id: 'run-1', pipeline_id: 'p1', status: 'completed' };
       mockDb.query.mockResolvedValue({ rows: [mockRun] });
 
-      const result = await repository.findById('run-1');
+      const result = await repository.findById('run-1', 'tenant-1');
 
       expect(result).toEqual(mockRun);
-      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM pipeline_runs WHERE id = $1', ['run-1']);
+      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM pipeline_runs WHERE id = $1 AND tenant_id = $2', ['run-1', 'tenant-1']);
     });
 
     it('should return null when run not found', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      const result = await repository.findById('non-existent');
+      const result = await repository.findById('non-existent', 'tenant-1');
 
       expect(result).toBeNull();
     });
@@ -279,19 +279,19 @@ describe('PipelineRunRepository', () => {
   });
 
   describe('delete', () => {
-    it('should delete an existing run', async () => {
+    it('should delete an existing run with tenant isolation', async () => {
       mockDb.query.mockResolvedValue({ rowCount: 1 });
 
-      const result = await repository.delete('run-1');
+      const result = await repository.delete('run-1', 'tenant-1');
 
       expect(result).toBe(true);
-      expect(mockDb.query).toHaveBeenCalledWith('DELETE FROM pipeline_runs WHERE id = $1', ['run-1']);
+      expect(mockDb.query).toHaveBeenCalledWith('DELETE FROM pipeline_runs WHERE id = $1 AND tenant_id = $2', ['run-1', 'tenant-1']);
     });
 
     it('should return false when run not found', async () => {
       mockDb.query.mockResolvedValue({ rowCount: 0 });
 
-      const result = await repository.delete('non-existent');
+      const result = await repository.delete('non-existent', 'tenant-1');
 
       expect(result).toBe(false);
     });

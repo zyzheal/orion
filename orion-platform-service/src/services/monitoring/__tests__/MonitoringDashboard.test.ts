@@ -5,12 +5,33 @@
 import { MetricCollector } from '../MetricCollector';
 import { MonitoringDashboard } from '../MonitoringDashboard';
 
+// Mock repository for testing
+const createMockRepo = () => ({
+  registerMetric: jest.fn().mockResolvedValue({}),
+  unregisterMetric: jest.fn().mockResolvedValue(true),
+  getAllRegisteredMetrics: jest.fn().mockResolvedValue([]),
+  getMetricRegistry: jest.fn().mockResolvedValue(null),
+  insertDataPoint: jest.fn().mockResolvedValue(undefined),
+  queryMetricSeries: jest.fn().mockResolvedValue({
+    name: '',
+    dataPoints: [],
+    aggregation: { avg: 0, max: 0, min: 0, p99: 0, p95: 0, count: 0, sum: 0 },
+    windowStart: new Date(),
+    windowEnd: new Date(),
+  }),
+  getLatestValue: jest.fn().mockResolvedValue(null),
+  pruneExpired: jest.fn().mockResolvedValue(0),
+  clearAll: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('MonitoringDashboard', () => {
+  let mockRepo: ReturnType<typeof createMockRepo>;
   let collector: MetricCollector;
   let dashboard: MonitoringDashboard;
 
   beforeEach(() => {
-    collector = new MetricCollector();
+    mockRepo = createMockRepo();
+    collector = new MetricCollector({ repository: mockRepo });
     dashboard = new MonitoringDashboard(collector);
   });
 

@@ -14,7 +14,7 @@ import { AlertCorrelationGroupRepository, AlertCorrelationGroupEntity } from '..
 import { AlertTopologyNodeRepository, AlertTopologyNodeEntity } from '../../repositories/AlertTopologyNodeRepository';
 import { AlertBufferRepository, AlertBufferEntity } from '../../repositories/AlertBufferRepository';
 import { AlertTopologyEdgeRepository, AlertTopologyEdgeEntity } from '../../repositories/AlertTopologyEdgeRepository';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -94,7 +94,7 @@ export class AlertCorrelationService {
   private async loadTopologyEdges(): Promise<void> {
     if (this.topologyLoaded) return;
     try {
-      const entities = await this.edgeRepository.findByTenantId('default');
+      const entities = await this.edgeRepository.findByTenantId(getCurrentTenantId());
       this.dependencyMap.clear();
       this.impactMap.clear();
       this.edgeList = [];
@@ -130,7 +130,7 @@ export class AlertCorrelationService {
     try {
       await this.bufferRepository.create({
         id: alert.id,
-        tenantId: 'default',
+        tenantId: getCurrentTenantId(),
         name: alert.name,
         severity: alert.severity,
         source: alert.source,
@@ -150,7 +150,7 @@ export class AlertCorrelationService {
   /** Fetch buffered alerts from DB, respecting time window */
   private async getBufferAlerts(): Promise<Alert[]> {
     try {
-      const entities = await this.bufferRepository.findByTenantId('default');
+      const entities = await this.bufferRepository.findByTenantId(getCurrentTenantId());
       const cutoff = Date.now() - this.options.timeWindowMs * 2;
       return entities
         .filter(e => e.firedAt.getTime() > cutoff)
@@ -490,12 +490,12 @@ export class AlertCorrelationService {
    */
   async clear(): Promise<void> {
     // Delete all groups for default tenant
-    const groups = await this.groupRepository.findByTenantId('default');
+    const groups = await this.groupRepository.findByTenantId(getCurrentTenantId());
     for (const g of groups) {
       await this.groupRepository.delete(g.id);
     }
     // Also clear buffer
-    const buffer = await this.bufferRepository.findByTenantId('default');
+    const buffer = await this.bufferRepository.findByTenantId(getCurrentTenantId());
     for (const b of buffer) {
       await this.bufferRepository.delete(b.id);
     }
@@ -519,16 +519,15 @@ export class AlertCorrelationService {
     }));
 
     // If we already loaded edges into dependencyMap, use them with stored relationType
-    // Store relationType mapping alongside dependencyMap for quick lookup
+    // Build edge list from cached edges with relationType info
     const edges: Array<{ source: string; target: string; relationType: string }> = [];
     await this.loadTopologyEdges();
     for (const [source, targets] of this.dependencyMap.entries()) {
       for (const target of targets) {
-        // Find the edge from the edge entities to get relationType
-        // Build edge list from cached edges with relationType info
-        const edgeInfo = this.edgeRelationCache.get(`${source}->${target}`);
+        // Find the edge from edgeList to get relationType
+        const edgeInfo = this.edgeList.find(e => e.source === source && e.target === target);
         if (edgeInfo) {
-          edges.push({ source, target, relationType: edgeInfo });
+          edges.push({ source, target, relationType: edgeInfo.relationType });
         }
       }
     }
@@ -544,8 +543,8 @@ export class AlertCorrelationService {
     edges: Array<{ source: string; target: string; relationType: 'depends_on' | 'runs_on' | 'connected_to' }>;
   }): Promise<void> {
     // Clear old topology
-    await this.topologyNodeRepository.deleteByTenant('default');
-    await this.edgeRepository.deleteByTenant('default');
+    await this.topologyNodeRepository.deleteByTenant(getCurrentTenantId());
+    await this.edgeRepository.deleteByTenant(getCurrentTenantId());
     this.dependencyMap.clear();
     this.impactMap.clear();
     this.topologyLoaded = false;
@@ -555,7 +554,7 @@ export class AlertCorrelationService {
       try {
         await this.topologyNodeRepository.create({
           id: node.id,
-          tenantId: 'default',
+          tenantId: getCurrentTenantId(),
           nodeType: node.type,
           name: node.name,
           status: node.status || 'healthy',
@@ -572,7 +571,7 @@ export class AlertCorrelationService {
       try {
         await this.edgeRepository.create({
           id: `${edge.source}->${edge.target}-${Date.now()}`,
-          tenantId: 'default',
+          tenantId: getCurrentTenantId(),
           source: edge.source,
           target: edge.target,
           relationType: edge.relationType,
@@ -589,12 +588,15 @@ export class AlertCorrelationService {
       const impacts = this.impactMap.get(edge.target) || [];
       impacts.push(edge.source);
       this.impactMap.set(edge.target, impacts);
+
+      // Also build edgeList so getTopology can find relationType
+      this.edgeList.push({ source: edge.source, target: edge.target, relationType: edge.relationType });
     }
 
     // Mark as loaded since we just built the caches ourselves
     this.topologyLoaded = true;
 
-    const nodeCount = (await this.topologyNodeRepository.findByTenantId('default')).length;
+    const nodeCount = (await this.topologyNodeRepository.findByTenantId(getCurrentTenantId())).length;
     const edgeCount = topology.edges.length;
     logger.info(
       { nodeCount, edgeCount },
@@ -726,7 +728,7 @@ export class AlertCorrelationService {
    * Get all node health status (from repository)
    */
   async getAllNodeHealth(): Promise<Array<{ nodeId: string; status: 'healthy' | 'degraded' | 'unhealthy' }>> {
-    const nodes = await this.topologyNodeRepository.findByTenantId('default');
+    const nodes = await this.topologyNodeRepository.findByTenantId(getCurrentTenantId());
     return nodes.map(n => ({
       nodeId: n.id,
       status: (n.status as 'healthy' | 'degraded' | 'unhealthy') || 'healthy',
@@ -739,7 +741,7 @@ export class AlertCorrelationService {
    * Get all groups list from repository
    */
   private async getAllGroupsList(): Promise<AlertGroup[]> {
-    const entities = await this.groupRepository.findByTenantId('default');
+    const entities = await this.groupRepository.findByTenantId(getCurrentTenantId());
     return entities.map(e => this.entityToGroup(e));
   }
 
@@ -750,7 +752,7 @@ export class AlertCorrelationService {
     try {
       await this.groupRepository.create({
         id: group.id,
-        tenantId: 'default',
+        tenantId: getCurrentTenantId(),
         rootAlert: group.rootAlert as any,
         correlatedAlerts: group.correlatedAlerts as any,
         commonLabels: group.commonLabels,
@@ -795,7 +797,7 @@ export class AlertCorrelationService {
    * Get topology nodes from repository
    */
   private async getTopologyNodes(): Promise<AlertTopologyNode[]> {
-    const entities = await this.topologyNodeRepository.findByTenantId('default');
+    const entities = await this.topologyNodeRepository.findByTenantId(getCurrentTenantId());
     return entities.map(e => ({
       id: e.id,
       type: e.nodeType as AlertSourceType,
