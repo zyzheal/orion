@@ -501,6 +501,38 @@ export class IMNotifier {
   }
 
   /**
+   * Send notification with a template.
+   * Resolves {{stages.<name>.status}}, {{tasks.<name>.outputs.<key>}}, {{run.<field>}} placeholders.
+   */
+  sendWithTemplate(
+    config: IMNotificationConfig,
+    template: { title: string; content: string },
+    context: {
+      stages?: Record<string, { status: string }>;
+      tasks?: Record<string, Record<string, unknown>>;
+      run: { id: string; pipelineId: string; status: string; durationMs?: number; triggerBy?: string };
+    },
+  ): void {
+    const title = this.resolveTemplate(template.title, context);
+    const content = this.resolveTemplate(template.content, context);
+
+    const payload: IMNotificationPayload = {
+      title,
+      content,
+      pipelineName: context.run.pipelineId,
+      runId: context.run.id,
+      status: context.run.status as IMNotificationPayload['status'],
+      duration: context.run.durationMs ? `${Math.floor(context.run.durationMs / 1000)}s` : undefined,
+      triggerBy: context.run.triggerBy,
+    };
+
+    // Fire and forget - errors are handled in sendNotification
+    this.sendNotification(config, payload).catch(() => {
+      // Errors already logged in sendNotification
+    });
+  }
+
+  /**
    * 批量发送通知（多个 IM 渠道）
    * 所有通知并行发送，互不影响
    */
@@ -569,5 +601,39 @@ export class IMNotifier {
     }
     lines.push(``, `[查看详情](#/pipelines/${run.id})`);
     return lines.join('\n');
+  }
+
+  /**
+   * Resolve template variables from context.
+   * Supports {{stages.<name>.status}}, {{tasks.<name>.outputs.<key>}}, {{run.<field>}}.
+   */
+  private resolveTemplate(template: string, context: {
+    stages?: Record<string, { status: string }>;
+    tasks?: Record<string, Record<string, unknown>>;
+    run: Record<string, unknown>;
+  }): string {
+    return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const value = this.resolvePath(path.trim(), context);
+      return value !== undefined ? String(value) : match;
+    });
+  }
+
+  /**
+   * Resolve a dot-notation path from context object.
+   */
+  private resolvePath(path: string, context: Record<string, unknown>): unknown {
+    const parts = path.split('.');
+    let current: unknown = context;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      if (typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        return undefined;
+      }
+    }
+
+    return current;
   }
 }

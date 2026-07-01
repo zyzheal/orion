@@ -170,6 +170,40 @@ export class WebhookNotifier {
     await Promise.allSettled(promises);
   }
 
+  /**
+   * Send webhook with template variable resolution.
+   * Resolves {{stages.<name>.status}}, {{tasks.<name>.outputs.<key>}}, {{run.<field>}} placeholders.
+   */
+  async sendWithTemplate(
+    config: WebhookConfig,
+    template: { subject?: string; body: string },
+    context: {
+      stages?: Record<string, { status: string }>;
+      tasks?: Record<string, Record<string, unknown>>;
+      run: { id: string; pipelineId: string; status: string; durationMs?: number; triggerBy?: string };
+    },
+  ): Promise<void> {
+    const body = this.resolveTemplate(template.body, context);
+    const eventType = this.mapStatusToEventType(context.run.status);
+
+    const payload: WebhookPayload = {
+      eventType,
+      runId: context.run.id,
+      pipelineId: context.run.pipelineId,
+      status: context.run.status as WebhookPayload['status'],
+      timestamp: new Date(),
+      durationMs: context.run.durationMs,
+      triggerBy: context.run.triggerBy,
+    };
+
+    // Override the body by creating a custom config with a modified payload builder
+    const customConfig = { ...config };
+    await this.sendWebhook(customConfig, {
+      ...payload,
+      metadata: { ...payload.metadata, templateBody: body },
+    });
+  }
+
   // ============================================================================
   // 私有辅助方法
   // ============================================================================
@@ -189,6 +223,55 @@ export class WebhookNotifier {
       triggerBy: payload.triggerBy,
       metadata: payload.metadata,
     };
+  }
+
+  /**
+   * Resolve template variables from context.
+   */
+  private resolveTemplate(template: string, context: {
+    stages?: Record<string, { status: string }>;
+    tasks?: Record<string, Record<string, unknown>>;
+    run: Record<string, unknown>;
+  }): string {
+    return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const value = this.resolvePath(path.trim(), context);
+      return value !== undefined ? String(value) : match;
+    });
+  }
+
+  /**
+   * Resolve a dot-notation path from context object.
+   */
+  private resolvePath(path: string, context: Record<string, unknown>): unknown {
+    const parts = path.split('.');
+    let current: unknown = context;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      if (typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        return undefined;
+      }
+    }
+
+    return current;
+  }
+
+  /**
+   * Map run status to webhook event type.
+   */
+  private mapStatusToEventType(status: string): 'pipeline.complete' | 'pipeline.failed' | 'pipeline.cancelled' {
+    switch (status) {
+      case 'success':
+        return 'pipeline.complete';
+      case 'failed':
+        return 'pipeline.failed';
+      case 'cancelled':
+        return 'pipeline.cancelled';
+      default:
+        return 'pipeline.complete';
+    }
   }
 
   /**
