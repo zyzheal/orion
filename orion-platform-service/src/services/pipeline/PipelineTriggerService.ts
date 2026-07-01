@@ -45,6 +45,11 @@ export interface Trigger {
   type: TriggerType;
   config: TriggerConfig;
   status: TriggerStatus;
+  // Enhanced run tracking (Task 6)
+  lastRunId?: string;
+  lastRunStatus?: TriggerExecutionStatus;
+  lastRunAt?: Date;
+  consecutiveFailures: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -160,6 +165,10 @@ export class PipelineTriggerService {
           type: entity.type as TriggerType,
           config: entity.config as TriggerConfig,
           status: entity.status as TriggerStatus,
+          lastRunId: entity.lastRunId ?? undefined,
+          lastRunStatus: entity.lastRunStatus as TriggerExecutionStatus | undefined,
+          lastRunAt: entity.lastRunAt ?? undefined,
+          consecutiveFailures: entity.consecutiveFailures,
           createdAt: entity.createdAt,
           updatedAt: entity.updatedAt,
         };
@@ -206,6 +215,7 @@ export class PipelineTriggerService {
       type: input.type,
       config: input.config,
       status: 'active',
+      consecutiveFailures: 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -269,6 +279,10 @@ export class PipelineTriggerService {
             type: entity.type as TriggerType,
             config: entity.config as TriggerConfig,
             status: entity.status as TriggerStatus,
+            lastRunId: entity.lastRunId ?? undefined,
+            lastRunStatus: entity.lastRunStatus as TriggerExecutionStatus | undefined,
+            lastRunAt: entity.lastRunAt ?? undefined,
+            consecutiveFailures: entity.consecutiveFailures,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
           };
@@ -299,6 +313,10 @@ export class PipelineTriggerService {
             type: entity.type as TriggerType,
             config: entity.config as TriggerConfig,
             status: entity.status as TriggerStatus,
+            lastRunId: entity.lastRunId ?? undefined,
+            lastRunStatus: entity.lastRunStatus as TriggerExecutionStatus | undefined,
+            lastRunAt: entity.lastRunAt ?? undefined,
+            consecutiveFailures: entity.consecutiveFailures,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
           };
@@ -337,6 +355,10 @@ export class PipelineTriggerService {
             type: entity.type as TriggerType,
             config: entity.config as TriggerConfig,
             status: entity.status as TriggerStatus,
+            lastRunId: entity.lastRunId ?? undefined,
+            lastRunStatus: entity.lastRunStatus as TriggerExecutionStatus | undefined,
+            lastRunAt: entity.lastRunAt ?? undefined,
+            consecutiveFailures: entity.consecutiveFailures,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
           };
@@ -488,7 +510,13 @@ export class PipelineTriggerService {
   async scheduleTrigger(triggerId: string, cronExpression: string): Promise<CronScheduleEntry> {
     // Validate the cron expression
     try {
-      CronExpressionParser.parse(cronExpression);
+      const trigger = this.triggers.get(triggerId);
+      const timezone = trigger?.config?.timezone as string | undefined;
+      if (timezone) {
+        CronExpressionParser.parse(cronExpression, { tz: timezone });
+      } else {
+        CronExpressionParser.parse(cronExpression);
+      }
     } catch (error) {
       throw new PipelineTriggerServiceError(
         `Invalid cron expression: ${error instanceof Error ? error.message : String(error)}`,
@@ -504,8 +532,8 @@ export class PipelineTriggerService {
       throw new PipelineTriggerServiceError(`Trigger not found: ${triggerId}`, 'TRIGGER_NOT_FOUND');
     }
 
-    // Calculate the interval until next run
-    const interval = this.calculateNextInterval(cronExpression);
+    // Calculate the interval until next run (timezone-aware if configured)
+    const interval = this.calculateNextInterval(cronExpression, trigger.config.timezone as string | undefined);
     const nextRunAt = new Date(Date.now() + interval);
 
     // Set up a timer that fires when the cron expression next matches
@@ -593,7 +621,7 @@ export class PipelineTriggerService {
     // Update schedule timestamps
     entry.lastRunAt = new Date();
     // Reschedule for the next run
-    const interval = this.calculateNextInterval(entry.cronExpression);
+    const interval = this.calculateNextInterval(entry.cronExpression, trigger.config.timezone as string | undefined);
     entry.nextRunAt = new Date(Date.now() + interval);
 
     const timerId = setTimeout(async () => {
@@ -607,13 +635,18 @@ export class PipelineTriggerService {
       try {
         await this.onTickCallback(triggerId, trigger.pipelineId);
 
-        // Record success
+        // Record success with run tracking
+        const runId = this.generateId('run');
+        await this.recordExecution(triggerId, runId, 'success');
+
+        // Record execution record for history
         const record: TriggerExecutionRecord = {
           id: this.generateId('exec'),
           triggerId,
           pipelineId: trigger.pipelineId,
           tenantId: trigger.tenantId,
           status: 'success',
+          runId,
           executedAt: new Date(),
         };
         await this.saveExecutionRecord(record);
@@ -626,12 +659,16 @@ export class PipelineTriggerService {
       }
     } else {
       // No callback, just record the tick
+      const runId = this.generateId('run');
+      await this.recordExecution(triggerId, runId, 'success');
+
       const record: TriggerExecutionRecord = {
         id: this.generateId('exec'),
         triggerId,
         pipelineId: trigger.pipelineId,
         tenantId: trigger.tenantId,
         status: 'success',
+        runId,
         executedAt: new Date(),
       };
       await this.saveExecutionRecord(record);
@@ -640,11 +677,12 @@ export class PipelineTriggerService {
 
   /**
    * Calculate the interval in ms until the next cron expression match
-   * Uses cron-parser for accurate calculation
+   * Uses cron-parser for accurate calculation. Supports timezone if configured.
    */
-  private calculateNextInterval(cronExpression: string): number {
+  private calculateNextInterval(cronExpression: string, timezone?: string): number {
     try {
-      const interval = CronExpressionParser.parse(cronExpression);
+      const options = timezone ? { tz: timezone } : undefined;
+      const interval = CronExpressionParser.parse(cronExpression, options);
       const nextDate = interval.next().toDate();
       const ms = nextDate.getTime() - Date.now();
       // Ensure minimum of 1 second to avoid tight loops
@@ -693,12 +731,18 @@ export class PipelineTriggerService {
       throw new PipelineTriggerServiceError(`Trigger not found: ${triggerId}`, 'TRIGGER_NOT_FOUND');
     }
 
+    const runId = this.generateId('run');
+
+    // Update trigger run tracking
+    await this.recordExecution(triggerId, runId, 'success');
+
     const record: TriggerExecutionRecord = {
       id: this.generateId('exec'),
       triggerId,
       pipelineId: trigger.pipelineId,
       tenantId: trigger.tenantId,
       status: 'success',
+      runId,
       executedAt: new Date(),
     };
 
@@ -750,6 +794,9 @@ export class PipelineTriggerService {
       throw new PipelineTriggerServiceError(`Trigger not found: ${triggerId}`, 'TRIGGER_NOT_FOUND');
     }
 
+    // Increment consecutive failures counter
+    trigger.consecutiveFailures += 1;
+
     const record: TriggerExecutionRecord = {
       id: this.generateId('exec'),
       triggerId,
@@ -762,27 +809,32 @@ export class PipelineTriggerService {
 
     await this.saveExecutionRecord(record);
 
-    // Mark trigger as failed if too many failures (check DB if available)
-    let recentFailureCount = 0;
+    // Update trigger run tracking in memory
+    trigger.lastRunId = record.id;
+    trigger.lastRunStatus = 'failed';
+    trigger.lastRunAt = new Date();
+    this.triggers.set(triggerId, trigger);
+
+    // Persist run tracking to PostgreSQL
     if (this.triggerRepository) {
       try {
-        const since = new Date(Date.now() - 3600000);
-        const failures = await this.triggerRepository.findRecentFailures(triggerId, since);
-        recentFailureCount = failures.length;
-      } catch (err) {
-        logger.warn({ triggerId, err }, 'Failed to query recent failures from DB, falling back to cache');
-        const history = this.executionHistory.get(triggerId) ?? [];
-        recentFailureCount = history.filter(
-          (r) => r.status === 'failed' && r.executedAt > new Date(Date.now() - 3600000)
-        ).length;
+        await this.triggerRepository.updateRunInfo(
+          triggerId,
+          record.id,
+          'failed',
+          new Date(),
+          trigger.consecutiveFailures
+        );
+      } catch (error) {
+        logger.error(
+          { triggerId, error },
+          'Failed to persist run tracking to PostgreSQL'
+        );
       }
-    } else {
-      const history = this.executionHistory.get(triggerId) ?? [];
-      recentFailureCount = history.filter(
-        (r) => r.status === 'failed' && r.executedAt > new Date(Date.now() - 3600000)
-      ).length;
     }
-    if (recentFailureCount >= 5) {
+
+    // Auto-disable trigger after threshold consecutive failures
+    if (trigger.consecutiveFailures >= 5) {
       trigger.status = 'failed';
       trigger.updatedAt = new Date();
       this.triggers.set(triggerId, trigger);
@@ -801,6 +853,48 @@ export class PipelineTriggerService {
     }
 
     return record;
+  }
+
+  /**
+   * Record execution metadata for a trigger (Task 6).
+   * Updates lastRunId, lastRunStatus, lastRunAt, and consecutiveFailures.
+   */
+  async recordExecution(triggerId: string, runId: string, status: TriggerExecutionStatus): Promise<void> {
+    const trigger = this.triggers.get(triggerId);
+    if (!trigger) {
+      // Silently skip if trigger no longer exists
+      return;
+    }
+
+    // Update in-memory state
+    trigger.lastRunId = runId;
+    trigger.lastRunStatus = status;
+    trigger.lastRunAt = new Date();
+
+    // Reset consecutive failures on success
+    if (status === 'success' && trigger.consecutiveFailures > 0) {
+      trigger.consecutiveFailures = 0;
+    }
+
+    this.triggers.set(triggerId, trigger);
+
+    // Persist to PostgreSQL if repository is available
+    if (this.triggerRepository) {
+      try {
+        await this.triggerRepository.updateRunInfo(
+          triggerId,
+          runId,
+          status,
+          new Date(),
+          trigger.consecutiveFailures
+        );
+      } catch (error) {
+        logger.error(
+          { triggerId, error },
+          'Failed to persist execution record to PostgreSQL'
+        );
+      }
+    }
   }
 
   // ==================== Trigger History ====================
