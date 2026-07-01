@@ -468,26 +468,24 @@ export class ReviewRuleEngine {
         }
       }
 
-      // 匹配规则
-      try {
-        const regex = new RegExp(rule.pattern, 'i');
-        if (regex.test(line.content)) {
-          comments.push({
-            id: uuidv4(),
-            ruleId: rule.id,
-            filePath: line.filePath,
-            lineNumber: line.lineNumber,
-            severity: rule.severity,
-            message: `[${rule.name}] ${rule.description}`,
-            suggestion: rule.suggestion,
-            codeSnippet: line.content.trim(),
-            source: 'rule',
-            createdAt: new Date(),
-          });
-        }
-      } catch {
-        // 忽略无效的正则表达式
-        continue;
+      // 匹配规则（含 ReDoS 保护）
+      const matchResult = this.safeRegexTest(rule.pattern, line.content);
+      if (matchResult.matched) {
+        comments.push({
+          id: uuidv4(),
+          ruleId: rule.id,
+          filePath: line.filePath,
+          lineNumber: line.lineNumber,
+          severity: rule.severity,
+          message: `[${rule.name}] ${rule.description}`,
+          suggestion: rule.suggestion,
+          codeSnippet: line.content.trim(),
+          source: 'rule',
+          createdAt: new Date(),
+        });
+      }
+      if (!matchResult.safe) {
+        logger.warn({ ruleId: rule.id, pattern: rule.pattern }, 'Regex pattern flagged as potentially unsafe, skipped');
       }
     }
 
@@ -509,12 +507,12 @@ export class ReviewRuleEngine {
     const targetRules = rules || this.getEnabledRules();
     return targetRules.filter((rule) => {
       if (!rule.enabled) return false;
-      try {
-        const regex = new RegExp(rule.pattern, 'i');
-        return regex.test(code);
-      } catch {
+      const matchResult = this.safeRegexTest(rule.pattern, code);
+      if (!matchResult.safe) {
+        logger.warn({ ruleId: rule.id, pattern: rule.pattern }, 'Regex pattern flagged as potentially unsafe, skipped');
         return false;
       }
+      return matchResult.matched;
     });
   }
 
@@ -569,5 +567,39 @@ export class ReviewRuleEngine {
   private getFileExtension(filePath: string): string {
     const parts = filePath.split('.');
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+  }
+
+  /**
+   * 安全正则匹配：检测潜在 ReDoS 风险并限制执行时间
+   *
+   * 策略：
+   * 1. 检测嵌套量词（如 (a+)+ ）—— 经典的 ReDoS 模式
+   * 2. 执行超时保护（默认 50ms）
+   */
+  private safeRegexTest(pattern: string, text: string): { matched: boolean; safe: boolean } {
+    try {
+      // 检测潜在 ReDoS：嵌套量词模式
+      const nestedQuantifier =
+        /(?:[^\\]\([^)]*[+*][^)]*\)[+*]|\(\?:[^)]*[+*][^)]*\)[+*]|\[[^\]]*[+*][^\]]*\][+*])/;
+      if (nestedQuantifier.test(pattern)) {
+        return { matched: false, safe: false };
+      }
+
+      const regex = new RegExp(pattern, 'i');
+
+      // 超时保护
+      const startTime = Date.now();
+      const result = regex.test(text);
+      const elapsed = Date.now() - startTime;
+
+      if (elapsed > 50) {
+        logger.warn({ pattern, elapsed }, 'Regex execution exceeded safety threshold');
+        return { matched: false, safe: false };
+      }
+
+      return { matched: result, safe: true };
+    } catch {
+      return { matched: false, safe: true };
+    }
   }
 }

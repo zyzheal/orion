@@ -76,8 +76,8 @@ describe('CanaryTrafficService', () => {
       svc.setRepositories(mockConfigRepo as any, mockHistoryRepo as any);
       // After setting repos, service should use DB mode
       // We verify by checking that getTrafficConfig calls repo
-      svc.getTrafficConfig('test-id');
-      expect(mockConfigRepo.findByCanaryId).toHaveBeenCalledWith('test-id');
+      svc.getTrafficConfig('test-id', 't1');
+      expect(mockConfigRepo.findByCanaryId).toHaveBeenCalledWith('test-id', 't1');
     });
   });
 
@@ -85,9 +85,10 @@ describe('CanaryTrafficService', () => {
 
   describe('setTrafficRules (in-memory mode)', () => {
     it('should create traffic config with default values', async () => {
-      const rules: TrafficRules = {
+      const rules: TrafficRules & { tenant_id: string } = {
         canary_id: 'canary-1',
         strategy: 'weighted',
+        tenant_id: 't1',
       };
 
       const result = await service.setTrafficRules(rules);
@@ -101,11 +102,12 @@ describe('CanaryTrafficService', () => {
     });
 
     it('should use custom weights when provided', async () => {
-      const rules: TrafficRules = {
+      const rules: TrafficRules & { tenant_id: string } = {
         canary_id: 'canary-2',
         strategy: 'weighted',
         baseline_weight: 80,
         canary_weight: 20,
+        tenant_id: 't1',
       };
 
       const result = await service.setTrafficRules(rules);
@@ -115,11 +117,12 @@ describe('CanaryTrafficService', () => {
     });
 
     it('should use custom host and namespace', async () => {
-      const rules: TrafficRules = {
+      const rules: TrafficRules & { tenant_id: string } = {
         canary_id: 'canary-3',
         strategy: 'istio',
         host: 'my-service.example.com',
         namespace: 'production',
+        tenant_id: 't1',
       };
 
       const result = await service.setTrafficRules(rules);
@@ -129,11 +132,12 @@ describe('CanaryTrafficService', () => {
     });
 
     it('should set canary_destination and baseline_destination', async () => {
-      const rules: TrafficRules = {
+      const rules: TrafficRules & { tenant_id: string } = {
         canary_id: 'canary-4',
         strategy: 'weighted',
         baseline_destination: 'http://baseline.svc',
         canary_destination: 'http://canary.svc',
+        tenant_id: 't1',
       };
 
       const result = await service.setTrafficRules(rules);
@@ -159,9 +163,10 @@ describe('CanaryTrafficService', () => {
         canary_id: 'canary-1',
         strategy: 'weighted',
         canary_weight: 30,
+        tenant_id: 't1',
       });
 
-      expect(mockConfigRepo.findByCanaryId).toHaveBeenCalledWith('canary-1');
+      expect(mockConfigRepo.findByCanaryId).toHaveBeenCalledWith('canary-1', 't1');
       expect(mockConfigRepo.update).toHaveBeenCalledWith('canary-1', expect.objectContaining({
         canary_weight: 30,
       }));
@@ -178,11 +183,13 @@ describe('CanaryTrafficService', () => {
       const result = await service.setTrafficRules({
         canary_id: 'canary-new',
         strategy: 'weighted',
+        tenant_id: 't1',
       });
 
       expect(mockConfigRepo.upsertConfig).toHaveBeenCalledWith(expect.objectContaining({
         canary_id: 'canary-new',
         strategy: 'weighted',
+        tenant_id: 't1',
       }));
     });
   });
@@ -193,14 +200,14 @@ describe('CanaryTrafficService', () => {
     it('should return config from in-memory store', async () => {
       await service.setTrafficRules({ canary_id: 'c1', strategy: 'weighted' });
 
-      const result = await service.getTrafficConfig('c1');
+      const result = await service.getTrafficConfig('c1', 't1');
 
       expect(result).not.toBeNull();
       expect(result!.canary_id).toBe('c1');
     });
 
     it('should return null for non-existent config (in-memory)', async () => {
-      const result = await service.getTrafficConfig('nonexistent');
+      const result = await service.getTrafficConfig('nonexistent', 't1');
       expect(result).toBeNull();
     });
 
@@ -208,7 +215,7 @@ describe('CanaryTrafficService', () => {
       service.setRepositories(mockConfigRepo as any, mockHistoryRepo as any);
       mockConfigRepo.findByCanaryId.mockResolvedValue({ id: 'c1', canary_id: 'c1' });
 
-      const result = await service.getTrafficConfig('c1');
+      const result = await service.getTrafficConfig('c1', 't1');
 
       expect(result).toEqual({ id: 'c1', canary_id: 'c1' });
     });
@@ -217,7 +224,7 @@ describe('CanaryTrafficService', () => {
       service.setRepositories(mockConfigRepo as any, mockHistoryRepo as any);
       mockConfigRepo.findByCanaryId.mockResolvedValue(undefined);
 
-      const result = await service.getTrafficConfig('nonexistent');
+      const result = await service.getTrafficConfig('nonexistent', 't1');
 
       expect(result).toBeNull();
     });
@@ -229,7 +236,7 @@ describe('CanaryTrafficService', () => {
     it('should be an alias for getTrafficConfig', async () => {
       await service.setTrafficRules({ canary_id: 'c1', strategy: 'weighted' });
 
-      const result = await service.getTrafficConfigByCanaryId('c1');
+      const result = await service.getTrafficConfigByCanaryId('c1', 't1');
 
       expect(result).not.toBeNull();
       expect(result!.canary_id).toBe('c1');
@@ -242,14 +249,14 @@ describe('CanaryTrafficService', () => {
     it('should update existing traffic config', async () => {
       await service.setTrafficRules({ canary_id: 'c1', strategy: 'weighted', canary_weight: 10 });
 
-      const result = await service.updateTraffic('c1', { canary_weight: 30 });
+      const result = await service.updateTraffic('c1', 't1', { canary_weight: 30 });
 
       expect(result).not.toBeNull();
       expect(result!.canary_weight).toBe(30);
     });
 
     it('should return null for non-existent config', async () => {
-      const result = await service.updateTraffic('nonexistent', { canary_weight: 50 });
+      const result = await service.updateTraffic('nonexistent', 't1', { canary_weight: 50 });
       expect(result).toBeNull();
     });
 
@@ -259,9 +266,10 @@ describe('CanaryTrafficService', () => {
         strategy: 'weighted',
         host: 'my-host.com',
         canary_weight: 10,
+        tenant_id: 't1',
       });
 
-      const result = await service.updateTraffic('c1', { canary_weight: 20 });
+      const result = await service.updateTraffic('c1', 't1', { canary_weight: 20 });
 
       expect(result!.canary_weight).toBe(20);
       expect(result!.host).toBe('my-host.com');
@@ -272,26 +280,27 @@ describe('CanaryTrafficService', () => {
 
   describe('deleteTraffic', () => {
     it('should delete traffic config from in-memory store', async () => {
-      await service.setTrafficRules({ canary_id: 'c1', strategy: 'weighted' });
+      await service.setTrafficRules({ canary_id: 'c1', strategy: 'weighted', tenant_id: 't1' });
 
-      const deleted = await service.deleteTraffic('c1');
+      const deleted = await service.deleteTraffic('c1', 't1');
 
       expect(deleted).toBe(true);
 
-      const config = await service.getTrafficConfig('c1');
+      const config = await service.getTrafficConfig('c1', 't1');
       expect(config).toBeNull();
     });
 
     it('should return true even for non-existent config (in-memory)', async () => {
-      const deleted = await service.deleteTraffic('nonexistent');
+      const deleted = await service.deleteTraffic('nonexistent', 't1');
       expect(deleted).toBe(true);
     });
 
     it('should delete from DB when repos set', async () => {
       service.setRepositories(mockConfigRepo as any, mockHistoryRepo as any);
+      mockConfigRepo.findByCanaryId.mockResolvedValue({ id: 'c1', canary_id: 'c1' });
       mockConfigRepo.delete.mockResolvedValue(true);
 
-      const deleted = await service.deleteTraffic('c1');
+      const deleted = await service.deleteTraffic('c1', 't1');
 
       expect(deleted).toBe(true);
       expect(mockConfigRepo.delete).toHaveBeenCalledWith('c1');
@@ -301,7 +310,7 @@ describe('CanaryTrafficService', () => {
       service.setRepositories(mockConfigRepo as any, mockHistoryRepo as any);
       mockConfigRepo.delete.mockResolvedValue(false);
 
-      const deleted = await service.deleteTraffic('c1');
+      const deleted = await service.deleteTraffic('c1', 't1');
 
       expect(deleted).toBe(false);
     });
@@ -523,15 +532,15 @@ describe('CanaryTrafficService', () => {
         baseline_version: 'v1',
       });
 
-      const result = await service.promoteCanary('canary-d1');
+      const result = await service.promoteCanary('canary-d1', 't1');
 
       expect(result.status).toBe('promoted');
       expect(result.promotedAt).toBeDefined();
     });
 
     it('should throw OrionError for non-existent canary', async () => {
-      await expect(service.promoteCanary('nonexistent')).rejects.toThrow(OrionError);
-      await expect(service.promoteCanary('nonexistent')).rejects.toThrow('not found');
+      await expect(service.promoteCanary('nonexistent', 't1')).rejects.toThrow(OrionError);
+      await expect(service.promoteCanary('nonexistent', 't1')).rejects.toThrow('not found');
     });
 
     it('should set traffic to 100% canary on promotion', async () => {
@@ -545,7 +554,7 @@ describe('CanaryTrafficService', () => {
 
       await service.promoteCanary('canary-d1');
 
-      const config = await service.getTrafficConfig('canary-d1');
+      const config = await service.getTrafficConfig('canary-d1', 't1');
       expect(config).not.toBeNull();
       expect(config!.canary_weight).toBe(100);
       expect(config!.baseline_weight).toBe(0);
@@ -564,15 +573,15 @@ describe('CanaryTrafficService', () => {
         baseline_version: 'v1',
       });
 
-      const result = await service.rollbackCanary('canary-d1');
+      const result = await service.rollbackCanary('canary-d1', 't1');
 
       expect(result.status).toBe('rolled_back');
       expect(result.rolledBackAt).toBeDefined();
     });
 
     it('should throw OrionError for non-existent canary', async () => {
-      await expect(service.rollbackCanary('nonexistent')).rejects.toThrow(OrionError);
-      await expect(service.rollbackCanary('nonexistent')).rejects.toThrow('not found');
+      await expect(service.rollbackCanary('nonexistent', 't1')).rejects.toThrow(OrionError);
+      await expect(service.rollbackCanary('nonexistent', 't1')).rejects.toThrow('not found');
     });
 
     it('should set traffic to 100% baseline on rollback', async () => {
@@ -584,9 +593,9 @@ describe('CanaryTrafficService', () => {
         baseline_version: 'v1',
       });
 
-      await service.rollbackCanary('canary-d1');
+      await service.rollbackCanary('canary-d1', 't1');
 
-      const config = await service.getTrafficConfig('canary-d1');
+      const config = await service.getTrafficConfig('canary-d1', 't1');
       expect(config).not.toBeNull();
       expect(config!.canary_weight).toBe(0);
       expect(config!.baseline_weight).toBe(100);

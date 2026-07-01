@@ -7,6 +7,7 @@
 import pino from 'pino';
 import { ConfigVersionRepository } from '../../repositories/ConfigVersionRepository';
 import { OrionError, ErrorCode } from '../../errors';
+import crypto from 'crypto';
 
 const logger = pino({ name: 'ConfigVersionService' });
 
@@ -233,7 +234,6 @@ export class ConfigVersionService {
   }
 
   private calculateChecksum(data: any): string {
-    const crypto = require('crypto');
     const str = JSON.stringify(data);
     return crypto.createHash('sha256').update(str).digest('hex').substring(0, 16);
   }

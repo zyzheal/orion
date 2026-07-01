@@ -75,7 +75,7 @@ export class CanaryTrafficService {
   /**
    * Set traffic rules for a canary deployment
    */
-  async setTrafficRules(rules: TrafficRules): Promise<TrafficConfigEntity> {
+  async setTrafficRules(rules: TrafficRules & { tenant_id: string }): Promise<TrafficConfigEntity> {
     if (!this.configRepo) {
       const mockId = this.generateId();
       const config: TrafficConfigEntity = {
@@ -101,7 +101,7 @@ export class CanaryTrafficService {
       return config;
     }
 
-    const existing = await this.configRepo.findByCanaryId(rules.canary_id);
+    const existing = await this.configRepo.findByCanaryId(rules.canary_id, rules.tenant_id);
     if (existing) {
       return this.configRepo.update(rules.canary_id, {
         strategy: rules.strategy,
@@ -116,6 +116,7 @@ export class CanaryTrafficService {
 
     const config = await this.configRepo.upsertConfig({
       id: this.generateId(),
+      tenant_id: rules.tenant_id,
       canary_id: rules.canary_id,
       strategy: rules.strategy || 'weighted',
       host: rules.host,
@@ -133,32 +134,33 @@ export class CanaryTrafficService {
   /**
    * Get traffic config by canary ID
    */
-  async getTrafficConfig(id: string): Promise<TrafficConfigEntity | null> {
+  async getTrafficConfig(id: string, tenantId: string): Promise<TrafficConfigEntity | null> {
     if (!this.configRepo) {
       return canaryDeployments.get(id) || null;
     }
 
-    const result = await this.configRepo.findByCanaryId(id);
+    const result = await this.configRepo.findByCanaryId(id, tenantId);
     return result !== undefined ? result : null;
   }
 
   /**
    * Get traffic config by canary ID (alias)
    */
-  async getTrafficConfigByCanaryId(canaryId: string): Promise<TrafficConfigEntity | null> {
-    return this.getTrafficConfig(canaryId);
+  async getTrafficConfigByCanaryId(canaryId: string, tenantId: string): Promise<TrafficConfigEntity | null> {
+    return this.getTrafficConfig(canaryId, tenantId);
   }
 
   /**
    * Update traffic for a canary deployment
    */
-  async updateTraffic(id: string, rules: Partial<TrafficRules>): Promise<TrafficConfigEntity | null> {
-    const current = await this.getTrafficConfig(id);
+  async updateTraffic(id: string, tenantId: string, rules: Partial<TrafficRules>): Promise<TrafficConfigEntity | null> {
+    const current = await this.getTrafficConfig(id, tenantId);
     if (!current) {
       return null;
     }
 
     return this.setTrafficRules({
+      tenant_id: tenantId,
       canary_id: id,
       strategy: rules.strategy ?? current.strategy,
       baseline_weight: rules.baseline_weight ?? current.baseline_weight ?? 0,
@@ -173,11 +175,14 @@ export class CanaryTrafficService {
   /**
    * Delete traffic config
    */
-  async deleteTraffic(id: string): Promise<boolean> {
+  async deleteTraffic(id: string, tenantId: string): Promise<boolean> {
     if (!this.configRepo) {
       canaryDeployments.delete(id);
       return true;
     }
+
+    const config = await this.configRepo.findByCanaryId(id, tenantId);
+    if (!config) return false;
 
     const deleted = await this.configRepo.delete(id);
     if (deleted) {
@@ -197,6 +202,7 @@ export class CanaryTrafficService {
 
     // Store in memory or update config
     await this.setTrafficRules({
+      tenant_id: tenantId,
       canary_id: canaryId,
       strategy: 'weighted',
       baseline_weight: 100 - (input.initial_percent ?? 10),
@@ -239,10 +245,10 @@ export class CanaryTrafficService {
       return deployments;
     }
 
-    const result = await this.configRepo.findAll();
-    // Filter by tenant - would need tenant_id in config in real implementation
+    const result = await this.configRepo.findAll(tenantId);
     return result.entities.map(c => ({
       id: c.canary_id,
+      tenant_id: c.tenant_id,
       strategy: c.strategy,
       baselineWeight: c.baseline_weight,
       canaryWeight: c.canary_weight,
@@ -253,19 +259,20 @@ export class CanaryTrafficService {
   /**
    * Get canary deployment by ID
    */
-  async getCanaryDeployment(canaryId: string): Promise<any | null> {
+  async getCanaryDeployment(canaryId: string, tenantId: string): Promise<any | null> {
     if (!this.configRepo) {
       const stored = canaryDeployments.get(canaryId);
       return stored?.deployment || null;
     }
 
-    const config = await this.configRepo.findByCanaryId(canaryId);
+    const config = await this.configRepo.findByCanaryId(canaryId, tenantId);
     if (!config) {
       return null;
     }
 
     return {
       id: config.canary_id,
+      tenant_id: config.tenant_id,
       strategy: config.strategy,
       baselineWeight: config.baseline_weight,
       canaryWeight: config.canary_weight,
@@ -277,14 +284,14 @@ export class CanaryTrafficService {
   /**
    * Promote canary to production
    */
-  async promoteCanary(canaryId: string): Promise<any> {
-    const deployment = await this.getCanaryDeployment(canaryId);
+  async promoteCanary(canaryId: string, tenantId: string): Promise<any> {
+    const deployment = await this.getCanaryDeployment(canaryId, tenantId);
     if (!deployment) {
       throw new OrionError(`Canary deployment ${canaryId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // Update traffic to 100% canary
-    await this.updateTraffic(canaryId, {
+    await this.updateTraffic(canaryId, tenantId, {
       canary_id: canaryId,
       strategy: 'weighted',
       canary_weight: 100,
@@ -307,14 +314,14 @@ export class CanaryTrafficService {
   /**
    * Rollback canary deployment
    */
-  async rollbackCanary(canaryId: string): Promise<any> {
-    const deployment = await this.getCanaryDeployment(canaryId);
+  async rollbackCanary(canaryId: string, tenantId: string): Promise<any> {
+    const deployment = await this.getCanaryDeployment(canaryId, tenantId);
     if (!deployment) {
       throw new OrionError(`Canary deployment ${canaryId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // Update traffic to 100% baseline
-    await this.updateTraffic(canaryId, {
+    await this.updateTraffic(canaryId, tenantId, {
       canary_id: canaryId,
       strategy: 'weighted',
       canary_weight: 0,

@@ -51,8 +51,8 @@ describe('TrafficSplitter', () => {
       const s = new TrafficSplitter();
       s.setCanaryService(mockCanaryService);
       // Verify by calling a method that uses it
-      s.splitTraffic('c1', 20);
-      expect(mockCanaryService.getTrafficConfig).toHaveBeenCalledWith('c1');
+      s.splitTraffic('c1', 't1', 20);
+      expect(mockCanaryService.getTrafficConfig).toHaveBeenCalledWith('c1', 't1');
     });
   });
 
@@ -66,7 +66,7 @@ describe('TrafficSplitter', () => {
         strategy: 'weighted',
       });
 
-      const result = await splitter.splitTraffic('canary-1', 20);
+      const result = await splitter.splitTraffic('canary-1', 't1', 20);
 
       expect(result.canaryId).toBe('canary-1');
       expect(result.percent).toBe(20);
@@ -78,7 +78,7 @@ describe('TrafficSplitter', () => {
     it('should use default endpoints when config has no destinations', async () => {
       mockCanaryService.getTrafficConfig.mockResolvedValue(null);
 
-      const result = await splitter.splitTraffic('canary-2', 30);
+      const result = await splitter.splitTraffic('canary-2', 't1', 30);
 
       expect(result.baselineEndpoint).toBe('http://baseline.canary-2.svc.cluster.local');
       expect(result.canaryEndpoint).toBe('http://canary.canary-2.svc.cluster.local');
@@ -88,7 +88,7 @@ describe('TrafficSplitter', () => {
     it('should handle service without canaryService', async () => {
       const s = new TrafficSplitter();
 
-      const result = await s.splitTraffic('canary-3', 50);
+      const result = await s.splitTraffic('canary-3', 't1', 50);
 
       expect(result.canaryId).toBe('canary-3');
       expect(result.percent).toBe(50);
@@ -102,7 +102,7 @@ describe('TrafficSplitter', () => {
     it('should return stored traffic split', async () => {
       const uid = `get-${Date.now()}`;
       mockCanaryService.getTrafficConfig.mockResolvedValue(null);
-      await splitter.splitTraffic(uid, 20);
+      await splitter.splitTraffic(uid, 't1', 20);
 
       const result = await splitter.getTrafficSplit(uid);
 
@@ -171,7 +171,7 @@ describe('TrafficSplitter', () => {
 
     it('should handle 0% canary traffic', async () => {
       mockCanaryService.getTrafficConfig.mockResolvedValue(null);
-      await splitter.splitTraffic('zero-canary', 0);
+      await splitter.splitTraffic('zero-canary', 't1', 0);
 
       // With x-canary: never or 0%, should go to baseline
       const result = splitter.determineTarget('zero-canary', {
@@ -183,7 +183,7 @@ describe('TrafficSplitter', () => {
 
     it('should handle 100% canary traffic', async () => {
       mockCanaryService.getTrafficConfig.mockResolvedValue(null);
-      await splitter.splitTraffic('full-canary', 100);
+      await splitter.splitTraffic('full-canary', 't1', 100);
 
       const result = splitter.determineTarget('full-canary', {
         headers: { 'x-canary': 'always' },
@@ -204,7 +204,7 @@ describe('TrafficSplitter', () => {
         phase: 'initial',
       });
 
-      const result = await splitter.validateTrafficHealth('canary-1');
+      const result = await splitter.validateTrafficHealth('canary-1', 't1');
 
       expect(result.healthy).toBe(true);
       expect(result.checks.length).toBeGreaterThan(0);
@@ -228,7 +228,7 @@ describe('TrafficSplitter', () => {
         phase: 'initial',
       });
 
-      const result = await splitter.validateTrafficHealth('canary-1');
+      const result = await splitter.validateTrafficHealth('canary-1', 't1');
 
       const weightsCheck = result.checks.find(c => c.name === 'weights');
       expect(weightsCheck?.status).toBe('warn');
@@ -243,7 +243,7 @@ describe('TrafficSplitter', () => {
         phase: 'initial',
       });
 
-      const result = await splitter.validateTrafficHealth('canary-1');
+      const result = await splitter.validateTrafficHealth('canary-1', 't1');
 
       const weightsCheck = result.checks.find(c => c.name === 'weights');
       expect(weightsCheck?.status).toBe('pass');
@@ -257,7 +257,7 @@ describe('TrafficSplitter', () => {
         phase: 'initial',
       });
 
-      const result = await splitter.validateTrafficHealth('canary-1');
+      const result = await splitter.validateTrafficHealth('canary-1', 't1');
 
       const endpointsCheck = result.checks.find(c => c.name === 'endpoints');
       expect(endpointsCheck?.status).toBe('pass');
@@ -271,7 +271,7 @@ describe('TrafficSplitter', () => {
         phase: 'initial',
       });
 
-      const result = await splitter.validateTrafficHealth('canary-1');
+      const result = await splitter.validateTrafficHealth('canary-1', 't1');
 
       const endpointsCheck = result.checks.find(c => c.name === 'endpoints');
       expect(endpointsCheck?.status).toBe('warn');
@@ -285,7 +285,7 @@ describe('TrafficSplitter', () => {
         phase: 'initial',
       });
 
-      const result = await splitter.validateTrafficHealth('canary-1');
+      const result = await splitter.validateTrafficHealth('canary-1', 't1');
 
       const phaseCheck = result.checks.find(c => c.name === 'phase');
       // Note: 'initial' is in the valid phases list in source code (with typo ' Canary ')
@@ -300,8 +300,8 @@ describe('TrafficSplitter', () => {
     it('should return all active splits including newly added ones', async () => {
       const uid = `active-${Date.now()}`;
       mockCanaryService.getTrafficConfig.mockResolvedValue(null);
-      await splitter.splitTraffic(`${uid}-1`, 20);
-      await splitter.splitTraffic(`${uid}-2`, 30);
+      await splitter.splitTraffic(`${uid}-1`, 't1', 20);
+      await splitter.splitTraffic(`${uid}-2`, 't1', 30);
 
       const result = await splitter.getActiveSplits();
 
@@ -325,7 +325,7 @@ describe('TrafficSplitter', () => {
     it('should clear an existing split', async () => {
       const uid = `clear-${Date.now()}`;
       mockCanaryService.getTrafficConfig.mockResolvedValue(null);
-      await splitter.splitTraffic(uid, 20);
+      await splitter.splitTraffic(uid, 't1', 20);
 
       const cleared = await splitter.clearSplit(uid);
 

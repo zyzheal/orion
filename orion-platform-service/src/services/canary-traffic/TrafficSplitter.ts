@@ -50,8 +50,8 @@ export class TrafficSplitter {
   /**
    * Split traffic between baseline and canary
    */
-  async splitTraffic(canaryId: string, percent: number): Promise<TrafficSplitResult> {
-    const config = await this.canaryService?.getTrafficConfig(canaryId);
+  async splitTraffic(canaryId: string, tenantId: string, percent: number): Promise<TrafficSplitResult> {
+    const config = await this.canaryService?.getTrafficConfig(canaryId, tenantId);
 
     const result: TrafficSplitResult = {
       canaryId,
@@ -121,9 +121,9 @@ export class TrafficSplitter {
   /**
    * Validate traffic health before applying split or promoting
    */
-  async validateTrafficHealth(canaryId: string): Promise<HealthCheckResult> {
+  async validateTrafficHealth(canaryId: string, tenantId: string): Promise<HealthCheckResult> {
     const checks: HealthCheckResult['checks'] = [];
-    const config = await this.canaryService?.getTrafficConfig(canaryId);
+    const config = await this.canaryService?.getTrafficConfig(canaryId, tenantId);
 
     // Check 1: Config exists
     if (!config) {
