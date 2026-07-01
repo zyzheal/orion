@@ -591,7 +591,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, capacityRoutes, '/capacity', { database: options.database });
   await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware', { database: options.database });
   await registerWithRoleGuard(app, serverlessRoutes, '/serverless', { database: options.database });
-  await registerWithRoleGuard(app, multiCloudRoutes, '/multi-cloud', { database: options.database });
+  await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud', { database: options.database });
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
