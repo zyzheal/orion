@@ -208,9 +208,11 @@ describe('ScriptVersionService', () => {
 
   describe('deleteVersion', () => {
     test('should delete a version', async () => {
-      mockDb.query.mockResolvedValue({ rows: [], rowCount: 1 });
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [{ id: 'sv-1', tenant_id: 't-1', script_id: 's', version: '1.0', content: '', content_hash: '', parameters: {}, created_at: '', updated_at: '' }], rowCount: 1 }) // findByVersion
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // delete
 
-      await expect(service.deleteVersion('sv-1')).resolves.toBeUndefined();
+      await expect(service.deleteVersion('t-1', 's', '1.0')).resolves.toBeUndefined();
       expect(mockDb.query).toHaveBeenCalledWith(
         'DELETE FROM script_versions WHERE id = $1',
         ['sv-1'],

@@ -8,7 +8,7 @@ import {
   Tabs, Empty,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined, ReloadOutlined, DeleteOutlined,
   BranchesOutlined, FileTextOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -26,7 +26,6 @@ const ScriptVersionsPage: React.FC = () => {
   const [scriptId, setScriptId] = useState('default-script');
   const [versions, setVersions] = useState<ScriptVersion[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingItem, setEditingItem] = useState<ScriptVersion | null>(null);
   const [diffVisible, setDiffVisible] = useState(false);
   const [diffData, setDiffData] = useState<ScriptVersionDiff | null>(null);
   const [diffV1, setDiffV1] = useState('');
@@ -47,20 +46,7 @@ const ScriptVersionsPage: React.FC = () => {
   };
 
   const handleCreate = () => {
-    setEditingItem(null);
     form.resetFields();
-    setModalVisible(true);
-  };
-
-  const handleEdit = (record: ScriptVersion) => {
-    setEditingItem(record);
-    form.setFieldsValue({
-      version: record.version,
-      content: record.content,
-      parameters: JSON.stringify(record.parameters, null, 2),
-      changeDescription: record.changeDescription,
-      createdBy: record.createdBy,
-    });
     setModalVisible(true);
   };
 
@@ -158,12 +144,9 @@ const ScriptVersionsPage: React.FC = () => {
     },
     {
       title: '操作',
-      width: 180,
+      width: 120,
       render: (_: unknown, r: ScriptVersion) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>
-            查看
-          </Button>
           <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>
             删除
           </Button>
@@ -219,28 +202,28 @@ const ScriptVersionsPage: React.FC = () => {
 
       {/* Create Version Modal */}
       <Modal
-        title={editingItem ? '查看版本' : '创建版本'}
+        title="创建版本"
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
-        okText={editingItem ? '关闭' : '创建'}
+        okText="创建"
         width={700}
       >
         <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item name="version" label="Version" rules={[{ required: true, message: '请输入版本号' }]}>
-            <Input placeholder="如: v1.0.0" disabled={!!editingItem} />
+            <Input placeholder="如: v1.0.0" />
           </Form.Item>
           <Form.Item name="content" label="Content" rules={[{ required: true, message: '请输入脚本内容' }]}>
-            <Input.TextArea rows={8} placeholder="脚本内容" disabled={!!editingItem} />
+            <Input.TextArea rows={8} placeholder="脚本内容" />
           </Form.Item>
           <Form.Item name="parameters" label="Parameters (JSON)">
-            <Input.TextArea rows={3} placeholder='{"timeout": 30}' disabled={!!editingItem} />
+            <Input.TextArea rows={3} placeholder='{"timeout": 30}' />
           </Form.Item>
           <Form.Item name="changeDescription" label="Change Description">
-            <Input placeholder="变更说明" disabled={!!editingItem} />
+            <Input placeholder="变更说明" />
           </Form.Item>
           <Form.Item name="createdBy" label="Created By">
-            <Input placeholder="创建人" disabled={!!editingItem} />
+            <Input placeholder="创建人" />
           </Form.Item>
         </Form>
       </Modal>

@@ -88,6 +88,25 @@ export class EnvProfileService {
   }
 
   /**
+   * Get a profile by ID with tenant ownership validation.
+   */
+  async getById(id: string, tenantId: string): Promise<EnvProfile | null> {
+    if (!this.repository) {
+      throw new EnvProfileServiceError('No repository configured', 'NO_REPOSITORY');
+    }
+
+    const entity = await this.repository.findById(id);
+    if (!entity) return null;
+
+    // Validate tenant ownership to prevent cross-tenant access
+    if (entity.tenant_id !== tenantId) {
+      return null;
+    }
+
+    return this.mapEntityToProfile(entity);
+  }
+
+  /**
    * Find profiles by filter criteria.
    */
   async findProfiles(filter: {

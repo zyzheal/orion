@@ -100,7 +100,25 @@ const GlobalParamsPage: React.FC = () => {
   const handleResolve = async () => {
     try {
       const values = await resolveForm.validateFields();
-      const res = await resolveGlobalParams({ keys: values.keys });
+      let keys: Record<string, string> = {};
+      if (values.keys) {
+        try {
+          keys = typeof values.keys === 'string' ? JSON.parse(values.keys) : values.keys;
+          if (typeof keys !== 'object' || Array.isArray(keys)) {
+            message.error('Keys 必须是合法的 JSON 对象');
+            return;
+          }
+          const keyCount = Object.keys(keys).length;
+          if (keyCount > 100) {
+            message.error('Keys 最多支持 100 个');
+            return;
+          }
+        } catch {
+          message.error('Keys 必须是合法 JSON');
+          return;
+        }
+      }
+      const res = await resolveGlobalParams({ keys });
       setResolveResult(res.data || {});
       message.success('解析完成');
     } catch {

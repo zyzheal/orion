@@ -17,6 +17,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { GlobalParamService } from '../services/pipeline/GlobalParamService';
 import { GlobalParamRepository } from '../repositories/GlobalParamRepository';
@@ -34,7 +35,7 @@ export default async function globalParamRoutes(
 ): Promise<void> {
   const repo = new GlobalParamRepository(options.database);
   const service = new GlobalParamService({ db: options.database });
-  const tenantId = (options.database as any).tenantId || 'default';
+  const tenantId = getCurrentTenantId();
 
   // POST /global-params — Create parameter
   app.post('/', {
@@ -87,9 +88,9 @@ export default async function globalParamRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const param = await repo.findById(id);
+      const param = await service.getById(id, tenantId);
       if (!param) {
-        return notFound(reply, request);
+        return notFound(reply, request, undefined, `Global param not found: ${id}`);
       }
       return success(reply, request, param);
     } catch (err: any) {

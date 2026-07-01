@@ -31,6 +31,7 @@ const EnvProfilesPage: React.FC = () => {
   const [selectedProfile, setSelectedProfile] = useState<EnvProfile | null>(null);
   const [environments, setEnvironments] = useState<string[]>([]);
   const [envLoading, setEnvLoading] = useState(false);
+  const [envError, setEnvError] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [resolveForm] = Form.useForm();
 
@@ -85,12 +86,13 @@ const EnvProfilesPage: React.FC = () => {
 
   const handleViewEnvironments = async (record: EnvProfile) => {
     setSelectedProfile(record);
+    setEnvError(null);
     setEnvLoading(true);
     try {
       const res = await getEnvironmentsForProfile(record.name);
       setEnvironments(res.data || []);
     } catch {
-      message.error('加载环境列表失败');
+      setEnvError('加载环境列表失败');
     } finally {
       setEnvLoading(false);
     }
@@ -105,6 +107,15 @@ const EnvProfilesPage: React.FC = () => {
           variables = typeof values.variables === 'string'
             ? JSON.parse(values.variables)
             : values.variables;
+          if (typeof variables !== 'object' || Array.isArray(variables)) {
+            message.error('Variables 必须是合法 JSON 对象');
+            return;
+          }
+          const varCount = Object.keys(variables).length;
+          if (varCount > 200) {
+            message.error('Variables 最多支持 200 个键');
+            return;
+          }
         } catch {
           message.error('Variables 必须是合法 JSON');
           return;
@@ -128,7 +139,21 @@ const EnvProfilesPage: React.FC = () => {
     if (!selectedProfile) return;
     try {
       const values = await resolveForm.validateFields();
-      const overrides = values.overrides ? JSON.parse(values.overrides) : undefined;
+      let overrides: Record<string, string> | undefined;
+      if (values.overrides) {
+        try {
+          overrides = typeof values.overrides === 'string'
+            ? JSON.parse(values.overrides)
+            : values.overrides;
+          if (typeof overrides !== 'object' || Array.isArray(overrides)) {
+            message.error('Overrides 必须是合法 JSON 对象');
+            return;
+          }
+        } catch {
+          message.error('Overrides 必须是合法 JSON');
+          return;
+        }
+      }
       const res = await resolveEnvVariables({
         name: selectedProfile.name,
         environment: selectedProfile.environment,
@@ -288,15 +313,28 @@ const EnvProfilesPage: React.FC = () => {
       {/* Environment List Modal */}
       <Modal
         title={`${selectedProfile?.name} — 环境列表`}
-        open={!!selectedProfile && envLoading === false && environments.length > 0}
-        onCancel={() => { setSelectedProfile(null); setEnvironments([]); }}
+        open={!!selectedProfile && !envLoading}
+        onCancel={() => { setSelectedProfile(null); setEnvironments([]); setEnvError(null); }}
         footer={null}
       >
-        <Space wrap>
-          {environments.map(env => (
-            <Tag key={env} color="blue">{env}</Tag>
-          ))}
-        </Space>
+        {envError ? (
+          <div style={{ textAlign: 'center', padding: spacing.lg }}>
+            <Text type="danger">{envError}</Text>
+            <div style={{ marginTop: spacing.md }}>
+              <Button onClick={() => selectedProfile && handleViewEnvironments(selectedProfile)}>
+                重试
+              </Button>
+            </div>
+          </div>
+        ) : environments.length > 0 ? (
+          <Space wrap>
+            {environments.map(env => (
+              <Tag key={env} color="blue">{env}</Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">暂无环境配置</Text>
+        )}
       </Modal>
     </div>
   );

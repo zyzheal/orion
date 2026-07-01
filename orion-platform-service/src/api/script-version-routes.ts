@@ -17,6 +17,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
 import pino from 'pino';
@@ -32,7 +33,7 @@ export default async function scriptVersionRoutes(
   options: ScriptVersionRoutesOptions,
 ): Promise<void> {
   const service = new ScriptVersionService({ db: options.database });
-  const tenantId = (options.database as any).tenantId || 'default';
+  const tenantId = getCurrentTenantId();
 
   // POST /:scriptId/versions — Create version
   app.post('/:scriptId/versions', {
@@ -121,8 +122,7 @@ export default async function scriptVersionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { scriptId, version } = request.params as { scriptId: string; version: string };
-      const versionId = `${scriptId}:${version}`;
-      await service.deleteVersion(versionId);
+      await service.deleteVersion(tenantId, scriptId, version);
       return reply.status(204).send();
     } catch (err: any) {
       logger.error({ err }, 'Failed to delete script version');

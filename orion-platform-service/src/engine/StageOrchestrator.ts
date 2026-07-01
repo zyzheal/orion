@@ -31,7 +31,6 @@ import { ConditionRouter } from './ConditionRouter';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager';
 import { DebugController } from './DebugController';
 import { SecretsService } from '../services/pipeline/SecretsService';
-import { getGlobalSecretsService } from '../api/secret-routes';
 import { PipelineExecution } from './PipelineEngine';
 import { VariableContext } from './VariableContext';
 import { GrayScaleController } from './GrayScaleController';
@@ -425,7 +424,7 @@ export class StageOrchestrator {
 
         // Resolve ${secrets.XXX} references in task parameters before execution
         let resolvedTask = task;
-        const secretsSvc = this.secretsService || getGlobalSecretsService();
+        const secretsSvc = this.secretsService;
         if (secretsSvc) {
           const tenantId = (execution.run.context as any)?.tenantId || 'default';
           if (tenantId) {

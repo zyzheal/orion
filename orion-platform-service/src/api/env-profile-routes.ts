@@ -18,6 +18,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { EnvProfileService } from '../services/pipeline/EnvProfileService';
 import { EnvProfileRepository } from '../repositories/EnvProfileRepository';
@@ -35,7 +36,7 @@ export default async function envProfileRoutes(
 ): Promise<void> {
   const repo = new EnvProfileRepository(options.database);
   const service = new EnvProfileService({ db: options.database });
-  const tenantId = (options.database as any).tenantId || 'default';
+  const tenantId = getCurrentTenantId();
 
   // POST /env-profiles — Create profile
   app.post('/', {
@@ -87,9 +88,9 @@ export default async function envProfileRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const entity = await repo.findById(id);
+      const entity = await service.getById(id, tenantId);
       if (!entity) {
-        return notFound(reply, request);
+        return notFound(reply, request, undefined, `Env profile not found: ${id}`);
       }
       return success(reply, request, entity);
     } catch (err: any) {

@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     // 添加租户 ID header
-    const tenantId = localStorage.getItem('tenant_id') || 'b9cc68a4-f373-448f-b2b2-07f2b3336d46';
+    const tenantId = localStorage.getItem('tenant_id') || 'default';
     config.headers['x-tenant-id'] = tenantId;
     return config;
   },

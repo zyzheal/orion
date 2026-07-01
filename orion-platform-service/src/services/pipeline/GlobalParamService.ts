@@ -95,6 +95,25 @@ export class GlobalParamService {
   }
 
   /**
+   * Get a global parameter by ID with tenant ownership validation.
+   */
+  async getById(id: string, tenantId: string): Promise<GlobalParam | null> {
+    if (!this.repository) {
+      throw new GlobalParamServiceError('No repository configured', 'NO_REPOSITORY');
+    }
+
+    const entity = await this.repository.findById(id);
+    if (!entity) return null;
+
+    // Validate tenant ownership to prevent cross-tenant access
+    if (entity.tenant_id !== tenantId) {
+      return null;
+    }
+
+    return this.mapEntityToParam(entity);
+  }
+
+  /**
    * Get multiple parameters by keys. Returns map of key -> value.
    */
   async getBatch(tenantId: string, keys: string[]): Promise<Record<string, string>> {

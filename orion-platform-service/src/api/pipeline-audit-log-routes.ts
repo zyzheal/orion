@@ -16,6 +16,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { success, created, badRequest, notFound, internalError, noContent } from '../utils/replyHelper';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
 import { PipelineAuditLogRepository } from '../repositories/PipelineAuditLogRepository';
@@ -32,11 +33,13 @@ export default async function pipelineAuditLogRoutes(
   options: PipelineAuditLogRoutesOptions,
 ): Promise<void> {
   const service = new PipelineAuditLogService({ db: options.database });
-  const tenantId = (options.database as any).tenantId || 'default';
+  const tenantId = getCurrentTenantId();
 
-  // POST /audit-logs — Record single event
+  // POST /audit-logs — Record single event (internal service use)
+  // NOTE: These write endpoints are intended for internal pipeline engine calls.
+  // In production, protect with service account auth or mTLS to prevent log spoofing.
   app.post('/', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit-log', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as any;
@@ -64,9 +67,9 @@ export default async function pipelineAuditLogRoutes(
     }
   });
 
-  // POST /audit-logs/batch — Batch record
+  // POST /audit-logs/batch — Batch record (internal service use)
   app.post('/batch', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit-log', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as { logs: any[] };

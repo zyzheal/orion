@@ -156,14 +156,20 @@ export class ScriptVersionService {
   }
 
   /**
-   * Delete a version.
+   * Delete a version by (scriptId, version) composite key.
+   * Looks up the real entity ID first, then deletes by ID.
    */
-  async deleteVersion(id: string): Promise<void> {
+  async deleteVersion(tenantId: string, scriptId: string, version: string): Promise<void> {
     if (!this.repository) {
       throw new ScriptVersionServiceError('No repository configured', 'NO_REPOSITORY');
     }
 
-    await this.repository.delete(id);
+    const entity = await this.repository.findByVersion(tenantId, scriptId, version);
+    if (!entity) {
+      throw new ScriptVersionServiceError(`Version not found: ${version}`, 'VERSION_NOT_FOUND');
+    }
+
+    await this.repository.delete(entity.id);
   }
 
   // ==================== Diff Computation ====================

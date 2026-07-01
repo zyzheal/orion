@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select, DatePicker,
-  Descriptions, Timeline, Card, Divider,
+  Descriptions, Timeline, Card, Divider, InputNumber,
 } from 'antd';
 import {
   ReloadOutlined, EyeOutlined, SearchOutlined, ClearOutlined,
@@ -40,6 +40,7 @@ const AuditLogsPage: React.FC = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState<PipelineAuditLog | null>(null);
   const [trail, setTrail] = useState<PipelineAuditLog[] | AuditTrailEntry[]>([]);
+  const [retentionDays, setRetentionDays] = useState(90);
   const [form] = Form.useForm();
 
   const loadLogs = async () => {
@@ -74,6 +75,10 @@ const AuditLogsPage: React.FC = () => {
   const handleReset = () => { form.resetFields(); setPage(1); loadLogs(); };
 
   const handleViewDetail = async (log: PipelineAuditLog) => {
+    if (!log.runId) {
+      message.warning('该日志缺少 Run ID，无法查看轨迹');
+      return;
+    }
     setSelectedLog(log);
     setDetailVisible(true);
     try {
@@ -87,12 +92,12 @@ const AuditLogsPage: React.FC = () => {
   const handleCleanup = () => {
     Modal.confirm({
       title: '清理过期日志',
-      content: '将删除 90 天前的审计日志，确认继续？',
+      content: `将删除 ${retentionDays} 天前的审计日志，确认继续？`,
       okText: '清理',
       okType: 'danger',
       onOk: async () => {
         try {
-          const res = await cleanupAuditLogs(90);
+          const res = await cleanupAuditLogs(retentionDays);
           message.success(`已清理 ${res.data?.deleted || 0} 条日志`);
           loadLogs();
         } catch {
@@ -192,6 +197,14 @@ const AuditLogsPage: React.FC = () => {
           <Text type="secondary">Pipeline 执行审计轨迹，用于故障排查与合规分析</Text>
         </div>
         <Space>
+          <InputNumber
+            min={1}
+            max={3650}
+            value={retentionDays}
+            onChange={(v) => setRetentionDays(v || 90)}
+            style={{ width: 80 }}
+          />
+          <span style={{ color: colors.neutral[500], fontSize: 13 }}>天</span>
           <Button icon={<ClearOutlined />} onClick={handleCleanup}>
             清理过期
           </Button>
