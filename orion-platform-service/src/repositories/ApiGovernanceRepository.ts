@@ -356,6 +356,39 @@ export class ApiGovernanceRepository {
     return result.rows.map(row => this.mapRuleRow(row));
   }
 
+  async findById(id: string, tenantId?: string): Promise<GovernanceRuleEntity | undefined> {
+    const tId = this.getTenantId(tenantId);
+    const result = await this.db.query(
+      `SELECT * FROM governance_rules WHERE id = $1 AND tenant_id = $2`,
+      [id, tId]
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRuleRow(result.rows[0]);
+  }
+
+  async updateRule(
+    id: string,
+    input: { name: string; description: string; type: string; enabled: boolean },
+    tenantId?: string,
+  ): Promise<GovernanceRuleEntity | undefined> {
+    const tId = this.getTenantId(tenantId);
+    const result = await this.db.query(
+      `UPDATE governance_rules SET name = $1, description = $2, type = $3, enabled = $4
+       WHERE id = $5 AND tenant_id = $6 RETURNING *`,
+      [input.name, input.description, input.type, input.enabled, id, tId]
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRuleRow(result.rows[0]);
+  }
+
+  async deleteRule(id: string, tenantId?: string): Promise<void> {
+    const tId = this.getTenantId(tenantId);
+    await this.db.query(
+      `DELETE FROM governance_rules WHERE id = $1 AND tenant_id = $2`,
+      [id, tId]
+    );
+  }
+
   // ==================== Verification History ====================
 
   async createVerification(input: CreateVerificationInput): Promise<ApiVerificationHistoryEntity> {

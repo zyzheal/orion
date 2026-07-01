@@ -161,7 +161,7 @@ export class ConfigFallbackService {
   private defaultConfig: Record<string, any> = {};
 
   // PostgreSQL Repository with graceful degradation
-  private dbRepository: import('../repositories/ConfigFallbackRepository').ConfigFallbackRepository | null = null;
+  private dbRepository: import('../../repositories/ConfigFallbackRepository').ConfigFallbackRepository | null = null;
   private dbPool: DbPoolLike | null = null;
 
   constructor(config: Partial<FallbackConfig> = {}) {

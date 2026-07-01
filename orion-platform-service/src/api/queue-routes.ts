@@ -9,7 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { QueueRepository } from '../services/queue/QueueRepository';
+import { PostgresJobRepository } from '../repositories/JobRepository';
 import { QueueService } from '../services/queue/QueueService';
 import { QueueController } from './controllers/QueueController';
 import pino from 'pino';
@@ -25,16 +25,14 @@ export default async function queueRoutes(
   options: QueueRoutesOptions
 ): Promise<void> {
   // Initialize Repository and Service with database pool
-  const repository = options.database
-    ? new QueueRepository(options.database)
-    : undefined;
-
-  if (!repository) {
+  const db = options.database;
+  if (!db) {
     logger.warn('[QueueRoutes] No database pool provided, queue routes will not be functional');
     return;
   }
 
-  const queueService = new QueueService(repository);
+  const jobRepository = new PostgresJobRepository(db);
+  const queueService = new QueueService(jobRepository);
   const controller = new QueueController(queueService);
 
   // ==================== Job Operations ====================

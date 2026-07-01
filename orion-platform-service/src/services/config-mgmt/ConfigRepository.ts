@@ -192,7 +192,7 @@ export class ConfigRepository {
             key: entry.key,
             version: entry.version,
             created_at: new Date(),
-            createdBy: null,
+            createdBy: undefined,
             createdAt: new Date(),
           };
           const existingHistory = this.memoryHistory.get(entry.id) || [];

@@ -578,7 +578,7 @@ export class CircuitBreakerService {
       );
 
       // Filter out malformed rows (state is required)
-      const validStates = allStates.filter((s) => s.state);
+      const validStates = allStates.filter((s: CircuitBreakerStateEntity) => s.state);
 
       const results: any[] = [];
       for (const stateEntity of validStates) {
@@ -601,7 +601,7 @@ export class CircuitBreakerService {
       }
 
       // Include any registry entries not found in DB
-      const dbKeys = new Set(validStates.map((s) => s.targetKey));
+      const dbKeys = new Set(validStates.map((s: CircuitBreakerStateEntity) => s.targetKey));
       for (const entry of this.registry.values()) {
         if (!dbKeys.has(entry.targetKey)) {
           const stats = entry.breaker.getStats();

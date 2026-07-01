@@ -30,6 +30,29 @@ import { AlertActiveAlertRepository, AlertActiveAlertEntity } from '../../reposi
 import { SuppressionLogRepository } from '../../repositories/SuppressionLogRepository';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
+// Type aliases for API consumption layer
+type MaintenanceWindow = {
+  id: string;
+  name: string;
+  startTime: Date;
+  endTime: Date;
+  scope?: { sourceTypes?: string[]; alertTypes?: string[] };
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type KnownIssue = {
+  id: string;
+  title: string;
+  description?: string;
+  fingerprintPattern: string;
+  labelSelectors?: Record<string, string>;
+  status: 'open' | 'resolved';
+  silenceDuration?: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
@@ -665,11 +688,9 @@ export class AlertSuppressionService {
         title: issue.title,
         description: issue.description ?? null,
         fingerprint: issue.fingerprintPattern ?? 'unknown',
-        labelSelectors: issue.labelSelectors ?? null,
+        labelSelectors: issue.labelSelectors ?? undefined,
         ticketId: null,
         resolved: false,
-        resolvedAt: null,
-        createdAt: now,
       });
 
       const newIssue: KnownIssue = {

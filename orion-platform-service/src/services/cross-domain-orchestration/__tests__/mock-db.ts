@@ -23,6 +23,7 @@ function createMockPool() {
 
   const mockPool = {
     query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      params = params ?? [];
       const upper = sql.toUpperCase();
 
       if (upper.includes('INSERT') || upper.includes('ON CONFLICT')) {

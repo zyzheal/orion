@@ -174,7 +174,7 @@ export class PluginAuditLogRepository {
     if (this.dbAvailable) {
       try {
         const values = entities.map(e =>
-          `(${this.q(v => this.toSqlParam(v, e.id))}, ${this.q(v => this.toSqlParam(v, e.tenantId))}, ${this.q(v => this.toSqlParam(v, e.pluginId))}, ${this.q(v => this.toSqlParam(v, e.action))}, ${this.q(v => this.toSqlParam(v, e.userId))}, '${JSON.stringify(e.details)}'::jsonb, ${this.q(v => this.toSqlParam(v, e.severity))}, ${this.q(v => this.toSqlParam(v, e.createdAt))})`,
+          `(${this.q(v => this.toSqlParam(v, 'id'))}, ${this.q(v => this.toSqlParam(v, 'tenantId'))}, ${this.q(v => this.toSqlParam(v, 'pluginId'))}, ${this.q(v => this.toSqlParam(v, 'action'))}, ${this.q(v => this.toSqlParam(v, 'userId'))}, '${JSON.stringify(e.details)}'::jsonb, ${this.q(v => this.toSqlParam(v, 'severity'))}, ${this.q(v => this.toSqlParam(v, 'createdAt'))})`,
         ).join(', ');
 
         await this.db!.query(

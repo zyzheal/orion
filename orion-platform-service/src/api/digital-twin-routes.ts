@@ -12,6 +12,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { DigitalTwinRepository } from '../repositories/DigitalTwinRepository';
 import { CreateDigitalTwinInput, CreateSnapshotInput, CreateTrafficRecordInput, CreateReplaySessionInput } from '../repositories/DigitalTwinRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'digital-twin-routes' });
 
 // ============================================================================
 // Route Registration
@@ -21,15 +24,14 @@ export default async function digitalTwinRoutes(
   app: FastifyInstance,
   options?: Record<string, unknown>
 ): Promise<void> {
-  const pool = (options as { database?: DatabasePool } | undefined)?.database;
-  const repo = pool ? new DigitalTwinRepository(pool) : null;
+  const db = (options as { database?: DatabasePool } | undefined)?.database;
 
-  if (!repo) {
-    app.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
-      return reply.send({ success: true, data: { status: 'degraded', database: false } });
-    });
+  if (!db) {
+    logger.warn('[DigitalTwinRoutes] No database pool provided, routes will not be functional');
     return;
   }
+
+  const repo = new DigitalTwinRepository(db);
 
   // ==================== Digital Twins ====================
 

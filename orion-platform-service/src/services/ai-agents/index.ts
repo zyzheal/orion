@@ -13,7 +13,9 @@
 
 // Base classes and types
 export { BaseAgent } from './base/BaseAgent';
-export { ToolAdapter, ToolDefinition, ToolResult, ToolHandler } from './base/ToolAdapter';
+export { ToolAdapter } from './base/ToolAdapter';
+// Tool types are defined in ./base/types, ToolAdapter imports them internally
+export { ToolDefinition, ToolHandler, ToolResult } from './base/types';
 export {
   AgentConfig,
   AgentRetryConfig,
@@ -32,6 +34,18 @@ export { ReleaseNotesAgent } from './release/ReleaseNotesAgent';
 export { PerfOptAgent } from './performance/PerfOptAgent';
 
 // Agent-specific types
-export { ReleaseNotesConfig, ReleaseNotesOutput } from './release/types';
-export { PerfOptConfig, PerfOptResult } from './performance/types';
-export { StabilityConfig, StabilityCheckResult } from './stability/types';
+// release/types.ts exports: ReleaseNotesAgentConfig, ReleaseNotesResult
+export {
+  ReleaseNotesAgentConfig as ReleaseNotesConfig,
+  ReleaseNotesResult as ReleaseNotesOutput,
+} from './release/types';
+// performance/types.ts exports: PerfOptAgentConfig, PerformanceAnalysisResult
+export {
+  PerfOptAgentConfig as PerfOptConfig,
+  PerformanceAnalysisResult as PerfOptResult,
+} from './performance/types';
+// stability/types.ts exports: RootCauseAgentConfig, RootCauseAnalysisResult
+export {
+  RootCauseAgentConfig as StabilityConfig,
+  RootCauseAnalysisResult as StabilityCheckResult,
+} from './stability/types';

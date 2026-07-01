@@ -64,8 +64,8 @@ export class KnownIssueRepository extends BaseRepository<KnownIssueEntity> {
    * Update a known issue by ID.
    * Overrides BaseRepository.update to support partial update (only non-undefined fields).
    */
-  async update(id: string, data: Partial<Omit<KnownIssueEntity, 'id' | 'createdAt'>>): Promise<KnownIssueEntity | null> {
-    const rawColumns = Object.keys(data).filter(k => data[k as keyof KnownIssueEntity] !== undefined);
+  async update(id: string, data: any): Promise<KnownIssueEntity> {
+    const rawColumns = Object.keys(data).filter(k => data[k] !== undefined);
 
     if (rawColumns.length === 0) {
       throw new OrionError('Update requires at least one column', ErrorCode.VALIDATION_ERROR);
@@ -87,7 +87,7 @@ export class KnownIssueRepository extends BaseRepository<KnownIssueEntity> {
       }
     }
 
-    const values = rawColumns.map(k => data[k as keyof KnownIssueEntity]);
+    const values = rawColumns.map(k => data[k]);
     // Handle labelSelectors → JSONB
     const labelIdx = rawColumns.findIndex(k => k === 'labelSelectors');
     if (labelIdx >= 0) {
@@ -98,7 +98,7 @@ export class KnownIssueRepository extends BaseRepository<KnownIssueEntity> {
     const query = `UPDATE known_issues SET ${setClauses.join(', ')} WHERE id = $${values.length + 1} RETURNING *`;
     const result = await this.db.query(query, [...values, id]);
 
-    if (result.rows.length === 0) return null;
+    if (result.rows.length === 0) throw new OrionError(`No known issue found with id: ${id}`, 'NOT_FOUND');
     return this.mapRowToEntity(result.rows[0]);
   }
 

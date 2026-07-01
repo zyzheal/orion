@@ -11,6 +11,9 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { VisorExecRepository } from '../repositories/VisorExecRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'visor-exec-routes' });
 
 // ============================================================================
 // Route Registration
@@ -20,16 +23,14 @@ export default async function visorExecRoutes(
   app: FastifyInstance,
   options?: Record<string, unknown>
 ): Promise<void> {
-  const pool = (options as { database?: DatabasePool } | undefined)?.database;
-  const repo = pool ? new VisorExecRepository(pool) : null;
+  const db = (options as { database?: DatabasePool } | undefined)?.database;
 
-  if (!repo) {
-    // Database not available — register a health check endpoint only
-    app.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
-      return reply.send({ success: true, data: { status: 'degraded', database: false } });
-    });
+  if (!db) {
+    logger.warn('[VisorExecRoutes] No database pool provided, routes will not be functional');
     return;
   }
+
+  const repo = new VisorExecRepository(db);
 
   // ==========================================================================
   // Command Execution

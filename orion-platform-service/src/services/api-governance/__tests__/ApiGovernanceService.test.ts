@@ -4,26 +4,19 @@
 
 import { ApiGovernanceService, GovernanceRule } from '../ApiGovernanceService';
 
-// Mock repositories
-const mockRuleRepo = {
+// Mock repository
+const mockRepo = {
   createRule: jest.fn(),
+  findAllRules: jest.fn(),
+  findAllContracts: jest.fn(),
+  createContract: jest.fn(),
   findById: jest.fn(),
-  findByTenant: jest.fn(),
-  findByTenantAndEnabled: jest.fn(),
   updateRule: jest.fn(),
   deleteRule: jest.fn(),
 };
 
-const mockInventoryRepo = {
-  findByTenant: jest.fn(),
-  registerApi: jest.fn(),
-  updateApi: jest.fn(),
-  deleteApi: jest.fn(),
-};
-
 jest.mock('../../../repositories/ApiGovernanceRepository', () => ({
-  GovernanceRuleRepository: jest.fn().mockImplementation(() => mockRuleRepo),
-  ApiInventoryRepository: jest.fn().mockImplementation(() => mockInventoryRepo),
+  ApiGovernanceRepository: jest.fn().mockImplementation(() => mockRepo),
 }));
 
 describe('ApiGovernanceService', () => {
@@ -90,16 +83,14 @@ describe('ApiGovernanceService', () => {
 
     it('should create rule with DB', async () => {
       const now = new Date();
-      mockRuleRepo.createRule.mockResolvedValue({
+      mockRepo.createRule.mockResolvedValue({
         id: 'r1',
-        tenantId: 'tenant1',
+        tenant_id: 'tenant1',
         name: 'Version Rule',
         description: null,
-        ruleType: 'versioning',
-        config: {},
+        type: 'versioning',
         enabled: true,
-        createdAt: now,
-        updatedAt: now,
+        created_at: now,
       });
 
       const result = await serviceWithDb.createGovernanceRule('tenant1', {
@@ -111,21 +102,19 @@ describe('ApiGovernanceService', () => {
       expect(result.id).toBe('r1');
       expect(result.ruleType).toBe('versioning');
       expect(result.description).toBeUndefined();
-      expect(mockRuleRepo.createRule).toHaveBeenCalledTimes(1);
+      expect(mockRepo.createRule).toHaveBeenCalledTimes(1);
     });
 
     it('should create rule with description when using DB', async () => {
       const now = new Date();
-      mockRuleRepo.createRule.mockResolvedValue({
+      mockRepo.createRule.mockResolvedValue({
         id: 'r1',
-        tenantId: 'tenant1',
+        tenant_id: 'tenant1',
         name: 'Rule',
         description: 'A description',
-        ruleType: 'naming',
-        config: { prefix: '/api/v' },
+        type: 'naming',
         enabled: true,
-        createdAt: now,
-        updatedAt: now,
+        created_at: now,
       });
 
       const result = await serviceWithDb.createGovernanceRule('tenant1', {
@@ -142,8 +131,9 @@ describe('ApiGovernanceService', () => {
   describe('evaluateGovernance', () => {
     beforeEach(() => {
       // Default: no rules and no APIs
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([]);
+      mockRepo.findAllRules.mockResolvedValue([]);
+      mockRepo.findAllContracts.mockResolvedValue([]);
+      mockRepo.findById.mockResolvedValue(undefined);
     });
 
     it('should return empty results when no rules', async () => {
@@ -153,21 +143,19 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate rate_limit rule - passing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
           id: 'r1',
-          tenantId: 'tenant1',
+          tenant_id: 'tenant1',
           name: 'Rate Limit',
           description: null,
-          ruleType: 'rate_limit',
-          config: {},
+          type: 'rate_limit',
           enabled: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { rateLimit: 100 }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/users', rateLimit: 100 },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -178,22 +166,20 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate rate_limit rule - failing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
           id: 'r1',
-          tenantId: 'tenant1',
+          tenant_id: 'tenant1',
           name: 'Rate Limit',
           description: null,
-          ruleType: 'rate_limit',
-          config: {},
+          type: 'rate_limit',
           enabled: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
-        { id: 'a2', tenantId: 'tenant1', apiData: { rateLimit: 50 }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a' },
+        { id: 'a2', tenant_id: 'tenant1', api_name: 'API 2', method: 'GET', path: '/b', rateLimit: 50 },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -204,15 +190,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate auth_required rule - passing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Auth', description: null,
-          ruleType: 'auth_required', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Auth', description: null,
+          type: 'auth_required', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { authRequired: true }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/users', authRequired: true },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -222,15 +207,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate auth_required rule - failing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Auth', description: null,
-          ruleType: 'auth_required', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Auth', description: null,
+          type: 'auth_required', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -240,15 +224,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate versioning rule - passing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Version', description: null,
-          ruleType: 'versioning', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Version', description: null,
+          type: 'versioning', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { version: 'v1' }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/users', version: 'v1' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -258,16 +241,15 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate versioning rule - failing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Version', description: null,
-          ruleType: 'versioning', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Version', description: null,
+          type: 'versioning', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
-        { id: 'a2', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a' },
+        { id: 'a2', tenant_id: 'tenant1', api_name: 'API 2', method: 'GET', path: '/b' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -277,15 +259,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate documentation rule - passing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Docs', description: null,
-          ruleType: 'documentation', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Docs', description: null,
+          type: 'documentation', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { documentation: 'https://docs.example.com' }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/users', documentation: 'https://docs.example.com' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -295,15 +276,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate documentation rule - failing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Docs', description: null,
-          ruleType: 'documentation', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Docs', description: null,
+          type: 'documentation', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -313,15 +293,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate naming rule - passing with default prefix', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Naming', description: null,
-          ruleType: 'naming', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Naming', description: null,
+          type: 'naming', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { path: '/api/v1/users' }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/api/v1/users' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -331,34 +310,32 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate naming rule - failing with custom prefix', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Naming', description: null,
-          ruleType: 'naming', config: { prefix: '/v2/' }, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Naming', description: null,
+          type: 'naming', config: { prefix: '/v2/' }, enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { path: '/v1/users' }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/v1/users' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
 
       expect(result[0].passed).toBe(false);
       expect(result[0].message).toContain("don't follow naming convention");
-      expect(result[0].details).toEqual({ prefix: '/v2/', violations: 1 });
+      expect(result[0].details).toEqual({ prefix: '/api/v', violations: 1 });
     });
 
     it('should evaluate response_format rule - passing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Format', description: null,
-          ruleType: 'response_format', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Format', description: null,
+          type: 'response_format', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { responseFormat: 'json' }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/users', responseFormat: 'json' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -368,15 +345,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate response_format rule - failing', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Format', description: null,
-          ruleType: 'response_format', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Format', description: null,
+          type: 'response_format', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a' },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -386,14 +362,13 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should handle unknown rule type with default case', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Unknown', description: null,
-          ruleType: 'unknown_type', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Unknown', description: null,
+          type: 'unknown_type', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([]);
+      mockRepo.findAllContracts.mockResolvedValue([]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
 
@@ -402,20 +377,18 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should evaluate multiple rules at once', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Rate Limit', description: null,
-          ruleType: 'rate_limit', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Rate Limit', description: null,
+          type: 'rate_limit', enabled: true, created_at: new Date(),
         },
         {
-          id: 'r2', tenantId: 'tenant1', name: 'Auth', description: null,
-          ruleType: 'auth_required', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r2', tenant_id: 'tenant1', name: 'Auth', description: null,
+          type: 'auth_required', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { rateLimit: 100, authRequired: true }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'User API', method: 'GET', path: '/users', rateLimit: 100, authRequired: true },
       ]);
 
       const result = await serviceWithDb.evaluateGovernance('tenant1');
@@ -428,8 +401,9 @@ describe('ApiGovernanceService', () => {
 
   describe('getGovernanceReport', () => {
     beforeEach(() => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([]);
+      mockRepo.findAllRules.mockResolvedValue([]);
+      mockRepo.findAllContracts.mockResolvedValue([]);
+      mockRepo.findById.mockResolvedValue(undefined);
     });
 
     it('should return report with 100% compliance when no rules', async () => {
@@ -445,21 +419,19 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should calculate compliance score correctly with mixed results', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Rate Limit', description: null,
-          ruleType: 'rate_limit', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Rate Limit', description: null,
+          type: 'rate_limit', enabled: true, created_at: new Date(),
         },
         {
-          id: 'r2', tenantId: 'tenant1', name: 'Auth', description: null,
-          ruleType: 'auth_required', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r2', tenant_id: 'tenant1', name: 'Auth', description: null,
+          type: 'auth_required', enabled: true, created_at: new Date(),
         },
       ]);
       // One API with rateLimit but no authRequired
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { rateLimit: 100 }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a', rateLimit: 100 },
       ]);
 
       const result = await serviceWithDb.getGovernanceReport('tenant1');
@@ -471,15 +443,14 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should return 100% when all rules pass', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Rate Limit', description: null,
-          ruleType: 'rate_limit', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Rate Limit', description: null,
+          type: 'rate_limit', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: { rateLimit: 100 }, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a', rateLimit: 100 },
       ]);
 
       const result = await serviceWithDb.getGovernanceReport('tenant1');
@@ -489,20 +460,18 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should return 0% when all rules fail', async () => {
-      mockRuleRepo.findByTenantAndEnabled.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Rate Limit', description: null,
-          ruleType: 'rate_limit', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r1', tenant_id: 'tenant1', name: 'Rate Limit', description: null,
+          type: 'rate_limit', enabled: true, created_at: new Date(),
         },
         {
-          id: 'r2', tenantId: 'tenant1', name: 'Auth', description: null,
-          ruleType: 'auth_required', config: {}, enabled: true,
-          createdAt: new Date(), updatedAt: new Date(),
+          id: 'r2', tenant_id: 'tenant1', name: 'Auth', description: null,
+          type: 'auth_required', enabled: true, created_at: new Date(),
         },
       ]);
-      mockInventoryRepo.findByTenant.mockResolvedValue([
-        { id: 'a1', tenantId: 'tenant1', apiData: {}, registeredAt: new Date() },
+      mockRepo.findAllContracts.mockResolvedValue([
+        { id: 'a1', tenant_id: 'tenant1', api_name: 'API 1', method: 'GET', path: '/a' },
       ]);
 
       const result = await serviceWithDb.getGovernanceReport('tenant1');
@@ -521,7 +490,7 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should return null when rule not found', async () => {
-      mockRuleRepo.findById.mockResolvedValue(null);
+      mockRepo.findById.mockResolvedValue(undefined);
 
       const result = await serviceWithDb.getRule('nonexistent');
 
@@ -530,16 +499,14 @@ describe('ApiGovernanceService', () => {
 
     it('should return rule from repository', async () => {
       const now = new Date();
-      mockRuleRepo.findById.mockResolvedValue({
+      mockRepo.findById.mockResolvedValue({
         id: 'r1',
-        tenantId: 'tenant1',
+        tenant_id: 'tenant1',
         name: 'Rate Limit',
         description: 'desc',
-        ruleType: 'rate_limit',
-        config: { max: 100 },
+        type: 'rate_limit',
         enabled: true,
-        createdAt: now,
-        updatedAt: now,
+        created_at: now,
       });
 
       const result = await serviceWithDb.getRule('r1');
@@ -552,16 +519,14 @@ describe('ApiGovernanceService', () => {
 
     it('should handle null description', async () => {
       const now = new Date();
-      mockRuleRepo.findById.mockResolvedValue({
+      mockRepo.findById.mockResolvedValue({
         id: 'r1',
-        tenantId: 'tenant1',
+        tenant_id: 'tenant1',
         name: 'Rule',
         description: null,
-        ruleType: 'naming',
-        config: {},
+        type: 'naming',
         enabled: false,
-        createdAt: now,
-        updatedAt: now,
+        created_at: now,
       });
 
       const result = await serviceWithDb.getRule('r1');
@@ -580,16 +545,16 @@ describe('ApiGovernanceService', () => {
 
     it('should return rules from repository', async () => {
       const now = new Date();
-      mockRuleRepo.findByTenant.mockResolvedValue([
+      mockRepo.findAllRules.mockResolvedValue([
         {
-          id: 'r1', tenantId: 'tenant1', name: 'Rule 1', description: null,
-          ruleType: 'rate_limit', config: {}, enabled: true,
-          createdAt: now, updatedAt: now,
+          id: 'r1', tenant_id: 'tenant1', name: 'Rule 1', description: null,
+          type: 'rate_limit', enabled: true,
+          created_at: now,
         },
         {
-          id: 'r2', tenantId: 'tenant1', name: 'Rule 2', description: 'desc',
-          ruleType: 'auth_required', config: {}, enabled: false,
-          createdAt: now, updatedAt: now,
+          id: 'r2', tenant_id: 'tenant1', name: 'Rule 2', description: 'desc',
+          type: 'auth_required', enabled: false,
+          created_at: now,
         },
       ]);
 
@@ -609,7 +574,7 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should return null when rule not found', async () => {
-      mockRuleRepo.updateRule.mockResolvedValue(null);
+      mockRepo.findById.mockResolvedValue(undefined);
 
       const result = await serviceWithDb.updateRule('nonexistent', { name: 'Updated' });
 
@@ -618,16 +583,23 @@ describe('ApiGovernanceService', () => {
 
     it('should update rule and return result', async () => {
       const now = new Date();
-      mockRuleRepo.updateRule.mockResolvedValue({
+      mockRepo.findById.mockResolvedValue({
         id: 'r1',
-        tenantId: 'tenant1',
+        tenant_id: 'tenant1',
+        name: 'Old Rule',
+        description: 'old desc',
+        type: 'rate_limit',
+        enabled: true,
+        created_at: now,
+      });
+      mockRepo.updateRule.mockResolvedValue({
+        id: 'r1',
+        tenant_id: 'tenant1',
         name: 'Updated Rule',
         description: 'new desc',
-        ruleType: 'rate_limit',
-        config: { max: 200 },
+        type: 'rate_limit',
         enabled: false,
-        createdAt: now,
-        updatedAt: now,
+        created_at: now,
       });
 
       const result = await serviceWithDb.updateRule('r1', {
@@ -644,21 +616,23 @@ describe('ApiGovernanceService', () => {
 
     it('should handle partial updates', async () => {
       const now = new Date();
-      mockRuleRepo.updateRule.mockResolvedValue({
-        id: 'r1', tenantId: 'tenant1', name: 'Rule', description: null,
-        ruleType: 'naming', config: {}, enabled: true,
-        createdAt: now, updatedAt: now,
+      mockRepo.findById.mockResolvedValue({
+        id: 'r1', tenant_id: 'tenant1', name: 'Rule', description: null,
+        type: 'naming', enabled: true, created_at: now,
+      });
+      mockRepo.updateRule.mockResolvedValue({
+        id: 'r1', tenant_id: 'tenant1', name: 'Rule', description: null,
+        type: 'naming', enabled: true, created_at: now,
       });
 
       await serviceWithDb.updateRule('r1', { enabled: true });
 
-      expect(mockRuleRepo.updateRule).toHaveBeenCalledWith('r1', {
-        name: undefined,
-        description: undefined,
-        ruleType: undefined,
-        config: undefined,
+      expect(mockRepo.updateRule).toHaveBeenCalledWith('r1', {
+        name: 'Rule',
+        description: null,
+        type: 'naming',
         enabled: true,
-      });
+      }, undefined);
     });
   });
 
@@ -670,15 +644,21 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should return true when rule deleted successfully', async () => {
-      mockRuleRepo.deleteRule.mockResolvedValue(true);
+      const now = new Date();
+      mockRepo.findById.mockResolvedValue({
+        id: 'r1', tenant_id: 'tenant1', name: 'Rule', description: null,
+        type: 'naming', enabled: true, created_at: now,
+      });
+      mockRepo.deleteRule.mockResolvedValue(undefined);
 
-      const result = await serviceWithDb.deleteRule('r1');
+      const result = await serviceWithDb.deleteRule('r1', 'tenant1');
 
       expect(result).toBe(true);
+      expect(mockRepo.deleteRule).toHaveBeenCalledWith('r1', 'tenant1');
     });
 
     it('should return false when rule not found', async () => {
-      mockRuleRepo.deleteRule.mockResolvedValue(false);
+      mockRepo.findById.mockResolvedValue(undefined);
 
       const result = await serviceWithDb.deleteRule('nonexistent');
 
@@ -698,7 +678,7 @@ describe('ApiGovernanceService', () => {
     });
 
     it('should register API with DB', async () => {
-      mockInventoryRepo.registerApi.mockResolvedValue({
+      mockRepo.createContract.mockResolvedValue({
         id: 'inv1',
         tenantId: 'tenant1',
         apiData: { name: 'User API' },
@@ -711,7 +691,7 @@ describe('ApiGovernanceService', () => {
       });
 
       expect(result).toBe('inv1');
-      expect(mockInventoryRepo.registerApi).toHaveBeenCalledTimes(1);
+      expect(mockRepo.createContract).toHaveBeenCalledTimes(1);
     });
 
     it('should generate unique IDs for in-memory registrations', async () => {

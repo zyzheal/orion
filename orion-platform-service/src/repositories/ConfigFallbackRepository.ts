@@ -140,7 +140,7 @@ export class ConfigFallbackRepository extends BaseRepository<ConfigFallbackEntit
   /**
    * Delete a fallback config entry
    */
-  async delete(domain: string, key: string, tenantId?: string): Promise<void> {
+  async deleteConfig(domain: string, key: string, tenantId?: string): Promise<void> {
     if (!this.dbAvailable) return;
 
     let query = `DELETE FROM config_fallback WHERE domain = $1 AND key = $2`;
@@ -154,6 +154,17 @@ export class ConfigFallbackRepository extends BaseRepository<ConfigFallbackEntit
     }
 
     await this.db.query(query, params);
+  }
+
+  /**
+   * Delete a fallback config entry by ID (overrides BaseRepository.delete)
+   */
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db.query(
+      `DELETE FROM config_fallback WHERE id = $1`,
+      [id],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**

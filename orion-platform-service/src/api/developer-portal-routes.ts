@@ -31,19 +31,17 @@ export default async function developerPortalRoutes(
   app: FastifyInstance,
   options: DeveloperPortalRoutesOptions
 ): Promise<void> {
-  const repository = options.database
-    ? new PortalDocumentRepository(options.database)
-    : undefined;
-
-  if (!repository) {
+  const db = options.database;
+  if (!db) {
     logger.warn('[DeveloperPortalRoutes] No database pool provided, developer portal routes will not be functional');
     return;
   }
 
+  const repository = new PortalDocumentRepository(db);
   const documentService = new PortalDocumentService(repository);
   const controller = new PortalDocumentController(documentService);
-  const mockRuleRepo = new DevPortalMockRuleRepository(options.database);
-  const sdkTaskRepo = new DevPortalSDKTaskRepository(options.database);
+  const mockRuleRepo = new DevPortalMockRuleRepository(db);
+  const sdkTaskRepo = new DevPortalSDKTaskRepository(db);
   const mockManager = new MockServiceManager(mockRuleRepo);
   const sdkGenerator = new SDKGeneratorService(sdkTaskRepo);
   const subscriptionService = new APISubscriptionService(options.database);
