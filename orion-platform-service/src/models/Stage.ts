@@ -28,6 +28,13 @@ export interface Stage {
   durationMs?: number;
   result?: Record<string, unknown>;
   error?: string;
+  /**
+   * Multi-target execution configuration (carried from PipelineStage YAML).
+   * undefined = single-target stage (default behavior).
+   */
+  targets?: string[];
+  executionMode?: 'oneshot' | 'grayScale';
+  batchSize?: number;
   createdAt: Date;
   updatedAt?: Date;
 }

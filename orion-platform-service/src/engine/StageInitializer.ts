@@ -48,6 +48,9 @@ export class StageInitializer {
         condition: expanded.stage.if,
         timeoutSeconds: expanded.stage.timeout || 3600,
         maxRetries: expanded.stage.retries || 0,
+        targets: expanded.stage.targets,
+        executionMode: expanded.stage.executionMode,
+        batchSize: expanded.stage.batchSize,
       })
     );
   }
