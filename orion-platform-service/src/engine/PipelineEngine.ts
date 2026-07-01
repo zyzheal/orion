@@ -53,6 +53,10 @@ import { ScmStatusReporter } from './ScmStatusReporter';
 import { PipelineGateController } from './PipelineGateController';
 import { PipelineCrashRecovery, RecoveryResult } from './PipelineCrashRecovery';
 import { PipelineLifecycleHandler } from './PipelineLifecycleHandler';
+import { GlobalParamService } from '../services/pipeline/GlobalParamService';
+import { EnvProfileService } from '../services/pipeline/EnvProfileService';
+import { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
+import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
 
 import pino from 'pino';
 
@@ -90,6 +94,10 @@ export class PipelineEngine {
   private debugController: DebugController | null;
   private yamlPreprocessor: YamlPreprocessor | null;
   private secretsService: SecretsService | null;
+  private globalParamService: GlobalParamService | null;
+  private envProfileService: EnvProfileService | null;
+  private scriptVersionService: ScriptVersionService | null;
+  private pipelineAuditLogService: PipelineAuditLogService | null;
   private executions = new Map<string, PipelineExecution>();
 
   constructor(
@@ -114,7 +122,11 @@ export class PipelineEngine {
     deploymentStrategyService?: DeploymentStrategyService,
     yamlPreprocessor?: YamlPreprocessor | null,
     secretsService?: SecretsService | null,
-    scmStatusService?: CommitStatusService | null
+    scmStatusService?: CommitStatusService | null,
+    globalParamService?: GlobalParamService | null,
+    envProfileService?: EnvProfileService | null,
+    scriptVersionService?: ScriptVersionService | null,
+    pipelineAuditLogService?: PipelineAuditLogService | null
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -125,6 +137,10 @@ export class PipelineEngine {
     this.debugController = debugController || null;
     this.yamlPreprocessor = yamlPreprocessor || null;
     this.secretsService = secretsService || null;
+    this.globalParamService = globalParamService || null;
+    this.envProfileService = envProfileService || null;
+    this.scriptVersionService = scriptVersionService || null;
+    this.pipelineAuditLogService = pipelineAuditLogService || null;
 
     this.stageInitializer = new StageInitializer();
 
@@ -403,5 +419,21 @@ export class PipelineEngine {
 
   getDebugController(): DebugController | null {
     return this.debugController;
+  }
+
+  getGlobalParamService(): GlobalParamService | null {
+    return this.globalParamService;
+  }
+
+  getEnvProfileService(): EnvProfileService | null {
+    return this.envProfileService;
+  }
+
+  getScriptVersionService(): ScriptVersionService | null {
+    return this.scriptVersionService;
+  }
+
+  getPipelineAuditLogService(): PipelineAuditLogService | null {
+    return this.pipelineAuditLogService;
   }
 }

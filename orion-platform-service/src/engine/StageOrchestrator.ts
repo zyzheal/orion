@@ -26,6 +26,8 @@ import { StageExecutor } from './StageExecutor';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { AutoRetryService } from '../services/pipeline/AutoRetryService';
 import { ExpressionEvaluator, ExpressionContext } from './ExpressionEvaluator';
+import { StageParameterResolver } from './StageParameterResolver';
+import { ConditionRouter } from './ConditionRouter';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager';
 import { DebugController } from './DebugController';
 import { SecretsService } from '../services/pipeline/SecretsService';
@@ -73,6 +75,10 @@ export class StageOrchestrator {
 
   // Per-run variable contexts for task output propagation
   private variableContexts = new Map<string, VariableContext>();
+  // Per-run parameter resolvers (needs per-run VariableContext)
+  private parameterResolvers = new Map<string, StageParameterResolver>();
+  // Per-run condition routers (needs per-run VariableContext)
+  private conditionRouters = new Map<string, ConditionRouter>();
 
   // 防止 checkNextStages 并发调用导致重复执行
   private nextStageCheckLocks = new Map<string, Promise<void>>();
@@ -111,6 +117,9 @@ export class StageOrchestrator {
       }
     }
     this.variableContexts.set(runId, variableCtx);
+    // Create per-run parameter resolver and condition router
+    this.parameterResolvers.set(runId, new StageParameterResolver(variableCtx));
+    this.conditionRouters.set(runId, new ConditionRouter(variableCtx));
     this.stageExecutor.setVariableContext(variableCtx);
     return variableCtx;
   }
@@ -120,6 +129,8 @@ export class StageOrchestrator {
    */
   cleanupVariableContext(runId: string): void {
     this.variableContexts.delete(runId);
+    this.parameterResolvers.delete(runId);
+    this.conditionRouters.delete(runId);
   }
 
   /**
@@ -367,12 +378,18 @@ export class StageOrchestrator {
 
       // Resolve variable references in task parameters before execution
       const variableCtx = this.variableContexts.get(execution.run.id);
+      const resolver = this.parameterResolvers.get(execution.run.id);
       const resolvedTasks = variableCtx
         ? tasks.map(t => {
             const resolvedParams = variableCtx.resolveObject(
               t.parameters as Record<string, unknown>
             );
-            return { ...t, parameters: resolvedParams as Record<string, unknown> };
+            let finalParams = resolvedParams as Record<string, string>;
+            // Also resolve ${tasks.<name>.outputs.<key>} references via StageParameterResolver
+            if (resolver) {
+              finalParams = resolver.resolveStageParameters(stage.name, finalParams);
+            }
+            return { ...t, parameters: finalParams };
           })
         : tasks;
 
@@ -788,23 +805,19 @@ export class StageOrchestrator {
    */
   private registerStageOutputs(execution: PipelineExecution, stage: Stage): void {
     const variableCtx = this.variableContexts.get(execution.run.id);
-    if (!variableCtx) return;
-
-    // Find the original YAML stage definition to check for outputs declaration
-    const stageEntry = Array.from(execution.stages.entries()).find(
-      ([, s]) => s.id === stage.id
-    );
-    if (!stageEntry) return;
+    const resolver = this.parameterResolvers.get(execution.run.id);
+    if (!variableCtx || !resolver) return;
 
     // Stage outputs are stored in the stage's result field during initialization
     const stageOutputs = (stage.result as { outputs?: Record<string, string> } | undefined)?.outputs;
     if (!stageOutputs) return;
 
-    for (const [key, valueTemplate] of Object.entries(stageOutputs)) {
-      const resolvedValue = variableCtx.resolve(valueTemplate);
-      variableCtx.setTaskOutput(stage.name, key, resolvedValue);
+    // Use StageParameterResolver to extract and resolve outputs
+    const outputs = resolver.extractStageOutputs([], stageOutputs);
+    for (const [key, value] of Object.entries(outputs)) {
+      variableCtx.setTaskOutput(stage.name, key, value);
       logger.info(
-        { runId: execution.run.id, stageName: stage.name, key, value: resolvedValue },
+        { runId: execution.run.id, stageName: stage.name, key, value },
         'Stage output registered'
       );
     }
@@ -943,10 +956,18 @@ export class StageOrchestrator {
 
   /**
    * 评估 Stage 条件表达式
+   * Uses ConditionRouter for stage-level conditions (stages.X.status, stages.X.result.Y).
+   * Falls back to ExpressionEvaluator for backward compatibility.
    */
   evaluateCondition(condition: string, execution: PipelineExecution): boolean {
     try {
-      // Build expression context from execution data
+      // Use ConditionRouter if available for this run
+      const conditionRouter = this.conditionRouters.get(execution.run.id);
+      if (conditionRouter) {
+        return conditionRouter.evaluate(condition, execution);
+      }
+
+      // Fallback: Build expression context from execution data
       const context: ExpressionContext = {
         branch: execution.run.context?.git?.ref ?? '',
         tags: (execution.run.context?.tags as string[]) ?? [],
