@@ -1,7 +1,8 @@
 # Orion Go 微服务统一设计方案
 
-**文档版本**: v1.0
+**文档版本**: v1.1
 **创建日期**: 2026-06-07
+**最后更新**: 2026-07-01
 **状态**: 实施中
 **作者**: Orion Architecture Team
 
@@ -9,9 +10,9 @@
 
 ## 执行摘要
 
-本设计文档提出将 Orion 系统从 Node.js + Go 双版本架构统一为 **Go 单一技术栈**的完整方案。当前系统存在 31 个服务同时拥有 Node.js 和 Go 版本，导致维护成本高、权威实现不明确、前端调用目标混乱。
+本设计文档提出将 Orion 系统从 Node.js + Go 双版本架构统一为 **Go 单一技术栈**的完整方案。当前系统存在 29 个服务同时拥有 Node.js 和 Go 版本，导致维护成本高、权威实现不明确、前端调用目标混乱。
 
-**目标**: 以 Go (Gin + go-common) 为统一后端技术栈，分 3 波完成迁移，最终废弃所有 Node.js 微服务目录。
+**目标**: 以 Go (Gin + go-common) 为统一后端技术栈，分阶段完成迁移，最终废弃已覆盖的 Node.js 微服务目录。
 
 **预期收益**:
 - 维护成本降低 50%（消除双版本维护）
@@ -21,53 +22,97 @@
 
 ---
 
+## ⚠️ 专家修正（v1.1，2026-07-01）
+
+基于端点级代码扫描，原 v1.0 的按行数分类存在严重误导。关键修正如下：
+
+### 误判 1：inception — 按行数"Go 权威"，实际 0% 功能重叠
+
+| 维度 | TS 版本 | Go 版本 |
+|------|---------|---------|
+| 实际功能 | SQL 审核引擎 API (parse/execute/audit/validate) | 审计项目 CRUD (projects/count) |
+| 领域 | Inception TCP 协议 HTTP 包装 | 审计项目管理后台 |
+| 结论 | **完全不同。不可迁移，不可废弃 TS。** |
+
+### 误判 2：governance — 按行数"基本持平可统一"，实际 0% 功能重叠
+
+| 维度 | TS 版本 | Go 版本 |
+|------|---------|---------|
+| 实际功能 | API 合约治理 (contracts/versions/deprecations) | 策略管理 (policies CRUD/count) |
+| 结论 | **完全不同。不可迁移，不可废弃 TS。** |
+
+### 误判 3：risk — 按行数"基本持平可统一"，实际 0% 功能重叠
+
+| 维度 | TS 版本 | Go 版本 |
+|------|---------|---------|
+| 实际功能 | 风险评估引擎 (assessments/scores/trend/events) | 风险条目 CRUD (risks CRUD/count) |
+| 结论 | **完全不同。不可迁移，不可废弃 TS。** |
+
+### 核心原则修正
+
+**行数不是迁移依据，功能重叠才是。** 迁移决策应基于：
+1. 端点级功能覆盖率（Go 是否覆盖了 TS 的全部 API）
+2. 前端实际调用路径（只移植前端需要的端点）
+3. 功能域一致性（TS 和 Go 是否在做同一件事）
+
+### 迁移可行性重分类
+
+| 类别 | 服务 | 操作 |
+|------|------|------|
+| 🟢 **可立即迁移** | runner, digital-twin | 切 API Gateway 路由 |
+| 🟡 **需先补充 Go** | skill(缺前端验证), config-mgmt(缺版本管理), ticket(缺BI), pipeline(缺缓存/模板), community, code 等 | 按需补充后再切换 |
+| 🔴 **不可迁移（永久双版本）** | inception, governance, risk | 双版本独立演进 |
+| ✅ **已是 Go 权威** | canary, visor, cmdb 及 14 个 Go 仅服务 | 维持现状 |
+
+---
+
 ## 一、现状分析
 
 ### 1.1 服务分布
 
 | 类别 | 数量 | 说明 |
 |------|------|------|
-| Node.js 微服务 | 34 | `orion-*-svc/` 目录 |
-| Go 微服务 | 46 | `orion-*-svc-go/` 目录 |
-| 双版本服务 | 31 | 同时存在 Node.js 和 Go 版本 |
-| 仅 Node.js | 3 | auth-svc, tenant-svc, user-svc |
-| 仅 Go | 15 | event-bus, feature-flag, scheduler, secret 等 |
+| Node.js 微服务 | 37 | `orion-*-svc/` 目录 |
+| Go 微服务 | 47 | `orion-*-svc-go/` 目录 |
+| 双版本服务 | 29 | 同时存在 Node.js 和 Go 版本 |
+| 仅 Node.js | 8 | agent, ai-svc, ai-agents, auth, dba, knowledge, tenant, user |
+| 仅 Go | 18 | build, canary, capacity, cron, event-bus, feature-flag, inspection, lowcode, middleware-ops, notification, pipeline-template, scheduler, secret, skill-config, tool, visor, workflow, cmdb |
 
 ### 1.2 双版本服务实现差距
 
-| 分类 | 服务 | Node.js 行数 | Go 行数 | 判定 |
-|------|------|-------------|---------|------|
-| **Go 已超越** | cmdb | 974 | 1772 | Go 权威 |
-| | runner | 766 | 2171 | Go 权威 |
-| | visor | 974 | 2067 | Go 权威 |
-| | inception | 799 | 1211 | Go 权威 |
-| | config-mgmt | 1376 | 2551 | Go 权威 |
-| | skill | 1366 | 2577 | Go 权威 |
-| | canary | N/A | 2396 | Go 权威 |
-| **基本持平** | governance | 1993 | 1974 | Go 统一 |
-| | risk | 2245 | 1956 | Go 统一 |
-| | monitor | 3951 | 1953 | Go 补充 |
-| | notify | 1701 | 1182 | Go 补充 |
-| | selfhealing | 2313 | 1108 | Go 补充 |
-| | digital-twin | 1149 | 2261 | Go 权威 |
-| | dr | 5882 | 2156 | Go 补充 |
-| | artifact | 3580 | 1184 | Go 补充 |
-| | approval | 2890 | 1411 | Go 补充 |
-| | community | 3035 | 1711 | Go 补充 |
-| | efficiency | 5509 | 1239 | Go 补充 |
-| | plugin | 4446 | 950 | Go 补充 |
-| | finops | 8383 | 2500 | Go 补充 |
-| | chatops | 9185 | 2853 | Go 补充 |
-| | security | 7759 | 1276 | Go 补充 |
-| | deploy | 6732 | 1197 | Go 补充 |
-| | code | 13379 | 1873 | Go 补充 |
-| | ticket | 13816 | 7321 | Go 补充 |
-| | pipeline | 26197 | 3478 | Go 补充 |
-| **差距大** | ai | 19599 | 0 | 需新建 Go |
-| | llm | 0 | 1223 | Go 已有 |
-| | graph | 739 | 294 | Go 补充 |
-| | pandawiki | 845 | 297 | Go 补充 |
-| | intelligence | 845 | 298 | Go 补充 |
+| 分类 | 服务 | Node.js 行数 | Go 行数 | 功能重叠 | 判定 |
+|------|------|-------------|---------|---------|------|
+| **Go 已超越** | cmdb | 974 | 1772 | ✅ 已清理 | Go 权威 |
+| | runner | 766 | 2171 | ~10% | **Go 权威** |
+| | visor | 974 | 2067 | ✅ 已清理 | Go 权威 |
+| | config-mgmt | 1376 | 2551 | ~30% | **需补版本管理** |
+| | skill | 1366 | 2577 | ~40% | **Go 权威(待验证)** |
+| | canary | N/A | 2396 | N/A | Go 权威 |
+| | digital-twin | 1149 | 2261 | ~60% | **Go 权威** |
+| **同名不同域** | inception | 799 | 1211 | **0%** | **永久双版本** |
+| | governance | 1993 | 1974 | **0%** | **永久双版本** |
+| | risk | 2245 | 1956 | **0%** | **永久双版本** |
+| **需补充 Go** | monitor | 3951 | 1953 | 待分析 | Go 补充 |
+| | notify | 1701 | 1182 | 待分析 | Go 补充 |
+| | selfhealing | 2313 | 1108 | 待分析 | Go 补充 |
+| | dr | 5882 | 2156 | 待分析 | Go 补充 |
+| | artifact | 3580 | 1184 | 待分析 | Go 补充 |
+| | approval | 2890 | 1411 | 待分析 | Go 补充 |
+| | community | 3035 | 1711 | ~50% | **需补 feedback** |
+| | efficiency | 5509 | 1239 | 待分析 | Go 补充 |
+| | plugin | 4446 | 950 | 待分析 | Go 补充 |
+| | finops | 8383 | 2500 | 待分析 | Go 补充 |
+| | chatops | 9185 | 2853 | 待分析 | Go 补充 |
+| | security | 7759 | 1276 | 待分析 | Go 补充 |
+| | deploy | 6732 | 1197 | 待分析 | Go 补充 |
+| | code | 13379 | 1873 | 低 | Go 补充 |
+| | ticket | 13816 | 7321 | ~40% | **需补 BI** |
+| | pipeline | 26197 | 3478 | ~60% | **需补核心** |
+| **差距大** | ai | 19599 | 0 | N/A | Python 路径 |
+| | llm | 0 | 1223 | N/A | Go 已有 |
+| | graph | 739 | 294 | 待分析 | Go 补充 |
+| | pandawiki | 845 | 297 | 待分析 | Go 补充 |
+| | intelligence | 845 | 298 | 待分析 | Go 补充 |
 
 ### 1.3 缺失服务
 
@@ -147,27 +192,31 @@ orion-{name}-svc-go/
 
 ## 三、迁移计划
 
-### 3.1 三波迁移策略
+### 3.1 基于功能重叠的迁移策略（v1.1 修正）
 
-#### 第一波：基础设施 + 已超越服务（1-2 周）
+> ⚠️ **重要修正**: 原 v1.0 按行数分类存在严重误导。经端点级代码扫描，inception/governance/risk 为"同名不同域"（0% 功能重叠），**不可迁移、不可废弃**。详见上方"专家修正"章节。
 
-| 服务 | 当前状态 | 目标 | 工作量 |
-|------|---------|------|--------|
-| orion-cmdb-svc-go | Go 1772 行 > Node 974 | Go 权威, 废弃 Node | 低 |
-| orion-runner-svc-go | Go 2171 行 > Node 766 | Go 权威, 废弃 Node | 低 |
-| orion-visor-svc-go | Go 2067 行 > Node 974 | Go 权威, 废弃 Node | 低 |
-| orion-inception-svc-go | Go 1211 行 > Node 799 | Go 权威, 废弃 Node | 低 |
-| orion-config-mgmt-svc-go | Go 2551 行 > Node 1376 | Go 权威, 废弃 Node | 低 |
-| orion-skill-svc-go | Go 2577 行 > Node 1366 | Go 权威, 废弃 Node | 低 |
-| orion-digital-twin-svc-go | Go 2261 行 > Node 1149 | Go 权威, 废弃 Node | 低 |
-| orion-canary-svc-go | Go 2396 行, 无 Node | Go 权威 | 低 |
+#### 第一波：已确认可切换服务（1-2 周）
 
-#### 第二波：持平 + 核心服务（2-4 周）
+| 服务 | 当前状态 | 操作 | 工作量 | 说明 |
+|------|---------|------|--------|------|
+| orion-runner-svc-go | Go 2171 行，~10% 功能重叠 | 切 API Gateway 路由到 Go | 低 | 🟢 可立即迁移 |
+| orion-digital-twin-svc-go | Go 2261 行，~60% 功能重叠 | 切 API Gateway 路由到 Go | 低 | 🟢 可立即迁移 |
+| orion-config-mgmt-svc-go | Go 2551 行，~30% 功能重叠 | 先补充版本管理 API，再切换 | 中 | 🟡 需先补充 |
+| orion-skill-svc-go | Go 2577 行，~40% 功能重叠 | 先验证前端端点覆盖，再切换 | 中 | 🟡 需先验证 |
+| orion-canary-svc-go | Go 2396 行，Go-only | 已是 Go 权威，无需操作 | — | ✅ 已完成 |
+
+**已完成的切换**（TS 目录已删除，无需操作）：
+- orion-cmdb-svc-go — ✅ TS 目录已清理，Go 权威
+- orion-visor-svc-go — ✅ TS 目录已清理，Go 权威
+
+**不可迁移**（永久双版本，独立演进）：
+- orion-inception-svc-go — 🔴 0% 功能重叠，TS 为 SQL 审核引擎，Go 为审计项目 CRUD
+
+#### 第二波：核心服务 Go 补充（2-4 周）
 
 | 服务 | 当前差距 | 目标 | 工作量 |
 |------|---------|------|--------|
-| orion-governance-svc-go | 1974 ≈ 1993 | Go 统一 | 低 |
-| orion-risk-svc-go | 1956 ≈ 2245 | Go 统一 | 低 |
 | orion-ticket-svc-go | 7321 vs 13816 | Go 补充至 10000+ | 中 |
 | orion-pipeline-svc-go | 3478 vs 26197 | Go 补充核心流程 | 高 |
 | orion-deploy-svc-go | 1197 vs 6732 | Go 补充至 5000+ | 高 |
@@ -505,11 +554,11 @@ internal/
 
 | 阶段 | 时间 | 交付物 |
 |------|------|--------|
-| Phase 1: 基础设施统一 | 第 1-2 周 | 8 个已超越服务切换为 Go 权威 |
+| Phase 1: 确认可切换 | 第 1-2 周 | runner/digital-twin 切 Go 权威; config-mgmt/skill 补充后切换 |
 | Phase 2: 核心服务补充 | 第 3-6 周 | pipeline/ticket/deploy/code Go 版本补全 |
-| Phase 3: 中层服务补充 | 第 7-10 周 | finops/chatops/security/ai Go 版本补全 |
+| Phase 3: 中层服务补充 | 第 7-10 周 | finops/chatops/security Go 版本补全 |
 | Phase 4: 新建 + 收尾 | 第 11-14 周 | tool-svc 新建, 最小服务补全 |
-| Phase 5: 废弃清理 | 第 15-16 周 | 废弃 Node.js 微服务目录 |
+| Phase 5: 废弃清理 | 第 15-16 周 | 废弃可切换的 Node.js 微服务目录 |
 
 ---
 

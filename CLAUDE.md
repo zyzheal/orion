@@ -13,8 +13,10 @@ Orion is an AI-driven DevOps platform for R&D efficiency. Core主张: "不替代
 ```
 orion-platform-service/     # Core backend (Node.js + TypeScript + Fastify) — main workhorse
 orion-api-gateway/          # API Gateway (Node.js + Fastify + http-proxy)
-orion-frontend/             # Frontend (React + Vite + Ant Design + wujie micro-frontend)
-orion-ai-service/           # AI microservice (Python)
+orion-frontend/             # Frontend (React + Vite + Ant Design + Orion-MF 自研微前端)
+orion-ai-service/           # AI microservice (Python) — 权威实现
+orion-ai-svc/               # AI microservice (TS) — 微服务蓝图，与 orion-ai-service 功能重叠
+orion-ai-agents-svc/        # AI Agents 专项服务（Python 蓝图）
 orion-visor/                # Ops visualization (Java/Spring)
 orion-knowledge/            # AI knowledge base (PandaWiki fork)
 orion-dba/                  # DB management platform
@@ -23,7 +25,15 @@ docs/                       # 260+ design docs organized by domain
 
 ### orion-*-svc 独立微服务目录
 
-项目有 35 个 `orion-*-svc` 独立服务目录，**全部有真实实现代码**（非占位）。当前生产部署以 `orion-platform-service` 单体为主，这些目录是为未来微服务拆分准备的蓝图。
+项目有 **87 个** `orion-*-svc*` 独立服务目录（37 TS + 47 Go + 2 Python + 1 Rust），**全部有真实实现代码**（非占位）。当前生产部署以 `orion-platform-service` 单体为主，这些目录是为未来微服务拆分准备的蓝图。
+
+**命名约定**：
+- `orion-<domain>-service` = Python 权威服务（如 `orion-ai-service`）
+- `orion-<domain>-svc` = TS 微服务蓝图
+- `orion-<domain>-svc-go` = Go 微服务蓝图
+- `orion-<domain>-svc-py` = Python 微服务蓝图
+- `orion-cmdb-service` = 唯一已部署的 Go 服务（例外命名）
+- 完整映射见项目根目录 `MICROSERVICES.md`
 
 **开发规则**：
 - **新功能开发**应优先在 `orion-platform-service` 中实现
@@ -107,33 +117,39 @@ npx vitest run path/to/test.ts
 npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-frontend/src/pages/ --max-files 200
 ```
 
-## Key Architecture Numbers (2026-05-15)
+## Key Architecture Numbers (2026-07-01)
 
 | Dimension | Count | Notes |
 |-----------|-------|-------|
-| **Backend services** | 101 dirs in `src/services/` | 553 source .ts files, 273 test files |
+| **Backend services** | 139 dirs in `src/services/` | 100 有 index.ts barrel 导出, 38 有源码无导出 |
 | **Substantial services (3+ files)** | 73 | Services with real implementation |
-| **Frontend pages** | 149 | `orion-frontend/src/pages/` |
-| **Frontend API clients** | 101 | `orion-frontend/src/api/` |
-| **Backend routes** | 104 | `api/*-routes.ts` files |
-| **DB migrations** | 207 | SQL migration files (001+) |
+| **Frontend pages** | 202 | `orion-frontend/src/pages/` |
+| **Frontend API clients** | 239 | `orion-frontend/src/api/` |
+| **Frontend .tsx/.ts files** | 739/.tsx + 345/.ts | Frontend source files |
+| **Backend routes** | 175 | `api/*-routes.ts` files |
+| **DB migrations** | 643 | SQL migration files (001+) |
 | **Design docs** | ~466 | Across 27 category directories |
 | **ADR decisions** | 7 | `docs/adr/` |
-| **Microservice dirs** | 34 | `orion-*-svc/` (planned, not deployed separately) |
+| **Microservice dirs** | 87 | 37 TS + 47 Go + 2 Python + 1 Rust (全部蓝图, 非独立部署) |
 | **Test suites** | 305+ | Backend Jest tests |
+| **CodeGraph 索引** | 9407 文件, 113487 节点 | AST 级代码知识图谱 |
 
 ## Important Context
 
-### Current Implementation State (2026-05-15)
-- **Backend**: ~80% (73 substantial services, 30+ migrated to PostgreSQL Repository pattern)
-- **Frontend**: ~88% (149 pages, 57+ main pages + dashboard variants)
-- **API consistency**: ~95% (~30 frontend-backend path mismatches fixed)
-- **Database**: 207 migration files; most services use PostgreSQL Repository pattern
+### Current Implementation State (2026-07-01)
+- **Backend**: ~85% (139 services, 73 substantial, 30+ migrated to PostgreSQL Repository pattern)
+- **Frontend**: ~88% (202 pages, 57+ main pages + dashboard variants, 239 API clients)
+- **API consistency**: ~20% 精确匹配（35/175 routes 有对应前端页面，命名/微前端模式导致大量"假 Gap"）
+- **Database**: 643 migration files; most services use PostgreSQL Repository pattern
 - **TypeScript**: All critical errors fixed; ongoing cleanup of edge-case type issues
+- **微服务**: 87 个 orion-*-svc* 目录，全部为蓝图（非独立部署），47 个 Go 微服务仅有 go.mod 无 main.go
 
 ### Known Issues to Be Aware Of
 1. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
-2. **orion-platform-service is the monolith**: All 34 microservice directories have substantial code but are currently deployed as a single process
+2. **orion-platform-service is the monolith**: All 87 microservice directories have substantial code but are currently deployed as a single process
+3. **Go 微服务不可独立部署**: 47 个 Go 微服务目录均有 `go.mod` 但无 `main.go`，仅为编译单元
+4. **前端-后端命名不一致**: 35/175 routes 有精确匹配的前端页面（20%），大量页面通过 Orion-MF 微前端模式加载
+5. **38 个服务缺少 barrel 导出**: 有源码但无 `index.ts`，影响模块化引用
 
 ### Recent Milestones
 - **M25 Persistence Migration**: 30+ services migrated from `Map()` mock storage to PostgreSQL Repository pattern

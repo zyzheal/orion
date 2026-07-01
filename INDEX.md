@@ -34,15 +34,20 @@
 
 | 维度 | 数量 | 说明 |
 |------|------|------|
-| **后端服务目录** | 135 个 | `orion-platform-service/src/services/` |
+| **后端服务目录** | 139 个 | `orion-platform-service/src/services/` |
+| **有 barrel 导出** | 100 个 | 含 `index.ts` |
+| **有源码无 barrel** | 38 个 | 缺少 `index.ts` |
 | **后端服务模块** | 73 个 | 3+ 源码文件的实质服务 |
-| **前端页面** | 149 个 | `orion-frontend/src/pages/` |
-| **API 客户端** | 101 个 | `orion-frontend/src/api/` |
-| **后端路由** | 104 个 | `*routes.ts` 文件 |
-| **数据库迁移** | 209 个 | SQL migration 文件 (含 342_capacity_persistence, 343_dba_persistence) |
-| **设计文档** | ~198 份 | docs/ + 根目录 |
+| **前端页面** | 202 个 | `orion-frontend/src/pages/` |
+| **前端 API 客户端** | 239 个 | `orion-frontend/src/api/` |
+| **前端 .tsx 文件** | 739 个 | 前端组件源文件 |
+| **前端 .ts 文件** | 345 个 | 前端逻辑源文件 |
+| **后端路由** | 175 个 | `api/*-routes.ts` 文件 |
+| **数据库迁移** | 643 个 | SQL migration 文件 |
+| **微服务蓝图** | 87 个 | 37 TS + 47 Go + 2 Python + 1 Rust（全部非独立部署） |
+| **设计文档** | ~466 份 | docs/ + 根目录 |
 
-> 32+ 服务已迁移至 PostgreSQL Repository 模式（含 Capacity、DBA 最新迁移）。
+> 30+ 服务已迁移至 PostgreSQL Repository 模式。47 个 Go 微服务仅有 `go.mod` 无 `main.go`，为编译单元非独立部署。前端 35/175 routes 有精确匹配页面（20%），其余通过 Orion-MF 微前端或命名差异关联。
 
 ---
 
