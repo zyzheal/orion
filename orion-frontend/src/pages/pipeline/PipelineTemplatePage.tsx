@@ -205,19 +205,23 @@ const PipelineTemplatePage: React.FC = () => {
     try {
       const values = await instantiateForm.validateFields();
       setInstantiateLoading(true);
+
+      let parsedParams: Record<string, unknown> | undefined;
+      if (values.params) {
+        try {
+          parsedParams = JSON.parse(values.params);
+        } catch {
+          message.error('参数必须是有效的 JSON 格式');
+          setInstantiateLoading(false);
+          return;
+        }
+      }
+
       await pipelineTemplatesApi.instantiate(selectedTemplate.id, {
         name: values.name,
         tenant_id: values.tenant_id,
         project_id: values.project_id,
-        params: values.params
-          ? (() => {
-              try {
-                return JSON.parse(values.params);
-              } catch {
-                return undefined;
-              }
-            })()
-          : undefined,
+        params: parsedParams,
       });
       message.success('流水线实例化成功');
       setInstantiateModalVisible(false);

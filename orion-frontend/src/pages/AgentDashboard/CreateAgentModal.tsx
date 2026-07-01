@@ -55,6 +55,28 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
         return;
       }
 
+      let capabilities: Record<string, unknown> | undefined;
+      if (values.capabilities) {
+        try {
+          capabilities = JSON.parse(values.capabilities);
+        } catch {
+          message.error('能力配置必须是有效的 JSON');
+          setSaving(false);
+          return;
+        }
+      }
+
+      let constraints: Record<string, unknown> | undefined;
+      if (values.constraints) {
+        try {
+          constraints = JSON.parse(values.constraints);
+        } catch {
+          message.error('约束配置必须是有效的 JSON');
+          setSaving(false);
+          return;
+        }
+      }
+
       if (isEdit && agent) {
         await updateAgentProfile(agent.id, {
           name: values.name,
@@ -62,8 +84,8 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
           description: values.description,
           tools,
           enabled: values.enabled ?? true,
-          capabilities: values.capabilities ? JSON.parse(values.capabilities) : undefined,
-          constraints: values.constraints ? JSON.parse(values.constraints) : undefined,
+          capabilities,
+          constraints,
           llmConfig: values.llmModel
             ? {
                 model: values.llmModel,
@@ -80,8 +102,8 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
           description: values.description,
           tools,
           enabled: values.enabled ?? true,
-          capabilities: values.capabilities ? JSON.parse(values.capabilities) : undefined,
-          constraints: values.constraints ? JSON.parse(values.constraints) : undefined,
+          capabilities,
+          constraints,
           llmConfig: values.llmModel
             ? {
                 model: values.llmModel,
