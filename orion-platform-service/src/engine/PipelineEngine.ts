@@ -160,6 +160,10 @@ export class PipelineEngine {
       checkpointManager: this.checkpointManager,
       debugController: this.debugController,
       secretsService: this.secretsService,
+      globalParamService: this.globalParamService,
+      envProfileService: this.envProfileService,
+      scriptVersionService: this.scriptVersionService,
+      pipelineAuditLogService: this.pipelineAuditLogService,
       grayscaleController: this.grayscaleController,
       multiTargetExecutor: this.multiTargetExecutor,
     });

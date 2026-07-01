@@ -31,6 +31,10 @@ import { ConditionRouter } from './ConditionRouter';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager';
 import { DebugController } from './DebugController';
 import { SecretsService } from '../services/pipeline/SecretsService';
+import { GlobalParamService } from '../services/pipeline/GlobalParamService';
+import { EnvProfileService } from '../services/pipeline/EnvProfileService';
+import { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
+import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
 import { PipelineExecution } from './PipelineEngine';
 import { VariableContext } from './VariableContext';
 import { GrayScaleController } from './GrayScaleController';
@@ -52,6 +56,10 @@ export interface StageOrchestratorDeps {
   checkpointManager: PipelineCheckpointManager | null;
   debugController: DebugController | null;
   secretsService: SecretsService | null;
+  globalParamService: GlobalParamService | null;
+  envProfileService: EnvProfileService | null;
+  scriptVersionService: ScriptVersionService | null;
+  pipelineAuditLogService: PipelineAuditLogService | null;
   grayscaleController: GrayScaleController;
   multiTargetExecutor: MultiTargetExecutor;
 }
@@ -69,6 +77,10 @@ export class StageOrchestrator {
   private checkpointManager: PipelineCheckpointManager | null;
   private debugController: DebugController | null;
   private secretsService: SecretsService | null;
+  private globalParamService: GlobalParamService | null;
+  private envProfileService: EnvProfileService | null;
+  private scriptVersionService: ScriptVersionService | null;
+  private pipelineAuditLogService: PipelineAuditLogService | null;
   private grayscaleController: GrayScaleController;
   private multiTargetExecutor: MultiTargetExecutor;
 
@@ -95,6 +107,10 @@ export class StageOrchestrator {
     this.checkpointManager = deps.checkpointManager;
     this.debugController = deps.debugController;
     this.secretsService = deps.secretsService;
+    this.globalParamService = deps.globalParamService;
+    this.envProfileService = deps.envProfileService;
+    this.scriptVersionService = deps.scriptVersionService;
+    this.pipelineAuditLogService = deps.pipelineAuditLogService;
     this.grayscaleController = deps.grayscaleController;
     this.multiTargetExecutor = deps.multiTargetExecutor;
   }
@@ -203,6 +219,8 @@ export class StageOrchestrator {
         execution.completedStages.add(stageId);
         // Checkpoint: stage skipped due to condition
         await this.saveCheckpoint(execution, stage.name);
+        // Audit: record stage skip event (condition not met)
+        this.recordStageAudit(execution, skippedStage, 'skip', 'failure', undefined, 'Condition not met').catch(() => {});
         continue;
       }
 
@@ -228,6 +246,8 @@ export class StageOrchestrator {
 
         execution.pendingStages.delete(stageId);
         execution.completedStages.add(stageId);
+        // Audit: record stage skip event (approval rejected)
+        this.recordStageAudit(execution, skippedStage, 'skip', 'failure', undefined, 'Approval rejected').catch(() => {});
         continue;
       }
 
@@ -370,6 +390,8 @@ export class StageOrchestrator {
     this.sseBridge?.publishStageStarted(execution.run.pipelineId, execution.run.id, runningStage);
     // Checkpoint: stage started
     await this.saveCheckpoint(execution, stage.name);
+    // Audit: record stage start event
+    this.recordStageAudit(execution, runningStage, 'start', 'success').catch(() => {});
 
     try {
       // 获取 Stage 的 Tasks
@@ -449,6 +471,28 @@ export class StageOrchestrator {
           }
         }
 
+        // Resolve GlobalParam and EnvProfile variables for this task
+        try {
+          const serviceParams = await this.resolveServiceParameters(execution, resolvedTask);
+          if (serviceParams.params && Object.keys(serviceParams.params).length > 0) {
+            resolvedTask = { ...resolvedTask, parameters: { ...resolvedTask.parameters, ...serviceParams.params } };
+          }
+          if (serviceParams.env && Object.keys(serviceParams.env).length > 0) {
+            resolvedTask = {
+              ...resolvedTask,
+              parameters: {
+                ...resolvedTask.parameters,
+                env: { ...((resolvedTask.parameters as Record<string, unknown>).env as Record<string, string> || {}), ...serviceParams.env },
+              },
+            };
+          }
+        } catch (error) {
+          logger.warn(
+            { taskId: task.id, error: error instanceof Error ? error.message : String(error) },
+            'Service parameter resolution failed, continuing without service params'
+          );
+        }
+
         // Debug integration: check if we should pause before this task
         if (this.debugController && this.debugController.shouldPause(execution.run.id)) {
           // Block until resume signal (or step mode allows one task)
@@ -499,6 +543,8 @@ export class StageOrchestrator {
       this.sseBridge?.publishStageCompleted(execution.run.pipelineId, execution.run.id, completedStage);
       // Checkpoint: stage completed
       await this.saveCheckpoint(execution, stage.name);
+      // Audit: record stage complete event
+      this.recordStageAudit(execution, completedStage, 'complete', 'success', completedStage.durationMs).catch(() => {});
 
       execution.runningStages.delete(stage.id);
       execution.completedStages.add(stage.id);
@@ -553,6 +599,8 @@ export class StageOrchestrator {
       this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
       // Checkpoint: stage failed
       await this.saveCheckpoint(execution, stage.name);
+      // Audit: record stage fail event
+      this.recordStageAudit(execution, failedStage, 'fail', 'failure', failedStage.durationMs, failedStage.error || undefined).catch(() => {});
 
       execution.runningStages.delete(stage.id);
       execution.completedStages.add(stage.id);
@@ -701,6 +749,8 @@ export class StageOrchestrator {
         execution.completedStages.add(stageId);
         // Checkpoint: stage skipped
         await this.saveCheckpoint(execution, stage.name);
+        // Audit: record stage skip event (dependency failed)
+        this.recordStageAudit(execution, skippedStage, 'skip', 'failure', undefined, 'Dependency failed').catch(() => {});
         continue;
       }
 
@@ -820,6 +870,98 @@ export class StageOrchestrator {
         'Stage output registered'
       );
     }
+  }
+
+  /**
+   * Record a stage lifecycle audit event (fire-and-forget).
+   */
+  private async recordStageAudit(
+    execution: PipelineExecution,
+    stage: Stage,
+    action: 'start' | 'complete' | 'skip' | 'fail',
+    outcome: 'success' | 'failure',
+    durationMs?: number,
+    errorMessage?: string,
+  ): Promise<void> {
+    if (!this.pipelineAuditLogService) return;
+
+    // Map outcome to AuditOutcome type ('success' | 'failed' | 'pending')
+    const auditOutcome: 'success' | 'failed' | 'pending' = outcome === 'success' ? 'success' : 'failed';
+
+    const tenantId = (execution.run.context as any)?.tenantId || 'default';
+    try {
+      await this.pipelineAuditLogService.recordStageEvent({
+        tenantId,
+        runId: execution.run.id,
+        stageId: stage.id,
+        action,
+        actor: execution.run.triggerBy || 'system',
+        outcome: auditOutcome,
+        durationMs,
+        errorMessage,
+        metadata: { stageName: stage.name, pipelineId: execution.run.pipelineId },
+      });
+    } catch (error) {
+      logger.warn(
+        { stageId: stage.id, error: error instanceof Error ? error.message : String(error) },
+        'Failed to record stage audit event (non-fatal)'
+      );
+    }
+  }
+
+  /**
+   * Resolve GlobalParam and EnvProfile variables for a task.
+   *
+   * Global params: resolves ${global.xxx} references from GlobalParamService.
+   * Env profile: resolves environment variables from EnvProfileService based on run environment.
+   *
+   * @returns Object with `params` (merged into task.parameters) and `env` (merged into task.parameters.env)
+   */
+  private async resolveServiceParameters(
+    execution: PipelineExecution,
+    task: Task,
+  ): Promise<{ params: Record<string, string>; env: Record<string, string> }> {
+    const tenantId = (execution.run.context as any)?.tenantId || 'default';
+    const environment = execution.run.environment;
+    const params: Record<string, string> = {};
+    const env: Record<string, string> = {};
+
+    // Resolve GlobalParam references
+    if (this.globalParamService) {
+      try {
+        const globalKeys: Record<string, string> = {};
+        for (const [key, value] of Object.entries(task.parameters)) {
+          if (typeof value === 'string' && value.includes('${global.')) {
+            globalKeys[key] = value;
+          }
+        }
+        if (Object.keys(globalKeys).length > 0) {
+          const resolved = await this.globalParamService.resolve(tenantId, globalKeys);
+          Object.assign(params, resolved);
+        }
+      } catch (error) {
+        logger.warn(
+          { taskId: task.id, error: error instanceof Error ? error.message : String(error) },
+          'GlobalParam resolution failed'
+        );
+      }
+    }
+
+    // Resolve EnvProfile variables
+    if (this.envProfileService && environment) {
+      try {
+        const profileName = `default-${environment}`;
+        const resolvedEnv = await this.envProfileService.resolveVariables(tenantId, profileName, environment);
+        Object.assign(env, resolvedEnv);
+      } catch (error) {
+        logger.warn(
+          { taskId: task.id, environment, error: error instanceof Error ? error.message : String(error) },
+          'EnvProfile resolution failed'
+        );
+      }
+    }
+
+    return { params, env };
   }
 
   /**
