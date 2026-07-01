@@ -799,7 +799,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, digitalTwinRoutes, '/digital-twins', { database: options.database });
 
   // ==================== API Governance ====================
-  await registerWithRoleGuard(app, apiGovernanceRoutes, '/api-governance');
+  await registerWithRoleGuard(app, apiGovernanceRoutes, '/api-governance', { database: options.database });
 
   // Efficiency Enhanced routes migrated to efficiency-svc
 
