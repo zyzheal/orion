@@ -32,6 +32,9 @@ import { SecretsService } from '../services/pipeline/SecretsService';
 import { getGlobalSecretsService } from '../api/secret-routes';
 import { PipelineExecution } from './PipelineEngine';
 import { VariableContext } from './VariableContext';
+import { GrayScaleController } from './GrayScaleController';
+import { MultiTargetExecutor, MultiTargetResult } from './MultiTargetExecutor';
+import { PipelineStage } from '../models/Pipeline';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -49,6 +52,8 @@ export interface StageOrchestratorDeps {
   checkpointManager: PipelineCheckpointManager | null;
   debugController: DebugController | null;
   secretsService: SecretsService | null;
+  grayscaleController: GrayScaleController;
+  multiTargetExecutor: MultiTargetExecutor;
 }
 
 export class StageOrchestrator {
@@ -64,6 +69,8 @@ export class StageOrchestrator {
   private checkpointManager: PipelineCheckpointManager | null;
   private debugController: DebugController | null;
   private secretsService: SecretsService | null;
+  private grayscaleController: GrayScaleController;
+  private multiTargetExecutor: MultiTargetExecutor;
 
   // Per-run variable contexts for task output propagation
   private variableContexts = new Map<string, VariableContext>();
@@ -84,6 +91,8 @@ export class StageOrchestrator {
     this.checkpointManager = deps.checkpointManager;
     this.debugController = deps.debugController;
     this.secretsService = deps.secretsService;
+    this.grayscaleController = deps.grayscaleController;
+    this.multiTargetExecutor = deps.multiTargetExecutor;
   }
 
   getVariableContexts(): Map<string, VariableContext> {
@@ -229,8 +238,107 @@ export class StageOrchestrator {
 
     logger.info({ stageCount: eligibleStageIds.length, stageIds: eligibleStageIds }, 'Executing stages');
 
-    // 并行执行所有符合条件的 stages
-    const executionPromises = eligibleStageIds.map(async (stageId) => {
+    // 分离多目标 stages 和单目标 stages
+    const multiTargetStageIds: string[] = [];
+    const singleTargetStageIds: string[] = [];
+    for (const stageId of eligibleStageIds) {
+      const stage = execution.stages.get(stageId);
+      if (stage?.targets && stage.targets.length > 0) {
+        multiTargetStageIds.push(stageId);
+      } else {
+        singleTargetStageIds.push(stageId);
+      }
+    }
+
+    // 串行执行多目标 stages（每个通过 MultiTargetExecutor）
+    for (const stageId of multiTargetStageIds) {
+      const stage = execution.stages.get(stageId);
+      if (!stage) continue;
+
+      const runningStage = {
+        ...stage,
+        status: StageStatus.RUNNING,
+        startedAt: new Date(),
+      };
+      execution.stages.set(stageId, runningStage);
+      await this.runService.updateStage(runningStage);
+      await this.eventPublisher.publishStageStarted(execution.run.id, runningStage);
+      this.sseBridge?.publishStageStarted(execution.run.pipelineId, execution.run.id, runningStage);
+      await this.saveCheckpoint(execution, stage.name);
+
+      try {
+        const result = await this.multiTargetExecutor.execute(
+          execution.run,
+          execution,
+          stage as PipelineStage
+        );
+
+        if (result.overallSuccess) {
+          const completedStage = {
+            ...runningStage,
+            status: StageStatus.SUCCESS,
+            completedAt: new Date(),
+            durationMs: Date.now() - runningStage.startedAt!.getTime(),
+          };
+          execution.stages.set(stageId, completedStage);
+          execution.runningStages.delete(stageId);
+          execution.completedStages.add(stageId);
+          await this.runService.updateStage(completedStage);
+          await this.eventPublisher.publishStageCompleted(execution.run.id, completedStage);
+          this.sseBridge?.publishStageCompleted(execution.run.pipelineId, execution.run.id, completedStage);
+          await this.saveCheckpoint(execution, stage.name);
+        } else {
+          const failedStage = {
+            ...runningStage,
+            status: StageStatus.FAILED,
+            completedAt: new Date(),
+            durationMs: Date.now() - runningStage.startedAt!.getTime(),
+            error: 'Multi-target execution failed',
+          };
+          execution.stages.set(stageId, failedStage);
+          execution.runningStages.delete(stageId);
+          execution.completedStages.add(stageId);
+          await this.runService.updateStage(failedStage);
+          await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
+          this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
+          await this.saveCheckpoint(execution, stage.name);
+
+          // 标记 PipelineRun 为 FAILED
+          const failedRun = {
+            ...execution.run,
+            status: PipelineRunStatus.FAILED,
+          };
+          execution.run = failedRun;
+          await this.runService.updateRun(failedRun);
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const failedStage = {
+          ...runningStage,
+          status: StageStatus.FAILED,
+          completedAt: new Date(),
+          durationMs: Date.now() - runningStage.startedAt!.getTime(),
+          error: errorMessage,
+        };
+        execution.stages.set(stageId, failedStage);
+        execution.runningStages.delete(stageId);
+        execution.completedStages.add(stageId);
+        await this.runService.updateStage(failedStage);
+        await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
+        this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
+        await this.saveCheckpoint(execution, stage.name);
+
+        const failedRun = {
+          ...execution.run,
+          status: PipelineRunStatus.FAILED,
+        };
+        execution.run = failedRun;
+        await this.runService.updateRun(failedRun);
+      }
+    }
+
+    // 并行执行所有单目标 stages（原有逻辑）
+    const singleTargetPromises = singleTargetStageIds.map(async (stageId) => {
       const stage = execution.stages.get(stageId);
       if (!stage) return;
       try {
@@ -240,7 +348,7 @@ export class StageOrchestrator {
       }
     });
 
-    await Promise.allSettled(executionPromises);
+    await Promise.allSettled(singleTargetPromises);
   }
 
   /**

@@ -51,6 +51,8 @@ import { ScmStatusReporter } from './ScmStatusReporter';
 import { PipelineGateController } from './PipelineGateController';
 import { PipelineCrashRecovery, RecoveryResult } from './PipelineCrashRecovery';
 import { PipelineLifecycleHandler } from './PipelineLifecycleHandler';
+import { GrayScaleController } from './GrayScaleController';
+import { MultiTargetExecutor } from './MultiTargetExecutor';
 
 import pino from 'pino';
 
@@ -124,6 +126,9 @@ export class PipelineEngine {
 
     this.stageInitializer = new StageInitializer();
 
+    const grayscaleController = new GrayScaleController();
+    const multiTargetExecutor = new MultiTargetExecutor(grayscaleController, stageExecutor);
+
     this.stageOrchestrator = new StageOrchestrator({
       pipelineService, runService, eventPublisher,
       sseBridge: this.sseBridge, stageExecutor,
@@ -134,6 +139,8 @@ export class PipelineEngine {
       checkpointManager: this.checkpointManager,
       debugController: this.debugController,
       secretsService: this.secretsService,
+      grayscaleController,
+      multiTargetExecutor,
     });
 
     this.notificationDispatcher = new NotificationDispatcher({
