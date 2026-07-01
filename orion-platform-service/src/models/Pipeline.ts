@@ -92,6 +92,26 @@ export interface PipelineStage {
       config: Record<string, unknown>;
     };
   };
+  /**
+   * Multi-target execution configuration.
+   * When present, the stage runs across multiple nodes instead of a single container.
+   * Each target is a logical node identity (e.g., server hostname, runner label, IP).
+   */
+  targets?: string[];
+  /**
+   * Execution mode for multi-target stages.
+   * - oneshot: all targets execute the stage simultaneously (parallel)
+   * - grayScale: targets are split into batches, each batch runs sequentially
+   *              after the previous batch completes
+   * Ignored when targets is absent or empty.
+   */
+  executionMode?: 'oneshot' | 'grayScale';
+  /**
+   * Batch size for grayScale mode.
+   * Number of targets per batch. Defaults to 1 (one target at a time).
+   * Ignored when executionMode is not 'grayScale'.
+   */
+  batchSize?: number;
 }
 
 export interface PipelineSpec {
