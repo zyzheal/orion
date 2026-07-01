@@ -16,7 +16,7 @@ import {
 import { useAppStore } from '@/stores/appStore';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const menuItems = [
   { key: '/observability/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
@@ -24,6 +24,13 @@ const menuItems = [
   { key: '/observability/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
   { key: '/observability/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
 ];
+
+const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
+  '/observability/diagnostic/sessions': { icon: <PlayCircleOutlined />, title: 'Sessions', subtitle: '诊断会话管理' },
+  '/observability/diagnostic/reports': { icon: <FileTextOutlined />, title: 'Reports', subtitle: '诊断报告查看' },
+  '/observability/diagnostic/knowledge': { icon: <BookOutlined />, title: 'Knowledge Base', subtitle: '诊断知识库' },
+  '/observability/diagnostic/trigger': { icon: <RocketOutlined />, title: 'Trigger', subtitle: '诊断触发规则' },
+};
 
 // 统一的 Layout 配置
 const LAYOUT_CONFIG = {
@@ -42,6 +49,7 @@ const DiagnosticLayout: React.FC = () => {
   const isDark = theme === 'dark';
 
   const selectedKey = location.pathname;
+  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'Diagnostic', subtitle: '' };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -84,6 +92,17 @@ const DiagnosticLayout: React.FC = () => {
             background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
           }}
         >
+          {pageInfo.title && (
+            <div style={{ marginBottom: spacing.md }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <Text type="secondary">{pageInfo.subtitle}</Text>
+              )}
+            </div>
+          )}
           <Outlet />
         </Content>
       </Layout>

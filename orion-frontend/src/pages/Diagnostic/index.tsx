@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const menuItems = [
   { key: '/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
@@ -23,6 +23,13 @@ const menuItems = [
   { key: '/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
 ];
 
+const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
+  '/diagnostic/sessions': { icon: <PlayCircleOutlined />, title: '诊断会话', subtitle: '管理和跟踪所有诊断会话' },
+  '/diagnostic/reports': { icon: <FileTextOutlined />, title: '诊断报告', subtitle: '查看诊断报告和模式匹配结果' },
+  '/diagnostic/knowledge': { icon: <BookOutlined />, title: '知识库', subtitle: '诊断模式和解决方案管理' },
+  '/diagnostic/trigger': { icon: <RocketOutlined />, title: '触发诊断', subtitle: '手动触发新的诊断会话' },
+};
+
 const DiagnosticLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,6 +37,7 @@ const DiagnosticLayout: React.FC = () => {
   const [loading, _setLoading] = useState(false);
 
   const selectedKey = location.pathname;
+  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: '诊断中心', subtitle: '' };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -69,6 +77,17 @@ const DiagnosticLayout: React.FC = () => {
             background: colors.light.bg.primary,
           }}
         >
+          {pageInfo.title && (
+            <div style={{ marginBottom: spacing.md }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <Text type="secondary">{pageInfo.subtitle}</Text>
+              )}
+            </div>
+          )}
           <Spin spinning={loading}>
             <Outlet />
           </Spin>

@@ -16,7 +16,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAppStore } from '@/stores/appStore';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 // 统一菜单项配置
 const menuItems = [
@@ -26,6 +26,14 @@ const menuItems = [
   { key: '/observability/self-healing/approvals', icon: <CheckSquareOutlined />, label: 'Approval Queue' },
   { key: '/observability/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
 ];
+
+const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
+  '/observability/self-healing/incidents': { icon: <MedicineBoxOutlined />, title: 'Incidents', subtitle: '当前待处理的自我修复事件' },
+  '/observability/self-healing/history': { icon: <HistoryOutlined />, title: 'Healing History', subtitle: '查看历史修复记录' },
+  '/observability/self-healing/strategies': { icon: <ExperimentOutlined />, title: 'Strategies', subtitle: '管理修复策略配置' },
+  '/observability/self-healing/approvals': { icon: <CheckSquareOutlined />, title: 'Approval Queue', subtitle: '待审核的修复操作' },
+  '/observability/self-healing/effectiveness': { icon: <DashboardOutlined />, title: 'Effectiveness', subtitle: '自我修复效果分析' },
+};
 
 // 统一的 Layout 配置
 const LAYOUT_CONFIG = {
@@ -46,6 +54,9 @@ const SelfHealingLayout: React.FC = () => {
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
+
+  const selectedKey = location.pathname;
+  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'Self-Healing', subtitle: '' };
 
   return (
     <Layout style={{ minHeight: 'calc(100vh - 64px)' }}>
@@ -69,7 +80,7 @@ const SelfHealingLayout: React.FC = () => {
         )}
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={handleMenuClick}
           style={{ borderRight: 'none' }}
@@ -83,6 +94,17 @@ const SelfHealingLayout: React.FC = () => {
             background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
           }}
         >
+          {pageInfo.title && (
+            <div style={{ marginBottom: spacing.md }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <Text type="secondary">{pageInfo.subtitle}</Text>
+              )}
+            </div>
+          )}
           <Outlet />
         </Content>
       </Layout>

@@ -10,7 +10,7 @@ import DashboardCore from '@/pages/DashboardCore';
 vi.mock('@/api/client', () => ({
   api: {
     get: vi.fn((url: string) => {
-      if (url === '/v1/efficiency/dashboard') {
+      if (url === '/efficiency/dashboard') {
         return Promise.resolve({
           data: {
             dashboard: {
@@ -28,15 +28,18 @@ vi.mock('@/api/client', () => ({
       }
       if (url === '/v1/alerts') {
         return Promise.resolve({
-          data: [
-            {
-              id: 'alert-1',
-              metric: 'CPU过高',
-              message: '服务器CPU使用率超过90%',
-              status: 'active',
-              created_at: '2026-04-12T10:00:00Z',
-            },
-          ],
+          data: {
+            activeCount: 3,
+            data: [
+              {
+                id: 'alert-1',
+                metric: 'CPU过高',
+                message: '服务器CPU使用率超过90%',
+                status: 'active',
+                created_at: '2026-04-12T10:00:00Z',
+              },
+            ],
+          },
         });
       }
       return Promise.resolve({ data: null });

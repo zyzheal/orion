@@ -25,6 +25,14 @@ const menuItems = [
   { key: '/ai-review/config', icon: <SettingOutlined />, label: 'Configuration' },
 ];
 
+const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
+  '/ai-review': { icon: <ScanOutlined />, title: 'Dashboard', subtitle: 'AI 代码评审总览' },
+  '/ai-review/history': { icon: <HistoryOutlined />, title: 'Review History', subtitle: '查看历史评审记录' },
+  '/ai-review/detail': { icon: <FileSearchOutlined />, title: 'Review Detail', subtitle: '查看评审详情' },
+  '/ai-review/rules': { icon: <BulbOutlined />, title: 'Review Rules', subtitle: '管理评审规则配置' },
+  '/ai-review/config': { icon: <SettingOutlined />, title: 'Configuration', subtitle: 'AI Review 系统配置' },
+};
+
 const AIReviewLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,6 +41,9 @@ const AIReviewLayout: React.FC = () => {
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
+
+  const selectedKey = location.pathname;
+  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'AI Review', subtitle: '' };
 
   return (
     <Layout style={{ minHeight: 'calc(100vh - 64px)' }}>
@@ -52,13 +63,24 @@ const AIReviewLayout: React.FC = () => {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={handleMenuClick}
         />
       </Sider>
       <Layout>
-        <Content style={{ margin: 0 }}>
+        <Content style={{ margin: 0, padding: spacing.lg, background: colors.light.bg.primary }}>
+          {pageInfo.title && (
+            <div style={{ marginBottom: spacing.md }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <Text type="secondary">{pageInfo.subtitle}</Text>
+              )}
+            </div>
+          )}
           <Outlet />
         </Content>
       </Layout>

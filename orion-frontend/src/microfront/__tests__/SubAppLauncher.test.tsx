@@ -27,6 +27,17 @@ vi.mock('antd', async () => {
   };
 });
 
+// Mock subappStore to prevent zustand persist state pollution
+const mockApps: any[] = [];
+vi.mock('@/stores/subappStore', () => ({
+  useSubAppStore: () => ({
+    apps: [],
+    loading: false,
+    error: null,
+    fetchApps: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 // Mock the SubAppTrigger component
 vi.mock('@/components/SubAppLauncher', async () => {
   const actual = await vi.importActual('@/components/SubAppLauncher');
