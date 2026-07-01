@@ -1,11 +1,11 @@
 /**
  * Configuration Version Management Service
- * 
+ *
  * 配置版本管理 - 支持变更追踪与回滚
  */
 
 import pino from 'pino';
-import { DatabasePool } from '../database';
+import { ConfigVersionRepository } from '../../repositories/ConfigVersionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'ConfigVersionService' });
@@ -41,7 +41,7 @@ export interface ConfigSnapshot {
 // ==================== 版本服务 ====================
 
 export class ConfigVersionService {
-  constructor(private pool: DatabasePool) {}
+  constructor(private repo: ConfigVersionRepository) {}
 
   /**
    * 记录配置变更
@@ -55,11 +55,29 @@ export class ConfigVersionService {
     changeType: 'create' | 'update' | 'delete',
     comment?: string
   ): Promise<ConfigVersion> {
-    const version = await this.getNextVersion(domain, key);
+    const version = await this.repo.getMaxVersion(domain, key);
+    const nextVersion = version + 1;
     const checksum = this.calculateChecksum(newValue);
-    
-    const record: ConfigVersion = {
-      id: this.generateId(),
+
+    const id = this.generateId();
+    await this.repo.insertVersion({
+      id,
+      domain,
+      key,
+      oldValue: JSON.stringify(oldValue ?? {}),
+      newValue: JSON.stringify(newValue ?? {}),
+      changedBy,
+      changedAt: new Date(),
+      changeType,
+      version: nextVersion,
+      comment,
+      checksum,
+    });
+
+    logger.info({ domain, key, version: nextVersion }, 'Config change recorded');
+
+    return {
+      id,
       domain,
       key,
       oldValue,
@@ -67,32 +85,10 @@ export class ConfigVersionService {
       changedBy,
       changedAt: new Date(),
       changeType,
-      version,
+      version: nextVersion,
       comment,
       checksum,
     };
-
-    await this.pool.query(
-      `INSERT INTO config_versions 
-       (id, domain, key, old_value, new_value, changed_by, change_type, version, comment, checksum, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        record.id,
-        record.domain,
-        record.key,
-        JSON.stringify(record.oldValue),
-        JSON.stringify(record.newValue),
-        record.changedBy,
-        record.changeType,
-        record.version,
-        record.comment,
-        record.checksum,
-        record.changedAt,
-      ]
-    );
-
-    logger.info({ domain, key, version }, 'Config change recorded');
-    return record;
   }
 
   /**
@@ -103,28 +99,8 @@ export class ConfigVersionService {
     key?: string,
     limit: number = 50
   ): Promise<ConfigVersion[]> {
-    let query = 'SELECT * FROM config_versions';
-    const params: any[] = [];
-    const conditions: string[] = [];
-
-    if (domain) {
-      conditions.push(`domain = $${params.length + 1}`);
-      params.push(domain);
-    }
-    if (key) {
-      conditions.push(`key = $${params.length + 1}`);
-      params.push(key);
-    }
-
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-
-    query += ` ORDER BY changed_at DESC LIMIT $${params.length + 1}`;
-    params.push(limit);
-
-    const result = await this.pool.query(query, params);
-    return result.rows.map(this.mapRowToVersion);
+    const entities = await this.repo.findVersions({ domain, key, limit });
+    return entities.map(this.mapEntityToVersion);
   }
 
   /**
@@ -144,12 +120,11 @@ export class ConfigVersionService {
       throw new OrionError(`Version ${targetVersion} not found for ${domain}.${key}`, ErrorCode.NOT_FOUND);
     }
 
-    // 记录回滚操作
     const rollbackRecord = await this.recordChange(
       domain,
       key,
-      targetRecord.newValue,  // 当前值
-      targetRecord.oldValue,  // 回滚到旧值
+      targetRecord.newValue,
+      targetRecord.oldValue,
       rolledBackBy,
       'update',
       `Rollback to version ${targetVersion}. Reason: ${reason || 'N/A'}`
@@ -178,20 +153,15 @@ export class ConfigVersionService {
       description,
     };
 
-    await this.pool.query(
-      `INSERT INTO config_snapshots 
-       (id, snapshot_name, created_by, config_data, checksum, description, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        snapshot.id,
-        snapshot.snapshotName,
-        snapshot.createdBy,
-        JSON.stringify(snapshot.configData),
-        snapshot.checksum,
-        snapshot.description,
-        snapshot.createdAt,
-      ]
-    );
+    await this.repo.insertSnapshot({
+      id: snapshot.id,
+      snapshotName: name,
+      createdBy,
+      createdAt: snapshot.createdAt,
+      configData: JSON.stringify(configData),
+      checksum: snapshot.checksum,
+      description,
+    });
 
     logger.info({ name, id: snapshot.id }, 'Config snapshot created');
     return snapshot;
@@ -202,32 +172,23 @@ export class ConfigVersionService {
    */
   async restoreSnapshot(
     snapshotId: string,
-    restoredBy: string
+    _restoredBy: string
   ): Promise<ConfigSnapshot> {
-    const result = await this.pool.query(
-      'SELECT * FROM config_snapshots WHERE id = $1',
-      [snapshotId]
-    );
+    const entity = await this.repo.findSnapshotById(snapshotId);
 
-    if (result.rows.length === 0) {
+    if (!entity) {
       throw new OrionError(`Snapshot ${snapshotId} not found`, ErrorCode.NOT_FOUND);
     }
 
-    const snapshot = this.mapRowToSnapshot(result.rows[0]);
-    
-    logger.info({ snapshotId }, 'Snapshot restored');
-    return snapshot;
+    return this.mapEntityToSnapshot(entity);
   }
 
   /**
    * 列出快照
    */
   async listSnapshots(limit: number = 20): Promise<ConfigSnapshot[]> {
-    const result = await this.pool.query(
-      'SELECT * FROM config_snapshots ORDER BY created_at DESC LIMIT $1',
-      [limit]
-    );
-    return result.rows.map(this.mapRowToSnapshot);
+    const entities = await this.repo.findSnapshots({ limit });
+    return entities.map(this.mapEntityToSnapshot);
   }
 
   /**
@@ -238,36 +199,28 @@ export class ConfigVersionService {
     removed: string[];
     changed: { key: string; old: any; new: any }[];
   }> {
-    const [v1, v2] = await Promise.all([
-      this.pool.query('SELECT * FROM config_versions WHERE id = $1', [version1Id]),
-      this.pool.query('SELECT * FROM config_versions WHERE id = $1', [version2Id]),
+    const [e1, e2] = await Promise.all([
+      this.repo.findVersionById(version1Id),
+      this.repo.findVersionById(version2Id),
     ]);
 
-    if (v1.rows.length === 0 || v2.rows.length === 0) {
+    if (!e1 || !e2) {
       throw new OrionError('Version not found', ErrorCode.NOT_FOUND);
     }
 
-    const oldObj = v1.rows[0].new_value;
-    const newObj = v2.rows[0].new_value;
+    const oldObj = JSON.parse(e1.newValue);
+    const newObj = JSON.parse(e2.newValue);
 
-    const added = Object.keys(newObj).filter(k => !oldObj[k]);
-    const removed = Object.keys(oldObj).filter(k => !newObj[k]);
+    const added = Object.keys(newObj).filter(k => !(k in oldObj));
+    const removed = Object.keys(oldObj).filter(k => !(k in newObj));
     const changed = Object.keys(newObj)
-      .filter(k => oldObj[k] && oldObj[k] !== newObj[k])
+      .filter(k => k in oldObj && oldObj[k] !== newObj[k])
       .map(k => ({ key: k, old: oldObj[k], new: newObj[k] }));
 
     return { added, removed, changed };
   }
 
   // ==================== 私有方法 ====================
-
-  private async getNextVersion(domain: string, key: string): Promise<number> {
-    const result = await this.pool.query(
-      'SELECT MAX(version) as max_version FROM config_versions WHERE domain = $1 AND key = $2',
-      [domain, key]
-    );
-    return (result.rows[0]?.max_version || 0) + 1;
-  }
 
   private generateId(): string {
     return `cfg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -279,31 +232,31 @@ export class ConfigVersionService {
     return crypto.createHash('sha256').update(str).digest('hex').substring(0, 16);
   }
 
-  private mapRowToVersion(row: any): ConfigVersion {
+  private mapEntityToVersion(entity: { id: string; domain: string; key: string; oldValue: string; newValue: string; changedBy: string; changedAt: Date; changeType: string; version: number; comment?: string; checksum: string }): ConfigVersion {
     return {
-      id: row.id,
-      domain: row.domain,
-      key: row.key,
-      oldValue: JSON.parse(row.old_value || '{}'),
-      newValue: JSON.parse(row.new_value || '{}'),
-      changedBy: row.changed_by,
-      changedAt: row.changed_at,
-      changeType: row.change_type,
-      version: row.version,
-      comment: row.comment,
-      checksum: row.checksum,
+      id: entity.id,
+      domain: entity.domain,
+      key: entity.key,
+      oldValue: JSON.parse(entity.oldValue || '{}'),
+      newValue: JSON.parse(entity.newValue || '{}'),
+      changedBy: entity.changedBy,
+      changedAt: entity.changedAt,
+      changeType: entity.changeType as ConfigVersion['changeType'],
+      version: entity.version,
+      comment: entity.comment,
+      checksum: entity.checksum,
     };
   }
 
-  private mapRowToSnapshot(row: any): ConfigSnapshot {
+  private mapEntityToSnapshot(entity: { id: string; snapshotName: string; createdBy: string; createdAt: Date; configData: string; checksum: string; description?: string }): ConfigSnapshot {
     return {
-      id: row.id,
-      snapshotName: row.snapshot_name,
-      createdBy: row.created_by,
-      createdAt: row.created_at,
-      configData: JSON.parse(row.config_data || '{}'),
-      checksum: row.checksum,
-      description: row.description,
+      id: entity.id,
+      snapshotName: entity.snapshotName,
+      createdBy: entity.createdBy,
+      createdAt: entity.createdAt,
+      configData: JSON.parse(entity.configData || '{}'),
+      checksum: entity.checksum,
+      description: entity.description,
     };
   }
 }

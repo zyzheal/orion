@@ -2,200 +2,81 @@
  * ConfigVersionService 测试
  *
  * 测试配置版本管理服务：变更记录、历史查询、回滚、快照、差异比较。
- * Mock DatabasePool 模拟数据库交互。
+ * Mock ConfigVersionRepository 模拟数据库交互。
  */
 
-import { ConfigVersionService, ConfigVersion, ConfigSnapshot } from '../ConfigVersionService';
+import { ConfigVersionService } from '../ConfigVersionService';
+import { ConfigVersionRepository, type ConfigVersionEntity, type ConfigSnapshotEntity } from '../../repositories/ConfigVersionRepository';
 
-// ==================== Mock DatabasePool ====================
+// ==================== Mock Repository ====================
 
-function createMockDb() {
-  const versions = new Map<string, ConfigVersion>();
-  const snapshots = new Map<string, ConfigSnapshot>();
-  let versionCounter = 0;
+function createMockRepo() {
+  const versions = new Map<string, ConfigVersionEntity>();
+  const snapshots = new Map<string, ConfigSnapshotEntity>();
 
-  return {
+  const mockRepo = {
     versions,
     snapshots,
-    query: jest.fn().mockImplementation(async (text: string, params?: any[]) => {
-      const upper = text.toUpperCase();
 
-      // INSERT config_versions
-      if (upper.includes('INSERT INTO CONFIG_VERSIONS')) {
-        const row: ConfigVersion = {
-          id: params?.[0],
-          domain: params?.[1],
-          key: params?.[2],
-          oldValue: JSON.parse(params?.[3] || '{}'),
-          newValue: JSON.parse(params?.[4] || '{}'),
-          changedBy: params?.[5],
-          changedAt: params?.[10] || new Date(),
-          changeType: params?.[6],
-          version: params?.[7],
-          comment: params?.[8],
-          checksum: params?.[9],
-        };
-        versions.set(row.id, row);
-        return { rows: [row], rowCount: 1 };
-      }
-
-      // INSERT config_snapshots
-      if (upper.includes('INSERT INTO CONFIG_SNAPSHOTS')) {
-        const row: ConfigSnapshot = {
-          id: params?.[0],
-          snapshotName: params?.[1],
-          createdBy: params?.[2],
-          createdAt: params?.[6] || new Date(),
-          configData: JSON.parse(params?.[3] || '{}'),
-          checksum: params?.[4],
-          description: params?.[5],
-        };
-        snapshots.set(row.id, row);
-        return { rows: [row], rowCount: 1 };
-      }
-
-      // SELECT MAX(version)
-      if (upper.includes('SELECT MAX(VERSION)')) {
-        const domain = params?.[0];
-        const key = params?.[1];
-        let maxVersion = 0;
-        for (const v of versions.values()) {
-          if (v.domain === domain && v.key === key) {
-            maxVersion = Math.max(maxVersion, v.version);
-          }
+    getMaxVersion: jest.fn(async (domain: string, key: string): Promise<number> => {
+      let max = 0;
+      for (const v of versions.values()) {
+        if (v.domain === domain && v.key === key) {
+          max = Math.max(max, v.version);
         }
-        return { rows: [{ max_version: maxVersion }], rowCount: 1 };
       }
+      return max;
+    }),
 
-      // SELECT config_versions with WHERE
-      if (upper.includes('SELECT * FROM CONFIG_VERSIONS') && upper.includes('WHERE')) {
-        // Check if it's a SELECT by id (raw DB format for diff method)
-        if (upper.includes('WHERE ID = $1')) {
-          const id = params?.[0];
-          const row = versions.get(id);
-          if (!row) return { rows: [], rowCount: 0 };
-          // Return raw DB row format (snake_case) for diff method
-          // new_value/old_value as objects (simulating PostgreSQL JSONB)
-          const rawRow = {
-            id: row.id,
-            domain: row.domain,
-            key: row.key,
-            old_value: row.oldValue,
-            new_value: row.newValue,
-            changed_by: row.changedBy,
-            changed_at: row.changedAt,
-            change_type: row.changeType,
-            version: row.version,
-            comment: row.comment,
-            checksum: row.checksum,
-          };
-          return { rows: [rawRow], rowCount: 1 };
-        }
+    insertVersion: jest.fn(async (entity: ConfigVersionEntity): Promise<void> => {
+      versions.set(entity.id, { ...entity });
+    }),
 
-        // SELECT with domain/key filters
-        let results = Array.from(versions.values());
-        const conditions = text.match(/WHERE\s+(.+?)\s+ORDER/i)?.[1] || '';
-        let paramIdx = 0;
-
-        if (conditions.includes('domain')) {
-          const domain = params?.[paramIdx++];
-          results = results.filter(v => v.domain === domain);
-        }
-        if (conditions.includes('key =')) {
-          const key = params?.[paramIdx++];
-          results = results.filter(v => v.key === key);
-        }
-
-        results.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
-        const limit = params?.[paramIdx] || 50;
-        results = results.slice(0, limit);
-
-        const rawResults = results.map(row => ({
-          id: row.id,
-          domain: row.domain,
-          key: row.key,
-          old_value: JSON.stringify(row.oldValue),
-          new_value: JSON.stringify(row.newValue),
-          changed_by: row.changedBy,
-          changed_at: row.changedAt,
-          change_type: row.changeType,
-          version: row.version,
-          comment: row.comment,
-          checksum: row.checksum,
-        }));
-        return { rows: rawResults, rowCount: rawResults.length };
+    findVersions: jest.fn(async (params: { domain?: string; key?: string; limit?: number } = {}): Promise<ConfigVersionEntity[]> => {
+      let results = Array.from(versions.values());
+      if (params.domain) {
+        results = results.filter(v => v.domain === params.domain);
       }
-
-      // SELECT config_versions ORDER BY
-      if (upper.includes('SELECT * FROM CONFIG_VERSIONS ORDER BY')) {
-        const results = Array.from(versions.values())
-          .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
-        const limit = params?.[0] || 50;
-        const rawResults = results.slice(0, limit).map(row => ({
-          id: row.id,
-          domain: row.domain,
-          key: row.key,
-          old_value: JSON.stringify(row.oldValue),
-          new_value: JSON.stringify(row.newValue),
-          changed_by: row.changedBy,
-          changed_at: row.changedAt,
-          change_type: row.changeType,
-          version: row.version,
-          comment: row.comment,
-          checksum: row.checksum,
-        }));
-        return { rows: rawResults, rowCount: rawResults.length };
+      if (params.key) {
+        results = results.filter(v => v.key === params.key);
       }
+      results.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
+      const limit = params.limit ?? 50;
+      return results.slice(0, limit);
+    }),
 
-      // SELECT config_snapshots WHERE id
-      if (upper.includes('SELECT * FROM CONFIG_SNAPSHOTS WHERE ID')) {
-        const id = params?.[0];
-        const row = snapshots.get(id);
-        if (!row) return { rows: [], rowCount: 0 };
-        // Return raw DB row format (snake_case) for mapRowToSnapshot
-        const rawRow = {
-          id: row.id,
-          snapshot_name: row.snapshotName,
-          created_by: row.createdBy,
-          created_at: row.createdAt,
-          config_data: JSON.stringify(row.configData),
-          checksum: row.checksum,
-          description: row.description,
-        };
-        return { rows: [rawRow], rowCount: 1 };
-      }
+    findVersionById: jest.fn(async (id: string): Promise<ConfigVersionEntity | undefined> => {
+      return versions.get(id);
+    }),
 
-      // SELECT config_snapshots ORDER BY
-      if (upper.includes('SELECT * FROM CONFIG_SNAPSHOTS ORDER BY')) {
-        const results = Array.from(snapshots.values())
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        const limit = params?.[0] || 20;
-        const rawResults = results.slice(0, limit).map(row => ({
-          id: row.id,
-          snapshot_name: row.snapshotName,
-          created_by: row.createdBy,
-          created_at: row.createdAt,
-          config_data: JSON.stringify(row.configData),
-          checksum: row.checksum,
-          description: row.description,
-        }));
-        return { rows: rawResults, rowCount: rawResults.length };
-      }
+    findSnapshotById: jest.fn(async (id: string): Promise<ConfigSnapshotEntity | undefined> => {
+      return snapshots.get(id);
+    }),
 
-      return { rows: [], rowCount: 0 };
+    findSnapshots: jest.fn(async (params: { limit?: number } = {}): Promise<ConfigSnapshotEntity[]> => {
+      const results = Array.from(snapshots.values())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const limit = params.limit ?? 20;
+      return results.slice(0, limit);
+    }),
+
+    insertSnapshot: jest.fn(async (entity: ConfigSnapshotEntity): Promise<void> => {
+      snapshots.set(entity.id, { ...entity });
     }),
   };
+
+  return mockRepo;
 }
 
 // ==================== Tests ====================
 
 describe('ConfigVersionService', () => {
   let service: ConfigVersionService;
-  let mockDb: ReturnType<typeof createMockDb>;
+  let mockRepo: ReturnType<typeof createMockRepo>;
 
   beforeEach(() => {
-    mockDb = createMockDb();
-    service = new ConfigVersionService(mockDb as any);
+    mockRepo = createMockRepo();
+    service = new ConfigVersionService(mockRepo as unknown as ConfigVersionRepository);
   });
 
   // ---- recordChange ----
@@ -314,7 +195,7 @@ describe('ConfigVersionService', () => {
 
       await expect(
         service.rollback('pipeline', 'timeout', 999, 'admin')
-      ).rejects.toThrow('Version 999 not found');
+      ).rejects.toThrow('Version 999 not found for pipeline.timeout');
     });
   });
 
