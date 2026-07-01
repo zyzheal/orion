@@ -37,6 +37,8 @@ import { spacing } from '@/tokens';
 import {
   listQualityRules,
   createQualityRule,
+  updateQualityRule,
+  deleteQualityRule,
   runQualityCheck,
   listQualityChecks,
   type QualityRule,
@@ -67,6 +69,7 @@ export default function DataQualityPage() {
   const [rules, setRules] = useState<QualityRule[]>([]);
   const [checks, setChecks] = useState<QualityCheck[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingRule, setEditingRule] = useState<QualityRule | null>(null);
   const [activeTab, setActiveTab] = useState('rules');
   const [form] = Form.useForm();
 
@@ -98,19 +101,31 @@ export default function DataQualityPage() {
 
   const handleCreate = async (values: any) => {
     try {
-      await createQualityRule({
-        name: values.name,
-        table_name: values.table_name,
-        column_name: values.column_name,
-        rule_type: values.rule_type,
-        severity: values.severity,
-      });
-      message.success('规则创建成功');
+      if (editingRule) {
+        await updateQualityRule(editingRule.id, {
+          name: values.name,
+          table_name: values.table_name,
+          column_name: values.column_name,
+          rule_type: values.rule_type,
+          severity: values.severity,
+        });
+        message.success('规则更新成功');
+      } else {
+        await createQualityRule({
+          name: values.name,
+          table_name: values.table_name,
+          column_name: values.column_name,
+          rule_type: values.rule_type,
+          severity: values.severity,
+        });
+        message.success('规则创建成功');
+      }
       setModalVisible(false);
+      setEditingRule(null);
       form.resetFields();
       fetchRules();
     } catch {
-      message.error('创建失败');
+      message.error(editingRule ? '更新失败' : '创建失败');
     }
   };
 
@@ -138,7 +153,7 @@ export default function DataQualityPage() {
       dataIndex: 'rule_type',
       key: 'rule_type',
       render: (v: string) => {
-        const opt = ruleTypeOptions.find(o => o.value === v);
+        const opt = ruleTypeOptions.find((o) => o.value === v);
         return <Tag>{opt?.label || v}</Tag>;
       },
     },
@@ -148,7 +163,11 @@ export default function DataQualityPage() {
       key: 'severity',
       render: (v: string) => {
         const cfg = severityConfig[v] || severityConfig.info;
-        return <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>;
+        return (
+          <Tag color={cfg.color} icon={cfg.icon}>
+            {cfg.label}
+          </Tag>
+        );
       },
     },
     {
@@ -159,7 +178,9 @@ export default function DataQualityPage() {
         <Progress
           percent={v}
           size="small"
-          strokeColor={v >= 90 ? colors.success[500] : v >= 70 ? colors.warning[500] : colors.error[500]}
+          strokeColor={
+            v >= 90 ? colors.success[500] : v >= 70 ? colors.warning[500] : colors.error[500]
+          }
           format={(p) => `${p}%`}
         />
       ),
@@ -184,31 +205,46 @@ export default function DataQualityPage() {
       key: 'action',
       render: (_: unknown, record: QualityRule) => (
         <Space>
-          <Button size="small" onClick={async () => {
-            try {
-              await runQualityCheck(record.id);
-              message.success('检查完成');
-              fetchRules();
-              fetchChecks();
-            } catch {
-              message.error('检查失败');
-            }
-          }}>运行</Button>
-          <Button size="small" onClick={() => {
-            form.setFieldsValue(record);
-            setModalVisible(true);
-          }}>编辑</Button>
-          <Popconfirm title="确认删除?" onConfirm={async () => {
-            try {
-              const { deleteQualityRule } = await import('@/api/data-quality');
-              await deleteQualityRule(record.id);
-              message.success('规则已删除');
-              fetchRules();
-            } catch {
-              message.error('删除失败');
-            }
-          }}>
-            <Button size="small" danger>删除</Button>
+          <Button
+            size="small"
+            onClick={async () => {
+              try {
+                await runQualityCheck(record.id);
+                message.success('检查完成');
+                fetchRules();
+                fetchChecks();
+              } catch {
+                message.error('检查失败');
+              }
+            }}
+          >
+            运行
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              setEditingRule(record);
+              form.setFieldsValue(record);
+              setModalVisible(true);
+            }}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除?"
+            onConfirm={async () => {
+              try {
+                await deleteQualityRule(record.id);
+                message.success('规则已删除');
+                fetchRules();
+              } catch {
+                message.error('删除失败');
+              }
+            }}
+          >
+            <Button size="small" danger>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -249,19 +285,22 @@ export default function DataQualityPage() {
       title: '检查时间',
       dataIndex: 'checked_at',
       key: 'checked_at',
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
   ];
 
   const totalRules = rules.length;
-  const passingRules = rules.filter(r => r.last_status === 'pass').length;
-  const failingRules = rules.filter(r => r.last_status === 'fail').length;
-  const avgPassRate = totalRules > 0 ? Math.round(rules.reduce((s, r) => s + r.pass_rate, 0) / totalRules) : 0;
+  const passingRules = rules.filter((r) => r.last_status === 'pass').length;
+  const failingRules = rules.filter((r) => r.last_status === 'fail').length;
+  const avgPassRate =
+    totalRules > 0 ? Math.round(rules.reduce((s, r) => s + r.pass_rate, 0) / totalRules) : 0;
 
   return (
     <div style={{ padding: spacing.lg }}>
       <Title level={2} style={{ marginBottom: spacing.md }}>
-        <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+        <SafetyCertificateOutlined
+          style={{ marginRight: spacing[3], color: colors.primary[500] }}
+        />
         数据质量平台
       </Title>
 
@@ -273,17 +312,32 @@ export default function DataQualityPage() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="通过规则" value={passingRules} prefix={<CheckCircleOutlined />} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="通过规则"
+              value={passingRules}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="失败规则" value={failingRules} prefix={<CloseCircleOutlined />} valueStyle={{ color: colors.error[500] }} />
+            <Statistic
+              title="失败规则"
+              value={failingRules}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: colors.error[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="平均通过率" value={avgPassRate} suffix="%" valueStyle={{ color: avgPassRate >= 90 ? colors.success[500] : colors.warning[500] }} />
+            <Statistic
+              title="平均通过率"
+              value={avgPassRate}
+              suffix="%"
+              valueStyle={{ color: avgPassRate >= 90 ? colors.success[500] : colors.warning[500] }}
+            />
           </Card>
         </Col>
       </Row>
@@ -300,14 +354,26 @@ export default function DataQualityPage() {
                 <Card
                   extra={
                     <Space>
-                      <Button icon={<ReloadOutlined />} onClick={fetchRules}>刷新</Button>
-                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                      <Button icon={<ReloadOutlined />} onClick={fetchRules}>
+                        刷新
+                      </Button>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setModalVisible(true)}
+                      >
                         新建规则
                       </Button>
                     </Space>
                   }
                 >
-                  <Table dataSource={rules} columns={ruleColumns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} />
+                  <Table
+                    dataSource={rules}
+                    columns={ruleColumns}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{ pageSize: 20 }}
+                  />
                 </Card>
               ),
             },
@@ -316,7 +382,12 @@ export default function DataQualityPage() {
               label: '检查历史',
               children: (
                 <Card>
-                  <Table dataSource={checks} columns={checkColumns} rowKey="id" pagination={{ pageSize: 20 }} />
+                  <Table
+                    dataSource={checks}
+                    columns={checkColumns}
+                    rowKey="id"
+                    pagination={{ pageSize: 20 }}
+                  />
                 </Card>
               ),
             },
@@ -325,9 +396,13 @@ export default function DataQualityPage() {
       </Card>
 
       <Modal
-        title="新建质量规则"
+        title={editingRule ? '编辑质量规则' : '新建质量规则'}
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); form.resetFields(); }}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingRule(null);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         width={600}
       >
@@ -360,7 +435,12 @@ export default function DataQualityPage() {
             </Col>
             <Col span={12}>
               <Form.Item name="severity" label="严重程度" rules={[{ required: true }]}>
-                <Select options={Object.entries(severityConfig).map(([k, v]) => ({ label: v.label, value: k }))} />
+                <Select
+                  options={Object.entries(severityConfig).map(([k, v]) => ({
+                    label: v.label,
+                    value: k,
+                  }))}
+                />
               </Form.Item>
             </Col>
           </Row>

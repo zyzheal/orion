@@ -8,7 +8,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, message, Modal, Spin, Empty } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, componentRadius, shadows } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
@@ -43,6 +43,7 @@ const AgentDashboard: React.FC = () => {
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [approvals, setApprovals] = useState<AgentApproval[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
@@ -150,6 +151,17 @@ const AgentDashboard: React.FC = () => {
     setDetailDrawerOpen(true);
   };
 
+  const handleEditAgent = (agent: AgentProfile) => {
+    setSelectedAgent(agent);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setSelectedAgent(null);
+    loadData();
+  };
+
   const handleApprove = async (approval: AgentApproval) => {
     try {
       await respondToApproval(approval.id, { approved: true, reason: 'Approved via dashboard' });
@@ -246,11 +258,12 @@ const AgentDashboard: React.FC = () => {
             onSearch={setSearchQuery}
             onFilter={setFilters}
             onViewDetail={handleViewDetail}
+            onEditAgent={handleEditAgent}
             onToggleAgent={handleToggleAgent}
             onDeleteAgent={handleDeleteAgent}
           />
         ) : (
-          <div style={{ background: '#fff', borderRadius: 12, padding: '48px 0', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}>
+          <div style={{ background: colors.light.bg.primary, borderRadius: componentRadius.card, boxShadow: shadows.card, padding: '48px 0' }}>
             <Empty description="暂无 Agent 数据" />
           </div>
         )}
@@ -272,6 +285,12 @@ const AgentDashboard: React.FC = () => {
           setCreateModalOpen(false);
           loadData();
         }}
+      />
+      <CreateAgentModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onSuccess={handleEditSuccess}
+        agent={selectedAgent}
       />
       <TriggerRunModal
         open={triggerModalOpen}

@@ -42,7 +42,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, componentRadius } from '@/tokens';
 import {
   getCostSummary,
   getCostTrend,
@@ -450,7 +450,7 @@ export default function CostAllocationPage() {
               const isOver = alert.exceeded || pct >= 100;
               return (
                 <Col xs={24} sm={12} lg={8} key={alert.budgetId}>
-                  <Card size="small" style={{ borderRadius: 8, background: isOver ? '#fff2f0' : '#fffbe6' }}>
+                  <Card size="small" style={{ borderRadius: componentRadius.card, background: isOver ? colors.error[50] : colors.warning[50] }}>
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <Row justify="space-between">
                         <Text strong>{alert.budgetName}</Text>

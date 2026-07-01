@@ -1,22 +1,49 @@
 /**
- * CreateAgentModal - Modal for creating a new Agent Profile
+ * CreateAgentModal - Modal for creating or editing an Agent Profile
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Switch, Space, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { createAgentProfile } from '@/api/agents';
+import { PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { createAgentProfile, updateAgentProfile } from '@/api/agents';
 import { ROLE_OPTIONS } from './constants';
 import { spacing } from '@/tokens';
+import type { AgentProfile } from '@/api/agents';
 
 interface CreateAgentModalProps {
   open: boolean;
   onCancel: () => void;
   onSuccess: () => void;
+  agent?: AgentProfile | null;
 }
 
-const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onSuccess }) => {
+const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
+  open,
+  onCancel,
+  onSuccess,
+  agent,
+}) => {
   const [form] = Form.useForm();
   const [creating, setCreating] = useState(false);
+  const isEdit = !!agent;
+
+  useEffect(() => {
+    if (open && agent) {
+      form.setFieldsValue({
+        name: agent.name,
+        role: agent.role,
+        description: agent.description,
+        tools: JSON.stringify(agent.tools || [], null, 2),
+        llmModel: agent.llmConfig?.model || undefined,
+        temperature: agent.llmConfig?.temperature?.toString(),
+        maxTokens: agent.llmConfig?.maxTokens?.toString(),
+        capabilities: agent.capabilities ? JSON.stringify(agent.capabilities, null, 2) : undefined,
+        constraints: agent.constraints ? JSON.stringify(agent.constraints, null, 2) : undefined,
+        enabled: agent.enabled ?? true,
+      });
+    } else if (open && !agent) {
+      form.resetFields();
+    }
+  }, [open, agent, form]);
 
   const handleCreate = async () => {
     try {
@@ -34,24 +61,40 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
         return;
       }
 
-      await createAgentProfile({
-        name: values.name,
-        role: values.role,
-        description: values.description,
-        tools,
-        enabled: values.enabled ?? true,
-        capabilities: values.capabilities ? JSON.parse(values.capabilities) : undefined,
-        constraints: values.constraints ? JSON.parse(values.constraints) : undefined,
-        llmConfig: values.llmModel
-          ? {
-              model: values.llmModel,
-              temperature: values.temperature ? parseFloat(values.temperature) : undefined,
-              maxTokens: values.maxTokens ? parseInt(values.maxTokens, 10) : undefined,
-            }
-          : undefined,
-      });
+      const llmConfig = values.llmModel
+        ? {
+            model: values.llmModel,
+            temperature: values.temperature ? parseFloat(values.temperature) : undefined,
+            maxTokens: values.maxTokens ? parseInt(values.maxTokens, 10) : undefined,
+          }
+        : undefined;
 
-      message.success(`Agent ${values.name} 创建成功`);
+      if (isEdit && agent) {
+        await updateAgentProfile(agent.id, {
+          name: values.name,
+          role: values.role,
+          description: values.description,
+          tools,
+          enabled: values.enabled ?? true,
+          capabilities: values.capabilities ? JSON.parse(values.capabilities) : undefined,
+          constraints: values.constraints ? JSON.parse(values.constraints) : undefined,
+          llmConfig,
+        });
+        message.success(`Agent ${values.name} 更新成功`);
+      } else {
+        await createAgentProfile({
+          name: values.name,
+          role: values.role,
+          description: values.description,
+          tools,
+          enabled: values.enabled ?? true,
+          capabilities: values.capabilities ? JSON.parse(values.capabilities) : undefined,
+          constraints: values.constraints ? JSON.parse(values.constraints) : undefined,
+          llmConfig,
+        });
+        message.success(`Agent ${values.name} 创建成功`);
+      }
+
       form.resetFields();
       setCreating(false);
       onSuccess();
@@ -59,7 +102,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       setCreating(false);
       if (err instanceof Error && 'errorFields' in err) return;
       const message_text = err instanceof Error ? err.message : 'Unknown error';
-      message.error(`创建失败：${message_text}`);
+      message.error(`${isEdit ? '更新' : '创建'}失败：${message_text}`);
     }
   };
 
@@ -67,15 +110,15 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
     <Modal
       title={
         <Space>
-          <PlusOutlined />
-          创建 Agent Profile
+          {isEdit ? <EditOutlined /> : <PlusOutlined />}
+          {isEdit ? '编辑 Agent Profile' : '创建 Agent Profile'}
         </Space>
       }
       open={open}
       onCancel={onCancel}
       onOk={handleCreate}
       confirmLoading={creating}
-      okText="创建"
+      okText={isEdit ? '保存' : '创建'}
       cancelText="取消"
       width={700}
       data-testid="create-agent-modal"

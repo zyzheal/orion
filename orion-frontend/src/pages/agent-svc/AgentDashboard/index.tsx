@@ -8,7 +8,12 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, message, Modal } from 'antd';
-import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, RobotOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  PlayCircleOutlined,
+  RobotOutlined,
+} from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
@@ -44,6 +49,7 @@ const AgentDashboard: React.FC = () => {
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [approvals, setApprovals] = useState<AgentApproval[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
@@ -151,6 +157,11 @@ const AgentDashboard: React.FC = () => {
     setDetailDrawerOpen(true);
   };
 
+  const handleEditAgent = (agent: AgentProfile) => {
+    setSelectedAgent(agent);
+    setEditModalOpen(true);
+  };
+
   const handleApprove = async (approval: AgentApproval) => {
     try {
       await respondToApproval(approval.id, { approved: true, reason: 'Approved via dashboard' });
@@ -246,6 +257,7 @@ const AgentDashboard: React.FC = () => {
         onFilter={setFilters}
         onViewDetail={handleViewDetail}
         onToggleAgent={handleToggleAgent}
+        onEditAgent={handleEditAgent}
         onDeleteAgent={handleDeleteAgent}
       />
 
@@ -265,6 +277,15 @@ const AgentDashboard: React.FC = () => {
           setCreateModalOpen(false);
           loadData();
         }}
+      />
+      <CreateAgentModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onSuccess={() => {
+          setEditModalOpen(false);
+          loadData();
+        }}
+        agent={selectedAgent}
       />
       <TriggerRunModal
         open={triggerModalOpen}

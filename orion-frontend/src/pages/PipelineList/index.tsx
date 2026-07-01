@@ -9,14 +9,14 @@
  * - Pagination support
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message } from 'antd';
+import { Typography, Button, Space, Tag, message, Modal } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, ApiOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { PermissionActions } from '@/components/PermissionActions';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
-import { getPipelines, type Pipeline } from '@/api/pipelines';
+import { getPipelines, deletePipeline, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -182,8 +182,24 @@ const PipelineList: React.FC = () => {
           resource="pipeline"
           actions={[
             { key: 'read', label: '查看', onClick: () => navigate(`/pipelines/${record.id}`) },
-            { key: 'write', label: '编辑', onClick: () => navigate(`/pipelines/${record.id}/edit`) },
-            { key: 'execute', label: '运行历史', onClick: () => navigate(`/pipelines/${record.id}/runs`) },
+            {
+              key: 'write',
+              label: '编辑',
+              onClick: () => navigate(`/pipelines/${record.id}/edit`),
+            },
+            {
+              key: 'execute',
+              label: '运行历史',
+              onClick: () => navigate(`/pipelines/${record.id}/runs`),
+            },
+            {
+              key: 'delete',
+              label: '删除',
+              danger: true,
+              confirm: true,
+              confirmText: '确定要删除此 Pipeline 吗？',
+              onClick: () => handleDelete(record.id),
+            },
           ]}
         />
       ),
@@ -192,6 +208,26 @@ const PipelineList: React.FC = () => {
 
   const handleRefresh = () => {
     loadPipelines();
+  };
+
+  const handleDelete = (id: string) => {
+    Modal.confirm({
+      title: '删除 Pipeline',
+      content: '确定要删除此 Pipeline 吗？此操作不可撤销。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deletePipeline(id);
+          message.success('Pipeline 已删除');
+          loadPipelines();
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error('Unknown error');
+          message.error(`删除失败：${err.message}`);
+        }
+      },
+    });
   };
 
   return (

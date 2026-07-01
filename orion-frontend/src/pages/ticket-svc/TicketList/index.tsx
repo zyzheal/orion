@@ -19,6 +19,8 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
   UserAddOutlined,
   InboxOutlined,
   WarningOutlined,
@@ -26,7 +28,7 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { getTickets, type Ticket } from '@/api/ticketing';
+import { getTickets, deleteTicket, type Ticket } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
@@ -35,7 +37,6 @@ import CreateTicketModal from './CreateTicketModal';
 import DispatchPanel from './DispatchPanel';
 
 const { Title, Text } = Typography;
-
 
 // ============================================================================
 // Helpers
@@ -121,6 +122,8 @@ const TicketList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [dispatchPanelOpen, setDispatchPanelOpen] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
@@ -341,7 +344,12 @@ const TicketList: React.FC = () => {
       width: 100,
       render: (value: unknown) => {
         const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
-        return <Badge status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'} text={config.label} />;
+        return (
+          <Badge
+            status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'}
+            text={config.label}
+          />
+        );
       },
     },
     {
@@ -395,6 +403,25 @@ const TicketList: React.FC = () => {
           >
             详情
           </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            data-testid={`edit-ticket-${record.id}`}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            data-testid={`delete-ticket-${record.id}`}
+          >
+            删除
+          </Button>
           {!record.assignee && (
             <Button
               type="link"
@@ -439,6 +466,37 @@ const TicketList: React.FC = () => {
   const handleCreateSuccess = () => {
     setCreateModalOpen(false);
     message.success('工单创建成功');
+  };
+
+  const handleEdit = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setEditingTicket(null);
+    loadTickets();
+  };
+
+  const handleDelete = (ticket: Ticket) => {
+    Modal.confirm({
+      title: '删除工单',
+      content: `确定要删除工单 "${ticket.title}" 吗？此操作不可撤销。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteTicket(ticket.id);
+          message.success(`工单 ${ticket.id} 已删除`);
+          loadTickets();
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error('Unknown error');
+          message.error(`删除失败：${err.message}`);
+        }
+      },
+    });
   };
 
   return (
@@ -538,6 +596,12 @@ const TicketList: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
+      />
+      <CreateTicketModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onSuccess={handleEditSuccess}
+        ticket={editingTicket}
       />
 
       {/* Dispatch panel */}

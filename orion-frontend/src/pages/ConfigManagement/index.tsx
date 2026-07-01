@@ -38,10 +38,14 @@ import {
   ScanOutlined,
   RocketOutlined,
   ArrowRightOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   getConfigs,
   createConfig,
+  updateConfig,
+  deleteConfig,
   getGitOpsConfig,
   syncFromGit,
   submitForApproval,
@@ -129,6 +133,7 @@ const ConfigManagementPage: React.FC = () => {
   const [gitOpsConfig, setGitOpsConfig] = useState<GitOpsConfig | null>(null);
   const [selectedConfig, setSelectedConfig] = useState<ConfigItem | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [form] = Form.useForm();
 
@@ -192,17 +197,61 @@ const ConfigManagementPage: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     try {
-      await createConfig(values);
-      message.success('配置创建成功');
+      if (editingConfig) {
+        await updateConfig(editingConfig.id, values);
+        message.success('配置更新成功');
+      } else {
+        await createConfig(values);
+        message.success('配置创建成功');
+      }
       setCreateModalOpen(false);
+      setEditingConfig(null);
+      form.resetFields();
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`创建配置失败：${error.message}`);
+        message.error(`${editingConfig ? '更新' : '创建'}配置失败：${error.message}`);
       } else {
-        message.error('创建配置失败，请稍后重试');
+        message.error(`${editingConfig ? '更新' : '创建'}配置失败，请稍后重试`);
       }
     }
+  };
+
+  const handleEdit = (record: ConfigItem) => {
+    setEditingConfig(record);
+    form.setFieldsValue({
+      key: record.key,
+      value: record.value,
+      environment: record.environment,
+      category: record.category,
+      sensitive: record.sensitive,
+      encrypted: record.encrypted,
+      description: record.description,
+    });
+    setCreateModalOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    Modal.confirm({
+      title: '删除配置',
+      content: '确定要删除此配置项吗？此操作不可撤销。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteConfig(id);
+          message.success('配置已删除');
+          loadData();
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`删除失败：${error.message}`);
+          } else {
+            message.error('删除失败');
+          }
+        }
+      },
+    });
   };
 
   const handleSync = async () => {
@@ -414,6 +463,23 @@ const ConfigManagementPage: React.FC = () => {
             }}
           >
             详情
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          >
+            删除
           </Button>
           {record.status === 'draft' && (
             <Button type="link" size="small" onClick={() => handleApproval(record.id)}>
@@ -643,14 +709,26 @@ const ConfigManagementPage: React.FC = () => {
                     <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
                       差异详情 ({envDiffResult.differences.length} 项)
                     </Text>
-                    {envDiffResult.differences.map((change) => renderChangeItem(change as { path: string; operation: 'add' | 'remove' | 'update'; oldValue?: unknown; newValue?: unknown }))}
+                    {envDiffResult.differences.map((change) =>
+                      renderChangeItem(
+                        change as {
+                          path: string;
+                          operation: 'add' | 'remove' | 'update';
+                          oldValue?: unknown;
+                          newValue?: unknown;
+                        }
+                      )
+                    )}
                   </>
                 )}
 
                 {(envDiffResult.onlyInSource?.length > 0 ||
                   envDiffResult.onlyInTarget?.length > 0) && (
                   <>
-                    <Text strong style={{ display: 'block', marginTop: spacing.md, marginBottom: spacing.sm }}>
+                    <Text
+                      strong
+                      style={{ display: 'block', marginTop: spacing.md, marginBottom: spacing.sm }}
+                    >
                       仅存在于一侧的配置项
                     </Text>
                     {envDiffResult.onlyInSource?.map((key) => (
@@ -984,11 +1062,15 @@ const ConfigManagementPage: React.FC = () => {
       {/* Tabbed Content */}
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
 
-      {/* Create Modal */}
+      {/* Create/Edit Modal */}
       <Modal
-        title="新建配置"
-        open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
+        title={editingConfig ? '编辑配置' : '新建配置'}
+        open={createModalOpen || !!editingConfig}
+        onCancel={() => {
+          setCreateModalOpen(false);
+          setEditingConfig(null);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         width={600}
       >

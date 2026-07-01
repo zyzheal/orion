@@ -23,13 +23,22 @@ import {
 import {
   DeleteOutlined,
   PlusOutlined,
+  EditOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   ScheduleOutlined,
 } from '@ant-design/icons';
-import { getCronJobs, createCronJob, deleteCronJob, executeCronJob, CronJob, CronJobInput } from '@/api/cron';
+import {
+  getCronJobs,
+  createCronJob,
+  updateCronJob,
+  deleteCronJob,
+  executeCronJob,
+  CronJob,
+  CronJobInput,
+} from '@/api/cron';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -39,6 +48,8 @@ const CronJobsPage: React.FC = () => {
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingJob, setEditingJob] = useState<CronJob | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm<CronJobInput>();
 
   const fetchJobs = async () => {
@@ -59,14 +70,36 @@ const CronJobsPage: React.FC = () => {
 
   const handleCreate = async (values: CronJobInput) => {
     try {
-      await createCronJob(values);
-      message.success('创建成功');
+      setSubmitting(true);
+      if (editingJob) {
+        await updateCronJob(editingJob.id, values);
+        message.success('更新成功');
+      } else {
+        await createCronJob(values);
+        message.success('创建成功');
+      }
       setModalVisible(false);
+      setEditingJob(null);
       form.resetFields();
       fetchJobs();
     } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '创建失败');
+      message.error(
+        error instanceof Error ? error.message : (editingJob ? '更新' : '创建') + '失败'
+      );
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const handleEdit = (job: CronJob) => {
+    setEditingJob(job);
+    form.setFieldsValue({
+      name: job.name,
+      schedule: job.schedule,
+      command: job.command,
+      enabled: job.enabled,
+    });
+    setModalVisible(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -121,14 +154,14 @@ const CronJobsPage: React.FC = () => {
       dataIndex: 'lastRunAt',
       key: 'lastRunAt',
       width: 180,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '下次运行',
       dataIndex: 'nextRunAt',
       key: 'nextRunAt',
       width: 180,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '运行次数',
@@ -142,6 +175,9 @@ const CronJobsPage: React.FC = () => {
       fixed: 'right' as const,
       render: (_: unknown, job: CronJob) => (
         <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(job)}>
+            编辑
+          </Button>
           <Button
             type="link"
             size="small"
@@ -162,14 +198,21 @@ const CronJobsPage: React.FC = () => {
 
   const stats = {
     total: jobs.length,
-    enabled: jobs.filter(j => j.enabled).length,
-    running: jobs.filter(j => j.status === 'running').length,
-    error: jobs.filter(j => j.status === 'error').length,
+    enabled: jobs.filter((j) => j.enabled).length,
+    running: jobs.filter((j) => j.status === 'running').length,
+    error: jobs.filter((j) => j.status === 'error').length,
   };
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ScheduleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
@@ -190,17 +233,32 @@ const CronJobsPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已启用" value={stats.enabled} valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
+            <Statistic
+              title="已启用"
+              value={stats.enabled}
+              valueStyle={{ color: colors.success[500] }}
+              prefix={<CheckCircleOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中" value={stats.running} valueStyle={{ color: colors.primary[500] }} prefix={<ThunderboltOutlined />} />
+            <Statistic
+              title="运行中"
+              value={stats.running}
+              valueStyle={{ color: colors.primary[500] }}
+              prefix={<ThunderboltOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="异常" value={stats.error} valueStyle={{ color: stats.error > 0 ? colors.error[500] : undefined }} prefix={<ExclamationCircleOutlined />} />
+            <Statistic
+              title="异常"
+              value={stats.error}
+              valueStyle={{ color: stats.error > 0 ? colors.error[500] : undefined }}
+              prefix={<ExclamationCircleOutlined />}
+            />
           </Card>
         </Col>
       </Row>
@@ -215,10 +273,17 @@ const CronJobsPage: React.FC = () => {
       />
 
       <Modal
-        title="新建定时任务"
+        title={editingJob ? '编辑定时任务' : '新建定时任务'}
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); form.resetFields(); }}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingJob(null);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText={editingJob ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>

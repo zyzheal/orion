@@ -19,7 +19,7 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
-const { Title, Text, Link } = Typography;
+const { Title, Text } = Typography;
 
 const QUICK_LINKS = [
   { path: '/', label: '工作台', icon: <DashboardOutlined /> },

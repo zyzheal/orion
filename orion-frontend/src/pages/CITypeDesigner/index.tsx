@@ -958,8 +958,8 @@ export default function CITypeDesignerPage() {
               <div
                 style={{
                   padding: spacing.md,
-                  background: '#f6ffed',
-                  border: '1px solid #b7eb8f',
+                  background: colors.success[50],
+                  border: `1px solid ${colors.success[200]}`,
                   borderRadius: componentRadius.input,
                 }}
               >
@@ -972,8 +972,8 @@ export default function CITypeDesignerPage() {
               <div
                 style={{
                   padding: spacing.md,
-                  background: '#fff2f0',
-                  border: '1px solid #ffccc7',
+                  background: colors.error[50],
+                  border: `1px solid ${colors.error[100]}`,
                   borderRadius: componentRadius.input,
                 }}
               >

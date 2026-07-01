@@ -9,6 +9,7 @@ import {
   ThunderboltOutlined,
   ClockCircleOutlined,
   EyeOutlined,
+  EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -28,6 +29,7 @@ interface AgentTableProps {
   onSearch: (query: string) => void;
   onFilter: (filters: Record<string, string | string[] | undefined>) => void;
   onViewDetail: (agent: AgentProfile) => void;
+  onEditAgent: (agent: AgentProfile) => void;
   onToggleAgent: (agent: AgentProfile) => void;
   onDeleteAgent: (agent: AgentProfile) => void;
 }
@@ -41,6 +43,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
   onSearch,
   onFilter,
   onViewDetail,
+  onEditAgent,
   onToggleAgent,
   onDeleteAgent,
 }) => {
@@ -138,6 +141,15 @@ const AgentTable: React.FC<AgentTableProps> = ({
             data-testid={`view-agent-${record.id}`}
           >
             详情
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => onEditAgent(record)}
+            data-testid={`edit-agent-${record.id}`}
+          >
+            编辑
           </Button>
           <Button
             type="link"

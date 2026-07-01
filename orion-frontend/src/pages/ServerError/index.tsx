@@ -8,7 +8,7 @@
  * - 设计规范样式
  */
 import React, { useState } from 'react';
-import { Result, Button, Input, Space, Card, Typography, Descriptions, Tag } from 'antd';
+import { Result, Button, Input, Space, Card, Typography, Descriptions } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   HomeOutlined,
@@ -16,7 +16,6 @@ import {
   AlertOutlined,
   SettingOutlined,
   ReloadOutlined,
-  BugOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
