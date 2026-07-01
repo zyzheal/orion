@@ -71,4 +71,39 @@ export class RunnerDispatcher {
   reserveSlot(profile: RunnerProfile, currentLoad: number): boolean {
     return currentLoad < profile.maxConcurrency;
   }
+
+  /**
+   * Dispatch a task to a runner profile.
+   *
+   * Returns a dispatch descriptor that the caller can use to execute
+   * the task on the target runner.
+   *
+   * For k8s: returns a pod creation descriptor.
+   * For ssh/winrm: throws NOT_IMPLEMENTED (reserved for future phases).
+   */
+  dispatch(task: Task, profile: RunnerProfile): Record<string, unknown> {
+    if (!this.implementedProtocols.has(profile.protocol)) {
+      throw new OrionError(
+        `Protocol '${profile.protocol}' dispatch not yet implemented`,
+        ErrorCode.NOT_IMPLEMENTED,
+      );
+    }
+
+    if (profile.protocol === 'k8s') {
+      return {
+        protocol: 'k8s',
+        action: 'create_pod',
+        runnerId: profile.id,
+        runnerName: profile.name,
+        taskId: task.id,
+        taskName: task.name,
+        taskType: task.type,
+        config: task.config,
+        parameters: task.parameters,
+        labels: profile.labels,
+      };
+    }
+
+    return { protocol: profile.protocol };
+  }
 }

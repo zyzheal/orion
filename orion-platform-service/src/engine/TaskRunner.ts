@@ -474,6 +474,21 @@ export class TaskRunner {
   }
 
   /**
+   * Protocol dispatch abstraction — NeatLogic Runner integration point.
+   *
+   * When a RunnerProfile with ssh/winrm protocol is configured, this method
+   * would delegate to RunnerDispatcher.dispatch() instead of local execution.
+   * Currently only k8s (Tekton) and local spawn execution are implemented.
+   *
+   * Integration pattern (future):
+   *   const dispatcher = new RunnerDispatcher();
+   *   const profile = await resolveRunnerProfile(task);
+   *   if (dispatcher.canExecute(task, profile)) {
+   *     return dispatcher.dispatch(task, profile);
+   *   }
+   */
+
+  /**
    * 根据类型执行 Task
    */
   private async executeByType(task: Task, signal?: AbortSignal, sanitizer?: StreamSecretSanitizer): Promise<Record<string, unknown>> {

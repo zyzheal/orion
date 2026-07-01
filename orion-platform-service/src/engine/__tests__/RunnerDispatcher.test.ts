@@ -54,6 +54,32 @@ describe('RunnerDispatcher', () => {
       expect(protocols).not.toContain('winrm');
     });
   });
+
+  describe('dispatch', () => {
+    it('k8s protocol 应该返回pod创建描述符', () => {
+      const profile = createRunnerProfile({ protocol: 'k8s' });
+      const task = createTask({ type: 'shell', config: { image: 'node:18' } });
+      const result = dispatcher.dispatch(task, profile);
+      expect(result).toEqual({
+        protocol: 'k8s',
+        action: 'create_pod',
+        runnerId: 'runner-1',
+        runnerName: 'test-runner',
+        taskId: 'task-1',
+        taskName: 'test',
+        taskType: 'shell',
+        config: { image: 'node:18' },
+        parameters: {},
+        labels: ['linux', 'x64'],
+      });
+    });
+
+    it('未实现协议应该抛出NOT_IMPLEMENTED', () => {
+      const profile = createRunnerProfile({ protocol: 'ssh' });
+      const task = createTask({ type: 'shell' });
+      expect(() => dispatcher.dispatch(task, profile)).toThrow('not yet implemented');
+    });
+  });
 });
 
 function createRunnerProfile(overrides: Partial<RunnerProfile> = {}): RunnerProfile {
