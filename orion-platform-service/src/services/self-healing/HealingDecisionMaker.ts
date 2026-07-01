@@ -224,7 +224,9 @@ export class HealingDecisionMaker {
       expiresAt: new Date(now.getTime() + this.config.approvalExpirationMs) || null,
     });
 
-    return this.entityToApprovalRequest(await this.repository.findById(id)!);
+    const entity = await this.repository.findById(id);
+    if (!entity) throw new Error(`Approval request not found: ${id}`);
+    return this.entityToApprovalRequest(entity);
   }
 
   /**

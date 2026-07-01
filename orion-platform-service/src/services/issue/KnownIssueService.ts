@@ -80,13 +80,14 @@ export class KnownIssueService {
 
     if (this.repository) {
       const entity = await this.repository.create({
-        id: issueId,
+        id: issueId as string,
         tenantId: input.tenantId,
         title: input.title,
         description: input.description ?? null,
         fingerprint: input.fingerprint,
         ticketId: input.ticketId ?? null,
-      });
+        resolved: false,
+      } as any);
 
       logger.info({ issueId, fingerprint: input.fingerprint }, '[KnownIssueService] Created known issue');
       return this.mapEntityToKnownIssue(entity);
@@ -207,6 +208,8 @@ export class KnownIssueService {
         entity = await this.repository.resolve(id, new Date());
         if (!entity) return null;
       }
+
+      if (!entity) return null;
 
       logger.info({ issueId: id, updates }, '[KnownIssueService] Updated known issue');
       return this.mapEntityToKnownIssue(entity);

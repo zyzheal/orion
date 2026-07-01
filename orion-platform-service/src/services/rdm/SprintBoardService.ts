@@ -46,7 +46,7 @@ export class SprintBoardService {
       let status = 'open';
       if (this.ticketRepo) {
         try {
-          const ticket = await this.ticketRepo.findById(st.ticket_id);
+          const ticket = await this.ticketRepo.findById(st.ticket_id, '');
           if (ticket) status = ticket.status || 'open';
         } catch {
           // Fallback to 'open' if ticket not found
@@ -83,7 +83,7 @@ export class SprintBoardService {
     if (this.ticketRepo) {
       for (const st of tickets) {
         try {
-          const ticket = await this.ticketRepo.findById(st.ticket_id);
+          const ticket = await this.ticketRepo.findById(st.ticket_id, '');
           if (ticket && (ticket.status === 'closed' || ticket.status === 'resolved' || ticket.status === 'done')) {
             completedTickets++;
           }

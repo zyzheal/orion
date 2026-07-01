@@ -6,7 +6,6 @@
  */
 
 import { randomUUID } from 'crypto';
-import { randomUUID } from 'crypto';
 import { DevPortalMockRuleRepository, DevPortalMockRuleEntity } from '../../repositories/DevPortalMockRuleRepository';
 
 // ==================== Type Definitions ====================
@@ -320,7 +319,7 @@ export class MockServiceManager {
       delay: entity.delay ?? 0,
       enabled: entity.enabled ?? true,
       priority: entity.priority ?? 0,
-      matchType: entity.matchType ?? 'exact',
+      matchType: (entity.matchType ?? 'exact') as 'exact' | 'prefix' | 'regex',
       createdAt: entity.created_at ? new Date(entity.created_at) : new Date(),
       updatedAt: entity.updated_at ? new Date(entity.updated_at) : new Date(),
     };

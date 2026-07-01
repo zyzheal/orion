@@ -113,7 +113,7 @@ export class ApkUploadHistoryService {
   private async _probeDb(): Promise<void> {
     if (!this.db) return;
     try {
-      await this.db.query('SELECT 1 FROM apk_upload_history LIMIT 0');
+      await this.db!.query('SELECT 1 FROM apk_upload_history LIMIT 0');
       this.dbReady = true;
     } catch {
       this.dbReady = false;
@@ -343,7 +343,7 @@ export class ApkUploadHistoryService {
       try {
         const { columns, values } = this._recordToDbValues(record);
         const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-        await this.db.query(
+        await this.db!.query(
           `INSERT INTO apk_upload_history (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`,
           values,
         );
@@ -387,7 +387,7 @@ export class ApkUploadHistoryService {
       try {
         const { setClause, params } = this._updateToDbValues(id, updates);
         if (setClause.length > 0) {
-          await this.db.query(
+          await this.db!.query(
             `UPDATE apk_upload_history SET ${setClause} WHERE id = $${params.length} RETURNING *`,
             params,
           );
@@ -416,7 +416,7 @@ export class ApkUploadHistoryService {
     // DB query
     if (this.dbReady) {
       try {
-        const result = await this.db.query(
+        const result = await this.db!.query(
           `SELECT * FROM apk_upload_history WHERE id = $1`,
           [id],
         );
@@ -447,7 +447,7 @@ export class ApkUploadHistoryService {
 
     if (this.dbReady) {
       try {
-        const result = await this.db.query(
+        const result = await this.db!.query(
           `SELECT * FROM apk_upload_history WHERE id = $1 AND tenant_id = $2`,
           [id, tenantId],
         );
@@ -500,7 +500,7 @@ export class ApkUploadHistoryService {
         query += ` ORDER BY created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
         params.push(limit, offset);
 
-        const result = await this.db.query(query, params);
+        const result = await this.db!.query(query, params);
         const records = result.rows.map((row: any) => this._rowToRecord(row as ApkUploadRow));
 
         // Warm memory cache
@@ -525,7 +525,7 @@ export class ApkUploadHistoryService {
     // DB query: search in metadata JSONB
     if (this.dbReady) {
       try {
-        const result = await this.db.query(
+        const result = await this.db!.query(
           `SELECT * FROM apk_upload_history
            WHERE metadata->>'pipelineRunId' = $1
            ORDER BY created_at DESC`,
@@ -565,7 +565,7 @@ export class ApkUploadHistoryService {
           params.push(filters.status);
         }
 
-        const result = await this.db.query(query, params);
+        const result = await this.db!.query(query, params);
         return parseInt(result.rows[0].count, 10);
       } catch {
         this._markDbUnavailable();
@@ -589,7 +589,7 @@ export class ApkUploadHistoryService {
   async getRecentFailures(tenantId: string, limit: number = 10): Promise<ApkUploadRecord[]> {
     if (this.dbReady) {
       try {
-        const result = await this.db.query(
+        const result = await this.db!.query(
           `SELECT * FROM apk_upload_history
            WHERE tenant_id = $1 AND status = 'failed'
            ORDER BY created_at DESC LIMIT $2`,
@@ -621,7 +621,7 @@ export class ApkUploadHistoryService {
   }> {
     if (this.dbReady) {
       try {
-        const result = await this.db.query(
+        const result = await this.db!.query(
           `SELECT status, COUNT(*) as count FROM apk_upload_history
            WHERE tenant_id = $1 GROUP BY status`,
           [tenantId],

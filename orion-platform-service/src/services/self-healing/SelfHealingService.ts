@@ -79,8 +79,8 @@ export class SelfHealingService {
     db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     this.repository = repository;
-    this.strategyEngine = new HealingStrategyEngine(db);
-    this.actionExecutor = new HealingActionExecutor(db);
+    this.strategyEngine = new HealingStrategyEngine(db as any);
+    this.actionExecutor = new HealingActionExecutor(db as any);
     this.guardian = new SelfHealingGuardian({
       stormRules: options?.stormRules,
       dualApprovalConfig: options?.dualApprovalConfig,

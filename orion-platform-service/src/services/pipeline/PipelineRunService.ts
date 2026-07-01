@@ -207,7 +207,7 @@ export class PipelineRunService {
   }
 
   async getStages(runId: string): Promise<Stage[]> {
-    const records = await this.repository.findStageExecutionsByRun(runId);
+    const records = await this.repository.findStageExecutionsByRun(runId, '');
     return records.map((r, i) => this.mapStageExecution(r, runId, i + 1));
   }
 
@@ -234,7 +234,7 @@ export class PipelineRunService {
   }
 
   async getTasks(stageId: string): Promise<Task[]> {
-    const records = await this.repository.findTaskExecutionsByExecution(stageId);
+    const records = await this.repository.findTaskExecutionsByExecution(stageId, '');
     return records.map((r, i) => this.mapTaskExecution(r, stageId, i + 1));
   }
 
@@ -268,12 +268,12 @@ export class PipelineRunService {
     }
 
     const run = this.mapRun(runRecord);
-    const stageRecords = await this.repository.findStageExecutionsByRun(runId);
+    const stageRecords = await this.repository.findStageExecutionsByRun(runId, '');
     const stages = stageRecords.map((r, i) => this.mapStageExecution(r, runId, i + 1));
 
     const tasks: Task[] = [];
     for (const stage of stageRecords) {
-      const taskRecords = await this.repository.findTaskExecutionsByExecution(stage.id);
+      const taskRecords = await this.repository.findTaskExecutionsByExecution(stage.id, '');
       tasks.push(...taskRecords.map((r, i) => this.mapTaskExecution(r, stage.id, i + 1)));
     }
 
@@ -291,7 +291,7 @@ export class PipelineRunService {
       return null;
     }
 
-    const stages = await this.repository.findStageExecutionsByRun(runId);
+    const stages = await this.repository.findStageExecutionsByRun(runId, '');
     if (stages.length === 0) {
       return { isComplete: true, allSuccess: true };
     }

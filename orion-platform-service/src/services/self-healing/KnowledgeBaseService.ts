@@ -451,7 +451,7 @@ export class KnowledgeBaseService {
     if (this._patternCache) return this._patternCache;
 
     // Load all patterns from DB
-    const { entities } = this.repository.findAllSync?.() ?? { entities: [] };
+    const { entities } = (this.repository as any).findAllSync?.() ?? { entities: [] };
     // findAll doesn't have a sync version, so we defer caching to first query result
     // Instead, populate index and cache from current DB state via a fresh fetch
     // For synchronous query(), we rely on patterns having been loaded via getAllPatterns first

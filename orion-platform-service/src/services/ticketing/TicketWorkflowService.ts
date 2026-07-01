@@ -156,13 +156,14 @@ export class TicketWorkflowService {
     }
 
     // Persist to repository
+    const tenantId = getCurrentTraceId() || '';
     try {
       await this.ticketingRepository.createWorkflowHistory(
-        ticket.id, 'open', ticket.status, ticket.reporter, 'Ticket created'
+        ticket.id, 'open', ticket.status, ticket.reporter, 'Ticket created', tenantId
       );
       if (slaTarget) {
         await this.ticketingRepository.createSLA(
-          ticket.id, ticket.priority, slaTarget.targetResolutionTimeMs
+          ticket.id, ticket.priority, slaTarget.targetResolutionTimeMs, tenantId
         );
       }
     } catch (err) {
@@ -186,7 +187,8 @@ export class TicketWorkflowService {
     if (cached) return cached;
 
     // Fetch from repository
-    const record = await this.ticketingRepository.findById(ticketId);
+    const tid = getCurrentTraceId() || '';
+    const record = await this.ticketingRepository.findById(ticketId, tid);
     if (record) {
       const ticket = this.mapRecordToTicket(record);
       this.ticketsCache.set(ticketId, ticket);
@@ -264,7 +266,7 @@ export class TicketWorkflowService {
       if (updates.priority) dbUpdates.priority = updates.priority;
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.assignee) dbUpdates.assignee_id = updates.assignee;
-      await this.ticketingRepository.update(ticketId, dbUpdates);
+      await this.ticketingRepository.update(ticketId, dbUpdates, getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist update: ${err}`;
       logger.error(message);
@@ -328,7 +330,7 @@ export class TicketWorkflowService {
     // Persist to repository
     try {
       await this.ticketingRepository.createWorkflowHistory(
-        ticketId, fromStatus, toStatus, performedBy, reason
+        ticketId, fromStatus, toStatus, performedBy, reason, getCurrentTraceId() || ''
       );
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist workflow history: ${err}`;
@@ -339,7 +341,7 @@ export class TicketWorkflowService {
     // Update SLA tracking on resolution
     if (toStatus === 'resolved' || toStatus === 'closed') {
       try {
-        await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() });
+        await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() }, getCurrentTraceId() || '');
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to update SLA: ${err}`;
         logger.error(message);
@@ -353,7 +355,7 @@ export class TicketWorkflowService {
         await this.ticketingRepository.updateSLA(ticketId, {
           responseBreached: false,
           resolutionBreached: false,
-        });
+        }, getCurrentTraceId() || '');
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to reset SLA: ${err}`;
         logger.error(message);
@@ -402,15 +404,16 @@ export class TicketWorkflowService {
       ticket.status = 'assigned';
     }
 
+    const tid = getCurrentTraceId() || '';
     // Persist to repository
     try {
-      await this.ticketingRepository.update(ticketId, { status: ticket.status, assignee_id: assignee });
+      await this.ticketingRepository.update(ticketId, { status: ticket.status, assignee_id: assignee }, tid);
       await this.ticketingRepository.createAssignment({
         ticketId, assignee, assignedBy, reason: reason || 'Manual assignment',
-      });
+      }, tid);
       if (prevStatus === 'open') {
         await this.ticketingRepository.createWorkflowHistory(
-          ticketId, prevStatus, 'assigned', assignedBy, 'Auto-transitioned on assignment'
+          ticketId, prevStatus, 'assigned', assignedBy, 'Auto-transitioned on assignment', tid
         );
       }
     } catch (err) {
@@ -538,14 +541,15 @@ export class TicketWorkflowService {
 
     this.ticketsCache.set(ticketId, ticket);
 
+    const tid2 = getCurrentTraceId() || '';
     // Persist to repository
     try {
       await this.ticketingRepository.update(ticketId, {
         priority: ticket.priority,
-      });
+      }, tid2);
       await this.ticketingRepository.createWorkflowHistory(
         ticketId, ticket.status, ticket.status, escalatedBy,
-        reason || `Escalated to level ${ticket.escalationLevel}`
+        reason || `Escalated to level ${ticket.escalationLevel}`, tid2
       );
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist escalation: ${err}`;
@@ -572,7 +576,7 @@ export class TicketWorkflowService {
       // Skip already highly escalated
       if (ticket.escalationLevel >= 3) continue;
 
-      const sla = await this.ticketingRepository.getSLA(ticket.id);
+      const sla = await this.ticketingRepository.getSLA(ticket.id, getCurrentTraceId() || '');
       if (!sla) continue;
 
       const age = now - ticket.createdAt.getTime();
@@ -632,7 +636,7 @@ export class TicketWorkflowService {
       }));
     }
     try {
-      return await this.ticketingRepository.getWorkflowHistory(ticketId);
+      return await this.ticketingRepository.getWorkflowHistory(ticketId, getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`;
       logger.error(message);
@@ -645,7 +649,7 @@ export class TicketWorkflowService {
    */
   async getAssignmentHistory(ticketId: string): Promise<TicketAssignment[]> {
     try {
-      return await this.ticketingRepository.getAssignmentsByTicket(ticketId);
+      return await this.ticketingRepository.getAssignmentsByTicket(ticketId, getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`;
       logger.error(message);
@@ -678,7 +682,7 @@ export class TicketWorkflowService {
    */
   async getTicketSLA(ticketId: string): Promise<TicketSLA | undefined> {
     try {
-      const sla = await this.ticketingRepository.getSLA(ticketId);
+      const sla = await this.ticketingRepository.getSLA(ticketId, getCurrentTraceId() || '');
       return sla || undefined;
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getTicketSLA failed: ${err}`;
@@ -692,7 +696,7 @@ export class TicketWorkflowService {
    */
   async getAllSLARecords(): Promise<TicketSLA[]> {
     try {
-      return await this.ticketingRepository.getAllSLA();
+      return await this.ticketingRepository.getAllSLA(getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`;
       logger.error(message);

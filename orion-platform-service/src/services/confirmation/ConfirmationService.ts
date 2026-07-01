@@ -402,8 +402,8 @@ export class ConfirmationService {
       // Fall back to in-memory
       let audits = Array.from(this.memoryAudits.values());
       if (params.user) audits = audits.filter(a => a.user === params.user);
-      if (params.startDate) audits = audits.filter(a => new Date(a.timestamp) >= new Date(params.startDate));
-      if (params.endDate) audits = audits.filter(a => new Date(a.timestamp) <= new Date(params.endDate));
+      if (params.startDate) { const sd = params.startDate!; audits = audits.filter(a => new Date(a.timestamp) >= new Date(sd)); }
+      if (params.endDate) { const ed = params.endDate!; audits = audits.filter(a => new Date(a.timestamp) <= new Date(ed)); }
       const limit = params.limit ?? 100;
       const offset = params.offset ?? 0;
       audits.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -568,7 +568,7 @@ export class ConfirmationService {
     if (limit > 0) {
       entities = entities.slice(offset, offset + limit);
     }
-    return Promise.resolve({ entities, total });
+    return Promise.resolve({ entities: entities as ConfirmationEntity[], total });
   }
 
   private _memUpdateStatus(id: string, status: string, responder?: string, comment?: string, responseTime?: Date): Promise<ConfirmationEntity | null> {
@@ -654,13 +654,17 @@ export class ConfirmationService {
   }
 
   private _memUpsertNotificationSettings(data: any): Promise<NotificationSettingsEntity> {
+    const now = new Date();
     const entity: NotificationSettingsEntity = {
+      id: `ns_${data.userId}`,
       user_id: data.userId,
       channels: data.channels ?? [],
-      dnd_start: data.dndStart ?? null,
-      dnd_end: data.dndEnd ?? null,
+      dnd_start: data.dndStart ?? '22:00',
+      dnd_end: data.dndEnd ?? '08:00',
       auto_approve_p3: data.autoApproveP3 ?? false,
-      auto_approve_after_minutes: data.autoApproveAfterMinutes ?? null,
+      auto_approve_after_minutes: data.autoApproveAfterMinutes ?? 0,
+      created_at: now,
+      updated_at: now,
     };
     this.memoryNotifications.set(data.userId, {
       userId: data.userId,

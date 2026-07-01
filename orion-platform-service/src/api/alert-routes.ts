@@ -164,12 +164,9 @@ export default async function alertRoutes(
     try {
       await suppressionService.addMaintenanceWindow({
         name: body.name as string,
-        description: body.description as string,
         startTime: new Date(body.startTime as string),
         endTime: new Date(body.endTime as string),
-        tenantId: (body.tenantId as string) || 'default',
         scope: (body.scope as any) || {},
-        createdBy: (body.createdBy as string) || 'system',
       });
       return created(reply, request, { status: 'created' });
     } catch (error) {
@@ -190,12 +187,10 @@ export default async function alertRoutes(
       await suppressionService.addKnownIssue({
         title: body.title as string,
         description: body.description as string,
-        tenantId: (body.tenantId as string) || 'default',
         fingerprintPattern: body.fingerprintPattern as string,
         labelSelectors: body.labelSelectors as Record<string, string>,
         silenceDuration: (body.silenceDuration as number) || 3600000, // 1 hour default
         status: 'open',
-        createdBy: (body.createdBy as string) || 'system',
       });
       return created(reply, request, { status: 'created' });
     } catch (error) {

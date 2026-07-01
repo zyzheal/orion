@@ -55,7 +55,7 @@ const ROLE_PERMISSIONS: Record<PipelineRole, string[]> = {
 };
 
 export class PipelineRBACService {
-  private repository: RBACRuleRepository;
+  private repository!: RBACRuleRepository;
   /** In-memory cache for fast permission checks. Key: pipelineId, Value: Map<userId, role> */
   private rulesCache: Map<string, Map<string, PipelineRole>> = new Map();
   private cacheInitialized = new Set<string>();

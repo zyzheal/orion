@@ -304,7 +304,7 @@ describe('EscalationScheduler - Extended', () => {
 
       await (scheduler as any).checkTicketsForEscalation();
 
-      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-1', { escalation_level: 1 });
+      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-1', { escalation_level: 1 }, '');
       scheduler.stop();
     });
 
@@ -322,7 +322,7 @@ describe('EscalationScheduler - Extended', () => {
       await (scheduler as any).checkTicketsForEscalation();
 
       // 5 minutes remaining < 60 minutes timeout window -> escalate
-      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-2', { escalation_level: 1 });
+      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-2', { escalation_level: 1 }, '');
       scheduler.stop();
     });
 
@@ -388,7 +388,7 @@ describe('EscalationScheduler - Extended', () => {
 
       // Only ticket-a should be escalated (past due)
       expect(mockTicketUpdate).toHaveBeenCalledTimes(1);
-      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-a', { escalation_level: 1 });
+      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-a', { escalation_level: 1 }, '');
       scheduler.stop();
     });
 
@@ -433,7 +433,7 @@ describe('EscalationScheduler - Extended', () => {
 
       await scheduler.manualEscalate('ticket', 'ticket-update');
 
-      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-update', { escalation_level: 1 });
+      expect(mockTicketUpdate).toHaveBeenCalledWith('ticket-update', { escalation_level: 1 }, '');
       scheduler.stop();
     });
 

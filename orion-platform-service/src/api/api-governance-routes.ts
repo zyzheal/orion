@@ -12,6 +12,9 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { ApiGovernanceRepository } from '../repositories/ApiGovernanceRepository';
 import { CreateApiContractInput, CreateApiVersionInput, CreateGovernanceRuleInput } from '../repositories/ApiGovernanceRepository';
+import pino from 'pino';
+
+const logger = pino({ name: 'api-governance-routes' });
 
 // ============================================================================
 // Route Registration
@@ -21,15 +24,14 @@ export default async function apiGovernanceRoutes(
   app: FastifyInstance,
   options?: Record<string, unknown>
 ): Promise<void> {
-  const pool = (options as { database?: DatabasePool } | undefined)?.database;
-  const repo = pool ? new ApiGovernanceRepository(pool) : null;
+  const db = (options as { database?: DatabasePool } | undefined)?.database;
 
-  if (!repo) {
-    app.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
-      return reply.send({ success: true, data: { status: 'degraded', database: false } });
-    });
+  if (!db) {
+    logger.warn('[ApiGovernanceRoutes] No database pool provided, routes will not be functional');
     return;
   }
+
+  const repo = new ApiGovernanceRepository(db);
 
   // ==================== Contract Management ====================
 

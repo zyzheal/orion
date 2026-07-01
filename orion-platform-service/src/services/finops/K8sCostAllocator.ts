@@ -8,7 +8,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { K8sCost } from './types';
-import { DatabasePool } from '../../database';
+import { DatabasePool } from '../database';
 
 /**
  * 集群资源使用数据
@@ -397,20 +397,20 @@ export class K8sCostAllocator {
         params
       );
 
-      return (result.rows || []).map((row) => ({
-        id: row.id,
-        namespace: row.namespace,
-        deployment: row.deployment,
-        podName: row.pod_name,
-        cpuCost: row.cpu_cost,
-        memoryCost: row.memory_cost,
-        storageCost: row.storage_cost,
-        networkCost: row.network_cost,
-        totalCost: row.total_cost,
-        tenantId: row.tenant_id || undefined,
-        timestamp: new Date(row.timestamp),
-        clusterName: row.cluster_name || undefined,
-        nodeName: row.node_name || undefined,
+      return (result.rows || []).map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        namespace: row.namespace as string,
+        deployment: row.deployment as string,
+        podName: row.pod_name as string,
+        cpuCost: row.cpu_cost as number,
+        memoryCost: row.memory_cost as number,
+        storageCost: row.storage_cost as number,
+        networkCost: row.network_cost as number,
+        totalCost: row.total_cost as number,
+        tenantId: (row.tenant_id as string) || undefined,
+        timestamp: new Date(row.timestamp as string),
+        clusterName: (row.cluster_name as string) || undefined,
+        nodeName: (row.node_name as string) || undefined,
       }));
     } catch {
       return [];

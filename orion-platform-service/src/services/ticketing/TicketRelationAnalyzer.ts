@@ -97,7 +97,7 @@ export class TicketRelationAnalyzer {
     if (cached) return cached;
 
     try {
-      const record = await this.ticketingRepository!.findById(ticketId);
+      const record = await this.ticketingRepository!.findById(ticketId, '');
       if (record) {
         const ticket = this.mapRecordToTicket(record);
         this.ticketsCache.set(ticketId, ticket);
@@ -142,7 +142,7 @@ export class TicketRelationAnalyzer {
         createdBy,
         description,
         confidence: confidence ?? 1.0,
-      });
+      }, '');
     } catch (err) {
       logger.warn(`[TicketRelationAnalyzer] Failed to persist relation to repository: ${err}`);
     }

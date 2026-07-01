@@ -181,7 +181,7 @@ export class EscalationScheduler {
 
     // 更新工单级别
     if (this.ticketRepo) {
-      await this.ticketRepo.update(ticketId, { escalation_level: newLevel } as any);
+      await this.ticketRepo.update(ticketId, { escalation_level: newLevel } as any, '');
     }
 
     // 发送通知

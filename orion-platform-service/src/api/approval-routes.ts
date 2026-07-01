@@ -47,10 +47,14 @@ export async function registerApprovalRoutes(
   // Initialize ApprovalGateRepository and ApprovalGateService
   let gateService: ApprovalGateService;
   if (db) {
-    const gateRepository = new ApprovalGateRepository(db as unknown as Pool);
-    gateService = new ApprovalGateService({ repository: gateRepository });
+    const gateRepository = new ApprovalGateRepository(db);
+    gateService = new ApprovalGateService(gateRepository);
   } else {
-    gateService = new ApprovalGateService({});
+    // Should not reach here due to early return above, but type checker needs a value
+    const fallbackDb = { query: async () => ({ rows: [], rowCount: null }) };
+    gateService = new ApprovalGateService(
+      new ApprovalGateRepository(fallbackDb)
+    );
   }
 
   const controller = new ApprovalController(
