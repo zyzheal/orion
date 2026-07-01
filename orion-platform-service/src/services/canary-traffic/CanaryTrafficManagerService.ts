@@ -1,4 +1,4 @@
-import { DatabasePool } from '../database';
+import { CanaryTrafficRepository, type CanaryConfigEntity } from '../../repositories/CanaryTrafficRepository';
 import { OrionError, ErrorCode } from '../../errors';
 /**
  * Canary Traffic Manager Service - Phase 3
@@ -37,31 +37,44 @@ export interface CanaryAnalysis {
 
 export class CanaryTrafficManagerService {
 
-  constructor(private pool: DatabasePool) {}
+  constructor(private repo: CanaryTrafficRepository) {}
 
-  async createCanary(input: { tenant_id: string; deployment_id: string; initial_percent?: number; max_percent?: number }): Promise<CanaryConfig> {
-    const result = await this.pool.query(
-      `INSERT INTO canary_configs 
-        (tenant_id, deployment_id, initial_percent, max_percent, increment_percent, increment_interval_minutes, analysis_window_minutes, success_threshold, rollback_threshold, status, current_percent)
-       VALUES ($1, $2, $3, 100, 10, 10, 5, 0.99, 0.95, 'running', $3)
-       RETURNING *`,
-      [input.tenant_id, input.deployment_id, input.initial_percent || 5]
-    );
-    return result.rows[0];
+  async createCanary(input: { tenant_id: string; deployment_id: string; initial_percent?: number }): Promise<CanaryConfig> {
+    const entity: CanaryConfigEntity = {
+      id: `canary-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      tenantId: input.tenant_id,
+      deploymentId: input.deployment_id,
+      initialPercent: input.initial_percent || 5,
+      maxPercent: 100,
+      incrementPercent: 10,
+      incrementIntervalMinutes: 10,
+      analysisWindowMinutes: 5,
+      successThreshold: 0.99,
+      rollbackThreshold: 0.95,
+      status: 'running',
+      currentPercent: input.initial_percent || 5,
+      createdAt: new Date(),
+    };
+
+    const result = await this.repo.insertConfig(entity);
+    return this.mapEntityToConfig(result);
   }
 
   async getCanary(canaryId: string): Promise<CanaryConfig | null> {
-    const result = await this.pool.query('SELECT * FROM canary_configs WHERE id = $1', [canaryId]);
-    return result.rows[0] || null;
+    const result = await this.repo.findConfigById(canaryId);
+    return result ? this.mapEntityToConfig(result) : null;
   }
 
-  async analyzeCanary(canaryId: string): Promise<CanaryAnalysis> {
+  async analyzeCanary(
+    canaryId: string,
+    _options?: { stableSuccessRate?: number; canarySuccessRate?: number }
+  ): Promise<CanaryAnalysis> {
     const canary = await this.getCanary(canaryId);
     if (!canary) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
 
-    // Simulated analysis - would get real metrics
-    const stableSuccessRate = 0.99;
-    const canarySuccessRate = 0.98;
+    // Simulated analysis - would get real metrics in production
+    const stableSuccessRate = _options?.stableSuccessRate ?? 0.99;
+    const canarySuccessRate = _options?.canarySuccessRate ?? 0.98;
 
     let recommendation: 'continue' | 'pause' | 'rollback' | 'promote';
     if (canarySuccessRate >= canary.success_threshold) {
@@ -72,14 +85,20 @@ export class CanaryTrafficManagerService {
       recommendation = 'pause';
     }
 
-    const result = await this.pool.query(
-      `INSERT INTO canary_analyses 
-        (canary_id, window_start, window_end, stable_success_rate, canary_success_rate, stable_error_rate, canary_error_rate, recommendation)
-       VALUES ($1, now() - '5 minutes'::interval, now(), $2, $3, 0.01, 0.02, $4)
-       RETURNING *`,
-      [canaryId, stableSuccessRate, canarySuccessRate, recommendation]
-    );
-    return result.rows[0];
+    const analysis = await this.repo.insertAnalysis({
+      id: `analysis-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      canaryId,
+      windowStart: new Date(Date.now() - 5 * 60 * 1000),
+      windowEnd: new Date(),
+      stableSuccessRate,
+      canarySuccessRate,
+      stableErrorRate: 0.01,
+      canaryErrorRate: 0.02,
+      recommendation,
+      createdAt: new Date(),
+    });
+
+    return this.mapEntityToAnalysis(analysis);
   }
 
   async incrementTraffic(canaryId: string): Promise<CanaryConfig> {
@@ -88,26 +107,66 @@ export class CanaryTrafficManagerService {
 
     const newPercent = Math.min(canary.current_percent + canary.increment_percent, canary.max_percent);
 
-    const result = await this.pool.query(
-      `UPDATE canary_configs SET current_percent = $2 WHERE id = $1 RETURNING *`,
-      [canaryId, newPercent]
-    );
-    return result.rows[0];
+    const result = await this.repo.updateCurrentPercent(canaryId, newPercent);
+    if (!result) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
+    return this.mapEntityToConfig(result);
   }
 
   async rollbackCanary(canaryId: string): Promise<CanaryConfig> {
-    const result = await this.pool.query(
-      `UPDATE canary_configs SET status = 'rollback', current_percent = 0 WHERE id = $1 RETURNING *`,
-      [canaryId]
-    );
-    return result.rows[0];
+    const result = await this.repo.updateConfigStatus(canaryId, 'rollback', 0);
+    if (!result) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
+    return this.mapEntityToConfig(result);
   }
 
   async promoteCanary(canaryId: string): Promise<CanaryConfig> {
-    const result = await this.pool.query(
-      `UPDATE canary_configs SET status = 'completed', current_percent = 100 WHERE id = $1 RETURNING *`,
-      [canaryId]
-    );
-    return result.rows[0];
+    const result = await this.repo.updateConfigStatus(canaryId, 'completed', 100);
+    if (!result) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
+    return this.mapEntityToConfig(result);
+  }
+
+  // ==================== Private Helpers ====================
+
+  private mapEntityToConfig(entity: CanaryConfigEntity): CanaryConfig {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenantId,
+      deployment_id: entity.deploymentId,
+      initial_percent: entity.initialPercent,
+      max_percent: entity.maxPercent,
+      increment_percent: entity.incrementPercent,
+      increment_interval_minutes: entity.incrementIntervalMinutes,
+      analysis_window_minutes: entity.analysisWindowMinutes,
+      success_threshold: entity.successThreshold,
+      rollback_threshold: entity.rollbackThreshold,
+      status: entity.status,
+      current_percent: entity.currentPercent,
+      created_at: entity.createdAt,
+    };
+  }
+
+  private mapEntityToAnalysis(entity: {
+    id: string;
+    canaryId: string;
+    windowStart: Date;
+    windowEnd: Date;
+    stableSuccessRate: number;
+    canarySuccessRate: number;
+    stableErrorRate: number;
+    canaryErrorRate: number;
+    recommendation: 'continue' | 'pause' | 'rollback' | 'promote';
+    createdAt: Date;
+  }): CanaryAnalysis {
+    return {
+      id: entity.id,
+      canary_id: entity.canaryId,
+      window_start: entity.windowStart,
+      window_end: entity.windowEnd,
+      stable_success_rate: entity.stableSuccessRate,
+      canary_success_rate: entity.canarySuccessRate,
+      stable_error_rate: entity.stableErrorRate,
+      canary_error_rate: entity.canaryErrorRate,
+      recommendation: entity.recommendation,
+      created_at: entity.createdAt,
+    };
   }
 }
