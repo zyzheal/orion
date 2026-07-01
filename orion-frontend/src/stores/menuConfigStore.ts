@@ -90,6 +90,11 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/deployments', label: '部署', description: '应用部署管理', category: '持续交付', enabled: true },
       { key: '/canary-analysis', label: '灰度分析', description: '发布质量分析', category: '持续交付', enabled: true },
       { key: '/change-intelligence', label: '变更智能', description: '变更影响分析', category: '持续交付', enabled: true },
+      // 流水线配置
+      { key: '/pipeline/global-params', label: '全局参数', description: '跨 Pipeline 共享参数管理', category: '流水线配置', enabled: true },
+      { key: '/pipeline/env-profiles', label: '环境配置', description: '环境变量与 Profile 管理', category: '流水线配置', enabled: true },
+      { key: '/pipeline/script-versions', label: '脚本版本', description: '脚本内容版本追踪与对比', category: '流水线配置', enabled: true },
+      { key: '/pipeline/audit-logs', label: '审计日志', description: 'Pipeline 执行审计轨迹', category: '流水线配置', enabled: true },
       // 代码与制品
       { key: '/console/code-mgmt', label: '代码管理', description: '代码仓库管理', category: '代码与制品', enabled: true },
       { key: '/artifacts', label: '制品管理', description: '构建产物管理', category: '代码与制品', enabled: true },

@@ -1738,6 +1738,30 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/SprintBoard')),
     protected: true,
   } as any,
+  // Global Param Management (Pipeline)
+  {
+    path: '/pipeline/global-params',
+    element: React.lazy(() => import('@/pages/GlobalParams')),
+    protected: true,
+  },
+  // Env Profile Management (Pipeline)
+  {
+    path: '/pipeline/env-profiles',
+    element: React.lazy(() => import('@/pages/EnvProfiles')),
+    protected: true,
+  },
+  // Script Version Management (Pipeline)
+  {
+    path: '/pipeline/script-versions',
+    element: React.lazy(() => import('@/pages/ScriptVersions')),
+    protected: true,
+  },
+  // Pipeline Audit Log (Pipeline)
+  {
+    path: '/pipeline/audit-logs',
+    element: React.lazy(() => import('@/pages/AuditLogs')),
+    protected: true,
+  } as any,
 
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
   // 通过 :subAppKey 通配符加载任意已配置的子应用
