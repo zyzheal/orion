@@ -7,7 +7,7 @@
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 import { OrionError } from '../errors';
-import type { PipelineAuditLog } from '../../models/PipelineAuditLog';
+import type { PipelineAuditLog } from '../models/PipelineAuditLog';
 
 export interface PipelineAuditLogEntity {
   id: string;

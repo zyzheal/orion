@@ -314,7 +314,7 @@ export class StageOrchestrator {
           execution.pendingStages.delete(stageId);
           execution.run.status = PipelineRunStatus.FAILED;
           execution.run.updatedAt = new Date();
-          await this.runService.updateRun(execution.run);
+          await this.runService.completeRun(execution.run.id, PipelineRunStatus.FAILED);
           return; // Stop execution on failure
         }
       } catch (error) {
@@ -330,7 +330,7 @@ export class StageOrchestrator {
         execution.pendingStages.delete(stageId);
         execution.run.status = PipelineRunStatus.FAILED;
         execution.run.updatedAt = new Date();
-        await this.runService.updateRun(execution.run);
+        await this.runService.completeRun(execution.run.id, PipelineRunStatus.FAILED);
         return;
       }
     }

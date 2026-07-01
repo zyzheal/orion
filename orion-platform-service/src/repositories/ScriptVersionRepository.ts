@@ -7,7 +7,7 @@
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 import { OrionError } from '../errors';
-import type { ScriptVersionEntity, ScriptVersionFilter } from '../../models/ScriptVersion';
+import type { ScriptVersionEntity, ScriptVersionFilter } from '../models/ScriptVersion';
 
 export class ScriptVersionRepository extends BaseRepository<ScriptVersionEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
@@ -110,11 +110,9 @@ export class ScriptVersionRepository extends BaseRepository<ScriptVersionEntity>
   /**
    * Delete a script version.
    */
-  async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<boolean> {
     const result = await this.db.query('DELETE FROM script_versions WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
-      throw new OrionError(`DELETE from script_versions affected no rows (id: ${id})`, 'OPERATION_FAILED');
-    }
+    return (result.rowCount ?? 0) > 0;
   }
 
   // ==================== Pagination ====================

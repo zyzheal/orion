@@ -7,7 +7,7 @@
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 import { OrionError } from '../errors';
-import type { EnvProfileEntity, EnvProfileFilter } from '../../models/EnvProfile';
+import type { EnvProfileEntity, EnvProfileFilter } from '../models/EnvProfile';
 
 export class EnvProfileRepository extends BaseRepository<EnvProfileEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
@@ -134,11 +134,9 @@ export class EnvProfileRepository extends BaseRepository<EnvProfileEntity> {
   /**
    * Delete an environment profile.
    */
-  async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<boolean> {
     const result = await this.db.query('DELETE FROM env_profiles WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
-      throw new OrionError(`DELETE from env_profiles affected no rows (id: ${id})`, 'OPERATION_FAILED');
-    }
+    return (result.rowCount ?? 0) > 0;
   }
 
   // ==================== Pagination ====================

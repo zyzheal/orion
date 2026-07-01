@@ -147,7 +147,7 @@ export class PipelineEngine {
     this.grayscaleController = new GrayScaleController();
     this.multiTargetExecutor = new MultiTargetExecutor(
       this.grayscaleController,
-      this.stageExecutor
+      stageExecutor
     );
 
     this.stageOrchestrator = new StageOrchestrator({

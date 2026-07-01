@@ -7,7 +7,7 @@
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 import { OrionError } from '../errors';
-import type { GlobalParamEntity } from '../../models/GlobalParam';
+import type { GlobalParamEntity } from '../models/GlobalParam';
 
 export class GlobalParamRepository extends BaseRepository<GlobalParamEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
@@ -141,11 +141,9 @@ export class GlobalParamRepository extends BaseRepository<GlobalParamEntity> {
   /**
    * Delete a global parameter.
    */
-  async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<boolean> {
     const result = await this.db.query('DELETE FROM global_params WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
-      throw new OrionError(`DELETE from global_params affected no rows (id: ${id})`, 'OPERATION_FAILED');
-    }
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**

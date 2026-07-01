@@ -115,6 +115,10 @@ import reportDesignerRoutes from './report-designer-routes';
 import costAllocationRoutes from './cost-allocation-routes';
 import sprintRoutes from './sprint-routes';
 import ciTypeRoutes from './ci-type-routes';
+import globalParamRoutes from './global-param-routes';
+import envProfileRoutes from './env-profile-routes';
+import scriptVersionRoutes from './script-version-routes';
+import pipelineAuditLogRoutes from './pipeline-audit-log-routes';
 
 // AI Module Routes — AI Gateway, Cost, Review, Security
 import aiGatewayRoutes from './ai-gateway-routes';
@@ -1401,4 +1405,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== CI Type Designer ====================
   await registerWithRoleGuard(app, ciTypeRoutes, '/ci-types', { database: options.database });
+
+  // ==================== Global Params ====================
+  await registerWithRoleGuard(app, globalParamRoutes, '/global-params', { database: options.database });
+
+  // ==================== Env Profiles ====================
+  await registerWithRoleGuard(app, envProfileRoutes, '/env-profiles', { database: options.database });
+
+  // ==================== Script Versions ====================
+  await registerWithRoleGuard(app, scriptVersionRoutes, '/script-versions', { database: options.database });
+
+  // ==================== Pipeline Audit Log ====================
+  await registerWithRoleGuard(app, pipelineAuditLogRoutes, '/audit-logs', { database: options.database });
 }
