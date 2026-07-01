@@ -3,105 +3,14 @@
  *
  * Routes under /visor/exec
  * Handles batch command execution, script templates, cron jobs, and file upload.
- * Uses in-memory storage (Map) for operational features that don't need DB persistence yet.
+ * Uses PostgreSQL for persistence.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-
-// ============================================================================
-// In-Memory Storage
-// ============================================================================
-
-interface CommandLogEntry {
-  id: string;
-  command: string;
-  hostIds: string[];
-  hostCount: number;
-  timeout: number;
-  status: 'pending' | 'running' | 'success' | 'failed' | 'partial';
-  createdAt: string;
-}
-
-interface CommandLogDetailEntry {
-  id: string;
-  commandId: string;
-  hostname: string;
-  output: string;
-  errorOutput: string;
-  exitCode: number;
-  status: 'success' | 'failed' | 'running';
-}
-
-interface TemplateEntry {
-  id: string;
-  name: string;
-  description: string;
-  content: string;
-  category: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CronJobEntry {
-  id: string;
-  name: string;
-  command: string;
-  hostIds: string[];
-  hostnames: string[];
-  cronExpression: string;
-  enabled: boolean;
-  lastRunAt?: string;
-  nextRunAt?: string;
-  createdAt: string;
-}
-
-interface UploadTaskEntry {
-  id: string;
-  fileName: string;
-  fileSize: number;
-  hostIds: string[];
-  hostnames: string[];
-  targetPath: string;
-  status: 'pending' | 'running' | 'success' | 'failed' | 'partial';
-  progress: number;
-  createdAt: string;
-}
-
-const commandLogs = new Map<string, CommandLogEntry>();
-const commandLogDetails = new Map<string, CommandLogDetailEntry[]>();
-const templates = new Map<string, TemplateEntry>();
-const cronJobs = new Map<string, CronJobEntry>();
-const cronJobLogs = new Map<string, CommandLogEntry[]>();
-const uploadTasks = new Map<string, UploadTaskEntry>();
-
-// ID counters for auto-incrementing IDs
-let commandIdCounter = 1;
-let templateIdCounter = 1;
-let jobIdCounter = 1;
-let uploadTaskIdCounter = 1;
-
-// Helper to generate IDs
-function nextCommandId(): string {
-  return `cmd-${String(commandIdCounter++).padStart(6, '0')}`;
-}
-
-function nextTemplateId(): string {
-  return `tpl-${String(templateIdCounter++).padStart(6, '0')}`;
-}
-
-function nextJobId(): string {
-  return `job-${String(jobIdCounter++).padStart(6, '0')}`;
-}
-
-function nextUploadTaskId(): string {
-  return `upl-${String(uploadTaskIdCounter++).padStart(6, '0')}`;
-}
-
-function nowISO(): string {
-  return new Date().toISOString();
-}
+import { DatabasePool } from '../services/database';
+import { VisorExecRepository } from '../repositories/VisorExecRepository';
 
 // ============================================================================
 // Route Registration
@@ -109,8 +18,18 @@ function nowISO(): string {
 
 export default async function visorExecRoutes(
   app: FastifyInstance,
-  _options?: Record<string, unknown>
+  options?: Record<string, unknown>
 ): Promise<void> {
+  const pool = (options as { database?: DatabasePool } | undefined)?.database;
+  const repo = pool ? new VisorExecRepository(pool) : null;
+
+  if (!repo) {
+    // Database not available — register a health check endpoint only
+    app.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
+      return reply.send({ success: true, data: { status: 'degraded', database: false } });
+    });
+    return;
+  }
 
   // ==========================================================================
   // Command Execution
@@ -148,23 +67,16 @@ export default async function visorExecRoutes(
       });
     }
 
-    const id = nextCommandId();
-    const entry: CommandLogEntry = {
-      id,
+    const commandLog = await repo.createCommandLog({
       command: body.command,
       hostIds: body.hostIds,
-      hostCount: body.hostIds.length,
       timeout: body.timeout || 30,
       status: 'success',
-      createdAt: nowISO(),
-    };
+    });
 
-    commandLogs.set(id, entry);
-
-    // Generate mock details for each host
-    const details: CommandLogDetailEntry[] = body.hostIds.map((hostId, idx) => ({
-      id: `detail-${id}-${idx}`,
-      commandId: id,
+    // Create details for each host
+    const details = body.hostIds.map((hostId, idx) => ({
+      commandId: commandLog.id,
       hostname: hostId,
       output: `Command executed successfully on ${hostId}`,
       errorOutput: '',
@@ -172,15 +84,15 @@ export default async function visorExecRoutes(
       status: 'success' as const,
     }));
 
-    commandLogDetails.set(id, details);
+    await repo.createCommandLogDetails(details);
 
     return reply.status(201).send({
       success: true,
       data: {
-        id: entry.id,
-        status: entry.status,
-        hostCount: entry.hostCount,
-        createdAt: entry.createdAt,
+        id: commandLog.id,
+        status: commandLog.status,
+        hostCount: commandLog.host_count,
+        createdAt: commandLog.created_at.toISOString(),
       },
     });
   });
@@ -193,17 +105,22 @@ export default async function visorExecRoutes(
     const page = query.page ? parseInt(query.page, 10) : 1;
     const pageSize = query.pageSize ? parseInt(query.pageSize, 10) : 20;
 
-    const allLogs = Array.from(commandLogs.values())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const result = await repo.findAllCommandLogs(undefined, { page, pageSize });
 
-    const total = allLogs.length;
-    const start = (page - 1) * pageSize;
-    const data = allLogs.slice(start, start + pageSize);
+    const data = result.entities.map((e) => ({
+      id: e.id,
+      command: e.command,
+      hostIds: e.host_ids,
+      hostCount: e.host_count,
+      timeout: e.timeout,
+      status: e.status,
+      createdAt: e.created_at.toISOString(),
+    }));
 
     return reply.send({
       success: true,
       data,
-      total,
+      total: result.total,
       page,
       pageSize,
     });
@@ -214,7 +131,7 @@ export default async function visorExecRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
-    const entry = commandLogs.get(params.id);
+    const entry = await repo.findCommandLogById(params.id);
 
     if (!entry) {
       return reply.status(404).send({
@@ -223,7 +140,18 @@ export default async function visorExecRoutes(
       });
     }
 
-    return reply.send({ success: true, data: entry });
+    return reply.send({
+      success: true,
+      data: {
+        id: entry.id,
+        command: entry.command,
+        hostIds: entry.host_ids,
+        hostCount: entry.host_count,
+        timeout: entry.timeout,
+        status: entry.status,
+        createdAt: entry.created_at.toISOString(),
+      },
+    });
   });
 
   // GET /command-log/:id/details - Get execution details
@@ -231,8 +159,8 @@ export default async function visorExecRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
-    const entry = commandLogs.get(params.id);
 
+    const entry = await repo.findCommandLogById(params.id);
     if (!entry) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
@@ -240,8 +168,19 @@ export default async function visorExecRoutes(
       });
     }
 
-    const details = commandLogDetails.get(params.id) || [];
-    return reply.send({ success: true, data: details });
+    const details = await repo.findCommandLogDetailsByCommandId(params.id);
+
+    const data = details.map((d) => ({
+      id: d.id,
+      commandId: d.command_id,
+      hostname: d.hostname,
+      output: d.output,
+      errorOutput: d.error_output,
+      exitCode: d.exit_code,
+      status: d.status,
+    }));
+
+    return reply.send({ success: true, data });
   });
 
   // ==========================================================================
@@ -252,10 +191,19 @@ export default async function visorExecRoutes(
   app.get('/template', {
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const data = Array.from(templates.values())
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    const result = await repo.findAllTemplates();
 
-    return reply.send({ success: true, data, total: data.length });
+    const data = result.entities.map((e) => ({
+      id: e.id,
+      name: e.name,
+      description: e.description,
+      content: e.content,
+      category: e.category,
+      createdAt: e.created_at.toISOString(),
+      updatedAt: e.updated_at.toISOString(),
+    }));
+
+    return reply.send({ success: true, data, total: result.total });
   });
 
   // GET /template/:id - Get template
@@ -263,7 +211,7 @@ export default async function visorExecRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
-    const entry = templates.get(params.id);
+    const entry = await repo.findTemplateById(params.id);
 
     if (!entry) {
       return reply.status(404).send({
@@ -272,7 +220,18 @@ export default async function visorExecRoutes(
       });
     }
 
-    return reply.send({ success: true, data: entry });
+    return reply.send({
+      success: true,
+      data: {
+        id: entry.id,
+        name: entry.name,
+        description: entry.description,
+        content: entry.content,
+        category: entry.category,
+        createdAt: entry.created_at.toISOString(),
+        updatedAt: entry.updated_at.toISOString(),
+      },
+    });
   });
 
   // POST /template - Create template
@@ -300,21 +259,25 @@ export default async function visorExecRoutes(
       });
     }
 
-    const id = nextTemplateId();
-    const timestamp = nowISO();
-    const entry: TemplateEntry = {
-      id,
+    const template = await repo.createTemplate({
       name: body.name,
       description: body.description || '',
       content: body.content,
       category: body.category || 'general',
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
+    });
 
-    templates.set(id, entry);
-
-    return reply.status(201).send({ success: true, data: entry });
+    return reply.status(201).send({
+      success: true,
+      data: {
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        content: template.content,
+        category: template.category,
+        createdAt: template.created_at.toISOString(),
+        updatedAt: template.updated_at.toISOString(),
+      },
+    });
   });
 
   // PUT /template/:id - Update template
@@ -329,26 +292,40 @@ export default async function visorExecRoutes(
       category?: string;
     };
 
-    const entry = templates.get(params.id);
-    if (!entry) {
+    const existing = await repo.findTemplateById(params.id);
+    if (!existing) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Template ${params.id} not found`,
       });
     }
 
-    const updated: TemplateEntry = {
-      ...entry,
-      name: body.name ?? entry.name,
-      description: body.description ?? entry.description,
-      content: body.content ?? entry.content,
-      category: body.category ?? entry.category,
-      updatedAt: nowISO(),
-    };
+    const updated = await repo.updateTemplate(params.id, {
+      name: body.name,
+      description: body.description,
+      content: body.content,
+      category: body.category,
+    });
 
-    templates.set(params.id, updated);
+    if (!updated) {
+      return reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `Template ${params.id} not found`,
+      });
+    }
 
-    return reply.send({ success: true, data: updated });
+    return reply.send({
+      success: true,
+      data: {
+        id: updated.id,
+        name: updated.name,
+        description: updated.description,
+        content: updated.content,
+        category: updated.category,
+        createdAt: updated.created_at.toISOString(),
+        updatedAt: updated.updated_at.toISOString(),
+      },
+    });
   });
 
   // DELETE /template/:id - Delete template
@@ -357,14 +334,15 @@ export default async function visorExecRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
 
-    if (!templates.has(params.id)) {
+    const existing = await repo.findTemplateById(params.id);
+    if (!existing) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Template ${params.id} not found`,
       });
     }
 
-    templates.delete(params.id);
+    await repo.deleteTemplate(params.id);
 
     return reply.send({ success: true, message: 'Template deleted' });
   });
@@ -377,10 +355,22 @@ export default async function visorExecRoutes(
   app.get('/job', {
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const data = Array.from(cronJobs.values())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const result = await repo.findAllCronJobs();
 
-    return reply.send({ success: true, data, total: data.length });
+    const data = result.entities.map((e) => ({
+      id: e.id,
+      name: e.name,
+      command: e.command,
+      hostIds: e.host_ids,
+      hostnames: e.hostnames,
+      cronExpression: e.cron_expression,
+      enabled: e.enabled,
+      lastRunAt: e.last_run_at?.toISOString(),
+      nextRunAt: e.next_run_at?.toISOString(),
+      createdAt: e.created_at.toISOString(),
+    }));
+
+    return reply.send({ success: true, data, total: result.total });
   });
 
   // GET /job/:id - Get cron job
@@ -388,7 +378,7 @@ export default async function visorExecRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
-    const entry = cronJobs.get(params.id);
+    const entry = await repo.findCronJobById(params.id);
 
     if (!entry) {
       return reply.status(404).send({
@@ -397,7 +387,21 @@ export default async function visorExecRoutes(
       });
     }
 
-    return reply.send({ success: true, data: entry });
+    return reply.send({
+      success: true,
+      data: {
+        id: entry.id,
+        name: entry.name,
+        command: entry.command,
+        hostIds: entry.host_ids,
+        hostnames: entry.hostnames,
+        cronExpression: entry.cron_expression,
+        enabled: entry.enabled,
+        lastRunAt: entry.last_run_at?.toISOString(),
+        nextRunAt: entry.next_run_at?.toISOString(),
+        createdAt: entry.created_at.toISOString(),
+      },
+    });
   });
 
   // POST /job - Create cron job
@@ -419,21 +423,28 @@ export default async function visorExecRoutes(
       });
     }
 
-    const id = nextJobId();
-    const entry: CronJobEntry = {
-      id,
+    const cronJob = await repo.createCronJob({
       name: body.name,
       command: body.command,
       hostIds: body.hostIds,
       hostnames: body.hostIds,
       cronExpression: body.cronExpression,
       enabled: body.enabled !== false,
-      createdAt: nowISO(),
-    };
+    });
 
-    cronJobs.set(id, entry);
-
-    return reply.status(201).send({ success: true, data: entry });
+    return reply.status(201).send({
+      success: true,
+      data: {
+        id: cronJob.id,
+        name: cronJob.name,
+        command: cronJob.command,
+        hostIds: cronJob.host_ids,
+        hostnames: cronJob.hostnames,
+        cronExpression: cronJob.cron_expression,
+        enabled: cronJob.enabled,
+        createdAt: cronJob.created_at.toISOString(),
+      },
+    });
   });
 
   // PUT /job/:id - Update cron job
@@ -449,27 +460,45 @@ export default async function visorExecRoutes(
       enabled?: boolean;
     };
 
-    const entry = cronJobs.get(params.id);
-    if (!entry) {
+    const existing = await repo.findCronJobById(params.id);
+    if (!existing) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Cron job ${params.id} not found`,
       });
     }
 
-    const updated: CronJobEntry = {
-      ...entry,
-      name: body.name ?? entry.name,
-      command: body.command ?? entry.command,
-      hostIds: body.hostIds ?? entry.hostIds,
-      hostnames: body.hostIds ?? entry.hostnames,
-      cronExpression: body.cronExpression ?? entry.cronExpression,
-      enabled: body.enabled ?? entry.enabled,
-    };
+    const updated = await repo.updateCronJob(params.id, {
+      name: body.name,
+      command: body.command,
+      hostIds: body.hostIds,
+      hostnames: body.hostIds,
+      cronExpression: body.cronExpression,
+      enabled: body.enabled,
+    });
 
-    cronJobs.set(params.id, updated);
+    if (!updated) {
+      return reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `Cron job ${params.id} not found`,
+      });
+    }
 
-    return reply.send({ success: true, data: updated });
+    return reply.send({
+      success: true,
+      data: {
+        id: updated.id,
+        name: updated.name,
+        command: updated.command,
+        hostIds: updated.host_ids,
+        hostnames: updated.hostnames,
+        cronExpression: updated.cron_expression,
+        enabled: updated.enabled,
+        lastRunAt: updated.last_run_at?.toISOString(),
+        nextRunAt: updated.next_run_at?.toISOString(),
+        createdAt: updated.created_at.toISOString(),
+      },
+    });
   });
 
   // DELETE /job/:id - Delete cron job
@@ -478,14 +507,15 @@ export default async function visorExecRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
 
-    if (!cronJobs.has(params.id)) {
+    const existing = await repo.findCronJobById(params.id);
+    if (!existing) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Cron job ${params.id} not found`,
       });
     }
 
-    cronJobs.delete(params.id);
+    await repo.deleteCronJob(params.id);
 
     return reply.send({ success: true, message: 'Cron job deleted' });
   });
@@ -497,18 +527,31 @@ export default async function visorExecRoutes(
     const params = request.params as { id: string };
     const body = request.body as { enabled: boolean };
 
-    const entry = cronJobs.get(params.id);
-    if (!entry) {
+    const existing = await repo.findCronJobById(params.id);
+    if (!existing) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Cron job ${params.id} not found`,
       });
     }
 
-    entry.enabled = body.enabled;
-    cronJobs.set(params.id, entry);
+    const updated = await repo.toggleCronJob(params.id, body.enabled);
 
-    return reply.send({ success: true, data: entry });
+    return reply.send({
+      success: true,
+      data: {
+        id: updated!.id,
+        name: updated!.name,
+        command: updated!.command,
+        hostIds: updated!.host_ids,
+        hostnames: updated!.hostnames,
+        cronExpression: updated!.cron_expression,
+        enabled: updated!.enabled,
+        lastRunAt: updated!.last_run_at?.toISOString(),
+        nextRunAt: updated!.next_run_at?.toISOString(),
+        createdAt: updated!.created_at.toISOString(),
+      },
+    });
   });
 
   // POST /job/:id/run-now - Trigger immediate execution
@@ -517,8 +560,8 @@ export default async function visorExecRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
 
-    const entry = cronJobs.get(params.id);
-    if (!entry) {
+    const job = await repo.findCronJobById(params.id);
+    if (!job) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Cron job ${params.id} not found`,
@@ -526,35 +569,36 @@ export default async function visorExecRoutes(
     }
 
     // Record the execution as a command log
-    const cmdId = nextCommandId();
-    const timestamp = nowISO();
-    const cmdLog: CommandLogEntry = {
-      id: cmdId,
-      command: entry.command,
-      hostIds: entry.hostIds,
-      hostCount: entry.hostIds.length,
+    const cmdLog = await repo.createCommandLog({
+      command: job.command,
+      hostIds: job.host_ids,
       timeout: 30,
       status: 'success',
-      createdAt: timestamp,
-    };
+    });
 
-    commandLogs.set(cmdId, cmdLog);
+    await repo.createCommandLogDetails(
+      job.host_ids.map((hostId) => ({
+        commandId: cmdLog.id,
+        hostname: hostId,
+        output: `Command executed successfully on ${hostId}`,
+        errorOutput: '',
+        exitCode: 0,
+        status: 'success' as const,
+      }))
+    );
 
     // Update job lastRunAt
-    entry.lastRunAt = timestamp;
-    cronJobs.set(params.id, entry);
+    const updatedJob = await repo.updateCronJobLastRun(params.id, new Date());
 
-    // Append to job logs
-    const logs = cronJobLogs.get(params.id) || [];
-    logs.push(cmdLog);
-    cronJobLogs.set(params.id, logs);
+    // Create cron job log entry
+    await repo.createCronJobLog({ jobId: params.id, commandId: cmdLog.id });
 
     return reply.send({
       success: true,
       data: {
-        commandId: cmdId,
+        commandId: cmdLog.id,
         status: cmdLog.status,
-        createdAt: timestamp,
+        createdAt: cmdLog.created_at.toISOString(),
       },
     });
   });
@@ -566,8 +610,8 @@ export default async function visorExecRoutes(
     const params = request.params as { id: string };
     const query = request.query as { page?: string; pageSize?: string };
 
-    const entry = cronJobs.get(params.id);
-    if (!entry) {
+    const job = await repo.findCronJobById(params.id);
+    if (!job) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: `Cron job ${params.id} not found`,
@@ -577,17 +621,18 @@ export default async function visorExecRoutes(
     const page = query.page ? parseInt(query.page, 10) : 1;
     const pageSize = query.pageSize ? parseInt(query.pageSize, 10) : 20;
 
-    const allLogs = (cronJobLogs.get(params.id) || [])
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const result = await repo.findCronJobLogsByJobId(params.id, undefined, { page, pageSize });
 
-    const total = allLogs.length;
-    const start = (page - 1) * pageSize;
-    const data = allLogs.slice(start, start + pageSize);
+    const data = result.entities.map((e) => ({
+      id: e.id,
+      commandId: e.command_id,
+      createdAt: e.created_at.toISOString(),
+    }));
 
     return reply.send({
       success: true,
       data,
-      total,
+      total: result.total,
       page,
       pageSize,
     });
@@ -623,9 +668,7 @@ export default async function visorExecRoutes(
       });
     }
 
-    const id = nextUploadTaskId();
-    const entry: UploadTaskEntry = {
-      id,
+    const task = await repo.createUploadTask({
       fileName: body.fileName || 'uploaded-file',
       fileSize: body.fileSize || 0,
       hostIds,
@@ -633,22 +676,43 @@ export default async function visorExecRoutes(
       targetPath: body.targetPath,
       status: 'success',
       progress: 100,
-      createdAt: nowISO(),
-    };
+    });
 
-    uploadTasks.set(id, entry);
-
-    return reply.status(201).send({ success: true, data: entry });
+    return reply.status(201).send({
+      success: true,
+      data: {
+        id: task.id,
+        fileName: task.file_name,
+        fileSize: task.file_size,
+        hostIds: task.host_ids,
+        hostnames: task.hostnames,
+        targetPath: task.target_path,
+        status: task.status,
+        progress: task.progress,
+        createdAt: task.created_at.toISOString(),
+      },
+    });
   });
 
   // GET /upload-task - List upload tasks
   app.get('/upload-task', {
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const data = Array.from(uploadTasks.values())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const result = await repo.findAllUploadTasks();
 
-    return reply.send({ success: true, data, total: data.length });
+    const data = result.entities.map((e) => ({
+      id: e.id,
+      fileName: e.file_name,
+      fileSize: e.file_size,
+      hostIds: e.host_ids,
+      hostnames: e.hostnames,
+      targetPath: e.target_path,
+      status: e.status,
+      progress: e.progress,
+      createdAt: e.created_at.toISOString(),
+    }));
+
+    return reply.send({ success: true, data, total: result.total });
   });
 
   // GET /upload-task/:id - Get upload task
@@ -656,7 +720,7 @@ export default async function visorExecRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
-    const entry = uploadTasks.get(params.id);
+    const entry = await repo.findUploadTaskById(params.id);
 
     if (!entry) {
       return reply.status(404).send({
@@ -665,7 +729,20 @@ export default async function visorExecRoutes(
       });
     }
 
-    return reply.send({ success: true, data: entry });
+    return reply.send({
+      success: true,
+      data: {
+        id: entry.id,
+        fileName: entry.file_name,
+        fileSize: entry.file_size,
+        hostIds: entry.host_ids,
+        hostnames: entry.hostnames,
+        targetPath: entry.target_path,
+        status: entry.status,
+        progress: entry.progress,
+        createdAt: entry.created_at.toISOString(),
+      },
+    });
   });
 
   // POST /upload-task/:id/cancel - Cancel upload task
@@ -673,8 +750,8 @@ export default async function visorExecRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'visor-exec', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
-    const entry = uploadTasks.get(params.id);
 
+    const entry = await repo.findUploadTaskById(params.id);
     if (!entry) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
@@ -689,9 +766,21 @@ export default async function visorExecRoutes(
       });
     }
 
-    entry.status = 'failed';
-    uploadTasks.set(params.id, entry);
+    const updated = await repo.updateUploadTask(params.id, { status: 'failed' });
 
-    return reply.send({ success: true, data: entry });
+    return reply.send({
+      success: true,
+      data: {
+        id: updated!.id,
+        fileName: updated!.file_name,
+        fileSize: updated!.file_size,
+        hostIds: updated!.host_ids,
+        hostnames: updated!.hostnames,
+        targetPath: updated!.target_path,
+        status: updated!.status,
+        progress: updated!.progress,
+        createdAt: updated!.created_at.toISOString(),
+      },
+    });
   });
 }
