@@ -2,6 +2,7 @@
  * CanaryTrafficRepository — Data access layer for canary_configs and canary_analyses tables
  *
  * Provides CRUD and analysis operations for Canary Traffic Management.
+ * All read/write operations enforce tenant isolation via tenant_id filter.
  */
 
 import { DatabasePool } from '../services/database';
@@ -69,10 +70,10 @@ export class CanaryTrafficRepository {
     return this.mapRowToConfig(result.rows[0]);
   }
 
-  async findConfigById(id: string): Promise<CanaryConfigEntity | undefined> {
+  async findConfigById(id: string, tenantId: string): Promise<CanaryConfigEntity | undefined> {
     const result = await this.pool.query(
-      'SELECT * FROM canary_configs WHERE id = $1',
-      [id],
+      'SELECT * FROM canary_configs WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToConfig(result.rows[0]);
@@ -80,22 +81,23 @@ export class CanaryTrafficRepository {
 
   async updateConfigStatus(
     id: string,
-    status: string,
+    tenantId: string,
+    status: CanaryConfigEntity['status'],
     currentPercent?: number,
   ): Promise<CanaryConfigEntity | undefined> {
     const result = await this.pool.query(
       `UPDATE canary_configs SET status = $2, current_percent = COALESCE($3, current_percent)
-       WHERE id = $1 RETURNING *`,
-      [id, status, currentPercent],
+       WHERE id = $1 AND tenant_id = $4 RETURNING *`,
+      [id, status, currentPercent, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToConfig(result.rows[0]);
   }
 
-  async updateCurrentPercent(id: string, currentPercent: number): Promise<CanaryConfigEntity | undefined> {
+  async updateCurrentPercent(id: string, tenantId: string, currentPercent: number): Promise<CanaryConfigEntity | undefined> {
     const result = await this.pool.query(
-      'UPDATE canary_configs SET current_percent = $2 WHERE id = $1 RETURNING *',
-      [id, currentPercent],
+      'UPDATE canary_configs SET current_percent = $2 WHERE id = $1 AND tenant_id = $3 RETURNING *',
+      [id, currentPercent, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToConfig(result.rows[0]);
@@ -131,15 +133,15 @@ export class CanaryTrafficRepository {
       id: row.id,
       tenantId: row.tenant_id,
       deploymentId: row.deployment_id,
-      initialPercent: parseFloat(row.initial_percent),
-      maxPercent: parseFloat(row.max_percent),
-      incrementPercent: parseFloat(row.increment_percent),
-      incrementIntervalMinutes: parseInt(row.increment_interval_minutes, 10),
-      analysisWindowMinutes: parseInt(row.analysis_window_minutes, 10),
-      successThreshold: parseFloat(row.success_threshold),
-      rollbackThreshold: parseFloat(row.rollback_threshold),
+      initialPercent: Number(row.initial_percent),
+      maxPercent: Number(row.max_percent),
+      incrementPercent: Number(row.increment_percent),
+      incrementIntervalMinutes: Number(row.increment_interval_minutes),
+      analysisWindowMinutes: Number(row.analysis_window_minutes),
+      successThreshold: Number(row.success_threshold),
+      rollbackThreshold: Number(row.rollback_threshold),
       status: row.status,
-      currentPercent: parseFloat(row.current_percent),
+      currentPercent: Number(row.current_percent),
       createdAt: row.created_at,
     };
   }
@@ -150,10 +152,10 @@ export class CanaryTrafficRepository {
       canaryId: row.canary_id,
       windowStart: row.window_start,
       windowEnd: row.window_end,
-      stableSuccessRate: parseFloat(row.stable_success_rate),
-      canarySuccessRate: parseFloat(row.canary_success_rate),
-      stableErrorRate: parseFloat(row.stable_error_rate),
-      canaryErrorRate: parseFloat(row.canary_error_rate),
+      stableSuccessRate: Number(row.stable_success_rate),
+      canarySuccessRate: Number(row.canary_success_rate),
+      stableErrorRate: Number(row.stable_error_rate),
+      canaryErrorRate: Number(row.canary_error_rate),
       recommendation: row.recommendation,
       createdAt: row.created_at,
     };

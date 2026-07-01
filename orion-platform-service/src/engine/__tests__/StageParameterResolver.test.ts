@@ -9,7 +9,6 @@
 
 import { StageParameterResolver } from '../StageParameterResolver';
 import { VariableContext } from '../VariableContext';
-import { Stage, StageStatus } from '../../models/Stage';
 import { Task, TaskStatus } from '../../models/Task';
 
 describe('StageParameterResolver', () => {

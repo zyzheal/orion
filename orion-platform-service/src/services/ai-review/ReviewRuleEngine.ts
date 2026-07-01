@@ -18,6 +18,7 @@ import {
   ChangedLine,
 } from './types';
 import { DiffAnalyzer } from './DiffAnalyzer';
+import { ReviewRuleRepository, ReviewRuleEntity } from '../../repositories/ReviewRuleRepository';
 import pino from 'pino';
 
 const logger = pino({ name: 'LReview-LRule-LEngine' });
@@ -288,17 +289,26 @@ const DEFAULT_RULES: ReviewRule[] = [
 export class ReviewRuleEngine {
   private rules: Map<string, ReviewRule>;
   private diffAnalyzer: DiffAnalyzer;
+  private repository?: ReviewRuleRepository;
 
-  constructor(customRules?: ReviewRule[]) {
+  constructor(repository?: ReviewRuleRepository, customRules?: ReviewRule[]) {
     this.rules = new Map();
     this.diffAnalyzer = new DiffAnalyzer();
+    this.repository = repository;
 
     // 加载内置规则
     for (const rule of DEFAULT_RULES) {
       this.rules.set(rule.id, { ...rule });
     }
 
-    // 加载自定义规则
+    // 从 Repository 加载持久化的自定义规则
+    if (repository) {
+      this.loadFromRepository().catch(() => {
+        // Repository load failed, continue with default rules only
+      });
+    }
+
+    // 加载传入的自定义规则
     if (customRules) {
       for (const rule of customRules) {
         this.rules.set(rule.id, { ...rule });
@@ -307,17 +317,116 @@ export class ReviewRuleEngine {
   }
 
   /**
-   * 注册规则
+   * 从 Repository 加载持久化的自定义规则
    */
-  registerRule(rule: ReviewRule): void {
-    this.rules.set(rule.id, { ...rule });
+  private async loadFromRepository(): Promise<void> {
+    try {
+      const entities = await this.repository!.findAll();
+      for (const entity of entities.entities) {
+        const rule = this.mapEntityToRule(entity);
+        this.rules.set(rule.id, rule);
+      }
+    } catch {
+      // Silently ignore load errors - default rules still available
+    }
   }
 
   /**
-   * 移除规则
+   * 将 Repository entity 转换为 ReviewRule
    */
-  removeRule(ruleId: string): boolean {
-    return this.rules.delete(ruleId);
+  private mapEntityToRule(entity: ReviewRuleEntity): ReviewRule {
+    return {
+      id: entity.id,
+      name: entity.name,
+      category: entity.category as RuleCategory,
+      severity: entity.severity as Severity,
+      pattern: entity.pattern,
+      description: entity.description,
+      suggestion: entity.suggestion ?? undefined,
+      enabled: entity.enabled,
+      fileExtensions: entity.fileExtensions,
+      metadata: entity.metadata,
+    };
+  }
+
+  /**
+   * 将 ReviewRule 转换为 Repository entity
+   */
+  private mapRuleToEntity(rule: ReviewRule): Partial<ReviewRuleEntity> {
+    return {
+      id: rule.id,
+      name: rule.name,
+      category: rule.category,
+      severity: rule.severity,
+      pattern: rule.pattern,
+      description: rule.description,
+      suggestion: rule.suggestion ?? null,
+      enabled: rule.enabled,
+      fileExtensions: rule.fileExtensions ?? [],
+      metadata: rule.metadata ?? {},
+    };
+  }
+
+  /**
+   * 注册规则 (持久化到 Repository)
+   */
+  async registerRule(rule: ReviewRule): Promise<void> {
+    this.rules.set(rule.id, { ...rule });
+
+    if (this.repository) {
+      try {
+        await this.repository.upsert(this.mapRuleToEntity(rule));
+      } catch {
+        // Persistence failed, but rule is registered in memory
+      }
+    }
+  }
+
+  /**
+   * 移除规则 (从 Repository 删除)
+   */
+  async removeRule(ruleId: string): Promise<boolean> {
+    const removed = this.rules.delete(ruleId);
+
+    if (removed && this.repository) {
+      try {
+        await this.repository.delete(ruleId);
+      } catch {
+        // Deletion from repository failed, but removed from memory
+      }
+    }
+
+    return removed;
+  }
+
+  /**
+   * 更新规则 (持久化到 Repository)
+   */
+  async updateRule(ruleId: string, updates: Partial<ReviewRule>): Promise<ReviewRule | undefined> {
+    const existing = this.rules.get(ruleId);
+    if (!existing) return undefined;
+
+    const updated: ReviewRule = {
+      ...existing,
+      ...updates,
+      metadata: {
+        ...existing.metadata,
+        createdAt: existing.metadata?.createdAt ?? new Date(),
+        updatedAt: new Date(),
+      },
+    };
+
+    this.rules.set(ruleId, updated);
+
+    if (this.repository) {
+      try {
+        await this.repository.upsert(this.mapRuleToEntity(updated));
+      } catch {
+        // Update failed in repository, but memory is updated
+      }
+    }
+
+    return updated;
   }
 
   /**
@@ -339,26 +448,6 @@ export class ReviewRuleEngine {
    */
   getEnabledRules(): ReviewRule[] {
     return this.getAllRules().filter((r) => r.enabled);
-  }
-
-  /**
-   * 更新规则
-   */
-  updateRule(ruleId: string, updates: Partial<ReviewRule>): ReviewRule | undefined {
-    const existing = this.rules.get(ruleId);
-    if (!existing) return undefined;
-
-    const updated: ReviewRule = {
-      ...existing,
-      ...updates,
-      metadata: {
-        ...existing.metadata,
-        createdAt: existing.metadata?.createdAt ?? new Date(),
-        updatedAt: new Date(),
-      },
-    };
-    this.rules.set(ruleId, updated);
-    return updated;
   }
 
   /**

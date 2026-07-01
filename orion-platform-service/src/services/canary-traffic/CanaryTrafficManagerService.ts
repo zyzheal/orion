@@ -1,4 +1,4 @@
-import { CanaryTrafficRepository, type CanaryConfigEntity } from '../../repositories/CanaryTrafficRepository';
+import { CanaryTrafficRepository, type CanaryConfigEntity, type CanaryAnalysisEntity } from '../../repositories/CanaryTrafficRepository';
 import { OrionError, ErrorCode } from '../../errors';
 /**
  * Canary Traffic Manager Service - Phase 3
@@ -60,19 +60,19 @@ export class CanaryTrafficManagerService {
     return this.mapEntityToConfig(result);
   }
 
-  async getCanary(canaryId: string): Promise<CanaryConfig | null> {
-    const result = await this.repo.findConfigById(canaryId);
+  async getCanary(tenantId: string, canaryId: string): Promise<CanaryConfig | null> {
+    const result = await this.repo.findConfigById(canaryId, tenantId);
     return result ? this.mapEntityToConfig(result) : null;
   }
 
   async analyzeCanary(
+    tenantId: string,
     canaryId: string,
     _options?: { stableSuccessRate?: number; canarySuccessRate?: number }
   ): Promise<CanaryAnalysis> {
-    const canary = await this.getCanary(canaryId);
+    const canary = await this.getCanary(tenantId, canaryId);
     if (!canary) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
 
-    // Simulated analysis - would get real metrics in production
     const stableSuccessRate = _options?.stableSuccessRate ?? 0.99;
     const canarySuccessRate = _options?.canarySuccessRate ?? 0.98;
 
@@ -101,25 +101,25 @@ export class CanaryTrafficManagerService {
     return this.mapEntityToAnalysis(analysis);
   }
 
-  async incrementTraffic(canaryId: string): Promise<CanaryConfig> {
-    const canary = await this.getCanary(canaryId);
+  async incrementTraffic(tenantId: string, canaryId: string): Promise<CanaryConfig> {
+    const canary = await this.getCanary(tenantId, canaryId);
     if (!canary) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
 
     const newPercent = Math.min(canary.current_percent + canary.increment_percent, canary.max_percent);
 
-    const result = await this.repo.updateCurrentPercent(canaryId, newPercent);
+    const result = await this.repo.updateCurrentPercent(canaryId, tenantId, newPercent);
     if (!result) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
     return this.mapEntityToConfig(result);
   }
 
-  async rollbackCanary(canaryId: string): Promise<CanaryConfig> {
-    const result = await this.repo.updateConfigStatus(canaryId, 'rollback', 0);
+  async rollbackCanary(tenantId: string, canaryId: string): Promise<CanaryConfig> {
+    const result = await this.repo.updateConfigStatus(canaryId, tenantId, 'rollback', 0);
     if (!result) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
     return this.mapEntityToConfig(result);
   }
 
-  async promoteCanary(canaryId: string): Promise<CanaryConfig> {
-    const result = await this.repo.updateConfigStatus(canaryId, 'completed', 100);
+  async promoteCanary(tenantId: string, canaryId: string): Promise<CanaryConfig> {
+    const result = await this.repo.updateConfigStatus(canaryId, tenantId, 'completed', 100);
     if (!result) throw new OrionError('Canary not found', ErrorCode.NOT_FOUND);
     return this.mapEntityToConfig(result);
   }
@@ -144,18 +144,7 @@ export class CanaryTrafficManagerService {
     };
   }
 
-  private mapEntityToAnalysis(entity: {
-    id: string;
-    canaryId: string;
-    windowStart: Date;
-    windowEnd: Date;
-    stableSuccessRate: number;
-    canarySuccessRate: number;
-    stableErrorRate: number;
-    canaryErrorRate: number;
-    recommendation: 'continue' | 'pause' | 'rollback' | 'promote';
-    createdAt: Date;
-  }): CanaryAnalysis {
+  private mapEntityToAnalysis(entity: CanaryAnalysisEntity): CanaryAnalysis {
     return {
       id: entity.id,
       canary_id: entity.canaryId,

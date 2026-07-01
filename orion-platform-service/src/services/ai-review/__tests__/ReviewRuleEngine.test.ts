@@ -44,7 +44,7 @@ describe('ReviewRuleEngine', () => {
   });
 
   describe('规则管理', () => {
-    it('应该支持注册自定义规则', () => {
+    it('应该支持注册自定义规则', async () => {
       const customRule: ReviewRule = {
         id: 'custom-001',
         name: '自定义规则',
@@ -57,23 +57,23 @@ describe('ReviewRuleEngine', () => {
         metadata: { createdAt: new Date(), updatedAt: new Date() },
       };
 
-      engine.registerRule(customRule);
+      await engine.registerRule(customRule);
       const rule = engine.getRule('custom-001');
 
       expect(rule).toBeDefined();
       expect(rule?.name).toBe('自定义规则');
     });
 
-    it('应该支持移除规则', () => {
-      const removed = engine.removeRule('sec-001');
+    it('应该支持移除规则', async () => {
+      const removed = await engine.removeRule('sec-001');
       expect(removed).toBe(true);
 
       const rule = engine.getRule('sec-001');
       expect(rule).toBeUndefined();
     });
 
-    it('应该支持更新规则', () => {
-      const updated = engine.updateRule('sec-001', {
+    it('应该支持更新规则', async () => {
+      const updated = await engine.updateRule('sec-001', {
         name: '更新后的规则名称',
         enabled: false,
       });
@@ -83,13 +83,13 @@ describe('ReviewRuleEngine', () => {
       expect(updated?.enabled).toBe(false);
     });
 
-    it('应该返回 undefined 当更新不存在的规则', () => {
-      const result = engine.updateRule('nonexistent', { name: 'test' });
+    it('应该返回 undefined 当更新不存在的规则', async () => {
+      const result = await engine.updateRule('nonexistent', { name: 'test' });
       expect(result).toBeUndefined();
     });
 
-    it('应该只返回启用的规则', () => {
-      engine.updateRule('sec-001', { enabled: false });
+    it('应该只返回启用的规则', async () => {
+      await engine.updateRule('sec-001', { enabled: false });
       const enabled = engine.getEnabledRules();
 
       expect(enabled.find((r) => r.id === 'sec-001')).toBeUndefined();
@@ -307,7 +307,7 @@ describe('ReviewRuleEngine', () => {
         metadata: { createdAt: new Date(), updatedAt: new Date() },
       };
 
-      const customEngine = new ReviewRuleEngine([customRule]);
+      const customEngine = new ReviewRuleEngine(undefined, [customRule]);
       const rule = customEngine.getRule('custom-init');
 
       expect(rule).toBeDefined();

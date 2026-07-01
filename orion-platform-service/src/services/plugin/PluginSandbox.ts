@@ -22,6 +22,7 @@ import {
 } from './types';
 import { PluginResourceManager } from './PluginResourceManager';
 import { PluginAuditLogger } from './PluginAuditLogger';
+import { PluginSandboxRepository } from '../../repositories/PluginSandboxRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -79,6 +80,7 @@ export class PluginSandbox extends EventEmitter {
   private config: SandboxConfig;
   private resourceManager: PluginResourceManager;
   private auditLogger: PluginAuditLogger;
+  private repository?: PluginSandboxRepository;
 
   /** In-memory runtime state (AbortController, timers) */
   private activeExecutions: Map<string, {
@@ -92,11 +94,6 @@ export class PluginSandbox extends EventEmitter {
   }> = new Map();
   private runningTasks: Map<string, AbortController> = new Map();
 
-  /** Optional DB pool for persistence */
-  private db?: {
-    query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
-  };
-
   constructor(options: {
     resourceManager: PluginResourceManager;
     auditLogger: PluginAuditLogger;
@@ -109,7 +106,7 @@ export class PluginSandbox extends EventEmitter {
     this.resourceManager = options.resourceManager;
     this.auditLogger = options.auditLogger;
     this.config = { ...DEFAULT_SANDBOX_CONFIG, ...options.config };
-    this.db = options.db;
+    this.repository = options.db ? new PluginSandboxRepository(options.db) : undefined;
   }
 
   /**
@@ -119,14 +116,21 @@ export class PluginSandbox extends EventEmitter {
   private async persistExecutionStart(
     context: ExecutionContext,
   ): Promise<string | undefined> {
-    if (!this.db) return undefined;
+    if (!this.repository) return undefined;
     try {
       const recordId = uuidv4();
-      await this.db.query(
-        `INSERT INTO plugin_sandbox_tasks (id, tenant_id, plugin_id, task_type, status, started_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [recordId, context.tenantId || '00000000-0000-0000-0000-000000000000', context.pluginId, 'sandbox', 'running', new Date()],
-      );
+      await this.repository.create({
+        id: recordId,
+        tenantId: context.tenantId || '00000000-0000-0000-0000-000000000000',
+        pluginId: context.pluginId,
+        taskType: 'sandbox',
+        inputData: {},
+        outputData: null,
+        status: 'running',
+        errorMessage: null,
+        startedAt: new Date(),
+        completedAt: null,
+      });
       return recordId;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -144,23 +148,22 @@ export class PluginSandbox extends EventEmitter {
     errorMessage?: string,
     outputData?: any,
   ): Promise<void> {
-    if (!recordId || !this.db) return;
+    if (!recordId || !this.repository) return;
     try {
-      const now = new Date();
-      const params = errorMessage
-        ? [status, errorMessage, now, recordId]
-        : [status, now, recordId];
-      if (errorMessage) {
-        await this.db.query(
-          `UPDATE plugin_sandbox_tasks SET status = $1, error_message = $2, completed_at = $3 WHERE id = $4`,
-          params,
-        );
-      } else {
-        await this.db.query(
-          `UPDATE plugin_sandbox_tasks SET status = $1, completed_at = $2 WHERE id = $3`,
-          params,
-        );
+      const updateData: any = { status };
+      if (status === 'running') {
+        updateData.startedAt = new Date();
       }
+      if (status === 'completed' || status === 'failed') {
+        updateData.completedAt = new Date();
+      }
+      if (errorMessage) {
+        updateData.errorMessage = errorMessage;
+      }
+      if (outputData) {
+        updateData.outputData = typeof outputData === 'string' ? JSON.parse(outputData) : outputData;
+      }
+      await this.repository.update(recordId, updateData);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.warn({ err: msg, recordId }, 'Failed to persist execution complete');

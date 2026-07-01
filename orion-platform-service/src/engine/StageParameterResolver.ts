@@ -50,6 +50,7 @@ export class StageParameterResolver {
       for (const [key, reference] of Object.entries(stageDeclaredOutputs)) {
         resolved[key] = this.variableCtx.resolve(reference);
       }
+      logger.debug({ count: Object.keys(resolved).length }, 'extracted stage outputs via declared outputs');
       return resolved;
     }
 
@@ -64,6 +65,7 @@ export class StageParameterResolver {
         }
       }
     }
+    logger.debug({ count: Object.keys(outputs).length }, 'extracted stage outputs via fallback');
     return outputs;
   }
 
@@ -119,13 +121,22 @@ export class StageParameterResolver {
     params: Record<string, unknown>,
   ): Record<string, string> {
     const resolved: Record<string, string> = {};
+    const unresolvable: string[] = [];
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'string') {
-        resolved[key] = this.resolveParameterValue(value);
+        const result = this.resolveParameterValue(value);
+        if (result !== value && /\$\{[^}]+\}/.test(value)) {
+          unresolvable.push(key);
+        }
+        resolved[key] = result;
       } else {
         resolved[key] = String(value);
       }
     }
+    logger.debug(
+      { resolvedKeys: Object.keys(resolved), unresolvable },
+      'resolved stage parameters',
+    );
     return resolved;
   }
 

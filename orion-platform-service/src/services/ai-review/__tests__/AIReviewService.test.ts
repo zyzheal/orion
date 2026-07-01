@@ -246,24 +246,24 @@ diff --git a/src/utils.ts b/src/utils.ts
   });
 
   describe('规则管理', () => {
-    it('应该获取所有规则', () => {
-      const rules = service.getRules();
+    it('应该获取所有规则', async () => {
+      const rules = await service.getRules();
       expect(rules.length).toBeGreaterThan(0);
     });
 
-    it('应该获取启用的规则', () => {
-      const rules = service.getEnabledRules();
+    it('应该获取启用的规则', async () => {
+      const rules = await service.getEnabledRules();
       expect(rules.every((r) => r.enabled)).toBe(true);
     });
 
-    it('应该获取单个规则', () => {
-      const rule = service.getRule('sec-001');
+    it('应该获取单个规则', async () => {
+      const rule = await service.getRule('sec-001');
       expect(rule).toBeDefined();
       expect(rule?.id).toBe('sec-001');
     });
 
-    it('应该创建规则', () => {
-      const rule = service.createRule({
+    it('应该创建规则', async () => {
+      const rule = await service.createRule({
         name: '测试规则',
         category: RuleCategory.SECURITY,
         severity: Severity.WARNING,
@@ -276,12 +276,12 @@ diff --git a/src/utils.ts b/src/utils.ts
       expect(rule.name).toBe('测试规则');
       expect(rule.enabled).toBe(true);
 
-      const retrieved = service.getRule(rule.id);
+      const retrieved = await service.getRule(rule.id);
       expect(retrieved).toBeDefined();
     });
 
-    it('应该更新规则', () => {
-      const updated = service.updateRule('sec-001', {
+    it('应该更新规则', async () => {
+      const updated = await service.updateRule('sec-001', {
         name: '更新后的名称',
         enabled: false,
       });
@@ -291,8 +291,8 @@ diff --git a/src/utils.ts b/src/utils.ts
       expect(updated?.enabled).toBe(false);
     });
 
-    it('应该删除规则', () => {
-      const rule = service.createRule({
+    it('应该删除规则', async () => {
+      const rule = await service.createRule({
         name: '可删除规则',
         category: RuleCategory.STYLE,
         severity: Severity.INFO,
@@ -300,18 +300,18 @@ diff --git a/src/utils.ts b/src/utils.ts
         description: '测试',
       });
 
-      const deleted = service.deleteRule(rule.id);
+      const deleted = await service.deleteRule(rule.id);
       expect(deleted).toBe(true);
 
-      const retrieved = service.getRule(rule.id);
+      const retrieved = await service.getRule(rule.id);
       expect(retrieved).toBeUndefined();
     });
 
-    it('应该切换规则状态', () => {
-      const rule = service.toggleRule('sec-001', false);
+    it('应该切换规则状态', async () => {
+      const rule = await service.toggleRule('sec-001', false);
       expect(rule?.enabled).toBe(false);
 
-      const rule2 = service.toggleRule('sec-001', true);
+      const rule2 = await service.toggleRule('sec-001', true);
       expect(rule2?.enabled).toBe(true);
     });
   });
@@ -337,7 +337,7 @@ diff --git a/src/utils.ts b/src/utils.ts
   });
 
   describe('自定义规则', () => {
-    it('应该在构造时加载自定义规则', () => {
+    it('应该在构造时加载自定义规则', async () => {
       const customService = new AIReviewService({
         customRules: [
           {
@@ -353,7 +353,7 @@ diff --git a/src/utils.ts b/src/utils.ts
         ],
       });
 
-      const rule = customService.getRule('custom-init-001');
+      const rule = await customService.getRule('custom-init-001');
       expect(rule).toBeDefined();
       expect(rule?.name).toBe('自定义初始化规则');
     });

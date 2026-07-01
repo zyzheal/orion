@@ -192,30 +192,36 @@ export class ConfigVersionService {
   }
 
   /**
-   * 比较两个版本差异
+  /**
+   * 比较两个版本之间的配置差异
+   *
+   * 以 version1Id 变更后的 newValue 为基线，对比 version2Id 变更后的 newValue，
+   * 返回 added / removed / changed 三个维度的差异。
    */
   async diff(version1Id: string, version2Id: string): Promise<{
     added: string[];
     removed: string[];
     changed: { key: string; old: any; new: any }[];
   }> {
-    const [e1, e2] = await Promise.all([
+    const [v1, v2] = await Promise.all([
       this.repo.findVersionById(version1Id),
       this.repo.findVersionById(version2Id),
     ]);
 
-    if (!e1 || !e2) {
+    if (!v1 || !v2) {
       throw new OrionError('Version not found', ErrorCode.NOT_FOUND);
     }
 
-    const oldObj = JSON.parse(e1.newValue);
-    const newObj = JSON.parse(e2.newValue);
+    // v1.newValue 是版本 1 变更后的配置状态（基线）
+    // v2.newValue 是版本 2 变更后的配置状态（目标）
+    const baseObj = JSON.parse(v1.newValue);
+    const targetObj = JSON.parse(v2.newValue);
 
-    const added = Object.keys(newObj).filter(k => !(k in oldObj));
-    const removed = Object.keys(oldObj).filter(k => !(k in newObj));
-    const changed = Object.keys(newObj)
-      .filter(k => k in oldObj && oldObj[k] !== newObj[k])
-      .map(k => ({ key: k, old: oldObj[k], new: newObj[k] }));
+    const added = Object.keys(targetObj).filter(k => !(k in baseObj));
+    const removed = Object.keys(baseObj).filter(k => !(k in targetObj));
+    const changed = Object.keys(targetObj)
+      .filter(k => k in baseObj && baseObj[k] !== targetObj[k])
+      .map(k => ({ key: k, old: baseObj[k], new: targetObj[k] }));
 
     return { added, removed, changed };
   }
