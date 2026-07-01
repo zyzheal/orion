@@ -85,7 +85,7 @@ export class RunnerDispatcher {
     if (!this.implementedProtocols.has(profile.protocol)) {
       throw new OrionError(
         `Protocol '${profile.protocol}' dispatch not yet implemented`,
-        ErrorCode.NOT_IMPLEMENTED,
+        ErrorCode.OPERATION_FAILED,
       );
     }
 

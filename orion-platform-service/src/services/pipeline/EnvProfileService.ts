@@ -8,10 +8,10 @@
  */
 
 import pino from 'pino';
-import { EnvProfileRepository, type EnvProfileEntity } from '../../repositories/EnvProfileRepository';
-import { OrionError, ErrorCode } from '../errors';
+import { EnvProfileRepository } from '../../repositories/EnvProfileRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import type {
-  EnvProfile, CreateEnvProfile, UpdateEnvProfile,
+  EnvProfile, CreateEnvProfile, UpdateEnvProfile, EnvProfileEntity,
 } from '../../models/EnvProfile';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -69,9 +69,7 @@ export class EnvProfileService {
       name: input.name,
       environment: input.environment,
       variables: input.variables ?? {},
-      description: input.description ?? null,
-      created_at: new Date(),
-      updated_at: new Date(),
+      description: input.description ?? undefined,
     });
 
     return this.mapEntityToProfile(entity);

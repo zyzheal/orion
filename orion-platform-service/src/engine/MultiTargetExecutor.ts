@@ -3,6 +3,7 @@ import { GrayScaleController, ExecutionBatch } from './GrayScaleController';
 import { PipelineRun } from '../models/PipelineRun';
 import { PipelineExecution } from './PipelineEngine';
 import { PipelineStage } from '../models/Pipeline';
+import { Stage } from '../models/Stage';
 import { OrionError, ErrorCode } from '../errors';
 import pino from 'pino';
 
@@ -127,14 +128,14 @@ export class MultiTargetExecutor {
     const targetLabel = `${stage.name}[${target}]`;
 
     try {
-      const targetedStage: PipelineStage = {
+      const targetedStage = {
         ...stage,
         name: targetLabel,
         steps: stage.steps.map((step) => ({
           ...step,
           name: `${step.name}-${target}`,
         })),
-      };
+      } as unknown as Stage;
 
       await this.stageExecutor.executeStage(
         run.pipelineId,

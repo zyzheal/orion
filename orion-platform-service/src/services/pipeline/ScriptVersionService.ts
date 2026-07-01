@@ -8,10 +8,10 @@
  */
 
 import pino from 'pino';
-import { ScriptVersionRepository, type ScriptVersionEntity } from '../../repositories/ScriptVersionRepository';
-import { OrionError, ErrorCode } from '../errors';
+import { ScriptVersionRepository } from '../../repositories/ScriptVersionRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import type {
-  ScriptVersion, CreateScriptVersion, ScriptVersionFilter, ScriptVersionDiff,
+  ScriptVersion, CreateScriptVersion, ScriptVersionFilter, ScriptVersionDiff, ScriptVersionEntity,
 } from '../../models/ScriptVersion';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -72,9 +72,8 @@ export class ScriptVersionService {
       content: input.content,
       content_hash: contentHash,
       parameters: input.parameters ?? {},
-      change_description: input.changeDescription ?? null,
+      change_description: input.changeDescription ?? undefined,
       created_by: input.createdBy,
-      created_at: new Date(),
     });
 
     return this.mapEntityToVersion(entity);

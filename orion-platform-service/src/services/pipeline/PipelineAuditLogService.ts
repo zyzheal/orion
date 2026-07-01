@@ -13,8 +13,8 @@
  */
 
 import pino from 'pino';
-import { PipelineAuditLogRepository, type PipelineAuditLogEntity } from '../../repositories/PipelineAuditLogRepository';
-import { OrionError, ErrorCode } from '../errors';
+import { PipelineAuditLogRepository } from '../../repositories/PipelineAuditLogRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import type {
   PipelineAuditLog,
   CreatePipelineAuditLog,
@@ -22,6 +22,7 @@ import type {
   AuditAction,
   AuditOutcome,
 } from '../../models/PipelineAuditLog';
+import type { PipelineAuditLogEntity } from '../../repositories/PipelineAuditLogRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -59,17 +60,16 @@ export class PipelineAuditLogService {
       id: this.generateId('audit'),
       tenant_id: params.tenantId,
       run_id: params.runId,
-      stage_id: params.stageId ?? null,
-      task_id: params.taskId ?? null,
+      stage_id: params.stageId ?? undefined,
+      task_id: params.taskId ?? undefined,
       action: params.action,
       actor: params.actor,
       outcome: params.outcome,
-      duration_ms: params.durationMs ?? null,
+      duration_ms: params.durationMs ?? undefined,
       input_summary: params.inputSummary ?? {},
       output_summary: params.outputSummary ?? {},
-      error_message: params.errorMessage ?? null,
+      error_message: params.errorMessage ?? undefined,
       metadata: params.metadata ?? {},
-      created_at: new Date(),
     });
 
     return this.mapEntityToLog(entity);
@@ -89,17 +89,16 @@ export class PipelineAuditLogService {
         id: this.generateId('audit'),
         tenant_id: p.tenantId,
         run_id: p.runId,
-        stage_id: p.stageId ?? null,
-        task_id: p.taskId ?? null,
+        stage_id: p.stageId ?? undefined,
+        task_id: p.taskId ?? undefined,
         action: p.action,
         actor: p.actor,
         outcome: p.outcome,
-        duration_ms: p.durationMs ?? null,
+        duration_ms: p.durationMs ?? undefined,
         input_summary: p.inputSummary ?? {},
         output_summary: p.outputSummary ?? {},
-        error_message: p.errorMessage ?? null,
+        error_message: p.errorMessage ?? undefined,
         metadata: p.metadata ?? {},
-        created_at: new Date(),
       }))
     );
 

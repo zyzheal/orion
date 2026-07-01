@@ -7,7 +7,7 @@
 
 import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
-import { StageFileTransferRepository, StageFileTransferEntity } from '../repositories/StageFileTransferRepository';
+import { StageFileTransferRepository, StageFileTransferEntity } from '../../repositories/StageFileTransferRepository';
 import { StageFileTransfer, createStageFileTransfer } from '../../models/StageFileTransfer';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

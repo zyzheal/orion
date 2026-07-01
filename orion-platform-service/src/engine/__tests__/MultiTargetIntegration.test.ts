@@ -16,7 +16,7 @@ describe('Multi-target StageOrchestrator integration', () => {
 
   const createMockRunService = () => ({
     updateStage: jest.fn().mockResolvedValue(undefined),
-    updateRun: jest.fn().mockResolvedValue(undefined),
+    completeRun: jest.fn().mockResolvedValue(undefined),
     getTasks: jest.fn().mockResolvedValue([{
       id: 'task-1',
       stageId: 'stage-1',
@@ -163,8 +163,9 @@ describe('Multi-target StageOrchestrator integration', () => {
 
     await orchestrator.executePendingStages(execution, defaultCallbacks);
 
-    expect(mockRunService.updateRun).toHaveBeenCalledWith(
-      expect.objectContaining({ status: PipelineRunStatus.FAILED })
+    expect(mockRunService.completeRun).toHaveBeenCalledWith(
+      expect.any(String),
+      PipelineRunStatus.FAILED
     );
   });
 

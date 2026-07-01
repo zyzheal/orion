@@ -203,7 +203,7 @@ export class CanaryTrafficController {
       }
 
       // Validate traffic health before promoting
-      const healthStatus = await this.splitter.validateTrafficHealth(canaryId);
+      const healthStatus = await this.splitter.validateTrafficHealth(canaryId, tenantId);
 
       const deployment = await this.service.promoteCanary(canaryId, tenantId);
 

@@ -9,10 +9,10 @@
  */
 
 import pino from 'pino';
-import { GlobalParamRepository, type GlobalParamEntity } from '../../repositories/GlobalParamRepository';
-import { OrionError, ErrorCode } from '../errors';
+import { GlobalParamRepository } from '../../repositories/GlobalParamRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import type {
-  GlobalParam, CreateGlobalParam, UpdateGlobalParam, GlobalParamScope,
+  GlobalParam, CreateGlobalParam, UpdateGlobalParam, GlobalParamScope, GlobalParamEntity,
 } from '../../models/GlobalParam';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -65,12 +65,10 @@ export class GlobalParamService {
       tenant_id: input.tenantId,
       key: input.key,
       value: input.value,
-      description: input.description ?? null,
+      description: input.description ?? undefined,
       is_secret: input.isSecret ?? false,
       scope: input.scope ?? 'tenant',
-      expires_at: input.expiresAt ?? null,
-      created_at: new Date(),
-      updated_at: new Date(),
+      expires_at: input.expiresAt ? new Date(input.expiresAt) : undefined,
     });
 
     return this.mapEntityToParam(entity);

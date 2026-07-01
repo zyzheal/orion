@@ -228,10 +228,12 @@ export class PipelineTriggerService {
           tenantId: trigger.tenantId,
           pipelineId: trigger.pipelineId,
           type: trigger.type,
-          config: trigger.config,
+          config: trigger.config as Record<string, unknown>,
           status: trigger.status,
-          createdAt: trigger.createdAt,
-          updatedAt: trigger.updatedAt,
+          lastRunId: null,
+          lastRunStatus: null,
+          lastRunAt: null,
+          consecutiveFailures: 0,
         });
       } catch (error) {
         logger.error(

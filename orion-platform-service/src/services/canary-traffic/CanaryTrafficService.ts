@@ -80,6 +80,7 @@ export class CanaryTrafficService {
       const mockId = this.generateId();
       const config: TrafficConfigEntity = {
         id: mockId,
+        tenant_id: rules.tenant_id,
         canary_id: rules.canary_id,
         strategy: rules.strategy || 'weighted',
         host: rules.host || null,
@@ -245,7 +246,7 @@ export class CanaryTrafficService {
       return deployments;
     }
 
-    const result = await this.configRepo.findAll(tenantId);
+    const result = await this.configRepo.findAll({ where: { tenant_id: tenantId } });
     return result.entities.map(c => ({
       id: c.canary_id,
       tenant_id: c.tenant_id,

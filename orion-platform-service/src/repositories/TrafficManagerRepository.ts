@@ -5,7 +5,7 @@
  * execution history, replacing the Map() in-memory storage.
  */
 
-import { BaseRepository, FindAllResult } from '../db/base-repository';
+import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 
 // ==================== Traffic Config ====================
 
@@ -45,7 +45,9 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async findAll(tenantId?: string): Promise<FindAllResult<TrafficConfigEntity>> {
+  async findAll(options: FindAllOptions = {}): Promise<FindAllResult<TrafficConfigEntity>> {
+    const { where = {} } = options;
+    const tenantId = where.tenant_id as string | undefined;
     if (tenantId) {
       const result = await this.db.query(
         `SELECT * FROM canary_traffic_configs WHERE tenant_id = $1 ORDER BY updated_at DESC`,

@@ -345,14 +345,14 @@ export class ReviewRuleEngine {
       suggestion: entity.suggestion ?? undefined,
       enabled: entity.enabled,
       fileExtensions: entity.fileExtensions,
-      metadata: entity.metadata,
+      metadata: entity.metadata as ReviewRule['metadata'],
     };
   }
 
   /**
    * 将 ReviewRule 转换为 Repository entity
    */
-  private mapRuleToEntity(rule: ReviewRule): Partial<ReviewRuleEntity> {
+  private mapRuleToEntity(rule: ReviewRule): Partial<ReviewRuleEntity> & { id: string } {
     return {
       id: rule.id,
       name: rule.name,

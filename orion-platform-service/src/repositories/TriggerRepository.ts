@@ -50,7 +50,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
    * Entity uses camelCase (type, config), DB uses snake_case (trigger_type, trigger_config).
    * Task 6: Added default values for new run tracking columns.
    */
-  async create(data: Omit<TriggerEntity, 'id' | 'created_at' | 'updated_at'> & Partial<Pick<TriggerEntity, 'id'>>): Promise<TriggerEntity> {
+  async create(data: Omit<TriggerEntity, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<TriggerEntity, 'id'>>): Promise<TriggerEntity> {
     const columns = ['tenant_id', 'pipeline_id', 'trigger_type', 'trigger_config', 'status'];
     const values = [data.tenantId, data.pipelineId, data.type, data.config, data.status];
 
