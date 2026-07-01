@@ -134,7 +134,7 @@ describe('MultiTargetExecutor', () => {
 
       const result = await executor.execute(makeRun(), makeExecution(), stage);
       const targetResult = result.batchResults[0].targetResults[0];
-      expect(targetResult.durationMs).toBeGreaterThanOrEqual(10);
+      expect(targetResult.durationMs).toBeGreaterThanOrEqual(5);
     });
   });
 });

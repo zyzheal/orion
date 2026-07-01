@@ -46,13 +46,13 @@ import { CommitStatusService } from '../services/code-repo/CommitStatusService';
 import { ExpressionEvaluator } from './ExpressionEvaluator';
 import { StageInitializer } from './StageInitializer';
 import { StageOrchestrator } from './StageOrchestrator';
+import { GrayScaleController } from './GrayScaleController';
+import { MultiTargetExecutor } from './MultiTargetExecutor';
 import { NotificationDispatcher } from './NotificationDispatcher';
 import { ScmStatusReporter } from './ScmStatusReporter';
 import { PipelineGateController } from './PipelineGateController';
 import { PipelineCrashRecovery, RecoveryResult } from './PipelineCrashRecovery';
 import { PipelineLifecycleHandler } from './PipelineLifecycleHandler';
-import { GrayScaleController } from './GrayScaleController';
-import { MultiTargetExecutor } from './MultiTargetExecutor';
 
 import pino from 'pino';
 
@@ -72,6 +72,8 @@ export class PipelineEngine {
   // Extracted collaborators
   private stageInitializer: StageInitializer;
   private stageOrchestrator: StageOrchestrator;
+  private grayscaleController: GrayScaleController;
+  private multiTargetExecutor: MultiTargetExecutor;
   private lifecycleHandler: PipelineLifecycleHandler;
   private crashRecovery: PipelineCrashRecovery;
   private notificationDispatcher: NotificationDispatcher;
@@ -126,8 +128,11 @@ export class PipelineEngine {
 
     this.stageInitializer = new StageInitializer();
 
-    const grayscaleController = new GrayScaleController();
-    const multiTargetExecutor = new MultiTargetExecutor(grayscaleController, stageExecutor);
+    this.grayscaleController = new GrayScaleController();
+    this.multiTargetExecutor = new MultiTargetExecutor(
+      this.grayscaleController,
+      this.stageExecutor
+    );
 
     this.stageOrchestrator = new StageOrchestrator({
       pipelineService, runService, eventPublisher,
@@ -139,8 +144,8 @@ export class PipelineEngine {
       checkpointManager: this.checkpointManager,
       debugController: this.debugController,
       secretsService: this.secretsService,
-      grayscaleController,
-      multiTargetExecutor,
+      grayscaleController: this.grayscaleController,
+      multiTargetExecutor: this.multiTargetExecutor,
     });
 
     this.notificationDispatcher = new NotificationDispatcher({

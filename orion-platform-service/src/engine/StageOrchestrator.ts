@@ -34,7 +34,6 @@ import { PipelineExecution } from './PipelineEngine';
 import { VariableContext } from './VariableContext';
 import { GrayScaleController } from './GrayScaleController';
 import { MultiTargetExecutor, MultiTargetResult } from './MultiTargetExecutor';
-import { PipelineStage } from '../models/Pipeline';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -238,117 +237,107 @@ export class StageOrchestrator {
 
     logger.info({ stageCount: eligibleStageIds.length, stageIds: eligibleStageIds }, 'Executing stages');
 
-    // 分离多目标 stages 和单目标 stages
+    // Separate multi-target stages from single-target stages
     const multiTargetStageIds: string[] = [];
     const singleTargetStageIds: string[] = [];
+
     for (const stageId of eligibleStageIds) {
       const stage = execution.stages.get(stageId);
-      if (stage?.targets && stage.targets.length > 0) {
+      if (stage && stage.targets && stage.targets.length > 0) {
         multiTargetStageIds.push(stageId);
       } else {
         singleTargetStageIds.push(stageId);
       }
     }
 
-    // 串行执行多目标 stages（每个通过 MultiTargetExecutor）
+    if (multiTargetStageIds.length > 0) {
+      logger.info(
+        { runId: execution.run.id, multiTargetCount: multiTargetStageIds.length },
+        'Executing multi-target stages sequentially'
+      );
+    }
+
+    // Execute multi-target stages sequentially (each one handles its own parallelism)
     for (const stageId of multiTargetStageIds) {
       const stage = execution.stages.get(stageId);
       if (!stage) continue;
-
-      const runningStage = {
-        ...stage,
-        status: StageStatus.RUNNING,
-        startedAt: new Date(),
-      };
-      execution.stages.set(stageId, runningStage);
-      await this.runService.updateStage(runningStage);
-      await this.eventPublisher.publishStageStarted(execution.run.id, runningStage);
-      this.sseBridge?.publishStageStarted(execution.run.pipelineId, execution.run.id, runningStage);
-      await this.saveCheckpoint(execution, stage.name);
-
       try {
-        const result = await this.multiTargetExecutor.execute(
+        const result: MultiTargetResult = await this.multiTargetExecutor.execute(
           execution.run,
           execution,
-          stage as PipelineStage
+          {
+            ...stage,
+            targets: stage.targets,
+            executionMode: stage.executionMode,
+            batchSize: stage.batchSize,
+          } as any
         );
 
         if (result.overallSuccess) {
           const completedStage = {
-            ...runningStage,
+            ...stage,
             status: StageStatus.SUCCESS,
             completedAt: new Date(),
-            durationMs: Date.now() - runningStage.startedAt!.getTime(),
+            durationMs: result.batchResults.reduce((sum, b) => sum + b.targetResults.reduce((s, t) => s + t.durationMs, 0), 0),
+            result: { multiTarget: result } as Record<string, unknown>,
           };
           execution.stages.set(stageId, completedStage);
-          execution.runningStages.delete(stageId);
-          execution.completedStages.add(stageId);
           await this.runService.updateStage(completedStage);
           await this.eventPublisher.publishStageCompleted(execution.run.id, completedStage);
           this.sseBridge?.publishStageCompleted(execution.run.pipelineId, execution.run.id, completedStage);
-          await this.saveCheckpoint(execution, stage.name);
+          execution.pendingStages.delete(stageId);
+          execution.completedStages.add(stageId);
         } else {
           const failedStage = {
-            ...runningStage,
+            ...stage,
             status: StageStatus.FAILED,
             completedAt: new Date(),
-            durationMs: Date.now() - runningStage.startedAt!.getTime(),
-            error: 'Multi-target execution failed',
+            error: `Multi-target execution failed: ${result.batchResults.filter(b => !b.batchSuccess).length}/${result.totalBatches} batches failed`,
+            durationMs: result.batchResults.reduce((sum, b) => sum + b.targetResults.reduce((s, t) => s + t.durationMs, 0), 0),
+            result: { multiTarget: result } as Record<string, unknown>,
           };
           execution.stages.set(stageId, failedStage);
-          execution.runningStages.delete(stageId);
-          execution.completedStages.add(stageId);
           await this.runService.updateStage(failedStage);
-          await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
-          this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
-          await this.saveCheckpoint(execution, stage.name);
-
-          // 标记 PipelineRun 为 FAILED
-          const failedRun = {
-            ...execution.run,
-            status: PipelineRunStatus.FAILED,
-          };
-          execution.run = failedRun;
-          await this.runService.updateRun(failedRun);
+          await this.eventPublisher.publishStageFailed(execution.run.id, failedStage);
+          this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage);
+          execution.pendingStages.delete(stageId);
+          execution.run.status = PipelineRunStatus.FAILED;
+          execution.run.updatedAt = new Date();
+          await this.runService.updateRun(execution.run);
+          return; // Stop execution on failure
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ stageName: stage.name, error }, 'Multi-target stage execution threw');
         const failedStage = {
-          ...runningStage,
+          ...stage,
           status: StageStatus.FAILED,
           completedAt: new Date(),
-          durationMs: Date.now() - runningStage.startedAt!.getTime(),
-          error: errorMessage,
+          error: error instanceof Error ? error.message : 'Unknown error',
         };
         execution.stages.set(stageId, failedStage);
-        execution.runningStages.delete(stageId);
-        execution.completedStages.add(stageId);
         await this.runService.updateStage(failedStage);
-        await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
-        this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
-        await this.saveCheckpoint(execution, stage.name);
-
-        const failedRun = {
-          ...execution.run,
-          status: PipelineRunStatus.FAILED,
-        };
-        execution.run = failedRun;
-        await this.runService.updateRun(failedRun);
+        execution.pendingStages.delete(stageId);
+        execution.run.status = PipelineRunStatus.FAILED;
+        execution.run.updatedAt = new Date();
+        await this.runService.updateRun(execution.run);
+        return;
       }
     }
 
-    // 并行执行所有单目标 stages（原有逻辑）
-    const singleTargetPromises = singleTargetStageIds.map(async (stageId) => {
-      const stage = execution.stages.get(stageId);
-      if (!stage) return;
-      try {
-        await this.executeStage(execution, stage, callbacks);
-      } catch (error) {
-        logger.error({ stageName: stage.name, error }, 'Failed to execute stage');
-      }
-    });
+    // Execute single-target stages in parallel (original behavior, unchanged)
+    if (singleTargetStageIds.length > 0) {
+      const executionPromises = singleTargetStageIds.map(async (stageId) => {
+        const stage = execution.stages.get(stageId);
+        if (!stage) return;
+        try {
+          await this.executeStage(execution, stage, callbacks);
+        } catch (error) {
+          logger.error({ stageName: stage.name, error }, 'Failed to execute stage');
+        }
+      });
 
-    await Promise.allSettled(singleTargetPromises);
+      await Promise.allSettled(executionPromises);
+    }
   }
 
   /**
