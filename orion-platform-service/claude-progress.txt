@@ -1816,3 +1816,58 @@ Supplemented TDD test coverage for 7 modules in orion-platform-service that had 
 #### Fixes Applied During Development
 - PatchSchemaDefinition: Changed `toContain('.ts')` to `toContain('ts')` due to escaped dots in regex pattern
 - OnCallService DB mode: Mock DB needs two `query` calls for `findAll()` (data + count); used `mockResolvedValueOnce` chain
+
+---
+
+## Current Session (2026-07-03) - Task 4.59: Create supply-chain Module
+
+### Completed: Create supply-chain Module and Unify SBOM Services
+
+创建供应链安全模块 `src/services/supply-chain/`，统一 SBOM 能力。
+
+#### Features Implemented
+
+**SupplyChainService** (`SupplyChainService.ts`):
+- `analyzeDependencies(packageJson)` — 分析 package.json 依赖树，支持 prod/dev/peer/optional 四种 scope，深度限制为 3，循环依赖检测
+- `generateSbom(artifactId, components)` — 生成 SPDX JSON 格式 SBOM，自动设置 1 年过期时间
+- `serializeSbom(sbom)` — 将 SBOM 序列化为 SPDX JSON 字符串，支持 supplier 和 purl 字段
+- `checkCompliance(sbom, policy?)` — 检查许可证合规性和漏洞合规性，使用默认策略或自定义策略
+- `generateReport(artifactId, sbom)` — 生成供应链安全报告，包含风险评分（0-100）
+
+**SbomService** (`SbomService.ts`):
+- `fetchVulnerabilities(component)` — 调用 NVD/OSV API 实时查询组件漏洞
+- `getCachedVulnerabilities(component)` — 30min TTL 缓存查询，优先 OSV，回退 NVD
+- `warmupCache(components)` — 批量预热缓存
+- `getCacheStats()` — 获取缓存统计
+- `cleanupExpiredCache()` — 清理过期缓存
+- `clearCache()` — 清空缓存
+
+**SbomService 底层依赖**:
+- `VulnerabilityDatabaseClient` — 底层 NVD/OSV 查询客户端
+- `VulnerabilityCache` — 30min TTL 缓存实现
+
+#### Files Created
+
+| 文件 | 说明 |
+|------|------|
+| `src/services/supply-chain/SupplyChainService.ts` | 供应链安全核心逻辑 |
+| `src/services/supply-chain/SbomService.ts` | SBOM 统一服务 |
+| `src/services/supply-chain/types.ts` | SBOM, Component, License, Compliance 类型定义 |
+| `src/services/supply-chain/index.ts` | barrel 导出 |
+| `src/services/supply-chain/__tests__/SupplyChainService.test.ts` | 20 个单元测试 |
+
+#### Bug Fixes During Development
+
+1. **analyzeDependencies**: `packageJson.dependencies` 是 `Record<string, string>`，不能直接展开。修复：使用 `Object.entries()` 转换为 `[string, string][]` 后展开。
+2. **serializeSbom**: 当 `purl` 不存在时，`externalRefs` 应为 `undefined` 而非空数组 `[]`。修复：使用条件展开 `...(comp.purl ? { externalRefs: [...] } : {})`。
+3. **checkCompliance**: 默认策略只检查 `blockedLicenseCategories`，未检查 `isApproved`。修复：对 `!isApproved` 的许可证直接标记违规（不限 category）。
+4. **totalNodes**: 根节点未加入 `allNodes`，导致无依赖时 `totalNodes` 为 0。修复：初始化时将 root 加入 `allNodes`。
+
+#### Test Results
+
+- **SupplyChainService tests**: 20 passed, 0 failed
+- **TypeScript type-check**: 0 errors in supply-chain module
+
+#### Commit
+
+- `76f2216b` feat(supply-chain): create supply-chain module and unify SBOM services
