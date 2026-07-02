@@ -1,7 +1,7 @@
 # 社区生态详细规格
 
 > **日期**: 2026-05-05
-> **状态**: 编写中
+> **状态**: 实施中
 > **能力域**: 11. 社区生态
 > **关键交付**: 最佳实践库 (Phase 3) + 插件市场与认证体系 (Phase 4)
 > **目标成熟度**: L1 → L2.5
@@ -565,5 +565,5 @@ CREATE INDEX idx_community_badges_category ON community_badges(category);
 
 ---
 
-_文档版本: v2.0 | 创建日期: 2026-05-05 | 最后更新: 2026-06-26 | 状态: 编写中_
+_文档版本: v2.0 | 创建日期: 2026-05-05 | 最后更新: 2026-06-26 | 状态: 实施中_
 _合并自: 03-community-ecosystem-spec.md (Phase 3) + 11-community-ecosystem-spec.md (Phase 4)_
