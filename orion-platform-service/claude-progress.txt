@@ -1,6 +1,39 @@
 # Orion Platform Migration Progress
 
-## Current Session (2026-06-03) - Fix 13 Failing Route Tests
+## Current Session (2026-07-03) - Task 4.7: 密码哈希双实现修复
+
+### Completed: Task 4.7 — 删除死代码 `src/utils/password.ts`（PBKDF2）
+
+**发现**: 项目存在两套密码哈希实现：
+
+| 实现 | 文件 | 算法 | 状态 |
+|------|------|------|------|
+| `src/utils/password.ts` | PBKDF2 | 死代码，0 个 import 引用 |
+| `src/services/auth/PasswordService.ts` | bcrypt (rounds=12) | 活跃，2 个 consumer |
+
+**Consumer 分析**：
+- `src/api/routes-auth.ts` — 注册/登录使用 `PasswordService.hash()` + `verifyPassword()`
+- `src/services/user/UserService.ts` — 创建/验证用户密码使用同一 PasswordService
+
+**保留方案**: `src/services/auth/PasswordService.ts`（bcrypt）
+- 更广泛使用，已有依赖注入类
+- 支持向后兼容 PBKDF2/scrypt/SHA-256 legacy 格式
+- `src/utils/password.ts` 完全未被引用，属于死代码
+
+**操作**: 删除 `src/utils/password.ts`（168 行），无任何调用点受影响。
+
+**测试验证**:
+- `npx jest -- auth`: 22 suites, 419 passed（0 regression from password change）
+- `UserService.test.ts`: 17 passed
+- 失败项均为 `pino is not defined`（预存 logger 测试问题，与本次修改无关）
+
+#### Files Changed
+- `src/utils/password.ts` (deleted, 168 lines removed)
+- `claude-progress.txt` (updated)
+
+---
+
+## Previous Session (2026-06-03) - Fix 13 Failing Route Tests
 
 ### Completed: Fix 13 Route Registration Tests
 
