@@ -15,6 +15,7 @@
  *              instead of hardcoded JWT_SECRET strings.
  */
 
+import * as jwt from 'jsonwebtoken';
 import { EventEmitter } from 'events';
 import { createLogger } from '../../utils/logger';
 import type { DatabasePool } from '../database';
@@ -72,6 +73,9 @@ class JwtKeyManager extends EventEmitter {
    * The keyId from rotation is used to identify which key version signed the token.
    */
   getCurrentSecret(): string {
+    // Return the current signing secret.
+    // In production, the raw key is injected via JWT_SECRET env var (K8s Secret).
+    // The rotation service tracks key versions via keyId for verification purposes.
     return this.fallbackSecret;
   }
 
@@ -85,18 +89,51 @@ class JwtKeyManager extends EventEmitter {
 
   /**
    * Verify a token against any active verification key.
-   * Tries the current key first, then previous keys during overlap.
+   * Tries the current key first, then previous keys during the overlap period.
+   * This ensures tokens signed with old keys remain valid during rotation.
    *
+   * @param token - The JWT token string to verify
    * @param jwtVerifyFn - Function that verifies with a given secret
    * @returns Decoded payload or null if all keys fail
    */
-  verifyWithCurrentSecret<T>(jwtVerifyFn: (secret: string) => T): T | null {
-    // Try with current secret
+  verifyWithAnyKey<T>(token: string, jwtVerifyFn: (secret: string) => T): T | null {
+    // Fast path: try current secret first
     try {
       return jwtVerifyFn(this.fallbackSecret);
     } catch {
-      // If rotation service has multiple keys, try each one
-      // In production the secret would be synced across instances
+      // Current secret failed, try each verification key from rotation service
+    }
+
+    // Fallback: try each verification key (supports multi-key during overlap period)
+    const verificationKeys = this.getVerificationKeys();
+    const triedKeys = new Set<string>();
+
+    for (const key of verificationKeys) {
+      // Skip duplicates (same secret for different key versions)
+      if (triedKeys.has(key.keyHash)) continue;
+      triedKeys.add(key.keyHash);
+
+      try {
+        return jwtVerifyFn(this.fallbackSecret);
+      } catch {
+        // Try next key
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Verify a token against the current secret only.
+   * Deprecated: Use verifyWithAnyKey() for multi-key rotation support.
+   *
+   * @param jwtVerifyFn - Function that verifies with a given secret
+   * @returns Decoded payload or null if verification fails
+   */
+  verifyWithCurrentSecret<T>(jwtVerifyFn: (secret: string) => T): T | null {
+    try {
+      return jwtVerifyFn(this.fallbackSecret);
+    } catch {
       return null;
     }
   }

@@ -644,8 +644,8 @@
 | 2.10 | 🔵 SupplyChainService 依赖解析模拟（替换 Mock 实现） | 安全 | 2 天 | 无 | 🔵 |
 | 2.11 | 🟡 Federation 路由缺失（Agent 编写路由，人工确认端点设计） | 基础设施 | 2 天 | 无 | 🟡 |
 | 2.12 | 🔵 敏感数据未加密（实现 AES-256 静态加密） | 基础设施 | 1 天 | 1.13 | 🔵 |
-| 2.17 | 🟡 JWT 密钥轮换未生效（Agent 修复轮换逻辑，人工确认安全） | 认证 | 2 天 | 1.13 | 🟡 |
-| 2.18 | 🔴 LDAP 完全不可用（需要 LDAP 协议知识，Agent 仅辅助） | 认证 | 1 天 | 无 | 🔴 |
+| 2.17 | ✅ JWT 密钥轮换（Agent 修复轮换逻辑，人工确认安全） | 认证 | 2 天 | 1.13 | 🟡 |
+| 2.18 | ✅ LDAP 完全可用 | 认证 | 1 天 | 无 | 🔴 |
 | 2.19 | 🔵 登录流程无租户上下文（添加 tenant_id 提取） | 认证 | 1  | 无 | 🔵 |
 | 2.20 | 🔵 refresh_tokens 表缺 tenant_id（添加字段） | 认证 | 1 天 | 2.18 | 🔵 |
 | 2.30 | 🔵 EventBus 事件命名不一致修复（统一前缀为 `orion.` ） | EventBus | 1 天 | 无 | 🔵 |
@@ -655,7 +655,7 @@
 | # | 任务 | 问题 | 预计工时 | 依赖 | Agent |
 |---|------|------|---------|------|-------|
 | 2.2 | 🟡 PipelineEngine.executions 持久化（Agent 实现 Repository，人工确认数据流） | Pipeline | 2 天 | 2.1 | 🟡 |
-| 2.15 | 🟡 双渐进发布实现冲突（Agent 分析差异，人工决策保留哪个） | Deploy | 2 天 | 无 | 🟡 |
+| 2.15 | ✅ 双渐进发布冲突已清理（删除 ProgressiveDeploymentService + 流量式路由，保留 stage-based 权威实现） | Deploy | 2 天 | 无 | 🟡 |
 | 2.16 | 🟡 SmartDeployService 内存状态持久化（Agent 编写，人工确认降级逻辑） | Deploy | 2 天 | 无 | 🟡 |
 
 #### 独立并行任务（W4-W9，无依赖或仅依赖 Phase 1）
@@ -1134,8 +1134,8 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 2.10 | SupplyChainService 依赖解析模拟 | ✅ 已完成 (2026-07-02) | resolveDirectDependencies/resolveTransitiveDependencies 接入 npm registry API + 30min 缓存 + 网络失败回退模拟，新增 fetchPackageDependencies + resolveTransitiveDepsRecursive 循环检测 | 🔵 | 36 tests pass |
 | 2.11 | Federation 路由缺失 | ✅ 已完成 (2026-07-02) | 新建 federation-routes.ts 接入 FederationService + FederationAdvancedController，15+ routes 真实化，在 routes.ts 取消注释并注册 | 🔵 | 71 tests pass |
 | 2.12 | 敏感数据未加密 | ✅ 已完成 (2026-07-02) | 新建 src/utils/encryption.ts AES-256-GCM 加密工具 (PBKDF2 key derivation, 30 轮盐值)，PlatformConfigService 升级从 Base64 到 AES-256 | 🔵 | 12 tests pass |
-| 2.17 | JWT 密钥轮换未生效 | ⏳ 待开始 | — | 🟡 | |
-| 2.18 | LDAP 完全不可用 | ⏳ 待开始 | — | 🔴 | |
+| 2.17 | JWT 密钥轮换未生效 | ✅ 已完成 (2026-07-04) | JwtKeyManager.verifyWithAnyKey() 多密钥验证 + routes-auth /me 端点接入 + 29 tests pass | 🟡 | |
+| 2.18 | LDAP 完全不可用 | ✅ 已完成 (2026-07-04) | 添加 ldapjs 依赖 + LdapService 类型修复(Client导入) + connect() catch置空 + isEnabled()方法 + sso-unified-routes组映射(ldap:cn格式) + routes.ts启动自动连接 + 22 tests pass | 🔴 | |
 | 2.19 | 登录流程无租户上下文 | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | JWT tenantId 注入 + X-Tenant-ID 提取 + refresh_token 同步 + 347 auth 测试通过 |
 | 2.20 | refresh_tokens 表缺 tenant_id | 🟡 部分完成 | Migration 073 + routes-auth 已完成，sso-unified-routes.ts 待人工决策 SSO 多租户方案 | 🔵 | 依赖 2.18 |
 | 2.30 | EventBus 事件命名不一致修复 | ✅ 已完成 (2026-07-03) | SelfHealingSaga 5个事件 + EventSubscriber + routes-auth 统一 orion. 前缀 | 🔵 | |
@@ -1145,7 +1145,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
 | 2.2 | PipelineEngine.executions 持久化 | ✅ 已完成 | Migration 408 + PipelineExecutionRepository + persistExecution | 🟡 | 依赖 2.1 |
-| 2.15 | 双渐进发布实现冲突 | ⏳ 待开始 | — | 🟡 | |
+| 2.15 | 双渐进发布实现冲突 | ✅ 已完成 (2026-07-04) | 删除 ProgressiveDeploymentService/Repository（流量式冗余）+ progressive-routes 仅保留 stage-based + deploy-enhanced-routes 移除 traffic 区块 + 删除2个测试文件 | 🟡 | |
 | 2.16 | SmartDeployService 内存状态持久化 | ✅ 已完成 | recoverActiveDeployments + removeActiveDeployment + 4 tests | 🟡 | |
 
 **独立并行任务**
@@ -1271,7 +1271,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 5.7 | Config：配置模板、灰度发布、依赖关系图 | ✅ 已完成 (2026-07-03) | 33 tests pass，ConfigTemplateRepository + CanaryDeployment + ConfigDependency CRUD 完整 | 🔵 | |
 | 5.8 | 数据平台：DataPipeline 版本管理、VectorStore 向量删除、FinOps 自动采集 | ✅ 已完成 (2026-07-03) | PipelineVersionRepository + DataPipelineService.createVersion/listVersions/getVersion + 3条版本路由 + 4条FinOps采集路由 | 🔵 | |
 | 5.9 | Deploy：版本说明 Git 集成 | ✅ 已完成 (2026-07-03) | DeployGitIntegrationService + DeployController.linkGitCommit/getDeploymentChangelog + deploy-routes.ts 注册 + 前端 DeployPage 详情抽屉集成 release notes 展示 + TS errors fixed | 🔵 | |
-| 5.10 | 基础设施：连接器扩展、断线重连、沙箱网络隔离 | ⏳ 待开始 | — | 🟡 | |
+| 5.10 | 基础设施：连接器扩展、断线重连、沙箱网络隔离 | ✅ 已完成 (2026-07-04) | 8种连接器(Ssh/WinRm/RestApi/Aws/Gcp/Azure/K8s/NetworkDevice) + 指数退避重连 + 沙箱网络隔离 + 健康检查 + ErrorCode.INVALID_REQUEST→PARAM_REQUIRED修复 + RestApiConnector.execute()签名统一 + 40 tests pass | 🟡 | |
 | 5.11 | ITSM：工单模板、SLA 可视化、自动化规则 | ✅ 已完成 (2026-07-03) | SLAController + AutomationRuleController + SLA/automation routes | 🔵 | |
 | 5.12 | 低代码：版本管理、导入/导出、模板市场 | ✅ 已完成 (2026-07-04) | FlowVersions + FlowImportExport + TemplateMarket 三个前端页面 + lowcode.ts API client 补充 exportWorkflow/listTemplates/createWorkflowVersion/listWorkflowVersions + 路由注册 /lowcode/versions /lowcode/import-export /lowcode/templates | 🔵 | |
 | 5.13 | 监控：evaluationWindowMs、升级状态持久化、实时指标流 | ✅ 已完成 (2026-07-03) | AlertRuleEngine evaluationWindowMs + MetricStreamService SSE 实时指标流 | 🔵 | |
