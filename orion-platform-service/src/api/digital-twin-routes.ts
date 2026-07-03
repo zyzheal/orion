@@ -17,7 +17,7 @@ import { MigrationService } from '../services/migration/MigrationService';
 import { createLogger } from '../utils/logger';
 import { ValidationError, NotFoundError, handleError } from '../errors';
 
-const logger = pino({ name: 'digital-twin-routes' });
+const logger = createLogger('digital-twin-routes');
 
 // ============================================================================
 // Route Registration
@@ -35,6 +35,7 @@ export default async function digitalTwinRoutes(
   }
 
   const repo = new DigitalTwinRepository(db);
+  const simulationEngine = new StateSimulationEngine();
 
   // ==================== Digital Twins ====================
 
@@ -86,14 +87,18 @@ export default async function digitalTwinRoutes(
     if (!twin) {
       return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
+    const simulated = simulationEngine.tick(twin.id);
     const state = {
       twinId: twin.id,
-      status: twin.status,
+      status: simulated.state,
       replicas: 3,
-      cpuUsage: Math.floor(Math.random() * 60),
-      memoryUsage: Math.floor(Math.random() * 70),
-      networkIO: { inbound: `${Math.floor(Math.random() * 100)}MB/s`, outbound: `${Math.floor(Math.random() * 50)}MB/s` },
-      lastSync: new Date().toISOString(),
+      cpuUsage: Math.round((simulated.latency / (simulated.latency + 800)) * 100),
+      memoryUsage: Math.round(simulated.errorRate * 100),
+      networkIO: {
+        inbound: `${Math.round(simulated.latency * 0.8 + Math.random() * 20)}MB/s`,
+        outbound: `${Math.round(simulated.latency * 0.4 + Math.random() * 10)}MB/s`,
+      },
+      lastSync: simulated.lastTransitionAt,
     };
     return reply.send({ success: true, data: state });
   });
