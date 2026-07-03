@@ -17,6 +17,7 @@ import { CITypeService } from '../services/cmdb/ci-type/CITypeService';
 import { CITypeRepository } from '../services/cmdb/ci-type/CITypeRepository';
 import { CIAttributeRepository } from '../services/cmdb/ci-type/CIAttributeRepository';
 import { CITypeVersionRepository } from '../services/cmdb/ci-type/CITypeVersionRepository';
+import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 interface CmdbRoutesOptions {
   database?: DatabasePool;
@@ -67,7 +68,7 @@ export default async function cmdbRoutes(
       });
       return reply.status(201).send({ success: true, data: ci });
     } catch (error: any) {
-      return reply.status(400).send({ error: 'CREATE_ERROR', message: error.message });
+      handleError(reply, new ValidationError('CREATE_ERROR'));
     }
   });
 
@@ -79,11 +80,12 @@ export default async function cmdbRoutes(
     try {
       const ci = await cmdbService.getCI(params.id);
       if (!ci) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.id} not found` });
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
       }
       return reply.send({ success: true, data: ci });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -96,11 +98,12 @@ export default async function cmdbRoutes(
     try {
       const ci = await cmdbService.getCIByCiId(params.ciId, query.tenantId ? BigInt(query.tenantId) : undefined);
       if (!ci) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.ciId} not found` });
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
       }
       return reply.send({ success: true, data: ci });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -113,11 +116,12 @@ export default async function cmdbRoutes(
     try {
       const ci = await cmdbService.updateCI(params.id, body, body.user || 'system');
       if (!ci) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.id} not found` });
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
       }
       return reply.send({ success: true, data: ci });
     } catch (error: any) {
-      return reply.status(400).send({ error: 'UPDATE_ERROR', message: error.message });
+      handleError(reply, new ValidationError('UPDATE_ERROR'));
     }
   });
 
@@ -129,11 +133,12 @@ export default async function cmdbRoutes(
     try {
       const deleted = await cmdbService.deleteCI(params.id);
       if (!deleted) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.id} not found` });
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
       }
       return reply.send({ success: true, message: 'CI deleted' });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'DELETE_ERROR', message: error.message });
+      handleError(reply, new OrionError('DELETE_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -159,7 +164,160 @@ export default async function cmdbRoutes(
         pageSize: (result as any).pageSize || result.limit || 20,
       });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'LIST_ERROR', message: error.message });
+      handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Batch Operations (Task 4.15) ====================
+
+  // Batch create CIs
+  app.post('/cmdb/batch-create', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    try {
+      const tenantId = body.tenantId ? BigInt(body.tenantId) : BigInt(1);
+      const result = await cmdbService.batchCreateCIs(
+        body.items || [],
+        tenantId,
+        body.createdBy || 'system'
+      );
+      return reply.status(201).send({ success: true, ...result });
+    } catch (error: any) {
+      handleError(reply, new ValidationError('BATCH_CREATE_ERROR'));
+    }
+  });
+
+  // Batch update CIs
+  app.put('/cmdb/batch-update', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    try {
+      const tenantId = body.tenantId ? BigInt(body.tenantId) : BigInt(1);
+      const result = await cmdbService.batchUpdateCIs(
+        body.items || [],
+        tenantId,
+        body.user || 'system'
+      );
+      return reply.send({ success: true, ...result });
+    } catch (error: any) {
+      handleError(reply, new ValidationError('BATCH_UPDATE_ERROR'));
+    }
+  });
+
+  // Batch delete CIs
+  app.delete('/cmdb/batch-delete', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    try {
+      const tenantId = body.tenantId ? BigInt(body.tenantId) : BigInt(1);
+      const result = await cmdbService.batchDeleteCIs(
+        body.items || [],
+        tenantId
+      );
+      return reply.send({ success: true, ...result });
+    } catch (error: any) {
+      handleError(reply, new OrionError('BATCH_DELETE_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // Batch query CIs with complex filters
+  app.post('/cmdb/ci/query', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    try {
+      const tenantId = body.tenantId ? BigInt(body.tenantId) : BigInt(1);
+      const result = await cmdbService.batchQueryCIs({
+        ciType: body.ciType,
+        status: body.status,
+        environment: body.environment,
+        tags: body.tags,
+        search: body.search,
+        tenantId,
+        limit: body.limit ? parseInt(body.limit) : 20,
+        offset: body.offset ? parseInt(body.offset) : 0,
+        orderBy: body.orderBy || 'createdAt',
+        order: body.order || 'DESC',
+      } as any);
+      return reply.send({
+        success: true,
+        data: result.data || [],
+        total: result.total || 0,
+        page: (result as any).page || 1,
+        pageSize: (result as any).pageSize || result.limit || 20,
+      });
+    } catch (error: any) {
+      handleError(reply, new OrionError('QUERY_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // Export single CI by ciId or internal id
+  app.get('/cmdb/ci/export/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const query = request.query as any;
+    try {
+      const tenantId = query.tenantId ? BigInt(query.tenantId) : BigInt(1);
+      const ci = await cmdbService.exportCI(params.id, tenantId);
+      if (!ci) {
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
+      }
+      reply.header('Content-Type', 'application/json');
+      reply.header('Content-Disposition', `attachment; filename="ci-${ci.ciId}-${Date.now()}.json"`);
+      return reply.send({ success: true, data: ci });
+    } catch (error: any) {
+      handleError(reply, new OrionError('EXPORT_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Import / Export (Task 4.16) ====================
+
+  // Import CIs from JSON
+  app.post('/cmdb/import', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    try {
+      const tenantId = body.tenantId ? BigInt(body.tenantId) : BigInt(1);
+      const result = await cmdbService.importCIs(
+        body.cis || [],
+        tenantId,
+        body.skipDuplicates || false,
+        body.createdBy || 'system'
+      );
+      return reply.send({ success: true, data: result });
+    } catch (error: any) {
+      handleError(reply, new ValidationError('IMPORT_ERROR'));
+    }
+  });
+
+  // Export CIs as JSON
+  app.get('/cmdb/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    try {
+      const tenantId = query.tenantId ? BigInt(query.tenantId) : BigInt(1);
+      const result = await cmdbService.exportCIs({
+        ciType: query.ciType,
+        status: query.status,
+        environment: query.environment,
+        tenantId,
+        search: query.search,
+        includeArchived: query.includeArchived === 'true',
+      });
+
+      // Set JSON content type for download
+      reply.header('Content-Type', 'application/json');
+      reply.header('Content-Disposition', `attachment; filename="cmdb-export-${tenantId}-${Date.now()}.json"`);
+      return reply.send({ success: true, data: result });
+    } catch (error: any) {
+      handleError(reply, new OrionError('EXPORT_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -174,7 +332,7 @@ export default async function cmdbRoutes(
       const relations = await cmdbService.getCIRelations(params.ciId);
       return reply.send({ success: true, data: relations });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -196,7 +354,7 @@ export default async function cmdbRoutes(
       );
       return reply.status(201).send({ success: true, data: relation });
     } catch (error: any) {
-      return reply.status(400).send({ error: 'CREATE_ERROR', message: error.message });
+      handleError(reply, new ValidationError('CREATE_ERROR'));
     }
   });
 
@@ -208,11 +366,12 @@ export default async function cmdbRoutes(
     try {
       const deleted = await cmdbService.deleteRelation(params.relationId);
       if (!deleted) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Relation ${params.relationId} not found` });
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
       }
       return reply.send({ success: true, message: 'Relation deleted' });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'DELETE_ERROR', message: error.message });
+      handleError(reply, new OrionError('DELETE_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -227,7 +386,7 @@ export default async function cmdbRoutes(
       const versions = await cmdbService.getVersions(params.ciId);
       return reply.send({ success: true, data: versions });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -240,7 +399,7 @@ export default async function cmdbRoutes(
       const version = await cmdbService.getCurrentVersion(params.ciId);
       return reply.send({ success: true, data: version });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -253,11 +412,12 @@ export default async function cmdbRoutes(
     try {
       const ci = await cmdbService.restoreToVersion(params.ciId, body.version, body.user || 'system');
       if (!ci) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `CI ${params.ciId} not found` });
+        handleError(reply, new NotFoundError('NOT_FOUND'));
+        return;
       }
       return reply.send({ success: true, data: ci });
     } catch (error: any) {
-      return reply.status(400).send({ error: 'RESTORE_ERROR', message: error.message });
+      handleError(reply, new ValidationError('RESTORE_ERROR'));
     }
   });
 
@@ -276,7 +436,7 @@ export default async function cmdbRoutes(
       });
       return reply.send({ success: true, data: topology });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -289,7 +449,7 @@ export default async function cmdbRoutes(
       const topology = await topologyService.getServiceDependencies(params.ciId);
       return reply.send({ success: true, data: topology });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -302,7 +462,7 @@ export default async function cmdbRoutes(
       const impact = await topologyService.getImpactAnalysis(params.ciId);
       return reply.send({ success: true, data: impact });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'FETCH_ERROR', message: error.message });
+      handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -312,53 +472,67 @@ export default async function cmdbRoutes(
   app.get('/cmdb/hosts', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.listHosts(request, reply);
+    if (integrationController) {
+      return integrationController.listHosts(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   app.get('/cmdb/hosts/:ciId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.getHost(request, reply);
+    if (integrationController) {
+      return integrationController.getHost(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   // K8s
   app.get('/cmdb/k8s', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.listK8sResources(request, reply);
+    if (integrationController) {
+      return integrationController.listK8sResources(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   app.post('/cmdb/k8s/sync/start', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.startK8sSync(request, reply);
+    if (integrationController) {
+      return integrationController.startK8sSync(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   app.post('/cmdb/k8s/sync/stop', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.stopK8sSync(request, reply);
+    if (integrationController) {
+      return integrationController.stopK8sSync(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   // CICD
   app.get('/cmdb/cicd', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.listCICDResources(request, reply);
+    if (integrationController) {
+      return integrationController.listCICDResources(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   // Execute
   app.post('/cmdb/execute', {
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!integrationController) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'CMDB integration not configured' });
-    return integrationController.executeScript(request, reply);
+    if (integrationController) {
+      return integrationController.executeScript(request, reply);
+    }
+    handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
   });
 
   // ==================== Health ====================

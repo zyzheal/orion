@@ -113,4 +113,27 @@ describe('Cmdb Routes', () => {
       expect(response.statusCode).toBeDefined();
     });
   });
+
+  describe('POST /cmdb/ci/query (Task 4.15)', () => {
+    it('should respond to POST /cmdb/ci/query', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/cmdb/ci/query',
+        payload: {},
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('GET /cmdb/ci/export/:id (Task 4.16)', () => {
+    it('should respond to GET /cmdb/ci/export/:id', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/cmdb/ci/export/test-ciId',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
 });
