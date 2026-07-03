@@ -10,10 +10,15 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { CacheMonitorService } from '../services/cache-monitor/CacheMonitorService';
+import { BuildCacheService } from '../services/build/BuildCacheService';
+import {
+  BuildCacheConfigRepository,
+  BuildCacheEntryRepository,
+} from '../repositories/BuildCacheRepository';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, UnauthorizedError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'build-env-routes' });
+const logger = createLogger('build-env-routes');
 
 interface BuildEnvRoutesOptions {
   database?: DatabasePool;
@@ -184,13 +189,31 @@ export default async function buildEnvRoutes(
 
   // ==================== Build Cache ====================
 
+  // 实例化 BuildCacheService：需要两个 Repository 依赖 DatabasePool
+  const cacheMonitorService = options.database ? new CacheMonitorService(options.database) : null;
+  let buildCacheService: BuildCacheService | null = null;
+  if (options.database) {
+    const configRepo = new BuildCacheConfigRepository(options.database);
+    const entryRepo = new BuildCacheEntryRepository(options.database);
+    buildCacheService = new BuildCacheService(configRepo, entryRepo, cacheMonitorService || undefined);
+  }
+
   // GET /api/v1/build-env/build-cache - List cache configs
   app.get('/build-cache', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      // BuildCacheService would be called here
-      return reply.status(200).send({ success: true, data: { configs: [], total: 0 } });
+      if (!buildCacheService) {
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+      }
+      const query = request.query as any;
+      const configs = await buildCacheService.listConfigs({
+        level: query.level,
+        status: query.status,
+        limit: query.limit ? parseInt(query.limit, 10) : undefined,
+        offset: query.offset ? parseInt(query.offset, 10) : undefined,
+      });
+      return reply.status(200).send({ success: true, data: { configs, total: configs.length } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list build cache configs');
       return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
@@ -202,9 +225,15 @@ export default async function buildEnvRoutes(
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      if (!buildCacheService) {
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+      }
       const { id } = (request.params as any);
-      // BuildCacheService.getConfig(id) would be called here
-      return reply.status(200).send({ success: true, data: { id } });
+      const config = await buildCacheService.getConfig(id);
+      if (!config) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
+      return reply.status(200).send({ success: true, data: config });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get build cache config');
       return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
@@ -216,11 +245,17 @@ export default async function buildEnvRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      if (!buildCacheService) {
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+      }
       const body = request.body as any;
-      // BuildCacheService.createConfig(body) would be called here
-      return reply.status(201).send({ success: true, data: { id: `cache_${Date.now()}`, ...body } });
+      const config = await buildCacheService.createConfig(body);
+      return reply.status(201).send({ success: true, data: config });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create build cache config');
+      if (error.code === ErrorCode.NOT_FOUND) {
+        return handleError(reply, new OrionError('CONFLICT', ErrorCode.CONFLICT, error.message));
+      }
       return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
@@ -230,10 +265,16 @@ export default async function buildEnvRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      if (!buildCacheService) {
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+      }
       const { id } = (request.params as any);
       const body = request.body as any;
-      // BuildCacheService.updateConfig(id, body) would be called here
-      return reply.status(200).send({ success: true, data: { id, ...body } });
+      const config = await buildCacheService.updateConfig(id, body);
+      if (!config) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
+      return reply.status(200).send({ success: true, data: config });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update build cache config');
       return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
@@ -245,8 +286,14 @@ export default async function buildEnvRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'build-env', action: 'delete' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      if (!buildCacheService) {
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+      }
       const { id } = (request.params as any);
-      // BuildCacheService.deleteConfig(id) would be called here
+      const deleted = await buildCacheService.deleteConfig(id);
+      if (!deleted) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete build cache config');
@@ -285,8 +332,6 @@ export default async function buildEnvRoutes(
   });
 
   // ==================== Cache Monitor ====================
-
-  const cacheMonitorService = options.database ? new CacheMonitorService(options.database) : null;
 
   // GET /api/v1/build-env/cache-monitor/dashboard - Get cache monitoring dashboard
   app.get('/cache-monitor/dashboard', {
