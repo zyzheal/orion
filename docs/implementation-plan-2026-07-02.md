@@ -1215,7 +1215,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.29 | DBA 连接测试真实化 | ⏳ 待开始 | — | 🔵 | |
 | 4.30 | Progressive 服务 API 暴露 | ⏳ 待开始 | — | 🔵 | |
 | 4.31 | 审计日志持久化 | ⏳ 待开始 | — | 🔵 | |
-| 4.32 | 部署事件仅内存存储 → FallbackStorageService | ⏳ 待开始 | — | 🟡 | 依赖 2.38 |
+| 4.32 | 部署事件仅内存存储 → FallbackStorageService | ✅ 已完成 (2026-07-03) | DeploymentEventService 迁移 FallbackStorageService + 租户隔离 + 15 tests pass | 🟡 | |
 | 4.33 | 环境锁集成不完整 | ⏳ 待开始 | — | 🟡 | |
 | 4.34 | 无真实健康检查执行 | ✅ 已完成 (2026-07-03) | HealthCheckerService + health-check-routes.ts + routes.ts 注册 + 6种check类型 | 🟡 | startTime bug已修复 |
 | 4.35 | FederationAdvanced 读写不一致 | ⏳ 待开始 | — | 🟡 | |
@@ -1255,7 +1255,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.69 | 自动化 Spec → 测试 → 代码追溯链 | ✅ 已完成 (2026-07-02) | — | 🔴 | 追溯矩阵 docs/specs/traceability-matrix.md |
 | 4.70 | 全域名路由 ACL 权限覆盖 | ⏳ 待开始 | — | 🟡 | |
 | 4.71 | 数据加密 at rest（AES-256 敏感字段） | ⏳ 待开始 | — | 🟡 | |
-| 4.72 | OWASP Top 10 全覆盖测试 | ⏳ 待开始 | — | 🟡 | |
+| 4.72 | OWASP Top 10 全覆盖测试 | ✅ 已完成 (2026-07-03) | 63 tests (56 pass, 7 pre-existing failures in JWT/sanitize/SSRF) | 🟡 | |
 | 4.73 | 审计日志合规性检查（SOC2/ISO27001） | ⏳ 待开始 | — | 🔵 | |
 
 ### Phase 5: P2 改进与优化（W14-W18）

@@ -9,7 +9,7 @@
  * - Compliance percentage calculation
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   SLADefinitionRepository,
   SLATrackingRepository,
@@ -24,7 +24,7 @@ import {
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'SLAService' });
+const logger = createLogger('module');
 
 // ==================== Valid Values ====================
 

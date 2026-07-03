@@ -40,6 +40,7 @@ import { VariableContext } from './VariableContext';
 import { GrayScaleController } from './GrayScaleController';
 import { MultiTargetExecutor, MultiTargetResult } from './MultiTargetExecutor';
 import { createLogger } from '../utils/logger';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -498,7 +499,7 @@ export class StageOrchestrator {
         let resolvedTask = task;
         const secretsSvc = this.secretsService;
         if (secretsSvc) {
-          const tenantId = (execution.run.context as any)?.tenantId || 'default';
+          const tenantId = (execution.run.context as any)?.tenantId || getCurrentTenantId();
           if (tenantId) {
             try {
               const secretResult = await secretsSvc.resolveTaskSecrets(tenantId, task.parameters);
@@ -938,7 +939,7 @@ export class StageOrchestrator {
     // Map outcome to AuditOutcome type ('success' | 'failed' | 'pending')
     const auditOutcome: 'success' | 'failed' | 'pending' = outcome === 'success' ? 'success' : 'failed';
 
-    const tenantId = (execution.run.context as any)?.tenantId || 'default';
+    const tenantId = (execution.run.context as any)?.tenantId || getCurrentTenantId();
     try {
       await this.pipelineAuditLogService.recordStageEvent({
         tenantId,
@@ -971,7 +972,7 @@ export class StageOrchestrator {
     execution: PipelineExecution,
     task: Task,
   ): Promise<{ params: Record<string, string>; env: Record<string, string> }> {
-    const tenantId = (execution.run.context as any)?.tenantId || 'default';
+    const tenantId = (execution.run.context as any)?.tenantId || getCurrentTenantId();
     const environment = execution.run.environment;
     const params: Record<string, string> = {};
     const env: Record<string, string> = {};

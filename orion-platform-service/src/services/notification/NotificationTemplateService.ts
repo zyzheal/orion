@@ -1,4 +1,4 @@
-import { NotificationTemplateRepository, NotificationTemplate, CreateNotificationTemplateInput, UpdateNotificationTemplateInput } from '../repositories/NotificationTemplateRepository';
+import { NotificationTemplateRepository, NotificationTemplate, CreateNotificationTemplateInput, UpdateNotificationTemplateInput } from '../../repositories/NotificationTemplateRepository';
 import { createLogger } from '../../utils/logger';
 
 export class NotificationTemplateServiceError extends Error {

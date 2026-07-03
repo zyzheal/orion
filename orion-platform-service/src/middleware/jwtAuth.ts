@@ -33,7 +33,7 @@ import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('jwt-auth');
 
 /**
  * JWT Payload interface
@@ -126,9 +126,20 @@ export async function jwtAuth(
   }
 
   try {
-    // Phase 3.8.1: Verify using centralized key manager
-    const secret = jwtKeyManager.getCurrentSecret();
-    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+    // Phase 3.8.1: Verify using centralized key manager with multi-key rotation support
+    // Tries current key first, then expiring keys during overlap period
+    const decoded = jwtKeyManager.verifyWithAnyKey<JwtPayload>(token, (secret) => {
+      return jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+    });
+
+    if (!decoded) {
+      return reply.code(401).send({
+        success: false,
+        error: 'INVALID_TOKEN',
+        code: '20102',
+        message: 'Invalid or expired token',
+      });
+    }
 
     // Phase 3.8.7: Validate user status on first request
     if (dbPool) {
@@ -206,8 +217,9 @@ export function generateToken(
  */
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    const secret = jwtKeyManager.getCurrentSecret();
-    return jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+    return jwtKeyManager.verifyWithAnyKey<JwtPayload>(token, (secret) => {
+      return jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+    });
   } catch {
     return null;
   }
@@ -228,9 +240,12 @@ export async function optionalJwtAuth(
 
   const token = authHeader.slice(7);
   try {
-    const secret = jwtKeyManager.getCurrentSecret();
-    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
-    request.user = decoded;
+    const decoded = jwtKeyManager.verifyWithAnyKey<JwtPayload>(token, (secret) => {
+      return jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+    });
+    if (decoded) {
+      request.user = decoded;
+    }
   } catch {
     // Invalid token — continue as anonymous
   }

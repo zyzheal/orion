@@ -16,7 +16,7 @@ import jwt from 'jsonwebtoken';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('auth-middleware');
 
 /**
  * Reference to the shared TokenBlacklistService.
@@ -74,14 +74,23 @@ export async function authenticateUser(
   }
 
   try {
-    // Phase 3.8.1: Use centralized key manager
-    const secret = jwtKeyManager.getCurrentSecret();
-    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as {
-      userId: string;
-      username: string;
-      roles?: string[];
-      role?: string;
-    };
+    // Phase 3.8.1: Use centralized key manager with multi-key rotation support
+    const decoded = jwtKeyManager.verifyWithAnyKey(token, (secret) => {
+      return jwt.verify(token, secret, { algorithms: ['HS256'] }) as {
+        userId: string;
+        username: string;
+        roles?: string[];
+        role?: string;
+      };
+    });
+
+    if (!decoded) {
+      return reply.code(401).send({
+        code: 401,
+        error: 'INVALID_TOKEN',
+        message: 'Token is invalid or expired',
+      });
+    }
 
     request.user = {
       userId: decoded.userId,

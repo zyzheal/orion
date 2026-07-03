@@ -6,7 +6,7 @@
  * SLA tracking and breach detection, timeline events, and statistics.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   ServiceCatalogRepository,
   CatalogServiceEntity,
@@ -24,7 +24,7 @@ import {
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('module');
 
 // ==================== Valid Status Transitions ====================
 

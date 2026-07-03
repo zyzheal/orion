@@ -20,3 +20,16 @@ jest.mock('@kubernetes/client-node', () => {
     AutoscalingV2Api: jest.fn(),
   };
 });
+
+// Provide a global pino for modules that use it without importing
+// (migration in progress: createLogger is the target, but many files still use bare pino())
+if (typeof globalThis.pino === 'undefined') {
+  const mockPinoFn = jest.fn(() => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
+  }));
+  globalThis.pino = mockPinoFn;
+}

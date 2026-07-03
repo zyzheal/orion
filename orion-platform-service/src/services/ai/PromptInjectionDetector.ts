@@ -17,11 +17,11 @@
  * - data_exfiltration: 数据泄露尝试（请求导出数据）
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { PromptSecurity, ThreatType, PromptThreat, PromptAnalysis } from './PromptSecurity';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('prompt-injection-detector');
 
 /**
  * 检测规则定义

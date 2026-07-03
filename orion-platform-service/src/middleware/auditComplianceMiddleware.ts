@@ -15,6 +15,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuditService } from '../services/audit/AuditService';
 import { AuditComplianceService } from '../services/audit/AuditComplianceService';
 import { createLogger } from '../utils/logger';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 const logger = createLogger('audit-compliance-middleware');
 
@@ -71,7 +72,7 @@ export function auditComplianceGuard(options: AuditComplianceGuardOptions) {
     }
 
     const user = (request as any).user as Record<string, any> | undefined;
-    const tenantId = user?.tenantId || (request as any).tenantContext?.tenantId || 'default';
+    const tenantId = getCurrentTenantId();
     const userId = user?.userId || user?.id || null;
 
     // 获取最近的审计日志（假设刚写入的日志可以通过 request 上下文关联）

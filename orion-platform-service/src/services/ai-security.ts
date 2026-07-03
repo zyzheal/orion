@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuditRepository, CreateAuditLogInput } from './audit/AuditRepository';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'ai-security' });
+const logger = createLogger('ai-security');
 
 // ============================================================================
 // Type Definitions

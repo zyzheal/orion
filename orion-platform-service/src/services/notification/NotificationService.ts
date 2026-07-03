@@ -6,7 +6,7 @@
  */
 
 import { NotificationRepository, Notification, CreateNotificationInput } from './NotificationRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 export class NotificationServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'NotificationServiceError'; }
@@ -21,7 +21,7 @@ export interface NotificationEventPublisher {
   publish(type: string, data: unknown, options?: any): Promise<void | string>;
 }
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('module');
 
 export class NotificationService {
   private repository: NotificationRepository;

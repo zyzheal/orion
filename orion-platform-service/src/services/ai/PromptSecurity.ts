@@ -3,9 +3,9 @@
  * Detects 6 threat types: command_injection, role_play_attack, system_prompt_leak,
  * token_smuggling, code_injection, instruction_override
  */
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('prompt-security');
 
 export interface PromptAnalysis {
   isSafe: boolean;

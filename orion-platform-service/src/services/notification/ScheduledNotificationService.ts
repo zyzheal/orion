@@ -1,4 +1,4 @@
-import { ScheduledNotificationRepository, ScheduledNotification, CreateScheduledNotificationInput, UpdateScheduledNotificationInput } from '../repositories/ScheduledNotificationRepository';
+import { ScheduledNotificationRepository, ScheduledNotification, CreateScheduledNotificationInput, UpdateScheduledNotificationInput } from '../../repositories/ScheduledNotificationRepository';
 import { createLogger } from '../../utils/logger';
 
 export class ScheduledNotificationServiceError extends Error {

@@ -27,6 +27,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuditService } from '../services/audit/AuditService';
 import { createLogger } from '../utils/logger';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 const logger = createLogger('audit-middleware');
 
@@ -80,7 +81,7 @@ export function auditGuard(options: AuditGuardOptions) {
     }
 
     const user = (request as any).user as Record<string, any> | undefined;
-    const tenantId = user?.tenantId || (request as any).tenantContext?.tenantId || 'default';
+    const tenantId = getCurrentTenantId();
     const userId = user?.userId || user?.id || null;
     const resourceId = (request.params as any)?.id as string | undefined;
 
