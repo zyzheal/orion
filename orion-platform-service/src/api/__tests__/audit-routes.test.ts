@@ -113,4 +113,82 @@ describe('Audit Routes', () => {
       expect(response.statusCode).toBeDefined();
     });
   });
+
+  // ==================== Compliance Routes ====================
+
+  describe('GET /compliance/soc2', () => {
+    it('should respond to GET /compliance/soc2', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/compliance/soc2',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('GET /compliance/iso27001', () => {
+    it('should respond to GET /compliance/iso27001', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/compliance/iso27001',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('GET /compliance/combined', () => {
+    it('should respond to GET /compliance/combined', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/compliance/combined',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('GET /compliance/coverage', () => {
+    it('should respond to GET /compliance/coverage', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/compliance/coverage',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('POST /compliance/check', () => {
+    it('should respond with COMBINED framework by default', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/compliance/check',
+        payload: {},
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+
+    it('should respond with SOC2 framework', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/compliance/check',
+        payload: { framework: 'SOC2' },
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+
+    it('should respond with ISO27001 framework', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/compliance/check',
+        payload: { framework: 'ISO27001' },
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
 });

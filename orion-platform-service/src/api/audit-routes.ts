@@ -20,6 +20,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { AuditRepository } from '../services/audit/AuditRepository';
 import { AuditService } from '../services/audit/AuditService';
+import { AuditComplianceService, ComplianceCheckResult, AuditComplianceReport, AuditCoverageStats } from '../services/audit/AuditComplianceService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { OrionError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
@@ -99,11 +100,11 @@ export default async function auditRoutes(
   const service = repository ? new AuditService(repository) : undefined;
 
   // Error handler
-  function handleRouteError(error: any, reply: FastifyReply, context: string) {
+  function handleRouteError(error: any, reply: FastifyReply) {
     if (error?.code === 'NOT_FOUND') {
       return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
-    return handleError(reply, new OrionError(context, ErrorCode.INTERNAL_ERROR));
+    return handleError(reply, new OrionError('audit.route', ErrorCode.INTERNAL_ERROR));
   }
 
   // ==================== Audit Log CRUD ====================
@@ -112,7 +113,7 @@ export default async function auditRoutes(
   app.get('/logs', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as Record<string, any>;
     const page = parseInt(query.page, 10) || 1;
@@ -137,7 +138,7 @@ export default async function auditRoutes(
         totalPages: result.totalPages,
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_LIST_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -145,7 +146,7 @@ export default async function auditRoutes(
   app.get('/logs/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const params = request.params as { id: string };
 
@@ -153,7 +154,7 @@ export default async function auditRoutes(
       const log = await service.getAuditLog(params.id);
       return reply.send(toAuditLogEntry(log));
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_GET_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -161,7 +162,7 @@ export default async function auditRoutes(
   app.post('/logs', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as AuditLogCreateBody;
 
@@ -170,7 +171,7 @@ export default async function auditRoutes(
       const log = await service.createAuditLog(input);
       return reply.status(201).send({ entry: toAuditLogEntry(log) });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_CREATE_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -178,7 +179,7 @@ export default async function auditRoutes(
   app.get('/logs/:id/verify', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const params = request.params as { id: string };
 
@@ -190,7 +191,7 @@ export default async function auditRoutes(
         isValid: !!log.hash && log.hash.length > 0,
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_VERIFY_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -200,7 +201,7 @@ export default async function auditRoutes(
   app.post('/verify', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as { tenantId?: string } | undefined;
     const tenantId = body?.tenantId || 'default';
@@ -221,7 +222,7 @@ export default async function auditRoutes(
         verifiedAt: new Date().toISOString(),
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_VERIFY_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -231,7 +232,7 @@ export default async function auditRoutes(
   app.get('/actions', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -240,7 +241,7 @@ export default async function auditRoutes(
       const actions = await service.getActions(tenantId);
       return reply.send({ actions });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_ACTIONS_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -248,7 +249,7 @@ export default async function auditRoutes(
   app.get('/resource-types', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -257,7 +258,113 @@ export default async function auditRoutes(
       const resourceTypes = await service.getResourceTypes(tenantId);
       return reply.send({ resourceTypes });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_RESOURCE_TYPES_ERROR');
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // ==================== Compliance Reporting ====================
+  // SOC2 / ISO27001 compliance reports
+
+  // GET /compliance/soc2 - SOC2 Type II compliance report
+  app.get('/compliance/soc2', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId || 'default';
+
+    try {
+      const complianceService = new AuditComplianceService(pool);
+      const report = await complianceService.generateSOC2Report(tenantId);
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /compliance/iso27001 - ISO27001 compliance report
+  app.get('/compliance/iso27001', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId || 'default';
+
+    try {
+      const complianceService = new AuditComplianceService(pool);
+      const report = await complianceService.generateISO27001Report(tenantId);
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /compliance/combined - Combined SOC2 + ISO27001 compliance report
+  app.get('/compliance/combined', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId || 'default';
+
+    try {
+      const complianceService = new AuditComplianceService(pool);
+      const report = await complianceService.generateCombinedReport(tenantId);
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /compliance/coverage - Audit coverage statistics
+  app.get('/compliance/coverage', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId || 'default';
+
+    try {
+      const complianceService = new AuditComplianceService(pool);
+      const stats = await complianceService.getAuditCoverageStats(tenantId);
+      return reply.send(stats);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // POST /compliance/check - Run all compliance checks
+  app.post('/compliance/check', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const body = request.body as { framework?: 'SOC2' | 'ISO27001' | 'COMBINED'; tenantId?: string } | undefined;
+    const tenantId = body?.tenantId || 'default';
+    const framework = body?.framework || 'COMBINED';
+
+    try {
+      const complianceService = new AuditComplianceService(pool);
+      let report: AuditComplianceReport;
+
+      switch (framework) {
+        case 'SOC2':
+          report = await complianceService.generateSOC2Report(tenantId);
+          break;
+        case 'ISO27001':
+          report = await complianceService.generateISO27001Report(tenantId);
+          break;
+        default:
+          report = await complianceService.generateCombinedReport(tenantId);
+      }
+
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
     }
   });
 
@@ -268,7 +375,7 @@ export default async function auditRoutes(
   app.get('/chain/info', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -287,7 +394,7 @@ export default async function auditRoutes(
         genesisHash: '0'.repeat(64),
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_CHAIN_INFO_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -295,7 +402,7 @@ export default async function auditRoutes(
   app.get('/storage/stats', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -311,7 +418,7 @@ export default async function auditRoutes(
         },
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_STORAGE_STATS_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
@@ -335,7 +442,7 @@ export default async function auditRoutes(
   app.get('/chain/latest', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -347,7 +454,7 @@ export default async function auditRoutes(
       }
       return reply.send(toAuditLogEntry(result.data[0]));
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_LATEST_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 }
