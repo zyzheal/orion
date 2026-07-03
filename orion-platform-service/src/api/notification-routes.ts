@@ -16,13 +16,14 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { NotificationRepository } from '../services/notification';
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('notification-routes');
 
 interface NotificationRoutesOptions {
   database?: DatabasePool;
@@ -50,8 +51,13 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   };
 
   // Helper: extract tenantId from auth context (unified approach)
+  // Throws OrionError if tenantId is missing — fail-closed for tenant security
   const getContextTenantId = (request: FastifyRequest): string => {
-    return (request.user as any)?.tenantId || 'default';
+    const tid = (request as any).user?.tenantId;
+    if (!tid) {
+      throw new OrionError('租户ID缺失：用户认证信息中必须包含 tenantId', 'VALIDATION_ERROR');
+    }
+    return tid;
   };
 
   // =========================================================================
@@ -59,7 +65,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.get<{ Querystring: NotificationQuery }>(
     '/',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'read' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'read' }),
+      ],
+    },
     async (request: FastifyRequest<{ Querystring: NotificationQuery }>, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -80,7 +91,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
       } catch (error) {
         logger.error(
           {
-            traceId: 'unknown-trace',
+            traceId: (request as any).traceId || 'unknown-trace',
             tenantId: getContextTenantId(request),
             error: error instanceof Error ? error.message : error,
             userId: (request.user as any)?.userId ? '***' : '',
@@ -97,7 +108,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.get<{ Params: { userId: string }; Querystring: { limit?: number; page?: number } }>(
     '/:userId',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'read' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'read' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { userId: string }; Querystring: { limit?: number; page?: number } }>, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -116,7 +132,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
           data: { items: data, total, page, pageSize: limit },
         });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error fetching notifications for user'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -127,7 +151,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.get<{ Params: { userId?: string } }>(
     '/:userId/unread-count',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'read' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'read' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { userId?: string } }>, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -139,7 +168,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
 
         return reply.send({ success: true, data: { unreadCount } });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error fetching unread count'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -150,7 +187,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.get(
     '/stats',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'read' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'read' }),
+      ],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -165,7 +207,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
           data: { unread: unreadCount, total: 0 },
         });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error fetching notification stats'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -176,7 +226,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.get<{ Params: { id: string } }>(
     '/:id',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'read' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'read' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -192,7 +247,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
 
         return reply.send({ success: true, data: notification });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error fetching notification detail'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -203,7 +266,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.post<{ Params: { id: string } }>(
     '/mark-read/:id',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'write' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'write' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -215,7 +283,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
 
         return reply.send({ success: true, message: 'Notification marked as read' });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error marking notification as read'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -226,7 +302,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.put<{ Params: { id: string } }>(
     '/:id/read',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'write' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'write' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       if (!notificationRepo) {
         return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
@@ -238,7 +319,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
 
         return reply.send({ success: true, data: { id, status: 'read' } });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error marking notification as read'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -251,7 +340,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.get<{ Params: { userId?: string }; Querystring: { tenantId?: string } }>(
     '/settings/:userId',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'read' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'read' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { userId?: string }; Querystring: { tenantId?: string } }>, reply: FastifyReply) => {
       try {
         const user_id = extractUserId(request);
@@ -282,7 +376,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
 
         return reply.send({ success: true, data: settings });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error fetching notification settings'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -295,7 +397,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.put<{ Params: { userId?: string }; Querystring: { tenantId?: string } }>(
     '/settings/:userId',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'write' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'write' }),
+      ],
+    },
     async (request: FastifyRequest<{ Params: { userId?: string }; Querystring: { tenantId?: string } }>, reply: FastifyReply) => {
       try {
         const user_id = extractUserId(request);
@@ -311,7 +418,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
 
         return reply.send({ success: true, data: updated });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error updating notification settings'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -322,7 +437,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // =========================================================================
   app.post(
     '/broadcast',
-    { onRequest: [requirePermission({ resource: 'notification', action: 'admin' })] },
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'notification', action: 'admin' }),
+      ],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const body = request.body as {
@@ -341,12 +461,23 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
           return handleError(reply, new ValidationError('BAD_REQUEST'));
         }
 
+        // Validate tenant context for broadcast — fail-closed
+        const tenant_id = getContextTenantId(request);
+
         // TODO: Integrate with NotificationService for actual persistence + event emission
         const sent = user_ids.length;
 
         return reply.send({ success: true, data: { sent } });
       } catch (error) {
-        request.log.error(error);
+        logger.error(
+          {
+            traceId: (request as any).traceId || 'unknown-trace',
+            tenantId: getContextTenantId(request),
+            error: error instanceof Error ? error.message : error,
+            userId: (request.user as any)?.userId ? '***' : '',
+          },
+          '[NotificationRoutes] Error broadcasting notification'
+        );
         return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
