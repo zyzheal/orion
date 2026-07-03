@@ -16,6 +16,7 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
 import { CacheService } from '../services/cache/CacheService';
+import { KnowledgeIntegrationService } from '../services/knowledge/KnowledgeIntegrationService';
 import configRoutes from './config-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import auditRoutes from './audit-routes';
@@ -76,6 +77,7 @@ import { registerApprovalRoutes } from './approval-routes';
 import artifactRoutes from './artifact-routes';
 import artifactVersionRoutes from './artifact-version-routes';
 import artifactOpsRoutes from './artifact-ops-routes';
+import artifactLifecycleRoutes from './artifact-lifecycle-routes';
 import permissionAuditRoutes from './permission-audit-routes';
 import abacPolicyRoutes, { registerSystemPolicyId } from './abac-policy-routes';
 import projectMemberRoutes from './project-member-routes';
@@ -344,12 +346,9 @@ async function registerWithPermission(
   defaultAction?: string
 ): Promise<void> {
   await app.register(async (instance: FastifyInstance) => {
-    // Skip auth in development for easier testing
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!isDev) {
-      instance.addHook('onRequest', authenticateUser);
-    }
-    // 具体的 requirePermission 在各路由内部添加
+    // Always enforce authentication to maintain fail-closed security.
+    // Development convenience should not bypass identity verification.
+    instance.addHook('onRequest', authenticateUser);
     await instance.register(routeModule, { prefix, ...routeOptions });
   });
 }
@@ -549,6 +548,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     eventBus: options.eventBus,
     database: options.database,
     redis: options.redis,
+    knowledgeIntegration: options.database ? new KnowledgeIntegrationService(options.database) : undefined,
   });
 
   // 注册 Manual Confirmation API 路由 (P0-6)
@@ -562,6 +562,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Artifact Ops API 路由 — 操作追踪、扫描、保留策略
   await registerWithRoleGuard(app, artifactOpsRoutes, '/artifact-ops', { database: options.database });
+
+  // 注册 Artifact Lifecycle API 路由 — 生命周期、复制、ACL
+  await registerWithRoleGuard(app, artifactLifecycleRoutes, '/artifact-lifecycle', { database: options.database });
 
   // Permission Audit Routes (P2)
   await registerWithRoleGuard(app, permissionAuditRoutes, '/permission-audit', { database: options.database });
@@ -1311,7 +1314,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Incident Management (ITIL-aligned) ====================
   // Full lifecycle, timeline, post-mortem/RCA, priority matrix, MTTR stats
-  await registerWithRoleGuard(app, incidentRoutes, '/incidents', { database: options.database });
+  await registerWithRoleGuard(app, incidentRoutes, '/incidents', {
+    database: options.database,
+    knowledgeIntegration: options.database ? new KnowledgeIntegrationService(options.database) : undefined,
+  });
 
   // ==================== Phase 3: Cache Management ====================
   // Phase 3.5 Fix: Register cache routes — previously orphan

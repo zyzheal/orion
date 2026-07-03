@@ -45,6 +45,18 @@ export function requirePermission(options: RequirePermissionOptions) {
 
     const user = (request as any).user;
 
+    // Fail-closed: authentication is required before authorization.
+    // Reject requests without a validated user identity instead of
+    // fabricating an anonymous user and delegating the decision to the
+    // authorization engine.
+    if (!user || (!user.id && !user.userId)) {
+      return reply.code(401).send({
+        code: 401,
+        error: 'UNAUTHORIZED',
+        message: 'Authentication required',
+      });
+    }
+
     const resourceId = options.extractResourceId?.(request);
     const projectId = options.extractProjectId?.(request);
     const ownerId = options.extractOwnerId?.(request);
