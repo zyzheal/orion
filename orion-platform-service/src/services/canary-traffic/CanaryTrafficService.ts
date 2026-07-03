@@ -5,7 +5,7 @@
  * promotion, and rollback.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   TrafficConfigRepository,
   TrafficConfigEntity,

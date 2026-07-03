@@ -305,6 +305,25 @@ export interface CostCollectionSchedule {
   lastStatus?: 'success' | 'failed';
 }
 
+// ==================== 自定义成本模型 ====================
+
+/**
+ * 自定义成本模型接口
+ * 支持用户定义自己的成本计算逻辑
+ */
+export interface CustomCostModel {
+  /** 模型名称 */
+  name: string;
+  /** 模型描述 */
+  description?: string;
+  /**
+   * 计算成本
+   * @param resource 云资源
+   * @returns 计算后的成本
+   */
+  calculateCost(resource: CloudResource): number;
+}
+
 // ==================== TASK-502: 成本追踪与 ROI ====================
 
 /**

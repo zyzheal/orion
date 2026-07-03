@@ -11,7 +11,7 @@
 import { EventEmitter } from 'events';
 import * as pg from 'pg';
 import { tenantContextStorage } from '../db/tenant-context-storage';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'database' });

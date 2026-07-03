@@ -9,6 +9,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { ServerlessService } from '../services/serverless/ServerlessService';
 import type { FunctionStatus, FunctionRuntime, TriggerType } from '../services/serverless/ServerlessService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface ServerlessRoutesOptions {
   database?: DatabasePool;
@@ -58,7 +59,7 @@ export default async function serverlessRoutes(
     const tenantId = String((request as any).user?.tenantId || 1);
     const params = request.params as { id: string };
     const fn = await serverlessService.getFunction(params.id, tenantId);
-    if (!fn) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Function not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: fn });
   });
 
@@ -79,7 +80,7 @@ export default async function serverlessRoutes(
       code: body.code,
       replicas: body.replicas,
     });
-    if (!fn) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Function not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: fn });
   });
 
@@ -89,7 +90,7 @@ export default async function serverlessRoutes(
     const tenantId = String((request as any).user?.tenantId || 1);
     const params = request.params as { id: string };
     const deleted = await serverlessService.deleteFunction(params.id, tenantId);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Function not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Function deleted' });
   });
 
@@ -106,7 +107,7 @@ export default async function serverlessRoutes(
       const deployment = await serverlessService.deployFunction(params.id, tenantId);
       return reply.send({ success: true, data: deployment });
     } catch (err) {
-      return reply.status(404).send({ error: 'DEPLOY_FAILED', message: err instanceof Error ? err.message : 'Deploy failed' });
+      return handleError(reply, new NotFoundError('DEPLOY_FAILED'));
     }
   });
 
@@ -194,7 +195,7 @@ export default async function serverlessRoutes(
       }, tenantId);
       return reply.status(201).send({ success: true, data: trigger });
     } catch (err) {
-      return reply.status(404).send({ error: 'FUNCTION_NOT_FOUND', message: 'Function not found' });
+      return handleError(reply, new NotFoundError('FUNCTION_NOT_FOUND'));
     }
   });
 
@@ -213,7 +214,7 @@ export default async function serverlessRoutes(
     const tenantId = String((request as any).user?.tenantId || 1);
     const params = request.params as { id: string };
     const trigger = await serverlessService.getTrigger(params.id, tenantId);
-    if (!trigger) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Trigger not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: trigger });
   });
 
@@ -223,7 +224,7 @@ export default async function serverlessRoutes(
     const tenantId = String((request as any).user?.tenantId || 1);
     const params = request.params as { id: string };
     const deleted = await serverlessService.deleteTrigger(params.id, tenantId);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Trigger not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Trigger deleted' });
   });
 

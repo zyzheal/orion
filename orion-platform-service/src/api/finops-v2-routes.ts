@@ -12,7 +12,8 @@ import { requirePermission } from '../middleware/requirePermission';
 import { FinOpsV2Controller } from './controllers/finops/FinOpsV2Controller';
 import { FinOpsService } from '../services/finops/FinOpsService';
 import { FinOpsRepository } from '../services/finops/FinOpsRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { NotFoundError, handleError } from '../errors';
 
 const logger = pino({ name: 'finops-v2-routes' });
 
@@ -114,7 +115,7 @@ export default async function finOpsV2Routes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const budget = await finOpsService.getBudget(params.id);
-    if (!budget) return reply.status(404).send({ error: 'NOT_FOUND', message: `Budget ${params.id} not found` });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: { budget } });
   });
 

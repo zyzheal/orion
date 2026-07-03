@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { SLODefinitionRepository, SLODefinitionEntity } from '../../repositories/SLODefinitionRepository';
 import { SLIMeasurementRepository, SLIMeasurementEntity } from '../../repositories/SLIMeasurementRepository';

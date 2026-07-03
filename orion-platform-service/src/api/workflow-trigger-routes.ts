@@ -21,7 +21,9 @@ import { TriggerManager } from '../services/lowcode/TriggerManager';
 import { WorkflowScheduler } from '../services/lowcode/WorkflowScheduler';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+
+import {  OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'workflow-trigger-routes' });
 import type {
@@ -124,10 +126,7 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { workflowId, type, enabled, limit, offset } = request.query;
@@ -169,10 +168,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -196,20 +192,14 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
         const trigger = await triggerRepo.findById(id);
 
         if (!trigger) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         return reply.send({
@@ -218,10 +208,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -241,29 +228,20 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const data = request.body;
 
         // 验证必填字段
         if (!data.workflowId || !data.name || !data.type) {
-          return reply.status(400).send({
-            success: false,
-            error: 'Missing required fields: workflowId, name, type',
-          });
+          return handleError(reply, new ValidationError('Missing required fields: workflowId, name, type'))
         }
 
         // 验证类型
         const validTypes = ['event', 'cron', 'manual', 'webhook'];
         if (!validTypes.includes(data.type)) {
-          return reply.status(400).send({
-            success: false,
-            error: `Invalid type. Must be one of: ${validTypes.join(', ')}`,
-          });
+          return handleError(reply, new ValidationError('Unknown error'))
         }
 
         // 创建触发器（通过 TriggerManager 如果可用，否则直接用 repo）
@@ -286,10 +264,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -313,10 +288,7 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
@@ -325,20 +297,14 @@ export default async function workflowTriggerRoutes(
         // 检查触发器是否存在
         const existing = await triggerRepo.findById(id);
         if (!existing) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         // 验证类型（如果提供）
         if (data.type) {
           const validTypes = ['event', 'cron', 'manual', 'webhook'];
           if (!validTypes.includes(data.type)) {
-            return reply.status(400).send({
-              success: false,
-              error: `Invalid type. Must be one of: ${validTypes.join(', ')}`,
-            });
+            return handleError(reply, new ValidationError('Unknown error'))
           }
         }
 
@@ -351,10 +317,7 @@ export default async function workflowTriggerRoutes(
         }
 
         if (!trigger) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         // 如果是 Cron 类型且有调度器，重新加载调度器
@@ -369,10 +332,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -396,10 +356,7 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
@@ -407,10 +364,7 @@ export default async function workflowTriggerRoutes(
         // 检查触发器是否存在
         const existing = await triggerRepo.findById(id);
         if (!existing) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         // 删除触发器（通过 TriggerManager 如果可用）
@@ -432,10 +386,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -459,10 +410,7 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
@@ -470,10 +418,7 @@ export default async function workflowTriggerRoutes(
         // 检查触发器是否存在
         const existing = await triggerRepo.findById(id);
         if (!existing) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         // 设置启用状态
@@ -495,10 +440,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -522,10 +464,7 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
@@ -533,10 +472,7 @@ export default async function workflowTriggerRoutes(
         // 检查触发器是否存在
         const existing = await triggerRepo.findById(id);
         if (!existing) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         // 设置禁用状态
@@ -558,10 +494,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -585,27 +518,18 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo || !scheduler) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Workflow engine not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Workflow engine not available'))
         }
 
         const { id } = request.params;
         const trigger = await triggerRepo.findById(id);
 
         if (!trigger) {
-          return reply.status(404).send({
-            success: false,
-            error: `Trigger '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         if (!trigger.enabled) {
-          return reply.status(400).send({
-            success: false,
-            error: `Trigger '${id}' is disabled`,
-          });
+          return handleError(reply, new ValidationError('Unknown error'))
         }
 
         // 记录触发日志
@@ -634,10 +558,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -657,7 +578,7 @@ export default async function workflowTriggerRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({ success: false, error: 'Database not available' });
+          return handleError(reply, new ServiceUnavailableError('Database not available'));
         }
 
         const { definitionId } = request.params;
@@ -675,10 +596,7 @@ export default async function workflowTriggerRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );

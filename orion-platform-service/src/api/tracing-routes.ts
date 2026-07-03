@@ -14,7 +14,7 @@ import { TraceSamplingConfigRepository } from '../repositories/TraceSamplingConf
 import { OtelCollectorConfigRepository } from '../repositories/OtelCollectorConfigRepository';
 import { DistributedTracingService } from '../services/observability/DistributedTracingService';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'tracing-routes' });
 

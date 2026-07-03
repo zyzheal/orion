@@ -12,7 +12,10 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { DigitalTwinRepository } from '../repositories/DigitalTwinRepository';
 import { CreateDigitalTwinInput, CreateSnapshotInput, CreateTrafficRecordInput, CreateReplaySessionInput } from '../repositories/DigitalTwinRepository';
-import pino from 'pino';
+import { StateSimulationEngine, ServiceSimulationState } from '../services/digital-twin/StateSimulationEngine';
+import { MigrationService } from '../services/migration/MigrationService';
+import { createLogger } from '../utils/logger';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 const logger = pino({ name: 'digital-twin-routes' });
 
@@ -81,7 +84,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { id: string };
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     const state = {
       twinId: twin.id,
@@ -103,7 +106,7 @@ export default async function digitalTwinRoutes(
     const body = request.body as { name: string };
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     const snapshot = await repo.createSnapshot({ twinId: params.id, name: body.name });
     return reply.send({
@@ -126,7 +129,7 @@ export default async function digitalTwinRoutes(
     const body = request.body as { twinId: string; name: string; snapshotId?: string };
     const twin = await repo.findTwinById(body.twinId);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${body.twinId}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     // Sandbox lifecycle managed by SandboxService; validate twin exists
     return reply.send({
@@ -176,7 +179,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { id: string };
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     const record = await repo.createTrafficRecord({
       twinId: params.id,
@@ -204,10 +207,10 @@ export default async function digitalTwinRoutes(
     const body = request.body as { name: string };
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     if (!body.name) {
-      return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Recording name is required' });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'));
     }
     // Recording session managed by TrafficRecorderService
     const session = {
@@ -228,7 +231,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { id: string };
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     const records = await repo.findTrafficRecordsByTwinId(params.id);
     const recordings = records
@@ -288,7 +291,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { id: string };
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     const record = await repo.createTrafficRecord({
       twinId: params.id,
@@ -311,14 +314,14 @@ export default async function digitalTwinRoutes(
     const params = request.params as { id: string };
     const body = request.body as { recordingSessionId: string; sandboxEndpoint: string; config?: Record<string, unknown> };
     if (!body.recordingSessionId) {
-      return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'recordingSessionId is required' });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'));
     }
     if (!body.sandboxEndpoint) {
-      return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'sandboxEndpoint is required' });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'));
     }
     const twin = await repo.findTwinById(params.id);
     if (!twin) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Twin '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     // Validate recording session exists (via TrafficRecorderService)
     const session = await repo.createReplaySession({
@@ -356,7 +359,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { replayId: string };
     const session = await repo.findReplaySessionById(params.replayId);
     if (!session) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Replay '${params.replayId}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({
       success: true,
@@ -381,7 +384,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { replayId: string };
     const updated = await repo.updateReplaySession(params.replayId, { status: 'cancelled' });
     if (!updated) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Replay '${params.replayId}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: { id: updated.id, status: updated.status } });
   });
@@ -393,7 +396,7 @@ export default async function digitalTwinRoutes(
     const params = request.params as { replayId: string };
     const session = await repo.findReplaySessionById(params.replayId);
     if (!session) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Replay '${params.replayId}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     const matchRate = session.total_requests > 0
       ? `${((session.matched_requests / session.total_requests) * 100).toFixed(1)}%`

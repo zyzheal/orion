@@ -18,7 +18,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   CircuitState,
   AIScenario,

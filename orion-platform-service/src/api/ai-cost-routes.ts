@@ -12,7 +12,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { CostOptimizerService } from '../services/ai/CostOptimizerService';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'ai-cost-routes' });
 
@@ -57,10 +58,7 @@ export default async function aiCostRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Cost optimization failed');
-        return reply.status(500).send({
-          error: 'OPTIMIZATION_FAILED',
-          message: error.message || 'Failed to run cost optimization',
-        });
+        return handleError(reply, new OrionError('OPTIMIZATION_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -92,10 +90,7 @@ export default async function aiCostRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get savings history');
-        return reply.status(500).send({
-          error: 'HISTORY_FETCH_FAILED',
-          message: error.message || 'Failed to fetch savings history',
-        });
+        return handleError(reply, new OrionError('HISTORY_FETCH_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -130,10 +125,7 @@ export default async function aiCostRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get cost summary');
-        return reply.status(500).send({
-          error: 'SUMMARY_FETCH_FAILED',
-          message: error.message || 'Failed to fetch cost summary',
-        });
+        return handleError(reply, new OrionError('SUMMARY_FETCH_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -177,10 +169,7 @@ export default async function aiCostRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get cost alerts');
-        return reply.status(500).send({
-          error: 'ALERTS_FETCH_FAILED',
-          message: error.message || 'Failed to fetch cost alerts',
-        });
+        return handleError(reply, new OrionError('ALERTS_FETCH_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

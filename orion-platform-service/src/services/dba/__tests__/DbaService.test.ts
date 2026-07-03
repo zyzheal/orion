@@ -11,6 +11,11 @@
 
 import { DbaService } from '../DbaService';
 
+// Mock the db-connection module to avoid real network calls in tests
+jest.mock('../db-connection');
+
+import { testDatabaseConnection } from '../db-connection';
+
 function createMockDb() {
   const tables: Record<string, any[]> = {
     dba_sql_orders: [],
@@ -149,6 +154,14 @@ describe('DbaService', () => {
   beforeEach(() => {
     mockDb = createMockDb();
     service = new DbaService(mockDb as any);
+    (testDatabaseConnection as jest.MockedFunction<any>).mockClear();
+    (testDatabaseConnection as jest.MockedFunction<any>).mockResolvedValue({
+      success: true,
+      message: 'Connected',
+      latency: 42,
+      version: 'PostgreSQL 15.4 (mock)',
+      poolStats: { total: 1, idle: 1, waiting: 0 },
+    });
   });
 
   // ==================== Orders ====================

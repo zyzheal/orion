@@ -4,7 +4,7 @@
  * Handles deployment execution, rollback, and management
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LDeploy-LService' });
 import {

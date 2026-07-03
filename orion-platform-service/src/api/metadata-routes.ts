@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MetadataService } from '../services/metadata/MetadataService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface MetadataRoutesOptions {
   database?: DatabasePool;
@@ -45,7 +46,7 @@ export default async function metadataRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const item = await metadataService.getCatalogItem(params.id);
-    if (!item) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Catalog item not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: item });
   });
 
@@ -55,7 +56,7 @@ export default async function metadataRoutes(
     const params = request.params as any;
     const body = request.body as any;
     const item = await metadataService.updateCatalogItem(params.id, body);
-    if (!item) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Catalog item not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: item });
   });
 
@@ -64,7 +65,7 @@ export default async function metadataRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const deleted = await metadataService.deleteCatalogItem(params.id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Catalog item not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Catalog item deleted' });
   });
 
@@ -92,7 +93,7 @@ export default async function metadataRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const deleted = await metadataService.deleteLineage(params.id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Lineage relation not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Lineage relation deleted' });
   });
 }

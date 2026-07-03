@@ -22,7 +22,8 @@ import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { EnvProfileService } from '../services/pipeline/EnvProfileService';
 import { EnvProfileRepository } from '../repositories/EnvProfileRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ConflictError, handleError } from '../errors';
 
 const logger = pino({ name: 'env-profile-routes' });
 
@@ -58,7 +59,7 @@ export default async function envProfileRoutes(
     } catch (err: any) {
       logger.error({ err }, 'Failed to create env profile');
       if (err.code === 'DUPLICATE_PROFILE') {
-        return reply.code(409).send({ error: 'CONFLICT', message: err.message });
+        return handleError(reply, new ConflictError('CONFLICT'));
       }
       return internalError(reply, request, err.message);
     }

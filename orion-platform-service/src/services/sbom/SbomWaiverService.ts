@@ -5,7 +5,7 @@
  * in SBOM documents.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { SbomWaiverRepository, SbomWaiverEntity } from '../../repositories/SbomWaiverRepository';
 import { DatabasePool } from '../database';
 

@@ -25,7 +25,7 @@ import { RiskScoringEngine } from './RiskScoringEngine';
 import { HealthCheckService } from './HealthCheckService';
 import { RiskAssessmentRepository, RiskAssessmentEntity } from '../../repositories/RiskAssessmentRepository';
 import { RiskReportRepository, RiskReportEntity } from '../../repositories/RiskReportRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LRisk-LAssessment-LService' });
 

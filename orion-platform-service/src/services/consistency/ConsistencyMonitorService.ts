@@ -1,7 +1,7 @@
 // orion-platform-service/src/services/consistency/ConsistencyMonitorService.ts
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { Pool } from 'pg';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

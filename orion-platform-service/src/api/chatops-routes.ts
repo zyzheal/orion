@@ -49,14 +49,17 @@ import { PermissionService } from '../services/chatops/PermissionService';
 import { CommandVersionService } from '../services/chatops/CommandVersionService';
 import { RateLimitService } from '../services/chatops/RateLimitService';
 import { WebhookService } from '../services/chatops/WebhookService';
-import pino from 'pino';
-import { OrionError, ErrorCode } from '../errors';
+import { RedisCache } from '../services/redis-cache';
+import { OrionError, ErrorCode , ValidationError, NotFoundError, UnauthorizedError, handleError} from '../errors';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'chatops-routes' });
+const logger = createLogger('chatops-routes');
 
 interface ChatOpsRoutesOptions {
   eventBus?: EventBusService;
   database?: DatabasePool;
+  /** Redis 实例，用于 RateLimitService 滑动窗口 */
+  redis?: RedisCache | null;
   /** 可选注入的外部服务，用于 CommandRouter 真实 handler */
   pipelineService?: any;
   deployService?: any;
@@ -297,8 +300,8 @@ export default async function chatopsRoutes(
   const permissionService = new PermissionService(db);
   // Command Version Service (命令版本管理)
   const commandVersionService = new CommandVersionService(db);
-  // Rate Limit Service (速率限制)
-  const rateLimitService = new RateLimitService(db);
+  // Rate Limit Service (速率限制，带 Redis Sorted Set 滑动窗口)
+  const rateLimitService = new RateLimitService(db, options.redis ?? null);
   // Webhook Service (Webhook 管理)
   const webhookService = new WebhookService(db);
 
@@ -363,113 +366,673 @@ export default async function chatopsRoutes(
 
   // ==================== Commands ====================
 
-  app.get('/commands', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/commands', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'List available ChatOps commands',
+      tags: ['chatops', 'commands'],
+      summary: '获取可用命令列表',
+      querystring: {
+        type: 'object',
+        properties: {
+          permissionLevel: { type: 'string', description: 'Filter by permission level' },
+          name: { type: 'string', description: 'Search by command name or alias' },
+          page: { type: 'integer', minimum: 1 },
+          perPage: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+            total: { type: 'integer' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listCommands(request, reply);
   });
 
-  app.get('/commands/:name/help', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/commands/:name/help', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get help for a specific command',
+      tags: ['chatops', 'commands'],
+      summary: '获取命令帮助信息',
+      params: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string', description: 'Command name' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                subcommand: { type: 'string' },
+                aliases: { type: 'array', items: { type: 'string' } },
+                permissionLevel: { type: 'string' },
+                schema: { type: 'object' },
+                examples: { type: 'array', items: { type: 'string' } },
+              },
+            },
+          },
+        },
+        404: { description: 'Command not found' },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getCommandHelp(request, reply);
   });
 
   // ==================== Execution ====================
 
-  app.post('/execute', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/execute', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'execute' })],
+    schema: {
+      description: 'Execute a ChatOps command',
+      tags: ['chatops', 'execution'],
+      summary: '执行 ChatOps 命令',
+      body: {
+        type: 'object',
+        required: ['command'],
+        properties: {
+          command: { type: 'string', description: 'Command name (e.g. deploy, status, logs)' },
+          params: { type: 'object', description: 'Command parameters', additionalProperties: { type: 'object' } },
+          channel: { type: 'string', description: 'Channel identifier' },
+        },
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                commandId: { type: 'string' },
+                userId: { type: 'string' },
+                status: { type: 'string', enum: ['running', 'completed', 'failed'] },
+                startTime: { type: 'string', format: 'date-time' },
+                endTime: { type: 'string', format: 'date-time', nullable: true },
+                result: { type: 'object' },
+                milestones: { type: 'object' },
+              },
+            },
+          },
+        },
+        400: { description: 'Invalid request body' },
+        401: { description: 'Unauthorized' },
+        403: { description: 'Forbidden - permission denied or rate limited' },
+        404: { description: 'Command not found' },
+        429: { description: 'Rate limit exceeded' },
+        503: { description: 'Permission service unavailable' },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.executeCommand(request, reply);
   });
 
-  app.get('/status/:commandId', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/status/:commandId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get execution status by command/execution ID',
+      tags: ['chatops', 'execution'],
+      summary: '查询命令执行状态',
+      params: {
+        type: 'object',
+        required: ['commandId'],
+        properties: {
+          commandId: { type: 'string', description: 'Execution ID or command ID' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                commandId: { type: 'string' },
+                status: { type: 'string', enum: ['running', 'completed', 'failed'] },
+                result: { type: 'object' },
+                startTime: { type: 'string', format: 'date-time' },
+                endTime: { type: 'string', format: 'date-time', nullable: true },
+              },
+            },
+          },
+        },
+        404: { description: 'Execution not found' },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.checkExecutionStatus(request, reply);
   });
 
-  app.get('/executions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/executions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'List command executions with optional filters',
+      tags: ['chatops', 'execution'],
+      summary: '获取命令执行历史',
+      querystring: {
+        type: 'object',
+        properties: {
+          commandId: { type: 'string' },
+          userId: { type: 'string' },
+          status: { type: 'string', enum: ['running', 'completed', 'failed'] },
+          platform: { type: 'string' },
+          page: { type: 'integer', minimum: 1 },
+          perPage: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+            total: { type: 'integer' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listExecutions(request, reply);
   });
 
   // ==================== Webhook ====================
 
-  app.post('/message', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/message', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Receive webhook message from IM platform',
+      tags: ['chatops', 'webhook'],
+      summary: '接收 IM 平台 Webhook 消息',
+      body: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'Message text' },
+          message: { type: 'string', description: 'Alternative message field' },
+          platform: { type: 'string', description: 'Platform identifier' },
+          channel: { type: 'string', description: 'Channel identifier' },
+          environment: { type: 'string', description: 'Target environment' },
+        },
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+            command: { type: 'object' },
+          },
+        },
+        400: { description: 'Invalid request or unknown command' },
+        401: { description: 'Unauthorized' },
+        403: { description: 'Forbidden - permission denied' },
+        429: { description: 'Rate limit exceeded' },
+        503: { description: 'Permission service unavailable' },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.receiveMessage(request, reply);
   });
 
   // ==================== Recommendations (Phase 1a) ====================
 
-  app.post('/recommendations', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/recommendations', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Get AI-powered command recommendations',
+      tags: ['chatops', 'recommendations'],
+      summary: '获取智能命令推荐',
+      body: {
+        type: 'object',
+        properties: {
+          context: {
+            type: 'object',
+            properties: {
+              currentPage: { type: 'string' },
+              resourceId: { type: 'string' },
+            },
+          },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+            total: { type: 'integer' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getRecommendations(request, reply);
   });
 
   // ==================== Sessions / Messages (Phase 1a) ====================
 
-  app.get('/sessions/:id/messages', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/sessions/:id/messages', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get messages for a ChatOps session',
+      tags: ['chatops', 'sessions'],
+      summary: '获取会话消息历史',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', description: 'Session ID' },
+        },
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          cursor: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+            hasMore: { type: 'boolean' },
+            nextCursor: { type: 'string', nullable: true },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getSessionMessages(request, reply);
   });
 
   // ==================== SSE Stream (Phase 1a) ====================
 
-  app.get('/stream/recommendations', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/stream/recommendations', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'SSE stream for real-time recommendations',
+      tags: ['chatops', 'sse'],
+      summary: 'SSE 实时推荐流',
+      response: {
+        200: {
+          type: 'string',
+          description: 'SSE event stream',
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.streamRecommendations(request, reply, connectionManager, eventSubscriber);
   });
 
   // ==================== Notification Preferences (Phase 1a) ====================
 
-  app.get('/settings/notification-preferences', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings/notification-preferences', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get user notification preferences',
+      tags: ['chatops', 'settings'],
+      summary: '获取通知偏好设置',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getNotificationPreferences(request, reply);
   });
 
-  app.put('/settings/notification-preferences', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings/notification-preferences', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Update user notification preferences',
+      tags: ['chatops', 'settings'],
+      summary: '更新通知偏好设置',
+      body: {
+        type: 'object',
+        properties: {
+          alertLevel: { type: 'string', enum: ['critical', 'warning', 'info'] },
+          channelChatops: { type: 'boolean' },
+          channelEmail: { type: 'boolean' },
+          channelSlack: { type: 'boolean' },
+          channelFeishu: { type: 'boolean' },
+          channelDingtalk: { type: 'boolean' },
+        },
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateNotificationPreferences(request, reply);
   });
 
   // ==================== DND Settings (Phase 1a) ====================
 
-  app.get('/settings/dnd', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings/dnd', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get user DND (Do Not Disturb) settings',
+      tags: ['chatops', 'settings'],
+      summary: '获取免打扰设置',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getDNDSettings(request, reply);
   });
 
-  app.put('/settings/dnd', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings/dnd', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Update user DND settings',
+      tags: ['chatops', 'settings'],
+      summary: '更新免打扰设置',
+      body: {
+        type: 'object',
+        properties: {
+          enabled: { type: 'boolean' },
+          startTime: { type: 'string' },
+          endTime: { type: 'string' },
+          repeatDays: { type: 'array', items: { type: 'integer' } },
+          allowCritical: { type: 'boolean' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateDNDSettings(request, reply);
   });
 
-  app.patch('/settings/dnd/toggle', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/settings/dnd/toggle', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Toggle DND mode on/off',
+      tags: ['chatops', 'settings'],
+      summary: '切换免打扰模式',
+      body: {
+        type: 'object',
+        required: ['enabled'],
+        properties: {
+          enabled: { type: 'boolean' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.toggleDND(request, reply);
   });
 
   // ==================== Platform Config (Phase 1a) ====================
 
-  app.get('/settings/platforms', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings/platforms', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get user platform configurations',
+      tags: ['chatops', 'settings'],
+      summary: '获取平台配置',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getPlatformConfigs(request, reply);
   });
 
-  app.put('/settings/platforms', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings/platforms', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Update user platform configurations',
+      tags: ['chatops', 'settings'],
+      summary: '更新平台配置',
+      body: {
+        type: 'object',
+        required: ['platforms'],
+        properties: {
+          platforms: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                platform: { type: 'string' },
+                enabled: { type: 'boolean' },
+                webhook: { type: 'string' },
+                token: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updatePlatformConfigs(request, reply);
   });
 
   // ==================== Alert States (Phase 1a) ====================
 
-  app.get('/alerts/states', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/alerts/states', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get user alert states',
+      tags: ['chatops', 'alerts'],
+      summary: '获取告警状态',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAlertStates(request, reply);
   });
 
-  app.post('/alerts/:id/read', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/alerts/:id/read', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Mark alert as read',
+      tags: ['chatops', 'alerts'],
+      summary: '标记告警为已读',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', description: 'Alert ID' },
+        },
+      },
+      response: {
+        200: { type: 'object', properties: { success: { type: 'boolean' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertRead(request, reply);
   });
 
-  app.post('/alerts/:id/acknowledge', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/alerts/:id/acknowledge', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Acknowledge an alert',
+      tags: ['chatops', 'alerts'],
+      summary: '确认告警',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+        },
+      },
+      response: {
+        200: { type: 'object', properties: { success: { type: 'boolean' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertAcknowledged(request, reply);
   });
 
-  app.post('/alerts/:id/dismiss', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/alerts/:id/dismiss', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })],
+    schema: {
+      description: 'Dismiss an alert',
+      tags: ['chatops', 'alerts'],
+      summary: '关闭告警',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+        },
+      },
+      response: {
+        200: { type: 'object', properties: { success: { type: 'boolean' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertDismissed(request, reply);
   });
 
   // ==================== Dashboard Stats ====================
 
-  app.get('/dashboard/stats', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/dashboard/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get ChatOps dashboard statistics',
+      tags: ['chatops', 'dashboard'],
+      summary: '获取 ChatOps 仪表盘统计',
+      querystring: {
+        type: 'object',
+        properties: {
+          range: { type: 'string', description: 'Time range (e.g. 1h, 24h, 7d, 30d)' },
+          startDate: { type: 'string', format: 'date-time' },
+          endDate: { type: 'string', format: 'date-time' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+        400: { description: 'Invalid date range' },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getDashboardStats(request, reply);
   });
 
   // ==================== Health Check (ARCH-005) ====================
 
-  app.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/health', {
+    schema: {
+      description: 'ChatOps service health check',
+      tags: ['chatops', 'health'],
+      summary: 'ChatOps 服务健康检查',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            eventBus: {
+              type: 'object',
+              properties: {
+                status: { type: 'string', enum: ['up', 'down', 'fallback'] },
+                state: { type: 'string' },
+                message: { type: 'string' },
+                natsAvailable: { type: 'boolean' },
+                reconnectAttempts: { type: 'integer' },
+              },
+            },
+            sse: {
+              type: 'object',
+              properties: {
+                activeConnections: { type: 'integer' },
+                fallbackMode: { type: 'boolean' },
+              },
+            },
+            subscriptions: {
+              type: 'object',
+              properties: {
+                failures: { type: 'integer' },
+                details: { type: 'array', items: { type: 'object' } },
+              },
+            },
+            metrics: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.healthCheck(request, reply);
   });
 
@@ -493,14 +1056,14 @@ export default async function chatopsRoutes(
   app.get('/permissions/allowed-commands', { onRequest: [authenticateUser] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as { userId: string } | undefined;
     if (!user) {
-      return reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+      return handleError(reply, new UnauthorizedError('UNAUTHORIZED'));
     }
     try {
       const allowedCommands = await permissionService.getUserAllowedCommands(user.userId);
       return reply.send({ success: true, data: allowedCommands });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch allowed commands' });
+      return handleError(reply, new OrionError('Failed to fetch allowed commands', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -514,7 +1077,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: mappings });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch capability mappings' });
+      return handleError(reply, new OrionError('Failed to fetch capability mappings', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -529,17 +1092,17 @@ export default async function chatopsRoutes(
     };
     // 输入校验
     if (!body.command_id || !body.capability_id) {
-      return reply.status(400).send({ success: false, error: 'command_id and capability_id are required' });
+      return handleError(reply, new ValidationError('command_id and capability_id are required'));
     }
     if (typeof body.risk_level !== 'number' || body.risk_level < 1 || body.risk_level > 4) {
-      return reply.status(400).send({ success: false, error: 'risk_level must be a number between 1 and 4' });
+      return handleError(reply, new ValidationError('risk_level must be a number between 1 and 4'));
     }
     try {
       const mapping = await capabilityMappingService.createMapping(body);
       return reply.status(201).send({ success: true, data: mapping });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create capability mapping' });
+      return handleError(reply, new OrionError('Failed to create capability mapping', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -556,12 +1119,12 @@ export default async function chatopsRoutes(
     try {
       const mapping = await capabilityMappingService.updateMapping(id, body);
       if (!mapping) {
-        return reply.status(404).send({ success: false, error: 'Mapping not found' });
+        return handleError(reply, new NotFoundError('Mapping not found'));
       }
       return reply.send({ success: true, data: mapping });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update capability mapping' });
+      return handleError(reply, new OrionError('Failed to update capability mapping', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -571,12 +1134,12 @@ export default async function chatopsRoutes(
     try {
       const deleted = await capabilityMappingService.deleteMapping(id);
       if (!deleted) {
-        return reply.status(404).send({ success: false, error: 'Mapping not found' });
+        return handleError(reply, new NotFoundError('Mapping not found'));
       }
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete capability mapping' });
+      return handleError(reply, new OrionError('Failed to delete capability mapping', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -587,7 +1150,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: configs });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch approval configs' });
+      return handleError(reply, new OrionError('Failed to fetch approval configs', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -604,7 +1167,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: configs });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update approval configs' });
+      return handleError(reply, new OrionError('Failed to update approval configs', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -614,12 +1177,12 @@ export default async function chatopsRoutes(
     try {
       const config = await capabilityMappingService.getApprovalConfigByCapability(capability);
       if (!config) {
-        return reply.status(404).send({ success: false, error: 'Approval config not found' });
+        return handleError(reply, new NotFoundError('Approval config not found'));
       }
       return reply.send({ success: true, data: config });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch approval config' });
+      return handleError(reply, new OrionError('Failed to fetch approval config', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -634,12 +1197,12 @@ export default async function chatopsRoutes(
     try {
       const config = await capabilityMappingService.updateApprovalConfig(capability, body);
       if (!config) {
-        return reply.status(404).send({ success: false, error: 'Approval config not found' });
+        return handleError(reply, new NotFoundError('Approval config not found'));
       }
       return reply.send({ success: true, data: config });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update approval config' });
+      return handleError(reply, new OrionError('Failed to update approval config', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -650,7 +1213,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: approvers });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch approvers' });
+      return handleError(reply, new OrionError('Failed to fetch approvers', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -661,7 +1224,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: schedule });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch approver schedule' });
+      return handleError(reply, new OrionError('Failed to fetch approver schedule', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -673,7 +1236,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update approver schedule' });
+      return handleError(reply, new OrionError('Failed to update approver schedule', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -684,7 +1247,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: config });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch global approval config' });
+      return handleError(reply, new OrionError('Failed to fetch global approval config', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -696,7 +1259,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update global approval config' });
+      return handleError(reply, new OrionError('Failed to update global approval config', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -709,19 +1272,19 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: roles });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch roles' });
+      return handleError(reply, new OrionError('Failed to fetch roles', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   app.post('/admin/roles', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { name: string; description?: string; permissions?: string[] };
-    if (!body.name) return reply.status(400).send({ success: false, error: 'name is required' });
+    return handleError(reply, new ValidationError('name is required'));
     try {
       const role = await permissionService.createRole(body);
       return reply.status(201).send({ success: true, data: role });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create role' });
+      return handleError(reply, new OrionError('Failed to create role', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -730,11 +1293,11 @@ export default async function chatopsRoutes(
     const body = request.body as { name?: string; description?: string; permissions?: string[] };
     try {
       const role = await permissionService.updateRole(id, body);
-      if (!role) return reply.status(404).send({ success: false, error: 'Role not found' });
+      return handleError(reply, new NotFoundError('Role not found'));
       return reply.send({ success: true, data: role });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update role' });
+      return handleError(reply, new OrionError('Failed to update role', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -742,11 +1305,11 @@ export default async function chatopsRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await permissionService.deleteRole(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'Role not found' });
+      return handleError(reply, new NotFoundError('Role not found'));
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete role' });
+      return handleError(reply, new OrionError('Failed to delete role', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -757,19 +1320,19 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: perms });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch command permissions' });
+      return handleError(reply, new OrionError('Failed to fetch command permissions', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   app.post('/admin/command-permissions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { command: string; description?: string; capability: string; risk_level?: number; requires_approval?: boolean; role_ids?: string[] };
-    if (!body.command || !body.capability) return reply.status(400).send({ success: false, error: 'command and capability are required' });
+    return handleError(reply, new ValidationError('command and capability are required'));
     try {
       const perm = await permissionService.createCommandPermission(body);
       return reply.status(201).send({ success: true, data: perm });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create command permission' });
+      return handleError(reply, new OrionError('Failed to create command permission', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -778,11 +1341,11 @@ export default async function chatopsRoutes(
     const body = request.body as { description?: string; capability?: string; risk_level?: number; requires_approval?: boolean; role_ids?: string[] };
     try {
       const perm = await permissionService.updateCommandPermission(id, body);
-      if (!perm) return reply.status(404).send({ success: false, error: 'Command permission not found' });
+      return handleError(reply, new NotFoundError('Command permission not found'));
       return reply.send({ success: true, data: perm });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update command permission' });
+      return handleError(reply, new OrionError('Failed to update command permission', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -790,11 +1353,11 @@ export default async function chatopsRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await permissionService.deleteCommandPermission(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'Command permission not found' });
+      return handleError(reply, new NotFoundError('Command permission not found'));
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete command permission' });
+      return handleError(reply, new OrionError('Failed to delete command permission', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -805,19 +1368,19 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: perms });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch environment permissions' });
+      return handleError(reply, new OrionError('Failed to fetch environment permissions', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   app.post('/admin/environment-permissions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { environment: string; description?: string; rate_limit?: number; require_approval?: boolean; allowed_commands?: string[]; denied_commands?: string[]; role_ids?: string[] };
-    if (!body.environment) return reply.status(400).send({ success: false, error: 'environment is required' });
+    return handleError(reply, new ValidationError('environment is required'));
     try {
       const perm = await permissionService.createEnvironmentPermission(body);
       return reply.status(201).send({ success: true, data: perm });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create environment permission' });
+      return handleError(reply, new OrionError('Failed to create environment permission', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -826,11 +1389,11 @@ export default async function chatopsRoutes(
     const body = request.body as { description?: string; rate_limit?: number; require_approval?: boolean; allowed_commands?: string[]; denied_commands?: string[]; role_ids?: string[] };
     try {
       const perm = await permissionService.updateEnvironmentPermission(id, body);
-      if (!perm) return reply.status(404).send({ success: false, error: 'Environment permission not found' });
+      return handleError(reply, new NotFoundError('Environment permission not found'));
       return reply.send({ success: true, data: perm });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update environment permission' });
+      return handleError(reply, new OrionError('Failed to update environment permission', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -838,11 +1401,11 @@ export default async function chatopsRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await permissionService.deleteEnvironmentPermission(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'Environment permission not found' });
+      return handleError(reply, new NotFoundError('Environment permission not found'));
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete environment permission' });
+      return handleError(reply, new OrionError('Failed to delete environment permission', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -859,7 +1422,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: result.versions, total: result.total });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch command versions' });
+      return handleError(reply, new OrionError('Failed to fetch command versions', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -871,21 +1434,21 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: versions });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch command versions' });
+      return handleError(reply, new OrionError('Failed to fetch command versions', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   // POST /admin/command-versions - 创建新版本
   app.post('/admin/command-versions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { command_id: string; command_text: string; parameters?: Record<string, unknown>; description?: string; changelog?: string };
-    if (!body.command_id || !body.command_text) return reply.status(400).send({ success: false, error: 'command_id and command_text are required' });
+    return handleError(reply, new ValidationError('command_id and command_text are required'));
     try {
       const user = (request as any).user;
       const version = await commandVersionService.createVersion({ ...body, created_by: user?.username || 'system' });
       return reply.status(201).send({ success: true, data: version });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create command version' });
+      return handleError(reply, new OrionError('Failed to create command version', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -894,11 +1457,11 @@ export default async function chatopsRoutes(
     const { commandId, version } = request.params as { commandId: string; version: string };
     try {
       const newVersion = await commandVersionService.rollbackToVersion(commandId, parseInt(version));
-      if (!newVersion) return reply.status(404).send({ success: false, error: 'Version not found' });
+      return handleError(reply, new NotFoundError('Version not found'));
       return reply.send({ success: true, data: newVersion });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to rollback command version' });
+      return handleError(reply, new OrionError('Failed to rollback command version', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -906,14 +1469,14 @@ export default async function chatopsRoutes(
   app.post('/admin/command-versions/:versionId/tags', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { versionId } = request.params as { versionId: string };
     const body = request.body as { tag_name: string };
-    if (!body.tag_name) return reply.status(400).send({ success: false, error: 'tag_name is required' });
+    return handleError(reply, new ValidationError('tag_name is required'));
     try {
       const user = (request as any).user;
       await commandVersionService.addTag(versionId, body.tag_name, user?.username || 'system');
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to add tag' });
+      return handleError(reply, new OrionError('Failed to add tag', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -925,7 +1488,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to remove tag' });
+      return handleError(reply, new OrionError('Failed to remove tag', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -934,11 +1497,11 @@ export default async function chatopsRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await commandVersionService.deleteVersion(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'Version not found' });
+      return handleError(reply, new NotFoundError('Version not found'));
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete command version' });
+      return handleError(reply, new OrionError('Failed to delete command version', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -951,20 +1514,20 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: limits });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch rate limits' });
+      return handleError(reply, new OrionError('Failed to fetch rate limits', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   // POST /admin/rate-limits - 创建限流配置
   app.post('/admin/rate-limits', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { target_type: string; target_id?: string; command_name?: string; limit_type: string; limit_count: number; window_seconds: number; description?: string };
-    if (!body.target_type || !body.limit_type || !body.limit_count || !body.window_seconds) return reply.status(400).send({ success: false, error: 'target_type, limit_type, limit_count, window_seconds are required' });
+    return handleError(reply, new ValidationError('target_type, limit_type, limit_count, window_seconds are required'));
     try {
       const limit = await rateLimitService.create(body as any);
       return reply.status(201).send({ success: true, data: limit });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create rate limit' });
+      return handleError(reply, new OrionError('Failed to create rate limit', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -974,11 +1537,11 @@ export default async function chatopsRoutes(
     const body = request.body as any;
     try {
       const limit = await rateLimitService.update(id, body);
-      if (!limit) return reply.status(404).send({ success: false, error: 'Rate limit not found' });
+      return handleError(reply, new NotFoundError('Rate limit not found'));
       return reply.send({ success: true, data: limit });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update rate limit' });
+      return handleError(reply, new OrionError('Failed to update rate limit', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -987,11 +1550,11 @@ export default async function chatopsRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await rateLimitService.delete(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'Rate limit not found' });
+      return handleError(reply, new NotFoundError('Rate limit not found'));
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete rate limit' });
+      return handleError(reply, new OrionError('Failed to delete rate limit', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -1004,21 +1567,21 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: webhooks });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch webhooks' });
+      return handleError(reply, new OrionError('Failed to fetch webhooks', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   // POST /admin/webhooks - 创建 Webhook
   app.post('/admin/webhooks', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { name: string; url: string; events: string[]; secret_key?: string; enabled?: boolean; retry_count?: number; timeout_seconds?: number; headers?: Record<string, string>; description?: string };
-    if (!body.name || !body.url || !body.events) return reply.status(400).send({ success: false, error: 'name, url, events are required' });
+    return handleError(reply, new ValidationError('name, url, events are required'));
     try {
       const user = (request as any).user;
       const webhook = await webhookService.create({ ...body, created_by: user?.username || 'system' });
       return reply.status(201).send({ success: true, data: webhook });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to create webhook' });
+      return handleError(reply, new OrionError('Failed to create webhook', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -1028,11 +1591,11 @@ export default async function chatopsRoutes(
     const body = request.body as any;
     try {
       const webhook = await webhookService.update(id, body);
-      if (!webhook) return reply.status(404).send({ success: false, error: 'Webhook not found' });
+      return handleError(reply, new NotFoundError('Webhook not found'));
       return reply.send({ success: true, data: webhook });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to update webhook' });
+      return handleError(reply, new OrionError('Failed to update webhook', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -1041,11 +1604,11 @@ export default async function chatopsRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await webhookService.delete(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'Webhook not found' });
+      return handleError(reply, new NotFoundError('Webhook not found'));
       return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to delete webhook' });
+      return handleError(reply, new OrionError('Failed to delete webhook', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -1057,7 +1620,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: result.success, data: result });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to test webhook' });
+      return handleError(reply, new OrionError('Failed to test webhook', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -1070,7 +1633,7 @@ export default async function chatopsRoutes(
       return reply.send({ success: true, data: logs });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Failed to fetch webhook logs' });
+      return handleError(reply, new OrionError('Failed to fetch webhook logs', ErrorCode.INTERNAL_ERROR));
     }
   });
 

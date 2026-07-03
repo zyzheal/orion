@@ -1510,6 +1510,20 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'apm', action: 'read' },
   },
 
+  // Service Registry & Health Dashboard (Task 6.5 + 6.8)
+  {
+    path: '/observability/service-registry',
+    element: React.lazy(() => import('@/pages/ServiceRegistry')),
+    protected: true,
+    requiredPermission: { resource: 'observability', action: 'read' },
+  },
+  {
+    path: '/observability/health-dashboard',
+    element: React.lazy(() => import('@/pages/HealthDashboard')),
+    protected: true,
+    requiredPermission: { resource: 'observability', action: 'read' },
+  },
+
   // IaC - Infrastructure as Code / Multi-Cloud (Phase 4 - Multi-Cloud)
   {
     path: '/iac',

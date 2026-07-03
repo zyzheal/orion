@@ -21,7 +21,7 @@ import { SkillService } from '../services/skill/SkillService';
 import { SkillController } from './controllers/SkillController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'skill-routes' });
 

@@ -8,6 +8,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MiddlewareOpsService } from '../services/middleware-ops/MiddlewareOpsService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface MiddlewareOpsRoutesOptions {
   database?: DatabasePool;
@@ -43,7 +44,7 @@ export default async function middlewareOpsRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const instance = await middlewareOpsService.getInstance(params.id);
-    if (!instance) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Instance not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: instance });
   });
 
@@ -53,7 +54,7 @@ export default async function middlewareOpsRoutes(
     const params = request.params as { id: string };
     const body = request.body as any;
     const instance = await middlewareOpsService.updateInstance(params.id, body);
-    if (!instance) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Instance not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: instance });
   });
 
@@ -62,7 +63,7 @@ export default async function middlewareOpsRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const deleted = await middlewareOpsService.deleteInstance(params.id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Instance not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Instance deleted' });
   });
 
@@ -138,7 +139,7 @@ export default async function middlewareOpsRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const deleted = await middlewareOpsService.deleteAlert(params.id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Alert not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Alert deleted' });
   });
 

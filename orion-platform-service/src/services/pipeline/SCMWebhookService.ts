@@ -8,7 +8,7 @@
  */
 
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PipelineEngine } from '../../engine/PipelineEngine';
 import { TriggerType } from '../../models/PipelineRun';
 import { OrionError, ErrorCode } from '../../errors';

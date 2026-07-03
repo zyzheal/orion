@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DualEngineService } from '../services/ai-training/dual-engine-service';
 import { DualEngineRepository } from '../services/ai-training/dual-engine-repository';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 interface DualEngineRequest {
   name: string;
@@ -44,7 +45,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
       return reply.status(201).send(engine);
     } catch (error: any) {
       if (error.code === 'INVALID_INPUT' || error.code === 'INVALID_AST_CONFIG' || error.code === 'INVALID_LLM_CONFIG') {
-        return reply.status(400).send({ error: error.message, code: error.code });
+        return handleError(reply, new ValidationError(error.message));
       }
       throw error;
     }
@@ -62,7 +63,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
       return reply.send(engine);
     } catch (error: any) {
       if (error.code === 'NOT_FOUND') {
-        return reply.status(404).send({ error: error.message, code: error.code });
+        return handleError(reply, new NotFoundError(error.message));
       }
       throw error;
     }
@@ -94,10 +95,10 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
         return reply.send(engine);
       } catch (error: any) {
         if (error.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: error.message, code: error.code });
+          return handleError(reply, new NotFoundError(error.message));
         }
         if (error.code === 'INVALID_AST_CONFIG' || error.code === 'INVALID_LLM_CONFIG') {
-          return reply.status(400).send({ error: error.message, code: error.code });
+          return handleError(reply, new ValidationError(error.message));
         }
         throw error;
       }
@@ -116,7 +117,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
       if (deleted) {
         return reply.status(204).send();
       }
-      return reply.status(404).send({ error: 'Dual engine not found', code: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('Dual engine not found'));
     } catch (error: any) {
       throw error;
     }
@@ -134,7 +135,7 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
       return reply.send(status);
     } catch (error: any) {
       if (error.code === 'NOT_FOUND') {
-        return reply.status(404).send({ error: error.message, code: error.code });
+        return handleError(reply, new NotFoundError(error.message));
       }
       throw error;
     }
@@ -155,13 +156,13 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
         return reply.send(results);
       } catch (error: any) {
         if (error.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: error.message, code: error.code });
+          return handleError(reply, new NotFoundError(error.message));
         }
         if (error.code === 'ENGINE_INACTIVE') {
-          return reply.status(400).send({ error: error.message, code: error.code });
+          return handleError(reply, new ValidationError(error.message));
         }
         if (error.code === 'INVALID_INPUT') {
-          return reply.status(400).send({ error: error.message, code: error.code });
+          return handleError(reply, new ValidationError(error.message));
         }
         throw error;
       }

@@ -14,7 +14,8 @@ import { MaintenanceWindowService } from '../services/MaintenanceWindowService';
 import { MaintenanceWindowRepository } from '../repositories/MaintenanceWindowRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { NotFoundError, handleError } from '../errors';
 
 const logger = pino({ name: 'maintenance-window-routes' });
 
@@ -151,7 +152,7 @@ export async function registerMaintenanceWindowRoutes(
     const params = request.params as Record<string, string>;
     const deleted = await service.deleteWindow(params.id);
     if (!deleted) {
-      return reply.code(404).send({ success: false, error: 'NOT_FOUND', message: 'Maintenance window not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true });
   });

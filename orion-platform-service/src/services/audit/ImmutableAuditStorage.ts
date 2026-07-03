@@ -12,11 +12,11 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { ChainedAuditLogEntry, ChainConfig, DEFAULT_CHAIN_CONFIG } from './AuditTypes';
 import { ImmutableAuditEntryRepository, ImmutableAuditFileRepository } from '../../repositories/ImmutableAuditRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'immutable-storage' });
+const logger = createLogger('immutable-storage');
 
 /**
  * 存储配置

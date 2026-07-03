@@ -6,31 +6,85 @@
  * 2. 更新单个平台配置
  * 3. 批量更新配置
  *
- * S-1: token/webhook 存储前加密 (生产环境必须)
+ * S-1: token/webhook 存储前使用 AES-256-GCM 加密（生产环境）
+ *      加密格式: ENC:<hex_iv>:<hex_ciphertext>:<hex_authTag>
+ *      需要环境变量 CHATOPS_ENCRYPTION_KEY (64 hex chars = 32 bytes = 256 bit)
  */
 
 import { ChatOpsPlatformConfigRepository, ChatOpsPlatformConfigEntity } from '../../repositories/ChatOpsRepository';
 import { DatabasePool } from '../database';
 import { OrionError } from '../../errors';
+import { createLogger } from '../utils/logger';
+import crypto from 'crypto';
 
-export interface PlatformConfig {
-  platform: 'dingtalk' | 'wecom' | 'feishu' | 'slack';
-  enabled: boolean;
-  webhook: string;
-  token: string;
-}
+const logger = createLogger('PlatformConfigService');
 
-/** 简单加密函数 (生产环境应使用 pgcrypto 或 KMS) */
+/** AES-256-GCM 加密: 输出格式 ENC:<hex_iv>:<hex_ciphertext>:<hex_authTag> */
 function encryptValue(value: string): string {
   if (!value || value.startsWith('ENC:')) return value;
-  // Base64 编码作为基础保护 (Phase 1b 升级为 AES)
-  return `ENC:${Buffer.from(value).toString('base64')}`;
+
+  try {
+    // 从环境变量获取 32 字节 (256 bit) 密钥
+    const keyHex = process.env.CHATOPS_ENCRYPTION_KEY;
+    if (!keyHex || keyHex.length !== 64) {
+      // 降级为 Base64 保护（生产环境必须设置 CHATOPS_ENCRYPTION_KEY）
+      logger.warn('CHATOPS_ENCRYPTION_KEY not set or invalid length; falling back to Base64 encoding');
+      return `ENC:${Buffer.from(value).toString('base64')}`;
+    }
+
+    const key = Buffer.from(keyHex, 'hex');
+    const iv = crypto.randomBytes(12); // GCM 推荐 96-bit nonce
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+    let encrypted = cipher.update(value, 'utf-8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+
+    // 格式: ENC:<hex_iv>:<hex_ciphertext>:<hex_authTag>
+    return `ENC:${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`;
+  } catch (err) {
+    logger.warn({ err }, 'AES-256-GCM encryption failed, falling back to Base64');
+    return `ENC:${Buffer.from(value).toString('base64')}`;
+  }
 }
 
-/** 解密函数 */
+/** 解密函数（兼容新旧两种格式） */
 function decryptValue(value: string): string {
   if (!value || !value.startsWith('ENC:')) return value;
-  return Buffer.from(value.slice(4), 'base64').toString('utf-8');
+
+  try {
+    const parts = value.slice(4).split(':');
+
+    // 新格式 AES-256-GCM: ENC:<hex_iv>:<hex_ciphertext>:<hex_authTag> (3 parts)
+    if (parts.length === 3) {
+      const [ivHex, ciphertextHex, authTagHex] = parts;
+
+      const keyHex = process.env.CHATOPS_ENCRYPTION_KEY;
+      if (!keyHex || keyHex.length !== 64) {
+        throw new Error('CHATOPS_ENCRYPTION_KEY not set for AES-256-GCM decryption');
+      }
+
+      const key = Buffer.from(keyHex, 'hex');
+      const iv = Buffer.from(ivHex, 'hex');
+      const authTag = Buffer.from(authTagHex, 'hex');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      decipher.setAuthTag(authTag);
+
+      let decrypted = decipher.update(ciphertextHex, 'hex', 'utf-8');
+      decrypted += decipher.final('utf-8');
+      return decrypted;
+    }
+
+    // 旧格式 Base64: ENC:<base64_data> (1 part)
+    if (parts.length === 1) {
+      return Buffer.from(parts[0], 'base64').toString('utf-8');
+    }
+
+    return value;
+  } catch (err) {
+    logger.warn({ err }, 'Decryption failed, returning raw value');
+    return value;
+  }
 }
 
 /** 验证 webhook URL 格式 */
@@ -68,7 +122,7 @@ export class PlatformConfigService {
     if (config.webhook && !validateWebhook(config.webhook, config.platform)) {
       throw new OrionError(`Invalid webhook URL for platform ${config.platform}`, 'VALIDATION_ERROR')
     }
-    // S-1: 存储前加密敏感字段
+    // S-1: 存储前 AES-256-GCM 加密敏感字段
     const entity = await this.repo.upsert({
       userId,
       platform: config.platform,

@@ -9,7 +9,8 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import {
   HealingStrategy,
   HealingAction,
@@ -21,9 +22,8 @@ import {
 } from './types';
 import { HealingStrategyRepository, HealingStrategyEntity } from '../../repositories/HealingStrategyRepository';
 import { DatabasePool } from '../../services/database';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'healing-strategy-engine' });
+const logger = createLogger('healing-strategy-engine');
 
 export class HealingStrategyEngine {
   private repository: HealingStrategyRepository;

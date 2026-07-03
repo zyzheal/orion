@@ -23,6 +23,15 @@ import {
   EngineerResolutionStats,
   TicketCategory,
   TicketPriority,
+  TicketTemplate,
+  CreateTicketTemplateInput,
+  UpdateTicketTemplateInput,
+  AutomationRule,
+  CreateAutomationRuleInput,
+  UpdateAutomationRuleInput,
+  AutomationRuleExecution,
+  TicketSLAStatus,
+  SLAViolation,
 } from './types';
 
 export interface TicketRecord {
@@ -154,13 +163,14 @@ export class TicketingRepository {
     return (await this.pool.query('SELECT * FROM tickets WHERE id = $1 AND tenant_id = $2', [id, tenantId])).rows[0] || null;
   }
 
-  async findAll(options?: { tenantId?: string; status?: string; assigneeId?: string; priority?: string; limit?: number; offset?: number }): Promise<TicketRecord[]> {
+  async findAll(options?: { tenantId?: string; status?: string; assigneeId?: string; reporterId?: string; priority?: string; limit?: number; offset?: number }): Promise<TicketRecord[]> {
     let query = 'SELECT * FROM tickets';
     const params: any[] = [];
     const conditions: string[] = [];
     if (options?.tenantId) { params.push(options.tenantId); conditions.push(`tenant_id = $${params.length}`); }
     if (options?.status) { params.push(options.status); conditions.push(`status = $${params.length}`); }
     if (options?.assigneeId) { params.push(options.assigneeId); conditions.push(`assignee_id = $${params.length}`); }
+    if (options?.reporterId) { params.push(options.reporterId); conditions.push(`reporter_id = $${params.length}`); }
     if (options?.priority) { params.push(options.priority); conditions.push(`priority = $${params.length}`); }
     if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY created_at DESC';
@@ -169,16 +179,15 @@ export class TicketingRepository {
     return (await this.pool.query(query, params)).rows;
   }
 
-  async count(options?: { tenantId?: string; status?: string; assigneeId?: string }): Promise<number> {
+  async count(options?: { tenantId?: string; status?: string; assigneeId?: string; reporterId?: string }): Promise<number> {
     let query = 'SELECT COUNT(*) as count FROM tickets';
     const params: any[] = [];
-    if (options?.tenantId || options?.status || options?.assigneeId) {
-      const conditions: string[] = [];
-      if (options?.tenantId) { params.push(options.tenantId); conditions.push(`tenant_id = $${params.length}`); }
-      if (options?.status) { params.push(options.status); conditions.push(`status = $${params.length}`); }
-      if (options?.assigneeId) { params.push(options.assigneeId); conditions.push(`assignee_id = $${params.length}`); }
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
+    const conditions: string[] = [];
+    if (options?.tenantId) { params.push(options.tenantId); conditions.push(`tenant_id = $${params.length}`); }
+    if (options?.status) { params.push(options.status); conditions.push(`status = $${params.length}`); }
+    if (options?.assigneeId) { params.push(options.assigneeId); conditions.push(`assignee_id = $${params.length}`); }
+    if (options?.reporterId) { params.push(options.reporterId); conditions.push(`reporter_id = $${params.length}`); }
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     return parseInt((await this.pool.query(query, params)).rows[0].count, 10);
   }
 
@@ -586,6 +595,341 @@ export class TicketingRepository {
     await this.pool.query(`UPDATE ticket_sla SET ${sets.join(', ')} WHERE ticket_id = $${idx}`, params);
   }
 
+  // ==================== Ticket Templates ====================
+
+  async createTemplate(input: CreateTicketTemplateInput, tenantId: string): Promise<TicketTemplate> {
+    const id = `TMPL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const result = await this.pool.query(
+      `INSERT INTO ticket_templates (id, tenant_id, name, description, title, template_body, category, priority, status, assignee_id, tags, sla_target_id, workflow_steps, field_defaults, metadata, is_public, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+      [
+        id,
+        tenantId,
+        input.name,
+        input.description || null,
+        input.title,
+        input.templateBody,
+        input.category,
+        input.priority || 'medium',
+        input.status || 'open',
+        input.assigneeId || null,
+        input.tags || [],
+        input.slaTargetId || null,
+        input.workflowSteps ? JSON.stringify(input.workflowSteps) : null,
+        JSON.stringify(input.fieldDefaults || {}),
+        JSON.stringify(input.metadata || {}),
+        input.isPublic ?? false,
+        input.createdBy || null,
+      ]
+    );
+    return this.mapTemplateRow(result.rows[0]);
+  }
+
+  async findTemplateById(id: string, tenantId: string): Promise<TicketTemplate | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM ticket_templates WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+    return result.rows.length > 0 ? this.mapTemplateRow(result.rows[0]) : null;
+  }
+
+  async findAllTemplates(tenantId: string, options?: { category?: string; isPublic?: boolean; limit?: number; offset?: number }): Promise<TicketTemplate[]> {
+    let query = 'SELECT * FROM ticket_templates WHERE (tenant_id = $1 OR is_public = true)';
+    const params: any[] = [tenantId];
+    let paramIndex = 2;
+    if (options?.category) { params.push(options.category); query += ` AND category = $${paramIndex++}`; }
+    if (options?.isPublic !== undefined) { params.push(options.isPublic); query += ` AND is_public = $${paramIndex++}`; }
+    query += ' ORDER BY usage_count DESC, created_at DESC';
+    if (options?.limit) { params.push(options.limit); query += ` LIMIT $${paramIndex++}`; }
+    if (options?.offset) { params.push(options.offset); query += ` OFFSET $${paramIndex++}`; }
+    const result = await this.pool.query(query, params);
+    return result.rows.map(r => this.mapTemplateRow(r));
+  }
+
+  async updateTemplate(id: string, input: UpdateTicketTemplateInput, tenantId: string): Promise<TicketTemplate | null> {
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    if (input.name !== undefined) { params.push(input.name); sets.push(`name = $${idx++}`); }
+    if (input.description !== undefined) { params.push(input.description); sets.push(`description = $${idx++}`); }
+    if (input.title !== undefined) { params.push(input.title); sets.push(`title = $${idx++}`); }
+    if (input.templateBody !== undefined) { params.push(input.templateBody); sets.push(`template_body = $${idx++}`); }
+    if (input.category !== undefined) { params.push(input.category); sets.push(`category = $${idx++}`); }
+    if (input.priority !== undefined) { params.push(input.priority); sets.push(`priority = $${idx++}`); }
+    if (input.status !== undefined) { params.push(input.status); sets.push(`status = $${idx++}`); }
+    if (input.assigneeId !== undefined) { params.push(input.assigneeId); sets.push(`assignee_id = $${idx++}`); }
+    if (input.tags !== undefined) { params.push(input.tags); sets.push(`tags = $${idx++}`); }
+    if (input.slaTargetId !== undefined) { params.push(input.slaTargetId); sets.push(`sla_target_id = $${idx++}`); }
+    if (input.workflowSteps !== undefined) { params.push(JSON.stringify(input.workflowSteps)); sets.push(`workflow_steps = $${idx++}`); }
+    if (input.fieldDefaults !== undefined) { params.push(JSON.stringify(input.fieldDefaults)); sets.push(`field_defaults = $${idx++}`); }
+    if (input.metadata !== undefined) { params.push(JSON.stringify(input.metadata)); sets.push(`metadata = $${idx++}`); }
+    if (input.isPublic !== undefined) { params.push(input.isPublic); sets.push(`is_public = $${idx++}`); }
+    if (sets.length === 0) return this.findTemplateById(id, tenantId);
+    sets.push(`updated_at = NOW()`);
+    params.push(id, tenantId);
+    const result = await this.pool.query(
+      `UPDATE ticket_templates SET ${sets.join(', ')} WHERE id = $${idx} AND tenant_id = $${idx + 1} RETURNING *`,
+      params
+    );
+    return result.rows.length > 0 ? this.mapTemplateRow(result.rows[0]) : null;
+  }
+
+  async deleteTemplate(id: string, tenantId: string): Promise<boolean> {
+    const result = await this.pool.query('DELETE FROM ticket_templates WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async incrementTemplateUsage(id: string, tenantId: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE ticket_templates SET usage_count = usage_count + 1, updated_at = NOW() WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+  }
+
+  async countTemplates(tenantId: string, category?: string): Promise<number> {
+    let query = 'SELECT COUNT(*) as count FROM ticket_templates WHERE tenant_id = $1';
+    const params: any[] = [tenantId];
+    if (category) { params.push(category); query += ` AND category = $2`; }
+    const result = await this.pool.query(query, params);
+    return parseInt(result.rows[0].count, 10);
+  }
+
+  // ==================== Automation Rules ====================
+
+  async createAutomationRule(input: CreateAutomationRuleInput, tenantId: string): Promise<AutomationRule> {
+    const id = `AR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const result = await this.pool.query(
+      `INSERT INTO automation_rules (id, tenant_id, name, description, enabled, priority, conditions, actions, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        id,
+        tenantId,
+        input.name,
+        input.description || null,
+        input.enabled ?? true,
+        input.priority ?? 0,
+        JSON.stringify(input.conditions),
+        JSON.stringify(input.actions),
+        input.createdBy || null,
+      ]
+    );
+    return this.mapAutomationRuleRow(result.rows[0]);
+  }
+
+  async findAutomationRuleById(id: string, tenantId: string): Promise<AutomationRule | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM automation_rules WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+    return result.rows.length > 0 ? this.mapAutomationRuleRow(result.rows[0]) : null;
+  }
+
+  async findAllAutomationRules(tenantId: string, options?: { enabled?: boolean; limit?: number; offset?: number }): Promise<AutomationRule[]> {
+    let query = 'SELECT * FROM automation_rules WHERE tenant_id = $1';
+    const params: any[] = [tenantId];
+    let paramIndex = 2;
+    if (options?.enabled !== undefined) { params.push(options.enabled); query += ` AND enabled = $${paramIndex++}`; }
+    query += ' ORDER BY priority DESC, created_at DESC';
+    if (options?.limit) { params.push(options.limit); query += ` LIMIT $${paramIndex++}`; }
+    if (options?.offset) { params.push(options.offset); query += ` OFFSET $${paramIndex++}`; }
+    const result = await this.pool.query(query, params);
+    return result.rows.map(r => this.mapAutomationRuleRow(r));
+  }
+
+  async updateAutomationRule(id: string, input: UpdateAutomationRuleInput, tenantId: string): Promise<AutomationRule | null> {
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    if (input.name !== undefined) { params.push(input.name); sets.push(`name = $${idx++}`); }
+    if (input.description !== undefined) { params.push(input.description); sets.push(`description = $${idx++}`); }
+    if (input.enabled !== undefined) { params.push(input.enabled); sets.push(`enabled = $${idx++}`); }
+    if (input.priority !== undefined) { params.push(input.priority); sets.push(`priority = $${idx++}`); }
+    if (input.conditions !== undefined) { params.push(JSON.stringify(input.conditions)); sets.push(`conditions = $${idx++}`); }
+    if (input.actions !== undefined) { params.push(JSON.stringify(input.actions)); sets.push(`actions = $${idx++}`); }
+    if (sets.length === 0) return this.findAutomationRuleById(id, tenantId);
+    sets.push(`updated_at = NOW()`);
+    params.push(id, tenantId);
+    const result = await this.pool.query(
+      `UPDATE automation_rules SET ${sets.join(', ')} WHERE id = $${idx} AND tenant_id = $${idx + 1} RETURNING *`,
+      params
+    );
+    return result.rows.length > 0 ? this.mapAutomationRuleRow(result.rows[0]) : null;
+  }
+
+  async deleteAutomationRule(id: string, tenantId: string): Promise<boolean> {
+    const result = await this.pool.query('DELETE FROM automation_rules WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async incrementAutomationRuleExecution(id: string, tenantId: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE automation_rules SET execution_count = execution_count + 1, last_executed = NOW(), updated_at = NOW() WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+  }
+
+  async createAutomationRuleExecution(execution: Omit<AutomationRuleExecution, 'id' | 'executedAt'>): Promise<AutomationRuleExecution> {
+    const id = `EXEC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const result = await this.pool.query(
+      `INSERT INTO automation_rule_executions (id, rule_id, ticket_id, triggered_by, conditions_met, actions_taken, status, error_message, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        id,
+        execution.ruleId,
+        execution.ticketId,
+        execution.triggeredBy,
+        JSON.stringify(execution.conditionsMet),
+        JSON.stringify(execution.actionsTaken),
+        execution.status,
+        execution.errorMessage || null,
+        execution.completedAt || null,
+      ]
+    );
+    return this.mapAutomationRuleExecutionRow(result.rows[0]);
+  }
+
+  async updateAutomationRuleExecution(id: string, updates: { status?: string; errorMessage?: string; completedAt?: Date }): Promise<AutomationRuleExecution | null> {
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    if (updates.status !== undefined) { params.push(updates.status); sets.push(`status = $${idx++}`); }
+    if (updates.errorMessage !== undefined) { params.push(updates.errorMessage); sets.push(`error_message = $${idx++}`); }
+    if (updates.completedAt !== undefined) { params.push(updates.completedAt); sets.push(`completed_at = $${idx++}`); }
+    if (sets.length === 0) return null;
+    params.push(id);
+    const result = await this.pool.query(
+      `UPDATE automation_rule_executions SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+    return result.rows.length > 0 ? this.mapAutomationRuleExecutionRow(result.rows[0]) : null;
+  }
+
+  async getAutomationRuleExecutionsByRule(ruleId: string, tenantId: string, limit = 50): Promise<AutomationRuleExecution[]> {
+    const result = await this.pool.query(
+      `SELECT e.* FROM automation_rule_executions e
+       JOIN automation_rules r ON e.rule_id = r.id
+       WHERE r.id = $1 AND r.tenant_id = $2
+       ORDER BY e.executed_at DESC LIMIT $3`,
+      [ruleId, tenantId, limit]
+    );
+    return result.rows.map(r => this.mapAutomationRuleExecutionRow(r));
+  }
+
+  async getAutomationRuleExecutionsByTicket(ticketId: string, tenantId: string): Promise<AutomationRuleExecution[]> {
+    const result = await this.pool.query(
+      `SELECT e.* FROM automation_rule_executions e
+       JOIN automation_rules r ON e.rule_id = r.id
+       WHERE e.ticket_id = $1 AND r.tenant_id = $2
+       ORDER BY e.executed_at DESC`,
+      [ticketId, tenantId]
+    );
+    return result.rows.map(r => this.mapAutomationRuleExecutionRow(r));
+  }
+
+  async getEnabledAutomationRules(tenantId: string): Promise<AutomationRule[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM automation_rules WHERE tenant_id = $1 AND enabled = true ORDER BY priority DESC, created_at ASC',
+      [tenantId]
+    );
+    return result.rows.map(r => this.mapAutomationRuleRow(r));
+  }
+
+  // ==================== SLA Visualization ====================
+
+  async getTicketSLAStatus(ticketId: string, tenantId: string): Promise<TicketSLAStatus | null> {
+    const ticket = await this.findById(ticketId, tenantId);
+    if (!ticket) return null;
+    const sla = await this.getSLA(ticketId, tenantId);
+    if (!sla) return null;
+
+    const now = new Date();
+    const createdAt = ticket.created_at;
+    const elapsedTimeMs = now.getTime() - createdAt.getTime();
+    const targetResolutionTimeMs = sla.targetResolutionTimeMs || 0;
+    const remainingTimeMs = targetResolutionTimeMs - elapsedTimeMs;
+    const percentUsed = targetResolutionTimeMs > 0 ? Math.round((elapsedTimeMs / targetResolutionTimeMs) * 100) : 0;
+
+    const warningThreshold = 0.8;
+    const resolutionBreached = remainingTimeMs < 0;
+    const responseBreached = sla.responseBreached;
+
+    let status: 'normal' | 'warning' | 'breached' = 'normal';
+    if (resolutionBreached || responseBreached) {
+      status = 'breached';
+    } else if (percentUsed >= warningThreshold * 100) {
+      status = 'warning';
+    }
+
+    return {
+      ticketId,
+      status,
+      targetResolutionTimeMs,
+      targetResponseTimeMs: Math.round(targetResolutionTimeMs * 0.25),
+      elapsedTimeMs,
+      remainingTimeMs: Math.max(0, remainingTimeMs),
+      percentUsed: Math.min(100, percentUsed),
+      responseBreached,
+      resolutionBreached,
+      firstResponseAt: sla.firstResponseAt,
+      resolvedAt: sla.resolvedAt,
+      breachAt: resolutionBreached ? new Date(createdAt.getTime() + targetResolutionTimeMs) : undefined,
+      warningThreshold,
+    };
+  }
+
+  async getSLAViolations(tenantId: string, periodStart: Date, periodEnd: Date): Promise<SLAViolation[]> {
+    const result = await this.pool.query(
+      `SELECT s.*, t.title as ticket_title, t.priority as ticket_priority, t.status as ticket_status
+       FROM ticket_sla s
+       JOIN tickets t ON s.ticket_id = t.id
+       WHERE t.tenant_id = $1
+       AND t.created_at >= $2
+       AND t.created_at <= $3
+       AND (s.resolution_breached = true OR s.response_breached = true)
+       ORDER BY t.created_at DESC`,
+      [tenantId, periodStart, periodEnd]
+    );
+    return result.rows.map(r => ({
+      id: r.id,
+      ticketId: r.ticket_id,
+      slaTargetId: r.sla_target_id,
+      targetResolutionTimeMs: (r.resolution_time_minutes || 0) * 60000,
+      actualResolutionTimeMs: r.resolved_at ? (r.resolved_at.getTime() - (r.created_at ? r.created_at.getTime() : 0)) : undefined,
+      breached: r.resolution_breached || r.response_breached,
+      breachedAt: r.resolution_breached ? r.resolved_at : undefined,
+      resolvedAt: r.resolved_at,
+      firstResponseAt: r.first_response_at,
+      responseBreached: r.response_breached,
+      ticketTitle: r.ticket_title,
+      ticketPriority: r.ticket_priority,
+      ticketStatus: r.ticket_status,
+    }));
+  }
+
+  async getSLAComplianceStats(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{ total: number; compliant: number; breached: number; rate: number }> {
+    const result = await this.pool.query(
+      `SELECT COUNT(*) as total,
+              COUNT(*) FILTER (WHERE s.resolution_breached = false AND s.response_breached = false) as compliant,
+              COUNT(*) FILTER (WHERE s.resolution_breached = true OR s.response_breached = true) as breached
+       FROM ticket_sla s
+       JOIN tickets t ON s.ticket_id = t.id
+       WHERE t.tenant_id = $1
+       AND t.created_at >= $2
+       AND t.created_at <= $3`,
+      [tenantId, periodStart, periodEnd]
+    );
+    const row = result.rows[0];
+    const total = parseInt(row.total, 10);
+    const compliant = parseInt(row.compliant, 10);
+    const breached = parseInt(row.breached, 10);
+    return {
+      total,
+      compliant,
+      breached,
+      rate: total > 0 ? Math.round((compliant / total) * 100) : 0,
+    };
+  }
+
   // ==================== Row Mapping Helpers ====================
 
   private mapAssignmentRow(row: any): TicketAssignment {
@@ -682,6 +1026,64 @@ export class TicketingRepository {
       resolvedAt: row.resolved_at,
       firstResponseAt: row.first_response_at,
       responseBreached: row.response_breached,
+    };
+  }
+
+  private mapTemplateRow(row: any): TicketTemplate {
+    return {
+      id: row.id,
+      tenantId: row.tenant_id,
+      name: row.name,
+      description: row.description,
+      title: row.title,
+      templateBody: row.template_body,
+      category: row.category,
+      priority: row.priority,
+      status: row.status,
+      assigneeId: row.assignee_id,
+      tags: row.tags || [],
+      slaTargetId: row.sla_target_id,
+      workflowSteps: typeof row.workflow_steps === 'string' ? JSON.parse(row.workflow_steps) : row.workflow_steps,
+      fieldDefaults: typeof row.field_defaults === 'string' ? JSON.parse(row.field_defaults) : row.field_defaults || {},
+      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata || {},
+      isPublic: row.is_public,
+      usageCount: row.usage_count || 0,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapAutomationRuleRow(row: any): AutomationRule {
+    return {
+      id: row.id,
+      tenantId: row.tenant_id,
+      name: row.name,
+      description: row.description,
+      enabled: row.enabled,
+      priority: row.priority,
+      conditions: typeof row.conditions === 'string' ? JSON.parse(row.conditions) : row.conditions,
+      actions: typeof row.actions === 'string' ? JSON.parse(row.actions) : row.actions,
+      executionCount: row.execution_count || 0,
+      lastExecuted: row.last_executed,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapAutomationRuleExecutionRow(row: any): AutomationRuleExecution {
+    return {
+      id: row.id,
+      ruleId: row.rule_id,
+      ticketId: row.ticket_id,
+      triggeredBy: row.triggered_by as any,
+      conditionsMet: typeof row.conditions_met === 'string' ? JSON.parse(row.conditions_met) : row.conditions_met,
+      actionsTaken: typeof row.actions_taken === 'string' ? JSON.parse(row.actions_taken) : row.actions_taken,
+      status: row.status as any,
+      errorMessage: row.error_message,
+      executedAt: row.executed_at,
+      completedAt: row.completed_at,
     };
   }
 

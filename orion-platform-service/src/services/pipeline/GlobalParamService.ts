@@ -8,7 +8,7 @@
  * P2 feature from neatlogic-autoexec comparison analysis.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { GlobalParamRepository } from '../../repositories/GlobalParamRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import type {

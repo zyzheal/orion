@@ -6,7 +6,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import pino from 'pino';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'test-selector-routes' });
 import { authenticateUser } from '../middleware/authMiddleware';
@@ -127,11 +128,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -149,11 +146,7 @@ export default async function testSelectorRoutes(
       const plan = await service.getTestPlan((request.params as any).planId);
 
       if (!plan) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Test plan not found',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('Test plan not found'))
       }
 
       return reply.status(200).send({
@@ -162,11 +155,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -184,11 +173,7 @@ export default async function testSelectorRoutes(
       const result = await service.getPRTestResult((request.params as any).prId);
 
       if (!result) {
-        return reply.status(404).send({
-          success: false,
-          error: 'PR test result not found',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('PR test result not found'))
       }
 
       return reply.status(200).send({
@@ -197,11 +182,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -224,11 +205,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -249,11 +226,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -294,11 +267,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -325,11 +294,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -357,11 +322,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -389,11 +350,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -429,11 +386,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -456,11 +409,7 @@ export default async function testSelectorRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 }

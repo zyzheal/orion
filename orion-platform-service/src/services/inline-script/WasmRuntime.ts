@@ -1,6 +1,6 @@
 // orion-platform-service/src/services/inline-script/WasmRuntime.ts
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getQuickJS, QuickJSWASMModule, QuickJSContext, QuickJSHandle } from 'quickjs-emscripten';
 import { OrionError, ErrorCode } from '../../errors';
 

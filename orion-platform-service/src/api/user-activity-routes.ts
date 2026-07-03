@@ -9,7 +9,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { UserActivityService, UserActivity } from '../services/user/UserActivityService';
 import { authenticateUser } from '../middleware/authMiddleware';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'user-activity-routes' });
 
@@ -33,12 +34,12 @@ function verifyOwnership(request: FastifyRequest, reply: FastifyReply, targetUse
   const currentUserId = (request as any).user?.id;
 
   if (!currentUserId) {
-    reply.status(401).send({ success: false, error: 'Unauthorized' });
+handleError(reply, new UnauthorizedError('Unauthorized'));
     return false;
   }
 
   if (currentUserId !== targetUserId) {
-    reply.status(403).send({ success: false, error: 'Forbidden' });
+handleError(reply, new ForbiddenError('Forbidden'));
     return false;
   }
 
@@ -156,10 +157,7 @@ export default async function userActivityRoutes(
       });
     } catch (error) {
       logger.error('[UserActivityRoutes] Error getting activities:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Internal server error',
-      });
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR))
     }
   });
 }

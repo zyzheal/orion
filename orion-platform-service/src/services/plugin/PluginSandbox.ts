@@ -9,7 +9,7 @@
  * - 执行记录 PostgreSQL 持久化
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';

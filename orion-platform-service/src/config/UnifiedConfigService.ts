@@ -6,7 +6,7 @@
  */
 
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

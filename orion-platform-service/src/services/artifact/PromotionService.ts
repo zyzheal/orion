@@ -2,7 +2,7 @@
  * Artifact Promotion Service - 5-stage state machine
  * development -> testing -> staging -> production -> released
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ArtifactPromotionRepository } from '../../repositories/ArtifactPromotionRepository';
 

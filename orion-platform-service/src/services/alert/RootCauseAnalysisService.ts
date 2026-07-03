@@ -10,7 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { AlertCorrelationService, Alert, AlertGroup } from './AlertCorrelationService';
 import { RcaResultRepository, RcaResultEntity } from '../../repositories/RcaResultRepository';
 import { ServiceDependencyRepository, ServiceDependencyEntity } from '../../repositories/ServiceDependencyRepository';

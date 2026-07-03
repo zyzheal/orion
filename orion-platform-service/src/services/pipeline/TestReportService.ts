@@ -8,7 +8,7 @@
  * - 计算覆盖率统计
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { TestReportRepository } from '../../repositories/TestReportRepository';
 import {
   TestReport,

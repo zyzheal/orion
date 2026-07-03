@@ -123,7 +123,7 @@ describe('Cache Routes', () => {
 
       expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.payload);
-      expect(body.error).toBe('VALIDATION_ERROR');
+      expect(body.code).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -211,7 +211,7 @@ describe('Cache Routes', () => {
 
       expect(response.statusCode).toBe(404);
       const body = JSON.parse(response.payload);
-      expect(body.error).toBe('CACHE_MISS');
+      expect(body.code).toBe('NOT_FOUND');
     });
   });
 

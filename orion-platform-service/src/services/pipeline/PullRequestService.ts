@@ -7,7 +7,7 @@
  * - PR 事件防抖（30s 窗口）
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

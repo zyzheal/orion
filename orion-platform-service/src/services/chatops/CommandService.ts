@@ -15,10 +15,10 @@ import {
   createChatOpsCommand,
 } from '../../models/ChatOps';
 import { ChatOpsCommandRepository } from '../../repositories/ChatOpsRepository';
-import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LCommand-LService' });
+const logger = createLogger('CommandService');
 
 export interface ChatOpsCommandListFilter {
   permissionLevel?: string;

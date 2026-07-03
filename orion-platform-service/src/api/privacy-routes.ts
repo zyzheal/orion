@@ -13,6 +13,7 @@ import { PIISanitizer } from '../services/privacy/PIISanitizer';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
+import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 interface TenantParams {
   tenantId: string;
@@ -95,42 +96,26 @@ export default async function privacyRoutes(
         const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'Invalid tenant ID',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Tenant isolation check
         if (!verifyTenantAccess(request, tenantId)) {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Access denied to this tenant',
-          });
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
         const policy = policyService!.getPolicy(tenantId);
 
         if (!policy) {
-          reply.code(404).send({
-            code: 404,
-            error: 'NOT_FOUND',
-            message: 'Policy not found for this tenant',
-          });
+handleError(reply, new NotFoundError('NOT_FOUND'))
           return;
         }
 
         reply.send(policy);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get privacy policy',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -146,21 +131,13 @@ export default async function privacyRoutes(
         const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'Invalid tenant ID',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Authorization: admin can modify any tenant's policy
         if ((request.user as any)?.role !== 'admin') {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Only admin can modify privacy policies',
-          });
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
@@ -168,11 +145,7 @@ export default async function privacyRoutes(
         const policy = policyService!.setPolicy(tenantId, policyData);
         reply.send(policy);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to update privacy policy',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -188,31 +161,19 @@ export default async function privacyRoutes(
         const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'Invalid tenant ID',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         if (!verifyTenantAccess(request, tenantId)) {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Access denied to this tenant',
-          });
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
         const result = await policyService!.validatePolicyCompliance(tenantId, 'regex-only');
         reply.send(result);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to validate compliance',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -229,22 +190,14 @@ export default async function privacyRoutes(
 
         // Input validation
         if (!content || typeof content !== 'string') {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'content is required and must be a string',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Size limit check
         const maxLength = options?.maxLength || MAX_CONTENT_SIZE;
         if (content.length > maxLength) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: `Content exceeds maximum size limit (${maxLength} bytes)`,
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
@@ -260,11 +213,7 @@ export default async function privacyRoutes(
           piiDetected: piiResult.detectedCount,
         });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to sanitize content',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -280,31 +229,19 @@ export default async function privacyRoutes(
         const {  content  } = request.body as any;
 
         if (!content || typeof content !== 'string') {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'content is required',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         if (content.length > MAX_CONTENT_SIZE) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: `Content exceeds maximum size limit (${MAX_CONTENT_SIZE} bytes)`,
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         const detected = secretSanitizer!.detectSecrets(content);
         reply.send({ detected, count: detected.length });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to detect secrets',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -320,31 +257,19 @@ export default async function privacyRoutes(
         const {  content  } = request.body as any;
 
         if (!content || typeof content !== 'string') {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'content is required',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         if (content.length > MAX_CONTENT_SIZE) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: `Content exceeds maximum size limit (${MAX_CONTENT_SIZE} bytes)`,
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         const detected = await piiSanitizer!.detectPIIWithNER(content);
         reply.send({ detected, count: detected.length });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to detect PII',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

@@ -9,7 +9,7 @@
 import { TestSuite, TestCase, TestDependency, TestCodeMapping } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   TestSuiteDependencyRepository,
   TestCaseDependencyRepository,

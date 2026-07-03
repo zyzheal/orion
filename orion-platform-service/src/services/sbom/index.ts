@@ -10,3 +10,13 @@ export {
   SBOMComponent,
   VulnerabilityMatch,
 } from './SBOMGeneratorService';
+export {
+  VulnerabilityDatabaseClient,
+  VulnerabilityCache,
+  VulnerabilityCacheScheduler,
+  VulnerabilityDatabaseService,
+  VulnerabilityQueryResult,
+  NVDVulnerability,
+  OSVVulnerability,
+} from './VulnerabilityDatabaseClient';
+export { VulnerabilityCache as default } from './VulnerabilityCache';

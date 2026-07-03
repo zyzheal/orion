@@ -65,3 +65,22 @@ export interface DataLineage {
   nodes: DataLineageNode[];
   edges: DataLineageEdge[];
 }
+
+// ==================== Version Management ====================
+
+export interface PipelineVersion {
+  id: string;
+  pipelineId: string;
+  tenantId: string;
+  versionNumber: number;
+  name: string;
+  description?: string;
+  stages: PipelineStage[];
+  schedule?: string;
+  inputConfig: Record<string, unknown>;
+  processors: unknown[];
+  outputConfig: Record<string, unknown>;
+  createdBy: string;
+  changeSummary?: string;
+  createdAt: string;
+}

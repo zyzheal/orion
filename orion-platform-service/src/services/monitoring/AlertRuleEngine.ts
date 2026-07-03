@@ -11,7 +11,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   AlertRule,
   Alert,
@@ -28,6 +28,9 @@ import {
   MonitoringAlertInstanceRepository,
   MonitoringAlertInstanceEntity,
 } from '../../repositories/MonitoringAlertInstanceRepository';
+import {
+  MonitoringAlertEscalationRepository,
+} from '../../repositories/MonitoringAlertEscalationRepository';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LAlert-LRule-LEngine' });
@@ -60,6 +63,9 @@ export class AlertRuleEngine {
   /** PostgreSQL repository for alert instances (primary when available) */
   private readonly alertRepo?: MonitoringAlertInstanceRepository;
 
+  /** PostgreSQL repository for alert escalations (primary when available) */
+  private readonly escalationRepo?: MonitoringAlertEscalationRepository;
+
   /** Registered alert rules (write-through cache / memory fallback) */
   private rules: Map<string, AlertRule> = new Map();
 
@@ -83,6 +89,7 @@ export class AlertRuleEngine {
     if (db) {
       this.ruleRepo = new MonitoringAlertRuleRepository(db);
       this.alertRepo = new MonitoringAlertInstanceRepository(db);
+      this.escalationRepo = new MonitoringAlertEscalationRepository(db);
     }
   }
 
@@ -358,6 +365,7 @@ export class AlertRuleEngine {
       triggeredAt: new Date(),
       tags: rule.tags,
       message: this.generateAlertMessage(rule, currentValue),
+      tenantId: getCurrentTenantId(),
     };
   }
 
@@ -503,9 +511,16 @@ export class AlertRuleEngine {
 
   /**
    * Get the current metric value for a rule
+   * Supports evaluationWindowMs: when set, uses the aggregated value over the window
    */
   private getMetricValue(rule: AlertRule): number | null {
     if (!this.metricCollector) return null;
+
+    if (rule.evaluationWindowMs && rule.evaluationWindowMs > 0) {
+      // Use the average value over the evaluation window
+      const summary = this.metricCollector.getMetricSummary(rule.metric, rule.tags, rule.evaluationWindowMs);
+      return summary.avg || summary.count > 0 ? summary.avg : null;
+    }
 
     const value = this.metricCollector.getLatestValue(rule.metric, rule.tags);
     return value;
@@ -637,7 +652,7 @@ export class AlertRuleEngine {
     return all;
   }
 
-  // ==================== Private Helpers ====================
+  // ==================== Private Helpers ===================/
 
   /**
    * Convert an Alert to a repository entity object
@@ -702,5 +717,79 @@ export class AlertRuleEngine {
       tags: entity.tags,
       message: entity.message ?? undefined,
     };
+  }
+
+  // ==================== Alert Escalation Persistence ====================
+
+  /**
+   * Persist an escalation state change to PostgreSQL
+   */
+  async persistEscalation(input: {
+    alertId: string;
+    ruleId: string;
+    fromStatus: string;
+    toStatus: string;
+    policyId?: string | null;
+    escalationStep?: number | null;
+    channelIds?: string[] | null;
+    recipients?: string[] | null;
+    errorMessage?: string | null;
+  }): Promise<void> {
+    if (!this.escalationRepo) return;
+
+    try {
+      await this.escalationRepo.create({
+        tenant_id: getCurrentTenantId(),
+        alert_id: input.alertId,
+        rule_id: input.ruleId,
+        policy_id: input.policyId ?? null,
+        from_status: input.fromStatus,
+        to_status: input.toStatus,
+        escalation_step: input.escalationStep ?? null,
+        channel_ids: input.channelIds ?? null,
+        recipients: input.recipients ?? null,
+        triggered_at: new Date(),
+        error_message: input.errorMessage ?? null,
+      });
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err, alertId: input.alertId }, '[AlertRuleEngine] Failed to persist escalation');
+    }
+  }
+
+  /**
+   * Get escalation history for a specific alert
+   */
+  async getEscalationHistoryForAlert(alertId: string): Promise<any[]> {
+    if (!this.escalationRepo) return [];
+    const records = await this.escalationRepo.findByAlertId(alertId, getCurrentTenantId());
+    return records.map(r => ({
+      id: r.id,
+      fromStatus: r.from_status,
+      toStatus: r.to_status,
+      escalationStep: r.escalation_step,
+      channelIds: r.channel_ids,
+      recipients: r.recipients,
+      triggeredAt: r.triggered_at,
+      completedAt: r.completed_at,
+      errorMessage: r.error_message,
+    }));
+  }
+
+  /**
+   * Get escalation history for a specific rule
+   */
+  async getEscalationHistoryForRule(ruleId: string): Promise<any[]> {
+    if (!this.escalationRepo) return [];
+    const records = await this.escalationRepo.findByRuleId(ruleId, getCurrentTenantId());
+    return records.map(r => ({
+      id: r.id,
+      alertId: r.alert_id,
+      fromStatus: r.from_status,
+      toStatus: r.to_status,
+      escalationStep: r.escalation_step,
+      triggeredAt: r.triggered_at,
+      completedAt: r.completed_at,
+      errorMessage: r.error_message,
+    }));
   }
 }

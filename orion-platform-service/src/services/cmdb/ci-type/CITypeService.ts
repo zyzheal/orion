@@ -5,7 +5,7 @@
  * to provide full CRUD, schema validation, versioning, and rollback capabilities.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../../../db/tenant-context-storage';
 import { OrionError } from '../../../errors';
 import { CITypeRepository, CITypeEntity, CITypeFilters } from './CITypeRepository';

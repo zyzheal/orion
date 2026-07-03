@@ -15,7 +15,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../errors';
 
 const logger = pino({ name: 'workspace-isolator' });

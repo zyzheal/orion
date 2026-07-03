@@ -11,7 +11,8 @@ import { ApiMarketRepository } from '../services/api-market/ApiMarketRepository'
 import { ApiMarketService } from '../services/api-market/ApiMarketService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'api-market-routes' });
 
@@ -55,7 +56,7 @@ export default async function apiMarketRoutes(
 
       return reply.code(201).send(product);
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -74,7 +75,7 @@ export default async function apiMarketRoutes(
     const { id } = request.params as { id: string };
     const product = await service.getProduct(id);
     if (!product) {
-      return reply.code(404).send({ error: 'Product not found' });
+      return handleError(reply, new NotFoundError('Product not found'));
     }
     return reply.send(product);
   });
@@ -88,7 +89,7 @@ export default async function apiMarketRoutes(
       const product = await service.publishProduct(id);
       return reply.send(product);
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -99,7 +100,7 @@ export default async function apiMarketRoutes(
     const { id } = request.params as { id: string };
     const deleted = await service.deleteProduct(id);
     if (!deleted) {
-      return reply.code(404).send({ error: 'Product not found' });
+      return handleError(reply, new NotFoundError('Product not found'));
     }
     return reply.code(204).send();
   });
@@ -123,7 +124,7 @@ export default async function apiMarketRoutes(
 
       return reply.code(201).send(app);
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -143,7 +144,7 @@ export default async function apiMarketRoutes(
     const { id } = request.params as { id: string };
     const app = await service.getApp(id);
     if (!app) {
-      return reply.code(404).send({ error: 'App not found' });
+      return handleError(reply, new NotFoundError('App not found'));
     }
     return reply.send(app);
   });
@@ -160,7 +161,7 @@ export default async function apiMarketRoutes(
       const result = await service.generateApiKey(appId, scopes);
       return reply.code(201).send(result);
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -201,12 +202,12 @@ export default async function apiMarketRoutes(
       const { clientId, clientSecret } = request.body as { clientId: string; clientSecret: string };
 
       if (!clientId || !clientSecret) {
-        return reply.code(400).send({ error: 'clientId and clientSecret required' });
+        return handleError(reply, new ValidationError('clientId and clientSecret required'));
       }
 
       const result = await service.validateApiKey(clientId, clientSecret);
       if (!result) {
-        return reply.code(401).send({ error: 'Invalid credentials' });
+        return handleError(reply, new UnauthorizedError('Invalid credentials'));
       }
 
       return reply.send({
@@ -217,7 +218,7 @@ export default async function apiMarketRoutes(
         rateLimitPerMin: result.rateLimitPerMin,
       });
     } catch (error: any) {
-      return reply.code(500).send({ error: error.message });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -230,7 +231,7 @@ export default async function apiMarketRoutes(
     const { appId, productId } = request.query as { appId: string; productId: string };
 
     if (!appId || !productId) {
-      return reply.code(400).send({ error: 'appId and productId are required' });
+      return handleError(reply, new ValidationError('appId and productId are required'));
     }
 
     const hasAccess = await service.checkSubscription(appId, productId);
@@ -246,7 +247,7 @@ export default async function apiMarketRoutes(
       await service.subscribe(appId, productId, plan, quotaPerDay);
       return reply.code(201).send({ message: 'Subscribed successfully' });
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -260,10 +261,10 @@ export default async function apiMarketRoutes(
     // Verify user owns this app before showing subscriptions
     const app = await service.getApp(appId);
     if (!app) {
-      return reply.code(404).send({ error: 'App not found' });
+      return handleError(reply, new NotFoundError('App not found'));
     }
     if (app.developer_id && user?.id && app.developer_id !== user.id) {
-      return reply.code(403).send({ error: 'Not authorized to view subscriptions for this app' });
+      return handleError(reply, new ForbiddenError('Not authorized to view subscriptions for this app'));
     }
 
     const subscriptions = await service.listSubscriptions(appId);

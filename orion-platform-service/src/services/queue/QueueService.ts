@@ -19,7 +19,7 @@ import type {
 } from '../../models/Job';
 import { JobPriority } from '../../models/Job';
 import type { JobRepository } from '../../repositories/JobRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LQueue-LService' });
 

@@ -7,6 +7,7 @@
 
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
+import { createLogger } from '../../utils/logger';
 import {
   AuditPlanRepository,
   AuditExecutionRepository,
@@ -15,6 +16,8 @@ import {
   AuditExecutionEntity,
   AuditFindingEntity,
 } from '../../repositories/Phase3Repository';
+
+const logger = createLogger('security-audit');
 
 export interface AuditPlanInput {
   name: string;
@@ -58,6 +61,7 @@ export class SecurityAuditService {
     if (!this.planRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const id = `audit-plan-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    logger.info({ tenantId, auditType: input.auditType, name: input.name }, '[SecurityAudit] Creating audit plan');
     const entity = await this.planRepo.create({
       id,
       tenant_id: tenantId,
@@ -100,6 +104,7 @@ export class SecurityAuditService {
 
   async deleteAuditPlan(planId: string): Promise<boolean> {
     if (!this.planRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
+    logger.info({ planId }, '[SecurityAudit] Deleting audit plan');
     return this.planRepo.delete(planId);
   }
 
@@ -111,6 +116,8 @@ export class SecurityAuditService {
     const plan = await this.planRepo.findById(auditId);
     if (!plan) throw new OrionError(`Audit plan not found: ${auditId}`, ErrorCode.NOT_FOUND);
     if (plan.tenant_id !== tenantId) throw new OrionError('Audit plan does not belong to this tenant', ErrorCode.VALIDATION_ERROR);
+
+    logger.info({ tenantId, auditId, auditType: plan.audit_type }, '[SecurityAudit] Executing audit');
 
     // Update plan status to active
     await this.planRepo.update(auditId, { status: 'active' });
@@ -155,6 +162,11 @@ export class SecurityAuditService {
       completed_at: new Date(),
       findings_count: findingCount,
     });
+
+    logger.info(
+      { executionId: id, findingCount, status: 'completed' },
+      '[SecurityAudit] Audit execution completed',
+    );
 
     return completedExecution;
   }
@@ -235,6 +247,8 @@ export class SecurityAuditService {
     const finding = await this.findingRepo.findById(findingId);
     if (!finding) throw new OrionError(`Finding not found: ${findingId}`, ErrorCode.NOT_FOUND);
     if (finding.tenant_id !== tenantId) throw new OrionError('Finding does not belong to this tenant', ErrorCode.VALIDATION_ERROR);
+
+    logger.info({ tenantId, findingId, resolution: !!resolution }, '[SecurityAudit] Closing finding');
 
     return this.findingRepo.update(findingId, {
       status: 'closed',

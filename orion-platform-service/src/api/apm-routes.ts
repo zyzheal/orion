@@ -22,7 +22,8 @@ import { TracingService } from '../services/monitoring/TracingService';
 import { DatabaseProfiler } from '../services/monitoring/DatabaseProfiler';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'apm-routes' });
 
@@ -66,7 +67,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: traces });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -77,13 +78,13 @@ export default async function apmRoutes(
       const spans = await tracingService.getTrace(traceId);
 
       if (spans.length === 0) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Trace not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
 
       return reply.send({ success: true, data: { traceId, spans } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return reply.status(500).send({ error: 'GET_ERROR', message });
+      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -94,13 +95,13 @@ export default async function apmRoutes(
       const summary = await tracingService.getTraceSummary(traceId);
 
       if (!summary) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Trace not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
 
       return reply.send({ success: true, data: summary });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return reply.status(500).send({ error: 'GET_ERROR', message });
+      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -115,7 +116,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: traces });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -131,7 +132,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: result.rows });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -155,7 +156,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: result.rows });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'TOPOLOGY_ERROR';
-      return reply.status(500).send({ error: 'TOPOLOGY_ERROR', message });
+      return handleError(reply, new OrionError('TOPOLOGY_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -179,7 +180,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: slowQueries });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -193,7 +194,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: stats });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 

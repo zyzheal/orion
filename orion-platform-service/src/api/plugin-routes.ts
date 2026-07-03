@@ -11,7 +11,8 @@ import { DebugController } from '../engine/DebugController';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -70,7 +71,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const plugin = await pluginManager.getPluginDetails(pluginId);
       return { plugin };
     } catch (error) {
-      return reply.code(404).send({ error: `Plugin ${pluginId} not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
   });
 
@@ -87,7 +88,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const result = await pluginManager.installPlugin(pluginId, version, config);
       return { pluginId, action: 'install', version, userId };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to install plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
@@ -100,7 +101,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const plugin = await pluginManager.activatePlugin(pluginId);
       return { pluginId, action: 'enable', status: plugin.state };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to enable plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
@@ -113,7 +114,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const plugin = await pluginManager.deactivatePlugin(pluginId);
       return { pluginId, action: 'disable', status: plugin.state };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to disable plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
@@ -126,7 +127,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       await pluginManager.uninstallPlugin(pluginId);
       return { pluginId, action: 'uninstall', status: 'uninstalled' };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to uninstall plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
@@ -166,7 +167,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     if (!timelineService) {
-      return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Timeline service requires database connection' });
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     }
     const replayData = await timelineService.getReplayData(runId);
     return replayData;
@@ -181,7 +182,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const state = await debugController.pause(runId);
       return { runId, status: 'paused', debugState: state };
     } catch (error) {
-      return reply.code(500).send({ error: `Failed to pause: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new OrionError('Unknown error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -194,7 +195,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       await debugController.resume(runId);
       return { runId, status: 'resumed' };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to resume: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
@@ -207,7 +208,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const state = await debugController.step(runId);
       return { runId, status: 'stepping', debugState: state };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to step: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
@@ -218,7 +219,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
     const { runId } = request.params as { runId: string };
     const state = debugController.getState(runId);
     if (!state) {
-      return reply.code(404).send({ error: `No debug state found for run ${runId}` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
     return state;
   });
@@ -229,7 +230,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body?.context?.taskId || !body?.context?.pluginId || !body?.context?.errorMessage) {
-      return reply.code(400).send({ error: 'Missing required context fields: taskId, pluginId, errorMessage' });
+      return handleError(reply, new ValidationError('Missing required context fields: taskId, pluginId, errorMessage'));
     }
     const result = await aiDiagnosis.diagnose(body.context);
     return result;

@@ -8,7 +8,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ProcessDefinitionRepository, ProcessInstanceRepository, ProcessStepEngineService } from '../services/process-step';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -32,7 +32,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // GET /workflow/definitions - List definitions
   app.get('/definitions', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const query = request.query as Record<string, string>;
       const result = await engineService.listDefinitions({
@@ -49,7 +49,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // POST /workflow/definitions - Create definition
   app.post('/definitions', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
       const userId = (request as any).user?.userId;
@@ -62,7 +62,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // GET /workflow/definitions/:id - Get definition by ID
   app.get<{ Params: { id: string } }>('/definitions/:id', async (request, reply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const def = await engineService.getDefinition(request.params.id);
       return reply.send({ success: true, data: def });
@@ -73,7 +73,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // PUT /workflow/definitions/:id - Update definition
   app.put<{ Params: { id: string } }>('/definitions/:id', async (request, reply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const def = await engineService.updateDefinition(request.params.id, request.body as any);
       return reply.send({ success: true, data: def });
@@ -84,7 +84,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // DELETE /workflow/definitions/:id - Delete definition
   app.delete<{ Params: { id: string } }>('/definitions/:id', async (request, reply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       await engineService.deleteDefinition(request.params.id);
       return reply.send({ success: true, message: 'Process definition deleted' });
@@ -97,7 +97,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // GET /workflow/instances - List instances
   app.get('/instances', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const query = request.query as Record<string, string>;
       const result = await engineService.listInstances({
@@ -116,7 +116,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // POST /workflow/instances - Start a new instance
   app.post('/instances', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
       const userId = (request as any).user?.userId;
@@ -134,7 +134,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // GET /workflow/instances/:id - Get instance detail
   app.get<{ Params: { id: string } }>('/instances/:id', async (request, reply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const instance = await engineService.getInstance(request.params.id);
       return reply.send({ success: true, data: instance });
@@ -145,7 +145,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
 
   // GET /workflow/instances/:id/history - Get step history
   app.get<{ Params: { id: string } }>('/instances/:id/history', async (request, reply) => {
-    if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const steps = await engineService.getStepHistory(request.params.id);
       return reply.send({ success: true, data: steps });
@@ -158,7 +158,7 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   app.post<{ Params: { id: string; stepId: string } }>(
     '/instances/:id/steps/:stepId/advance',
     async (request, reply) => {
-      if (!engineService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       try {
         const body = request.body as Record<string, unknown>;
         const userId = (request as any).user?.userId;

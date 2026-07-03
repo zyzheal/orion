@@ -4,6 +4,7 @@
 
 import { BaseRepository } from '../db/base-repository';
 import { OrionError, ErrorCode } from '../errors';
+import { decryptValue, encryptValue } from '../utils/encryption';
 
 export type WorkflowTriggerType = 'event' | 'cron' | 'manual' | 'webhook';
 
@@ -85,7 +86,7 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
         data.cronExpression ?? null,
         data.timezone ?? 'Asia/Shanghai',
         data.webhookPath ?? null,
-        data.webhookSecret ?? null,
+        data.webhookSecret ? encryptValue(data.webhookSecret) : null,
         data.triggerStrategy ?? 'async',
         data.concurrencyLimit ?? 1,
         data.description ?? null,
@@ -216,7 +217,7 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
     }
     if (data.webhookSecret !== undefined) {
       updates.push(`webhook_secret = $${paramIndex++}`);
-      values.push(data.webhookSecret);
+      values.push(data.webhookSecret ? encryptValue(data.webhookSecret) : null);
     }
     if (data.triggerStrategy !== undefined) {
       updates.push(`trigger_strategy = $${paramIndex++}`);
@@ -299,7 +300,7 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
       cronExpression: row.cron_expression,
       timezone: row.timezone,
       webhookPath: row.webhook_path,
-      webhookSecret: row.webhook_secret,
+      webhookSecret: decryptValue(row.webhook_secret),
       triggerStrategy: row.trigger_strategy,
       concurrencyLimit: row.concurrency_limit,
       description: row.description,

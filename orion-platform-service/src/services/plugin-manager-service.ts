@@ -8,7 +8,7 @@
  * - 插件运行时管理
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { EventBusService } from './event-bus-service';
 import { PluginRepository } from '../repositories/PluginRepository';

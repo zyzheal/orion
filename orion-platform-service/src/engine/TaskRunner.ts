@@ -21,7 +21,7 @@ import { ContainerSpec, DockerExecutor, LocalSpawnExecutor, ContainerExecutorStr
 import { SkillService } from '../services/skill/SkillService';
 import { SkillPackage, SkillVersion } from '../services/skill/SkillRepository';
 import { OrionError, ErrorCode } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'task-runner' });
 
@@ -1300,7 +1300,7 @@ export class TaskRunner {
 
     // 4. 获取实例配置（如果有 instanceId）
     // 当前 SkillService 没有 instance 概念，此处预留扩展点
-    let config = input;
+    const config = input;
     if (instanceId) {
       task = appendTaskLog(task, `[SKILL] Warning: Instance ${instanceId} not yet supported, using input directly`);
       // Future: const instance = await this.skillService.getInstance(instanceId);

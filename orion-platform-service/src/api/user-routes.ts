@@ -14,7 +14,7 @@ import { UserController } from './controllers/UserController';
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'user-routes' });
 

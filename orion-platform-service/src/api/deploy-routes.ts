@@ -9,9 +9,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { DeployController } from './controllers/DeployController';
 import { SmartDeployService } from '../services/smart-deploy/SmartDeployService';
+import { DeployReleaseNotesService } from '../services/deploy/DeployReleaseNotesService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'deploy-routes' });
 
@@ -28,11 +29,13 @@ export default async function deployRoutes(
     return;
   }
 
-  // Initialize service (SmartDeployService creates repositories internally)
+  // Initialize services
   const smartDeployService = new SmartDeployService(options.database);
+  const releaseNotesService = new DeployReleaseNotesService(options.database);
+  const gitIntegrationService = new DeployGitIntegrationService(smartDeployService as any, options.database);
 
   // Initialize controller
-  const controller = new DeployController(smartDeployService);
+  const controller = new DeployController(smartDeployService, releaseNotesService, gitIntegrationService);
 
   // ==================== Deployment Execution ====================
 
@@ -110,6 +113,40 @@ export default async function deployRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAuditTrail(request, reply);
+  });
+
+  // ==================== Release Notes ====================
+
+  app.get('/deploy/:id/release-notes', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getReleaseNotes(request, reply);
+  });
+
+  app.post('/deploy/:id/release-notes/generate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.generateReleaseNotes(request, reply);
+  });
+
+  app.get('/deploy/release-notes/tenant/:tenantId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getReleaseNotesByTenant(request, reply);
+  });
+
+  // ==================== Git Integration ====================
+
+  app.post('/deploy/:id/git/link', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.linkGitCommit(request, reply);
+  });
+
+  app.get('/deploy/:id/git/changelog', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDeploymentChangelog(request, reply);
   });
 
   logger.info('[DeployRoutes] Registered all deployment routes');

@@ -8,7 +8,7 @@
  * 4. 兼容 existing services/permission/PermissionService 的公开接口
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'AuthService' });
 

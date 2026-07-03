@@ -21,7 +21,8 @@ import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { AuditRepository } from '../services/audit/AuditRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ValidationError, UnauthorizedError, handleError } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -123,10 +124,7 @@ async function requireAuth(
     }
   }
 
-  reply.status(401).send({
-    error: 'Authentication required',
-    message: 'Provide x-api-key header or valid JWT token',
-  });
+handleError(reply, new UnauthorizedError('Authentication required'))
 
   return null;
 }
@@ -208,11 +206,7 @@ export default async function mcpRoutes(
 
     // Validate JSON-RPC structure
     if (!rpcRequest.jsonrpc || rpcRequest.jsonrpc !== '2.0') {
-      return reply.status(400).send({
-        jsonrpc: '2.0',
-        id: null,
-        error: { code: -32600, message: 'Invalid request: jsonrpc version must be 2.0' },
-      });
+      return handleError(reply, new ValidationError('Invalid request: jsonrpc version must be 2.0'))
     }
 
     // Handle request

@@ -346,4 +346,79 @@ describe('JwtKeyRotationService', () => {
       expect(diff).toBeLessThan(5000); // Within 5 seconds tolerance
     });
   });
+
+  describe('restart recovery', () => {
+    it('should trigger rotation immediately when overlap window has already passed', async () => {
+      // Step 1: Initialize and create an active key
+      await service.initialize();
+      const initialKey = service.getCurrentActiveKey();
+      expect(initialKey).toBeDefined();
+      expect(initialKey?.status).toBe('active');
+
+      // Step 2: Shutdown (clears timer)
+      service.shutdown();
+
+      // Step 3: Simulate process restart with a key that has an expired overlap window
+      // Directly manipulate the stored key to set expiresAt in the past
+      const pastExpiry = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000); // expired 10 days ago
+      const updatedRow = await mockDbPool.query(
+        'UPDATE jwt_key_rotation SET expires_at = $1, status = $2 WHERE key_id = $3 RETURNING *',
+        [pastExpiry, 'active', initialKey!.keyId],
+      );
+      keyStore.set(initialKey!.keyId, updatedRow.rows[0]);
+
+      // Step 4: Create new service instance and initialize (simulates restart)
+      const restartedService = new JwtKeyRotationService(mockDbPool as any, {
+        rotationIntervalDays: 90,
+        overlapDays: 7,
+        keyStrength: '256-bit',
+      });
+
+      const rotationCompletedHandler = jest.fn();
+      restartedService.on('rotation:completed', rotationCompletedHandler);
+
+      // Step 5: Initialize should trigger rotation immediately since overlap window passed
+      await restartedService.initialize();
+
+      // Should have emitted rotation:completed because overlap window was in the past
+      expect(rotationCompletedHandler).toHaveBeenCalled();
+
+      // After rotation, there should be a new active key
+      const newActiveKey = restartedService.getCurrentActiveKey();
+      expect(newActiveKey).toBeDefined();
+      expect(newActiveKey?.keyId).not.toBe(initialKey?.keyId);
+      expect(newActiveKey?.status).toBe('active');
+
+      restartedService.shutdown();
+    });
+
+    it('should schedule timer normally when overlap window is in the future', async () => {
+      // Initialize with a key that has a future expiry
+      await service.initialize();
+      const initialKey = service.getCurrentActiveKey();
+      expect(initialKey?.expiresAt).toBeDefined();
+
+      // Shutdown and restart
+      service.shutdown();
+
+      const restartedService = new JwtKeyRotationService(mockDbPool as any, {
+        rotationIntervalDays: 90,
+        overlapDays: 7,
+        keyStrength: '256-bit',
+      });
+
+      const rotationCompletedHandler = jest.fn();
+      restartedService.on('rotation:completed', rotationCompletedHandler);
+
+      await restartedService.initialize();
+
+      // Should NOT have emitted rotation:completed yet (timer is pending)
+      expect(rotationCompletedHandler).not.toHaveBeenCalled();
+
+      // Should have a timer scheduled
+      expect(restartedService['rotationTimer']).toBeDefined();
+
+      restartedService.shutdown();
+    });
+  });
 });

@@ -703,4 +703,29 @@ export class GerritAdapter implements ICodeRepoAdapter {
       `/config/server/~webhooks~remote/${encodeURIComponent(webhookId)}`
     );
   }
+
+  /**
+   * 更新 Webhook (Mock: Gerrit 无原生 Webhook API)
+   */
+  async updateWebhook(repoId: string, webhookId: string, input: {
+    url?: string;
+    events?: WebhookEventType[];
+    active?: boolean;
+    secret?: string;
+  }): Promise<WebhookConfig> {
+    return {
+      id: webhookId,
+      url: input.url || '',
+      events: input.events || [],
+      active: input.active ?? true,
+      secret: input.secret,
+    };
+  }
+
+  /**
+   * 列出标签 (Mock: Gerrit 无原生 Tags API)
+   */
+  async listTags(repoId: string): Promise<{ tags: string[]; total: number }> {
+    return { tags: [], total: 0 };
+  }
 }

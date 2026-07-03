@@ -13,7 +13,7 @@
  * - 缓存命中时 < 1ms，目标命中率 > 80%
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { RoleService } from '../role/RoleService';
 import { TeamService } from '../team/TeamService';
 import { CapabilityService } from '../capability/CapabilityService';

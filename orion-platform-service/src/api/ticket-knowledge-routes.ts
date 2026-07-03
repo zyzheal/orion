@@ -12,7 +12,7 @@ import { DatabasePool } from '../services/database';
 import { TicketKnowledgeMappingRepository } from '../repositories/TicketKnowledgeMappingRepository';
 import { TicketToKnowledgeService, TicketData } from '../services/knowledge/TicketToKnowledgeService';
 import { handleError, OrionError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'ticket-knowledge-routes' });
 
@@ -53,7 +53,7 @@ export default async function ticketKnowledgeRoutes(
     } catch {
       // Table might not exist, fall through to error
     }
-    throw new OrionError(`Ticket not found: ${ticketId}`, 'NOT_FOUND');
+    throw new OrionError('`Ticket not found: ${ticketId}`',  'NOT_FOUND');
   }
 
   // POST /api/v1/tickets/:id/to-knowledge - Convert ticket to knowledge

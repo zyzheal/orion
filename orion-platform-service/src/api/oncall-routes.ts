@@ -10,7 +10,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { OnCallService } from '../services/scheduler/OnCallService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'oncall-routes' });
 
@@ -35,7 +36,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { schedules, total: schedules.length } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list on-call schedules');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -47,12 +48,12 @@ export default async function oncallRoutes(
       const { id } = (request.params as any);
       const schedule = await oncallService.getSchedule(id);
       if (!schedule) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Schedule not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: schedule });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get schedule');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -73,7 +74,7 @@ export default async function oncallRoutes(
       return reply.status(201).send({ success: true, data: schedule });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create on-call schedule');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -88,12 +89,12 @@ export default async function oncallRoutes(
       // This endpoint exists for future extension
       const schedule = await oncallService.getSchedule(id);
       if (!schedule) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Schedule not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: { ...schedule, ...body, id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update on-call schedule');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -105,12 +106,12 @@ export default async function oncallRoutes(
       const { id } = (request.params as any);
       const deleted = await oncallService.deleteSchedule(id);
       if (!deleted) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Schedule not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete on-call schedule');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -127,7 +128,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { assignments: [], total: 0, scheduleId } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list assignments');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -140,7 +141,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get assignment');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -153,7 +154,7 @@ export default async function oncallRoutes(
       return reply.status(201).send({ success: true, data: { id: `assign_${Date.now()}`, ...body } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create assignment');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -167,7 +168,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { id, ...body } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update assignment');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -180,7 +181,7 @@ export default async function oncallRoutes(
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete assignment');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -195,7 +196,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { overrides: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list overrides');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -208,7 +209,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get override');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -229,7 +230,7 @@ export default async function oncallRoutes(
       return reply.status(201).send({ success: true, data: override });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create override');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -243,7 +244,7 @@ export default async function oncallRoutes(
       return reply.status(200).send({ success: true, data: { id, ...body } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update override');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -256,7 +257,7 @@ export default async function oncallRoutes(
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete override');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -271,14 +272,14 @@ export default async function oncallRoutes(
       const scheduleId = query.scheduleId;
 
       if (!scheduleId) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'scheduleId query parameter is required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
 
       const result = await oncallService.getCurrentOnCall(scheduleId);
       return reply.status(200).send({ success: true, data: result });
     } catch (error: any) {
       logger.error({ error }, 'Failed to get current on-call');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

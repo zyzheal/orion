@@ -9,7 +9,7 @@
  * - Batch processing with rate limiting
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
 import {
   CodeEmbedding,

@@ -26,7 +26,7 @@ import {
   EngineerAvailability,
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LEngineer-LSuspend-LService' });

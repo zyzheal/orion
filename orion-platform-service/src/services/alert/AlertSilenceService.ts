@@ -7,7 +7,7 @@
  * 3. 检查告警是否被静默
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { BaseRepository } from '../../db/base-repository';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

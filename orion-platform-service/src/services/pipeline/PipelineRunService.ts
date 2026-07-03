@@ -24,6 +24,19 @@ import {
 } from './PipelineRunRepository';
 import { EnvironmentService, ResolvedVariables } from './EnvironmentService';
 
+export interface RunHistoryTrend {
+  period: string;
+  periodStart: Date;
+  periodEnd: Date;
+  totalRuns: number;
+  successRuns: number;
+  failedRuns: number;
+  runningRuns: number;
+  successRate: number;
+  avgDurationMs: number;
+  failureReasons: Array<{ reason: string; count: number }>;
+}
+
 export class PipelineRunService {
   private eventPublisher: PipelineEventPublisher;
   private repository: PipelineRunRepository;
@@ -360,5 +373,182 @@ export class PipelineRunService {
     }
 
     return this.environmentService.checkApprovalRequired(tenantId, run.environment_name);
+  }
+
+  // ==================== Run History Trend ====================
+
+  /**
+   * Get run history aggregated by time period.
+   * @param pipelineId - Pipeline ID to get history for
+   * @param period - Time period: 'day', 'week', or 'month'
+   * @returns Array of run history trend data
+   */
+  async getRunHistory(pipelineId: string, period: 'day' | 'week' | 'month' = 'day'): Promise<RunHistoryTrend[]> {
+    // Determine date truncation based on period
+    let dateTrunc: string;
+    let interval: string;
+    let periods: number;
+
+    switch (period) {
+      case 'week':
+        dateTrunc = 'week';
+        interval = '1 week';
+        periods = 12; // Last 12 weeks
+        break;
+      case 'month':
+        dateTrunc = 'month';
+        interval = '1 month';
+        periods = 12; // Last 12 months
+        break;
+      case 'day':
+      default:
+        dateTrunc = 'day';
+        interval = '1 day';
+        periods = 30; // Last 30 days
+        break;
+    }
+
+    // Get aggregated stats by period
+    const statsQuery = `
+      SELECT
+        DATE_TRUNC($1, created_at) as period_start,
+        COUNT(*) as total_runs,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as success_runs,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_runs,
+        COUNT(CASE WHEN status = 'running' OR status = 'pending' THEN 1 END) as running_runs,
+        COALESCE(AVG(CASE WHEN duration_ms IS NOT NULL THEN duration_ms END), 0) as avg_duration_ms
+      FROM pipeline_runs
+      WHERE pipeline_id = $2
+        AND created_at >= DATE_TRUNC($1, NOW()) - ($3 || ' ' || $4)::interval
+      GROUP BY period_start
+      ORDER BY period_start ASC
+    `;
+
+    const statsResult = await (this.repository as any).pool.query(statsQuery, [
+      dateTrunc,
+      pipelineId,
+      periods.toString(),
+      interval,
+    ]);
+
+    // Get failure reasons distribution
+    const failureQuery = `
+      SELECT
+        DATE_TRUNC($1, created_at) as period_start,
+        COALESCE(error_message, 'unknown') as failure_reason,
+        COUNT(*) as failure_count
+      FROM pipeline_runs
+      WHERE pipeline_id = $2
+        AND status = 'failed'
+        AND created_at >= DATE_TRUNC($1, NOW()) - ($3 || ' ' || $4)::interval
+      GROUP BY period_start, failure_reason
+      ORDER BY period_start ASC, failure_count DESC
+    `;
+
+    const failureResult = await (this.repository as any).pool.query(failureQuery, [
+      dateTrunc,
+      pipelineId,
+      periods.toString(),
+      interval,
+    ]);
+
+    // Build period map
+    const periodMap = new Map<string, RunHistoryTrend>();
+
+    for (const row of statsResult.rows) {
+      const periodStart = new Date(row.period_start);
+      const periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodEnd.getDate() + 1);
+
+      if (period === 'week') {
+        periodEnd.setDate(periodEnd.getDate() + 6);
+      } else if (period === 'month') {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
+
+      const totalRuns = parseInt(row.total_runs, 10) || 0;
+      const successRuns = parseInt(row.success_runs, 10) || 0;
+      const failedRuns = parseInt(row.failed_runs, 10) || 0;
+      const runningRuns = parseInt(row.running_runs, 10) || 0;
+      const avgDuration = parseFloat(row.avg_duration_ms) || 0;
+
+      periodMap.set(row.period_start, {
+        period,
+        periodStart,
+        periodEnd,
+        totalRuns,
+        successRuns,
+        failedRuns,
+        runningRuns,
+        successRate: totalRuns > 0 ? Math.round((successRuns / totalRuns) * 100) : 0,
+        avgDurationMs: Math.round(avgDuration),
+        failureReasons: [],
+      });
+    }
+
+    // Merge failure reasons into period map
+    for (const row of failureResult.rows) {
+      const periodStart = row.period_start;
+      const entry = periodMap.get(periodStart);
+      if (entry) {
+        entry.failureReasons.push({
+          reason: row.failure_reason,
+          count: parseInt(row.failure_count, 10) || 0,
+        });
+      }
+    }
+
+    // Convert to array and sort by period
+    const result = Array.from(periodMap.values()).sort((a, b) =>
+      a.periodStart.getTime() - b.periodStart.getTime()
+    );
+
+    // Fill in missing periods with zero values
+    const filledResult: RunHistoryTrend[] = [];
+    const now = new Date();
+
+    for (let i = periods - 1; i >= 0; i--) {
+      const currentPeriod = new Date(now);
+      if (period === 'day') {
+        currentPeriod.setDate(currentPeriod.getDate() - i);
+        currentPeriod.setHours(0, 0, 0, 0);
+      } else if (period === 'week') {
+        currentPeriod.setDate(currentPeriod.getDate() - (i * 7));
+        currentPeriod.setHours(0, 0, 0, 0);
+      } else {
+        currentPeriod.setMonth(currentPeriod.getMonth() - i);
+        currentPeriod.setDate(1);
+        currentPeriod.setHours(0, 0, 0, 0);
+      }
+
+      const existingEntry = result.find(r => r.periodStart.getTime() === currentPeriod.getTime());
+      if (existingEntry) {
+        filledResult.push(existingEntry);
+      } else {
+        const periodEnd = new Date(currentPeriod);
+        if (period === 'day') {
+          periodEnd.setDate(periodEnd.getDate() + 1);
+        } else if (period === 'week') {
+          periodEnd.setDate(periodEnd.getDate() + 7);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+
+        filledResult.push({
+          period,
+          periodStart: currentPeriod,
+          periodEnd,
+          totalRuns: 0,
+          successRuns: 0,
+          failedRuns: 0,
+          runningRuns: 0,
+          successRate: 0,
+          avgDurationMs: 0,
+          failureReasons: [],
+        });
+      }
+    }
+
+    return filledResult;
   }
 }

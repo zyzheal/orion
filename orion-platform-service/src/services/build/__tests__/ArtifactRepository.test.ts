@@ -122,7 +122,7 @@ function createMockDb() {
 
         // Rebuild param mapping by scanning query for param placeholders
         // The actual query from findByOptions builds params in order: runId, stageId, taskId, type, limit, offset
-        let paramIdx = 0;
+        const paramIdx = 0;
         const runIdMatch = text.match(/run_id = \$(\d+)/);
         const stageIdMatch = text.match(/stage_id = \$(\d+)/);
         const taskIdMatch = text.match(/metadata->>'taskId' = \$(\d+)/);

@@ -2,7 +2,7 @@ import { ProcessDefinitionRepository, ProcessDefinition, CreateProcessDefinition
 import { ProcessInstanceRepository, ProcessInstance, ProcessStepInstance, CreateProcessInstanceInput } from './ProcessInstanceRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

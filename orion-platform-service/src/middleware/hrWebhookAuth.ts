@@ -17,7 +17,7 @@
 
 import crypto from 'crypto';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

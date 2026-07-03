@@ -52,6 +52,25 @@ export interface PipelineRetryOptions {
   onlyFailed?: boolean;
 }
 
+export interface BatchStartResult {
+  pipelineId: string;
+  runId: string | null;
+  status: string;
+  error?: string;
+}
+
+export interface BatchStopResult {
+  executionId: string;
+  status: string;
+  error?: string;
+}
+
+export interface BatchDeleteResult {
+  pipelineId: string;
+  deleted: boolean;
+  error?: string;
+}
+
 /**
  * Result object returned by triggerRun.
  */
@@ -411,6 +430,168 @@ export class PipelineService {
     }
 
     return { data: [], total: 0 };
+  }
+
+  // ==================== Batch Operations ====================
+
+  /**
+   * Batch start multiple pipelines.
+   * @param pipelineIds - Array of pipeline IDs to start
+   * @param options - Optional run options (branch, environment, parameters, triggeredBy)
+   * @returns Array of batch start results
+   */
+  async batchStart(pipelineIds: string[], options?: PipelineRunOptions): Promise<BatchStartResult[]> {
+    if (!Array.isArray(pipelineIds) || pipelineIds.length === 0) {
+      return [];
+    }
+
+    const results: BatchStartResult[] = [];
+
+    for (const pipelineId of pipelineIds) {
+      try {
+        // Verify pipeline exists
+        const pipeline = await this.repository.findById(pipelineId);
+        if (!pipeline) {
+          results.push({
+            pipelineId,
+            runId: null,
+            status: 'error',
+            error: `Pipeline '${pipelineId}' not found`,
+          });
+          continue;
+        }
+
+        // Trigger run
+        const runResult = await this.triggerRun(pipelineId, options);
+        results.push({
+          pipelineId,
+          runId: runResult.id,
+          status: runResult.status,
+        });
+      } catch (error) {
+        results.push({
+          pipelineId,
+          runId: null,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Failed to start pipeline',
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Batch stop multiple pipeline runs (executions).
+   * @param executionIds - Array of run IDs to stop
+   * @returns Array of batch stop results
+   */
+  async batchStop(executionIds: string[]): Promise<BatchStopResult[]> {
+    if (!Array.isArray(executionIds) || executionIds.length === 0) {
+      return [];
+    }
+
+    const results: BatchStopResult[] = [];
+
+    for (const executionId of executionIds) {
+      try {
+        if (!this.runRepository) {
+          results.push({
+            executionId,
+            status: 'error',
+            error: 'Run repository not available',
+          });
+          continue;
+        }
+
+        // Check if run exists and is cancellable
+        const run = 'findRunById' in this.runRepository
+          ? await (this.runRepository as any).findRunById(executionId)
+          : await this.runRepository.findById(executionId);
+
+        if (!run) {
+          results.push({
+            executionId,
+            status: 'error',
+            error: `Run '${executionId}' not found`,
+          });
+          continue;
+        }
+
+        // Only cancel running or pending runs
+        if (run.status !== 'running' && run.status !== 'pending') {
+          results.push({
+            executionId,
+            status: 'skipped',
+            error: `Run '${executionId}' is in status '${run.status}' and cannot be stopped`,
+          });
+          continue;
+        }
+
+        // Cancel the run
+        if ('updateRunStatus' in this.runRepository) {
+          await (this.runRepository as any).updateRunStatus(executionId, 'cancelled');
+        } else {
+          await this.runRepository.updateStatus(executionId, 'cancelled');
+        }
+
+        results.push({
+          executionId,
+          status: 'cancelled',
+        });
+      } catch (error) {
+        results.push({
+          executionId,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Failed to stop run',
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Batch delete multiple pipelines.
+   * @param pipelineIds - Array of pipeline IDs to delete
+   * @returns Array of batch delete results
+   */
+  async batchDelete(pipelineIds: string[]): Promise<BatchDeleteResult[]> {
+    if (!Array.isArray(pipelineIds) || pipelineIds.length === 0) {
+      return [];
+    }
+
+    const results: BatchDeleteResult[] = [];
+
+    for (const pipelineId of pipelineIds) {
+      try {
+        // Verify pipeline exists
+        const pipeline = await this.repository.findById(pipelineId);
+        if (!pipeline) {
+          results.push({
+            pipelineId,
+            deleted: false,
+            error: `Pipeline '${pipelineId}' not found`,
+          });
+          continue;
+        }
+
+        // Delete the pipeline
+        const deleted = await this.repository.delete(pipelineId);
+        results.push({
+          pipelineId,
+          deleted,
+        });
+      } catch (error) {
+        results.push({
+          pipelineId,
+          deleted: false,
+          error: error instanceof Error ? error.message : 'Failed to delete pipeline',
+        });
+      }
+    }
+
+    return results;
   }
 }
 

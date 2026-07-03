@@ -17,7 +17,7 @@ import {
   HealthCheckResult,
 } from './types';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'handler-registry' });
 

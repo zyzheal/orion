@@ -14,7 +14,7 @@ import { WebhookService } from '../services/webhook/WebhookService';
 import { WebhookController } from './controllers/webhook/WebhookController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'webhook-routes' });
 

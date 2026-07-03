@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { UnifiedConfigService, SystemConfig, unifiedConfig } from '../config/UnifiedConfigService';
+import { NotFoundError, handleError } from '../errors';
 
 interface ConfigRoutesOptions {
   database?: DatabasePool;
@@ -84,7 +85,7 @@ export default async function configRoutes(
       const value = configService.get(key);
       return reply.send({ key, value });
     } catch (error: any) {
-      return reply.status(404).send({ code: 'NOT_FOUND', message: error.message });
+      return handleError(reply, new NotFoundError(error.message));
     }
   });
 

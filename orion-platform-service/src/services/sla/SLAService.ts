@@ -9,7 +9,7 @@
  * - Compliance percentage calculation
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   SLADefinitionRepository,
   SLATrackingRepository,

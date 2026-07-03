@@ -1,6 +1,6 @@
 import { I18nLocaleRepository, I18nTranslationRepository } from './I18nRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'i18n-service' });
 

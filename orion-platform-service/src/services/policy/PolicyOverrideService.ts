@@ -5,7 +5,7 @@
  * policy overrides in the system.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { PolicyOverrideRepository, PolicyOverrideEntity, CreatePolicyOverrideInput } from '../../repositories/PolicyOverrideRepository';
 import { DatabasePool } from '../database';

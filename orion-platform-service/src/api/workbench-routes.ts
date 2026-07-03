@@ -9,6 +9,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { WorkbenchService } from '../services/workbench/WorkbenchService';
 import { DatabasePool } from '../services/database';
+import { ServiceUnavailableError, handleError } from '../errors';
 
 interface WorkbenchRoutesOptions {
   database?: DatabasePool;
@@ -23,7 +24,7 @@ export default async function workbenchRoutes(app: FastifyInstance, options: Wor
     onRequest: [authenticateUser, requirePermission({ resource: 'workbench', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!workbenchService) {
-      return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not connected' });
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     }
 
     const query = request.query as { tenantId?: string; userId?: string };

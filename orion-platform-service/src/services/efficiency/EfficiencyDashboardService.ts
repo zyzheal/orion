@@ -7,7 +7,7 @@
  * When db is provided, scenarios are persisted to PostgreSQL.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { OrionError } from '../../errors';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';

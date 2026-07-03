@@ -32,7 +32,7 @@ import {
   EfficiencyDeploymentRecordRepository,
   EfficiencyDeploymentRecordEntity,
 } from '../../repositories/EfficiencyDeploymentRecordRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LEvent-LHandler' });

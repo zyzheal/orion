@@ -103,6 +103,56 @@ class MockApprovalRepository {
     return updated;
   }
 
+  async updateStepApprover(stepId: string, newApproverId: string, reason?: string): Promise<ApprovalStepEntity | null> {
+    const step = this.steps.get(stepId);
+    if (!step) return null;
+    const updated: ApprovalStepEntity = {
+      ...step,
+      approverId: newApproverId,
+      comment: reason ?? step.comment,
+    };
+    this.steps.set(stepId, updated);
+    return updated;
+  }
+
+  async findStatisticsByTenant(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{
+    totalApprovals: number;
+    approvedCount: number;
+    rejectedCount: number;
+    cancelledCount: number;
+    pendingCount: number;
+    averageDurationMs: number;
+  }> {
+    const list = await this.findPendingByTenant(tenantId);
+    const all = Array.from(this.approvals.values()).filter(a => a.tenantId === tenantId);
+    const total = all.length;
+    const approved = all.filter(a => a.status === 'approved').length;
+    const rejected = all.filter(a => a.status === 'rejected').length;
+    const cancelled = all.filter(a => a.status === 'cancelled').length;
+    const pending = all.filter(a => a.status === 'pending').length;
+    return { totalApprovals: total, approvedCount: approved, rejectedCount: rejected, cancelledCount: cancelled, pendingCount: pending, averageDurationMs: 0 };
+  }
+
+  async findTrendByTenant(tenantId: string, periodStart: Date, periodEnd: Date): Promise<Array<{
+    period: string;
+    created: string;
+    approved: string;
+    rejected: string;
+    cancelled: string;
+    pending: string;
+  }>> {
+    const all = Array.from(this.approvals.values()).filter(a => a.tenantId === tenantId);
+    const map = new Map<string, { created: number; approved: number; rejected: number; cancelled: number; pending: number }>();
+    for (const a of all) {
+      const day = new Date(a.createdAt).toISOString().slice(0, 10);
+      const cur = map.get(day) || { created: 0, approved: 0, rejected: 0, cancelled: 0, pending: 0 };
+      cur.created += 1;
+      (cur as any)[a.status] += 1;
+      map.set(day, cur);
+    }
+    return Array.from(map.entries()).map(([period, counts]) => ({ period, ...counts, created: String(counts.created), approved: String(counts.approved), rejected: String(counts.rejected), cancelled: String(counts.cancelled), pending: String(counts.pending) }));
+  }
+
   clear(): void {
     this.approvals.clear();
     this.steps.clear();
@@ -173,5 +223,48 @@ describe('ApprovalService', () => {
     await service.createApproval('B', 'user2', ['manager2']);
     const pending = await service.listPending();
     expect(pending.length).toBe(2);
+  });
+
+  // ==================== Withdraw / Cancel / Delegate / Statistics / Trend ====================
+
+  test('should allow requester to cancel pending approval', async () => {
+    const req = await service.createApproval('Deploy', 'user1', ['manager1']);
+    const result = await service.cancelApproval(req.id, 'user1', 'no longer needed');
+    expect(result.status).toBe(ApprovalStatus.CANCELLED);
+  });
+
+  test('should reject cancel by non-requester', async () => {
+    const req = await service.createApproval('Deploy', 'user1', ['manager1']);
+    await expect(service.cancelApproval(req.id, 'random')).rejects.toThrow('Only the requester');
+  });
+
+  test('should allow approver to withdraw their approval', async () => {
+    const req = await service.createApproval('Deploy', 'user1', ['manager1']);
+    await service.approve(req.id, 'manager1');
+    const result = await service.withdrawApproval(req.id, 'manager1', 'mistake');
+    expect(result.status).toBe(ApprovalStatus.PENDING);
+  });
+
+  test('should delegate pending approval step to another user', async () => {
+    const req = await service.createApproval('Deploy', 'user1', ['manager1']);
+    const result = await service.delegateApproval(req.id, 'manager1', 'manager2', 'out of office');
+    expect(result.approverIds).toContain('manager2');
+    expect(result.approverIds).not.toContain('manager1');
+  });
+
+  test('should compute approval statistics', async () => {
+    await service.createApproval('A', 'user1', ['manager1'], 1, undefined, { tenantId: 't1' });
+    const req = await service.createApproval('B', 'user1', ['manager1'], 1, undefined, { tenantId: 't1' });
+    await service.approve(req.id, 'manager1');
+    const stats = await service.getApprovalStatistics('t1', new Date(Date.now() - 86400000), new Date());
+    expect(stats.totalApprovals).toBeGreaterThanOrEqual(2);
+    expect(stats.approvalRate).toBeGreaterThanOrEqual(0);
+  });
+
+  test('should compute approval trend', async () => {
+    await service.createApproval('A', 'user1', ['manager1'], 1, undefined, { tenantId: 't1' });
+    const trend = await service.getApprovalTrend('t1', new Date(Date.now() - 86400000), new Date());
+    expect(trend.dataPoints.length).toBeGreaterThanOrEqual(1);
+    expect(trend.totalCreated).toBeGreaterThanOrEqual(1);
   });
 });

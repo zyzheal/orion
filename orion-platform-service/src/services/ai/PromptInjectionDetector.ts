@@ -17,7 +17,7 @@
  * - data_exfiltration: 数据泄露尝试（请求导出数据）
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PromptSecurity, ThreatType, PromptThreat, PromptAnalysis } from './PromptSecurity';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

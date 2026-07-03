@@ -23,6 +23,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { TeamRepository, TeamService } from '../services/team';
 import { DatabasePool } from '../services/database';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface CreateTeamBody {
   name: string;
@@ -101,12 +102,7 @@ export default async function teamRoutes(
 
       reply.send({ data: result.teams, total: result.total, limit, offset });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to list teams',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -154,12 +150,7 @@ export default async function teamRoutes(
 
       reply.send({ data: teams });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to get user teams',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -173,22 +164,12 @@ export default async function teamRoutes(
       const team = await teamService.getTeam(params.id, tenantId);
 
       if (!team) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: `Team '${params.id}' not found`,
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       reply.send({ data: team });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to get team',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -224,12 +205,7 @@ export default async function teamRoutes(
       const result = await teamService.deleteTeam(params.id, tenantId);
 
       if (!result.deleted) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: `Team '${params.id}' not found`,
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       const response: { message: string; orphanedChildren?: number } = { message: 'Team deleted' };
@@ -238,12 +214,7 @@ export default async function teamRoutes(
       }
       reply.send({ data: response });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to delete team',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -258,12 +229,7 @@ export default async function teamRoutes(
 
       reply.send({ data: members });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to get team members',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -280,12 +246,7 @@ export default async function teamRoutes(
 
       reply.status(201).send({ data: member });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to add member',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -299,20 +260,12 @@ export default async function teamRoutes(
       const removed = await teamService.removeMember(params.id, params.userId, tenantId);
 
       if (!removed) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: 'Member not found in team',
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       reply.send({ data: { message: 'Member removed' } });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to remove member',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -348,12 +301,7 @@ export default async function teamRoutes(
 
       reply.send({ data: roles });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to get team roles',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -389,20 +337,12 @@ export default async function teamRoutes(
       const removed = await teamService.removeRole(params.id, params.roleName, tenantId);
 
       if (!removed) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: 'Role not assigned to team',
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       reply.send({ data: { message: 'Role removed' } });
     } catch (error) {
-      reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to remove role',
-        timestamp: new Date().toISOString(),
-      });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 }

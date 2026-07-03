@@ -5,7 +5,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ArtifactRegistryServiceImpl } from '../../../services/artifact/ArtifactRegistryService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LArtifact-LController' });
 import {

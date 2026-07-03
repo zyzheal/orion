@@ -12,7 +12,7 @@ import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { CommitStatusService, CommitStatus, GitProvider, StageSummaryItem } from '../services/code-repo/CommitStatusService';
 import { PipelineExecution } from './PipelineEngine';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

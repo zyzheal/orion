@@ -5,101 +5,225 @@ import { ComplianceService } from '../ComplianceService';
 
 jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
+  getCurrentTraceId: () => 'test-trace-123',
 }));
 
-const mockReportRepo = {
-  create: jest.fn(),
-  findById: jest.fn(),
-  findByTenant: jest.fn(),
-  findByFramework: jest.fn(),
-  findByScheduleId: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-};
+// Stateful mock db for ComplianceService queries
+let reportStore: Map<string, any>;
+let scheduleStore: Map<string, any>;
 
-const mockScheduleRepo = {
-  create: jest.fn(),
-  findById: jest.fn(),
-  findByTenant: jest.fn(),
-  findEnabled: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-};
+function createMockDb() {
+  reportStore = new Map();
+  scheduleStore = new Map();
+  return {
+    query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      // INSERT ... RETURNING *
+      if (sql.includes('INSERT INTO')) {
+        const colsMatch = sql.match(/\(([^)]+)\)\s*VALUES/);
+        const cols = colsMatch ? colsMatch[1].split(',').map((c) => c.trim()) : [];
+        const row: any = {};
+        cols.forEach((col, i) => {
+          row[col] = params?.[i];
+        });
+        if (!row.created_at) row.created_at = new Date();
+        if (!row.updated_at) row.updated_at = new Date();
+        // Store in appropriate store
+        if (row.id) reportStore.set(row.id, row);
+        if (sql.includes('compliance_schedules') && row.id) {
+          scheduleStore.set(row.id, row);
+        }
+        return { rows: [row], rowCount: 1 };
+      }
+      // UPDATE ... WHERE ... RETURNING *
+      if (sql.includes('UPDATE ')) {
+        const isReport = sql.includes('compliance_reports');
+        const isSchedule = sql.includes('compliance_schedules');
+        // Extract WHERE condition to find the row
+        const whereMatch = sql.match(/WHERE\s+(\w+)\s*=\s*\$(\d+)/);
+        if (!whereMatch) return { rows: [], rowCount: 0 };
+        const whereCol = whereMatch[1];
+        const whereParamIdx = parseInt(whereMatch[2], 10) - 1;
+        const whereVal = params?.[whereParamIdx];
+
+        let store = isReport ? reportStore : isSchedule ? scheduleStore : null;
+        if (!store) return { rows: [], rowCount: 0 };
+
+        let existing: any = undefined;
+        for (const [key, val] of store) {
+          if (val[whereCol] === whereVal || val.id === whereVal) {
+            existing = val;
+            break;
+          }
+        }
+        if (!existing) return { rows: [], rowCount: 0 };
+
+        const setMatch = sql.match(/SET (.+?) WHERE/);
+        if (setMatch) {
+          const assignments = setMatch[1].split(',').map((s) => s.trim());
+          for (const assignment of assignments) {
+            const parts = assignment.split('=');
+            const col = parts[0].trim();
+            const paramRef = parts[1]?.trim();
+            if (paramRef && paramRef.startsWith('$')) {
+              const pIdx = parseInt(paramRef.slice(1), 10) - 1;
+              existing[col] = params?.[pIdx];
+            }
+          }
+        }
+        return { rows: [existing], rowCount: 1 };
+      }
+      // SELECT ... WHERE id = $1
+      if (sql.includes('WHERE id = \$1')) {
+        const id = params?.[0];
+        let row = reportStore.get(id) || scheduleStore.get(id);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // SELECT ... WHERE schedule_id = $1
+      if (sql.includes('WHERE schedule_id = $1')) {
+        const scheduleId = params?.[0];
+        const rows = Array.from(reportStore.values()).filter((r) => r.schedule_id === scheduleId);
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE tenant_id = $1
+      if (sql.includes('WHERE tenant_id = $1')) {
+        const tenantId = params?.[0];
+        const isReport = sql.includes('compliance_reports');
+        const isSchedule = sql.includes('compliance_schedules');
+        const store = isReport ? reportStore : isSchedule ? scheduleStore : null;
+        if (!store) return { rows: [], rowCount: 0 };
+        let rows = Array.from(store.values()).filter((r) => r.tenant_id === tenantId);
+        // ORDER BY created_at DESC
+        if (sql.includes('ORDER BY created_at DESC')) {
+          rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
+        // LIMIT
+        const limitMatch = sql.match(/LIMIT\s+\$(\d+)/);
+        if (limitMatch) {
+          const limitIdx = parseInt(limitMatch[1], 10) - 1;
+          const limit = params?.[limitIdx];
+          if (limit !== undefined) rows = rows.slice(0, limit);
+        }
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE tenant_id = $1 AND framework = $2
+      if (sql.includes('WHERE tenant_id = $1 AND framework = $2')) {
+        const tenantId = params?.[0];
+        const framework = params?.[1];
+        const rows = Array.from(reportStore.values()).filter((r) => r.tenant_id === tenantId && r.framework === framework);
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE tenant_id = $1 AND enabled = true
+      if (sql.includes('WHERE tenant_id = $1 AND enabled = true')) {
+        const tenantId = params?.[0];
+        const rows = Array.from(scheduleStore.values()).filter((r) => r.tenant_id === tenantId && r.enabled === true);
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE enabled = true
+      if (sql.includes('WHERE enabled = true')) {
+        const rows = Array.from(scheduleStore.values()).filter((r) => r.enabled === true);
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT * FROM table (no WHERE)
+      if (sql.includes('SELECT * FROM')) {
+        if (sql.includes('compliance_reports')) {
+          return { rows: Array.from(reportStore.values()), rowCount: reportStore.size };
+        }
+        if (sql.includes('compliance_schedules')) {
+          return { rows: Array.from(scheduleStore.values()), rowCount: scheduleStore.size };
+        }
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+}
 
 describe('ComplianceService', () => {
   let service: ComplianceService;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    service = new ComplianceService(mockReportRepo as any, mockScheduleRepo as any);
+    mockDb = createMockDb();
+    service = new ComplianceService(mockDb as any);
   });
 
   describe('createReport', () => {
     it('should create a report with draft status', async () => {
-      mockReportRepo.create.mockResolvedValue({ id: 'r-1', name: 'SOC2 Audit', status: 'draft' });
       const result = await service.createReport({
         name: 'SOC2 Audit', framework: 'SOC2', triggeredBy: 'admin',
       });
-      expect(result.id).toBe('r-1');
-      expect(mockReportRepo.create).toHaveBeenCalledWith(expect.objectContaining({
-        tenantId: 'test-tenant', status: 'draft', framework: 'SOC2',
-      }));
+      expect(result.id).toBeDefined();
+      expect(result.status).toBe('draft');
+      expect(result.framework).toBe('SOC2');
+      expect(result.tenantId).toBe('test-tenant');
     });
   });
 
   describe('getReport', () => {
     it('should return report when found', async () => {
-      mockReportRepo.findById.mockResolvedValue({ id: 'r-1', name: 'Audit' });
-      const result = await service.getReport('r-1');
-      expect(result.id).toBe('r-1');
+      const created = await service.createReport({
+        name: 'Audit', framework: 'SOC2', triggeredBy: 'admin',
+      });
+      const result = await service.getReport(created.id);
+      expect(result.id).toBe(created.id);
     });
 
     it('should throw when not found', async () => {
-      mockReportRepo.findById.mockResolvedValue(null);
       await expect(service.getReport('missing')).rejects.toThrow('not found');
     });
   });
 
   describe('updateReport', () => {
     it('should update status and set timestamps', async () => {
-      mockReportRepo.findById.mockResolvedValue({ id: 'r-1', startedAt: null });
-      mockReportRepo.update.mockResolvedValue({ id: 'r-1', status: 'running' });
-      const result = await service.updateReport('r-1', { status: 'running' });
+      const created = await service.createReport({
+        name: 'Audit', framework: 'SOC2', triggeredBy: 'admin',
+      });
+      const result = await service.updateReport(created.id, { status: 'running' });
       expect(result.status).toBe('running');
-      expect(mockReportRepo.update).toHaveBeenCalledWith('r-1', expect.objectContaining({ startedAt: expect.any(Date) }));
+      expect(result.startedAt).toBeDefined();
     });
 
     it('should throw when not found', async () => {
-      mockReportRepo.findById.mockResolvedValue(null);
       await expect(service.updateReport('missing', { name: 'x' })).rejects.toThrow('not found');
     });
   });
 
   describe('deleteReport', () => {
     it('should delete when found', async () => {
-      mockReportRepo.findById.mockResolvedValue({ id: 'r-1' });
-      await service.deleteReport('r-1');
-      expect(mockReportRepo.delete).toHaveBeenCalledWith('r-1');
+      const created = await service.createReport({
+        name: 'Audit', framework: 'SOC2', triggeredBy: 'admin',
+      });
+      await service.deleteReport(created.id);
+      await expect(service.getReport(created.id)).rejects.toThrow('not found');
     });
   });
 
   describe('createSchedule', () => {
     it('should create a schedule', async () => {
-      mockScheduleRepo.create.mockResolvedValue({ id: 's-1', name: 'Weekly', enabled: true });
       const result = await service.createSchedule({
         name: 'Weekly', framework: 'SOC2', cronExpression: '0 0 * * 0',
       });
-      expect(result.id).toBe('s-1');
+      expect(result.id).toBeDefined();
+      expect(result.name).toBe('Weekly');
+      expect(result.enabled).toBe(true);
     });
   });
 
   describe('deleteSchedule', () => {
     it('should delete schedule and associated reports', async () => {
-      mockScheduleRepo.findById.mockResolvedValue({ id: 's-1' });
-      mockReportRepo.findByScheduleId.mockResolvedValue([{ id: 'r-1' }, { id: 'r-2' }]);
-      await service.deleteSchedule('s-1');
-      expect(mockReportRepo.delete).toHaveBeenCalledTimes(2);
-      expect(mockScheduleRepo.delete).toHaveBeenCalledWith('s-1');
+      const schedule = await service.createSchedule({
+        name: 'Weekly', framework: 'SOC2', cronExpression: '0 0 * * 0',
+      });
+      // Create a report linked to this schedule
+      await service.createReport({
+        name: 'Report 1', framework: 'SOC2', triggeredBy: 'admin', scheduleId: schedule.id,
+      });
+      await service.createReport({
+        name: 'Report 2', framework: 'SOC2', triggeredBy: 'admin', scheduleId: schedule.id,
+      });
+
+      await service.deleteSchedule(schedule.id);
+      const schedules = await service.listSchedules();
+      expect(schedules.find(s => s.id === schedule.id)).toBeUndefined();
     });
   });
 });

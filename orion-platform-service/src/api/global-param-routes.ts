@@ -21,7 +21,8 @@ import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { GlobalParamService } from '../services/pipeline/GlobalParamService';
 import { GlobalParamRepository } from '../repositories/GlobalParamRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ConflictError, handleError } from '../errors';
 
 const logger = pino({ name: 'global-param-routes' });
 
@@ -59,7 +60,7 @@ export default async function globalParamRoutes(
     } catch (err: any) {
       logger.error({ err }, 'Failed to create global param');
       if (err.code === 'DUPLICATE_KEY') {
-        return reply.code(409).send({ error: 'CONFLICT', message: err.message });
+        return handleError(reply, new ConflictError('CONFLICT'));
       }
       return internalError(reply, request, err.message);
     }

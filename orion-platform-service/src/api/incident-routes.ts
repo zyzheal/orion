@@ -21,7 +21,7 @@ import { IncidentService, CreateIncidentEnhancedInput, CreatePostmortemInput } f
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 const logger = pino({ name: 'incident-routes' });

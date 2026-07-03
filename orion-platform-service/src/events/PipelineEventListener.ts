@@ -7,7 +7,7 @@
 
 import { EventBusService, TypedEnvelope } from '../services/event-bus-service';
 import { PipelineRunEventData, StageEventData, TaskEventData } from './types';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LPipeline-LEvent-LListener' });
 

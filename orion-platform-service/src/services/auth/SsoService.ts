@@ -25,7 +25,7 @@ import {
   ClientSecretPost,
   type TokenEndpointResponseHelpers,
 } from 'openid-client';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { SsoStateRepository } from '../../repositories/SsoStateRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

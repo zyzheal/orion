@@ -10,6 +10,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { ProblemService } from '../services/problem/ProblemService';
+import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
 export default async function problemRoutes(app: FastifyInstance): Promise<void> {
   const db = (app as any).db;
@@ -57,7 +58,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       });
       return reply.send({ data: result.data, total: result.total });
     } catch (error: any) {
-      return reply.status(500).send({ error: error.code || 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -69,7 +70,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       const stats = await problemService.getStats(tenantId);
       return reply.send({ data: stats });
     } catch (error: any) {
-      return reply.status(500).send({ error: error.code || 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -87,7 +88,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       });
       return reply.send({ data: result.data, total: result.total });
     } catch (error: any) {
-      return reply.status(500).send({ error: error.code || 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -98,12 +99,12 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       const query = request.query as any;
       const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
       if (!query.q) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Search query (q) is required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       const results = await problemService.searchKnownErrors(query.q, tenantId);
       return reply.send({ data: results, total: results.length });
     } catch (error: any) {
-      return reply.status(500).send({ error: error.code || 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -185,7 +186,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       const body = request.body as any;
       const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
       if (!body.status) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Status is required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       const problem = await problemService.updateStatus(id, body.status, tenantId);
       return reply.send({ data: problem });
@@ -205,7 +206,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       const body = request.body as any;
       const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
       if (!body.incidentId) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'incidentId is required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       const problem = await problemService.linkIncident(id, body.incidentId, tenantId);
       return reply.send({ data: problem });
@@ -223,7 +224,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
       const body = request.body as any;
       const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
       if (!body.changeId) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'changeId is required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       const problem = await problemService.linkChange(id, body.changeId, tenantId);
       return reply.send({ data: problem });

@@ -12,7 +12,7 @@ import { MetricsService } from '../services/metrics/MetricsService';
 import { MetricsController } from './controllers/MetricsController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'metrics-routes' });
 

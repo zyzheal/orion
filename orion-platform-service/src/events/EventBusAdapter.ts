@@ -11,7 +11,7 @@
  */
 
 import { EventBusService } from '../services/event-bus-service';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LEvent-LBus-LAdapter' });
 

@@ -9,7 +9,7 @@ import { DatabasePool } from '../services/database';
 import { ChannelConfigRepository, ChannelMessageRepository, ChannelIngressService } from '../services/channel';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -31,7 +31,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // GET /channels - List channel configurations
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const query = request.query as Record<string, string>;
       const result = await ingressService.listChannels({
@@ -48,7 +48,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // POST /channels - Create channel configuration
   app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
       const userId = (request as any).user?.userId;
@@ -61,7 +61,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // GET /channels/:id - Get channel by ID
   app.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const channel = await ingressService.getChannel(request.params.id);
       return reply.send({ success: true, data: channel });
@@ -72,7 +72,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // PUT /channels/:id - Update channel
   app.put<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const channel = await ingressService.updateChannel(request.params.id, request.body as any);
       return reply.send({ success: true, data: channel });
@@ -83,7 +83,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // DELETE /channels/:id - Delete channel
   app.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       await ingressService.deleteChannel(request.params.id);
       return reply.send({ success: true, message: 'Channel deleted' });
@@ -94,7 +94,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // POST /channels/:id/test - Test channel
   app.post<{ Params: { id: string } }>('/:id/test', async (request, reply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const result = await ingressService.testChannel(request.params.id);
       return reply.send({ success: true, data: result });
@@ -105,7 +105,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // POST /webhook/:channelId - External webhook ingress (no auth required)
   app.post<{ Params: { channelId: string } }>('/webhook/:channelId', async (request, reply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const message = await ingressService.processInbound(request.params.channelId, request.body as Record<string, unknown>);
       return reply.status(201).send({ success: true, data: { messageId: message.id, status: message.status } });
@@ -116,7 +116,7 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
 
   // GET /logs - Message logs
   app.get('/logs', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!ingressService) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const query = request.query as Record<string, string>;
       const result = await ingressService.listMessages({

@@ -14,7 +14,7 @@ import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { AlertBreakerRuleRepository, AlertBreakerStateRepository } from '../services/alert-breaker/AlertBreakerRepository';
 import { AlertBreakerService } from '../services/alert-breaker/AlertBreakerService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'alert-breaker-routes' });
 

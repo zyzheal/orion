@@ -195,7 +195,7 @@ export class CircuitBreakerService {
    * Get a circuit breaker by target key. Auto-creates with default config if not found.
    */
   async getOrCreate(targetKey: string, defaults?: CircuitBreakerConfig): Promise<CircuitBreaker> {
-    let entry = this.registry.get(targetKey);
+    const entry = this.registry.get(targetKey);
     if (entry) return entry.breaker;
 
     // Ensure DB availability is confirmed

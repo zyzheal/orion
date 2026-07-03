@@ -1,11 +1,22 @@
 /**
  * Rate Limit Service
  *
- * Manages ChatOps rate limit configurations
+ * Manages ChatOps rate limit configurations and enforcement using
+ * Redis Sorted Set sliding window algorithm.
+ *
+ * Sliding Window Algorithm:
+ * - Key: chatops:ratelimit:{scope}:{id}
+ * - Score: Unix timestamp (seconds)
+ * - Member: unique request ID
+ * - Window: ZREMRANGEBYSCORE + ZCARD + ZADD in pipeline
  */
 
 import { DatabasePool } from '../database';
 import { v4 as uuidv4 } from 'uuid';
+import { RedisCache } from '../redis-cache';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('RateLimitService');
 
 export interface RateLimitConfig {
   id: string;
@@ -44,7 +55,10 @@ export interface UpdateRateLimitInput {
 }
 
 export class RateLimitService {
-  constructor(private pool: DatabasePool) {}
+  constructor(
+    private pool: DatabasePool,
+    private redis?: RedisCache | null,
+  ) {}
 
   async getAll(): Promise<RateLimitConfig[]> {
     const result = await this.pool.query(
@@ -115,9 +129,16 @@ export class RateLimitService {
   }
 
   /**
-   * Check if a command execution exceeds rate limits
+   * Check if a command execution exceeds rate limits using Redis Sorted Set sliding window.
+   *
+   * @param userId - The user executing the command
+   * @param commandName - The command being executed
+   * @returns { allowed, remaining?, resetAt? }
    */
-  async checkLimit(userId: string, commandName: string): Promise<{ allowed: boolean; remaining?: number; resetAt?: Date }> {
+  async checkLimit(
+    userId: string,
+    commandName: string,
+  ): Promise<{ allowed: boolean; remaining?: number; resetAt?: Date }> {
     const limits = await this.pool.query(
       `SELECT * FROM chatops_rate_limits
        WHERE enabled = true
@@ -126,15 +147,88 @@ export class RateLimitService {
          OR (target_type = 'user' AND target_id IS NULL)
          OR (target_type = 'user' AND target_id = $2)
        )`,
-      [commandName, userId]
+      [commandName, userId],
     );
 
     if (limits.rows.length === 0) {
       return { allowed: true };
     }
 
-    // In production, this would check Redis counters
-    // For now, return allowed since we don't have Redis integration
-    return { allowed: true };
+    // Fallback when Redis is not available: allow all but log a warning
+    if (!this.redis || !this.redis.isHealthy()) {
+      logger.warn({ userId, commandName }, 'Rate limit check skipped: Redis not available');
+      return { allowed: true };
+    }
+
+    const now = Date.now();
+    let minResetAt: Date | undefined;
+
+    for (const limit of limits.rows) {
+      const windowSeconds = limit.window_seconds;
+      const limitCount = limit.limit_count;
+      const windowStart = now - windowSeconds * 1000;
+
+      // Scope key: per-user+command or per-user
+      const scopeKey = limit.target_type === 'command'
+        ? `chatops:ratelimit:user:${userId}:command:${commandName}`
+        : `chatops:ratelimit:user:${userId}`;
+
+      const client = this.redis.getClient();
+      if (!client) {
+        logger.warn({ scopeKey }, 'Rate limit Redis client unavailable');
+        continue;
+      }
+
+      // Sliding window: remove expired entries, then count current window
+      // Pipeline: ZREMRANGEBYSCORE -> ZCARD -> ZADD -> ZEXPIRE
+      const pipeline = client.pipeline();
+      pipeline.zremrangebyscore(scopeKey, 0, windowStart);
+      pipeline.zcard(scopeKey);
+      pipeline.zadd(scopeKey, now, `${now}:${uuidv4()}`);
+      pipeline.expire(scopeKey, windowSeconds + 1);
+
+      const results = await pipeline.exec() as [Error, number][];
+
+      const count = results[1][1] as number;
+
+      if (count >= limitCount) {
+        // Calculate reset time: score of the oldest entry in window + windowSeconds
+        const oldest = await client.zrangebyscore(
+          scopeKey,
+          windowStart,
+          now,
+          'LIMIT',
+          0,
+          1,
+        );
+
+        const resetAt = oldest.length > 0
+          ? new Date(parseInt(oldest[0].split(':')[0]) + windowSeconds * 1000)
+          : new Date(now + windowSeconds * 1000);
+
+        logger.warn(
+          { userId, commandName, limitType: limit.limit_type, count, limitCount, resetAt },
+          'Rate limit exceeded',
+        );
+
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt,
+        };
+      }
+
+      // Track the earliest reset across all matching limits
+      if (!minResetAt || resetAt < minResetAt) {
+        minResetAt = resetAt;
+      }
+    }
+
+    const remaining = limits.rows[0] ? limits.rows[0].limit_count : 0;
+    return {
+      allowed: true,
+      remaining,
+      resetAt: minResetAt,
+    };
   }
 }

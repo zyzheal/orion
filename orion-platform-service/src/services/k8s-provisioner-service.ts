@@ -6,7 +6,7 @@
  * MVP: 模拟实现，返回模拟结果。实际实现需要 @kubernetes/client-node
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EphemeralEnvironment, EphemeralService } from '../models/EphemeralEnvironment';
 import { K8sNamespaceRepository } from '../repositories/K8sProvisionerRepository';
 

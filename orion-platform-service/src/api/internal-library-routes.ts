@@ -16,6 +16,7 @@ import {
 } from '../models/InternalLibrary';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 interface InternalLibraryRoutesOptions {
   database?: DatabasePool;
@@ -39,7 +40,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
       const library = await libraryService.create(input);
       reply.status(201).send(library);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -65,7 +66,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const { id } = request.params as { id: string };
     const library = await libraryService.getById(id);
     if (!library) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
@@ -81,7 +82,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const { name } = request.params as { name: string };
     const library = await libraryService.getByName(name);
     if (!library) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
@@ -121,7 +122,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const { id } = request.params as { id: string };
     const deleted = await libraryService.delete(id);
     if (!deleted) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.status(204).send();
@@ -152,7 +153,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
       const version = await libraryService.publishVersion(input);
       reply.status(201).send(version);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -178,7 +179,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const { id, version } = request.params as { id: string; version: string };
     const versionInfo = await libraryService.getVersion(id, version);
     if (!versionInfo) {
-      reply.status(404).send({ error: 'Version not found' });
+handleError(reply, new NotFoundError('Version not found'));
       return;
     }
     reply.send(versionInfo);
@@ -195,7 +196,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const body = request.body as any;
     const result = await libraryService.deprecateVersion(id, version, body.reason, new Date(body.eolDate), body.migrationGuide);
     if (!result) {
-      reply.status(404).send({ error: 'Version not found' });
+handleError(reply, new NotFoundError('Version not found'));
       return;
     }
     reply.send(result);
@@ -222,12 +223,12 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
       };
       const library = await libraryService.deprecate(input);
       if (!library) {
-        reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
         return;
       }
       reply.send(library);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -241,7 +242,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const { id } = request.params as { id: string };
     const library = await libraryService.activate(id);
     if (!library) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
@@ -274,7 +275,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
       const dependent = await libraryService.addDependent(id, body.repoName, body.teamName, body.version);
       reply.status(201).send(dependent);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -289,7 +290,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
     const body = request.body as any;
     const success = await libraryService.updateDependentVersion(id, repoName, body.version);
     if (!success) {
-      reply.status(404).send({ error: 'Dependent not found' });
+handleError(reply, new NotFoundError('Dependent not found'));
       return;
     }
     reply.send({ success: true });

@@ -5,11 +5,11 @@
  * and ML-based pattern matching
  */
 
-import pino from 'pino';
 import { KnowledgeBasePatternRepository, KnowledgeBasePatternEntity } from '../../repositories/KnowledgeBasePatternRepository';
 import { DatabasePool } from '../../services/database';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('knowledge-base-service');
 
 export interface IncidentPattern {
   id: string;
@@ -500,7 +500,7 @@ export class KnowledgeBaseService {
    * Internal query implementation against in-memory patterns
    */
   private queryFromPatterns(patterns: IncidentPattern[], query: KBQuery): KBRecommendation[] {
-    let candidates: Map<string, number> = new Map();
+    const candidates: Map<string, number> = new Map();
 
     // Search by keywords
     if (query.keywords?.length) {

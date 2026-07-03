@@ -20,6 +20,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { CacheStrategyService } from '../services/cache/CacheStrategyService';
+import { ValidationError, NotFoundError, ServiceUnavailableError, handleError } from '../errors';
 
 interface CacheRoutesOptions {
   cacheService?: CacheStrategyService;
@@ -38,7 +39,7 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'read' })] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const stats = cache.getStats();
@@ -54,14 +55,12 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.entries || !Array.isArray(body.entries)) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'entries array is required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       await cache.warmup(body.entries);
@@ -81,23 +80,19 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.keys || !Array.isArray(body.keys)) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'keys array is required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       // Loader function is passed as a URL to call for each key
       // For API simplicity, this endpoint expects the caller to provide values
       // A more advanced version would accept a loader URL
       if (!body.values || typeof body.values !== 'object') {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'values map is required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       const entries = body.keys.map((key: string) => ({
@@ -123,14 +118,12 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.keys || !Array.isArray(body.keys)) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'keys array is required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       await cache.invalidateKeys(body.keys);
@@ -150,14 +143,12 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.pattern) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'pattern is required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       await cache.invalidateByPattern(body.pattern);
@@ -176,7 +167,7 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'read' })] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const l1 = cache.getL1Cache();
@@ -209,7 +200,7 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'write' })] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const l1 = cache.getL1Cache();
@@ -230,18 +221,14 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const { key } = request.params as { key: string };
       const value = await cache.get(key);
 
       if (value === undefined) {
-        return reply.code(404).send({
-          success: false,
-          error: 'CACHE_MISS',
-          message: `Key "${key}" not found in cache`,
-        });
+        return handleError(reply, new NotFoundError('CACHE_MISS'))
       }
 
       return reply.send({ success: true, data: { key, value } });
@@ -255,7 +242,7 @@ export default async function cacheRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'cache', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!cache) {
-        return reply.code(503).send({ success: false, error: 'Cache service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Cache service not initialized'));
       }
 
       const { key } = request.params as { key: string };

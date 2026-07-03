@@ -1,7 +1,7 @@
 import { FormRepository, FormDefinition, FormFieldDefinition, FormInstance, CreateFormDefinitionInput, CreateFormFieldInput, CreateFormInstanceInput } from './FormRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

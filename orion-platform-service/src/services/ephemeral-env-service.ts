@@ -9,7 +9,7 @@
  * - 计算环境使用成本
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   EphemeralEnvironment,
   EphemeralEnvCreateInput,

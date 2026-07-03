@@ -50,7 +50,7 @@ import { EscalationScheduler } from '../EscalationScheduler';
 import { EventBusService } from '../../event-bus-service';
 
 // Re-import the mock to access it in tests
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 // ============================================================================
 // Helper types

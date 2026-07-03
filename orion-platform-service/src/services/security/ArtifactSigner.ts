@@ -3,6 +3,9 @@
  */
 
 import { createHash, createSign, createVerify } from 'crypto';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('artifact-signer');
 
 export class ArtifactSigner {
   /**
@@ -13,11 +16,14 @@ export class ArtifactSigner {
     privateKey: string,
     signedBy: string,
   ): Promise<{ signature: string; signatureType: string; signedAt: string }> {
+    logger.info({ artifactId, signedBy }, '[ArtifactSigner] Signing artifact');
     const hash = this.generateHash(artifactId);
     const signer = createSign('sha256');
     signer.update(hash);
     signer.end();
     const signature = signer.sign(privateKey, 'base64');
+
+    logger.info({ artifactId, signatureType: 'sha256' }, '[ArtifactSigner] Artifact signed successfully');
 
     return {
       signature,
@@ -39,8 +45,11 @@ export class ArtifactSigner {
       const verifier = createVerify('sha256');
       verifier.update(hash);
       verifier.end();
-      return verifier.verify(publicKey, signature, 'base64');
+      const result = verifier.verify(publicKey, signature, 'base64');
+      logger.info({ artifactId, verified: result }, '[ArtifactSigner] Signature verification completed');
+      return result;
     } catch {
+      logger.warn({ artifactId }, '[ArtifactSigner] Signature verification failed');
       return false;
     }
   }

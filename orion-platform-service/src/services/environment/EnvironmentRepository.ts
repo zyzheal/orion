@@ -20,6 +20,7 @@ export interface Environment {
   locked?: boolean;
   locked_by?: string;
   locked_at?: Date;
+  locked_expires_at?: Date;
   locked_reason?: string;
   created_at?: Date;
   updated_at?: Date;
@@ -158,14 +159,21 @@ export class EnvironmentRepository {
 
   /**
    * Lock an environment to prevent deployments.
+   * Automatically sets lock expiration based on locked_duration_seconds.
    */
-  async lock(id: string, lockedBy: string, reason: string): Promise<Environment | null> {
+  async lock(id: string, lockedBy: string, reason: string, tenantId?: string): Promise<Environment | null> {
     const result = await this.pool.query(
       `UPDATE environments
-       SET locked = TRUE, locked_by = $2, locked_at = NOW(), locked_reason = $3, updated_at = NOW()
+       SET locked = TRUE,
+           locked_by = $2,
+           locked_at = NOW(),
+           locked_expires_at = NOW() + (COALESCE(locked_duration_seconds, 3600) || ' seconds')::INTERVAL,
+           locked_reason = $3,
+           updated_at = NOW()
        WHERE id = $1
+       ${tenantId ? 'AND tenant_id = $4' : ''}
        RETURNING *`,
-      [id, lockedBy, reason]
+      tenantId ? [id, lockedBy, reason, tenantId] : [id, lockedBy, reason]
     );
     return result.rows[0] || null;
   }
@@ -173,15 +181,80 @@ export class EnvironmentRepository {
   /**
    * Unlock an environment to allow deployments.
    */
-  async unlock(id: string): Promise<Environment | null> {
+  async unlock(id: string, tenantId?: string): Promise<Environment | null> {
     const result = await this.pool.query(
       `UPDATE environments
-       SET locked = FALSE, locked_by = NULL, locked_at = NULL, locked_reason = NULL, updated_at = NOW()
+       SET locked = FALSE,
+           locked_by = NULL,
+           locked_at = NULL,
+           locked_expires_at = NULL,
+           locked_reason = NULL,
+           updated_at = NOW()
        WHERE id = $1
+       ${tenantId ? 'AND tenant_id = $2' : ''}
        RETURNING *`,
-      [id]
+      tenantId ? [id, tenantId] : [id]
     );
     return result.rows[0] || null;
+  }
+
+  /**
+   * Force unlock an environment (admin operation).
+   * Bypasses normal lock state and clears all lock fields regardless of who locked it.
+   */
+  async forceUnlock(id: string, tenantId?: string): Promise<Environment | null> {
+    const result = await this.pool.query(
+      `UPDATE environments
+       SET locked = FALSE,
+           locked_by = NULL,
+           locked_at = NULL,
+           locked_expires_at = NULL,
+           locked_reason = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+       ${tenantId ? 'AND tenant_id = $2' : ''}
+       RETURNING *`,
+      tenantId ? [id, tenantId] : [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Cleanup expired locks across environments.
+   * Returns the number of locks that were cleaned up.
+   */
+  async cleanupExpiredLocks(tenantId?: string): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE environments
+       SET locked = FALSE,
+           locked_by = NULL,
+           locked_at = NULL,
+           locked_expires_at = NULL,
+           locked_reason = NULL,
+           updated_at = NOW()
+       WHERE locked = TRUE
+         AND locked_expires_at IS NOT NULL
+         AND locked_expires_at <= NOW()
+         ${tenantId ? 'AND tenant_id = $1' : ''}
+       RETURNING id`,
+      tenantId ? [tenantId] : []
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Count expired locks for a given tenant.
+   */
+  async countExpiredLocks(tenantId?: string): Promise<number> {
+    const result = await this.pool.query(
+      `SELECT COUNT(*) as count FROM environments
+       WHERE locked = TRUE
+         AND locked_expires_at IS NOT NULL
+         AND locked_expires_at <= NOW()
+         ${tenantId ? 'AND tenant_id = $1' : ''}`,
+      tenantId ? [tenantId] : []
+    );
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   /**
@@ -201,6 +274,7 @@ export class EnvironmentRepository {
       locked: entity.locked,
       locked_by: entity.locked_by,
       locked_at: entity.locked_at,
+      locked_expires_at: entity.locked_expires_at,
       locked_reason: entity.locked_reason,
       created_at: entity.created_at,
       updated_at: entity.updated_at,

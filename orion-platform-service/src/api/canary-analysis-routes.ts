@@ -20,7 +20,7 @@ import { CanaryAnalysisController } from './controllers/CanaryAnalysisController
 import { EventBusService } from '../services/event-bus-service';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'canary-analysis-routes' });
 

@@ -213,9 +213,10 @@ describe('PipelineTriggerService - Persistence', () => {
       mockDb.query.mockResolvedValue({ rowCount: 1 });
       await service.deleteTrigger(created.id);
 
+      // BaseRepository.delete() adds tenant_id filter automatically
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM pipeline_triggers'),
-        [created.id],
+        expect.arrayContaining([created.id, expect.any(String)]),
       );
 
       const found = await service.getTrigger(created.id);

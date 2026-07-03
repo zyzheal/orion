@@ -20,7 +20,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { success, created, noContent, badRequest, notFound, internalError, conflict, serviceUnavailable, unauthorized, forbidden } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'tenant-routes' });
 

@@ -8,6 +8,7 @@ import { MultiLevelApprovalService, ApprovalAction, ApprovalMode, ApprovalReques
 import { EmergencyApprovalService, EmergencyReason, EmergencyApprovalInput } from '../../services/approval/EmergencyApprovalService';
 import { ApprovalTemplateService, ApprovalTemplateInput } from '../../services/approval/ApprovalTemplateService';
 import { ApprovalGateService } from '../../services/pipeline/ApprovalGateService';
+import { ApprovalService } from '../../services/approval/ApprovalService';
 
 // ==================== Request/Response Types ====================
 
@@ -75,17 +76,20 @@ export class ApprovalController {
   private emergencyService: EmergencyApprovalService;
   private templateService: ApprovalTemplateService;
   private approvalGateService: ApprovalGateService | null;
+  private approvalService: ApprovalService;
 
   constructor(
     multiLevelService: MultiLevelApprovalService,
     emergencyService: EmergencyApprovalService,
     templateService: ApprovalTemplateService,
     approvalGateService?: ApprovalGateService,
+    approvalService?: ApprovalService,
   ) {
     this.multiLevelService = multiLevelService;
     this.emergencyService = emergencyService;
     this.templateService = templateService;
     this.approvalGateService = approvalGateService || null;
+    this.approvalService = approvalService || new ApprovalService({ query: async () => ({ rows: [], rowCount: 0 }) });
   }
 
   // ==================== Multi-Level Approval ====================
@@ -436,6 +440,177 @@ export class ApprovalController {
         return reply.status(400).send({ error: 'REJECT_ERROR', message });
       }
       return reply.status(500).send({ error: 'REJECT_ERROR', message });
+    }
+  }
+
+  // ==================== Withdraw / Cancel / Delegate / Statistics / Trend ====================
+
+  /**
+   * 撤回审批
+   * POST /api/v1/approvals/requests/:id/withdraw
+   */
+  async withdrawApproval(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as { userId: string; reason?: string };
+      const { userId, reason } = body;
+
+      if (!userId) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'userId is required' });
+      }
+
+      const result = await this.approvalService.withdrawApproval(id, userId, reason);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'WITHDRAW_ERROR';
+      if (message.includes('not found') || message.includes('Cannot withdraw')) {
+        return reply.status(400).send({ error: 'WITHDRAW_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'WITHDRAW_ERROR', message });
+    }
+  }
+
+  /**
+   * 取消审批
+   * POST /api/v1/approvals/requests/:id/cancel
+   */
+  async cancelApproval(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as { userId: string; reason?: string };
+      const { userId, reason } = body;
+
+      if (!userId) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'userId is required' });
+      }
+
+      const result = await this.approvalService.cancelApproval(id, userId, reason);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'CANCEL_ERROR';
+      if (message.includes('not found') || message.includes('Cannot cancel') || message.includes('Only the requester')) {
+        return reply.status(400).send({ error: 'CANCEL_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'CANCEL_ERROR', message });
+    }
+  }
+
+  /**
+   * 委托审批
+   * POST /api/v1/approvals/requests/:id/delegate
+   */
+  async delegateApproval(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as { fromUserId: string; toUserId: string; reason?: string };
+      const { fromUserId, toUserId, reason } = body;
+
+      if (!fromUserId || !toUserId) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'fromUserId and toUserId are required' });
+      }
+
+      const result = await this.approvalService.delegateApproval(id, fromUserId, toUserId, reason);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'DELEGATE_ERROR';
+      if (message.includes('not found') || message.includes('Cannot delegate')) {
+        return reply.status(400).send({ error: 'DELEGATE_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'DELEGATE_ERROR', message });
+    }
+  }
+
+  /**
+   * 重新分配审批人
+   * POST /api/v1/approvals/requests/:id/reassign
+   */
+  async reassignApproval(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as { fromUserId: string; toUserId: string; reason?: string };
+      const { fromUserId, toUserId, reason } = body;
+
+      if (!fromUserId || !toUserId) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'fromUserId and toUserId are required' });
+      }
+
+      const result = await this.approvalService.reassignApproval(id, fromUserId, toUserId, reason);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'REASSIGN_ERROR';
+      if (message.includes('not found') || message.includes('Cannot reassign') || message.includes('Only the requester')) {
+        return reply.status(400).send({ error: 'REASSIGN_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'REASSIGN_ERROR', message });
+    }
+  }
+
+  /**
+   * 我的待审批列表
+   * GET /api/v1/approvals/my-pending
+   */
+  async getMyPendingApprovals(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as { tenantId?: string };
+      const authRequest = request as FastifyRequestWithAuth;
+      const userId = authRequest.userId;
+      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+
+      if (!userId) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'userId is required' });
+      }
+
+      const pending = await this.approvalService.listPending(tenantId);
+      // Filter to only approvals where this user is an approver and step is pending
+      const myPending = pending.filter(approval => {
+        return approval.approverIds.includes(userId) && approval.status === 'pending';
+      });
+      return reply.status(200).send({ success: true, data: myPending });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'MY_PENDING_ERROR';
+      return reply.status(500).send({ error: 'MY_PENDING_ERROR', message });
+    }
+  }
+
+  /**
+   * 审批统计
+   * GET /api/v1/approvals/statistics
+   */
+  async getApprovalStatistics(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as { tenantId?: string; startDate?: string; endDate?: string };
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+
+      const periodStart = query.startDate ? new Date(query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const periodEnd = query.endDate ? new Date(query.endDate) : new Date();
+
+      const stats = await this.approvalService.getApprovalStatistics(tenantId, periodStart, periodEnd);
+      return reply.status(200).send({ success: true, data: stats });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'STATISTICS_ERROR';
+      return reply.status(500).send({ error: 'STATISTICS_ERROR', message });
+    }
+  }
+
+  /**
+   * 审批趋势
+   * GET /api/v1/approvals/trend
+   */
+  async getApprovalTrend(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as { tenantId?: string; startDate?: string; endDate?: string };
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+
+      const periodStart = query.startDate ? new Date(query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const periodEnd = query.endDate ? new Date(query.endDate) : new Date();
+
+      const trend = await this.approvalService.getApprovalTrend(tenantId, periodStart, periodEnd);
+      return reply.status(200).send({ success: true, data: trend });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'TREND_ERROR';
+      return reply.status(500).send({ error: 'TREND_ERROR', message });
     }
   }
 

@@ -26,7 +26,8 @@ import { PipelineBatchRepository } from '../services/pipeline/PipelineBatchRepos
 import { PipelineBatchService } from '../services/pipeline/PipelineBatchService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ConflictError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'pipeline-batch-routes' });
 
@@ -92,7 +93,7 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         logger.error({ error: err.message }, 'Failed to list phase groups');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -111,10 +112,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         if ((error as { code?: string }).code === 'NOT_FOUND') {
-          return reply.code(404).send({ error: err.message });
+          return handleError(reply, new NotFoundError(err.message));
         }
         logger.error({ error: err.message }, 'Failed to get phase group');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -139,11 +140,11 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
-        if (code === 'VALIDATION_ERROR') return reply.code(400).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
+return handleError(reply, new ValidationError(err.message));
         logger.error({ error: err.message }, 'Failed to update phase group');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -162,10 +163,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to delete phase group');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -184,11 +185,11 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
-        if (code === 'VALIDATION_ERROR') return reply.code(400).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
+return handleError(reply, new ValidationError(err.message));
         logger.error({ error: err.message }, 'Failed to start execution');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -207,10 +208,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to pause execution');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -229,10 +230,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to resume execution');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -251,10 +252,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to advance to next batch');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -273,10 +274,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to rollback execution');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -295,7 +296,7 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         logger.error({ error: err.message }, 'Failed to list batch runs');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -315,10 +316,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'VALIDATION_ERROR') return reply.code(400).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ValidationError(err.message));
         logger.error({ error: err.message }, 'Failed to complete batch');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -338,10 +339,10 @@ export default async function pipelineBatchRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'VALIDATION_ERROR') return reply.code(400).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ValidationError(err.message));
         logger.error({ error: err.message }, 'Failed to fail batch');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );

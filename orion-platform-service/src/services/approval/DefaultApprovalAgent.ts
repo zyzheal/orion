@@ -12,7 +12,7 @@
  * - 安全约束：生产环境永不自动批准高风险操作
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
 import {

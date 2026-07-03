@@ -9,7 +9,7 @@ import { DatabasePool } from '../database';
 import { EscalationConfigService, EscalationPolicy } from './EscalationConfigService';
 import { TicketingRepository } from '../ticketing/TicketingRepository';
 import { EventBusService } from '../event-bus-service';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -285,7 +285,7 @@ export class EscalationScheduler {
 /**
  * Factory function for creating an EscalationScheduler with proper dependencies.
  */
-let _instance: EscalationScheduler | null = null;
+const _instance: EscalationScheduler | null = null;
 
 export function createEscalationScheduler(
   database?: DatabasePool,

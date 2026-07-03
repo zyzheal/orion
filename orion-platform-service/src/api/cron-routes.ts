@@ -12,6 +12,7 @@ import { DatabasePool } from '../services/database';
 import { CronSchedulerService, CronJobExecution } from '../services/scheduler/CronSchedulerService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface CronRoutesOptions {
   database?: DatabasePool;
@@ -33,7 +34,7 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
 
     // 验证必填字段
     if (!job.id || !job.name || !job.schedule || !job.task) {
-      reply.code(400).send({ error: 'Missing required fields: id, name, schedule, task' });
+handleError(reply, new ValidationError('Missing required fields: id, name, schedule, task'));
       return;
     }
 
@@ -66,7 +67,7 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
     const job = cronSchedulerService.getJob(id);
 
     if (!job) {
-      reply.code(404).send({ error: 'Cron job not found' });
+handleError(reply, new NotFoundError('Cron job not found'));
       return;
     }
 
@@ -85,7 +86,7 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
 
     const job = cronSchedulerService.getJob(id);
     if (!job) {
-      reply.code(404).send({ error: 'Cron job not found' });
+handleError(reply, new NotFoundError('Cron job not found'));
       return;
     }
 
@@ -155,10 +156,7 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
         data: execution
       });
     } catch (error) {
-      reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      });
+handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -188,7 +186,7 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
     const execution = executions.find((exec: CronJobExecution) => exec.executionId === executionId);
 
     if (!execution) {
-      reply.code(404).send({ error: 'Execution not found' });
+handleError(reply, new NotFoundError('Execution not found'));
       return;
     }
 

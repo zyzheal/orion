@@ -22,6 +22,7 @@ import { AuditRepository } from '../services/audit/AuditRepository';
 import { AuditService } from '../services/audit/AuditService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 interface AuditRoutesOptions {
   database?: DatabasePool;
@@ -98,14 +99,11 @@ export default async function auditRoutes(
   const service = repository ? new AuditService(repository) : undefined;
 
   // Error handler
-  function handleError(error: any, reply: FastifyReply, context: string) {
+  function handleRouteError(error: any, reply: FastifyReply, context: string) {
     if (error?.code === 'NOT_FOUND') {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: error.message });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
-    return reply.status(500).send({
-      error: context,
-      message: error?.message || 'Internal server error',
-    });
+    return handleError(reply, new OrionError(context, ErrorCode.INTERNAL_ERROR));
   }
 
   // ==================== Audit Log CRUD ====================
@@ -114,7 +112,7 @@ export default async function auditRoutes(
   app.get('/logs', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as Record<string, any>;
     const page = parseInt(query.page, 10) || 1;
@@ -147,7 +145,7 @@ export default async function auditRoutes(
   app.get('/logs/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const params = request.params as { id: string };
 
@@ -163,7 +161,7 @@ export default async function auditRoutes(
   app.post('/logs', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as AuditLogCreateBody;
 
@@ -180,7 +178,7 @@ export default async function auditRoutes(
   app.get('/logs/:id/verify', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const params = request.params as { id: string };
 
@@ -202,7 +200,7 @@ export default async function auditRoutes(
   app.post('/verify', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as { tenantId?: string } | undefined;
     const tenantId = body?.tenantId || 'default';
@@ -233,7 +231,7 @@ export default async function auditRoutes(
   app.get('/actions', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -250,7 +248,7 @@ export default async function auditRoutes(
   app.get('/resource-types', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -270,7 +268,7 @@ export default async function auditRoutes(
   app.get('/chain/info', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -297,7 +295,7 @@ export default async function auditRoutes(
   app.get('/storage/stats', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -337,7 +335,7 @@ export default async function auditRoutes(
   app.get('/chain/latest', {
     onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
     const tenantId = query.tenantId || 'default';
@@ -345,7 +343,7 @@ export default async function auditRoutes(
     try {
       const result = await service.listAuditLogs({ page: 1, limit: 1, tenantId });
       if (result.data.length === 0) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'No audit logs found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.send(toAuditLogEntry(result.data[0]));
     } catch (error: any) {

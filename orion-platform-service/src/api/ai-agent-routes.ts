@@ -6,7 +6,10 @@
 
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { BaseAgent } from '../services/ai-agents/base/BaseAgent';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 const logger = pino({ name: 'ai-agent-routes' });
 
@@ -31,7 +34,9 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
   const prefix = '/ai-agents';
 
   // 获取所有 Agent 列表
-  app.get(`${prefix}/list`, async (request, reply) => {
+  app.get(`${prefix}/list`, {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-agent', action: 'read' })],
+  }, async (request, reply) => {
     const agents = Array.from(agentRegistry.entries()).map(([id, agent]) => ({
       id,
       config: agent.getConfig(),
@@ -42,11 +47,13 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
   });
 
   // 获取单个 Agent 详情
-  app.get(`${prefix}/:id`, async (request, reply) => {
+  app.get(`${prefix}/:id`, {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-agent', action: 'read' })],
+  }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const agent = agentRegistry.get(id);
     if (!agent) {
-      return reply.code(404).send({ success: false, error: 'Agent not found' });
+      return handleError(reply, new NotFoundError('Agent not found'));
     }
 
     return {
@@ -60,11 +67,13 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
   });
 
   // 获取 Agent 审计日志
-  app.get(`${prefix}/:id/audit-logs`, async (request, reply) => {
+  app.get(`${prefix}/:id/audit-logs`, {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-agent', action: 'read' })],
+  }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const agent = agentRegistry.get(id);
     if (!agent) {
-      return reply.code(404).send({ success: false, error: 'Agent not found' });
+      return handleError(reply, new NotFoundError('Agent not found'));
     }
 
     const limit = parseInt((request.query as any)?.limit || '100', 10);
@@ -74,11 +83,13 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
   });
 
   // 执行 Agent
-  app.post(`${prefix}/:id/execute`, async (request, reply) => {
+  app.post(`${prefix}/:id/execute`, {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-agent', action: 'execute' })],
+  }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const agent = agentRegistry.get(id);
     if (!agent) {
-      return reply.code(404).send({ success: false, error: 'Agent not found' });
+      return handleError(reply, new NotFoundError('Agent not found'));
     }
 
     const input = request.body as Record<string, any>;
@@ -87,10 +98,7 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
       return { success: true, data: result };
     } catch (error) {
       logger.error({ agentId: id, error }, 'Agent execution failed');
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
     }
   });
 

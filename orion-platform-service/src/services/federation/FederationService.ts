@@ -5,7 +5,7 @@
  * health monitoring, and job dispatch across clusters.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   ExecutorRepository,
   ExecutorEntity,

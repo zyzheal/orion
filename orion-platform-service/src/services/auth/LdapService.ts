@@ -17,7 +17,7 @@
 // ldapjs is not installed - stubbed for development
 const ldap = {} as any;
 type Client = any;
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import crypto from 'crypto';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

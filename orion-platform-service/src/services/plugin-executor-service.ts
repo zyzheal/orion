@@ -14,7 +14,7 @@
  * - 审计日志
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { spawn } from 'child_process';
 import { EventBusService } from './event-bus-service';
 import { PluginManagerService, PluginInfo, SecurityLevel } from './plugin-manager-service';

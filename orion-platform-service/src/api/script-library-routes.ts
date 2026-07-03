@@ -17,7 +17,7 @@ import { ScriptVersionRepository } from '../services/script-library/ScriptVersio
 import { ScriptParameterRepository } from '../services/script-library/ScriptParameterRepository';
 import { ScriptExecutionRepository } from '../services/script-library/ScriptExecutionRepository';
 import { ScriptLibraryService } from '../services/script-library/ScriptLibraryService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'script-library-routes' });
 

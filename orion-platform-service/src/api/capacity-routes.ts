@@ -8,6 +8,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { CapacityService } from '../services/capacity/CapacityService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface CapacityRoutesOptions {
   database?: DatabasePool;
@@ -70,7 +71,7 @@ export default async function capacityRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const deleted = await capacityService.deleteAlert(params.id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Alert not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Alert deleted' });
   });
 
@@ -97,7 +98,7 @@ export default async function capacityRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const report = await capacityService.getReport(params.id);
-    if (!report) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Report not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: report });
   });
 

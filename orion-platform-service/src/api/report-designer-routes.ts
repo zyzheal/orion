@@ -23,7 +23,7 @@ import { ReportDefinitionRepository } from '../services/report-designer/ReportDe
 import { ReportDatasourceRepository } from '../services/report-designer/ReportDatasourceRepository';
 import { ReportScheduleRepository } from '../services/report-designer/ReportScheduleRepository';
 import { ReportExecutionRepository } from '../services/report-designer/ReportExecutionRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'report-designer-routes' });
 
@@ -82,7 +82,7 @@ export default async function reportDesignerRoutes(
       const userId = getUserId(request);
 
       if (!body.name) {
-        return reply.status(400).send({ success: false, error: 'name is required' });
+        return handleError(reply, new ValidationError('name is required'));
       }
 
       const report = await service.createReport({
@@ -123,10 +123,7 @@ export default async function reportDesignerRoutes(
       const body = request.body as Record<string, any>;
 
       if (!body.name || !body.datasourceType || !body.config) {
-        return reply.status(400).send({
-          success: false,
-          error: 'name, datasourceType, and config are required',
-        });
+        return handleError(reply, new ValidationError('name, datasourceType, and config are required'))
       }
 
       const datasource = await service.createDatasource({
@@ -307,10 +304,7 @@ export default async function reportDesignerRoutes(
       const body = request.body as Record<string, any>;
 
       if (!body.cronExpression || !body.exportFormat) {
-        return reply.status(400).send({
-          success: false,
-          error: 'cronExpression and exportFormat are required',
-        });
+        return handleError(reply, new ValidationError('cronExpression and exportFormat are required'))
       }
 
       const schedule = await service.createSchedule({

@@ -7,6 +7,11 @@
  * - T-3.8.2: 集成 TokenBlacklistService
  * - T-3.8.4: 单点登出（广播 OrionBus 事件）
  * - T-3.8.7: 登录时检查用户状态（禁止 terminated 用户登录）
+ *
+ * Phase 2.19 改造：
+ * - 登录时提取 tenant_id（请求头 X-Tenant-ID / 用户绑定租户）
+ * - JWT token 中包含 tenant_id 信息
+ * - tenant_id 传递给后续业务服务
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -18,7 +23,7 @@ import { DatabasePool } from '../services/database';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { EventBusService } from '../services/event-bus-service';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -51,6 +56,29 @@ async function verifyPassword(storedPassword: string, suppliedPassword: string):
   return timingSafeEqual(keyBuffer, suppliedHash);
 }
 
+/**
+ * 从请求中提取租户 ID
+ * 优先顺序：请求头 X-Tenant-ID > JWT payload > 无
+ */
+function extractTenantIdFromHeader(request: FastifyRequest): string | undefined {
+  const tenantHeader = request.headers['x-tenant-id'];
+  return tenantHeader ? (Array.isArray(tenantHeader) ? tenantHeader[0] : tenantHeader) : undefined;
+}
+
+/**
+ * 查询用户绑定的租户列表
+ */
+async function findUserTenants(
+  dbQuery: (sql: string, params?: any[]) => Promise<any>,
+  userId: string,
+): Promise<string[]> {
+  const result = await dbQuery(
+    'SELECT tenant_id FROM tenant_users WHERE user_id = $1',
+    [userId],
+  );
+  return result?.rows?.map((r: any) => r.tenant_id) || [];
+}
+
 export default async function authRoutes(app: FastifyInstance, options: AuthRouteOptions = {}): Promise<void> {
   const database = options.database;
   const tokenBlacklist = options.tokenBlacklist;
@@ -69,6 +97,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
   /**
    * POST /api/v1/auth/register - 用户注册
+   *
+   * Phase 2.19: 注册时如果提供了 X-Tenant-ID，自动绑定用户到该租户
    */
   app.post('/register', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
@@ -108,8 +138,23 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     await dbQuery(
       'INSERT INTO users (id, username, password_hash, email, role, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-      [userId, username, hashedPassword, email || null, 'user']
+      [userId, username, hashedPassword, email || null, 'user'],
     );
+
+    // Phase 2.19: 如果提供了 X-Tenant-ID，自动绑定用户到该租户
+    const tenantId = extractTenantIdFromHeader(request);
+    if (tenantId) {
+      const tenantCheck = await dbQuery('SELECT id FROM tenants WHERE id = $1', [tenantId]);
+      if (tenantCheck?.rows?.length) {
+        await dbQuery(
+          'INSERT INTO tenant_users (tenant_id, user_id, role) VALUES ($1, $2, $3)',
+          [tenantId, userId, 'member'],
+        );
+        logger.info(`[AuthRoutes] User ${userId} auto-assigned to tenant ${tenantId}`);
+      } else {
+        logger.warn(`[AuthRoutes] Tenant ${tenantId} not found for auto-assignment`);
+      }
+    }
 
     return reply.status(201).send({
       success: true,
@@ -121,6 +166,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
    * POST /api/v1/auth/login - 用户登录
    *
    * Phase 3.8.7: 登录时检查用户状态，terminated/deleted/suspended 用户拒绝登录
+   * Phase 2.19: 登录时提取 tenant_id，存入 JWT token 和 refresh_token
    */
   app.post('/login', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
@@ -137,7 +183,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     const dbResult = await dbQuery(
       'SELECT id, username, password_hash, email, role, status FROM users WHERE username = $1',
-      [username]
+      [username],
     );
     const user = dbResult?.rows?.[0];
 
@@ -179,33 +225,79 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
       });
     }
 
+    // Phase 2.19: 提取 tenant_id
+    const requestedTenantId = extractTenantIdFromHeader(request);
+    const userTenants = await findUserTenants(dbQuery, user.id);
+
+    let effectiveTenantId: string | null = null;
+
+    if (userTenants.length > 0) {
+      if (requestedTenantId) {
+        // 验证用户是否属于请求的租户
+        if (!userTenants.includes(requestedTenantId)) {
+          return reply.status(403).send({
+            success: false,
+            error: 'TENANT_ACCESS_DENIED',
+            code: '20113',
+            message: '用户无权访问指定的租户',
+          });
+        }
+        effectiveTenantId = requestedTenantId;
+      } else if (userTenants.length === 1) {
+        // 用户只有一个租户，自动使用
+        effectiveTenantId = userTenants[0];
+      } else {
+        // 用户有多个租户但未指定，返回错误让前端选择
+        return reply.status(400).send({
+          success: false,
+          error: 'MULTIPLE_TENANTS_REQUIRED',
+          code: '20114',
+          message: '用户属于多个租户，请通过 X-Tenant-ID 请求头指定',
+          data: { tenants: userTenants },
+        });
+      }
+    }
+
     const jwtSecret = getJwtSecret();
     if (!jwtSecret) {
       return reply.status(500).send({ error: 'JWT_NOT_CONFIGURED', message: 'JWT_SECRET not configured' });
     }
 
+    // Phase 2.19: JWT 中包含 tenantId
+    const accessTokenPayload: Record<string, unknown> = {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      roles: [user.role],
+    };
+    if (effectiveTenantId) {
+      accessTokenPayload.tenantId = effectiveTenantId;
+    }
+
     const accessToken = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role, roles: [user.role] },
+      accessTokenPayload,
       jwtSecret,
-      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
     );
 
     const refreshToken = crypto.randomBytes(32).toString('hex');
     const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    // Phase 2.19: refresh_token 中存入 tenant_id
     await dbQuery(
-      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-      [user.id, refreshTokenHash, expiresAt]
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, tenant_id) VALUES ($1, $2, $3, $4)',
+      [user.id, refreshTokenHash, expiresAt, effectiveTenantId],
     );
 
     // Log login event for audit trail
     await dbQuery(
       'INSERT INTO user_status_history (user_id, old_status, new_status, reason, operator_id, changed_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-      [user.id, user.status, 'active', 'login', user.id]
+      [user.id, user.status, 'active', 'login', user.id],
     );
 
-    logger.info(`[AuthRoutes] User login: ${user.username} (${user.id})`);
+    logger.info(`[AuthRoutes] User login: ${user.username} (${user.id}) tenant=${effectiveTenantId || 'none'}`);
 
     return reply.send({
       success: true,
@@ -213,6 +305,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         accessToken,
         refreshToken,
         expiresAt: Date.now() + 5 * 60 * 1000,
+        tenantId: effectiveTenantId,
         user: {
           id: user.id,
           username: user.username,
@@ -228,9 +321,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
    * POST /api/v1/auth/logout - 用户登出（单点登出）
    *
    * Phase 3.8.4: 单点登出通知
-   * 1. 删除 refresh_token
-   * 2. access_token 加入黑名单
-   * 3. 广播 OrionBus 事件通知子应用清理会话
+   * Phase 2.19: 传递 tenant_id 给 TokenBlacklistService
    */
   app.post('/logout', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
@@ -245,17 +336,18 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     // 2. Blacklist access token (single sign-out)
     if (accessToken && tokenBlacklist) {
       try {
-        const decoded = jwt.decode(accessToken) as { userId?: string; exp?: number } | null;
+        const decoded = jwt.decode(accessToken) as { userId?: string; exp?: number; tenantId?: string } | null;
         const revokeUserId = decoded?.userId || userId;
+        const tenantId = decoded?.tenantId || 0;
         if (revokeUserId && decoded?.exp) {
           const ttl = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
           await tokenBlacklist.revokeToken(
             accessToken,
             revokeUserId,
-            0, // tenantId not available in this context
+            tenantId as unknown as number,
             'logout',
           );
-          logger.info(`[AuthRoutes] Access token blacklisted: user=${revokeUserId} TTL=${ttl}s`);
+          logger.info(`[AuthRoutes] Access token blacklisted: user=${revokeUserId} tenant=${tenantId} TTL=${ttl}s`);
         }
       } catch (error: unknown) {
         logger.warn('[AuthRoutes] Failed to blacklist access token:', error);
@@ -265,8 +357,10 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     // Phase 3.8.4: Broadcast logout event to notify sub-apps
     if (eventBus) {
       try {
+        const decoded = jwt.decode(accessToken || '') as { userId?: string; tenantId?: string } | null;
         await eventBus.publish('auth:user:logout', {
-          userId: userId || (jwt.decode(accessToken) as any)?.userId,
+          userId: userId || decoded?.userId,
+          tenantId: decoded?.tenantId || null,
           timestamp: new Date().toISOString(),
           reason: 'user_logout',
         });
@@ -286,6 +380,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
    * POST /api/v1/auth/refresh - 刷新 Token
    *
    * Phase 3.8.7: 刷新时检查用户状态
+   * Phase 2.19: 新 token 中携带 tenant_id
    */
   app.post('/refresh', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any || {};
@@ -302,8 +397,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     const result = await dbQuery(
-      'SELECT rt.user_id, u.username, u.role, u.status FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id WHERE rt.token_hash = $1 AND rt.expires_at > NOW()',
-      [tokenHash]
+      'SELECT rt.user_id, rt.tenant_id, u.username, u.role, u.status FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id WHERE rt.token_hash = $1 AND rt.expires_at > NOW()',
+      [tokenHash],
     );
 
     const row = result?.rows?.[0];
@@ -343,19 +438,31 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
       return reply.status(500).send({ error: 'JWT_NOT_CONFIGURED', message: 'JWT_SECRET not configured' });
     }
 
+    // Phase 2.19: 新 JWT 中包含 tenant_id
+    const newAccessTokenPayload: Record<string, unknown> = {
+      userId: row.user_id,
+      username: row.username,
+      role: row.role,
+      roles: [row.role],
+    };
+    if (row.tenant_id) {
+      newAccessTokenPayload.tenantId = row.tenant_id;
+    }
+
     const newAccessToken = jwt.sign(
-      { userId: row.user_id, username: row.username, role: row.role, roles: [row.role] },
+      newAccessTokenPayload,
       jwtSecret,
-      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
     );
 
     const newRefreshToken = crypto.randomBytes(32).toString('hex');
     const newTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
     const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+    // Phase 2.19: 新 refresh_token 中携带 tenant_id
     await dbQuery(
-      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-      [row.user_id, newTokenHash, newExpiresAt]
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, tenant_id) VALUES ($1, $2, $3, $4)',
+      [row.user_id, newTokenHash, newExpiresAt, row.tenant_id],
     );
 
     return reply.send({
@@ -364,6 +471,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
         expiresAt: Date.now() + 5 * 60 * 1000,
+        tenantId: row.tenant_id || null,
       },
     });
   });
@@ -372,6 +480,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
    * GET /api/v1/auth/me - 获取当前用户信息
    *
    * Phase 3.8.7: 返回时检查用户状态
+   * Phase 2.19: 返回用户关联的租户信息
    */
   app.get('/me', async (request: FastifyRequest, reply: FastifyReply) => {
     const authHeader = request.headers.authorization;
@@ -395,7 +504,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
       const result = await dbQuery(
         'SELECT id, username, email, role, status FROM users WHERE id = $1',
-        [payload.userId]
+        [payload.userId],
       );
       const user = result?.rows?.[0];
 
@@ -408,7 +517,9 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         });
       }
 
-      // Phase 3.8.7: 用户状态提示
+      // Phase 2.19: 查询用户关联的租户
+      const userTenants = await findUserTenants(dbQuery, user.id);
+
       return reply.send({
         success: true,
         data: {
@@ -418,6 +529,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
           role: user.role,
           status: user.status || 'active',
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=1890ff&color=fff`,
+          tenants: userTenants,
+          currentTenantId: (payload as any).tenantId || null,
         },
       });
     } catch (error) {

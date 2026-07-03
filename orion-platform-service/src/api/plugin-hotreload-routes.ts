@@ -12,6 +12,7 @@ import { PluginVersionSnapshotRepository } from '../repositories/PluginVersionSn
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 export interface HotReloadRoutesOptions {
   lifecycleManager: PluginLifecycleManager;
@@ -76,10 +77,7 @@ export default async function registerPluginHotReloadRoutes(
         message: `Plugin "${pluginId}" hot reload completed`,
       });
     } catch (error) {
-      return reply.status(500).send({
-        error: error instanceof Error ? error.message : 'Hot reload failed',
-        pluginId,
-      });
+      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -101,10 +99,7 @@ export default async function registerPluginHotReloadRoutes(
         message: `Plugin "${pluginId}" rolled back to version ${result.manifest.version}`,
       });
     } catch (error) {
-      return reply.status(500).send({
-        error: error instanceof Error ? error.message : 'Rollback failed',
-        pluginId,
-      });
+      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
     }
   });
 

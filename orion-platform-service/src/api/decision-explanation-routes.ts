@@ -19,7 +19,8 @@ import {
 } from '../services/decision-explanation';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'decision-explanation-routes' });
 
@@ -44,12 +45,12 @@ export default async function decisionExplanationRoutes(
       const { id } = request.params as { id: string };
       const explanation = await service.getExplanation(id);
       if (!explanation) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Decision explanation not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: explanation });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'EXPLAIN_ERROR';
-      return reply.status(500).send({ error: 'EXPLAIN_ERROR', message });
+      return handleError(reply, new OrionError('EXPLAIN_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -69,7 +70,7 @@ export default async function decisionExplanationRoutes(
       return reply.status(201).send({ success: true, data: feedback });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'FEEDBACK_ERROR';
-      return reply.status(400).send({ error: 'FEEDBACK_ERROR', message });
+      return handleError(reply, new ValidationError('FEEDBACK_ERROR'));
     }
   });
 
@@ -82,7 +83,7 @@ export default async function decisionExplanationRoutes(
       return reply.status(200).send({ success: true, data: stats });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'QUALITY_ERROR';
-      return reply.status(500).send({ error: 'QUALITY_ERROR', message });
+      return handleError(reply, new OrionError('QUALITY_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -95,7 +96,7 @@ export default async function decisionExplanationRoutes(
       return reply.status(200).send({ success: true, data: trend.data });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'TREND_ERROR';
-      return reply.status(500).send({ error: 'TREND_ERROR', message });
+      return handleError(reply, new OrionError('TREND_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

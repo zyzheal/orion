@@ -54,6 +54,7 @@ import privacyRoutes from './privacy-routes';
 import degradationRoutes from './degradation-routes';
 import crossDomainRoutes from './cross-domain-routes';
 import workflowRoutes from './workflow-routes';
+import lowcodeRoutes from './lowcode-routes';
 import workflowTriggerRoutes from './workflow-trigger-routes';
 import workflowWebhookRoutes from './workflow-webhook-routes';
 import workflowTaskRoutes from './workflow-task-routes';
@@ -97,8 +98,10 @@ import serviceCatalogRoutes from './service-catalog-routes';
 import changeRoutes from './change-routes';
 import changeRequestRoutes from './change-request-routes';
 import slaRoutes from './sla-routes';
+import selfServiceRoutes from './self-service-routes';
 import handlerRegistryRoutes from './handler-registry-routes';
 import pipelineBatchRoutes from './pipeline-batch-routes';
+import pipelineBatchOperationsRoutes from './pipeline-batch-operations-routes';
 import pipelineExecutionControlRoutes from './pipeline-execution-control-routes';
 import processStepRoutes from './process-step-routes';
 import sloRoutes from './slo-routes';
@@ -186,6 +189,7 @@ import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
 import { PipelineEngine } from '../engine/PipelineEngine';
+import { PipelineServiceRegistry } from '../engine/PipelineServiceRegistry';
 import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
@@ -198,6 +202,7 @@ import supplyChainRoutes from './supply-chain-routes';
 import testGenerationRoutes from './test-generation-routes';
 import testSelectorRoutes from './test-selector-routes';
 import deployRoutes from './deploy-routes';
+import healthCheckRoutes from './health-check-routes';
 import changeIntelligenceRoutes from './change-intelligence-routes';
 import apmRoutes from './apm-routes';
 import hrWebhookRoutes from './hrWebhookRoutes';
@@ -218,11 +223,11 @@ import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineLogSSEService } from '../services/pipeline/PipelineLogSSEService';
 import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleManager';
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('routes');
 
 const DEFAULT_MODULE_CONFIG = {
   core: {
@@ -543,6 +548,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, chatopsRoutes, '/chatops', {
     eventBus: options.eventBus,
     database: options.database,
+    redis: options.redis,
   });
 
   // 注册 Manual Confirmation API 路由 (P0-6)
@@ -719,6 +725,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Workflow Routes (GAP Implementation) ====================
   await registerWithRoleGuard(app, workflowRoutes, '/workflows', {
+    database: options.database,
+  });
+
+  // ==================== Lowcode Flow Designer Routes ====================
+  await registerWithRoleGuard(app, lowcodeRoutes, '/lowcode', {
     database: options.database,
   });
 
@@ -1007,11 +1018,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     const taskRunner = new TaskRunner();
     const stageExecutor = new StageExecutor(taskRunner, pipelineEventPublisher);
 
+    const pipelineServiceRegistry = new PipelineServiceRegistry();
+
     const pipelineEngine = new PipelineEngine(
       pipelineService,
       pipelineRunService,
       pipelineEventPublisher,
-      stageExecutor
+      stageExecutor,
+      pipelineServiceRegistry
     );
 
     const pipelineRunController = new PipelineRunController(pipelineRunService, pipelineEngine, pipelineService);
@@ -1239,6 +1253,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Smart Deploy - deployment execution, history, metrics
   await registerWithRoleGuard(app, deployRoutes, '/deploy', { database: options.database });
 
+  // Health Check - real health check execution
+  await registerWithRoleGuard(app, healthCheckRoutes, '/health-checks', { database: options.database });
+
   // Change Intelligence - AI-powered blast radius analysis
   await registerWithRoleGuard(app, changeIntelligenceRoutes, '/change-intelligence', { database: options.database });
 
@@ -1343,6 +1360,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Service Catalog (ITIL) ====================
   await registerWithRoleGuard(app, serviceCatalogRoutes, '/catalog', { database: options.database });
 
+  // ==================== ITSM Self-Service Portal ====================
+  await registerWithRoleGuard(app, selfServiceRoutes, '/self-service', { database: options.database });
+
   // ==================== SLA Management (ITSM Phase B) ====================
   await registerWithRoleGuard(app, slaRoutes, '/sla', { database: options.database });
 
@@ -1354,6 +1374,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Pipeline Batch Execution ====================
   await registerWithRoleGuard(app, pipelineBatchRoutes, '/pipeline-batch', { database: options.database });
+
+  // ==================== Pipeline Batch Operations ====================
+  await registerWithRoleGuard(app, pipelineBatchOperationsRoutes, '/pipelines/batch');
 
   // ==================== Pipeline Execution Control ====================
   await registerWithRoleGuard(app, pipelineExecutionControlRoutes, '/pipeline-execution-control', { database: options.database });

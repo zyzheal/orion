@@ -5,7 +5,7 @@
  *
  * 设计文档: docs/superpowers/specs/2026-05-19-approval-flow-advanced-capabilities-design.md
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from '../database';
 import { UserRepository } from '../user/UserRepository';
 import { CapabilityRepository } from '../capability/CapabilityRepository';

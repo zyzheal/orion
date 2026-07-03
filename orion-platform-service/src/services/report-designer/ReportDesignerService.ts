@@ -5,7 +5,7 @@
  * Combines ReportDefinition, ReportDatasource, ReportSchedule, and ReportExecution repositories.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ReportDefinitionRepository, ReportDefinitionEntity, ReportDefinitionFilters } from './ReportDefinitionRepository';
 import { ReportDatasourceRepository, ReportDatasourceEntity } from './ReportDatasourceRepository';
 import { ReportScheduleRepository, ReportScheduleEntity } from './ReportScheduleRepository';

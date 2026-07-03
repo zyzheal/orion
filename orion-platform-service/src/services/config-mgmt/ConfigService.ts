@@ -6,6 +6,15 @@ import { ConfigRepository, ConfigEntry, ConfigHistory } from './ConfigRepository
 import { ConfigItem, ConfigStatus, ConfigEnvironment } from './types';
 import { CacheService } from '../cache/CacheService';
 import { OrionError, ErrorCode } from '../../errors';
+import { WebhookService } from '../webhook/WebhookService';
+import { ConfigSchemaValidator } from './ConfigSchemaValidator';
+import { ConfigValidationService, JsonSchema, ConfigValidationError } from './ConfigValidationService';
+import { ConfigSchemaService } from './ConfigSchemaService';
+import { ConfigSchemaRepository } from '../repositories/ConfigSchemaRepository';
+import { ConfigTemplateRepository } from '../repositories/ConfigTemplateRepository';
+import { CanaryDeploymentRepository } from '../repositories/CanaryDeploymentRepository';
+import { ConfigDependencyRepository } from '../repositories/ConfigDependencyRepository';
+import { createLogger } from '../../utils/logger';
 
 export class ConfigServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'ConfigServiceError'; }
@@ -19,6 +28,7 @@ export interface CreateConfigInput {
   encrypted?: boolean;
   tags?: string[];
   createdBy?: string;
+  schema?: JsonSchema;
 }
 
 export interface UpdateConfigInput {
@@ -27,6 +37,7 @@ export interface UpdateConfigInput {
   status?: ConfigStatus;
   tags?: string[];
   updatedBy: string;
+  schema?: JsonSchema;
 }
 
 export interface ListConfigsFilter {
@@ -75,11 +86,45 @@ function buildValueObject(input: CreateConfigInput | UpdateConfigInput): Record<
 export class ConfigService {
   private repository: ConfigRepository;
   private cache: CacheService;
+  private webhookService: WebhookService | null;
+  private validationService: ConfigValidationService;
+  private schemaService: ConfigSchemaService;
 
-  constructor(repository: ConfigRepository, cache?: CacheService) {
+  constructor(repository: ConfigRepository, cache?: CacheService, webhookService?: WebhookService, schemaRepository?: ConfigSchemaRepository) {
     if (!repository) throw new Error('ConfigRepository is required');
     this.repository = repository;
     this.cache = cache || new CacheService(null);
+    this.webhookService = webhookService || null;
+    this.validationService = new ConfigValidationService();
+    this.schemaService = new ConfigSchemaService(schemaRepository || new ConfigSchemaRepository({ query: async () => ({ rows: [], rowCount: 0 }) } as any), this.cache);
+  }
+
+  private async emitEvent(tenantId: string, event: string, payload: Record<string, any>): Promise<void> {
+    if (!this.webhookService) return;
+    try {
+      await this.webhookService.triggerEvent(tenantId, event, payload);
+    } catch (e) {
+      // Do not block config operations on webhook delivery failures
+    }
+  }
+
+  private validateValue(key: string, value: unknown): void {
+    const result = this.validationService.validateConfig(key, value);
+    if (!result.valid) {
+      throw new ConfigValidationError(
+        `Config validation failed for key '${key}'`,
+        key,
+        result.errors ?? ['Validation failed']
+      );
+    }
+  }
+
+  async registerSchema(key: string, schema: JsonSchema): void {
+    this.validationService.setSchema(key, schema);
+  }
+
+  async getSchema(key: string): JsonSchema | undefined {
+    return this.validationService.getSchema(key);
   }
 
   async createConfig(input: CreateConfigInput): Promise<ConfigItem>;
@@ -89,6 +134,12 @@ export class ConfigService {
     // Handle createConfig(input) - single object call
     if (typeof tenantIdOrInput === 'object' && keyOrInput === undefined) {
       const input = tenantIdOrInput as CreateConfigInput;
+      // Validate value before persisting
+      this.validateValue(input.key, input.value);
+      // Register schema if provided
+      if (input.schema) {
+        this.validationService.setSchema(input.key, input.schema);
+      }
       const existing = await this.repository.findByKey('default', input.key);
       if (existing && existing.environment === input.environment) {
         throw new OrionError(`Config '${input.key}' already exists in environment '${input.environment}'`, ErrorCode.NOT_FOUND);
@@ -102,20 +153,28 @@ export class ConfigService {
       const item = entryToItem(entry);
       // Invalidate list cache
       await this.cache.del('config:list:*');
+      await this.emitEvent('default', 'config.created', { configId: item.id, key: item.key, environment: item.environment, createdBy: input.createdBy });
       return item;
     }
     // Handle createConfig(tenantId, input)
     if (typeof keyOrInput === 'object') {
       const input = keyOrInput as CreateConfigInput;
+      this.validateValue(input.key, input.value);
+      if (input.schema) {
+        this.validationService.setSchema(input.key, input.schema);
+      }
       const entry = await this.repository.set(tenantIdOrInput as string, input.key, buildValueObject(input), input.createdBy);
       const item = entryToItem(entry);
       await this.cache.del(`config:list:${tenantIdOrInput}`);
+      await this.emitEvent(tenantIdOrInput as string, 'config.created', { configId: item.id, key: item.key, environment: item.environment, createdBy: input.createdBy });
       return item;
     }
     // Handle createConfig(tenantId, key, value)
+    this.validateValue(keyOrInput as string, value);
     const entry = await this.repository.set(tenantIdOrInput as string, keyOrInput as string, value || {}, undefined);
     const item = entryToItem(entry);
     await this.cache.del(`config:list:${tenantIdOrInput}`);
+    await this.emitEvent(tenantIdOrInput as string, 'config.created', { configId: item.id, key: item.key, environment: item.environment || 'dev', createdBy: undefined });
     return item;
   }
 
@@ -128,6 +187,10 @@ export class ConfigService {
       const existing = await this.repository.findById(tenantIdOrId);
       if (!existing) {
         throw new OrionError(`Config '${tenantIdOrId}' not found`, ErrorCode.NOT_FOUND);
+      }
+      this.validateValue(existing.key, input.value);
+      if (input.schema) {
+        this.validationService.setSchema(existing.key, input.schema);
       }
       const rawValue = existing.value as any;
       const updatedValue = {
@@ -150,9 +213,11 @@ export class ConfigService {
       // Invalidate cache on update
       await this.cache.del(`config:${tenantIdOrId}`);
       await this.cache.del(`config:${existing.tenant_id}:${existing.key}`);
+      await this.emitEvent(existing.tenant_id, 'config.updated', { configId: item.id, key: item.key, environment: item.environment, updatedBy: input.updatedBy });
       return item;
     }
     // Handle updateConfig(tenantId, key, value, changedBy)
+    this.validateValue(keyOrInput as string, value);
     const entry = await this.repository.set(tenantIdOrId, keyOrInput as string, value || {}, changedBy);
     const item = entryToItem(entry);
     // Invalidate cache on update
@@ -180,6 +245,12 @@ export class ConfigService {
     if (!entry) return null;
 
     const item = entryToItem(entry);
+    // Validate on read if schema exists
+    try {
+      this.validateValue(item.key, item.value);
+    } catch (e) {
+      // Log but do not block reads for legacy data that may not conform
+    }
     // Cache for 120s — config data changes occasionally
     await this.cache.set(`config:${configId}`, item, 120);
     return item;
@@ -197,6 +268,11 @@ export class ConfigService {
     if (environment && entry.environment !== environment) return null;
 
     const item = entryToItem(entry);
+    try {
+      this.validateValue(item.key, item.value);
+    } catch (e) {
+      // Log but do not block reads for legacy data
+    }
     await this.cache.set(cacheKey, item, 120);
     return item;
   }
@@ -245,6 +321,7 @@ export class ConfigService {
       throw new OrionError(`Target version ${targetVersion} must be less than current version ${existing.version}`, ErrorCode.NOT_FOUND);
     }
     const targetValue = typeof target.value === 'string' ? target.value : ((target as any).newValue?.value || (target as any).new_value?.value || JSON.stringify(target.value));
+    this.validateValue(existing.key, targetValue);
     const updatedValue = { ...(existing.value as any), value: targetValue };
     const entry = await this.repository.set(existing.tenant_id, existing.key, updatedValue, changedBy);
     const item = entryToItem(entry);
@@ -256,6 +333,7 @@ export class ConfigService {
     if (!source) {
       throw new OrionError(`Config '${sourceId}' not found`, ErrorCode.NOT_FOUND);
     }
+    this.validateValue(source.key, source.value);
     // Check if target already exists in the target environment
     const allConfigs = await this.repository.findAll(source.tenant_id);
     const existingInTarget = allConfigs.find(c => c.key === source.key && c.environment === targetEnvironment);
@@ -296,6 +374,7 @@ export class ConfigService {
   }
 
   async set(tenantId: string, key: string, value: Record<string, any>, changedBy?: string): Promise<ConfigItem> {
+    this.validateValue(key, value);
     const entry = await this.repository.set(tenantId, key, value, changedBy);
     return entryToItem(entry);
   }
@@ -310,6 +389,11 @@ export class ConfigService {
     if (!entry) return null;
 
     const item = entryToItem(entry);
+    try {
+      this.validateValue(item.key, item.value);
+    } catch (e) {
+      // Log but do not block reads for legacy data
+    }
     await this.cache.set(cacheKey, item, 120);
     return item;
   }
@@ -332,6 +416,7 @@ export class ConfigService {
   async importConfig(tenantId: string, configs: Record<string, any>, changedBy?: string): Promise<number> {
     let count = 0;
     for (const [key, value] of Object.entries(configs)) {
+      this.validateValue(key, value);
       await this.repository.set(tenantId, key, value as Record<string, any>, changedBy);
       count++;
     }
@@ -339,6 +424,7 @@ export class ConfigService {
   }
 
   async updateConfigByKey(key: string, value: Record<string, any>): Promise<ConfigItem | null> {
+    this.validateValue(key, value);
     const entry = await this.repository.updateByKey(key, value);
     return entry ? entryToItem(entry) : null;
   }
@@ -349,5 +435,301 @@ export class ConfigService {
 
   async getConfigVersionsById(configId: string, limit?: number): Promise<ConfigHistory[]> {
     return this.getConfigVersions(configId);
+  }
+
+  // ==================== Schema Management ====================
+
+  async createSchema(tenantId: string, input: CreateConfigSchemaInput): Promise<ConfigSchema> {
+    return this.schemaService.createSchema(tenantId, input);
+  }
+
+  async getSchema(tenantId: string, schemaId: string): Promise<ConfigSchema | null> {
+    return this.schemaService.getSchema(tenantId, schemaId);
+  }
+
+  async getSchemaByName(tenantId: string, name: string): Promise<ConfigSchema | null> {
+    return this.schemaService.getSchemaByName(tenantId, name);
+  }
+
+  async updateSchema(tenantId: string, schemaId: string, updates: UpdateConfigSchemaInput): Promise<ConfigSchema> {
+    return this.schemaService.updateSchema(tenantId, schemaId, updates);
+  }
+
+  async listSchemas(tenantId: string, filter?: ListConfigSchemasFilter): Promise<{ data: ConfigSchema[]; total: number }> {
+    return this.schemaService.listSchemas(tenantId, filter);
+  }
+
+  async deactivateSchema(tenantId: string, schemaId: string, updatedBy: string): Promise<ConfigSchema> {
+    return this.schemaService.deactivateSchema(tenantId, schemaId, updatedBy);
+  }
+
+  async deleteSchema(tenantId: string, schemaId: string): Promise<boolean> {
+    return this.schemaService.deleteSchema(tenantId, schemaId);
+  }
+
+  async validateConfigBySchema(tenantId: string, schemaId: string, value: unknown): Promise<ValidationResult> {
+    return this.schemaService.validateConfigBySchemaId(tenantId, schemaId, value);
+  }
+
+  async validateConfigByConfigKey(tenantId: string, configKey: string, value: unknown): Promise<ValidationResult> {
+    return this.schemaService.validateConfigByConfigKey(tenantId, configKey, value);
+  }
+
+  // ==================== Template Methods ====================
+
+  private templateRepo: ConfigTemplateRepository | null = null;
+
+  private getTemplateRepo(db?: any): ConfigTemplateRepository {
+    if (!this.templateRepo) {
+      this.templateRepo = new ConfigTemplateRepository(db || (this.repository as any).getDb());
+    }
+    return this.templateRepo;
+  }
+
+  async createTemplate(tenantId: string, input: { name: string; description?: string; category?: string; configData: Record<string, any>; targetEnvironment?: string; createdBy: string }): Promise<ConfigTemplate> {
+    const repo = this.getTemplateRepo();
+    const entity = await repo.create(tenantId, input);
+    return this.mapTemplateEntityToModel(entity);
+  }
+
+  async updateTemplate(tenantId: string, templateId: string, input: { name: string; description?: string; category?: string; configData: Record<string, any>; targetEnvironment?: string; isActive?: boolean; updatedBy: string }): Promise<ConfigTemplate> {
+    const repo = this.getTemplateRepo();
+    const entity = await repo.update(templateId, tenantId, input);
+    return this.mapTemplateEntityToModel(entity);
+  }
+
+  async deleteTemplate(tenantId: string, templateId: string): Promise<boolean> {
+    const repo = this.getTemplateRepo();
+    return repo.delete(templateId, tenantId);
+  }
+
+  async listTemplates(tenantId: string, category?: string): Promise<ConfigTemplate[]> {
+    const repo = this.getTemplateRepo();
+    const entities = await repo.findByTenant(tenantId, category);
+    return entities.map(e => this.mapTemplateEntityToModel(e));
+  }
+
+  async getTemplate(tenantId: string, templateId: string): Promise<ConfigTemplate | null> {
+    const repo = this.getTemplateRepo();
+    const entity = await repo.findById(templateId, tenantId);
+    return entity ? this.mapTemplateEntityToModel(entity) : null;
+  }
+
+  async listTemplateVersions(tenantId: string, templateId: string): Promise<ConfigTemplateVersion[]> {
+    const repo = this.getTemplateRepo();
+    const entities = await repo.listVersions(templateId, tenantId);
+    return entities.map(e => this.mapTemplateVersionEntityToModel(e));
+  }
+
+  async applyTemplate(tenantId: string, templateId: string, targetEnv: string): Promise<{ applied: number; skipped: string[] }> {
+    const repo = this.getTemplateRepo();
+    const template = await repo.findById(templateId, tenantId);
+    if (!template) {
+      throw new OrionError(`Template ${templateId} not found`, ErrorCode.NOT_FOUND);
+    }
+
+    const configData = template.configData as Record<string, any>;
+    const keys = Object.keys(configData);
+    let applied = 0;
+    const skipped: string[] = [];
+
+    for (const key of keys) {
+      try {
+        const entry = await this.repository.set(tenantId, key, { value: configData[key], environment: targetEnv }, 'template-apply');
+        if (entry) applied++;
+      } catch (e: any) {
+        skipped.push(key);
+      }
+    }
+
+    return { applied, skipped };
+  }
+
+  async createTemplateVersion(tenantId: string, templateId: string, changes: Record<string, any>, changedBy: string): Promise<ConfigTemplateVersion> {
+    const repo = this.getTemplateRepo();
+    const entity = await repo.createVersion(tenantId, {
+      templateId,
+      configData: changes,
+      createdBy: changedBy,
+    });
+    return this.mapTemplateVersionEntityToModel(entity);
+  }
+
+  // ==================== Canary Methods ====================
+
+  private canaryRepo: CanaryDeploymentRepository | null = null;
+
+  private getCanaryRepo(db?: any): CanaryDeploymentRepository {
+    if (!this.canaryRepo) {
+      this.canaryRepo = new CanaryDeploymentRepository(db || (this.repository as any).getDb());
+    }
+    return this.canaryRepo;
+  }
+
+  async createCanaryDeployment(tenantId: string, configId: string, percentage: number, canaryValue: Record<string, any>, targetValue: Record<string, any>, configKey?: string): Promise<CanaryDeployment> {
+    const repo = this.getCanaryRepo();
+    const entity = await repo.create(tenantId, {
+      configId,
+      configKey: configKey || 'unknown',
+      environment: 'dev',
+      percentage,
+      canaryValue,
+      targetValue,
+      createdBy: tenantId,
+    });
+    return this.mapCanaryEntityToModel(entity);
+  }
+
+  async updateCanaryPercentage(tenantId: string, deploymentId: string, percentage: number): Promise<CanaryDeployment> {
+    const repo = this.getCanaryRepo();
+    const entity = await repo.updatePercentage(tenantId, deploymentId, percentage, 'system');
+    return this.mapCanaryEntityToModel(entity);
+  }
+
+  async promoteCanary(tenantId: string, deploymentId: string): Promise<CanaryDeployment> {
+    const repo = this.getCanaryRepo();
+    const entity = await repo.promote(tenantId, deploymentId, 'system');
+    return this.mapCanaryEntityToModel(entity);
+  }
+
+  async rollbackCanary(tenantId: string, deploymentId: string): Promise<CanaryDeployment> {
+    const repo = this.getCanaryRepo();
+    const entity = await repo.rollback(tenantId, deploymentId, 'system');
+    return this.mapCanaryEntityToModel(entity);
+  }
+
+  async getCanaryHistory(tenantId: string, deploymentId: string): Promise<CanaryDeploymentHistory[]> {
+    const repo = this.getCanaryRepo();
+    const result = await repo.db.query(
+      `SELECT * FROM canary_deployment_history WHERE deployment_id = $1 AND tenant_id = $2 ORDER BY created_at DESC`,
+      [deploymentId, tenantId]
+    );
+    return result.rows.map(row => ({
+      id: row.id,
+      deploymentId: row.deployment_id,
+      tenant_id: row.tenant_id,
+      oldPercentage: row.old_percentage,
+      newPercentage: row.new_percentage,
+      action: row.action,
+      performedBy: row.performed_by,
+      createdAt: row.created_at,
+    }));
+  }
+
+  // ==================== Dependency Methods ====================
+
+  private dependencyRepo: ConfigDependencyRepository | null = null;
+
+  private getDependencyRepo(db?: any): ConfigDependencyRepository {
+    if (!this.dependencyRepo) {
+      this.dependencyRepo = new ConfigDependencyRepository(db || (this.repository as any).getDb());
+    }
+    return this.dependencyRepo;
+  }
+
+  async addDependency(tenantId: string, configId: string, dependsOnConfigId: string, type: string = 'hard', description?: string): Promise<ConfigDependency> {
+    const repo = this.getDependencyRepo();
+    const entity = await repo.create(tenantId, {
+      configId,
+      dependsOnConfigId,
+      dependencyType: type,
+      description,
+      createdBy: tenantId,
+    });
+    return this.mapDependencyEntityToModel(entity);
+  }
+
+  async getDependencyGraph(tenantId: string, configId: string): Promise<{ node: ConfigDependency; dependencies: ConfigDependency[] }> {
+    const repo = this.getDependencyRepo();
+    const dependencies = await repo.findByConfigId(configId, tenantId);
+    const node: ConfigDependency = {
+      id: configId,
+      tenant_id: tenantId,
+      configId,
+      dependsOnConfigId: '',
+      dependencyType: 'hard',
+      isActive: true,
+      createdBy: tenantId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return { node, dependencies: dependencies.map(d => this.mapDependencyEntityToModel(d)) };
+  }
+
+  async validateDependencies(tenantId: string, configId: string): Promise<{ valid: boolean; unsatisfied: string[] }> {
+    const repo = this.getDependencyRepo();
+    return repo.validate(tenantId, configId);
+  }
+
+  async removeDependency(tenantId: string, configId: string, dependsOnConfigId: string): Promise<boolean> {
+    const repo = this.getDependencyRepo();
+    return repo.delete(configId, dependsOnConfigId, tenantId);
+  }
+
+  // ==================== Mappers ====================
+
+  private mapTemplateEntityToModel(entity: any): ConfigTemplate {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenant_id,
+      name: entity.name,
+      description: entity.description,
+      category: entity.category,
+      configData: typeof entity.config_data === 'string' ? JSON.parse(entity.config_data) : (entity.config_data ?? {}),
+      targetEnvironment: entity.target_environment,
+      isActive: entity.is_active,
+      createdBy: entity.created_by,
+      updatedBy: entity.updated_by,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
+  }
+
+  private mapTemplateVersionEntityToModel(entity: any): ConfigTemplateVersion {
+    return {
+      id: entity.id,
+      templateId: entity.template_id,
+      tenant_id: entity.tenant_id,
+      configData: typeof entity.config_data === 'string' ? JSON.parse(entity.config_data) : (entity.config_data ?? {}),
+      version: entity.version,
+      changeLog: entity.change_log,
+      createdBy: entity.created_by,
+      createdAt: entity.created_at,
+    };
+  }
+
+  private mapCanaryEntityToModel(entity: any): CanaryDeployment {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenant_id,
+      configId: entity.config_id,
+      configKey: entity.config_key,
+      environment: entity.environment,
+      percentage: entity.percentage,
+      status: entity.status,
+      oldValue: typeof entity.old_value === 'string' ? JSON.parse(entity.old_value) : entity.old_value,
+      canaryValue: typeof entity.canary_value === 'string' ? JSON.parse(entity.canary_value) : (entity.canary_value ?? {}),
+      targetValue: typeof entity.target_value === 'string' ? JSON.parse(entity.target_value) : (entity.target_value ?? {}),
+      promotedAt: entity.promoted_at,
+      rolledBackAt: entity.rolled_back_at,
+      createdBy: entity.created_by,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
+  }
+
+  private mapDependencyEntityToModel(entity: any): ConfigDependency {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenant_id,
+      configId: entity.config_id,
+      dependsOnConfigId: entity.depends_on_config_id,
+      dependencyType: entity.dependency_type,
+      description: entity.description,
+      isActive: entity.is_active,
+      createdBy: entity.created_by,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
   }
 }

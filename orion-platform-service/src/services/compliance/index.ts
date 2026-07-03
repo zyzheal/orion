@@ -1,5 +1,12 @@
 export { ComplianceService } from './ComplianceService';
 export type {
+  CompliancePolicyInput,
+  ComplianceGap,
+  ComplianceReportSummary,
+  ComplianceScoreSummary,
+  ComplianceFramework,
+  ComplianceEvidence,
+  GapAnalysisResult,
   CreateReportInput,
   UpdateReportInput,
   CreateScheduleInput,

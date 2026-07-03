@@ -9,7 +9,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'cache-storage-driver' });

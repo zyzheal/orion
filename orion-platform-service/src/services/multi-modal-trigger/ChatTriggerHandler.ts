@@ -13,7 +13,7 @@ import {
   TriggerEventEntity,
 } from '../../repositories/Phase3Repository';
 import { UnifiedTriggerService } from './UnifiedTriggerService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LChat-LTrigger-LHandler' });
 

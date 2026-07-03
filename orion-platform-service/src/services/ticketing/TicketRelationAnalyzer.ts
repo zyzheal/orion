@@ -19,7 +19,7 @@ import {
 } from './types';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
 import { TicketRelationAnalysisRepository } from '../../repositories/TicketRelationAnalysisRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LTicket-LRelation-LAnalyzer' });

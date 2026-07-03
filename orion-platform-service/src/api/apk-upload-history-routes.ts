@@ -12,6 +12,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import ApkUploadHistoryService from '../services/pipeline/ApkUploadHistoryService';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface ApkUploadHistoryRoutesOptions {
   database?: DatabasePool;
@@ -118,10 +119,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
       } catch (error) {
         const tenantId = getTenantId(request);
         const query = request.query as ListQuery;
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: `Failed to list history for tenant ${tenantId}, market: ${query.market}`,
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
 
@@ -140,10 +138,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
           data: records,
         });
       } catch (error) {
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get recent failures',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
 
@@ -159,10 +154,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
           data: stats,
         });
       } catch (error) {
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get stats',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
 
@@ -177,10 +169,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
         const record = await historyService.findByIdAndTenant(params.id, tenantId);
 
         if (!record) {
-          reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Upload record '${params.id}' not found`,
-          });
+handleError(reply, new NotFoundError('NOT_FOUND'))
           return;
         }
 
@@ -190,10 +179,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance, optio
       } catch (error) {
         const tenantId = getTenantId(request);
         const params = request.params as IdParams;
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: `Failed to get upload record ${params.id} for tenant ${tenantId}`,
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
   });

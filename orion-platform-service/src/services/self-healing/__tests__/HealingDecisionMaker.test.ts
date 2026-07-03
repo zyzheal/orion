@@ -561,7 +561,7 @@ describe('HealingDecisionMaker', () => {
   });
 
   describe('respondToApproval', () => {
-    let savedRequestId: string | null = null;
+    const savedRequestId: string | null = null;
 
     beforeEach(() => {
       applyRepoMocks();

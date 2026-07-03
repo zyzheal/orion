@@ -101,6 +101,13 @@ const mockScanRepository = {
 const mockFindingRepository = {
   findById: jest.fn().mockResolvedValue(null),
   findByScanId: jest.fn().mockResolvedValue([]),
+  findByScanIds: jest.fn().mockImplementation(async (scanIds: string[]) => {
+    const map = new Map<string, any[]>();
+    for (const id of scanIds) {
+      map.set(id, []);
+    }
+    return map;
+  }),
   findBySeverity: jest.fn().mockResolvedValue([]),
   batchCreate: jest.fn().mockResolvedValue([]),
   create: jest.fn().mockResolvedValue({ id: 'finding-1' }),

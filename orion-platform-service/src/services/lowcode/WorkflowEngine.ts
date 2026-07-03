@@ -12,7 +12,7 @@
  * Phase 1.3: 支持注入真实服务实例（ApprovalFlowEngine、NotificationService、WebhookService）
  * 替代 placeholder 实现，同时保持向后兼容。
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {

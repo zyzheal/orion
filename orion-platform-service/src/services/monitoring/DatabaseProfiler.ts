@@ -17,7 +17,7 @@
  */
 
 import { DatabasePool } from '../../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

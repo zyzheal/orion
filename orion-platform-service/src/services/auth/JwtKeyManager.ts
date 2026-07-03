@@ -16,7 +16,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import type { DatabasePool } from '../database';
 import {
   JwtKeyRotationService,
@@ -24,7 +24,7 @@ import {
 } from './JwtKeyRotationService';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('jwt-key-manager');
 
 /**
  * JwtKeyManager — singleton for unified JWT secret access

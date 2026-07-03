@@ -6,18 +6,20 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { CloudCostResourceRepository } from '../../repositories/CloudCostResourceRepository';
 import { CloudCostScheduleRepository } from '../../repositories/CloudCostScheduleRepository';
+import { CustomCostModel, ICloudCostAdapter } from './types';
 
-const logger = pino({ name: 'LCloud-LCost-LCollector' });
+const logger = createLogger('cloud-cost-collector');
 import {
   CloudResource,
   CloudProvider,
   CloudResourceType,
   ICloudCostAdapter,
   CostCollectionSchedule,
+  CustomCostModel,
 } from './types';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
@@ -207,6 +209,8 @@ export class TencentCloudCostAdapter implements ICloudCostAdapter {
 export class CloudCostCollector {
   /** 适配器注册表（运行时状态，保留内存） */
   private adapters: Map<CloudProvider, ICloudCostAdapter> = new Map();
+  /** 自定义成本模型注册表 */
+  private customModels: Map<string, CustomCostModel> = new Map();
   private resourceRepo: CloudCostResourceRepository;
   private scheduleRepo: CloudCostScheduleRepository;
 
@@ -239,6 +243,38 @@ export class CloudCostCollector {
    */
   getRegisteredProviders(): CloudProvider[] {
     return Array.from(this.adapters.keys());
+  }
+
+  /**
+   * 注册自定义成本模型
+   */
+  registerCustomModel(model: CustomCostModel): void {
+    this.customModels.set(model.name, model);
+    logger.info({ modelName: model.name }, '[CloudCostCollector] Registered custom cost model');
+  }
+
+  /**
+   * 获取自定义成本模型
+   */
+  getCustomModel(name: string): CustomCostModel | undefined {
+    return this.customModels.get(name);
+  }
+
+  /**
+   * 应用自定义成本模型计算成本
+   */
+  applyCustomModel(name: string, resource: CloudResource): CloudResource {
+    const model = this.customModels.get(name);
+    if (!model) {
+      logger.warn({ modelName: name }, '[CloudCostCollector] Custom cost model not found, returning original resource');
+      return resource;
+    }
+    const calculatedCost = model.calculateCost(resource);
+    logger.debug(
+      { modelName: name, resourceId: resource.resourceId, originalCost: resource.cost, calculatedCost },
+      '[CloudCostCollector] Applied custom cost model'
+    );
+    return { ...resource, cost: calculatedCost };
   }
 
   /**

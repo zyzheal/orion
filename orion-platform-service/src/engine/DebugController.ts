@@ -4,7 +4,7 @@
 // Architecture: In-process state snapshot + Promise wait.
 // Since the entire platform runs in one process, debug state can be held in memory.
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

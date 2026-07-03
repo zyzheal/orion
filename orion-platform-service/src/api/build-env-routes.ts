@@ -10,7 +10,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { CacheMonitorService } from '../services/cache-monitor/CacheMonitorService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, UnauthorizedError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'build-env-routes' });
 
@@ -39,7 +40,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list builds');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -54,9 +55,9 @@ export default async function buildEnvRoutes(
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get build');
       if (error.code === 'BUILD_NOT_FOUND') {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: error.message });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -70,7 +71,7 @@ export default async function buildEnvRoutes(
       return reply.status(201).send({ success: true, data: { id: `build_${Date.now()}`, ...body } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create build');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -86,9 +87,9 @@ export default async function buildEnvRoutes(
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update build');
       if (error.code === 'BUILD_NOT_FOUND') {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: error.message });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -103,9 +104,9 @@ export default async function buildEnvRoutes(
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete build');
       if (error.code === 'BUILD_NOT_FOUND') {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: error.message });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -120,7 +121,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { images: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list build images');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -134,7 +135,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get build image');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -148,7 +149,7 @@ export default async function buildEnvRoutes(
       return reply.status(201).send({ success: true, data: { id: `img_${Date.now()}`, ...body } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create build image');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -163,7 +164,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { id, ...body } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update build image');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -177,7 +178,7 @@ export default async function buildEnvRoutes(
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete build image');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -192,7 +193,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { configs: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list build cache configs');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -206,7 +207,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get build cache config');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -220,7 +221,7 @@ export default async function buildEnvRoutes(
       return reply.status(201).send({ success: true, data: { id: `cache_${Date.now()}`, ...body } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create build cache config');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -235,7 +236,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { id, ...body } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update build cache config');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -249,7 +250,7 @@ export default async function buildEnvRoutes(
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete build cache config');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -265,7 +266,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { logs: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list build logs');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -279,7 +280,7 @@ export default async function buildEnvRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get build log');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -293,17 +294,17 @@ export default async function buildEnvRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       if (!cacheMonitorService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const tenantId = (request as any).user?.tenantId;
       if (!tenantId) {
-        return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
+        return handleError(reply, new UnauthorizedError('UNAUTHORIZED'));
       }
       const dashboard = await cacheMonitorService.getDashboard(tenantId);
       return reply.status(200).send({ success: true, data: dashboard });
     } catch (error: any) {
       logger.error({ error }, 'Failed to get cache monitor dashboard');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -313,17 +314,17 @@ export default async function buildEnvRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       if (!cacheMonitorService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const { cacheId } = (request.params as any);
       const metrics = await cacheMonitorService.getCacheMetrics(cacheId);
       if (!metrics) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Cache metrics not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: metrics });
     } catch (error: any) {
       logger.error({ error }, 'Failed to get cache metrics');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -333,14 +334,14 @@ export default async function buildEnvRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       if (!cacheMonitorService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const { cacheId } = (request.params as any);
       const health = await cacheMonitorService.assessCacheHealth(cacheId);
       return reply.status(200).send({ success: true, data: health });
     } catch (error: any) {
       logger.error({ error }, 'Failed to assess cache health');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -350,18 +351,18 @@ export default async function buildEnvRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       if (!cacheMonitorService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const tenantId = (request as any).user?.tenantId;
       if (!tenantId) {
-        return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
+        return handleError(reply, new UnauthorizedError('UNAUTHORIZED'));
       }
       const { pipelineId } = (request.params as any);
       const impact = await cacheMonitorService.analyzePerformanceImpact(options.database!, pipelineId, tenantId);
       return reply.status(200).send({ success: true, data: impact });
     } catch (error: any) {
       logger.error({ error }, 'Failed to analyze cache performance impact');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -371,21 +372,21 @@ export default async function buildEnvRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       if (!cacheMonitorService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const tenantId = (request as any).user?.tenantId;
       if (!tenantId) {
-        return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'Tenant context required' });
+        return handleError(reply, new UnauthorizedError('UNAUTHORIZED'));
       }
       const { cacheId, eventType, latencySavedMs } = request.body as any;
       if (!cacheId || !eventType) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'cacheId and eventType are required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       await cacheMonitorService.recordCacheEvent(cacheId, tenantId, eventType, latencySavedMs);
       return reply.status(201).send({ success: true });
     } catch (error: any) {
       logger.error({ error }, 'Failed to record cache event');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

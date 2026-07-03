@@ -9,7 +9,7 @@
  * 5. JUnit (Java)
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { TestTemplateRepository } from '../../repositories/TestTemplateRepository';
 
 import {

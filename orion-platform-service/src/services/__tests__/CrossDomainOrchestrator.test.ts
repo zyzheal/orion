@@ -89,7 +89,7 @@ describe('CrossDomainOrchestrator', () => {
           // (mirrors OrchestrationRepository.findByTenant)
           const expectedQueryParts: string[] = ['SELECT * FROM cross_domain_orchestrations WHERE tenant_id = $1'];
           const mockParams: any[] = [tenantId];
-          let mockParamIdx = 2;
+          const mockParamIdx = 2;
           // Check if SQL has a status clause to find its param index
           const statusMatch = sql.match(/AND\s+status\s*=\s*ANY\(\$(\d+)\)/i);
           if (statusMatch) {

@@ -1,10 +1,10 @@
 // orion-platform-service/src/services/auth/K8sSecretKeyStorage.ts
 import { KubeConfig, CoreV1Api } from '@kubernetes/client-node';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import type { JwtKey } from './JwtKeyRotationService';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('k8s-secret-storage');
 
 export interface K8sSecretConfig {
   namespace: string;

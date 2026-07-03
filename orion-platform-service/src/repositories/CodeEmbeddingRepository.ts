@@ -7,7 +7,7 @@
  * - Metadata JSONB queries
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 import {
   CodeEmbedding,

@@ -8,7 +8,7 @@
  * - Watch 消息处理
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import * as k8s from '@kubernetes/client-node';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

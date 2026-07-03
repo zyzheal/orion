@@ -10,7 +10,7 @@
  * In-memory Map is used as a read-through cache; writes go to PostgreSQL.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { AbacPolicyRepository, AbacPolicyEntity } from '../../repositories/AbacPolicyRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

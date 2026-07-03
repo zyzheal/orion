@@ -4,7 +4,7 @@
  * Phase 2: 在 Pipeline 执行前评估预估成本是否超出预算，
  * 提供成本门禁功能，阻止超预算的 Pipeline 执行。
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from '../database';
 
 import { v4 as uuidv4 } from 'uuid';

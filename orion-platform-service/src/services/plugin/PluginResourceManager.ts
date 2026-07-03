@@ -8,7 +8,7 @@
  * - 配额回收机制
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import {
   ResourceQuota,

@@ -7,7 +7,7 @@
  * 脚本执行能力
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from './database';
 import { EventBusService } from './event-bus-service';
 import { CmdbService } from './cmdb/CmdbService';

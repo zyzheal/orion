@@ -1,6 +1,7 @@
 import { DatabasePool } from '../services/database';
 import { BaseRepository } from '../db/base-repository';
 import { OrionError, ErrorCode } from '../errors';
+import { decryptValue, encryptValue } from '../utils/encryption';
 
 // Entity types
 export interface ChatOpsCommandEntity {

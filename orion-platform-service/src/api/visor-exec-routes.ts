@@ -11,7 +11,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { VisorExecRepository } from '../repositories/VisorExecRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 const logger = pino({ name: 'visor-exec-routes' });
 
@@ -47,25 +48,16 @@ export default async function visorExecRoutes(
     };
 
     if (!body.command || !body.hostIds || body.hostIds.length === 0) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'command and hostIds are required',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     // Input validation
     if (body.command.length > 10000) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'command exceeds maximum length of 10000 characters',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     if (body.hostIds.length > 100) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'cannot execute on more than 100 hosts at once',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     const commandLog = await repo.createCommandLog({
@@ -135,10 +127,7 @@ export default async function visorExecRoutes(
     const entry = await repo.findCommandLogById(params.id);
 
     if (!entry) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Command log ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -163,10 +152,7 @@ export default async function visorExecRoutes(
 
     const entry = await repo.findCommandLogById(params.id);
     if (!entry) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Command log ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     const details = await repo.findCommandLogDetailsByCommandId(params.id);
@@ -215,10 +201,7 @@ export default async function visorExecRoutes(
     const entry = await repo.findTemplateById(params.id);
 
     if (!entry) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Template ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -247,17 +230,11 @@ export default async function visorExecRoutes(
     };
 
     if (!body.name || !body.content) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'name and content are required',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     if (body.name.length > 200 || body.content.length > 50000) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'name max 200 chars, content max 50000 chars',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     const template = await repo.createTemplate({
@@ -295,10 +272,7 @@ export default async function visorExecRoutes(
 
     const existing = await repo.findTemplateById(params.id);
     if (!existing) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Template ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     const updated = await repo.updateTemplate(params.id, {
@@ -309,10 +283,7 @@ export default async function visorExecRoutes(
     });
 
     if (!updated) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Template ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -337,10 +308,7 @@ export default async function visorExecRoutes(
 
     const existing = await repo.findTemplateById(params.id);
     if (!existing) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Template ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     await repo.deleteTemplate(params.id);
@@ -382,10 +350,7 @@ export default async function visorExecRoutes(
     const entry = await repo.findCronJobById(params.id);
 
     if (!entry) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -418,10 +383,7 @@ export default async function visorExecRoutes(
     };
 
     if (!body.name || !body.command || !body.hostIds || !body.cronExpression) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'name, command, hostIds, and cronExpression are required',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     const cronJob = await repo.createCronJob({
@@ -463,10 +425,7 @@ export default async function visorExecRoutes(
 
     const existing = await repo.findCronJobById(params.id);
     if (!existing) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     const updated = await repo.updateCronJob(params.id, {
@@ -479,10 +438,7 @@ export default async function visorExecRoutes(
     });
 
     if (!updated) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -510,10 +466,7 @@ export default async function visorExecRoutes(
 
     const existing = await repo.findCronJobById(params.id);
     if (!existing) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     await repo.deleteCronJob(params.id);
@@ -530,10 +483,7 @@ export default async function visorExecRoutes(
 
     const existing = await repo.findCronJobById(params.id);
     if (!existing) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     const updated = await repo.toggleCronJob(params.id, body.enabled);
@@ -563,10 +513,7 @@ export default async function visorExecRoutes(
 
     const job = await repo.findCronJobById(params.id);
     if (!job) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     // Record the execution as a command log
@@ -613,10 +560,7 @@ export default async function visorExecRoutes(
 
     const job = await repo.findCronJobById(params.id);
     if (!job) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Cron job ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     const page = query.page ? parseInt(query.page, 10) : 1;
@@ -663,10 +607,7 @@ export default async function visorExecRoutes(
     }
 
     if (!hostIds.length || !body.targetPath) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        message: 'hostIds and targetPath are required',
-      });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'))
     }
 
     const task = await repo.createUploadTask({
@@ -724,10 +665,7 @@ export default async function visorExecRoutes(
     const entry = await repo.findUploadTaskById(params.id);
 
     if (!entry) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Upload task ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -754,17 +692,11 @@ export default async function visorExecRoutes(
 
     const entry = await repo.findUploadTaskById(params.id);
     if (!entry) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Upload task ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     if (entry.status === 'success' || entry.status === 'failed') {
-      return reply.status(400).send({
-        error: 'INVALID_STATE',
-        message: `Cannot cancel task in ${entry.status} status`,
-      });
+      return handleError(reply, new ValidationError('INVALID_STATE'))
     }
 
     const updated = await repo.updateUploadTask(params.id, { status: 'failed' });

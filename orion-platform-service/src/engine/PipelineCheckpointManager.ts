@@ -18,7 +18,7 @@ import { PipelineRun, PipelineRunStatus } from '../models/PipelineRun';
 import { Stage, StageStatus } from '../models/Stage';
 import { Task, TaskStatus } from '../models/Task';
 import { PipelineCheckpointRepository, CreateCheckpointInput } from '../repositories/PipelineCheckpointRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -63,6 +63,15 @@ export interface CheckpointData {
   completedStages: string[];
   checkpointVersion: number;
   checkpointedAt: string;
+  stageOrchestrator?: {
+    variableContexts: Record<
+      string,
+      {
+        taskOutputs: Record<string, Record<string, string>>;
+        variables: Record<string, string>;
+      }
+    >;
+  };
 }
 
 /**
@@ -361,6 +370,11 @@ export class PipelineCheckpointManager {
       completedStages: Array.from(execution.completedStages),
       checkpointVersion: 1,
       checkpointedAt: new Date().toISOString(),
+      stageOrchestrator: (execution as any).stageOrchestratorState
+        ? {
+            variableContexts: (execution as any).stageOrchestratorState.variableContexts,
+          }
+        : undefined,
     };
   }
 
@@ -413,7 +427,22 @@ export class PipelineCheckpointManager {
     const runningStages = new Set(data.runningStages);
     const completedStages = new Set(data.completedStages);
 
-    return { run, stages, pendingStages, runningStages, completedStages };
+    const execution: PipelineExecution = {
+      run,
+      stages,
+      pendingStages,
+      runningStages,
+      completedStages,
+    };
+
+    // Restore StageOrchestrator state if present
+    if (data.stageOrchestrator) {
+      (execution as any).stageOrchestratorState = {
+        variableContexts: data.stageOrchestrator.variableContexts,
+      };
+    }
+
+    return execution;
   }
 
   /**

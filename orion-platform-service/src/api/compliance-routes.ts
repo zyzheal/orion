@@ -12,11 +12,10 @@ import { requirePermission } from '../middleware/requirePermission';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
-import { ComplianceReportRepository, ComplianceScheduleRepository } from '../services/compliance/ComplianceRepository';
 import { ComplianceService } from '../services/compliance/ComplianceService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'compliance-routes' });
+const logger = createLogger('compliance-routes');
 
 interface ComplianceRoutesOptions {
   database: DatabasePool;
@@ -26,9 +25,7 @@ export default async function complianceRoutes(
   app: FastifyInstance,
   options: ComplianceRoutesOptions,
 ): Promise<void> {
-  const reportRepo = new ComplianceReportRepository(options.database);
-  const scheduleRepo = new ComplianceScheduleRepository(options.database);
-  const service = new ComplianceService(reportRepo, scheduleRepo);
+  const service = new ComplianceService(options.database);
 
   // ==================== Compliance Reports ====================
 

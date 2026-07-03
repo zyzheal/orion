@@ -14,10 +14,9 @@ describe('Security module exports', () => {
     expect(typeof mod.SecretSanitizer).toBe('function');
   });
 
-  it('should export ComplianceFrameworkService', async () => {
+  it('should not export ComplianceFrameworkService (merged into compliance/ComplianceService)', async () => {
     const mod = await import('../index');
-    expect(mod.ComplianceFrameworkService).toBeDefined();
-    expect(typeof mod.ComplianceFrameworkService).toBe('function');
+    expect(mod.ComplianceFrameworkService).toBeUndefined();
   });
 
   it('should export SecurityAuditService', async () => {

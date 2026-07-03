@@ -307,7 +307,7 @@ export class WorkflowInstanceManager {
    * 从内存中移除已完成/失败/已取消超过指定天数的实例
    */
   cleanupExpiredInstances(retentionDate: Date): { deletedCount: number } {
-    let deletedCount = 0;
+    const deletedCount = 0;
 
     // 清理实例管理器中的过期实例
     // 注意：实例存储在 repository 中，这里清理内存缓存

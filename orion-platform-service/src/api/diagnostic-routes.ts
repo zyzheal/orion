@@ -8,6 +8,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import {  ValidationError, NotFoundError, handleError } from '../errors';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
@@ -67,10 +68,7 @@ export default async function diagnosticRoutes(
       const { triggerType, triggerId, symptoms, tenantId } = body;
 
       if (!triggerType || !triggerId || !symptoms || symptoms.length === 0) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'triggerType, triggerId, and at least one symptom are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
       const result = await service.triggerDiagnostic({
@@ -149,10 +147,7 @@ export default async function diagnosticRoutes(
       const session = await service.getDiagnosticDetail(id);
 
       if (!session) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic session ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       // 尝试获取关联报告
@@ -183,10 +178,7 @@ export default async function diagnosticRoutes(
       const { type, source, description, severity, metadata } = body;
 
       if (!type || !source || !description || !severity) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'type, source, description, and severity are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
       try {
@@ -203,10 +195,7 @@ export default async function diagnosticRoutes(
         });
       } catch (error: any) {
         if (error.message?.includes('not found')) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: error.message,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
         throw error;
       }
@@ -230,10 +219,7 @@ export default async function diagnosticRoutes(
       const session = await service.getDiagnosticDetail(id);
 
       if (!session) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic session ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       // 重新生成报告
@@ -302,10 +288,7 @@ export default async function diagnosticRoutes(
       const report = await service.getReport(id);
 
       if (!report) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic report ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       return reply.send({
@@ -336,10 +319,7 @@ export default async function diagnosticRoutes(
         });
       } catch (error: any) {
         if (error.message?.includes('not found')) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: error.message,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
         throw error;
       }
@@ -365,10 +345,7 @@ export default async function diagnosticRoutes(
       const { name, symptoms, rootCause, solution, category } = body;
 
       if (!name || !symptoms || !rootCause || !solution || !category) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'name, symptoms, rootCause, solution, and category are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
       const pattern = await service.addPattern({
@@ -439,10 +416,7 @@ export default async function diagnosticRoutes(
       const pattern = await service.getPattern(id);
 
       if (!pattern) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic pattern ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       return reply.send({
@@ -491,10 +465,7 @@ export default async function diagnosticRoutes(
       const { sessionId, patternId, confirmed, actualRootCause, fixTimeMs } = body;
 
       if (!sessionId || !patternId) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'sessionId and patternId are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
       const outcome = await service.recordOutcome({

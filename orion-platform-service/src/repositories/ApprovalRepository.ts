@@ -104,6 +104,72 @@ export class ApprovalRepository extends BaseRepository<ApprovalEntity> {
     return this.mapStepRowToEntity(result.rows[0]);
   }
 
+  async updateStepApprover(stepId: string, newApproverId: string, reason?: string): Promise<ApprovalStepEntity | null> {
+    const result = await this.db.query(
+      `UPDATE approval_steps SET approver_id = $1, comment = COALESCE($2, comment) WHERE id = $3 RETURNING *`,
+      [newApproverId, reason ?? null, stepId],
+    );
+    if (result.rows.length === 0) return null;
+    return this.mapStepRowToEntity(result.rows[0]);
+  }
+
+  async findStatisticsByTenant(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{
+    totalApprovals: number;
+    approvedCount: number;
+    rejectedCount: number;
+    cancelledCount: number;
+    pendingCount: number;
+    averageDurationMs: number;
+  }> {
+    const result = await this.db.query(
+      `SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'approved') AS approved,
+        COUNT(*) FILTER (WHERE status = 'rejected') AS rejected,
+        COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
+        COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+        AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) * 1000) FILTER (WHERE completed_at IS NOT NULL) AS avg_duration
+      FROM approvals
+      WHERE tenant_id = $1 AND created_at >= $2 AND created_at <= $3`,
+      [tenantId, periodStart, periodEnd],
+    );
+
+    const row = result.rows[0];
+    return {
+      totalApprovals: parseInt(row?.total || '0', 10),
+      approvedCount: parseInt(row?.approved || '0', 10),
+      rejectedCount: parseInt(row?.rejected || '0', 10),
+      cancelledCount: parseInt(row?.cancelled || '0', 10),
+      pendingCount: parseInt(row?.pending || '0', 10),
+      averageDurationMs: parseFloat(row?.avg_duration || '0'),
+    };
+  }
+
+  async findTrendByTenant(tenantId: string, periodStart: Date, periodEnd: Date): Promise<Array<{
+    period: string;
+    created: string;
+    approved: string;
+    rejected: string;
+    cancelled: string;
+    pending: string;
+  }>> {
+    const result = await this.db.query(
+      `SELECT
+        TO_CHAR(date_trunc('day', created_at), 'YYYY-MM-DD') AS period,
+        COUNT(*) AS created,
+        COUNT(*) FILTER (WHERE status = 'approved') AS approved,
+        COUNT(*) FILTER (WHERE status = 'rejected') AS rejected,
+        COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
+        COUNT(*) FILTER (WHERE status = 'pending') AS pending
+      FROM approvals
+      WHERE tenant_id = $1 AND created_at >= $2 AND created_at <= $3
+      GROUP BY 1
+      ORDER BY 1`,
+      [tenantId, periodStart, periodEnd],
+    );
+    return result.rows;
+  }
+
   protected mapRowToEntity(row: any): ApprovalEntity {
     return {
       id: row.id,

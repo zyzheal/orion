@@ -3,7 +3,7 @@
 //
 // Migrated from in-memory Map() storage to PostgreSQL via ExecutionTimelineRepository.
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ExecutionTimelineRepository } from '../../repositories/ExecutionTimelineRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 

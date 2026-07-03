@@ -10,6 +10,9 @@
  * - PipelineCrashRecovery: 崩溃恢复
  * - PipelineLifecycleHandler: 生命周期（完成/取消/审批）
  *
+ * 解耦改进：Engine → Services 直接 import 从 20 个减少到 4 个核心服务。
+ * 所有可选服务通过 PipelineServiceRegistry 获取，不再直接 import。
+ *
  * 负责：
  * - 解析 Pipeline YAML 定义
  * - 创建 PipelineRun 实例
@@ -23,26 +26,11 @@ import { PipelineRun, PipelineRunStatus, TriggerType } from '../models/PipelineR
 import { Stage } from '../models/Stage';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
-import { SubPipelineService } from '../services/pipeline/SubPipelineService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
-import { PipelineEventSSEBridge } from '../services/pipeline/PipelineEventSSEBridge';
 import { StageExecutor } from './StageExecutor';
-import { ArtifactService } from '../services/pipeline/ArtifactService';
-import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
-import { PipelineExecutionQueue, QueuePriority } from '../services/pipeline/PipelineExecutionQueue';
-import { AutoRetryService } from '../services/pipeline/AutoRetryService';
-import { PipelineCheckpointManager } from './PipelineCheckpointManager';
-import { IMNotifier, IMNotificationConfig } from '../services/pipeline/IMNotifier';
-import { WebhookNotifier } from '../services/pipeline/WebhookNotifier';
-import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository';
-import { QualityGateService } from '../services/pipeline/QualityGateService';
-import { DeploymentStrategyService } from '../services/pipeline/DeploymentStrategyService';
 import { MatrixExpander } from './MatrixExpander';
 import { DebugController } from './DebugController';
 import { YamlPreprocessor } from './YamlPreprocessor';
-import { SecretsService, SecretsServiceConfig } from '../services/pipeline/SecretsService';
-import { SecretRepository } from '../repositories/SecretRepository';
-import { CommitStatusService } from '../services/code-repo/CommitStatusService';
 import { ExpressionEvaluator } from './ExpressionEvaluator';
 import { StageInitializer } from './StageInitializer';
 import { StageOrchestrator } from './StageOrchestrator';
@@ -53,12 +41,16 @@ import { ScmStatusReporter } from './ScmStatusReporter';
 import { PipelineGateController } from './PipelineGateController';
 import { PipelineCrashRecovery, RecoveryResult } from './PipelineCrashRecovery';
 import { PipelineLifecycleHandler } from './PipelineLifecycleHandler';
-import { GlobalParamService } from '../services/pipeline/GlobalParamService';
-import { EnvProfileService } from '../services/pipeline/EnvProfileService';
-import { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
-import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
-
-import pino from 'pino';
+import { PipelineServiceRegistry } from './PipelineServiceRegistry';
+import type { PipelineEventSSEBridge } from '../services/pipeline/PipelineEventSSEBridge';
+import type { PipelineExecutionQueue, QueuePriority } from '../services/pipeline/PipelineExecutionQueue';
+import type { PipelineCheckpointManager } from './PipelineCheckpointManager';
+import type { SecretsService } from '../services/pipeline/SecretsService';
+import type { GlobalParamService } from '../services/pipeline/GlobalParamService';
+import type { EnvProfileService } from '../services/pipeline/EnvProfileService';
+import type { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
+import type { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -84,20 +76,22 @@ export class PipelineEngine {
   private scmStatusReporter: ScmStatusReporter;
   private gateController: PipelineGateController;
 
-  // Core dependencies
+  // Core dependencies (4 required - no change)
   private pipelineService: PipelineService;
   private runService: PipelineRunService;
   private eventPublisher: PipelineEventPublisher;
+  private stageExecutor: StageExecutor;
+
+  // Service registry (all optional services accessed through here)
+  private serviceRegistry: PipelineServiceRegistry;
+
+  // Cached references from registry
   private sseBridge: PipelineEventSSEBridge | null;
   private executionQueue: PipelineExecutionQueue | null;
   private checkpointManager: PipelineCheckpointManager | null;
   private debugController: DebugController | null;
   private yamlPreprocessor: YamlPreprocessor | null;
-  private secretsService: SecretsService | null;
-  private globalParamService: GlobalParamService | null;
-  private envProfileService: EnvProfileService | null;
-  private scriptVersionService: ScriptVersionService | null;
-  private pipelineAuditLogService: PipelineAuditLogService | null;
+
   private executions = new Map<string, PipelineExecution>();
 
   constructor(
@@ -105,42 +99,23 @@ export class PipelineEngine {
     runService: PipelineRunService,
     eventPublisher: PipelineEventPublisher,
     stageExecutor: StageExecutor,
-    sseBridge?: PipelineEventSSEBridge | null,
-    subPipelineService?: SubPipelineService | null,
-    artifactService?: ArtifactService,
-    approvalGateService?: ApprovalGateService,
-    executionQueue?: PipelineExecutionQueue,
-    autoRetryService?: AutoRetryService,
-    onRunComplete?: RunCompletionCallback,
+    serviceRegistry: PipelineServiceRegistry,
     checkpointManager?: PipelineCheckpointManager,
-    imNotifier?: IMNotifier,
-    imNotificationConfigs?: IMNotificationConfig[],
-    debugController?: DebugController,
-    webhookNotifier?: WebhookNotifier,
-    webhookConfigRepo?: WebhookConfigRepository,
-    qualityGateService?: QualityGateService,
-    deploymentStrategyService?: DeploymentStrategyService,
     yamlPreprocessor?: YamlPreprocessor | null,
-    secretsService?: SecretsService | null,
-    scmStatusService?: CommitStatusService | null,
-    globalParamService?: GlobalParamService | null,
-    envProfileService?: EnvProfileService | null,
-    scriptVersionService?: ScriptVersionService | null,
-    pipelineAuditLogService?: PipelineAuditLogService | null
+    debugController?: DebugController | null
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
     this.eventPublisher = eventPublisher;
-    this.sseBridge = sseBridge || null;
-    this.executionQueue = executionQueue || null;
+    this.stageExecutor = stageExecutor;
+    this.serviceRegistry = serviceRegistry;
     this.checkpointManager = checkpointManager || null;
     this.debugController = debugController || null;
     this.yamlPreprocessor = yamlPreprocessor || null;
-    this.secretsService = secretsService || null;
-    this.globalParamService = globalParamService || null;
-    this.envProfileService = envProfileService || null;
-    this.scriptVersionService = scriptVersionService || null;
-    this.pipelineAuditLogService = pipelineAuditLogService || null;
+
+    // Cached references from registry
+    this.sseBridge = this.serviceRegistry.getSseBridge();
+    this.executionQueue = this.serviceRegistry.getExecutionQueue();
 
     this.stageInitializer = new StageInitializer();
 
@@ -153,40 +128,40 @@ export class PipelineEngine {
     this.stageOrchestrator = new StageOrchestrator({
       pipelineService, runService, eventPublisher,
       sseBridge: this.sseBridge, stageExecutor,
-      subPipelineService: subPipelineService || null,
-      artifactService: artifactService || null,
-      autoRetryService: autoRetryService || null,
+      subPipelineService: this.serviceRegistry.getSubPipelineService(),
+      artifactService: this.serviceRegistry.getArtifactService(),
+      autoRetryService: this.serviceRegistry.getAutoRetryService(),
       expressionEvaluator: new ExpressionEvaluator(),
       checkpointManager: this.checkpointManager,
       debugController: this.debugController,
-      secretsService: this.secretsService,
-      globalParamService: this.globalParamService,
-      envProfileService: this.envProfileService,
-      scriptVersionService: this.scriptVersionService,
-      pipelineAuditLogService: this.pipelineAuditLogService,
+      secretsService: this.serviceRegistry.getSecretsService(),
+      globalParamService: this.serviceRegistry.getGlobalParamService(),
+      envProfileService: this.serviceRegistry.getEnvProfileService(),
+      scriptVersionService: this.serviceRegistry.getScriptVersionService(),
+      pipelineAuditLogService: this.serviceRegistry.getPipelineAuditLogService(),
       grayscaleController: this.grayscaleController,
       multiTargetExecutor: this.multiTargetExecutor,
     });
 
     this.notificationDispatcher = new NotificationDispatcher({
       pipelineService, runService,
-      imNotifier: imNotifier || null,
-      imNotificationConfigs: imNotificationConfigs || [],
-      webhookNotifier: webhookNotifier || null,
-      webhookConfigRepo: webhookConfigRepo || null,
+      imNotifier: this.serviceRegistry.getImNotifier(),
+      imNotificationConfigs: this.serviceRegistry.getImNotificationConfigs(),
+      webhookNotifier: this.serviceRegistry.getWebhookNotifier(),
+      webhookConfigRepo: this.serviceRegistry.getWebhookConfigRepo(),
     });
 
     this.scmStatusReporter = new ScmStatusReporter({
       pipelineService, runService,
-      scmStatusService: scmStatusService || null,
+      scmStatusService: this.serviceRegistry.getScmStatusService(),
     });
 
     this.gateController = new PipelineGateController({
       runService, eventPublisher,
       sseBridge: this.sseBridge,
-      approvalGateService: approvalGateService || null,
-      qualityGateService: qualityGateService || null,
-      deploymentStrategyService: deploymentStrategyService || null,
+      approvalGateService: this.serviceRegistry.getApprovalGateService(),
+      qualityGateService: this.serviceRegistry.getQualityGateService(),
+      deploymentStrategyService: this.serviceRegistry.getDeploymentStrategyService(),
     });
 
     this.lifecycleHandler = new PipelineLifecycleHandler({
@@ -199,27 +174,15 @@ export class PipelineEngine {
       scmStatusReporter: this.scmStatusReporter,
       gateController: this.gateController,
       executions: this.executions,
-      onRunComplete: onRunComplete || null,
-    });
-
-    this.crashRecovery = new PipelineCrashRecovery({
-      runService, eventPublisher,
-      sseBridge: this.sseBridge,
-      checkpointManager: this.checkpointManager,
-      executionQueue: this.executionQueue,
-      executions: this.executions,
     });
   }
 
   initializeSecrets(database: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, masterKey?: string): void {
-    if (!database) return;
-    const repo = new SecretRepository(database);
-    const config: SecretsServiceConfig | undefined = masterKey ? { encryptionKey: masterKey } : undefined;
-    this.secretsService = new SecretsService(repo, config);
+    this.serviceRegistry.initializeSecrets(database, masterKey);
   }
 
   getSecretsService(): SecretsService | null {
-    return this.secretsService;
+    return this.serviceRegistry.getSecretsService();
   }
 
   async execute(
@@ -426,18 +389,18 @@ export class PipelineEngine {
   }
 
   getGlobalParamService(): GlobalParamService | null {
-    return this.globalParamService;
+    return this.serviceRegistry.getGlobalParamService();
   }
 
   getEnvProfileService(): EnvProfileService | null {
-    return this.envProfileService;
+    return this.serviceRegistry.getEnvProfileService();
   }
 
   getScriptVersionService(): ScriptVersionService | null {
-    return this.scriptVersionService;
+    return this.serviceRegistry.getScriptVersionService();
   }
 
   getPipelineAuditLogService(): PipelineAuditLogService | null {
-    return this.pipelineAuditLogService;
+    return this.serviceRegistry.getPipelineAuditLogService();
   }
 }

@@ -8,6 +8,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineLogSSEService, PipelineLogEvent } from '../services/pipeline/PipelineLogSSEService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { ValidationError, UnauthorizedError, handleError } from '../errors';
 
 // Shared secret for internal SSE publish endpoints
 // Must match SSE_PUBLISH_SECRET env var set on the calling service (e.g., PipelineEngine)
@@ -18,10 +19,7 @@ async function verifyPublishAuth(request: FastifyRequest, reply: FastifyReply): 
   const headerSecret = request.headers['x-sse-secret'] as string | undefined;
 
   if (!SSE_PUBLISH_SECRET || headerSecret !== SSE_PUBLISH_SECRET) {
-    return reply.status(401).send({
-      error: 'UNAUTHORIZED',
-      message: 'Invalid or missing SSE publish secret',
-    });
+    return handleError(reply, new UnauthorizedError('UNAUTHORIZED'))
   }
 }
 
@@ -48,9 +46,7 @@ export default async function registerPipelineSSERoutes(
     const userId = (request.user as any)?.id || 'anonymous';
 
     if (!pipelineId || !runId) {
-      return reply.status(400).send({
-        error: 'Missing required parameters: pipelineId, runId',
-      });
+      return handleError(reply, new ValidationError('Missing required parameters: pipelineId, runId'))
     }
 
     // 设置 SSE Headers
@@ -88,9 +84,7 @@ export default async function registerPipelineSSERoutes(
     const userId = (request.user as any)?.id || 'anonymous';
 
     if (!pipelineId) {
-      return reply.status(400).send({
-        error: 'Missing required parameter: pipelineId',
-      });
+      return handleError(reply, new ValidationError('Missing required parameter: pipelineId'))
     }
 
     // 设置 SSE Headers
@@ -119,9 +113,7 @@ export default async function registerPipelineSSERoutes(
     const { pipelineId, runId, stageId, stageName, stepName, logLine, level } = body;
 
     if (!pipelineId || !runId || !stageId || !logLine) {
-      return reply.status(400).send({
-        error: 'Missing required fields: pipelineId, runId, stageId, logLine',
-      });
+      return handleError(reply, new ValidationError('Missing required fields: pipelineId, runId, stageId, logLine'))
     }
 
     pipelineLogSSE.publishLogEvent({
@@ -144,9 +136,7 @@ export default async function registerPipelineSSERoutes(
     const { pipelineId, runId, status, stageId, stageName, progress } = body;
 
     if (!pipelineId || !runId || !status) {
-      return reply.status(400).send({
-        error: 'Missing required fields: pipelineId, runId, status',
-      });
+      return handleError(reply, new ValidationError('Missing required fields: pipelineId, runId, status'))
     }
 
     pipelineLogSSE.publishStatusEvent({

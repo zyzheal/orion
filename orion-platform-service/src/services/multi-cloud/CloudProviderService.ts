@@ -7,6 +7,7 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../../repositories/MultiCloudRepository';
+import { ProviderClientFactory } from './providers/ProviderClientFactory';
 
 export interface CloudAccountInput {
   name: string;
@@ -120,7 +121,7 @@ export class CloudProviderService {
   ): Promise<CloudResource[]> {
     const entities = await this.repo.findResourcesByTenant(tenantId);
 
-    let resources = entities.map(e => this.entityToResource(e));
+    const resources = entities.map(e => this.entityToResource(e));
 
     if (!filters) {
       return resources;
@@ -245,24 +246,26 @@ export class CloudProviderService {
       return { valid: false, provider: 'unknown', message: 'Account not found', checkedAt: new Date() };
     }
 
-    // Simulated credential validation per provider
-    const providerChecks: Record<string, () => boolean> = {
-      aws: () => true,   // Would call STS GetCallerIdentity
-      gcp: () => true,   // Would call IAM credentials check
-      azure: () => true, // Would call Azure Resource Manager
-      alicloud: () => true, // Would call STS AssumeRole
-      private: () => true,
-    };
-
-    const checker = providerChecks[account.provider] ?? (() => false);
-    const valid = checker();
-
-    return {
-      valid,
-      provider: account.provider,
-      message: valid ? 'Credentials are valid' : 'Credential validation failed',
-      checkedAt: new Date(),
-    };
+    try {
+      const client = ProviderClientFactory.getClient(account.provider);
+      const credentialRef = account.credentials ? JSON.parse(account.credentials) : {};
+      await client.initialize(credentialRef, account.region);
+      const result = await client.validateCredentials();
+      return {
+        valid: result.valid,
+        provider: account.provider,
+        message: result.message,
+        checkedAt: new Date(),
+        details: result.details,
+      };
+    } catch (error: any) {
+      return {
+        valid: false,
+        provider: account.provider,
+        message: `Validation error: ${error.message}`,
+        checkedAt: new Date(),
+      };
+    }
   }
 
   /**
@@ -272,21 +275,37 @@ export class CloudProviderService {
     const info = this.getCloudProviderInfo(provider);
     const supported = info ? info.supportedRegions.includes(region) : false;
 
-    // Simulated health check with latency
-    const latencyMs = Math.floor(Math.random() * 200) + 50;
-
-    return {
-      provider,
-      region,
-      healthy: supported,
-      latencyMs,
-      checkedAt: new Date(),
-      details: {
-        apiEndpoint: info?.apiEndpoint ?? 'unknown',
-        supportedRegions: info?.supportedRegions ?? [],
-        regionSupported: supported,
-      },
-    };
+    try {
+      const client = ProviderClientFactory.getClient(provider);
+      await client.initialize({}, region);
+      const result = await client.checkHealth();
+      return {
+        provider,
+        region,
+        healthy: result.healthy && supported,
+        latencyMs: result.latencyMs,
+        checkedAt: new Date(),
+        details: {
+          apiEndpoint: info?.apiEndpoint ?? 'unknown',
+          supportedRegions: info?.supportedRegions ?? [],
+          regionSupported: supported,
+          ...result.details,
+        },
+      };
+    } catch (error: any) {
+      return {
+        provider,
+        region,
+        healthy: false,
+        latencyMs: 0,
+        checkedAt: new Date(),
+        details: {
+          apiEndpoint: info?.apiEndpoint ?? 'unknown',
+          regionSupported: supported,
+          error: error.message,
+        },
+      };
+    }
   }
 
   /**

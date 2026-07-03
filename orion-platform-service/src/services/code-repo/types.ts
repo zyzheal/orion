@@ -156,8 +156,12 @@ export interface ICodeRepoAdapter {
   createWebhook(repoId: string, input: { url: string; events: WebhookEventType[]; active?: boolean; secret?: string }): Promise<WebhookConfig>;
   /** 列出 Webhooks */
   listWebhooks(repoId: string): Promise<WebhookConfig[]>;
+  /** 更新 Webhook */
+  updateWebhook(repoId: string, webhookId: string, input: { url?: string; events?: WebhookEventType[]; active?: boolean; secret?: string }): Promise<WebhookConfig>;
   /** 删除 Webhook */
   deleteWebhook(repoId: string, webhookId: string): Promise<void>;
+  /** 列出标签 */
+  listTags(repoId: string): Promise<{ tags: string[]; total: number }>;
 }
 
 /**

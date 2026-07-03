@@ -16,6 +16,7 @@ import { WorkflowTaskRepository } from '../repositories/WorkflowTaskRepository';
 import { TaskTimeoutChecker, TimeoutAction } from '../services/lowcode/TaskTimeoutChecker';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 /**
  * 路由选项接口
@@ -65,10 +66,7 @@ export default async function taskTimeoutRoutes(
     ) => {
       try {
         if (!timeoutChecker) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Task timeout checker not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Task timeout checker not available'))
         }
 
         const timedOutTasks = await timeoutChecker.getTimedOutTasks();
@@ -83,10 +81,7 @@ export default async function taskTimeoutRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -106,10 +101,7 @@ export default async function taskTimeoutRoutes(
     ) => {
       try {
         if (!timeoutChecker) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Task timeout checker not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Task timeout checker not available'))
         }
 
         const timedOutTasks = await timeoutChecker.checkNow();
@@ -128,10 +120,7 @@ export default async function taskTimeoutRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -151,10 +140,7 @@ export default async function taskTimeoutRoutes(
     ) => {
       try {
         if (!timeoutChecker) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Task timeout checker not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Task timeout checker not available'))
         }
 
         const status = timeoutChecker.getStatus();
@@ -165,10 +151,7 @@ export default async function taskTimeoutRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );

@@ -1,7 +1,7 @@
 /**
  * Approval Services
  */
-export { ApprovalService, ApprovalStatus, ApprovalRequest } from './ApprovalService';
+export { ApprovalService, ApprovalStatus, ApprovalRequest, ApprovalStatistics, ApprovalTrendDataPoint, ApprovalTrendReport } from './ApprovalService';
 
 // Phase 2: Multi-level approval, emergency approval, templates
 export { MultiLevelApprovalService, ApprovalAction, ApprovalMode } from './MultiLevelApprovalService';

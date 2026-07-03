@@ -20,7 +20,7 @@ import { DatabasePool } from '../services/database';
 import { ServiceCatalogService } from '../services/service-catalog/ServiceCatalogService';
 import { requirePermission } from '../middleware/requirePermission';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'service-catalog-routes' });
 
@@ -271,11 +271,7 @@ export default async function serviceCatalogRoutes(
       const body = request.body as Record<string, unknown>;
 
       if (!body.status) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Status is required',
-          code: 'VALIDATION_ERROR',
-        });
+        return handleError(reply, new ValidationError('Status is required'))
       }
 
       const entity = await catalogService.transitionStatus(id, {

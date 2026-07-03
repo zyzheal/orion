@@ -7,7 +7,7 @@
  * 3. 统一的工具执行接口
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   ToolDefinition,
   ToolHandler,

@@ -15,7 +15,7 @@ import { DatabasePool } from '../services/database';
 import { K8sCostRepository } from '../services/finops/k8s-cost/K8sCostRepository';
 import { BudgetRepository } from '../services/finops/k8s-cost/BudgetRepository';
 import { CostAllocationService } from '../services/finops/k8s-cost/CostAllocationService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'cost-allocation-routes' });
 

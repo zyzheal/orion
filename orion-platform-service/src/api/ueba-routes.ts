@@ -11,6 +11,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { UEBAService } from '../services/authz/UEBAEngine';
 import { PermissionAuditRepository } from '../repositories/PermissionAuditRepository';
 import { DatabasePool } from '../services/database';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 interface UEBARoutesOptions {
   database?: DatabasePool;
@@ -36,7 +37,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
   }
 
   function handleError(error: Error, reply: FastifyReply) {
-    return reply.status(500).send({ error: error.name, message: error.message });
+    return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
   }
 
   // GET /api/v1/ueba/user/:userId - 分析单个用户行为

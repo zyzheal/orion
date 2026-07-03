@@ -22,6 +22,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { CapabilityRepository, CapabilityService } from '../services/capability';
 import { DatabasePool } from '../services/database';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface CreateCapabilityBody {
   capability_id: string;
@@ -93,7 +94,7 @@ export default async function capabilityRoutes(
       const capabilities = await capService.listCapabilities(query?.category);
       reply.send({ data: capabilities });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to list capabilities' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -105,7 +106,7 @@ export default async function capabilityRoutes(
       const tree = await capService.getCapabilityTree(null);
       reply.send({ data: tree });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get capability tree' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -133,11 +134,11 @@ export default async function capabilityRoutes(
       const params = request.params as IdParams;
       const capability = await capService.getCapability(params.id);
       if (!capability) {
-        return reply.status(404).send({ success: false, error: 'NOT_FOUND', message: 'Capability not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       reply.send({ data: capability });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get capability' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -165,7 +166,7 @@ export default async function capabilityRoutes(
       const params = request.params as IdParams;
       const deleted = await capService.deleteCapability(params.id);
       if (!deleted) {
-        return reply.status(404).send({ success: false, error: 'NOT_FOUND', message: 'Capability not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       reply.send({ data: { message: 'Capability deleted' } });
     } catch (error) {
@@ -201,7 +202,7 @@ export default async function capabilityRoutes(
       await capService.revokeCapabilityFromRole(params.id, params.roleName);
       reply.send({ data: { message: 'Capability revoked from role' } });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to revoke capability from role' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -231,7 +232,7 @@ export default async function capabilityRoutes(
       await capService.revokeCapabilityFromUser(params.id, params.userId);
       reply.send({ data: { message: 'Capability revoked from user' } });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to revoke capability from user' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -260,7 +261,7 @@ export default async function capabilityRoutes(
       const capabilityId = await capService.getCapabilityForCommand(params.command, params.action, query.environment);
       reply.send({ data: { capabilityId } });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get command capability' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -278,7 +279,7 @@ export default async function capabilityRoutes(
       });
       reply.send({ data: result });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to check permission' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -300,10 +301,10 @@ export default async function capabilityRoutes(
       };
 
       if (!body.expires_in_hours || body.expires_in_hours <= 0) {
-        return reply.status(400).send({ success: false, error: 'INVALID_DURATION', message: 'expires_in_hours must be positive' });
+        return handleError(reply, new ValidationError('INVALID_DURATION'));
       }
       if (body.expires_in_hours > 720) {
-        return reply.status(400).send({ success: false, error: 'DURATION_EXCEEDS_LIMIT', message: 'Temporary permissions cannot exceed 720 hours (30 days)' });
+        return handleError(reply, new ValidationError('DURATION_EXCEEDS_LIMIT'));
       }
 
       const tempPerm = await capService.grantTemporaryPermission({
@@ -328,7 +329,7 @@ export default async function capabilityRoutes(
       const perms = await capService.getActiveTemporaryPermissions(params.userId, query.tenant_id);
       reply.send({ data: perms });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get temporary permissions' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -342,11 +343,11 @@ export default async function capabilityRoutes(
       const body = request.body as { reason?: string };
       const revoked = await capService.revokeTemporaryPermission(parseInt(params.id, 10), userId, body.reason);
       if (!revoked) {
-        return reply.status(404).send({ success: false, error: 'NOT_FOUND', message: 'Temporary permission not found or already revoked' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       reply.send({ data: revoked });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to revoke temporary permission' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -373,7 +374,7 @@ export default async function capabilityRoutes(
       });
       reply.send({ data: result });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get audit logs' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -400,7 +401,7 @@ export default async function capabilityRoutes(
       // 验证能力存在
       const cap = await capService.getCapability(body.capability_id);
       if (!cap) {
-        return reply.status(400).send({ success: false, error: 'INVALID_CAPABILITY', message: 'Capability not found' });
+        return handleError(reply, new ValidationError('INVALID_CAPABILITY'));
       }
 
       // 这里应该创建工单 + 审批流程
@@ -430,11 +431,11 @@ export default async function capabilityRoutes(
       const params = request.params as { ticketId: string };
       const permRequest = await capService.getPermissionRequestByTicket(parseInt(params.ticketId, 10));
       if (!permRequest) {
-        return reply.status(404).send({ success: false, error: 'NOT_FOUND', message: 'Permission request not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       reply.send({ data: permRequest });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get permission request' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -446,7 +447,7 @@ export default async function capabilityRoutes(
       const result = await capService.cleanupExpiredTemporaryPermissions();
       reply.send({ data: result });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to cleanup expired permissions' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -525,7 +526,7 @@ export default async function capabilityRoutes(
       });
       reply.send({ data: { success } });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to reject request' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -575,11 +576,11 @@ export default async function capabilityRoutes(
         userId
       );
       if (!revoked) {
-        return reply.status(404).send({ success: false, error: 'NOT_FOUND', message: 'Temporary permission not found or already revoked' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       reply.send({ data: revoked });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to revoke permission' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -597,7 +598,7 @@ export default async function capabilityRoutes(
       const capabilities = await capService.getUserEffectiveCapabilities(targetUserId, roles);
       reply.send({ data: { user_id: targetUserId, capabilities } });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get effective capabilities' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -610,7 +611,7 @@ export default async function capabilityRoutes(
       const requests = await capService.getUserPermissionRequests(params.userId);
       reply.send({ data: requests });
     } catch (error) {
-      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get user permission requests' });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

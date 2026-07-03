@@ -7,7 +7,7 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import { UnifiedResourceRepository, DeploymentResultRepository, UnifiedResourceEntity, DeploymentResultEntity } from '../../repositories/ResourceAbstractionRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LResource-LAbstraction-LLayer' });
 

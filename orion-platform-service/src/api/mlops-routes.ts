@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MLOpsService } from '../services/mlops/MLOpsService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface MLOpsRoutesOptions {
   database?: DatabasePool;
@@ -45,7 +46,7 @@ export default async function mlopsRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const exp = await mlopsService.getExperiment(params.id);
-    if (!exp) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: exp });
   });
 
@@ -56,7 +57,7 @@ export default async function mlopsRoutes(
     const body = request.body as any;
     const tenantId = String((request as any).user?.tenantId || 1);
     const exp = await mlopsService.updateExperiment(params.id, body, tenantId);
-    if (!exp) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: exp });
   });
 
@@ -66,7 +67,7 @@ export default async function mlopsRoutes(
     const params = request.params as any;
     const tenantId = String((request as any).user?.tenantId || 1);
     const deleted = await mlopsService.deleteExperiment(params.id, tenantId);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: null });
   });
 
@@ -85,7 +86,7 @@ export default async function mlopsRoutes(
     const params = request.params as any;
     const body = request.body as any;
     const exp = await mlopsService.updateExperimentStatus(params.id, body.status);
-    if (!exp) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: exp });
   });
 
@@ -114,7 +115,7 @@ export default async function mlopsRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const model = await mlopsService.getModel(params.id);
-    if (!model) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Model not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: model });
   });
 
@@ -125,7 +126,7 @@ export default async function mlopsRoutes(
     const body = request.body as any;
     const tenantId = String((request as any).user?.tenantId || 1);
     const model = await mlopsService.deployModel(params.id, tenantId, { endpoint: body?.endpoint });
-    if (!model) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Model not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: model });
   });
 
@@ -135,7 +136,7 @@ export default async function mlopsRoutes(
     const params = request.params as any;
     const body = request.body as any;
     const model = await mlopsService.updateModelStatus(params.id, body.status);
-    if (!model) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Model not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: model });
   });
 
@@ -165,7 +166,7 @@ export default async function mlopsRoutes(
     const params = request.params as any;
     const body = request.body as any;
     const job = await mlopsService.updateJobStatus(params.id, body.status);
-    if (!job) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Training job not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: job });
   });
 

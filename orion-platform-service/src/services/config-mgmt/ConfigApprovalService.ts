@@ -19,7 +19,7 @@ import {
   ConfigEvents,
 } from './types';
 import { ConfigApprovalRepository } from '../../repositories/ConfigApprovalRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LConfig-LApproval-LService' });

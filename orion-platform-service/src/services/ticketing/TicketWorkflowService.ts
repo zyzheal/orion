@@ -24,7 +24,7 @@ import {
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
 import { AssignmentRuleRepository } from '../../repositories/AssignmentRuleRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

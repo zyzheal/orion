@@ -12,13 +12,13 @@
  */
 
 import { CronExpressionParser } from 'cron-parser';
-import pino from 'pino';
 import { TriggerRepository, type TriggerEntity } from '../../repositories/TriggerRepository';
 import { PathFilter } from './PathFilter';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { createLogger } from '../../utils/logger';
 
 const pathFilter = new PathFilter();
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('pipeline-trigger');
 
 export type TriggerType = 'git' | 'webhook' | 'schedule' | 'manual';
 export type TriggerStatus = 'active' | 'inactive' | 'failed';

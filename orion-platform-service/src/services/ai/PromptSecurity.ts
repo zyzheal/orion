@@ -3,7 +3,7 @@
  * Detects 6 threat types: command_injection, role_play_attack, system_prompt_leak,
  * token_smuggling, code_injection, instruction_override
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

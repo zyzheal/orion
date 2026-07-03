@@ -1,5 +1,5 @@
 // orion-platform-service/src/services/output-validation/ASTValidator.ts
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -126,7 +126,7 @@ export class ASTValidator {
 
     // Check for consistent indentation (simplified)
     const lines = code.split('\n');
-    let indentStack: number[] = [0];
+    const indentStack: number[] = [0];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const indent = line.search(/\S/);

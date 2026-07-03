@@ -9,7 +9,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'backup-routes' });
 
@@ -32,7 +33,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { plans: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list backup plans');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -46,7 +47,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get backup plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -60,7 +61,7 @@ export default async function backupRoutes(
       return reply.status(201).send({ success: true, data: { id: `plan_${Date.now()}`, ...body } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create backup plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -75,7 +76,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { id, ...body } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update backup plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -89,7 +90,7 @@ export default async function backupRoutes(
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete backup plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -104,7 +105,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { plans: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list recovery plans');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -118,7 +119,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get recovery plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -132,7 +133,7 @@ export default async function backupRoutes(
       return reply.status(201).send({ success: true, data: { id: `recovery_${Date.now()}`, ...body } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create recovery plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -147,7 +148,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { id, ...body } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update recovery plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -161,7 +162,7 @@ export default async function backupRoutes(
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete recovery plan');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -177,7 +178,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { backupId, verified: true } });
     } catch (error: any) {
       logger.error({ error, backupId: (request.params as any).backupId }, 'Failed to verify backup');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -195,7 +196,7 @@ export default async function backupRoutes(
       });
     } catch (error: any) {
       logger.error({ error, planId: (request.params as any).planId }, 'Failed to initiate restore');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -211,7 +212,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { backups: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list backups');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -225,7 +226,7 @@ export default async function backupRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get backup detail');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -242,7 +243,7 @@ export default async function backupRoutes(
       });
     } catch (error: any) {
       logger.error({ error, planId: (request.params as any).planId }, 'Failed to trigger backup');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

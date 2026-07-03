@@ -10,7 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LClick-LHouse-LSync' });

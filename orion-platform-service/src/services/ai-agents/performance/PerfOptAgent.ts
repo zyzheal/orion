@@ -9,7 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   AgentConfig,
   AgentExecutionContext,
@@ -182,7 +182,7 @@ export class PerfOptAgent extends BaseAgent {
     this.validateContext(context);
 
     // 如果需要获取历史数据，进行趋势分析
-    let historicalMetrics: PerformanceMetrics[] = input.historicalMetrics || [];
+    const historicalMetrics: PerformanceMetrics[] = input.historicalMetrics || [];
     if (input.type === 'trend' && !historicalMetrics.length) {
       // 尝试从 monitoring 工具获取历史数据
       try {

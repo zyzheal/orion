@@ -11,7 +11,8 @@ import { ProjectRepository } from '../services/project/ProjectRepository';
 import { ProjectService, ProjectServiceError } from '../services/project/ProjectService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'project-routes' });
 
@@ -58,20 +59,14 @@ export default async function projectRoutes(
     const { tenantId } = request.query as { tenantId: string };
 
     if (!tenantId) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'tenantId query parameter is required',
-      });
+      return handleError(reply, new ValidationError('MISSING_TENANT_ID'))
     }
 
     try {
       const projects = await service.listProjects(tenantId);
       return reply.send({ data: projects, total: projects.length });
     } catch (error: any) {
-      return reply.status(500).send({
-        error: 'LIST_ERROR',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -90,15 +85,9 @@ export default async function projectRoutes(
       return reply.send(project);
     } catch (error: any) {
       if (error instanceof ProjectServiceError && error.code === 'NOT_FOUND') {
-        return reply.status(404).send({
-          error: 'PROJECT_NOT_FOUND',
-          message: error.message,
-        });
+        return handleError(reply, new NotFoundError('PROJECT_NOT_FOUND'))
       }
-      return reply.status(500).send({
-        error: 'GET_ERROR',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -112,10 +101,7 @@ export default async function projectRoutes(
     const body = request.body as CreateProjectBody;
 
     if (!body.tenantId || !body.name) {
-      return reply.status(400).send({
-        error: 'INVALID_INPUT',
-        message: 'tenantId and name are required',
-      });
+      return handleError(reply, new ValidationError('INVALID_INPUT'))
     }
 
     try {
@@ -123,15 +109,9 @@ export default async function projectRoutes(
       return reply.status(201).send(project);
     } catch (error: any) {
       if (error instanceof ProjectServiceError && error.code === 'INVALID_INPUT') {
-        return reply.status(400).send({
-          error: error.code,
-          message: error.message,
-        });
+        return handleError(reply, new ValidationError(error.message))
       }
-      return reply.status(500).send({
-        error: 'CREATE_ERROR',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('CREATE_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -149,17 +129,11 @@ export default async function projectRoutes(
     try {
       const deleted = await service.deleteProject(id);
       if (!deleted) {
-        return reply.status(404).send({
-          error: 'PROJECT_NOT_FOUND',
-          message: `Project not found: ${id}`,
-        });
+        return handleError(reply, new NotFoundError('PROJECT_NOT_FOUND'))
       }
       return reply.status(204).send();
     } catch (error: any) {
-      return reply.status(500).send({
-        error: 'DELETE_ERROR',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('DELETE_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -179,15 +153,9 @@ export default async function projectRoutes(
       return reply.send(project);
     } catch (error: any) {
       if (error instanceof ProjectServiceError && error.code === 'NOT_FOUND') {
-        return reply.status(404).send({
-          error: 'PROJECT_NOT_FOUND',
-          message: error.message,
-        });
+        return handleError(reply, new NotFoundError('PROJECT_NOT_FOUND'))
       }
-      return reply.status(500).send({
-        error: 'UPDATE_ERROR',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('UPDATE_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 }

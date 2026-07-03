@@ -22,8 +22,8 @@ import { SsoService, SsoStateStore } from '../services/auth/SsoService';
 import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
-import pino from 'pino';
-import { OrionError, ErrorCode } from '../errors';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode , ValidationError, handleError} from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -105,11 +105,7 @@ export async function registerSsoRoutes(
   // Public endpoint — no auth required (user is not yet authenticated)
   fastify.get('/sso/login', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!ssoService.isConfigured()) {
-      return reply.status(400).send({
-        success: false,
-        error: 'SSO_NOT_CONFIGURED',
-        message: 'SSO is not configured. Set SSO_ISSUER_URL, SSO_CLIENT_ID, and SSO_CLIENT_SECRET.',
-      });
+      return handleError(reply, new ValidationError('SSO_NOT_CONFIGURED'))
     }
 
     try {
@@ -117,11 +113,7 @@ export async function registerSsoRoutes(
       return reply.redirect(loginUrl);
     } catch (error) {
       fastify.log.error(error, '[SsoRoutes] Failed to generate SSO login URL');
-      return reply.status(500).send({
-        success: false,
-        error: 'SSO_LOGIN_ERROR',
-        message: 'Failed to generate SSO login URL',
-      });
+      return handleError(reply, new OrionError('SSO_LOGIN_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 

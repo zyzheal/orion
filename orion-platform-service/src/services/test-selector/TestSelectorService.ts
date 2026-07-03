@@ -20,7 +20,7 @@ import { TestImpactAnalyzer, ImpactAnalysisResult } from './TestImpactAnalyzer';
 import { TestExecutionOptimizer } from './TestExecutionOptimizer';
 import { TestFailurePredictor, TestHistoryStats } from './TestFailurePredictor';
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PRTestResultDependencyRepository } from '../../repositories/TestDependencyRepository';
 
 const logger = pino({ name: 'test-selector-service' });

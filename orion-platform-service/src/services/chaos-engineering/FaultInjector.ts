@@ -12,7 +12,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LFault-LInjector' });
 

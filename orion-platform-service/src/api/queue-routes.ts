@@ -12,7 +12,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { PostgresJobRepository } from '../repositories/JobRepository';
 import { QueueService } from '../services/queue/QueueService';
 import { QueueController } from './controllers/QueueController';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'queue-routes' });
 

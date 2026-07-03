@@ -715,6 +715,50 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     );
   }
 
+  /**
+   * 更新 Webhook
+   *
+   * GitLab API: PUT /projects/:id/hooks/:hookId
+   */
+  async updateWebhook(repoId: string, webhookId: string, input: {
+    url?: string;
+    events?: WebhookEventType[];
+    active?: boolean;
+    secret?: string;
+  }): Promise<WebhookConfig> {
+    const body: Record<string, any> = {};
+    if (input.url) body.url = input.url;
+    if (input.secret) body.token = input.secret;
+    if (input.active !== undefined) body.enable_ssl_verification = input.active;
+    if (input.events) {
+      body.merge_requests_events = input.events.includes(WebhookEventType.PR_OPENED) || input.events.includes(WebhookEventType.PR_MERGED);
+      body.push_events = input.events.includes(WebhookEventType.PUSH);
+    }
+
+    const hook: any = await this.client.put(
+      `/projects/${encodeURIComponent(repoId)}/hooks/${webhookId}`,
+      body,
+      { id: webhookId, url: input.url || '', events: input.events || [], active: input.active ?? true, secret: input.secret }
+    );
+
+    return this.mapGitLabHookToWebhookConfig(hook);
+  }
+
+  /**
+   * 列出标签
+   *
+   * GitLab API: GET /projects/:id/repository/tags
+   */
+  async listTags(repoId: string): Promise<{ tags: string[]; total: number }> {
+    const data: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/tags?per_page=100`,
+      []
+    );
+
+    const tags = data.map((t: any) => t.name || '').filter(Boolean);
+    return { tags, total: tags.length };
+  }
+
   // ==================== 数据映射方法 ====================
 
   /** 将 GitLab Project 映射为 Repository */

@@ -1,6 +1,6 @@
 // orion-platform-service/src/services/security/SecurityScannerService.ts
 import { SecretSanitizer } from '../privacy/SecretSanitizer';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { spawn } from 'child_process';
 import path from 'path';
 import {
@@ -12,6 +12,8 @@ import {
   CreateFindingInput,
 } from '../../repositories/SecurityScanRepository';
 import { OrionError, ErrorCode } from '../../errors';
+import { DegradationManager, DEGRADATION_LEVELS, DegradationLevel, DegradationEvent, DegradationStateChange } from './DegradationManager';
+import { InMemoryScanStore, ScanStats } from './InMemoryScanStore';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -100,14 +102,20 @@ export class SecurityScannerService {
   private secretSanitizer: SecretSanitizer;
   private scanRepository: SecurityScanRepository | null = null;
   private findingRepository: SecurityFindingRepository | null = null;
+  private degradationManager: DegradationManager;
+  private memoryStore: InMemoryScanStore;
 
   constructor(options?: {
     scanRepository?: SecurityScanRepository;
     findingRepository?: SecurityFindingRepository;
+    degradationManager?: DegradationManager;
+    memoryStore?: InMemoryScanStore;
   }) {
     this.secretSanitizer = new SecretSanitizer();
     this.scanRepository = options?.scanRepository ?? null;
     this.findingRepository = options?.findingRepository ?? null;
+    this.degradationManager = options?.degradationManager ?? new DegradationManager();
+    this.memoryStore = options?.memoryStore ?? new InMemoryScanStore();
   }
 
   /**
@@ -124,12 +132,20 @@ export class SecurityScannerService {
   private validatePath(inputPath: string): string {
     // Check input path for dangerous patterns before resolving
     if (inputPath.includes('..') || inputPath.includes('\0')) {
+      logger.warn(
+        { inputPath, attackType: 'path_traversal' },
+        '[SecurityScanner] Path validation rejected traversal attempt',
+      );
       throw new OrionError('Invalid path: potential traversal attack', ErrorCode.VALIDATION_ERROR);
     }
 
     // Check for shell metacharacters in input
     const dangerousChars = /[;&|$`\\(){}<>!]/;
     if (dangerousChars.test(inputPath)) {
+      logger.warn(
+        { inputPath, attackType: 'shell_injection', dangerousChars: inputPath.match(/[;&|$`\\(){}<>!]/g) },
+        '[SecurityScanner] Path validation rejected shell metacharacters',
+      );
       throw new OrionError('Invalid path: contains forbidden characters', ErrorCode.VALIDATION_ERROR);
     }
 
@@ -138,6 +154,10 @@ export class SecurityScannerService {
 
     // Final check on resolved path
     if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(resolved)) {
+      logger.warn(
+        { inputPath, resolved, attackType: 'invalid_resolved_path' },
+        '[SecurityScanner] Path validation rejected resolved path',
+      );
       throw new OrionError('Invalid path: resolved path contains forbidden characters', ErrorCode.VALIDATION_ERROR);
     }
 
@@ -246,16 +266,10 @@ export class SecurityScannerService {
       summary: { ...summary, gateFailed },
     };
 
-    // Persist to database
-    if (this.scanRepository && this.findingRepository) {
-      try {
-        await this.persistScanResult(result, options.repository);
-      } catch (error) {
-        logger.warn({ error }, '[SecurityScanner] Failed to persist scan result');
-      }
-    }
+    // Persist to database with degradation fallback
+    await this.persistScanResultWithDegradation(result, options.repository);
 
-    logger.info({ scanId, summary }, '[SecurityScanner] Scan completed');
+    logger.info({ scanId, summary, degradationLevel: this.degradationManager.getCurrentLevel() }, '[SecurityScanner] Scan completed');
 
     return result;
   }
@@ -329,6 +343,107 @@ export class SecurityScannerService {
 
       await this.findingRepository.batchCreate(findingInputs);
     }
+  }
+
+  /**
+   * Persist scan result with degradation-aware fallback chain.
+   * Level 0: PG database (primary)
+   * Level 1: PG failed — fall back to in-memory store
+   * Level 2: Both failed — log warning, continue without persistence
+   */
+  private async persistScanResultWithDegradation(result: ScanResult, repository: string): Promise<void> {
+    // Level 0: Try PG database first
+    if (this.scanRepository && this.findingRepository) {
+      try {
+        await this.persistScanResult(result, repository);
+        return;
+      } catch (error) {
+        const level = this.degradationManager.degrade(
+          `PG database write failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
+        logger.warn(
+          { error, degradationLevel: level },
+          '[SecurityScanner] PG persistence failed, degrading to in-memory fallback',
+        );
+      }
+    } else {
+      // No PG repositories configured — degrade to Level 1
+      this.degradationManager.degrade(
+        'PG repositories not configured, using in-memory fallback',
+        'SecurityScannerService',
+      );
+    }
+
+    // Level 1: Fall back to in-memory store
+    if (this.degradationManager.getCurrentLevel() >= DEGRADATION_LEVELS.LEVEL_1) {
+      try {
+        const scanInput: CreateScanInput = {
+          id: result.id,
+          scanType: result.scanType,
+          repository,
+          branch: result.branch,
+          commitHash: result.commitHash,
+          status: result.status,
+          scanner: result.scanner,
+          findingsCount: result.findings.length,
+          criticalCount: result.summary.critical,
+          highCount: result.summary.high,
+          mediumCount: result.summary.medium,
+          lowCount: result.summary.low,
+          infoCount: result.summary.info,
+          gateFailed: result.summary.gateFailed ?? false,
+          scanStartTime: result.scanStartTime,
+          scanEndTime: result.scanEndTime,
+          durationMs: result.durationMs,
+        };
+
+        await this.memoryStore.createScan(scanInput);
+
+        if (result.findings.length > 0) {
+          const findingInputs: CreateFindingInput[] = result.findings.map(f => ({
+            id: f.id,
+            scanId: result.id,
+            ruleId: f.ruleId,
+            severity: f.severity,
+            category: f.category,
+            title: f.title,
+            description: f.description,
+            file: f.file,
+            lineStart: f.lineStart,
+            lineEnd: f.lineEnd,
+            codeSnippet: f.code,
+            match: f.match,
+            confidence: f.confidence,
+            remediation: f.remediation,
+          }));
+
+          await this.memoryStore.createFindings(findingInputs);
+        }
+
+        logger.info(
+          { scanId: result.id, memoryStoreSize: this.memoryStore.scanCount },
+          '[SecurityScanner] Scan persisted to in-memory fallback',
+        );
+        return;
+      } catch (memError) {
+        // Level 2: In-memory also failed — degrade further
+        this.degradationManager.degrade(
+          `In-memory store write failed: ${memError instanceof Error ? memError.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
+        logger.error(
+          { error: memError, degradationLevel: this.degradationManager.getCurrentLevel() },
+          '[SecurityScanner] In-memory persistence also failed',
+        );
+      }
+    }
+
+    // Level 2+: All persistence layers failed — log and continue without storing
+    logger.warn(
+      { scanId: result.id, degradationLevel: this.degradationManager.getCurrentLevel() },
+      '[SecurityScanner] Scan result not persisted — all storage layers unavailable',
+    );
   }
 
   /**
@@ -594,68 +709,139 @@ export class SecurityScannerService {
   }
 
   /**
-   * Check gate for composite scans
+   * Check gate for composite scans with degradation fallback.
+   * Tries PG database first, then falls back to in-memory store.
    */
   async checkGate(scanId: string, failOnSeverity: 'critical' | 'high' | 'medium'): Promise<{
     passed: boolean;
     findings: SecurityFinding[];
     summary: ScanSummary;
   }> {
-    // Look up from database
-    if (!this.scanRepository || !this.findingRepository) {
-      throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
+    // Try PG database first
+    if (this.scanRepository && this.findingRepository) {
+      try {
+        const dbScan = await this.scanRepository.findById(scanId);
+        if (dbScan) {
+          const dbFindings = await this.findingRepository.findByScanId(scanId);
+          const foundScan = this.entityToScanResult(dbScan, dbFindings);
+          const failed = this.checkGateFailure(foundScan.findings, failOnSeverity);
+
+          // If PG worked and we were degraded, recover one level
+          if (this.degradationManager.getCurrentLevel() > DEGRADATION_LEVELS.LEVEL_0) {
+            this.degradationManager.recover('PG database recovered during gate check', 'SecurityScannerService');
+          }
+
+          return {
+            passed: !failed,
+            findings: foundScan.findings,
+            summary: foundScan.summary,
+          };
+        }
+      } catch (error) {
+        logger.warn({ error }, '[SecurityScanner] PG gate lookup failed, trying in-memory fallback');
+        this.degradationManager.degrade(
+          `PG gate lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
+      }
     }
 
-    try {
-      const dbScan = await this.scanRepository.findById(scanId);
-      if (!dbScan) {
-        throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
-      }
+    // Fallback: try in-memory store
+    if (this.degradationManager.getCurrentLevel() >= DEGRADATION_LEVELS.LEVEL_1) {
+      try {
+        const memScan = await this.memoryStore.findScanById(scanId);
+        if (memScan) {
+          const memFindings = await this.memoryStore.findFindingsByScanId(scanId);
+          const foundScan = this.entityToScanResult(memScan, memFindings);
+          const failed = this.checkGateFailure(foundScan.findings, failOnSeverity);
 
-      const dbFindings = await this.findingRepository.findByScanId(scanId);
-      const foundScan = this.entityToScanResult(dbScan, dbFindings);
-      const failed = this.checkGateFailure(foundScan.findings, failOnSeverity);
+          logger.info({ scanId, degradationLevel: this.degradationManager.getCurrentLevel() }, '[SecurityScanner] Gate check served from in-memory fallback');
 
-      return {
-        passed: !failed,
-        findings: foundScan.findings,
-        summary: foundScan.summary,
-      };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('not found')) {
-        throw error;
+          return {
+            passed: !failed,
+            findings: foundScan.findings,
+            summary: foundScan.summary,
+          };
+        }
+      } catch (memError) {
+        logger.error({ error: memError }, '[SecurityScanner] In-memory gate lookup also failed');
+        this.degradationManager.degrade(
+          `In-memory gate lookup failed: ${memError instanceof Error ? memError.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
       }
-      logger.warn({ error }, '[SecurityScanner] Database lookup failed');
-      throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
     }
+
+    // Level 2+: all layers exhausted
+    throw new OrionError(`Scan ${scanId} not found`, ErrorCode.NOT_FOUND);
   }
 
   /**
-   * Get scan history for a repository
+   * Get scan history for a repository with degradation fallback.
+   * Uses batch query to avoid N+1: fetches all findings for all scans in one DB round-trip.
+   * Falls back to in-memory store if PG is unavailable.
    */
   async getScanHistory(repository: string, options?: { limit?: number }): Promise<ScanResult[]> {
-    if (!this.scanRepository || !this.findingRepository) {
-      return [];
-    }
+    // Try PG database first
+    if (this.scanRepository && this.findingRepository) {
+      try {
+        const dbScans = await this.scanRepository.findByRepository(repository, options);
+        if (dbScans.length === 0) return [];
 
-    try {
-      const dbScans = await this.scanRepository.findByRepository(repository, options);
-      const results: ScanResult[] = [];
+        // Batch-fetch all findings in a single query (eliminates N+1)
+        const findingsMap = await this.findingRepository.findByScanIds(dbScans.map(s => s.id));
 
-      for (const dbScan of dbScans) {
-        const dbFindings = await this.findingRepository.findByScanId(dbScan.id);
-        results.push(this.entityToScanResult(dbScan, dbFindings));
+        const results: ScanResult[] = dbScans.map(dbScan => {
+          const findings = findingsMap.get(dbScan.id) || [];
+          return this.entityToScanResult(dbScan, findings);
+        });
+
+        // If PG worked and we were degraded, recover
+        if (this.degradationManager.getCurrentLevel() > DEGRADATION_LEVELS.LEVEL_0) {
+          this.degradationManager.recover('PG database recovered during history lookup', 'SecurityScannerService');
+        }
+
+        return results.slice(-(options?.limit ?? 50));
+      } catch (error) {
+        logger.warn({ error, repository }, '[SecurityScanner] PG history lookup failed, trying in-memory fallback');
+        this.degradationManager.degrade(
+          `PG history lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
       }
-
-      return results.slice(-(options?.limit ?? 50));
-    } catch (error) {
-      logger.warn({ error }, '[SecurityScanner] Database history lookup failed');
-      return [];
     }
+
+    // Fallback: try in-memory store
+    if (this.degradationManager.getCurrentLevel() >= DEGRADATION_LEVELS.LEVEL_1) {
+      try {
+        const memScans = await this.memoryStore.findScansByRepository(repository, options);
+        if (memScans.length === 0) return [];
+
+        const results: ScanResult[] = [];
+        for (const memScan of memScans) {
+          const memFindings = await this.memoryStore.findFindingsByScanId(memScan.id);
+          results.push(this.entityToScanResult(memScan, memFindings));
+        }
+
+        logger.info({ repository, count: results.length, degradationLevel: this.degradationManager.getCurrentLevel() }, '[SecurityScanner] History served from in-memory fallback');
+
+        return results;
+      } catch (memError) {
+        logger.error({ error: memError, repository }, '[SecurityScanner] In-memory history lookup also failed');
+        this.degradationManager.degrade(
+          `In-memory history lookup failed: ${memError instanceof Error ? memError.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
+      }
+    }
+
+    // Level 2+: all layers exhausted
+    return [];
   }
 
   /**
-   * Get security dashboard metrics
+   * Get security dashboard metrics with degradation fallback.
+   * Tries PG database first, then falls back to in-memory store.
    */
   async getSecurityMetrics(repository?: string): Promise<{
     totalScans: number;
@@ -664,45 +850,81 @@ export class SecurityScannerService {
     highCount: number;
     trend: 'improving' | 'degrading' | 'stable';
   }> {
-    if (!this.scanRepository || !this.findingRepository) {
-      return {
-        totalScans: 0,
-        averageFindings: 0,
-        criticalCount: 0,
-        highCount: 0,
-        trend: 'stable',
-      };
-    }
+    // Try PG database first
+    if (this.scanRepository && this.findingRepository) {
+      try {
+        const stats = await this.scanRepository.getScanStats(repository);
+        const recentScans = await this.scanRepository.findRecent(10);
+        const recentScanResults: ScanResult[] = [];
 
-    try {
-      const stats = await this.scanRepository.getScanStats(repository);
-      const recentScans = await this.scanRepository.findRecent(10);
-      const recentScanResults: ScanResult[] = [];
+        for (const dbScan of recentScans) {
+          const dbFindings = await this.findingRepository.findByScanId(dbScan.id);
+          recentScanResults.push(this.entityToScanResult(dbScan, dbFindings));
+        }
 
-      for (const dbScan of recentScans) {
-        const dbFindings = await this.findingRepository.findByScanId(dbScan.id);
-        recentScanResults.push(this.entityToScanResult(dbScan, dbFindings));
+        const trend = this.calculateTrend(recentScanResults);
+
+        // If PG worked and we were degraded, recover
+        if (this.degradationManager.getCurrentLevel() > DEGRADATION_LEVELS.LEVEL_0) {
+          this.degradationManager.recover('PG database recovered during metrics lookup', 'SecurityScannerService');
+        }
+
+        return {
+          totalScans: stats.totalScans,
+          averageFindings: Math.round(stats.avgFindings),
+          criticalCount: 0, // Would need aggregation query
+          highCount: 0,
+          trend,
+        };
+      } catch (error) {
+        logger.warn({ error }, '[SecurityScanner] PG metrics lookup failed, trying in-memory fallback');
+        this.degradationManager.degrade(
+          `PG metrics lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
       }
-
-      const trend = this.calculateTrend(recentScanResults);
-
-      return {
-        totalScans: stats.totalScans,
-        averageFindings: Math.round(stats.avgFindings),
-        criticalCount: 0, // Would need aggregation query
-        highCount: 0,
-        trend,
-      };
-    } catch (error) {
-      logger.warn({ error }, '[SecurityScanner] Database metrics lookup failed');
-      return {
-        totalScans: 0,
-        averageFindings: 0,
-        criticalCount: 0,
-        highCount: 0,
-        trend: 'stable',
-      };
     }
+
+    // Fallback: try in-memory store
+    if (this.degradationManager.getCurrentLevel() >= DEGRADATION_LEVELS.LEVEL_1) {
+      try {
+        const stats = await this.memoryStore.getScanStats(repository);
+        const recentScans = await this.memoryStore.findRecentScans(10);
+        const recentScanResults: ScanResult[] = [];
+
+        for (const memScan of recentScans) {
+          const memFindings = await this.memoryStore.findFindingsByScanId(memScan.id);
+          recentScanResults.push(this.entityToScanResult(memScan, memFindings));
+        }
+
+        const trend = recentScanResults.length > 0 ? this.calculateTrend(recentScanResults) : 'stable';
+
+        logger.info({ degradationLevel: this.degradationManager.getCurrentLevel() }, '[SecurityScanner] Metrics served from in-memory fallback');
+
+        return {
+          totalScans: stats.totalScans,
+          averageFindings: Math.round(stats.avgFindings),
+          criticalCount: 0,
+          highCount: 0,
+          trend,
+        };
+      } catch (memError) {
+        logger.error({ error: memError }, '[SecurityScanner] In-memory metrics lookup also failed');
+        this.degradationManager.degrade(
+          `In-memory metrics lookup failed: ${memError instanceof Error ? memError.message : 'Unknown error'}`,
+          'SecurityScannerService',
+        );
+      }
+    }
+
+    // Level 2+: all layers exhausted
+    return {
+      totalScans: 0,
+      averageFindings: 0,
+      criticalCount: 0,
+      highCount: 0,
+      trend: 'stable',
+    };
   }
 
   /**
@@ -765,6 +987,36 @@ export class SecurityScannerService {
         gateFailed: scan.gateFailed,
       },
     };
+  }
+
+  // ==================== Degradation Management ====================
+
+  /**
+   * Get current degradation status summary.
+   */
+  getDegradationStatus(): {
+    currentLevel: number;
+    label: string;
+    isOperational: boolean;
+    totalDegradationEvents: number;
+    totalRecoveryEvents: number;
+    lastEvent: DegradationEvent | null;
+  } {
+    return this.degradationManager.getStatus();
+  }
+
+  /**
+   * Get full degradation event history.
+   */
+  getDegradationHistory(): DegradationEvent[] {
+    return this.degradationManager.getDegradationHistory();
+  }
+
+  /**
+   * Get the DegradationManager instance directly (for advanced use).
+   */
+  getDegradationManager(): DegradationManager {
+    return this.degradationManager;
   }
 
   // Utility methods

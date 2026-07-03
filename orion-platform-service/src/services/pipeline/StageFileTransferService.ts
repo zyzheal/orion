@@ -5,7 +5,7 @@
  * Files are stored in PostgreSQL (bytea) and transferred by reference.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { StageFileTransferRepository, StageFileTransferEntity } from '../../repositories/StageFileTransferRepository';
 import { StageFileTransfer, createStageFileTransfer } from '../../models/StageFileTransfer';

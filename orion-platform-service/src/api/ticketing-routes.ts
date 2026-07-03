@@ -11,9 +11,15 @@ import { requirePermission } from '../middleware/requirePermission';
 import { TicketingController } from './controllers/ticketing/TicketingController';
 import { TicketDispatchController } from './controllers/ticketing/TicketDispatchController';
 import { TicketingBIController } from './controllers/ticketing/TicketingBIController';
+import { SLAController } from './controllers/ticketing/SLAController';
+import { AutomationRuleController } from './controllers/ticketing/AutomationRuleController';
 import { TicketService } from '../services/ticketing/TicketService';
 import { TicketingService } from '../services/ticketing/TicketingService';
 import { TicketingRepository } from '../services/ticketing/TicketingRepository';
+import { SlaService } from '../services/ticketing/SlaService';
+import { SlaRepository } from '../repositories/SlaRepository';
+import { AutomationRuleService } from '../services/ticketing/AutomationRuleService';
+import { AutomationRuleRepository } from '../repositories/AutomationRuleRepository';
 
 export default async function ticketingRoutes(app: FastifyInstance): Promise<void> {
   // Initialize services with real db connection from Fastify instance
@@ -24,6 +30,15 @@ export default async function ticketingRoutes(app: FastifyInstance): Promise<voi
   const controller = new TicketingController(ticketService, ticketingService);
   const dispatchController = new TicketDispatchController(ticketService);
   const biController = new TicketingBIController(ticketService);
+
+  // Initialize SLA and Automation services
+  const slaRepo = new SlaRepository(db);
+  const slaService = new SlaService(slaRepo);
+  const slaController = new SLAController(slaService);
+
+  const automationRuleRepo = new AutomationRuleRepository(db);
+  const automationRuleService = new AutomationRuleService(automationRuleRepo);
+  const automationRuleController = new AutomationRuleController(automationRuleService);
 
   // ==================== Service Control ====================
 
@@ -459,5 +474,89 @@ export default async function ticketingRoutes(app: FastifyInstance): Promise<voi
     onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return biController.getTimeTrend(request, reply);
+  });
+
+  // ==================== SLA Policies ====================
+
+  app.post('/ticketing/sla/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.createPolicy(request, reply);
+  });
+
+  app.get('/ticketing/sla/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.listPolicies(request, reply);
+  });
+
+  app.get('/ticketing/sla/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getPolicy(request, reply);
+  });
+
+  app.put('/ticketing/sla/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.updatePolicy(request, reply);
+  });
+
+  app.delete('/ticketing/sla/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.deletePolicy(request, reply);
+  });
+
+  // ==================== SLA Tracking ====================
+
+  app.get('/ticketing/sla/tickets/:ticketId/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getTicketSLAStatus(request, reply);
+  });
+
+  app.get('/ticketing/sla/breaches', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getBreaches(request, reply);
+  });
+
+  app.get('/ticketing/sla/compliance/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getCompliance(request, reply);
+  });
+
+  // ==================== Automation Rules ====================
+
+  app.post('/ticketing/automation/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.createRule(request, reply);
+  });
+
+  app.get('/ticketing/automation/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.listRules(request, reply);
+  });
+
+  app.put('/ticketing/automation/rules/:ruleId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.updateRule(request, reply);
+  });
+
+  app.delete('/ticketing/automation/rules/:ruleId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.deleteRule(request, reply);
+  });
+
+  app.post('/ticketing/automation/rules/:ruleId/execute', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.executeRule(request, reply);
   });
 }

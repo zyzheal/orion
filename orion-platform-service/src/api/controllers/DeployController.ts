@@ -10,12 +10,22 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SmartDeployService } from '../../services/smart-deploy/SmartDeployService';
+import { DeployReleaseNotesService } from '../../services/deploy/DeployReleaseNotesService';
+import { DeployGitIntegrationService, DeployGitIntegrationError } from '../../services/deploy/DeployGitIntegrationService';
 
 export class DeployController {
   private smartDeployService: SmartDeployService;
+  private releaseNotesService: DeployReleaseNotesService;
+  private gitIntegrationService: DeployGitIntegrationService;
 
-  constructor(smartDeployService: SmartDeployService) {
+  constructor(
+    smartDeployService: SmartDeployService,
+    releaseNotesService?: DeployReleaseNotesService,
+    gitIntegrationService?: DeployGitIntegrationService
+  ) {
     this.smartDeployService = smartDeployService;
+    this.releaseNotesService = releaseNotesService || ({} as any);
+    this.gitIntegrationService = gitIntegrationService || ({} as any);
   }
 
   // ==================== Deployment Execution ====================
@@ -451,6 +461,215 @@ export class DeployController {
         error: 'INTERNAL_ERROR',
         code: 'DEPLOY_500',
         message: error.message || 'Failed to get latest deployment',
+      });
+    }
+  }
+
+  // ==================== Release Notes ====================
+
+  /**
+   * GET /deploy/:id/release-notes - Get release notes for a deployment
+   */
+  async getReleaseNotes(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    try {
+      const params = request.params as any;
+      const { id } = params;
+
+      const releaseNotes = await this.releaseNotesService.getReleaseNotes(id);
+
+      if (!releaseNotes) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'RELEASE_NOTES_404',
+          message: `Release notes not found for deployment '${id}'`,
+        });
+        return;
+      }
+
+      await reply.send(releaseNotes);
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'RELEASE_NOTES_500',
+        message: error.message || 'Failed to get release notes',
+      });
+    }
+  }
+
+  /**
+   * POST /deploy/:id/release-notes/generate - Generate release notes from Git
+   */
+  async generateReleaseNotes(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    try {
+      const params = request.params as any;
+      const { id } = params;
+      const body = request.body as any;
+
+      // Get deployment info
+      const deployment = await this.smartDeployService.getStatus(id);
+      if (!deployment) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'DEPLOY_004',
+          message: `Deployment '${id}' not found`,
+        });
+        return;
+      }
+
+      // Generate release notes
+      const releaseNotes = await this.releaseNotesService.generateFromGit({
+        deploymentId: id,
+        tenantId: 'default',
+        version: deployment.version,
+        environment: deployment.environment,
+        fromCommit: body?.fromCommit,
+        toCommit: body?.toCommit || deployment.commitSha,
+        repoPath: body?.repoPath || process.cwd(),
+        generatedBy: 'git',
+      });
+
+      await reply.status(201).send(releaseNotes);
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'RELEASE_NOTES_500',
+        message: error.message || 'Failed to generate release notes',
+      });
+    }
+  }
+
+  /**
+   * GET /deploy/release-notes/tenant/:tenantId - Get release notes for tenant
+   */
+  async getReleaseNotesByTenant(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    try {
+      const params = request.params as any;
+      const { tenantId } = params;
+      const query = request.query as any;
+      const limit = query?.limit ? parseInt(query.limit) : 50;
+
+      const releaseNotes = await this.releaseNotesService.getReleaseNotesByTenant(tenantId, limit);
+
+      await reply.send({
+        data: releaseNotes,
+        total: releaseNotes.length,
+        limit,
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'RELEASE_NOTES_500',
+        message: error.message || 'Failed to get release notes',
+      });
+    }
+  }
+
+  // ==================== Git Integration ====================
+
+  /**
+   * POST /deploy/:id/git/link - Link a Git commit to a deployment
+   */
+  async linkGitCommit(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    try {
+      const params = request.params as any;
+      const { id } = params;
+      const body = request.body as any;
+      const tenantId = request.user?.tenantId || 'default';
+
+      const { commitSha, branch, prNumber, prUrl } = body;
+
+      if (!commitSha) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: 'GIT_LINK_001',
+          message: 'commitSha is required',
+        });
+        return;
+      }
+
+      const link = await this.gitIntegrationService.linkGitCommit(id, tenantId, commitSha, {
+        branch,
+        prNumber,
+        prUrl,
+      });
+
+      await reply.status(201).send(link);
+    } catch (error: any) {
+      if (error instanceof DeployGitIntegrationError) {
+        const statusMap: Record<string, number> = {
+          DEPLOY_NOT_FOUND: 404,
+          TENANT_MISMATCH: 403,
+          INVALID_INPUT: 400,
+          INVALID_COMMIT_SHA: 400,
+        };
+        const status = statusMap[error.code] || 500;
+        await reply.status(status).send({
+          error: error.code,
+          code: `GIT_LINK_${status}`,
+          message: error.message,
+        });
+        return;
+      }
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'GIT_LINK_500',
+        message: error.message || 'Failed to link Git commit',
+      });
+    }
+  }
+
+  /**
+   * GET /deploy/:id/git/changelog - Get deployment changelog from Git
+   */
+  async getDeploymentChangelog(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    try {
+      const params = request.params as any;
+      const { id } = params;
+      const query = request.query as any;
+      const tenantId = request.user?.tenantId || 'default';
+      const repoPath = query?.repoPath;
+
+      const changelog = await this.gitIntegrationService.getDeploymentChangelog(id, tenantId, repoPath);
+
+      await reply.send(changelog);
+    } catch (error: any) {
+      if (error instanceof DeployGitIntegrationError) {
+        const statusMap: Record<string, number> = {
+          DEPLOY_NOT_FOUND: 404,
+          TENANT_MISMATCH: 403,
+          NO_COMMIT_SHA: 422,
+          INVALID_INPUT: 400,
+          REPO_NOT_FOUND: 404,
+          NOT_A_REPO: 400,
+          GIT_LOG_FAILED: 500,
+        };
+        const status = statusMap[error.code] || 500;
+        await reply.status(status).send({
+          error: error.code,
+          code: `GIT_CHANGELOG_${status}`,
+          message: error.message,
+        });
+        return;
+      }
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'GIT_CHANGELOG_500',
+        message: error.message || 'Failed to get deployment changelog',
       });
     }
   }

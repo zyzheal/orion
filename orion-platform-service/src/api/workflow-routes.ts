@@ -21,6 +21,7 @@ import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { randomUUID } from 'crypto';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface WorkflowRoutesOptions {
   database?: DatabasePool;
@@ -92,7 +93,7 @@ export default async function workflowRoutes(
         return reply.send({ success: true, data: workflows.rows });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -112,13 +113,13 @@ export default async function workflowRoutes(
         );
 
         if (result.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+          return handleError(reply, new NotFoundError('Workflow not found'));
         }
 
         return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -137,7 +138,7 @@ export default async function workflowRoutes(
         const { name, description, steps } = request.body as CreateWorkflowBody;
 
         if (!name) {
-          return reply.status(400).send({ success: false, error: 'name is required' });
+          return handleError(reply, new ValidationError('name is required'));
         }
 
         // Build nodes and edges from steps
@@ -169,7 +170,7 @@ export default async function workflowRoutes(
         return reply.status(201).send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -214,7 +215,7 @@ export default async function workflowRoutes(
         }
 
         if (updates.length === 0) {
-          return reply.status(400).send({ success: false, error: 'No fields to update' });
+          return handleError(reply, new ValidationError('No fields to update'));
         }
 
         updates.push(`updated_at = NOW()`);
@@ -226,13 +227,13 @@ export default async function workflowRoutes(
         );
 
         if (result.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+          return handleError(reply, new NotFoundError('Workflow not found'));
         }
 
         return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -252,13 +253,13 @@ export default async function workflowRoutes(
         );
 
         if (result.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+          return handleError(reply, new NotFoundError('Workflow not found'));
         }
 
         return reply.send({ success: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -278,13 +279,13 @@ export default async function workflowRoutes(
         );
 
         if (result.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+          return handleError(reply, new NotFoundError('Workflow not found'));
         }
 
         return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -304,13 +305,13 @@ export default async function workflowRoutes(
         );
 
         if (result.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+          return handleError(reply, new NotFoundError('Workflow not found'));
         }
 
         return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -336,11 +337,11 @@ export default async function workflowRoutes(
         );
 
         if (wf.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+          return handleError(reply, new NotFoundError('Workflow not found'));
         }
 
         if (!wf.rows[0].enabled) {
-          return reply.status(400).send({ success: false, error: 'Workflow is not enabled' });
+          return handleError(reply, new ValidationError('Workflow is not enabled'));
         }
 
         // Create execution instance
@@ -354,7 +355,7 @@ export default async function workflowRoutes(
         return reply.status(201).send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -376,7 +377,7 @@ export default async function workflowRoutes(
         return reply.send({ success: true, data: result.rows });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -399,13 +400,13 @@ export default async function workflowRoutes(
         );
 
         if (result.rows.length === 0) {
-          return reply.status(404).send({ success: false, error: 'Execution not found' });
+          return handleError(reply, new NotFoundError('Execution not found'));
         }
 
         return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ success: false, error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );

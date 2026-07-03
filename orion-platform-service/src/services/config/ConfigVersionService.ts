@@ -4,7 +4,7 @@
  * 配置版本管理 - 支持变更追踪与回滚
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ConfigVersionRepository } from '../../repositories/ConfigVersionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import crypto from 'crypto';

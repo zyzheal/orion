@@ -11,7 +11,7 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EnvironmentExecutorRepository, CreateEnvironmentExecutorStateInput } from '../../repositories/EnvironmentExecutorRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

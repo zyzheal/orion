@@ -8,8 +8,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { SubAppService } from '../services/subapp';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
-import { OrionError, ErrorCode } from '../errors';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode , ValidationError, NotFoundError, ConflictError, handleError} from '../errors';
 
 const logger = pino({ name: 'subapp-routes' });
 
@@ -89,11 +89,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       });
     } catch (error: any) {
       logger.error('[SubAppRoutes] Failed to get subapps:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to get sub-app configurations',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -111,11 +107,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       });
     } catch (error: any) {
       logger.error('[SubAppRoutes] Failed to get enabled subapps:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to get enabled sub-apps',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -129,11 +121,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       const app = await service.getByKey(key);
 
       if (!app) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: `Sub-app '${key}' not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       return reply.send({
@@ -142,11 +130,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       });
     } catch (error: any) {
       logger.error('[SubAppRoutes] Failed to get subapp:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to get sub-app configuration',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -160,11 +144,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
 
       // Validate required fields
       if (!body.name || !body.key || !body.entry_dev || !body.entry_prod || !body.routes) {
-        return reply.status(400).send({
-          success: false,
-          error: 'VALIDATION_ERROR',
-          message: 'Missing required fields: name, key, entry_dev, entry_prod, routes',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       const service = getService();
@@ -192,18 +172,10 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       logger.error('[SubAppRoutes] Failed to create subapp:', error);
 
       if (error.message.includes('already exists')) {
-        return reply.status(409).send({
-          success: false,
-          error: 'CONFLICT',
-          message: error.message,
-        });
+        return handleError(reply, new ConflictError('CONFLICT'))
       }
 
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to create sub-app',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -242,26 +214,14 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       logger.error('[SubAppRoutes] Failed to update subapp:', error);
 
       if (error.message.includes('not found')) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: error.message,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       if (error.message.includes('Cannot change')) {
-        return reply.status(400).send({
-          success: false,
-          error: 'VALIDATION_ERROR',
-          message: error.message,
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to update sub-app',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -285,18 +245,10 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       logger.error('[SubAppRoutes] Failed to toggle status:', error);
 
       if (error.message.includes('not found')) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: error.message,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to toggle sub-app status',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -319,18 +271,10 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       logger.error('[SubAppRoutes] Failed to delete subapp:', error);
 
       if (error.message.includes('not found')) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: error.message,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to delete sub-app',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -350,11 +294,7 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
       });
     } catch (error: any) {
       logger.error('[SubAppRoutes] Failed to get history:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: error.message || 'Failed to get configuration history',
-      });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 }

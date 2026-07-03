@@ -12,7 +12,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   Alert,
   AlertSourceType,
@@ -870,7 +870,7 @@ export class AlertSuppressionService {
     }
 
     let activeAlertCount = this.activeAlertsMemory.size;
-    let suppressionLogSize = this.suppressionLogMemory.length;
+    const suppressionLogSize = this.suppressionLogMemory.length;
 
     if (this.activeAlertRepository) {
       try {

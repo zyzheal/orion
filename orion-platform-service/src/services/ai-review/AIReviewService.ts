@@ -29,7 +29,7 @@ import { ReviewRuleRepository } from '../../repositories/ReviewRuleRepository';
 import { ReviewAggregator } from './ReviewAggregator';
 import { ReviewIntegrationService } from './ReviewIntegrationService';
 import { createLLMClient, LLMClient } from './LLMClient';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LA-LI-LReview-LService' });
 

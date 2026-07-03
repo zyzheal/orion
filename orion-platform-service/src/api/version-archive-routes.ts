@@ -14,7 +14,7 @@ import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { VersionArchiveRepository } from '../services/version-archive/VersionArchiveRepository';
 import { VersionArchiveService } from '../services/version-archive/VersionArchiveService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'version-archive-routes' });
 

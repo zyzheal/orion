@@ -20,7 +20,7 @@ import { ExpressionEvaluator, ExpressionContext } from './ExpressionEvaluator';
 import { VariableContext } from './VariableContext';
 import { Stage, StageStatus } from '../models/Stage';
 import { PipelineExecution } from './PipelineEngine';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

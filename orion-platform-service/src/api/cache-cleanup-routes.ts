@@ -13,6 +13,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { CacheCleanupService } from '../services/lowcode/CacheCleanupService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 /**
  * 路由选项接口
@@ -63,10 +64,7 @@ export default async function cacheCleanupRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -86,10 +84,7 @@ export default async function cacheCleanupRoutes(
     ) => {
       try {
         if (!cleanupService) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Cache cleanup service not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Cache cleanup service not available'))
         }
 
         const results = await cleanupService.triggerFullCleanup();
@@ -108,10 +103,7 @@ export default async function cacheCleanupRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );

@@ -14,6 +14,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { JwtKeyRotationService, JwtKeyRotationConfig } from '../services/auth/JwtKeyRotationService';
 import { TokenBlacklistService, TokenBlacklistConfig } from '../services/auth/TokenBlacklistService';
 import type { DatabasePool } from '../services/database';
+import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
 export interface EnhancedAuthRouteOptions {
   database: DatabasePool;
@@ -101,11 +102,7 @@ export default async function enhancedAuthRoutes(
         },
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'KEY_STATUS_ERROR',
-        message: 'Failed to get JWT key status',
-      });
+      return handleError(reply, new OrionError('KEY_STATUS_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -140,11 +137,7 @@ export default async function enhancedAuthRoutes(
         message: reason || 'JWT key rotated successfully',
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'KEY_ROTATION_ERROR',
-        message: 'Failed to rotate JWT key',
-      });
+      return handleError(reply, new OrionError('KEY_ROTATION_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -172,11 +165,7 @@ export default async function enhancedAuthRoutes(
         message: 'Emergency key rotation completed. All previous tokens should be considered invalid.',
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'EMERGENCY_ROTATION_ERROR',
-        message: 'Failed to perform emergency key rotation',
-      });
+      return handleError(reply, new OrionError('EMERGENCY_ROTATION_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -194,11 +183,7 @@ export default async function enhancedAuthRoutes(
       const { token, userId, tenantId, reason, revokedBy } = request.body as any;
 
       if (!token || !userId || !tenantId || !reason) {
-        return reply.status(400).send({
-          success: false,
-          error: 'MISSING_PARAMS',
-          message: 'token, userId, tenantId, and reason are required',
-        });
+        return handleError(reply, new ValidationError('MISSING_PARAMS'))
       }
 
       await tokenBlacklistService.revokeToken(token, userId, tenantId, reason, revokedBy);
@@ -215,11 +200,7 @@ export default async function enhancedAuthRoutes(
         message: 'Token revoked successfully',
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'TOKEN_REVOKE_ERROR',
-        message: 'Failed to revoke token',
-      });
+      return handleError(reply, new OrionError('TOKEN_REVOKE_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -248,11 +229,7 @@ export default async function enhancedAuthRoutes(
         },
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'TOKEN_CHECK_ERROR',
-        message: 'Failed to check token status',
-      });
+      return handleError(reply, new OrionError('TOKEN_CHECK_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -266,11 +243,7 @@ export default async function enhancedAuthRoutes(
       const { targetType, targetId, reason } = request.body as any;
 
       if (!targetType || !targetId || !reason) {
-        return reply.status(400).send({
-          success: false,
-          error: 'MISSING_PARAMS',
-          message: 'targetType, targetId, and reason are required',
-        });
+        return handleError(reply, new ValidationError('MISSING_PARAMS'))
       }
 
       let revokedCount = 0;
@@ -280,11 +253,7 @@ export default async function enhancedAuthRoutes(
       } else if (targetType === 'tenant') {
         revokedCount = await tokenBlacklistService.revokeTenantTokens(parseInt(targetId), reason);
       } else {
-        return reply.status(400).send({
-          success: false,
-          error: 'INVALID_TARGET_TYPE',
-          message: 'targetType must be "user" or "tenant"',
-        });
+        return handleError(reply, new ValidationError('INVALID_TARGET_TYPE'))
       }
 
       return reply.send({
@@ -299,11 +268,7 @@ export default async function enhancedAuthRoutes(
         message: `Batch revocation completed for ${targetType}: ${targetId}`,
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'BATCH_REVOKE_ERROR',
-        message: 'Failed to perform batch revocation',
-      });
+      return handleError(reply, new OrionError('BATCH_REVOKE_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -329,11 +294,7 @@ export default async function enhancedAuthRoutes(
         },
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'STATS_ERROR',
-        message: 'Failed to get token blacklist statistics',
-      });
+      return handleError(reply, new OrionError('STATS_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -355,11 +316,7 @@ export default async function enhancedAuthRoutes(
         message: `Cleaned up ${cleanedCount} expired tokens`,
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'CLEANUP_ERROR',
-        message: 'Failed to cleanup expired tokens',
-      });
+      return handleError(reply, new OrionError('CLEANUP_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -408,11 +365,7 @@ export default async function enhancedAuthRoutes(
         },
       });
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'SECURITY_STATUS_ERROR',
-        message: 'Failed to get security status',
-      });
+      return handleError(reply, new OrionError('SECURITY_STATUS_ERROR', ErrorCode.INTERNAL_ERROR))
     }
   });
 

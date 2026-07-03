@@ -1,5 +1,5 @@
 // orion-platform-service/src/services/privacy/TenantPrivacyPolicyService.ts
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from '../database';
 import { TenantPrivacyPolicyRepository } from '../../repositories/TenantPrivacyPolicyRepository';
 

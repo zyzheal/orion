@@ -12,7 +12,7 @@ import { DatabasePool } from '../services/database';
 import { SessionRepository } from '../services/session/SessionRepository';
 import { SessionService } from '../services/session/SessionService';
 import { SessionController } from './controllers/SessionController';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'session-routes' });
 

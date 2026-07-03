@@ -23,10 +23,11 @@ import {
 import { CommandService } from './CommandService';
 import { CommandRouter } from './CommandRouter';
 import { InputValidator, ParsedCommand } from './InputValidator';
-import pino from 'pino';
+import { ShellCommandExecutor } from './ShellCommandExecutor';
 import { OrionError } from '../../errors';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LExecution-LService' });
+const logger = createLogger('LExecution-LService');
 import {
   ChatOpsExecutionRepository,
   ChatOpsSessionRepository,
@@ -83,6 +84,10 @@ export class ExecutionService {
     auditRepo: ChatOpsAuditLogRepository;
     commandRouter?: CommandRouter;
     inputValidator?: InputValidator;
+    /** 命令执行超时时间 (毫秒)，默认 30000 (30秒) */
+    commandTimeoutMs?: number;
+    /** Task 5.4: Shell 执行器 fallback（commandRouter 未命中时使用） */
+    shellExecutor?: ShellCommandExecutor;
   }) {
     this.commandService = options.commandService;
     this.eventBus = options.eventBus;
@@ -91,6 +96,13 @@ export class ExecutionService {
     this.auditRepo = options.auditRepo;
     this.commandRouter = options.commandRouter;
     this.inputValidator = options.inputValidator;
+    this.commandTimeoutMs = options.commandTimeoutMs ?? 30000;
+    // Task 5.4: 默认创建带白名单安全策略的 shell 执行器
+    this.shellExecutor = options.shellExecutor ?? new ShellCommandExecutor({
+      enforceWhitelist: true,
+      enforceBlacklist: true,
+      defaultTimeoutMs: this.commandTimeoutMs,
+    });
   }
 
   // ==================== Entity -> Model mapping ====================
@@ -166,20 +178,27 @@ export class ExecutionService {
     try {
       let executionResult: Record<string, unknown>;
 
-      // 如果有 commandRouter，通过路由器执行命令；否则使用 mock 行为 (向后兼容)
-      if (this.commandRouter) {
-        executionResult = await this.commandRouter.routeAndExecute(
-          input.commandId,
-          input.params ?? {},
-        );
-      } else {
-        // 向后兼容: 保持原有 mock 行为
-        executionResult = {
-          output: `Command ${input.commandId} executed successfully`,
-          exitCode: 0,
-          durationMs: endTime.getTime() - execution.startTime.getTime(),
-        };
-      }
+      // Task 5.4: 优先通过 commandRouter 路由到真实服务；
+      // 若未命中则使用 ShellCommandExecutor 真实执行，不再使用 mock。
+      const executionPromise = (this.commandRouter)
+        ? this.commandRouter.routeAndExecute(input.commandId, input.params ?? {})
+        : this.shellExecutor.execute(input.commandId, this.commandTimeoutMs)
+            .then(result => ({
+              output: result.output,
+              exitCode: result.exitCode,
+              durationMs: result.durationMs,
+              stdout: result.stdout,
+              stderr: result.stderr,
+            }));
+
+      // 超时保护: 防止命令长时间阻塞资源
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`COMMAND_TIMEOUT: 命令执行超过 ${this.commandTimeoutMs}ms 限制`));
+        }, this.commandTimeoutMs);
+      });
+
+      executionResult = await Promise.race([executionPromise, timeoutPromise]);
 
       await this.executionRepo.updateStatus(
         execution.id,

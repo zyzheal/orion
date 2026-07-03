@@ -9,7 +9,7 @@
  * - UTC timezone by default
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 import { CronExecutionRepository } from '../../repositories/CronExecutionRepository';

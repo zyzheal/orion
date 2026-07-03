@@ -8,7 +8,7 @@
  * 4. 生成审查摘要报告
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LReview-LIntegration-LService' });
 import {

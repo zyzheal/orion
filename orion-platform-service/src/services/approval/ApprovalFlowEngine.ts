@@ -10,7 +10,7 @@
  * 集成现有 MultiLevelApprovalService 实现多级审批
  * 数据持久化通过 ApprovalFlowConfigRepository（PostgreSQL Repository 模式）
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalFlowConfigRepository } from '../../repositories/ApprovalFlowConfigRepository';
 import {

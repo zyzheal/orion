@@ -11,7 +11,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { TerminalAuditRepository } from '../repositories/TerminalAuditRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { NotFoundError, handleError } from '../errors';
 
 const logger = pino({ name: 'terminal-audit-routes' });
 
@@ -78,10 +79,7 @@ export default async function terminalAuditRoutes(
     const log = await repo.findConnectLogById(params.id);
 
     if (!log) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Connect log ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({
@@ -148,10 +146,7 @@ export default async function terminalAuditRoutes(
     const log = await repo.findFileLogById(params.id);
 
     if (!log) {
-      return reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `File log ${params.id} not found`,
-      });
+      return handleError(reply, new NotFoundError('NOT_FOUND'))
     }
 
     return reply.send({

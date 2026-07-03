@@ -14,7 +14,7 @@ import { EventEmitter } from 'events';
 import { PluginLifecycleManager, ActivationHook, DeactivationHook } from './PluginLifecycleManager';
 import { PluginRegistry } from './PluginRegistry';
 import { PluginManifest, PluginInfo } from './types';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { PluginVersionSnapshotRepository } from '../../repositories/PluginVersionSnapshotRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

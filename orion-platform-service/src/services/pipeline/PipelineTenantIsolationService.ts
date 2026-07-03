@@ -10,7 +10,7 @@
  * - Enforce tenant-scoped filtering for list/get operations
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PipelineService } from './PipelineService';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

@@ -192,7 +192,7 @@ describe('MessageQueueService', () => {
     test('should replay a dead letter message', async () => {
       await service.enqueue({ type: 'test', data: {} }, { maxRetries: 1 });
 
-      let message = await service.dequeue();
+      const message = await service.dequeue();
       await service.nack(message!.id);
 
       const deadLetters = service.listDeadLetters();
@@ -279,7 +279,7 @@ describe('MessageQueueService', () => {
     test('should track completed and dead lettered', async () => {
       await service.enqueue({ type: 'test', data: {} }, { maxRetries: 1 });
 
-      let message = await service.dequeue();
+      const message = await service.dequeue();
       await service.ack(message!.id);
 
       const stats = service.getStats();

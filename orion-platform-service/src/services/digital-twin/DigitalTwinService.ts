@@ -10,7 +10,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from '../database';
 import { DigitalTwinSnapshotRepository } from '../../repositories/DigitalTwinSnapshotRepository';
 import { TwinConfigRepository, TwinConfigEntity, SandboxEntity, SandboxRepository, RecordingSessionEntity, RecordingSessionRepository, ReplaySessionEntity, ReplaySessionRepository } from '../../repositories/DigitalTwinEnhancedRepository';

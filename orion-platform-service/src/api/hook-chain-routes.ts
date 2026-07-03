@@ -9,6 +9,7 @@ import { HookChainService, HookChainDefinition } from '../services/hook-chain';
 import { EventEmitter } from 'events';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const eventBus = new EventEmitter();
 const hookChainService = new HookChainService({ eventBus });
@@ -34,9 +35,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
       const created = hookChainService.createChain(definition);
       return reply.status(201).send(created);
     } catch (error) {
-      return reply.status(400).send({
-        error: error instanceof Error ? error.message : 'Invalid chain definition',
-      });
+      return handleError(reply, new ValidationError(error))
     }
   });
 
@@ -59,7 +58,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
     const chain = hookChainService.getChain(chainId);
 
     if (!chain) {
-      return reply.status(404).send({ error: `Hook chain "${chainId}" not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
 
     return reply.send(chain);
@@ -75,7 +74,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
     const updated = hookChainService.updateChain(chainId, updates);
 
     if (!updated) {
-      return reply.status(404).send({ error: `Hook chain "${chainId}" not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
 
     return reply.send(updated);
@@ -89,7 +88,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
     const deleted = hookChainService.deleteChain(chainId);
 
     if (!deleted) {
-      return reply.status(404).send({ error: `Hook chain "${chainId}" not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
 
     return reply.status(204).send();
@@ -112,10 +111,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
       const result = await hookChainService.executeChain(chainId, triggerSource, triggerPayload, tenantId);
       return reply.send(result);
     } catch (error) {
-      return reply.status(500).send({
-        error: error instanceof Error ? error.message : 'Chain execution failed',
-        chainId,
-      });
+      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -184,9 +180,6 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
     const { type, handler } = request.body as { type: string; handler: string };
 
     // 注意：这里只是示例，实际需要安全的执行器注册机制
-    reply.status(501).send({
-      error: 'Custom executor registration requires secure implementation',
-      type,
-    });
+handleError(reply, new OrionError('Custom executor registration requires secure implementation', ErrorCode.INTERNAL_ERROR))
   });
 }

@@ -11,7 +11,7 @@
  * Dual-path: repository is primary, Map is fallback when DB unavailable.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 import { DatabasePool } from '../database';
 import { KnownIssueRepository, KnownIssueEntity } from '../../repositories/KnownIssueRepository';

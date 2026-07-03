@@ -17,7 +17,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from '../services/database';
 import { ldapService } from '../services/auth/LdapService';
 import { wechatWorkService } from '../services/auth/WechatWorkService';
@@ -25,6 +25,7 @@ import { SsoService } from '../services/auth/SsoService';
 import { RedisCache } from '../services/redis-cache';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
+import { OrionError, ValidationError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const ACCESS_TOKEN_EXPIRES_IN = '5m';
@@ -171,7 +172,7 @@ export default async function ssoUnifiedRoutes(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -184,18 +185,12 @@ export default async function ssoUnifiedRoutes(
       const { username, password } = body;
 
       if (!username || !password) {
-        return reply.status(400).send({
-          error: 'MISSING_CREDENTIALS',
-          message: '用户名和密码不能为空',
-        });
+        return handleError(reply, new ValidationError('MISSING_CREDENTIALS'))
       }
 
       const profile = await ldapService.authenticate(username, password);
       if (!profile) {
-        return reply.status(401).send({
-          error: 'INVALID_CREDENTIALS',
-          message: '用户名或密码错误',
-        });
+        return handleError(reply, new UnauthorizedError('INVALID_CREDENTIALS'))
       }
 
       const localUser = await findOrCreateUser({
@@ -208,7 +203,7 @@ export default async function ssoUnifiedRoutes(
       return reply.send({ success: true, data: tokens });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LDAP_LOGIN_ERROR';
-      return reply.status(500).send({ error: 'LDAP_LOGIN_ERROR', message });
+      return handleError(reply, new OrionError('LDAP_LOGIN_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -222,7 +217,7 @@ export default async function ssoUnifiedRoutes(
       switch (provider) {
         case 'wechat': {
           if (!wechatWorkService.isEnabled()) {
-            return reply.status(400).send({ error: 'SSO_DISABLED', message: '企业微信 SSO 未启用' });
+            return handleError(reply, new ValidationError('SSO_DISABLED'));
           }
 
           const state = wechatWorkService.generateState();
@@ -250,7 +245,7 @@ export default async function ssoUnifiedRoutes(
           };
 
           if (!ssoConfig.enabled) {
-            return reply.status(400).send({ error: 'SSO_DISABLED', message: 'OIDC SSO 未启用' });
+            return handleError(reply, new ValidationError('SSO_DISABLED'));
           }
 
           await ssoService.initialize(ssoConfig);
@@ -260,14 +255,11 @@ export default async function ssoUnifiedRoutes(
         }
 
         default:
-          return reply.status(400).send({
-            error: 'UNSUPPORTED_PROVIDER',
-            message: `不支持的 SSO 提供商: ${provider}`,
-          });
+        return handleError(reply, new ValidationError('UNSUPPORTED_PROVIDER'))
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'SSO_LOGIN_ERROR';
-      return reply.status(500).send({ error: 'SSO_LOGIN_ERROR', message });
+      return handleError(reply, new OrionError('SSO_LOGIN_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -279,17 +271,11 @@ export default async function ssoUnifiedRoutes(
     const query = request.query as { code?: string; state?: string; error?: string };
 
     if (query.error) {
-      return reply.status(400).send({
-        error: 'SSO_CALLBACK_ERROR',
-        message: `SSO 授权失败: ${query.error}`,
-      });
+      return handleError(reply, new ValidationError('SSO_CALLBACK_ERROR'))
     }
 
     if (!query.code || !query.state) {
-      return reply.status(400).send({
-        error: 'MISSING_PARAMS',
-        message: '缺少 code 或 state 参数',
-      });
+      return handleError(reply, new ValidationError('MISSING_PARAMS'))
     }
 
     try {
@@ -300,10 +286,7 @@ export default async function ssoUnifiedRoutes(
       );
 
       if (!stateResult?.rows?.length) {
-        return reply.status(400).send({
-          error: 'INVALID_STATE',
-          message: '无效的 state 参数，可能已过期',
-        });
+        return handleError(reply, new ValidationError('INVALID_STATE'))
       }
 
       // Clean up state
@@ -320,16 +303,10 @@ export default async function ssoUnifiedRoutes(
               [localUser.userId, localUser.username]
             );
             if (statusCheck?.rows?.[0]?.status === 'terminated' || statusCheck?.rows?.[0]?.status === 'deleted') {
-              return reply.status(403).send({
-                error: 'ACCOUNT_DISABLED',
-                message: '账号已被禁用，无法登录',
-              });
+              return handleError(reply, new ForbiddenError('ACCOUNT_DISABLED'))
             }
             if (statusCheck?.rows?.[0]?.status === 'suspended') {
-              return reply.status(403).send({
-                error: 'ACCOUNT_SUSPENDED',
-                message: '账号暂时被冻结，请联系管理员',
-              });
+              return handleError(reply, new ForbiddenError('ACCOUNT_SUSPENDED'))
             }
           }
 
@@ -363,16 +340,10 @@ export default async function ssoUnifiedRoutes(
 
           // Phase 3.8.7: 检查用户状态
           if (localUser.status === 'terminated' || localUser.status === 'deleted') {
-            return reply.status(403).send({
-              error: 'ACCOUNT_DISABLED',
-              message: '账号已被禁用，无法登录',
-            });
+            return handleError(reply, new ForbiddenError('ACCOUNT_DISABLED'))
           }
           if (localUser.status === 'suspended') {
-            return reply.status(403).send({
-              error: 'ACCOUNT_SUSPENDED',
-              message: '账号暂时被冻结，请联系管理员',
-            });
+            return handleError(reply, new ForbiddenError('ACCOUNT_SUSPENDED'))
           }
 
           const tokens = issueToken(localUser);
@@ -381,15 +352,12 @@ export default async function ssoUnifiedRoutes(
         }
 
         default:
-          return reply.status(400).send({
-            error: 'UNSUPPORTED_PROVIDER',
-            message: `不支持的 SSO 提供商: ${provider}`,
-          });
+        return handleError(reply, new ValidationError('UNSUPPORTED_PROVIDER'))
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'SSO_CALLBACK_ERROR';
       logger.error('[SsoUnifiedRoutes] SSO callback error:', error);
-      return reply.status(500).send({ error: 'SSO_CALLBACK_ERROR', message });
+      return handleError(reply, new OrionError('SSO_CALLBACK_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

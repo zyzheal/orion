@@ -3,7 +3,7 @@
  * GitHub API 客户端
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

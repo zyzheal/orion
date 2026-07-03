@@ -14,7 +14,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import {
   ConfigChangeRequestRepository,

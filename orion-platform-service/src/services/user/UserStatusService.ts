@@ -14,7 +14,7 @@
 
 import { DatabasePool } from '../../services/database';
 import { TokenBlacklistService } from '../auth/TokenBlacklistService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

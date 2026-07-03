@@ -3,7 +3,7 @@
  * Git 提交状态管理服务
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { GitLabAdapter } from './GitLabAdapter';
 import { GitLabClient } from '../../clients/GitLabClient';
 import { GitHubClient } from '../../clients/GitHubClient';

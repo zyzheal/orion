@@ -17,6 +17,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { ArtifactVersionRepository } from '../repositories/ArtifactVersionRepository';
 import { ArtifactVersionService } from '../services/pipeline/ArtifactVersionService';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface ArtifactVersionQueryParams {
   pipelineId?: string;
@@ -90,11 +91,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -110,11 +107,7 @@ export default async function artifactVersionRoutes(
       const version = await repository.findById((request.params as any).id);
 
       if (!version) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Version not found',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('Version not found'))
       }
 
       return reply.status(200).send({
@@ -123,11 +116,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -143,11 +132,7 @@ export default async function artifactVersionRoutes(
       const chain = await repository.findTraceabilityChain((request.params as any).id);
 
       if (!chain) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Version not found',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('Version not found'))
       }
 
       return reply.status(200).send({
@@ -156,11 +141,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -176,11 +157,7 @@ export default async function artifactVersionRoutes(
       const { pipelineId, versionA, versionB } = request.query as any;
 
       if (!pipelineId || !versionA || !versionB) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Missing required params: pipelineId, versionA, versionB',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new ValidationError('Missing required params: pipelineId, versionA, versionB'))
       }
 
       const diff = await repository.getVersionDiff(pipelineId, versionA, versionB);
@@ -191,11 +168,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -217,11 +190,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -242,11 +211,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -262,11 +227,7 @@ export default async function artifactVersionRoutes(
       const { tag } = request.body as any;
 
       if (!tag) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Tag is required',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new ValidationError('Tag is required'))
       }
 
       const version = await service.addTag((request.params as any).id, tag);
@@ -277,11 +238,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -302,11 +259,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -322,11 +275,7 @@ export default async function artifactVersionRoutes(
       const { targetEnvironment } = request.body as any;
 
       if (!targetEnvironment) {
-        return reply.status(400).send({
-          success: false,
-          error: 'targetEnvironment is required',
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new ValidationError('targetEnvironment is required'))
       }
 
       const newVersion = await service.promoteVersion((request.params as any).id, targetEnvironment);
@@ -337,11 +286,7 @@ export default async function artifactVersionRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 }

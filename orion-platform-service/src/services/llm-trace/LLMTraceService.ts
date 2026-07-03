@@ -11,7 +11,7 @@
 
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { LLMTraceRepository } from '../../repositories/LLMTraceRepository';
 import { OrionError, ErrorCode } from '../../errors';
 

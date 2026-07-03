@@ -9,8 +9,8 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
 import { OrionError, ErrorCode } from '../../errors';
+import { createLogger } from '../../utils/logger';
 import { HealingApprovalRequestRepository } from '../../repositories/HealingApprovalRequestRepository';
 import {
   HealingStrategy,
@@ -24,9 +24,8 @@ import {
   IncidentType,
 } from './types';
 import { DatabasePool } from '../../services/database';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LHealing-LDecision-LMaker' });
+const logger = createLogger('healing-decision-maker');
 
 /**
  * Risk assessment integration interface

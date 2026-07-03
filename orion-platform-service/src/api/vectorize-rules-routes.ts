@@ -9,7 +9,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { VectorizeRulesService } from '../services/vectorize-rules/VectorizeRulesService';
 import { DatabasePool } from '../services/database';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -28,7 +28,7 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   app.post('/vectorize-rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as any;
       const tenantId = String((request as any).user?.tenantId || 'default');
@@ -42,7 +42,7 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   app.get('/vectorize-rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = String((request as any).user?.tenantId || 'default');
       const rules = await service.listRules(tenantId);
@@ -55,12 +55,12 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   app.put('/vectorize-rules/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const body = request.body as any;
       const rule = await service.updateRule(id, body);
-      if (!rule) return reply.status(404).send({ success: false, error: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.send({ success: true, data: rule });
     } catch (error) {
       return handleError(reply, error);
@@ -70,11 +70,11 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   app.delete('/vectorize-rules/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const deleted = await service.deleteRule(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.send({ success: true });
     } catch (error) {
       return handleError(reply, error);
@@ -84,12 +84,12 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   app.patch('/vectorize-rules/:id/toggle', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const { enabled } = request.body as { enabled: boolean };
       const rule = await service.toggleRule(id, enabled);
-      if (!rule) return reply.status(404).send({ success: false, error: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.send({ success: true, data: rule });
     } catch (error) {
       return handleError(reply, error);

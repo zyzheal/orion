@@ -2,7 +2,7 @@
  * OnCall Scheduling Service
  * Schedule CRUD + rotation assignment + override + escalation
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { OnCallSchedule, OnCallAssignment, OnCallOverride, OnCallCheckResult, EscalationRule } from './types';
 import { OnCallScheduleRepository, OnCallScheduleEntity } from '../../repositories/OnCallScheduleRepository';

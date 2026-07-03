@@ -25,6 +25,7 @@ export interface ConfigVersionEntity {
 
 export interface ConfigSnapshotEntity {
   id: string;
+  tenantId: string;
   snapshotName: string;
   createdBy: string;
   createdAt: Date;
@@ -42,6 +43,7 @@ export interface FindVersionsParams {
 }
 
 export interface FindSnapshotsParams {
+  tenantId: string;
   limit?: number;
 }
 
@@ -120,10 +122,11 @@ export class ConfigVersionRepository {
   async insertSnapshot(entity: ConfigSnapshotEntity): Promise<void> {
     await this.pool.query(
       `INSERT INTO config_snapshots
-       (id, snapshot_name, created_by, config_data, checksum, description, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (id, tenant_id, snapshot_name, created_by, config_data, checksum, description, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         entity.id,
+        entity.tenantId,
         entity.snapshotName,
         entity.createdBy,
         entity.configData,
@@ -134,21 +137,29 @@ export class ConfigVersionRepository {
     );
   }
 
-  async findSnapshotById(id: string): Promise<ConfigSnapshotEntity | undefined> {
+  async findSnapshotById(id: string, tenantId: string): Promise<ConfigSnapshotEntity | undefined> {
     const result = await this.pool.query(
-      'SELECT * FROM config_snapshots WHERE id = $1',
-      [id],
+      'SELECT * FROM config_snapshots WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToSnapshot(result.rows[0]);
   }
 
-  async findSnapshots(params: FindSnapshotsParams = {}): Promise<ConfigSnapshotEntity[]> {
+  async findSnapshots(params: FindSnapshotsParams): Promise<ConfigSnapshotEntity[]> {
     const result = await this.pool.query(
-      'SELECT * FROM config_snapshots ORDER BY created_at DESC LIMIT $1',
-      [params.limit ?? 20],
+      'SELECT * FROM config_snapshots WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2',
+      [params.tenantId, params.limit ?? 20],
     );
     return result.rows.map(this.mapRowToSnapshot);
+  }
+
+  async deleteSnapshot(id: string, tenantId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'DELETE FROM config_snapshots WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId],
+    );
+    return result.rowCount > 0;
   }
 
   // ==================== Mappers ====================
@@ -172,6 +183,7 @@ export class ConfigVersionRepository {
   private mapRowToSnapshot(row: any): ConfigSnapshotEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       snapshotName: row.snapshot_name,
       createdBy: row.created_by,
       createdAt: row.created_at,

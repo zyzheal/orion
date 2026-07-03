@@ -7,7 +7,7 @@
 
 import * as yaml from 'js-yaml';
 import { SharedActionService } from '../services/pipeline/SharedActionService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'yaml-preprocessor' });
 

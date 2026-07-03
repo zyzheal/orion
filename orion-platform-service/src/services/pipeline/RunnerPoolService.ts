@@ -13,7 +13,7 @@
  * - Platform -> Runner: POST {runnerEndpoint}/execute (HTTP)
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   Runner,
   RunnerCreateInput,

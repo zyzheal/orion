@@ -21,7 +21,8 @@ import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { UserStatusService, UserStatus } from '../services/user/UserStatusService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'user-status-routes' });
 
@@ -55,10 +56,7 @@ export default async function userStatusRoutes(
 
         const validStatuses: UserStatus[] = ['active', 'suspended', 'terminated', 'deleted'];
         if (!validStatuses.includes(status)) {
-          return reply.status(400).send({
-            error: 'INVALID_STATUS',
-            message: `Status must be one of: ${validStatuses.join(', ')}`,
-          });
+          return handleError(reply, new ValidationError('INVALID_STATUS'))
         }
 
         // Get operator ID from authenticated user
@@ -69,7 +67,7 @@ export default async function userStatusRoutes(
         return reply.send({ success: true, data: result });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'STATUS_CHANGE_ERROR';
-        return reply.status(400).send({ error: 'STATUS_CHANGE_ERROR', message });
+        return handleError(reply, new ValidationError('STATUS_CHANGE_ERROR'));
       }
     }
   );
@@ -89,10 +87,7 @@ export default async function userStatusRoutes(
         };
 
         if (!body.department && !body.role) {
-          return reply.status(400).send({
-            error: 'MISSING_FILTER',
-            message: 'Must specify department or role filter',
-          });
+          return handleError(reply, new ValidationError('MISSING_FILTER'))
         }
 
         const operatorId = (request as any).user?.userId || 'system';
@@ -118,7 +113,7 @@ export default async function userStatusRoutes(
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'BATCH_DISABLE_ERROR';
-        return reply.status(400).send({ error: 'BATCH_DISABLE_ERROR', message });
+        return handleError(reply, new ValidationError('BATCH_DISABLE_ERROR'));
       }
     }
   );
@@ -136,7 +131,7 @@ export default async function userStatusRoutes(
         return reply.send({ success: true, data: { userId: id, activeSessions: count } });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'SESSION_COUNT_ERROR';
-        return reply.status(500).send({ error: 'SESSION_COUNT_ERROR', message });
+        return handleError(reply, new OrionError('SESSION_COUNT_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -162,7 +157,7 @@ export default async function userStatusRoutes(
         return reply.send({ success: true, data: result.rows });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'HISTORY_ERROR';
-        return reply.status(500).send({ error: 'HISTORY_ERROR', message });
+        return handleError(reply, new OrionError('HISTORY_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
   );

@@ -77,9 +77,17 @@ export async function registerCircuitBreakerMiddleware(
         reply.header('X-Circuit-Breaker-State', 'half-open');
       }
     } catch (error) {
-      // If we can't check the circuit breaker state, allow the request through
-      request.log.warn({ error: error instanceof Error ? error.message : String(error) },
-        'Failed to check circuit breaker state, allowing request');
+      // Fail-closed: if we can't check the circuit breaker state, reject the request
+      const errMsg = error instanceof Error ? error.message : String(error);
+      request.log.error({ error: errMsg }, 'Failed to check circuit breaker state, rejecting request');
+      reply.code(503).send({
+        success: false,
+        error: {
+          code: 'CIRCUIT_CHECK_FAILED',
+          message: 'Service temporarily unavailable: unable to check circuit breaker state.',
+        },
+        timestamp: new Date().toISOString(),
+      });
     }
   });
 }

@@ -1,6 +1,6 @@
 // orion-platform-service/src/services/privacy/PIISanitizer.ts
 import { NERModelService, NEREntity } from './NERModelService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

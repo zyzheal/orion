@@ -11,7 +11,7 @@
  * with health monitoring and event publishing.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { PluginRegistry } from './PluginRegistry';
 import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';

@@ -15,7 +15,7 @@ import { IMNotifier, IMNotificationConfig } from '../services/pipeline/IMNotifie
 import { WebhookNotifier, WebhookConfig as WebhookNotifierConfig, WebhookPayload, WebhookEventType, StageSummary } from '../services/pipeline/WebhookNotifier';
 import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository';
 import { PipelineExecution } from './PipelineEngine';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

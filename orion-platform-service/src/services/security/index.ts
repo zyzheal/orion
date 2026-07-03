@@ -12,13 +12,8 @@ export { SecretSanitizer } from '../privacy/SecretSanitizer';
 export type { DetectedSecret, SanitizationResult } from '../privacy/SecretSanitizer';
 
 // Phase 3: Compliance & Audit
-export { ComplianceFrameworkService } from './ComplianceFrameworkService';
-export type {
-  CompliancePolicyInput,
-  ComplianceGap,
-  ComplianceReport,
-  ComplianceScoreSummary,
-} from './ComplianceFrameworkService';
+// Note: ComplianceFrameworkService merged into src/services/compliance/ComplianceService.ts
+// Import ComplianceService from '../compliance' for policy, evaluation, evidence, gap-analysis, framework features
 
 export { SecurityAuditService } from './SecurityAuditService';
 export type {
@@ -34,4 +29,19 @@ export type {
   MaliciousPackageInfo,
   TyposquattingAlert,
   DependencyPoisoningReport,
+  DependencyNode,
+  CycloneDXComponent,
+  CycloneDXSBOM,
 } from './SupplyChainService';
+
+// Degradation Management
+export { DegradationManager, DEGRADATION_LEVELS } from './DegradationManager';
+export type {
+  DegradationLevel,
+  DegradationEvent,
+  DegradationStateChange,
+} from './DegradationManager';
+
+// In-Memory Fallback Store
+export { InMemoryScanStore } from './InMemoryScanStore';
+export type { ScanStats } from './InMemoryScanStore';

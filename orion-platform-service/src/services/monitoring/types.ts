@@ -154,6 +154,8 @@ export interface Alert {
   tags?: Record<string, string>;
   /** Alert message */
   message?: string;
+  /** Tenant ID */
+  tenantId: string;
 }
 
 // ==================== Alert Channel Types ====================

@@ -7,6 +7,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DecisionExplanationController } from './controllers/DecisionExplanationController';
 import { DecisionExplanationService } from '../services/ai/DecisionExplanationService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export default async function aiDecisionRoutes(
   app: FastifyInstance,
@@ -17,7 +19,9 @@ export default async function aiDecisionRoutes(
   const controller = new DecisionExplanationController(service);
 
   // POST /api/v1/ai-decisions/explain - 生成决策解释
-  app.post('/explain', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/explain', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-decision', action: 'create' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.explain(request as any, reply);
   });
 

@@ -17,7 +17,8 @@ import { WorkflowTaskRepository } from '../repositories/WorkflowTaskRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import type { WorkflowTask } from '../repositories/WorkflowTaskRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'workflow-task-routes' });
 
@@ -89,10 +90,7 @@ export default async function workflowTaskRoutes(
     ) => {
       try {
         if (!taskRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { assigneeId, status, limit, offset } = request.query;
@@ -123,10 +121,7 @@ export default async function workflowTaskRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -146,20 +141,14 @@ export default async function workflowTaskRoutes(
     ) => {
       try {
         if (!taskRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
         const task = await taskRepo.findById(id);
 
         if (!task) {
-          return reply.status(404).send({
-            success: false,
-            error: `Task '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         return reply.send({
@@ -168,10 +157,7 @@ export default async function workflowTaskRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -191,10 +177,7 @@ export default async function workflowTaskRoutes(
     ) => {
       try {
         if (!taskRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
@@ -203,17 +186,11 @@ export default async function workflowTaskRoutes(
         // 检查任务是否存在
         const task = await taskRepo.findById(id);
         if (!task) {
-          return reply.status(404).send({
-            success: false,
-            error: `Task '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         if (task.status !== 'pending') {
-          return reply.status(400).send({
-            success: false,
-            error: `Task is not pending (current status: ${task.status})`,
-          });
+          return handleError(reply, new ValidationError('Unknown error'));
         }
 
         // 更新任务状态为已认领
@@ -229,10 +206,7 @@ export default async function workflowTaskRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -252,10 +226,7 @@ export default async function workflowTaskRoutes(
     ) => {
       try {
         if (!taskRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { id } = request.params;
@@ -265,33 +236,21 @@ export default async function workflowTaskRoutes(
         // 检查任务是否存在
         const task = await taskRepo.findById(id);
         if (!task) {
-          return reply.status(404).send({
-            success: false,
-            error: `Task '${id}' not found`,
-          });
+          return handleError(reply, new NotFoundError('Unknown error'))
         }
 
         if (task.status === 'completed') {
-          return reply.status(400).send({
-            success: false,
-            error: `Task is already completed`,
-          });
+          return handleError(reply, new ValidationError('Unknown error'))
         }
 
         if (task.status === 'cancelled') {
-          return reply.status(400).send({
-            success: false,
-            error: `Task has been cancelled`,
-          });
+          return handleError(reply, new ValidationError('Unknown error'))
         }
 
         // 完成任务并获取实例信息
         const result = await taskRepo.completeWithResult(id, userId, comment, formData);
         if (!result) {
-          return reply.status(500).send({
-            success: false,
-            error: 'Failed to complete task',
-          });
+          return handleError(reply, new OrionError('Failed to complete task', ErrorCode.INTERNAL_ERROR))
         }
 
         // 唤醒挂起的工作流实例
@@ -324,10 +283,7 @@ export default async function workflowTaskRoutes(
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );

@@ -8,7 +8,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   DeploymentHistoryRepository,
   DeploymentHistoryEntity,
@@ -24,6 +24,7 @@ import {
 } from '../../repositories/DeploymentStepTrackerRepository';
 import type { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
+import { DeployReleaseNotesService } from '../deploy/DeployReleaseNotesService';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -302,19 +303,25 @@ export class SmartDeployService {
   private historyRepository: DeploymentHistoryRepository | null;
   private strategyRepository: DeploymentStrategyRepository | null;
   private stepTrackerRepository: DeploymentStepTrackerRepository | null;
+  private releaseNotesService: DeployReleaseNotesService | null;
 
   /**
    * @param db - DatabasePool, or null for in-memory mode (tests).
+   * @param releaseNotesDb - Optional separate DB connection for release notes.
    */
-  constructor(db: DatabasePool | null) {
+  constructor(db: DatabasePool | null, releaseNotesDb?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db) {
       this.historyRepository = null;
       this.strategyRepository = null;
       this.stepTrackerRepository = null;
+      this.releaseNotesService = null;
     } else {
       this.historyRepository = new DeploymentHistoryRepository(db);
       this.strategyRepository = new DeploymentStrategyRepository(db);
       this.stepTrackerRepository = new DeploymentStepTrackerRepository(db);
+      this.releaseNotesService = releaseNotesDb
+        ? new DeployReleaseNotesService(releaseNotesDb)
+        : new DeployReleaseNotesService(db);
     }
   }
 
@@ -732,6 +739,12 @@ export class SmartDeployService {
         });
 
         logger.info({ id: deployment.id }, '[SmartDeploy] Deployment completed');
+
+        // Auto-generate release notes from Git if commitSha is provided
+        this.generateReleaseNotesForDeployment(deployment).catch((err) => {
+          logger.warn({ err, deploymentId: deployment.id }, 'Failed to auto-generate release notes');
+        });
+
         return;
       }
 
@@ -776,6 +789,46 @@ export class SmartDeployService {
 
     // Start advancing after a short delay
     setTimeout(advanceStage, 200);
+  }
+
+  /**
+   * Generate release notes for a deployment from Git history.
+   */
+  async generateReleaseNotesForDeployment(deployment: DeploymentRecord): Promise<void> {
+    if (!this.releaseNotesService || !deployment.commitSha) {
+      logger.debug(
+        { deploymentId: deployment.id, hasCommitSha: !!deployment.commitSha },
+        '[SmartDeploy] Skipping release notes generation: no commitSha or service unavailable'
+      );
+      return;
+    }
+
+    try {
+      const repoPath = process.cwd();
+      const fromCommit = `${deployment.commitSha}~10`; // Last 10 commits
+      const toCommit = deployment.commitSha;
+
+      await this.releaseNotesService.generateFromGit({
+        deploymentId: deployment.id,
+        tenantId: 'default',
+        version: deployment.version,
+        environment: deployment.environment,
+        fromCommit,
+        toCommit,
+        repoPath,
+        generatedBy: 'git',
+      });
+
+      logger.info(
+        { deploymentId: deployment.id, commitSha: deployment.commitSha },
+        '[SmartDeploy] Release notes generated'
+      );
+    } catch (error: any) {
+      logger.error(
+        { error: error.message, deploymentId: deployment.id },
+        '[SmartDeploy] Failed to generate release notes'
+      );
+    }
   }
 }
 

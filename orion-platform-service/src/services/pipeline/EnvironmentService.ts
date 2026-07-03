@@ -6,7 +6,7 @@
  * and approval requirement checks.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EnvironmentRepository, EnvironmentEntity } from '../../repositories/EnvironmentRepository';
 import { createEnvironment, mergeVariables, type EnvironmentCreateInput, type EnvironmentUpdateInput } from '../../models/Environment';
 import { OrionError, ErrorCode } from '../../errors';

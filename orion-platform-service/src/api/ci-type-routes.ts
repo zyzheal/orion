@@ -17,7 +17,7 @@ import { CITypeRepository } from '../services/cmdb/ci-type/CITypeRepository';
 import { CIAttributeRepository } from '../services/cmdb/ci-type/CIAttributeRepository';
 import { CITypeVersionRepository } from '../services/cmdb/ci-type/CITypeVersionRepository';
 import { CITypeService } from '../services/cmdb/ci-type/CITypeService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'ci-type-routes' });
 

@@ -5,7 +5,7 @@
  * policy violations in the system.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { PolicyViolationRepository, PolicyViolationEntity, PolicyViolationCreateInput } from '../../repositories/PolicyViolationRepository';
 import { DatabasePool } from '../database';

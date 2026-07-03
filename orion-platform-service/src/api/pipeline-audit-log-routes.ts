@@ -20,7 +20,7 @@ import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
 import { PipelineAuditLogRepository } from '../repositories/PipelineAuditLogRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'pipeline-audit-log-routes' });
 

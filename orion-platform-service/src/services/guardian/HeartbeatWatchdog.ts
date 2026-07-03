@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { HeartbeatWatchdogRepository } from '../../repositories/HeartbeatWatchdogRepository';
 import { HeartbeatWatchdogEntity } from '../../repositories/HeartbeatWatchdogRepository';

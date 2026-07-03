@@ -59,7 +59,7 @@ export function registerHealthCheck(
   fastify.get('/healthz', async (_request: FastifyRequest, reply: FastifyReply) => {
     const checks: Record<string, HealthCheckResult> = {};
     let hasError = false;
-    let hasDegraded = false;
+    const hasDegraded = false;
 
     // Run all checks in parallel
     if (options.checks) {

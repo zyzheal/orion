@@ -20,7 +20,8 @@ import { success, created, badRequest, notFound, internalError } from '../utils/
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { DatabasePool } from '../services/database';
 import { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ConflictError, handleError } from '../errors';
 
 const logger = pino({ name: 'script-version-routes' });
 
@@ -58,7 +59,7 @@ export default async function scriptVersionRoutes(
     } catch (err: any) {
       logger.error({ err }, 'Failed to create script version');
       if (err.code === 'DUPLICATE_VERSION') {
-        return reply.code(409).send({ error: 'CONFLICT', message: err.message });
+        return handleError(reply, new ConflictError('CONFLICT'));
       }
       return internalError(reply, request, err.message);
     }

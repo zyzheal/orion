@@ -6,7 +6,7 @@
  */
 
 import { NotificationRepository, Notification, CreateNotificationInput } from './NotificationRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 export class NotificationServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'NotificationServiceError'; }

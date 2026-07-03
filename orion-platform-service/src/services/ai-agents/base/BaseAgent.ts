@@ -8,7 +8,7 @@
  * 4. 统一的错误处理
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   AgentConfig,
   AgentExecutionContext,
@@ -124,7 +124,7 @@ export abstract class BaseAgent {
     let success = false;
     let output: TOutput | undefined = undefined;
     let error: string | undefined;
-    let tokenUsage: AgentTokenUsage = { input: 0, output: 0, total: 0 };
+    const tokenUsage: AgentTokenUsage = { input: 0, output: 0, total: 0 };
 
     try {
       // 执行（带重试）

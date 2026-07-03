@@ -1,12 +1,80 @@
 /**
  * Webhook Service
  *
- * Manages ChatOps webhook configurations and delivery
+ * Manages ChatOps webhook configurations and delivery.
+ * Webhook secret_key is encrypted with AES-256-GCM before storage.
  */
 
 import { DatabasePool } from '../database';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('WebhookService');
+
+/** AES-256-GCM encrypt using CHATOPS_ENCRYPTION_KEY (same as PlatformConfigService) */
+function encryptSecret(value: string): string {
+  if (!value || value.startsWith('ENC:')) return value;
+
+  try {
+    const keyHex = process.env.CHATOPS_ENCRYPTION_KEY;
+    if (!keyHex || keyHex.length !== 64) {
+      // 降级为 Base64（生产环境必须设置 CHATOPS_ENCRYPTION_KEY）
+      return `ENC:${Buffer.from(value).toString('base64')}`;
+    }
+
+    const key = Buffer.from(keyHex, 'hex');
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+    let encrypted = cipher.update(value, 'utf-8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+
+    return `ENC:${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`;
+  } catch (err) {
+    logger.warn({ err }, 'AES-256-GCM encryption failed for webhook secret, falling back to Base64');
+    return `ENC:${Buffer.from(value).toString('base64')}`;
+  }
+}
+
+/** Decrypt secret (兼容新旧格式) */
+function decryptSecret(value: string): string {
+  if (!value || !value.startsWith('ENC:')) return value;
+
+  try {
+    const parts = value.slice(4).split(':');
+
+    // AES-256-GCM 格式: ENC:<hex_iv>:<hex_ciphertext>:<hex_authTag>
+    if (parts.length === 3) {
+      const [ivHex, ciphertextHex, authTagHex] = parts;
+      const keyHex = process.env.CHATOPS_ENCRYPTION_KEY;
+      if (!keyHex || keyHex.length !== 64) {
+        throw new Error('CHATOPS_ENCRYPTION_KEY not set for AES-256-GCM decryption');
+      }
+
+      const key = Buffer.from(keyHex, 'hex');
+      const iv = Buffer.from(ivHex, 'hex');
+      const authTag = Buffer.from(authTagHex, 'hex');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      decipher.setAuthTag(authTag);
+
+      let decrypted = decipher.update(ciphertextHex, 'hex', 'utf-8');
+      decrypted += decipher.final('utf-8');
+      return decrypted;
+    }
+
+    // 旧格式 Base64: ENC:<base64_data>
+    if (parts.length === 1) {
+      return Buffer.from(parts[0], 'base64').toString('utf-8');
+    }
+
+    return value;
+  } catch (err) {
+    logger.warn({ err }, 'Secret decryption failed, returning raw value');
+    return value;
+  }
+}
 
 export interface WebhookConfig {
   id: string;
@@ -77,6 +145,7 @@ export class WebhookService {
       ...row,
       events: Array.isArray(row.events) ? row.events : JSON.parse(row.events || '[]'),
       headers: typeof row.headers === 'string' ? JSON.parse(row.headers) : row.headers,
+      secret_key: row.secret_key ? decryptSecret(row.secret_key) : null,
     }));
   }
 
@@ -91,6 +160,7 @@ export class WebhookService {
       ...row,
       events: Array.isArray(row.events) ? row.events : JSON.parse(row.events || '[]'),
       headers: typeof row.headers === 'string' ? JSON.parse(row.headers) : row.headers,
+      secret_key: row.secret_key ? decryptSecret(row.secret_key) : null,
     };
   }
 
@@ -103,7 +173,7 @@ export class WebhookService {
       `INSERT INTO chatops_webhooks
        (id, name, url, events, secret_key, enabled, retry_count, retry_interval_seconds, timeout_seconds, headers, description, created_by, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-      [id, input.name, input.url, JSON.stringify(input.events), secret,
+      [id, input.name, input.url, JSON.stringify(input.events), encryptSecret(secret),
        input.enabled ?? true, input.retry_count ?? 3, input.retry_interval_seconds ?? 30,
        input.timeout_seconds ?? 10, JSON.stringify(input.headers || {}),
        input.description || '', input.created_by || 'system', now, now]
@@ -123,7 +193,7 @@ export class WebhookService {
     if (input.name !== undefined) { updates.push(`name = $${pi++}`); params.push(input.name); }
     if (input.url !== undefined) { updates.push(`url = $${pi++}`); params.push(input.url); }
     if (input.events !== undefined) { updates.push(`events = $${pi++}`); params.push(JSON.stringify(input.events)); }
-    if (input.secret_key !== undefined) { updates.push(`secret_key = $${pi++}`); params.push(input.secret_key || null); }
+    if (input.secret_key !== undefined) { updates.push(`secret_key = $${pi++}`); params.push(input.secret_key ? encryptSecret(input.secret_key) : null); }
     if (input.enabled !== undefined) { updates.push(`enabled = $${pi++}`); params.push(input.enabled); }
     if (input.retry_count !== undefined) { updates.push(`retry_count = $${pi++}`); params.push(input.retry_count); }
     if (input.retry_interval_seconds !== undefined) { updates.push(`retry_interval_seconds = $${pi++}`); params.push(input.retry_interval_seconds); }
@@ -153,12 +223,12 @@ export class WebhookService {
     if (!webhook) return { success: false, error: 'Webhook not found' };
 
     try {
-      // Simulate delivery test
+      const secretKey = webhook.secret_key || '';
       const response = await fetch(webhook.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-ChatOps-Signature': this.signPayload(JSON.stringify({ test: true }), webhook.secret_key),
+          'X-ChatOps-Signature': this.signPayload(JSON.stringify({ test: true }), secretKey),
           ...(webhook.headers || {}),
         },
         body: JSON.stringify({ event: 'test', timestamp: new Date().toISOString() }),
@@ -214,7 +284,7 @@ export class WebhookService {
     );
   }
 
-  private signPayload(payload: string, secret: string | null): string {
+  private signPayload(payload: string, secret: string): string {
     if (!secret) return '';
     return crypto.createHmac('sha256', secret).update(payload).digest('hex');
   }
@@ -228,11 +298,12 @@ export class WebhookService {
 
     for (const webhook of matching) {
       try {
+        const secretKey = webhook.secret_key || '';
         const response = await fetch(webhook.url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-ChatOps-Signature': this.signPayload(JSON.stringify(payload), webhook.secret_key),
+            'X-ChatOps-Signature': this.signPayload(JSON.stringify(payload), secretKey),
             ...(webhook.headers || {}),
           },
           body: JSON.stringify({ event: eventType, ...payload, timestamp: new Date().toISOString() }),

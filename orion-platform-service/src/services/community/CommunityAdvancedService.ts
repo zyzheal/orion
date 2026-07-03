@@ -9,7 +9,7 @@
  * - Startup: load from DB to hydrate in-memory Maps
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CommunityAdvancedRepository } from '../../repositories/CommunityAdvancedRepository';
 
 const logger = pino({ name: 'CommunityAdvancedService' });

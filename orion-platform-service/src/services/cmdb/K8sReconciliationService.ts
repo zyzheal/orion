@@ -9,7 +9,7 @@
  *   - CMDB扩展属性：以CMDB为准
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import * as k8s from '@kubernetes/client-node';
 import { CmdbService } from './CmdbService';
 import { CI, CiType, CreateCIInput, UpdateCIInput } from './CmdbTypes';

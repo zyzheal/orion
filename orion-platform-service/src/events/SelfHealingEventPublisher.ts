@@ -23,7 +23,7 @@ import {
   SelfHealingIncidentEscalatedEventData,
   SelfHealingEventExtensions,
 } from './types/selfhealing';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 

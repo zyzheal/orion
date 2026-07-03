@@ -2,7 +2,13 @@
  * API 路由
  *
  * 定义网关的路由规则，将请求分发到对应的后端服务
- * 支持全部 34 个服务的代理
+ * 支持从服务注册表动态发现路由
+ *
+ * 工作流程：
+ * 1. 启动时从服务注册表发现所有服务
+ * 2. 结合静态 DEFAULT_SERVICE_ROUTE_MAPPING 注册路由
+ * 3. 监听服务注册表事件，自动响应服务上下线
+ * 4. 集成健康检查，不健康服务的路由自动返回 503
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -10,6 +16,8 @@ import { getConfig } from '../config';
 import { proxyMiddleware } from '../middleware/proxy';
 import { tokenExchangeMiddleware } from '../middleware/token-exchange';
 import { getSubAppRoutePrefixes } from '../services/gateway-route-sync';
+import { gatewayDynamicRoutes } from '../services/gateway-dynamic-routes';
+import { serviceRegistry } from '../services/service-registry';
 
 export interface RouteConfig {
   prefix: string;
@@ -20,7 +28,9 @@ export interface RouteConfig {
 
 const services = () => getConfig().services;
 
-// 预定义路由配置 - 全部 34 个服务
+// ==================== 默认静态路由配置 ====================
+// 保留作为 fallback 和默认值
+
 const routeConfigs: RouteConfig[] = [
   // ========== Platform Service (3001) ==========
   {
@@ -681,8 +691,10 @@ const routeConfigs: RouteConfig[] = [
 
 /**
  * 注册 API 路由
+ *
+ * 优先从服务注册表动态发现路由，Fallback 到静态配置
  */
-export function registerRoutes(app: FastifyInstance): void {
+export async function registerRoutes(app: FastifyInstance): Promise<void> {
   const config = getConfig();
 
   // 注册健康检查路由
@@ -701,24 +713,33 @@ export function registerRoutes(app: FastifyInstance): void {
     const checks: Record<string, { status: string; latency?: number }> = {};
     let allHealthy = true;
 
-    // Deduplicate service targets from routeConfigs
-    const checkedTargets = new Set<string>();
-    for (const route of routeConfigs) {
-      if (checkedTargets.has(route.target)) continue;
-      checkedTargets.add(route.target);
+    // 获取所有已注册的后端服务 URL（从服务注册表或静态配置）
+    const backendTargets = new Set<string>();
+    const allRoutes = gatewayDynamicRoutes.listRoutes({ status: 'active' });
+    for (const route of allRoutes) {
+      backendTargets.add(route.target);
+    }
 
-      const serviceName = route.prefix.split('/').filter(Boolean)[2] || route.target;
+    // 如果没有动态路由，使用静态路由配置
+    if (backendTargets.size === 0) {
+      for (const route of routeConfigs) {
+        backendTargets.add(route.target);
+      }
+    }
 
+    for (const target of backendTargets) {
       try {
         const start = Date.now();
-        const res = await fetch(`${route.target}/healthz`, { signal: AbortSignal.timeout(2000) });
+        const res = await fetch(`${target}/healthz`, { signal: AbortSignal.timeout(2000) });
         const latency = Date.now() - start;
+        const serviceName = target.split('/').pop() || target;
         checks[serviceName] = {
           status: res.ok ? 'up' : 'down',
           latency,
         };
         if (!res.ok) allHealthy = false;
       } catch {
+        const serviceName = target.split('/').pop() || target;
         checks[serviceName] = { status: 'unreachable' };
         allHealthy = false;
       }
@@ -742,10 +763,59 @@ export function registerRoutes(app: FastifyInstance): void {
     });
   });
 
-  // 注册动态代理路由
-  for (const routeConfig of routeConfigs) {
-    registerProxyRoute(app, routeConfig);
+  // ==================== 动态路由发现与注册 ====================
+
+  // 初始化动态路由管理器
+  gatewayDynamicRoutes.setApp(app);
+
+  // 优先从服务注册表动态发现路由
+  const registrySyncedCount = gatewayDynamicRoutes.syncWithServiceRegistry();
+
+  if (registrySyncedCount > 0) {
+    console.log(`[Routes] Registered ${registrySyncedCount} routes from service registry`);
+  } else {
+    // Fallback：从静态配置注册路由
+    console.log('[Routes] No routes from service registry, falling back to static config');
+    const staticConfigs: Array<Omit<DynamicRouteConfig, 'registeredAt' | 'updatedAt'>> = routeConfigs.map((r, index) => ({
+      id: `static-${index}`,
+      serviceName: extractServiceNameFromPrefix(r.prefix),
+      prefix: r.prefix,
+      target: r.target,
+      timeout: r.timeout,
+      stripPrefix: r.stripPrefix,
+      status: 'active' as const,
+      description: `Static route: ${r.prefix}`,
+      metadata: { source: 'static-config' },
+    }));
+
+    gatewayDynamicRoutes.loadFromStaticConfig(staticConfigs);
   }
+
+  // 注册子应用路由（knowledge 等）
+  // 注意：这里会注册 knowledge 等子应用的路由
+  // 如果服务注册表中已有这些路由，会被跳过
+  const subAppCount = await gatewayRouteSync(app);
+  console.log(`[Routes] Sub-app route sync: ${subAppCount} routes registered`);
+
+  // 设置服务注册表事件监听器
+  gatewayDynamicRoutes.setupRegistryListeners();
+
+  // 启动健康检查集成
+  gatewayDynamicRoutes.startHealthCheckIntegration(30000);
+
+  console.log(`[Routes] Total active routes: ${gatewayDynamicRoutes.getActiveRouteCount()}`);
+}
+
+/**
+ * 从路由前缀提取服务名称（用于静态配置 fallback）
+ */
+function extractServiceNameFromPrefix(prefix: string): string {
+  // 从 /api/v1/<service-name> 提取服务名
+  const match = prefix.match(/\/api\/v1\/([^/]+)/);
+  if (match) {
+    return match[1];
+  }
+  return 'unknown';
 }
 
 /**
@@ -797,3 +867,6 @@ function registerProxyRoute(app: FastifyInstance, config: RouteConfig): void {
 export function addRouteConfig(config: RouteConfig): void {
   routeConfigs.push(config);
 }
+
+// 重新导出 gatewayDynamicRoutes 供外部使用
+export { gatewayDynamicRoutes };

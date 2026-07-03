@@ -8,7 +8,7 @@
  */
 
 import Fuse from 'fuse.js';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'ConfigSearch' });
 
@@ -309,7 +309,7 @@ export class ConfigUISchemaGenerator {
   // ==================== 私有方法 ====================
 
   private static fieldToJsonSchema(config: ConfigMetadata): any {
-    let schema: any = {
+    const schema: any = {
       type: config.type,
       description: config.description,
     };

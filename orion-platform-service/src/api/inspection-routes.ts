@@ -8,6 +8,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { InspectionService } from '../services/inspection/InspectionService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface InspectionRoutesOptions {
   database?: DatabasePool;
@@ -42,7 +43,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const rule = await inspectionService.getRule(params.id);
-    if (!rule) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Rule not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: rule });
   });
 
@@ -52,7 +53,7 @@ export default async function inspectionRoutes(
     const params = request.params as { id: string };
     const body = request.body as any;
     const rule = await inspectionService.updateRule(params.id, body);
-    if (!rule) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Rule not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: rule });
   });
 
@@ -61,7 +62,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const deleted = await inspectionService.deleteRule(params.id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Rule not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, message: 'Rule deleted' });
   });
 
@@ -89,7 +90,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const task = await inspectionService.getTask(params.id);
-    if (!task) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Task not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: task });
   });
 
@@ -116,7 +117,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const report = await inspectionService.getReport(params.id);
-    if (!report) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Report not found' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true, data: report });
   });
 

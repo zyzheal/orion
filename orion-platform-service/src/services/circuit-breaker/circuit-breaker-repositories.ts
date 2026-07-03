@@ -160,8 +160,8 @@ export class CircuitBreakerStateRepository extends BaseRepository<CircuitBreaker
         query += ` WHERE ${conditions.join(' AND ')}`;
       }
       query += ` ORDER BY target_key`;
-      if (limit) query += ` LIMIT ${limit}`;
-      if (offset) query += ` OFFSET ${offset}`;
+      if (limit) { values.push(limit); query += ` LIMIT $${values.length}`; }
+      if (offset) { values.push(offset); query += ` OFFSET $${values.length}`; }
 
       const result = await this.db.query(query, values);
       const entities = result.rows.map((row) => this.mapRowToEntity(row));

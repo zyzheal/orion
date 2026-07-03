@@ -14,7 +14,7 @@ import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { NotificationPolicyRepository, NotificationWorkflowRepository } from '../services/notification-policy/NotificationPolicyRepository';
 import { NotificationPolicyService } from '../services/notification-policy/NotificationPolicyService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'notification-policy-routes' });
 

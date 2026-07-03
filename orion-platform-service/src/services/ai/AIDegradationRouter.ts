@@ -16,7 +16,7 @@ import {
   AI_SCENARIO_PRIORITY,
 } from './types';
 import { RuleEngine } from './RuleEngine';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   AIDegradationConfigRepository,
   AIDegradationResultCacheRepository,

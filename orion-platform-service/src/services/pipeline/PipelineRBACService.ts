@@ -13,7 +13,7 @@
  * If no RBAC rules exist for a pipeline, default to allow (backward compatible).
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { RBACRuleRepository } from '../../repositories/RBACRuleRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

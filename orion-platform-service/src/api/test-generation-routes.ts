@@ -19,6 +19,7 @@ import {
   TestFramework,
 } from '../services/test-generation';
 import { AIGateway } from '../services/ai/AIGateway';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 /**
  * 创建测试生成路由
@@ -111,11 +112,7 @@ export default async function testGenerationRoutes(
         filePath: (request.body as any)?.change?.filePath,
       });
 
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -164,11 +161,7 @@ export default async function testGenerationRoutes(
         filePath: (request.body as any)?.filePath,
       });
 
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -224,11 +217,7 @@ export default async function testGenerationRoutes(
         sourceFile: (request.body as any)?.sourceFile,
       });
 
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -251,11 +240,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -278,11 +263,7 @@ export default async function testGenerationRoutes(
       );
 
       if (filtered.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          error: `No templates found for ${params.language}/${params.framework}`,
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('Unknown error'))
       }
 
       return reply.status(200).send({
@@ -291,11 +272,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -319,11 +296,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -347,11 +320,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 

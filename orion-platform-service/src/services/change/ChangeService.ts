@@ -5,7 +5,7 @@
  * CAB meeting management, timeline events, and risk assessment.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   ChangeRequestRepository,
   CABMeetingRepository,

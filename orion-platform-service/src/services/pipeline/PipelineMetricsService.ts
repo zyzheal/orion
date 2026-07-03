@@ -12,7 +12,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PipelineRun, PipelineRunStatus } from '../../models/PipelineRun';
 import { PipelineExecutionQueue, QueueStats } from './PipelineExecutionQueue';
 import { PipelineMetricsRepository } from '../../repositories/PipelineMetricsRepository';

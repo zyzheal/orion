@@ -10,7 +10,7 @@ import { ErrorCode } from '../../errors';
  * - Plugin lookup and listing
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { OrionError } from '../../errors';

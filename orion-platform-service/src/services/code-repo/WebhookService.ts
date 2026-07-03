@@ -156,7 +156,7 @@ export class CodeRepoWebhookService extends EventEmitter {
     headers: Record<string, string | undefined>
   ): boolean {
     // Try Map cache first, then repository
-    let secret = this.webhookSecrets.get(repoId);
+    const secret = this.webhookSecrets.get(repoId);
     if (!secret && this.secretRepo) {
       // Fire-and-forget sync from repo to cache (non-blocking for signature check)
       this.secretRepo.findByRepoId(repoId).then(entity => {

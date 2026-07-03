@@ -1,6 +1,6 @@
 // orion-platform-service/src/services/inline-script/InlineScriptService.ts
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { parse } from '@babel/parser';
 import traverse, { NodePath } from '@babel/traverse';
 import { CallExpression, Identifier, MemberExpression, Node, StringLiteral } from '@babel/types';

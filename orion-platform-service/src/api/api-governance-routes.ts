@@ -12,7 +12,8 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { ApiGovernanceRepository } from '../repositories/ApiGovernanceRepository';
 import { CreateApiContractInput, CreateApiVersionInput, CreateGovernanceRuleInput } from '../repositories/ApiGovernanceRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 const logger = pino({ name: 'api-governance-routes' });
 
@@ -104,7 +105,7 @@ export default async function apiGovernanceRoutes(
     const params = request.params as { id: string };
     const contract = await repo.findContractById(params.id);
     if (!contract) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Contract '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({
       success: true,
@@ -132,7 +133,7 @@ export default async function apiGovernanceRoutes(
     const params = request.params as { id: string };
     const contract = await repo.findContractById(params.id);
     if (!contract) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Contract '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({
       success: true,
@@ -156,7 +157,7 @@ export default async function apiGovernanceRoutes(
     const params = request.params as { id: string };
     const contract = await repo.findContractById(params.id);
     if (!contract) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Contract '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
 
     const body = request.body as {
@@ -301,7 +302,7 @@ export default async function apiGovernanceRoutes(
       retirementDate: body.retirementDate,
     });
     if (!updated) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Version '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({
       success: true,
@@ -324,10 +325,10 @@ export default async function apiGovernanceRoutes(
     const params = request.params as { id: string };
     const existing = await repo.findApiVersionById(params.id);
     if (!existing) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: `Version '${params.id}' not found` });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     if (existing.status !== 'deprecated') {
-      return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Version must be deprecated before retirement' });
+      return handleError(reply, new ValidationError('VALIDATION_ERROR'));
     }
     const updated = await repo.updateApiVersion(params.id, {
       status: 'retired',

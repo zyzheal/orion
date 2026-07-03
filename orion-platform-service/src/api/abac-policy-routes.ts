@@ -9,7 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { abacPolicyEngine, AbacPolicy, ConditionRule } from '../services/authz/AbacPolicyEngine';
-import { OrionError, ErrorCode } from '../errors';
+import { OrionError, ErrorCode , ValidationError, NotFoundError, ForbiddenError, handleError} from '../errors';
 import { DatabasePool } from '../services/database';
 
 interface PolicyParams {
@@ -50,31 +50,31 @@ function validateConditionRule(rule: ConditionRule, path = 'root'): void {
   // 如果是叶子节点，必须有 condition
   if (!rule.and && !rule.or && !rule.not) {
     if (!rule.condition) {
-      throw new OrionError(`Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`, 'OPERATION_FAILED')
+      throw new OrionError('`Condition at ${path} must have a 'condition' property or be a combinator (and/or/not')`, 'OPERATION_FAILED')
     }
     const cond = rule.condition;
     if (!cond.attribute || typeof cond.attribute !== 'string') {
-      throw new OrionError(`Condition at ${path}: attribute must be a non-empty string`, 'VALIDATION_ERROR')
+      throw new OrionError('`Condition at ${path}: attribute must be a non-empty string`',  'VALIDATION_ERROR')
     }
     const validOperators = ['equals', 'not_equals', 'in', 'not_in', 'contains', 'gt', 'lt', 'gte', 'lte', 'regex', 'match'];
     if (!cond.operator || !validOperators.includes(cond.operator)) {
-      throw new OrionError(`Condition at ${path}: operator must be one of ${validOperators.join(', ')}`, 'VALIDATION_ERROR')
+      throw new OrionError('`Condition at ${path}: operator must be one of ${validOperators.join(', '')}`, 'VALIDATION_ERROR')
     }
     if (cond.value === undefined) {
-      throw new OrionError(`Condition at ${path}: value is required`, 'VALIDATION_ERROR')
+      throw new OrionError('`Condition at ${path}: value is required`',  'VALIDATION_ERROR')
     }
   }
 
   // 递归验证组合规则
   if (rule.and) {
     if (!Array.isArray(rule.and) || rule.and.length === 0) {
-      throw new OrionError(`'and' at ${path} must be a non-empty array`, 'VALIDATION_ERROR')
+      throw new OrionError('`'and' at ${path} must be a non-empty array`',  'VALIDATION_ERROR')
     }
     rule.and.forEach((sub, i) => validateConditionRule(sub, `${path}.and[${i}]`));
   }
   if (rule.or) {
     if (!Array.isArray(rule.or) || rule.or.length === 0) {
-      throw new OrionError(`'or' at ${path} must be a non-empty array`, 'VALIDATION_ERROR')
+      throw new OrionError('`'or' at ${path} must be a non-empty array`',  'VALIDATION_ERROR')
     }
     rule.or.forEach((sub, i) => validateConditionRule(sub, `${path}.or[${i}]`));
   }
@@ -121,10 +121,7 @@ export default async function abacPolicyRoutes(
   void options.database;
   // Error handler
   function handleError(error: Error, reply: FastifyReply) {
-    return reply.status(500).send({
-      error: error.name,
-      message: error.message,
-    });
+    return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
   }
 
   // GET /api/v1/abac-policies - 获取所有策略
@@ -146,7 +143,7 @@ export default async function abacPolicyRoutes(
     try {
       const policy = abacPolicyEngine.getPolicy(request.params.id);
       if (!policy) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Policy not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.send({ data: policy });
     } catch (err) {
@@ -191,7 +188,7 @@ export default async function abacPolicyRoutes(
       if ((err as Error).message.includes('Condition at') ||
           (err as Error).message.includes('required') ||
           (err as Error).message.includes('must be')) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: (err as Error).message });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       return handleError(err as Error, reply);
     }
@@ -204,11 +201,11 @@ export default async function abacPolicyRoutes(
     try {
       const existing = abacPolicyEngine.getPolicy(request.params.id);
       if (!existing) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Policy not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       // 保护系统策略不被修改
       if (SYSTEM_POLICY_IDS.has(request.params.id)) {
-        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Cannot modify system policy' });
+        return handleError(reply, new ForbiddenError('FORBIDDEN'));
       }
       // 如果更新了 conditions，验证其合法性
       if (request.body.conditions) {
@@ -219,7 +216,7 @@ export default async function abacPolicyRoutes(
       return reply.send({ data: updated, message: 'Policy updated' });
     } catch (err) {
       if ((err as Error).message.includes('Condition at')) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: (err as Error).message });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
       return handleError(err as Error, reply);
     }
@@ -232,11 +229,11 @@ export default async function abacPolicyRoutes(
     try {
       const existing = abacPolicyEngine.getPolicy(request.params.id);
       if (!existing) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Policy not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       // 保护系统策略不被删除
       if (SYSTEM_POLICY_IDS.has(request.params.id)) {
-        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Cannot delete system policy' });
+        return handleError(reply, new ForbiddenError('FORBIDDEN'));
       }
       abacPolicyEngine.unregisterPolicy(request.params.id);
       return reply.send({ message: 'Policy deleted' });
@@ -252,7 +249,7 @@ export default async function abacPolicyRoutes(
     try {
       const existing = abacPolicyEngine.getPolicy(request.params.id);
       if (!existing) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Policy not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       abacPolicyEngine.updatePolicy(request.params.id, { enabled: !existing.enabled });
       const updated = abacPolicyEngine.getPolicy(request.params.id);

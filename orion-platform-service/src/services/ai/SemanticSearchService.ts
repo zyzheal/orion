@@ -9,7 +9,7 @@
  * - Search result ranking and filtering
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
 import { KnowledgeEmbeddingRepository } from '../../repositories/KnowledgeEmbeddingRepository';
 import {

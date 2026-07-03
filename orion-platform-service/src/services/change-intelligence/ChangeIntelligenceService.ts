@@ -25,7 +25,7 @@ type AffectedServiceEntityArray = AffectedServiceEntity[];
 type RiskFactorEntityArray = RiskFactorEntity[];
 type HistoricalMatchEntityArray = HistoricalMatchEntity[];
 type ReportEntityArray = ChangeIntelligenceReportEntity[];
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LChange-LIntelligence-LService' });
 import {

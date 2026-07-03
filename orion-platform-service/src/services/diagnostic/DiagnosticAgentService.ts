@@ -35,7 +35,7 @@ import {
   DiagnosticReportRepository,
   DiagnosticReportEntity,
 } from '../../repositories/DiagnosticReportRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
@@ -499,7 +499,7 @@ export class DiagnosticAgentService {
     }
 
     const history = await this.engine.getDiagnosticHistory();
-    let sessionsCount = history.length;
+    const sessionsCount = history.length;
 
     const patterns = await this.knowledgeBase.getAllPatterns();
 

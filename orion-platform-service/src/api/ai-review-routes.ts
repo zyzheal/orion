@@ -12,7 +12,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { AIReviewService } from '../services/ai-review/AIReviewService';
 import { DiffAnalyzer } from '../services/ai-review/DiffAnalyzer';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'ai-review-routes' });
 
@@ -53,10 +54,7 @@ export default async function aiReviewRoutes(
         };
 
         if (!body.diff) {
-          return reply.status(400).send({
-            error: 'BAD_REQUEST',
-            message: 'diff is required',
-          });
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
         }
 
         if (body.repoId && body.prId) {
@@ -75,10 +73,7 @@ export default async function aiReviewRoutes(
         return reply.status(201).send({ data: result });
       } catch (error: any) {
         logger.error({ error }, 'AI review analysis failed');
-        return reply.status(500).send({
-          error: 'REVIEW_ANALYSIS_FAILED',
-          message: error.message || 'Failed to analyze diff',
-        });
+        return handleError(reply, new OrionError('REVIEW_ANALYSIS_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -125,10 +120,7 @@ export default async function aiReviewRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to list reviews');
-        return reply.status(500).send({
-          error: 'REVIEWS_LIST_FAILED',
-          message: error.message || 'Failed to list reviews',
-        });
+        return handleError(reply, new OrionError('REVIEWS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -151,19 +143,13 @@ export default async function aiReviewRoutes(
         const review = reviewService.getReviewDetail(id);
 
         if (!review) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Review ${id} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         return reply.send({ data: review });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get review detail');
-        return reply.status(500).send({
-          error: 'REVIEW_DETAIL_FAILED',
-          message: error.message || 'Failed to get review detail',
-        });
+        return handleError(reply, new OrionError('REVIEW_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -186,18 +172,12 @@ export default async function aiReviewRoutes(
       try {
         const query = request.query as { reviewId?: string };
         if (!query.reviewId) {
-          return reply.status(400).send({
-            error: 'BAD_REQUEST',
-            message: 'reviewId query parameter is required',
-          });
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
         }
 
         const review = reviewService.getReviewDetail(query.reviewId);
         if (!review) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Review ${query.reviewId} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         return reply.send({
@@ -206,10 +186,7 @@ export default async function aiReviewRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to list review comments');
-        return reply.status(500).send({
-          error: 'COMMENTS_LIST_FAILED',
-          message: error.message || 'Failed to list review comments',
-        });
+        return handleError(reply, new OrionError('COMMENTS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -235,10 +212,7 @@ export default async function aiReviewRoutes(
         };
 
         if (!body.diff) {
-          return reply.status(400).send({
-            error: 'BAD_REQUEST',
-            message: 'diff is required',
-          });
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
         }
 
         // Parse diff and extract changed files/lines
@@ -274,10 +248,7 @@ export default async function aiReviewRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to create review comment');
-        return reply.status(500).send({
-          error: 'COMMENT_CREATE_FAILED',
-          message: error.message || 'Failed to process review comment',
-        });
+        return handleError(reply, new OrionError('COMMENT_CREATE_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

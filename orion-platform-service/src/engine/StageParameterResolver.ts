@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { VariableContext } from './VariableContext';
 import { Task, TaskStatus } from '../models/Task';
 

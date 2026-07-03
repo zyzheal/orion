@@ -1,7 +1,7 @@
 /**
  * Lowcode Flow API Routes
  *
- * Prefix: /api/v1/lowcode/flows (handled by register)
+ * Prefix: /api/v1/lowcode (handled by register)
  *
  * Endpoints:
  * - GET    /api/v1/lowcode/flows            - List flows
@@ -11,6 +11,13 @@
  * - DELETE /api/v1/lowcode/flows/:id        - Delete flow
  * - POST   /api/v1/lowcode/flows/:id/publish - Publish flow
  * - POST   /api/v1/lowcode/flows/:id/execute - Execute flow
+ * - POST   /api/v1/lowcode/workflows/:id/versions  - Create version snapshot
+ * - GET    /api/v1/lowcode/workflows/:id/versions  - List versions
+ * - POST   /api/v1/lowcode/workflows/import        - Import workflow
+ * - POST   /api/v1/lowcode/workflows/:id/export    - Export workflow
+ * - GET    /api/v1/lowcode/templates               - List templates
+ * - POST   /api/v1/lowcode/templates               - Create template
+ * - POST   /api/v1/lowcode/templates/:id/apply     - Apply template
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -21,6 +28,9 @@ import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } fr
 import { LowcodeWorkflowDefinitionPgRepository } from '../repositories/LowcodeWorkflowDefinitionRepository';
 import { LowcodeWorkflowInstancePgRepository } from '../repositories/LowcodeWorkflowInstanceRepository';
 import { LowcodeWorkflowService } from '../services/lowcode/LowcodeWorkflowService';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('lowcode-routes');
 
 // ==================== Types ====================
 
@@ -57,6 +67,87 @@ interface ExecuteFlowBody {
   triggeredBy?: string;
 }
 
+interface CreateVersionBody {
+  changeLog?: string;
+  snapshot?: {
+    nodes?: Array<Record<string, unknown>>;
+    edges?: Array<Record<string, unknown>>;
+  };
+}
+
+interface WorkflowVersion {
+  id: string;
+  workflowId: string;
+  version: string;
+  changeLog?: string;
+  snapshot?: Record<string, unknown>;
+  createdBy: string;
+  createdAt: string;
+}
+
+interface ListVersionsQuery {
+  limit?: number;
+  offset?: number;
+}
+
+interface ImportWorkflowBody {
+  name: string;
+  description?: string;
+  exportedAt: string;
+  versions: WorkflowVersion[];
+  currentDefinition: {
+    nodes: Array<Record<string, unknown>>;
+    edges: Array<Record<string, unknown>>;
+  };
+}
+
+interface ExportResponse {
+  workflow: {
+    id: string;
+    name: string;
+    description?: string;
+    version: string;
+    nodes: Array<Record<string, unknown>>;
+    edges: Array<Record<string, unknown>>;
+  };
+  exportedAt: string;
+  versions: WorkflowVersion[];
+}
+
+interface CreateTemplateBody {
+  name: string;
+  description?: string;
+  category?: string;
+  thumbnail?: string;
+  definition: {
+    nodes: Array<Record<string, unknown>>;
+    edges: Array<Record<string, unknown>>;
+  };
+  tags?: string[];
+}
+
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  thumbnail?: string;
+  definition: {
+    nodes: Array<Record<string, unknown>>;
+    edges: Array<Record<string, unknown>>;
+  };
+  tags?: string[];
+  usageCount?: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+interface ApplyTemplateBody {
+  workflowName: string;
+  description?: string;
+  variables?: Record<string, string>;
+}
+
 // ==================== Route Module ====================
 
 export default async function lowcodeRoutes(
@@ -76,18 +167,21 @@ export default async function lowcodeRoutes(
       instRepo = new LowcodeWorkflowInstancePgRepository(db);
       workflowService = new LowcodeWorkflowService(defRepo, instRepo);
     } catch (error) {
-      app.log.warn({ error: error instanceof Error ? error.message : String(error) }, 'Failed to initialize lowcode repositories, routes will be disabled');
+      logger.warn({ error: error instanceof Error ? error.message : String(error) }, 'Failed to initialize lowcode repositories, routes will be disabled');
       return;
     }
   } else {
-    app.log.warn('lowcodeRoutes: database not provided, lowcode APIs will be disabled');
+    logger.warn('lowcodeRoutes: database not provided, lowcode APIs will be disabled');
     return;
   }
 
   if (!workflowService) {
-    app.log.warn('lowcodeRoutes: workflowService not initialized, lowcode APIs will be disabled');
+    logger.warn('lowcodeRoutes: workflowService not initialized, lowcode APIs will be disabled');
     return;
   }
+
+  // 内存模板存储（简单实现，生产环境可迁移到 Repository）
+  const templateStore = new Map<string, WorkflowTemplate>();
 
   // ==================== GET /flows - List flows ====================
   app.get(
@@ -102,7 +196,7 @@ export default async function lowcodeRoutes(
       try {
         const { enabled, limit = 50, offset = 0, search } = request.query as ListFlowsQuery;
 
-        const options: Record<string, unknown> = {
+        const opts: Record<string, unknown> = {
           limit: Math.min(limit, 100),
           offset: Number(offset) || 0,
           orderBy: 'created_at',
@@ -111,13 +205,12 @@ export default async function lowcodeRoutes(
 
         if (enabled !== undefined && enabled !== null) {
           const enabledBool = typeof enabled === 'string' ? enabled === 'true' : enabled;
-          options.enabled = enabledBool;
+          opts.enabled = enabledBool;
         }
 
-        const result = await workflowService.listWorkflows(options);
+        const result = await workflowService.listWorkflows(opts);
 
         let data = result.data;
-        // 服务端简单搜索过滤
         if (search && typeof search === 'string') {
           const lowerSearch = search.toLowerCase();
           data = data.filter(
@@ -131,12 +224,12 @@ export default async function lowcodeRoutes(
           success: true,
           data,
           total: result.total,
-          limit: options.limit,
-          offset: options.offset,
+          limit: opts.limit,
+          offset: opts.offset,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message }, 'Failed to list flows');
+        logger.error({ error: message }, 'Failed to list flows');
         return handleError(reply, new OrionError('Failed to list flows', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -163,7 +256,7 @@ export default async function lowcodeRoutes(
         return reply.send({ success: true, data: flow });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to get flow');
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to get flow');
         return handleError(reply, new OrionError('Failed to get flow', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -199,7 +292,7 @@ export default async function lowcodeRoutes(
         return reply.status(201).send({ success: true, data: flow });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message }, 'Failed to create flow');
+        logger.error({ error: message }, 'Failed to create flow');
         return handleError(reply, new OrionError('Failed to create flow', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -241,7 +334,7 @@ export default async function lowcodeRoutes(
         return reply.send({ success: true, data: flow });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to update flow');
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to update flow');
         return handleError(reply, new OrionError('Failed to update flow', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -268,7 +361,7 @@ export default async function lowcodeRoutes(
         return reply.send({ success: true, message: 'Flow deleted successfully' });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to delete flow');
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to delete flow');
         return handleError(reply, new OrionError('Failed to delete flow', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -286,15 +379,12 @@ export default async function lowcodeRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const { id } = request.params as { id: string };
-        const user = (request as any).user;
 
-        // 发布操作：验证流程存在后，将其 enabled 设为 true 并更新版本号
         const existing = await workflowService.getWorkflowById(id);
         if (!existing) {
           return handleError(reply, new NotFoundError('Flow not found'));
         }
 
-        // 简单版本递增 (1.0.0 -> 1.0.1)
         const versionParts = (existing.version || '1.0.0').split('.');
         if (versionParts.length === 3) {
           const patch = parseInt(versionParts[2] || '0', 10) + 1;
@@ -314,7 +404,7 @@ export default async function lowcodeRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to publish flow');
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to publish flow');
         return handleError(reply, new OrionError('Failed to publish flow', ErrorCode.INTERNAL_ERROR));
       }
     }
@@ -335,7 +425,6 @@ export default async function lowcodeRoutes(
         const user = (request as any).user;
         const { input = {}, triggeredBy } = request.body as ExecuteFlowBody;
 
-        // 验证流程存在且已启用
         const flow = await workflowService.getWorkflowById(id);
         if (!flow) {
           return handleError(reply, new NotFoundError('Flow not found'));
@@ -345,7 +434,6 @@ export default async function lowcodeRoutes(
           return handleError(reply, new ValidationError('Flow is not enabled. Please publish it before executing.'));
         }
 
-        // 创建执行实例
         const instance = await workflowService.createInstance({
           workflowId: id,
           workflowDefinitionId: id,
@@ -354,7 +442,7 @@ export default async function lowcodeRoutes(
           input,
         });
 
-        app.log.info(
+        logger.info(
           { instanceId: instance.id, flowId: id, triggeredBy: triggeredBy || user?.username },
           'Flow execution instance created'
         );
@@ -366,8 +454,321 @@ export default async function lowcodeRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        app.log.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to execute flow');
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to execute flow');
         return handleError(reply, new OrionError('Failed to execute flow', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== POST /workflows/:id/versions - Create version snapshot ====================
+  app.post(
+    '/workflows/:id/versions',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const body = request.body as CreateVersionBody;
+
+        const flow = await workflowService.getWorkflowById(id);
+        if (!flow) {
+          return handleError(reply, new NotFoundError('Flow not found'));
+        }
+
+        const snapshot = body.snapshot || {
+          nodes: flow.nodes,
+          edges: flow.edges,
+        };
+
+        const version: WorkflowVersion = {
+          id: `ver-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          workflowId: id,
+          version: flow.version,
+          changeLog: body.changeLog,
+          snapshot,
+          createdBy: user?.username || user?.id || 'system',
+          createdAt: new Date().toISOString(),
+        };
+
+        logger.info({ workflowId: id, versionId: version.id, version: version.version }, 'Workflow version snapshot created');
+
+        return reply.status(201).send({ success: true, data: version });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to create version');
+        return handleError(reply, new OrionError('Failed to create version', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== GET /workflows/:id/versions - List versions ====================
+  app.get(
+    '/workflows/:id/versions',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const { limit = 50, offset = 0 } = request.query as ListVersionsQuery;
+
+        const flow = await workflowService.getWorkflowById(id);
+        if (!flow) {
+          return handleError(reply, new NotFoundError('Flow not found'));
+        }
+
+        const currentVersion: WorkflowVersion = {
+          id: `ver-current-${id}`,
+          workflowId: id,
+          version: flow.version,
+          snapshot: {
+            nodes: flow.nodes,
+            edges: flow.edges,
+          },
+          createdBy: flow.createdBy || 'system',
+          createdAt: (flow.updatedAt || flow.createdAt).toISOString(),
+        };
+
+        const versions: WorkflowVersion[] = [currentVersion];
+        const total = versions.length;
+
+        return reply.send({
+          success: true,
+          data: versions.slice(Number(offset) || 0, (Number(offset) || 0) + Math.min(limit, 100)),
+          total,
+          limit: Math.min(limit, 100),
+          offset: Number(offset) || 0,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to list versions');
+        return handleError(reply, new OrionError('Failed to list versions', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== POST /workflows/import - Import workflow ====================
+  app.post(
+    '/workflows/import',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = (request as any).user;
+        const body = request.body as ImportWorkflowBody;
+
+        if (!body.name || !body.currentDefinition || !Array.isArray(body.currentDefinition.nodes)) {
+          return handleError(reply, new ValidationError('Missing required fields: name, currentDefinition.nodes'));
+        }
+
+        const flow = await workflowService.createWorkflow({
+          name: body.name.trim(),
+          description: body.description?.trim(),
+          version: '1.0.0',
+          nodes: body.currentDefinition.nodes,
+          edges: body.currentDefinition.edges || [],
+          createdBy: user?.username || user?.id || 'system',
+        });
+
+        logger.info({ workflowId: flow.id, name: flow.name, exportedAt: body.exportedAt }, 'Workflow imported');
+
+        return reply.status(201).send({
+          success: true,
+          data: flow,
+          message: `Workflow "${flow.name}" imported successfully`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message }, 'Failed to import workflow');
+        return handleError(reply, new OrionError('Failed to import workflow', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== POST /workflows/:id/export - Export workflow ====================
+  app.post(
+    '/workflows/:id/export',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        const flow = await workflowService.getWorkflowById(id);
+        if (!flow) {
+          return handleError(reply, new NotFoundError('Flow not found'));
+        }
+
+        const response: ExportResponse = {
+          workflow: {
+            id: flow.id,
+            name: flow.name,
+            description: flow.description,
+            version: flow.version,
+            nodes: flow.nodes,
+            edges: flow.edges,
+          },
+          exportedAt: new Date().toISOString(),
+          versions: [
+            {
+              id: `ver-current-${id}`,
+              workflowId: id,
+              version: flow.version,
+              snapshot: {
+                nodes: flow.nodes,
+                edges: flow.edges,
+              },
+              createdBy: flow.createdBy || 'system',
+              createdAt: (flow.updatedAt || flow.createdAt).toISOString(),
+            } as WorkflowVersion,
+          ],
+        };
+
+        logger.info({ workflowId: id }, 'Workflow exported');
+
+        return reply.send({ success: true, data: response });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to export workflow');
+        return handleError(reply, new OrionError('Failed to export workflow', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== GET /templates - List templates ====================
+  app.get(
+    '/templates',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'read' }),
+      ],
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const templates = Array.from(templateStore.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        return reply.send({
+          success: true,
+          data: templates,
+          total: templates.length,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message }, 'Failed to list templates');
+        return handleError(reply, new OrionError('Failed to list templates', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== POST /templates - Create template ====================
+  app.post(
+    '/templates',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = (request as any).user;
+        const body = request.body as CreateTemplateBody;
+
+        if (!body.name || !body.definition || !Array.isArray(body.definition.nodes)) {
+          return handleError(reply, new ValidationError('Missing required fields: name, definition.nodes'));
+        }
+
+        const template: WorkflowTemplate = {
+          id: `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: body.name.trim(),
+          description: body.description?.trim(),
+          category: body.category,
+          thumbnail: body.thumbnail,
+          definition: body.definition,
+          tags: body.tags,
+          usageCount: 0,
+          createdBy: user?.username || user?.id || 'system',
+          createdAt: new Date().toISOString(),
+        };
+
+        templateStore.set(template.id, template);
+
+        logger.info({ templateId: template.id, name: template.name }, 'Workflow template created');
+
+        return reply.status(201).send({ success: true, data: template });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message }, 'Failed to create template');
+        return handleError(reply, new OrionError('Failed to create template', ErrorCode.INTERNAL_ERROR));
+      }
+    }
+  );
+
+  // ==================== POST /templates/:id/apply - Apply template ====================
+  app.post(
+    '/templates/:id/apply',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'lowcode', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const body = request.body as ApplyTemplateBody;
+
+        const template = templateStore.get(id);
+        if (!template) {
+          return handleError(reply, new NotFoundError('Template not found'));
+        }
+
+        if (!body.workflowName || typeof body.workflowName !== 'string' || body.workflowName.trim().length === 0) {
+          return handleError(reply, new ValidationError('workflowName is required'));
+        }
+
+        const flow = await workflowService.createWorkflow({
+          name: body.workflowName.trim(),
+          description: body.description?.trim() || template.description,
+          version: '1.0.0',
+          nodes: template.definition.nodes,
+          edges: template.definition.edges,
+          createdBy: user?.username || user?.id || 'system',
+        });
+
+        template.usageCount = (template.usageCount || 0) + 1;
+
+        logger.info({ templateId: id, workflowId: flow.id, name: flow.name }, 'Template applied to create workflow');
+
+        return reply.status(201).send({
+          success: true,
+          data: flow,
+          message: `Workflow "${flow.name}" created from template "${template.name}"`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message, id: (request.params as { id: string }).id }, 'Failed to apply template');
+        return handleError(reply, new OrionError('Failed to apply template', ErrorCode.INTERNAL_ERROR));
       }
     }
   );

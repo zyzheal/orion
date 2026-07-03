@@ -9,6 +9,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { LLMTraceService, LLMTrace } from '../services/llm-trace/LLMTraceService';
 import { CostCalculator } from '../services/llm-trace/CostCalculator';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 let traceService: LLMTraceService | null = null;
 let costCalculator: CostCalculator | null = null;
@@ -58,7 +59,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
       const { traceId } = request.params;
       const trace = await svc.getTrace(traceId);
       if (!trace) {
-        return reply.code(404).send({ error: 'Trace not found', traceId });
+        return handleError(reply, new NotFoundError('Trace not found'));
       }
       return reply.send(trace);
     }
@@ -158,7 +159,7 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest<{ Body: { modelId: string; inputTokens: number; outputTokens: number } }>, reply: FastifyReply) => {
       const { modelId, inputTokens, outputTokens } = request.body;
       if (!modelId || inputTokens === undefined || outputTokens === undefined) {
-        return reply.code(400).send({ error: 'Missing required fields: modelId, inputTokens, outputTokens' });
+        return handleError(reply, new ValidationError('Missing required fields: modelId, inputTokens, outputTokens'));
       }
       const breakdown = await calc.calculate(modelId, inputTokens, outputTokens);
       return reply.send({ modelId, inputTokens, outputTokens, ...breakdown });

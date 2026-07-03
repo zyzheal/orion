@@ -12,7 +12,8 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import * as k8s from '@kubernetes/client-node';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import {
   HealingAction,
   HealingActionType,
@@ -21,9 +22,8 @@ import {
 import { OrionError, ErrorCode } from '../../errors';
 import { HealingActionResultRepository } from '../../repositories/HealingActionResultRepository';
 import { DatabasePool } from '../../services/database';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'healing-action-executor' });
+const logger = createLogger('healing-action-executor');
 
 /**
  * K8s client singleton with connection pooling and health check

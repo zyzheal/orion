@@ -14,6 +14,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WorkflowDependencyAnalyzer } from '../services/lowcode/WorkflowDependencyAnalyzer';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 /**
  * 路由选项接口
@@ -65,10 +66,7 @@ export default async function workflowDependencyRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -101,10 +99,7 @@ export default async function workflowDependencyRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -131,10 +126,7 @@ export default async function workflowDependencyRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );

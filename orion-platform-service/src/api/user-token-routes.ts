@@ -9,6 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { UserTokenService, UserToken } from '../services/user/UserTokenService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { OrionError, NotFoundError, UnauthorizedError, ForbiddenError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 interface UserTokenRoutesOptions {
   database?: DatabasePool;
@@ -25,11 +26,7 @@ export default async function userTokenRoutes(
   }
 
   const unavailableHandler = async (request: FastifyRequest, reply: FastifyReply) => {
-    return reply.status(503).send({
-      success: false,
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'User Token management requires database connection',
-    });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'))
   };
 
   // Middleware to verify user can only access their own tokens
@@ -42,22 +39,14 @@ export default async function userTokenRoutes(
     const { id } = request.params as { id: string };
 
     if (!currentUserId) {
-      return reply.status(401).send({
-        success: false,
-        error: 'UNAUTHORIZED',
-        message: 'Authentication required',
-      });
+      return handleError(reply, new UnauthorizedError('UNAUTHORIZED'))
     }
 
     // Users can only access their own tokens (unless admin)
     // @ts-ignore - Fastify types for request.user
     const isAdmin = request.user?.role === 'admin' || request.user?.role === 'superadmin';
     if (currentUserId !== id && !isAdmin) {
-      return reply.status(403).send({
-        success: false,
-        error: 'FORBIDDEN',
-        message: 'You can only manage your own tokens',
-      });
+      return handleError(reply, new ForbiddenError('FORBIDDEN'))
     }
   };
 
@@ -112,11 +101,7 @@ export default async function userTokenRoutes(
       });
     } catch (error: any) {
       request.log.error(error, 'Failed to get user tokens');
-      return reply.status(500).send({
-        success: false,
-        error: 'GET_TOKENS_FAILED',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('GET_TOKENS_FAILED', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -178,11 +163,7 @@ export default async function userTokenRoutes(
       });
     } catch (error: any) {
       request.log.error(error, 'Failed to create user token');
-      return reply.status(500).send({
-        success: false,
-        error: 'CREATE_TOKEN_FAILED',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('CREATE_TOKEN_FAILED', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -227,11 +208,7 @@ export default async function userTokenRoutes(
       const deleted = await service.deleteToken(id, tokenId);
 
       if (!deleted) {
-        return reply.status(404).send({
-          success: false,
-          error: 'TOKEN_NOT_FOUND',
-          message: 'Token not found or does not belong to user',
-        });
+        return handleError(reply, new NotFoundError('TOKEN_NOT_FOUND'))
       }
 
       return reply.send({
@@ -239,11 +216,7 @@ export default async function userTokenRoutes(
       });
     } catch (error: any) {
       request.log.error(error, 'Failed to delete user token');
-      return reply.status(500).send({
-        success: false,
-        error: 'DELETE_TOKEN_FAILED',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('DELETE_TOKEN_FAILED', ErrorCode.INTERNAL_ERROR))
     }
   });
 }

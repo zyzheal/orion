@@ -10,7 +10,7 @@
 
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   ChainedAuditLogEntry,
   ChainConfig,
@@ -21,7 +21,7 @@ import {
 import { OrionError, ErrorCode } from '../../errors';
 import { AuditChainEntryRepository } from '../../repositories/AuditChainEntryRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'audit-chain' });
+const logger = createLogger('audit-chain');
 
 /**
  * AuditLogChain 依赖的 Repository 接口

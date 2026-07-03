@@ -1,13 +1,13 @@
 // orion-platform-service/src/services/auth/JwtKeyRotationService.ts
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { JwtKeyRotationRepository, JwtKeyEntity } from '../../repositories/JwtKeyRotationRepository';
 import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('jwt-key-rotation');
 
 export interface JwtKeyRotationConfig {
   rotationIntervalDays: number;
@@ -203,6 +203,14 @@ export class JwtKeyRotationService extends EventEmitter {
       }, delay);
 
       logger.info(`[JwtKeyRotation] Next rotation scheduled at: ${overlapStart.toISOString()}`);
+    } else {
+      // Overlap window already started (e.g. process restarted past the scheduled time)
+      // Trigger rotation immediately to avoid skipping the rotation cycle
+      logger.warn(`[JwtKeyRotation] Overlap window already passed (${delay}ms), triggering rotation immediately`);
+      this.startRotation().catch((error) => {
+        logger.error('[JwtKeyRotation] Immediate rotation failed:', error);
+        this.emit('rotation:failed', error);
+      });
     }
   }
 

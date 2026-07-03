@@ -9,7 +9,7 @@
  * - 循环引用保护（BFS 遍历检测）
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactVersion, ArtifactVersionCreateInput } from '../../models/ArtifactVersion';
 import { OrionError, ErrorCode } from '../../errors';

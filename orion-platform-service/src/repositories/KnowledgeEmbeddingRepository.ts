@@ -200,7 +200,12 @@ export class KnowledgeEmbeddingRepository {
 
     if (options?.metadataFilter) {
       for (const [key, value] of Object.entries(options.metadataFilter)) {
-        conditions.push(`metadata->>'${key}' = $${paramIndex}`);
+        // SQL injection protection: sanitize key to only allow alphanumeric and underscore
+        const sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '');
+        if (sanitizedKey.length === 0) {
+          continue; // Skip invalid keys
+        }
+        conditions.push(`metadata->>'${sanitizedKey}' = $${paramIndex}`);
         params.push(value);
         paramIndex++;
       }

@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { BillingService } from '../services/billing/BillingService';
 import { DatabasePool } from '../services/database';
+import { NotFoundError, handleError } from '../errors';
 
 interface BillingRoutesOptions {
   database?: DatabasePool;
@@ -91,7 +92,7 @@ export default async function billingRoutes(
     const params = request.params as any;
     const record = await billingService.getBillingRecord(params.id);
     if (!record) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Billing record not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: record });
   });
@@ -104,7 +105,7 @@ export default async function billingRoutes(
     const body = request.body as any;
     const record = await billingService.markAsPaid(params.id, body?.amount);
     if (!record) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Billing record not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: record });
   });
@@ -117,7 +118,7 @@ export default async function billingRoutes(
     const body = request.body as any;
     const record = await billingService.updateBillingStatus(params.id, body.status);
     if (!record) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Billing record not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: record });
   });

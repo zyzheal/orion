@@ -16,6 +16,14 @@ import { AlertStatus, Alert, AlertSeverity } from '../services/alert/AlertTypes'
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
+import { createLogger } from '../utils/logger';
+
+// Notification integration for auto-triggering alerts
+import { NotificationPolicyService } from '../services/notification-policy/NotificationPolicyService';
+import { NotificationPolicyRepository, NotificationWorkflowRepository } from '../services/notification-policy/NotificationPolicyRepository';
+import { AlertNotificationService } from '../services/monitoring/AlertNotificationService';
+
+const logger = pino({ name: 'alert-routes' });
 
 interface AlertRoutesOptions {
   database?: DatabasePool;
@@ -36,6 +44,12 @@ export default async function alertRoutes(
   const correlationService = new AlertCorrelationService(undefined, db);
   const deduplication = new AlertDeduplication(db);
   const suppressionService = new AlertSuppressionService(deduplication, correlationService, undefined, db);
+
+  // Initialize notification services for auto-trigger on alert evaluation
+  const policyRepo = new NotificationPolicyRepository(db);
+  const workflowRepo = new NotificationWorkflowRepository(db);
+  const notificationPolicyService = new NotificationPolicyService(policyRepo, workflowRepo);
+  const alertNotificationService = new AlertNotificationService(db);
 
   // Start deduplication service
   deduplication.start();
@@ -80,6 +94,63 @@ export default async function alertRoutes(
 
       // Process deduplication
       const processResult = await deduplication.processAlert(alert);
+
+      // ==================== Auto-trigger notification (4.44) ====================
+      // After alert is created/updated, evaluate notification policies
+      // and send notifications for matched policies
+      if (processResult.action === 'create' && !processResult.isDuplicate) {
+        // Fire-and-forget: evaluate policies and trigger notifications
+        (async () => {
+          try {
+            const matchedPolicies = await notificationPolicyService.evaluatePolicies({
+              event: 'alert.triggered',
+              alertId: alert.id,
+              alertName: alert.name,
+              severity: alert.severity,
+              metric: (alert as any).metric,
+              value: alert.value,
+              threshold: alert.threshold,
+              status: alert.status,
+              tenantId: alert.tenantId,
+              labels: alert.labels,
+              annotations: alert.annotations,
+              timestamp: new Date().toISOString(),
+            });
+
+            if (matchedPolicies.length > 0) {
+              // Collect channel IDs from matched policies
+              const channelIds: string[] = [];
+              for (const policy of matchedPolicies) {
+                if (policy.channels && policy.channels.length > 0) {
+                  channelIds.push(...policy.channels);
+                }
+              }
+
+              if (channelIds.length > 0) {
+                const records = await alertNotificationService.sendNotification(alert, channelIds);
+                logger.info(
+                  {
+                    alertId: alert.id,
+                    matchedPolicies: matchedPolicies.length,
+                    channelsSent: records.filter(r => r.status === 'sent').length,
+                  },
+                  '[AlertIngest] Auto-triggered notifications'
+                );
+              }
+            }
+          } catch (notifError) {
+            logger.error(
+              {
+                alertId: alert.id,
+                error: notifError instanceof Error ? notifError.message : 'Unknown error',
+              },
+              '[AlertIngest] Failed to auto-trigger notification'
+            );
+          }
+        })();
+      }
+      // =========================================================================
+
       return created(reply, request, {
         status: processResult.action === 'create' ? 'created' : 'updated',
         alert,

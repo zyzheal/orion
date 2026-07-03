@@ -11,6 +11,7 @@ import { AutoRecoveryService, RecoveryStats } from '../services/degradation/Auto
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
+import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 interface ProviderParams {
   providerId: string;
@@ -64,11 +65,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
           overallSuccessRate: successRate,
         });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get degradation status',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -82,11 +79,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         const config = recoveryService!.getConfig();
         reply.send(config);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get configuration',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -101,21 +94,13 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         const stats = recoveryService!.getRecoveryStats(providerId);
 
         if (!stats) {
-          reply.code(404).send({
-            code: 404,
-            error: 'NOT_FOUND',
-            message: 'Provider not found',
-          });
+handleError(reply, new NotFoundError('NOT_FOUND'))
           return;
         }
 
         reply.send(stats);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get provider stats',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -129,11 +114,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         const degraded = recoveryService!.getDegradedProviders();
         reply.send({ providers: degraded });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get degraded providers',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -147,43 +128,27 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         // Authorization: only admin can update rates
         const roles = (request as any).user?.roles as string[] | undefined;
         if (!roles?.includes('admin')) {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Only admin can update provider success rates',
-          });
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
         const { providerId, successRate } = request.body;
 
         if (!providerId || successRate === undefined) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'providerId and successRate are required',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Validate successRate range
         if (successRate < 0 || successRate > 1) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'successRate must be between 0 and 1',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         recoveryService!.updateProviderSuccessRate(providerId, successRate);
         reply.send({ success: true });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to update success rate',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -197,11 +162,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         const allStats = recoveryService!.getAllStats();
         reply.send({ providers: allStats });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get all stats',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -215,11 +176,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         const rate = recoveryService!.getOverallSuccessRate();
         reply.send({ successRate: rate });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get success rate',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

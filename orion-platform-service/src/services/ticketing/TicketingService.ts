@@ -11,6 +11,7 @@ export interface ListTicketsOptions {
   tenantId?: string;
   status?: string;
   assigneeId?: string;
+  reporterId?: string;
   priority?: string;
 }
 
@@ -38,11 +39,11 @@ export class TicketingService {
   }
 
   async listTickets(options: ListTicketsOptions = {}): Promise<PaginatedResult<TicketRecord>> {
-    const { page = 1, limit = 20, tenantId, status, assigneeId, priority } = options;
+    const { page = 1, limit = 20, tenantId, status, assigneeId, reporterId, priority } = options;
     const offset = (page - 1) * limit;
     const [tickets, total] = await Promise.all([
-      this.repository.findAll({ tenantId: tenantId || getCurrentTenantId(), status, assigneeId, priority, limit, offset }),
-      this.repository.count({ tenantId: tenantId || getCurrentTenantId(), status, assigneeId }),
+      this.repository.findAll({ tenantId: tenantId || getCurrentTenantId(), status, assigneeId, reporterId, priority, limit, offset }),
+      this.repository.count({ tenantId: tenantId || getCurrentTenantId(), status, assigneeId, reporterId }),
     ]);
     return { data: tickets, total, page, limit, totalPages: Math.ceil(total / limit) };
   }

@@ -76,7 +76,7 @@ function createMockDb() {
       // SELECT all (with optional WHERE, ORDER, LIMIT)
       if (text.includes('SELECT * FROM')) {
         const table = text.match(/FROM (\w+)/)?.[1] || 'unknown';
-        let rows = [...(store[table] || [])];
+        const rows = [...(store[table] || [])];
         return { rows, rowCount: rows.length };
       }
       // UPDATE by provider

@@ -12,7 +12,7 @@
 
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 import {
   EventBusConfigRepository,

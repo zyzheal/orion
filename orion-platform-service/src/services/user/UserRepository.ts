@@ -42,6 +42,14 @@ export interface UpdateUserInput {
   role?: string;
   status?: string;
   settings?: Record<string, any>;
+  password_hash?: string;
+  mfa_secret?: string;
+  mfa_enabled?: boolean;
+  mfa_backup_codes?: string;
+  password_reset_token?: string;
+  password_reset_expires?: Date;
+  failed_login_attempts?: number;
+  locked_until?: Date;
 }
 
 interface FindAllOptions {

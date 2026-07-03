@@ -7,9 +7,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../../services/database';
 import {
-  ComplianceFrameworkService,
+  ComplianceService,
   CompliancePolicyInput,
-} from '../../services/security/ComplianceFrameworkService';
+  ComplianceFramework,
+  ComplianceEvidence,
+  GapAnalysisResult,
+} from '../../services/compliance/ComplianceService';
 import {
   SecurityAuditService,
   AuditPlanInput,
@@ -83,11 +86,11 @@ interface GapAnalysisBody {
 }
 
 export class SecurityComplianceController {
-  private complianceService: ComplianceFrameworkService;
+  private complianceService: ComplianceService;
   private auditService: SecurityAuditService;
 
   constructor(db?: DatabasePool) {
-    this.complianceService = new ComplianceFrameworkService(db);
+    this.complianceService = new ComplianceService(db);
     this.auditService = new SecurityAuditService(db);
   }
 

@@ -9,3 +9,4 @@ export * from './AlertSuppressionService';
 export * from './CustomAlertRuleService';
 export * from './RootCauseAnalysisService';
 export * from './AlertSilenceService';
+export { AlertService, TenantUserResolver } from './AlertService';

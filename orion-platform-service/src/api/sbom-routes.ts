@@ -13,7 +13,8 @@ import { SbomDocumentService } from '../services/sbom/SbomDocumentService';
 import { SbomVulnerabilityService } from '../services/sbom/SbomVulnerabilityService';
 import { SbomWaiverService } from '../services/sbom/SbomWaiverService';
 import { SBOMGeneratorService } from '../services/sbom/SBOMGeneratorService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'sbom-routes' });
 
@@ -42,7 +43,7 @@ export default async function sbomRoutes(
       return reply.status(200).send({ success: true, data: result });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list SBOM documents');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -54,12 +55,12 @@ export default async function sbomRoutes(
       const { id } = (request.params as any);
       const doc = await docService.getById(id);
       if (!doc) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `SBOM document not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: doc });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get SBOM document');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -73,7 +74,7 @@ export default async function sbomRoutes(
       return reply.status(201).send({ success: true, data: doc });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create SBOM document');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -86,12 +87,12 @@ export default async function sbomRoutes(
       const body = request.body as any;
       const updated = await docService.update(id, body);
       if (!updated) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `SBOM document not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: updated });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update SBOM document');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -103,12 +104,12 @@ export default async function sbomRoutes(
       const { id } = (request.params as any);
       const deleted = await docService.delete(id);
       if (!deleted) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `SBOM document not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete SBOM document');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -128,7 +129,7 @@ export default async function sbomRoutes(
       return reply.status(200).send({ success: true, data: { vulnerabilities: [], total: 0 } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list vulnerabilities');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -142,7 +143,7 @@ export default async function sbomRoutes(
       return reply.status(200).send({ success: true, data: { id } });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get vulnerability');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -158,7 +159,7 @@ export default async function sbomRoutes(
       return reply.status(200).send({ success: true, data: { waivers, total: waivers.length } });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list waivers');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -170,12 +171,12 @@ export default async function sbomRoutes(
       const { id } = (request.params as any);
       const waiver = await waiverService.getById(id);
       if (!waiver) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Waiver not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: waiver });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get waiver');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -189,7 +190,7 @@ export default async function sbomRoutes(
       return reply.status(201).send({ success: true, data: waiver });
     } catch (error: any) {
       logger.error({ error }, 'Failed to create waiver');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -202,12 +203,12 @@ export default async function sbomRoutes(
       const body = request.body as any;
       const updated = await waiverService.update(id, body);
       if (!updated) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Waiver not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: updated });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to update waiver');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -219,12 +220,12 @@ export default async function sbomRoutes(
       const { id } = (request.params as any);
       const deleted = await waiverService.delete(id);
       if (!deleted) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: `Waiver not found: ${id}` });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(204).send();
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to delete waiver');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -237,7 +238,7 @@ export default async function sbomRoutes(
     try {
       const body = request.body as any;
       if (!generatorService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'SBOM generator requires database connection' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const sbom = await generatorService.generateSBOM({
         tenant_id: body.tenantId || body.tenant_id,
@@ -247,7 +248,7 @@ export default async function sbomRoutes(
       return reply.status(201).send({ success: true, data: sbom });
     } catch (error: any) {
       logger.error({ error }, 'Failed to generate SBOM');
-      return reply.status(500).send({ error: 'INTERNAL_ERROR', message: error.message });
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

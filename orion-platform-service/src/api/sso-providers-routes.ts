@@ -22,7 +22,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ConflictError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'sso-providers-routes' });
 
@@ -71,7 +72,7 @@ export default async function ssoProvidersRoutes(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -88,7 +89,7 @@ export default async function ssoProvidersRoutes(
 
       const provider = result?.rows?.[0];
       if (!provider) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'SSO provider not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
 
       // Remove sensitive fields from response
@@ -103,7 +104,7 @@ export default async function ssoProvidersRoutes(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return reply.status(500).send({ error: 'GET_ERROR', message });
+      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -119,20 +120,17 @@ export default async function ssoProvidersRoutes(
         const { name, type, enabled = true, display_name, display_icon, config = {} } = body;
 
         if (!name || !type) {
-          return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'name and type are required' });
+          return handleError(reply, new ValidationError('MISSING_FIELDS'));
         }
 
         const validTypes = ['oidc', 'ldap', 'wechat', 'cas', 'saml'];
         if (!validTypes.includes(type)) {
-          return reply.status(400).send({
-            error: 'INVALID_TYPE',
-            message: `type must be one of: ${validTypes.join(', ')}`,
-          });
+          return handleError(reply, new ValidationError('INVALID_TYPE'))
         }
 
         const existing = await dbQuery('SELECT id FROM sso_providers WHERE name = $1', [name]);
         if (existing?.rows?.length > 0) {
-          return reply.status(409).send({ error: 'CONFLICT', message: 'Provider with this name already exists' });
+          return handleError(reply, new ConflictError('CONFLICT'));
         }
 
         await dbQuery(
@@ -147,7 +145,7 @@ export default async function ssoProvidersRoutes(
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'CREATE_ERROR';
-        return reply.status(500).send({ error: 'CREATE_ERROR', message });
+        return handleError(reply, new OrionError('CREATE_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -165,7 +163,7 @@ export default async function ssoProvidersRoutes(
 
         const existing = await dbQuery('SELECT id FROM sso_providers WHERE name = $1', [name]);
         if (!existing?.rows?.length) {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: 'SSO provider not found' });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
 
         const updates: string[] = [];
@@ -190,7 +188,7 @@ export default async function ssoProvidersRoutes(
         }
 
         if (updates.length === 0) {
-          return reply.status(400).send({ error: 'NO_UPDATES', message: 'No fields to update' });
+          return handleError(reply, new ValidationError('NO_UPDATES'));
         }
 
         updates.push(`updated_at = NOW()`);
@@ -207,7 +205,7 @@ export default async function ssoProvidersRoutes(
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'UPDATE_ERROR';
-        return reply.status(500).send({ error: 'UPDATE_ERROR', message });
+        return handleError(reply, new OrionError('UPDATE_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -224,7 +222,7 @@ export default async function ssoProvidersRoutes(
 
         const result = await dbQuery('DELETE FROM sso_providers WHERE name = $1', [name]);
         if (result?.rowCount === 0) {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: 'SSO provider not found' });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
 
         return reply.send({
@@ -233,7 +231,7 @@ export default async function ssoProvidersRoutes(
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'DELETE_ERROR';
-        return reply.status(500).send({ error: 'DELETE_ERROR', message });
+        return handleError(reply, new OrionError('DELETE_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -254,7 +252,7 @@ export default async function ssoProvidersRoutes(
         );
         const provider = result?.rows?.[0];
         if (!provider) {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: 'SSO provider not found' });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
 
         // Test connection based on provider type
@@ -315,7 +313,7 @@ export default async function ssoProvidersRoutes(
         });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'TEST_ERROR';
-        return reply.status(500).send({ error: 'TEST_ERROR', message });
+        return handleError(reply, new OrionError('TEST_ERROR', ErrorCode.INTERNAL_ERROR));
       }
     }
   );

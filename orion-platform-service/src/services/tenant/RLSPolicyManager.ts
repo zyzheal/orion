@@ -8,7 +8,7 @@
  * - 提供策略状态报告
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

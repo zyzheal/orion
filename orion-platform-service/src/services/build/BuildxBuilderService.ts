@@ -3,7 +3,7 @@
  * Docker Buildx 多架构构建服务
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { ArtifactRegistryServiceImpl } from '../artifact/ArtifactRegistryService';

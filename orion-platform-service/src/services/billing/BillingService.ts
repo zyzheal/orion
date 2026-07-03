@@ -9,7 +9,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import { BillingRepository } from '../../repositories/BillingRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'BillingService' });
 

@@ -16,7 +16,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { SecretsController } from './controllers/SecretsController';
 import { SecretsService } from '../services/pipeline/SecretsService';
 import { SecretRepository } from '../repositories/SecretRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'secret-routes' });
 

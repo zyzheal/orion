@@ -7,6 +7,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import {  ValidationError, NotFoundError, handleError } from '../errors';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
@@ -39,7 +40,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
       const productLine = await productLineService.create(input);
       reply.status(201).send(productLine);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -67,7 +68,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const { id } = request.params as { id: string };
     const productLine = await productLineService.getById(id);
     if (!productLine) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.send(productLine);
@@ -83,7 +84,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const { name } = request.params as { name: string };
     const productLine = await productLineService.getByName(name);
     if (!productLine) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.send(productLine);
@@ -100,7 +101,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const input = request.body as ProductLineUpdateInput;
     const productLine = await productLineService.update(id, input);
     if (!productLine) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.send(productLine);
@@ -116,7 +117,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const { id } = request.params as { id: string };
     const deleted = await productLineService.delete(id);
     if (!deleted) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.status(204).send();
@@ -132,7 +133,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const { id } = request.params as { id: string };
     const productLine = await productLineService.activate(id);
     if (!productLine) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.send(productLine);
@@ -148,7 +149,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const { id } = request.params as { id: string };
     const productLine = await productLineService.suspend(id);
     if (!productLine) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.send(productLine);
@@ -170,7 +171,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
     const { branch } = query;
     const environment = await productLineService.resolveEnvironment(id, branch);
     if (!environment) {
-      reply.status(404).send({ error: 'ProductLine not found' });
+handleError(reply, new NotFoundError('ProductLine not found'));
       return;
     }
     reply.send({ environment });
@@ -207,7 +208,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
       const releaseTrain = await productLineService.createReleaseTrain(id, input);
       reply.status(201).send(releaseTrain);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -238,7 +239,7 @@ export async function productLineRoutes(app: FastifyInstance, options: ProductLi
       const hotfixChannel = await productLineService.createHotfixChannel(id, input);
       reply.status(201).send(hotfixChannel);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 

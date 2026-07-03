@@ -11,6 +11,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { ApiKeyRepository } from '../services/api-key/ApiKeyRepository';
 import { ApiKeyService } from '../services/api-key/ApiKeyService';
+import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 interface ApiKeyRoutesOptions {
   database?: DatabasePool;
@@ -30,10 +31,7 @@ export default async function apiKeyRoutes(
   }
 
   const unavailableHandler = async (request: FastifyRequest, reply: FastifyReply) => {
-    return reply.status(503).send({
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'API Key management requires database connection',
-    });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'))
   };
 
   // GET /api/v1/api-keys?tenantId=xxx — list API keys
@@ -42,12 +40,12 @@ export default async function apiKeyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const { tenantId } = request.query as { tenantId: string };
-    if (!tenantId) return reply.status(400).send({ error: 'MISSING_TENANT_ID', message: 'tenantId query parameter is required' });
+    return handleError(reply, new ValidationError('MISSING_TENANT_ID'));
     try {
       const keys = await service.listKeys(tenantId);
       return reply.send({ data: keys, total: keys.length });
     } catch (error: any) {
-      return reply.status(500).send({ error: 'LIST_ERROR', message: error.message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -57,7 +55,7 @@ export default async function apiKeyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const body = request.body as Record<string, unknown>;
-    if (!body.tenantId || !body.name || !body.userId) return reply.status(400).send({ error: 'INVALID_INPUT', message: 'tenantId, name, and userId are required' });
+    return handleError(reply, new ValidationError('INVALID_INPUT'));
     try {
       const result = await service.createKey(
         body.tenantId as string,
@@ -68,7 +66,7 @@ export default async function apiKeyRoutes(
       );
       return reply.status(201).send(result);
     } catch (error: any) {
-      return reply.status(500).send({ error: 'CREATE_ERROR', message: error.message });
+      return handleError(reply, new OrionError('CREATE_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -80,10 +78,10 @@ export default async function apiKeyRoutes(
     const { id } = request.params as { id: string };
     try {
       const deleted = await service.revokeKey(id);
-      if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND', message: 'API key not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.status(204).send();
     } catch (error: any) {
-      return reply.status(500).send({ error: 'DELETE_ERROR', message: error.message });
+      return handleError(reply, new OrionError('DELETE_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

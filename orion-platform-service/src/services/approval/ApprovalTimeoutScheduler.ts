@@ -11,7 +11,7 @@
  * 2. 二次超时（超过 reminderInterval * 2）- 自动批准或拒绝
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { CronSchedulerService } from '../scheduler/CronSchedulerService';
 

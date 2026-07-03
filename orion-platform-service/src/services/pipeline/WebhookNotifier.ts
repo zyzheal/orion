@@ -17,7 +17,7 @@
  */
 
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { pipelineCircuitBreaker } from '../circuit-breaker/pipeline-circuit-breaker';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

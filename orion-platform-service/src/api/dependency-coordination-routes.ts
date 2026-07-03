@@ -18,6 +18,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { DependencyCoordinationService, PipelineResult } from '../services/pipeline/DependencyCoordinationService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 export interface DependencyCoordinationRouteDeps {
   dependencyCoordinationService: DependencyCoordinationService;
@@ -49,11 +50,7 @@ export async function registerDependencyCoordinationRoutes(
           const { dependsOn, requiredInputs, blockingStatus } = body;
 
           if (!dependsOn || !Array.isArray(dependsOn)) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'dependsOn must be an array of pipeline IDs',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           await dependencyCoordinationService.registerDependency(
@@ -71,11 +68,7 @@ export async function registerDependencyCoordinationRoutes(
             blockingStatus: blockingStatus || ['success'],
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to register dependency',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -92,20 +85,12 @@ export async function registerDependencyCoordinationRoutes(
           const dependency = await dependencyCoordinationService.getDependency(params.id);
 
           if (!dependency) {
-            return reply.status(404).send({
-              error: 'NOT_FOUND',
-              code: '30201',
-              message: `No dependency found for pipeline '${params.id}'`,
-            });
+            return handleError(reply, new NotFoundError('NOT_FOUND'))
           }
 
           return reply.send(dependency);
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to get dependency',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -122,11 +107,7 @@ export async function registerDependencyCoordinationRoutes(
           const deleted = await dependencyCoordinationService.unregisterDependency(params.id);
 
           if (!deleted) {
-            return reply.status(404).send({
-              error: 'NOT_FOUND',
-              code: '30201',
-              message: `No dependency found for pipeline '${params.id}'`,
-            });
+            return handleError(reply, new NotFoundError('NOT_FOUND'))
           }
 
           return reply.send({
@@ -134,11 +115,7 @@ export async function registerDependencyCoordinationRoutes(
             pipelineId: params.id,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to unregister dependency',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -154,11 +131,7 @@ export async function registerDependencyCoordinationRoutes(
 
           return reply.send(graph);
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to get dependency graph',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -176,11 +149,7 @@ export async function registerDependencyCoordinationRoutes(
           };
 
           if (!body?.pipelineResults) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'pipelineResults is required',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           const pipelineResultsMap = new Map<string, PipelineResult>(
@@ -194,11 +163,7 @@ export async function registerDependencyCoordinationRoutes(
 
           return reply.send(resolution);
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to resolve dependencies',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -217,11 +182,7 @@ export async function registerDependencyCoordinationRoutes(
             cycles,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to find cycles',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -239,11 +200,7 @@ export async function registerDependencyCoordinationRoutes(
             order,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to get topological order',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -260,11 +217,7 @@ export async function registerDependencyCoordinationRoutes(
           };
 
           if (!body?.pipelineResults) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'pipelineResults is required',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           const pipelineResultsMap = new Map<string, PipelineResult>(
@@ -283,11 +236,7 @@ export async function registerDependencyCoordinationRoutes(
             resolutions: resultsObj,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to resolve all dependencies',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );

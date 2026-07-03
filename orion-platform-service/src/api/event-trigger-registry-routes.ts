@@ -18,6 +18,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import type { WorkflowTrigger } from '../repositories/WorkflowTriggerRepository';
 import { ORION_STREAMS } from '../services/types/event-types';
+import { OrionError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 /**
  * 路由选项接口
@@ -172,10 +173,7 @@ export default async function eventRegistryRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -195,10 +193,7 @@ export default async function eventRegistryRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         // 获取所有启用的事件触发器
@@ -224,10 +219,7 @@ export default async function eventRegistryRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -247,10 +239,7 @@ export default async function eventRegistryRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         const { eventType, eventPayload, triggerId } = request.body;
@@ -324,10 +313,7 @@ export default async function eventRegistryRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -347,10 +333,7 @@ export default async function eventRegistryRoutes(
     ) => {
       try {
         if (!triggerRepo) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Database not available',
-          });
+          return handleError(reply, new ServiceUnavailableError('Database not available'))
         }
 
         // 获取所有触发器的统计
@@ -386,10 +369,7 @@ export default async function eventRegistryRoutes(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR))
       }
     }
   );

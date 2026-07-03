@@ -7,7 +7,7 @@
  * 3. 通过 AIGateway 调用 LLM 生成 YAML
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseAgent } from '../base/BaseAgent';
 import {

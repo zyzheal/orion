@@ -303,4 +303,142 @@ export class PipelineController {
       });
     }
   }
+
+  /**
+   * Batch start multiple pipelines
+   * POST /api/v1/pipelines/batch/start
+   */
+  async batchStart(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const body = request.body as any || {};
+      const { pipelineIds, branch, environment, parameters, triggeredBy } = body;
+
+      if (!Array.isArray(pipelineIds) || pipelineIds.length === 0) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: 'pipelineIds must be a non-empty array',
+        });
+        return;
+      }
+
+      if (pipelineIds.length > 50) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: 'Maximum 50 pipelines can be started in a single batch',
+        });
+        return;
+      }
+
+      const results = await this.pipelineService.batchStart(pipelineIds, {
+        branch,
+        environment,
+        parameters,
+        triggeredBy,
+      });
+
+      await reply.send({
+        data: results,
+        total: results.length,
+        succeeded: results.filter(r => r.status !== 'error').length,
+        failed: results.filter(r => r.status === 'error').length,
+      });
+    } catch (error) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: '50000',
+        message: error instanceof Error ? error.message : 'Failed to batch start pipelines',
+      });
+    }
+  }
+
+  /**
+   * Batch stop multiple pipeline runs (executions)
+   * POST /api/v1/pipeline-runs/batch/stop
+   */
+  async batchStop(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const body = request.body as any || {};
+      const { executionIds } = body;
+
+      if (!Array.isArray(executionIds) || executionIds.length === 0) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: 'executionIds must be a non-empty array',
+        });
+        return;
+      }
+
+      if (executionIds.length > 50) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: 'Maximum 50 executions can be stopped in a single batch',
+        });
+        return;
+      }
+
+      const results = await this.pipelineService.batchStop(executionIds);
+
+      await reply.send({
+        data: results,
+        total: results.length,
+        succeeded: results.filter(r => r.status === 'cancelled').length,
+        failed: results.filter(r => r.status === 'error').length,
+        skipped: results.filter(r => r.status === 'skipped').length,
+      });
+    } catch (error) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: '50000',
+        message: error instanceof Error ? error.message : 'Failed to batch stop executions',
+      });
+    }
+  }
+
+  /**
+   * Batch delete multiple pipelines
+   * POST /api/v1/pipelines/batch/delete
+   */
+  async batchDelete(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const body = request.body as any || {};
+      const { pipelineIds } = body;
+
+      if (!Array.isArray(pipelineIds) || pipelineIds.length === 0) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: 'pipelineIds must be a non-empty array',
+        });
+        return;
+      }
+
+      if (pipelineIds.length > 50) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: 'Maximum 50 pipelines can be deleted in a single batch',
+        });
+        return;
+      }
+
+      const results = await this.pipelineService.batchDelete(pipelineIds);
+
+      await reply.send({
+        data: results,
+        total: results.length,
+        succeeded: results.filter(r => r.deleted).length,
+        failed: results.filter(r => !r.deleted).length,
+      });
+    } catch (error) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: '50000',
+        message: error instanceof Error ? error.message : 'Failed to batch delete pipelines',
+      });
+    }
+  }
 }

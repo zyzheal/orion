@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ModuleRegistry } from './ModuleRegistry';
 import {
   ModuleDescriptor,

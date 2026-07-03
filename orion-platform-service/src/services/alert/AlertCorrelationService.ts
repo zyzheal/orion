@@ -7,7 +7,7 @@
  *        AlertBufferRepository、AlertTopologyEdgeRepository
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { AlertSourceType } from './AlertTypes';
 import type { AlertTopologyNode, AlertTopologyEdge, RootCauseAnalysis } from './AlertTypes';
 import { AlertCorrelationGroupRepository, AlertCorrelationGroupEntity } from '../../repositories/AlertCorrelationGroupRepository';

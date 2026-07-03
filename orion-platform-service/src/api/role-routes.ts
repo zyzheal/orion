@@ -12,7 +12,8 @@ import { RoleService } from '../services/role/RoleService';
 import { RoleController } from './controllers/RoleController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission, getAuthzEngine } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { ServiceUnavailableError, handleError } from '../errors';
 
 const logger = pino({ name: 'role-routes' });
 
@@ -39,10 +40,7 @@ export default async function roleRoutes(
 
   // Handler for when DB is unavailable
   const unavailableHandler = async (request: FastifyRequest, reply: FastifyReply) => {
-    return reply.status(503).send({
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'Role management requires database connection',
-    });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'))
   };
 
   const listHandler = controller

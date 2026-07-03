@@ -19,7 +19,8 @@ import { DevPortalSDKTaskRepository } from '../repositories/DevPortalSDKTaskRepo
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { tenantContext } from '../services/tenant/TenantContext';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'developer-portal-routes' });
 
@@ -167,7 +168,7 @@ export default async function developerPortalRoutes(
       const stats = await documentService.getDocumentStats(getTenantId());
       await reply.send({ success: true, data: stats });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -198,7 +199,7 @@ export default async function developerPortalRoutes(
       const rule = await mockManager.createRule({ tenantId: getTenantId(), ...body } as any);
       await reply.status(201).send({ success: true, data: rule });
     } catch (err: any) {
-      await reply.status(400).send({ success: false, error: err.message });
+await handleError(reply, new ValidationError(err.message));
     }
   });
 
@@ -214,7 +215,7 @@ export default async function developerPortalRoutes(
       });
       await reply.send({ success: true, ...result });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -224,7 +225,7 @@ export default async function developerPortalRoutes(
       const stats = await mockManager.getStats(getTenantId());
       await reply.send({ success: true, data: stats });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -284,7 +285,7 @@ export default async function developerPortalRoutes(
       const result = await mockManager.matchRequest(getTenantId(), body.method as string, body.path as string);
       await reply.send({ success: true, data: result });
     } catch (err: any) {
-      await reply.status(400).send({ success: false, error: err.message });
+await handleError(reply, new ValidationError(err.message));
     }
   });
 
@@ -303,7 +304,7 @@ export default async function developerPortalRoutes(
       const task = await sdkGenerator.createTask({ tenantId: getTenantId(), ...body } as any);
       await reply.status(201).send({ success: true, data: task });
     } catch (err: any) {
-      await reply.status(400).send({ success: false, error: err.message });
+await handleError(reply, new ValidationError(err.message));
     }
   });
 
@@ -319,7 +320,7 @@ export default async function developerPortalRoutes(
       });
       await reply.send({ success: true, ...result });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -329,7 +330,7 @@ export default async function developerPortalRoutes(
       const stats = await sdkGenerator.getStats(getTenantId());
       await reply.send({ success: true, data: stats });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -404,7 +405,7 @@ export default async function developerPortalRoutes(
       });
       await reply.send({ success: true, ...result });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -414,7 +415,7 @@ export default async function developerPortalRoutes(
       const stats = await subscriptionService.getUsageStats(getTenantId());
       await reply.send({ success: true, data: stats });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -511,7 +512,7 @@ export default async function developerPortalRoutes(
       } as any);
       await reply.send({ success: true, data: result });
     } catch (err: any) {
-      await reply.status(400).send({ success: false, error: err.message });
+await handleError(reply, new ValidationError(err.message));
     }
   });
 
@@ -526,7 +527,7 @@ export default async function developerPortalRoutes(
       } as any);
       await reply.status(201).send({ success: true, data: req });
     } catch (err: any) {
-      await reply.status(400).send({ success: false, error: err.message });
+await handleError(reply, new ValidationError(err.message));
     }
   });
 
@@ -541,7 +542,7 @@ export default async function developerPortalRoutes(
       });
       await reply.send({ success: true, ...result });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -551,7 +552,7 @@ export default async function developerPortalRoutes(
       const stats = await playgroundService.getStats(getTenantId(), getUserId(request));
       await reply.send({ success: true, data: stats });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -615,7 +616,7 @@ export default async function developerPortalRoutes(
       });
       await reply.send({ success: true, ...result });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -626,7 +627,7 @@ export default async function developerPortalRoutes(
       await playgroundService.clearHistory(params.id);
       await reply.send({ success: true, message: 'History cleared' });
     } catch (err: any) {
-      await reply.status(500).send({ success: false, error: err.message });
+await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 }

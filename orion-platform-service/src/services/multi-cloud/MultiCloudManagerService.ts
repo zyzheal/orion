@@ -5,7 +5,7 @@
  * and associated resource inventory tracking.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   MultiCloudRepository,
   CloudAccountEntity,
@@ -13,8 +13,9 @@ import {
 } from '../../repositories/MultiCloudRepository';
 import { DatabasePool } from '../database';
 import { NotFoundError } from '../../errors';
+import { CloudSyncService, SyncJob, SyncOptions } from './CloudSyncService';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('multi-cloud-manager');
 
 // ==================== Input Interfaces ====================
 
@@ -93,10 +94,12 @@ export interface MigrationResult {
 
 export class MultiCloudManagerService {
   private repo: MultiCloudRepository | null = null;
+  private cloudSyncService: CloudSyncService | null = null;
 
   constructor(db?: DatabasePool) {
     if (db) {
       this.setRepository(new MultiCloudRepository(db));
+      this.cloudSyncService = new CloudSyncService(this.repo);
     }
   }
 
@@ -400,33 +403,40 @@ export class MultiCloudManagerService {
   /**
    * Trigger a resource sync for a cloud account
    */
-  async syncResources(tenantId: string, accountId: string): Promise<ResourceSyncJob> {
+  async syncResources(tenantId: string, accountId: string, options?: SyncOptions): Promise<ResourceSyncJob> {
     const account = await this.getProvider(accountId);
     if (!account || account.tenant_id !== tenantId) {
       throw new NotFoundError('Cloud account not found');
     }
 
-    const jobId = `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const job: ResourceSyncJob = {
-      id: jobId,
-      tenantId,
-      accountId,
-      provider: account.provider_id ?? account.credential_type,
-      status: 'running',
-      startedAt: new Date().toISOString(),
-      resourcesDiscovered: 0,
-      resourcesCreated: 0,
-      resourcesUpdated: 0,
-      resourcesDeleted: 0,
-      errors: [],
+    if (!this.cloudSyncService) {
+      throw new NotFoundError('Cloud sync service not initialized - database not configured');
+    }
+
+    try {
+      const syncJob = await this.cloudSyncService.syncAccount(tenantId, account, options);
+      return this.syncJobToResourceSyncJob(syncJob);
+    } catch (error: any) {
+      logger.error({ accountId, error: error.message }, '[MultiCloudManager] Sync job failed');
+      throw error;
+    }
+  }
+
+  private syncJobToResourceSyncJob(job: SyncJob): ResourceSyncJob {
+    return {
+      id: job.id,
+      tenantId: job.tenantId,
+      accountId: job.accountId,
+      provider: job.provider,
+      status: job.status,
+      startedAt: job.startedAt?.toISOString() ?? new Date().toISOString(),
+      completedAt: job.completedAt?.toISOString(),
+      resourcesDiscovered: job.resourcesDiscovered,
+      resourcesCreated: job.resourcesCreated,
+      resourcesUpdated: job.resourcesUpdated,
+      resourcesDeleted: job.resourcesDeleted,
+      errors: job.errors.map(e => e.message),
     };
-
-    // Simulate sync process
-    this.executeSyncAsync(job).catch((error) => {
-      logger.error({ jobId, error: error.message }, '[MultiCloudManager] Sync job failed');
-    });
-
-    return job;
   }
 
   /**
@@ -540,31 +550,6 @@ export class MultiCloudManagerService {
 
     logger.info({ planId, result: result.status, migrated: migratedResources, failed: failedResources }, '[MultiCloudManager] Migration completed');
     return result;
-  }
-
-  // ==================== Internal Helpers ====================
-
-  private async executeSyncAsync(job: ResourceSyncJob): Promise<void> {
-    try {
-      // Simulate discovering resources
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const discovered = Math.floor(Math.random() * 50) + 10;
-      const created = Math.floor(discovered * 0.3);
-      const updated = Math.floor(discovered * 0.5);
-
-      job.status = 'completed';
-      job.completedAt = new Date().toISOString();
-      job.resourcesDiscovered = discovered;
-      job.resourcesCreated = created;
-      job.resourcesUpdated = updated;
-
-      logger.info({ jobId: job.id, discovered, created, updated }, '[MultiCloudManager] Sync completed');
-    } catch (error: any) {
-      job.status = 'failed';
-      job.completedAt = new Date().toISOString();
-      job.errors.push(error.message);
-    }
   }
 
   // ==================== Utility Methods ====================

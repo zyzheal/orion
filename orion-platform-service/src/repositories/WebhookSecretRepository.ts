@@ -1,5 +1,6 @@
 import { BaseRepository } from '../db/base-repository';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
+import { decryptValue, encryptValue } from '../utils/encryption';
 
 export interface WebhookSecretEntity {
   id: string;
@@ -35,12 +36,12 @@ export class WebhookSecretRepository extends BaseRepository<WebhookSecretEntity>
   async upsertByRepoId(repoId: string, secret: string, tenantId?: string): Promise<WebhookSecretEntity> {
     const existing = await this.findByRepoId(repoId);
     if (existing) {
-      return this.update(existing.id, { secret });
+      return this.update(existing.id, { secret: encryptValue(secret) });
     }
     return this.create({
       id: `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       repo_id: repoId,
-      secret,
+      secret: encryptValue(secret),
       tenant_id: tenantId || getCurrentTenantId(),
     });
   }
@@ -49,7 +50,7 @@ export class WebhookSecretRepository extends BaseRepository<WebhookSecretEntity>
     return {
       id: row.id,
       repo_id: row.repo_id,
-      secret: row.secret,
+      secret: decryptValue(row.secret),
       tenant_id: row.tenant_id,
       created_at: row.created_at ? new Date(row.created_at) : new Date(),
       updated_at: row.updated_at ? new Date(row.updated_at) : new Date(),

@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { spawn } from 'child_process';
 import { OrionError } from '../../errors';
 import { ProcessRegistryRepository } from '../../repositories/ProcessRegistryRepository';

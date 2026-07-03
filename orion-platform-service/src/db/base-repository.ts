@@ -1,4 +1,5 @@
 import { OrionError, ErrorCode } from '../errors';
+import { getCurrentTenantId } from './tenant-context-storage';
 // Valid SQL identifier pattern (alphanumeric + underscore, not starting with digit)
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -42,10 +43,16 @@ export abstract class BaseRepository<T extends { id: string }> {
     return this.db;
   }
 
+  /** Get current tenant ID from context, or SYSTEM_TENANT_ID if not in request context */
+  protected getTenantId(): string {
+    return getCurrentTenantId();
+  }
+
   async findById(id: string): Promise<T | undefined> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
-      `SELECT * FROM ${this.tableName} WHERE id = $1`,
-      [id],
+      `SELECT * FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToEntity(result.rows[0]);
@@ -57,11 +64,14 @@ export abstract class BaseRepository<T extends { id: string }> {
     validateIdentifier(orderBy, 'order by column');
     const validatedOrderDir = orderDir === 'ASC' ? 'ASC' : 'DESC';
 
-    let query = `SELECT * FROM ${this.tableName} WHERE 1=1`;
-    const queryParams: any[] = [];
-    let paramIndex = 1;
+    const tenantId = this.getTenantId();
+    let query = `SELECT * FROM ${this.tableName} WHERE tenant_id = $1`;
+    const queryParams: any[] = [tenantId];
+    let paramIndex = 2;
 
     for (const [key, value] of Object.entries(where)) {
+      // Skip tenant_id in where clause — always filter by current tenant context for security
+      if (key === 'tenant_id') continue;
       const snakeKey = camelToSnake(key);
       validateIdentifier(snakeKey, 'where column');
       if (value !== undefined && value !== null) {
@@ -76,9 +86,9 @@ export abstract class BaseRepository<T extends { id: string }> {
 
     const result = await this.db.query(query, queryParams);
 
-    // Build count query safely: extract table name from validated query
-    const countQuery = `SELECT COUNT(*) as count FROM ${this.tableName} WHERE 1=1` +
-      query.slice(query.indexOf('WHERE 1=1') + 'WHERE 1=1'.length, query.indexOf(' ORDER BY'));
+    // Build count query with the same WHERE conditions (tenant_id + any filters)
+    const whereClause = query.slice(query.indexOf('WHERE') + 5, query.indexOf('ORDER BY'));
+    const countQuery = `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${whereClause}`;
 
     const countResult = await this.db.query(countQuery, queryParams.slice(0, -2));
 
@@ -97,9 +107,19 @@ export abstract class BaseRepository<T extends { id: string }> {
       validateIdentifier(col, 'column name');
     }
 
-    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-    const query = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
-    const result = await this.db.query(query, values);
+    // Auto-inject tenant_id if not already provided in data
+    const tenantId = this.getTenantId();
+    const hasTenantId = rawColumns.some(c => c === 'tenantId' || c === 'tenant_id');
+    let finalColumns = columns;
+    let finalValues = values;
+    if (!hasTenantId) {
+      finalColumns = ['tenant_id', ...columns];
+      finalValues = [tenantId, ...values];
+    }
+
+    const placeholders = finalValues.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `INSERT INTO ${this.tableName} (${finalColumns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+    const result = await this.db.query(query, finalValues);
 
     if (result.rows.length === 0) {
       throw new OrionError(`INSERT into ${this.tableName} returned no rows`, 'OPERATION_FAILED')
@@ -108,6 +128,7 @@ export abstract class BaseRepository<T extends { id: string }> {
   }
 
   async update(id: string, data: any): Promise<T> {
+    const tenantId = this.getTenantId();
     const rawColumns = Object.keys(data);
     const values = Object.values(data);
     const columns = rawColumns.map(camelToSnake);
@@ -121,8 +142,8 @@ export abstract class BaseRepository<T extends { id: string }> {
     }
 
     const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
-    const query = `UPDATE ${this.tableName} SET ${setClause}, updated_at = NOW() WHERE id = $${columns.length + 1} RETURNING *`;
-    const result = await this.db.query(query, [...values, id]);
+    const query = `UPDATE ${this.tableName} SET ${setClause}, updated_at = NOW() WHERE id = $${columns.length + 1} AND tenant_id = $${columns.length + 2} RETURNING *`;
+    const result = await this.db.query(query, [...values, id, tenantId]);
 
     if (result.rows.length === 0) {
       throw new OrionError(`UPDATE on ${this.tableName} affected no rows (id: ${id})`, 'OPERATION_FAILED')
@@ -131,9 +152,10 @@ export abstract class BaseRepository<T extends { id: string }> {
   }
 
   async delete(id: string): Promise<boolean> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
-      `DELETE FROM ${this.tableName} WHERE id = $1`,
-      [id],
+      `DELETE FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
     );
     return (result.rowCount ?? 0) > 0;
   }

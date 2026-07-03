@@ -4,7 +4,7 @@
  * Implements weighted PageRank for service dependency analysis
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -178,7 +178,7 @@ export class PageRankService {
   ): number[] {
     // Initialize ranks
     let ranks = Array(n).fill(1 / n);
-    let newRanks = Array(n).fill(0);
+    const newRanks = Array(n).fill(0);
 
     const { dampingFactor, maxIterations, tolerance } = opts;
 

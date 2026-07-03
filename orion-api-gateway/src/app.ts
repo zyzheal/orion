@@ -18,11 +18,10 @@ import { TenantMiddleware } from './middleware/tenant';
 import { PermissionMiddleware } from './middleware/permission';
 import { createCSPMiddleware } from './middleware/csp';
 import { errorMiddleware } from './middleware/error';
-import { registerRoutes } from './routes';
+import { registerRoutes, gatewayDynamicRoutes } from './routes';
 import { metricsRoutes, httpRequestDuration, httpRequestTotal, activeConnections } from './routes/metrics';
 import { serviceRegistry } from './services/service-registry';
 import { TokenService } from './services/token.service';
-import { gatewayRouteSync } from './services/gateway-route-sync';
 import { redisClient } from './utils/redis';
 import { AuthRoutes } from './routes/auth.routes';
 import { TenantRoutes } from './routes/tenant.routes';
@@ -34,7 +33,6 @@ import { AIDecisionsRoutes } from './routes/ai-decisions.routes';
 import { AIDegradationRoutes } from './routes/ai-degradation.routes';
 import { ChaosRoutes } from './routes/chaos.routes';
 import { ResilienceScoreRoutes } from './routes/resilience-score.routes';
-import { SBOMRoutes } from './routes/sbom.routes';
 import { DigitalTwinRoutes } from './routes/digital-twin.routes';
 import { GovernanceRoutes } from './routes/governance.routes';
 import type { WebSocketServerManager } from './websocket/ws-server';
@@ -60,7 +58,6 @@ export async function createApp(options: AppOptions = {}): Promise<{
   aiDegradationRoutes: AIDegradationRoutes;
   chaosRoutes: ChaosRoutes;
   resilienceScoreRoutes: ResilienceScoreRoutes;
-  sbomRoutes: SBOMRoutes;
   digitalTwinRoutes: DigitalTwinRoutes;
   governanceRoutes: GovernanceRoutes;
   wsServer: WebSocketServerManager;
@@ -229,8 +226,6 @@ export async function createApp(options: AppOptions = {}): Promise<{
   const resilienceScoreRoutes = new ResilienceScoreRoutes(app);
   resilienceScoreRoutes.register();
 
-  const sbomRoutes = new SBOMRoutes(app);
-  sbomRoutes.register();
 
   // ==================== 注册高级功能路由 ====================
 
@@ -246,18 +241,8 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   // ==================== 注册路由 ====================
 
-  registerRoutes(app);
-
-  // ==================== 动态路由同步 ====================
-
-  // 从平台服务获取子应用配置，自动注册网关路由
-  // 必须在 app.listen() 之前完成，所以 await 等待
-  try {
-    const count = await gatewayRouteSync(app);
-    app.log.info(`Gateway route sync complete: ${count} routes registered from sub-app configs`);
-  } catch (err) {
-    app.log.warn({ err: err instanceof Error ? err.message : String(err) }, 'Gateway route sync failed, using static routes only');
-  }
+  // 注册动态发现的路由（包括服务注册表路由 + 静态 fallback + 子应用路由）
+  await registerRoutes(app);
 
   // ==================== 注册服务到注册表 ====================
 
@@ -268,6 +253,7 @@ export async function createApp(options: AppOptions = {}): Promise<{
     healthUrl: `http://${config.host}:${config.port}/healthz`,
     metadata: {
       version: '1.0.0',
+      api_paths: ['/healthz', '/readyz', '/version', '/metrics'],
     },
   });
 
@@ -278,6 +264,9 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
     // 关闭 WebSocket 服务器
     await wsServer.shutdown();
+
+    // 清理动态路由
+    gatewayDynamicRoutes.shutdown();
 
     // 注销服务
     serviceRegistry.unregister('api-gateway');

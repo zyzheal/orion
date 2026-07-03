@@ -168,7 +168,7 @@ class MockPipelineRepository implements PipelineRepository {
   }
 
   async findRunsByPipeline(pipelineId: string, options?: { limit?: number; offset?: number }): Promise<PipelineRun[]> {
-    let results = Array.from(this.runs.values())
+    const results = Array.from(this.runs.values())
       .filter(r => r.pipeline_id === pipelineId)
       .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
 

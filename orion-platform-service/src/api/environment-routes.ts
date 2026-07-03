@@ -22,7 +22,7 @@ import { EnvironmentController } from './controllers/EnvironmentController';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'environment-routes' });
 

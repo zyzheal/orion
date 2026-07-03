@@ -14,7 +14,7 @@ import { SLIMeasurementRepository } from '../repositories/SLIMeasurementReposito
 import { ErrorBudgetRepository } from '../repositories/ErrorBudgetRepository';
 import { SLOTrackingService } from '../services/observability/SLOTrackingService';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'slo-routes' });
 

@@ -12,7 +12,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { ABExperimentRepository, ABExperiment, ExperimentVariant } from '../../repositories/ABExperimentRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 // Re-export for backward compatibility
 export type ExperimentStatus = 'draft' | 'running' | 'completed' | 'cancelled';

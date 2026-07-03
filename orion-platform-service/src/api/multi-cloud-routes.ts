@@ -5,7 +5,8 @@ import { DatabasePool } from '../services/database';
 import { MultiCloudManagerService } from '../services/multi-cloud/MultiCloudManagerService';
 import { MultiCloudAdvancedService } from '../services/multi-cloud/MultiCloudAdvancedService';
 import { MultiCloudRepository } from '../repositories/MultiCloudRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'multi-cloud-routes' });
 
@@ -66,7 +67,7 @@ export default async function multiCloudRoutes(
       return reply.status(201).send({ success: true, data: account });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'CREATE_FAILED', message });
+      return handleError(reply, new ValidationError('CREATE_FAILED'));
     }
   });
 
@@ -93,7 +94,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: result });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -112,7 +113,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, message: 'Account updated', id: params.id });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'UPDATE_FAILED', message });
+      return handleError(reply, new ValidationError('UPDATE_FAILED'));
     }
   });
 
@@ -128,12 +129,12 @@ export default async function multiCloudRoutes(
     try {
       const deleted = await multiCloudService.removeCloudAccount(params.id, tenantId);
       if (!deleted) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Cloud account not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.send({ success: true, message: 'Cloud account deleted' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'DELETE_FAILED', message });
+      return handleError(reply, new OrionError('DELETE_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -149,7 +150,7 @@ export default async function multiCloudRoutes(
     try {
       const entity = await multiCloudService.getProvider(params.id);
       if (!entity || entity.tenant_id !== tenantId) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Cloud account not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       // Map entity to domain model
       const account = {
@@ -172,7 +173,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: account });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -203,7 +204,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: result });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -221,12 +222,12 @@ export default async function multiCloudRoutes(
       const resource = resources.find(r => r.resource_type === params.provider && r.resource_id === params.id);
 
       if (!resource) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Resource not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.send({ success: true, data: resource });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -250,7 +251,7 @@ export default async function multiCloudRoutes(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'SYNC_FAILED', message });
+      return handleError(reply, new OrionError('SYNC_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -271,7 +272,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: stats });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -305,7 +306,7 @@ export default async function multiCloudRoutes(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -337,7 +338,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: comparisons });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'COMPARISON_FAILED', message });
+      return handleError(reply, new OrionError('COMPARISON_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -387,7 +388,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: recommendations });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -420,7 +421,7 @@ export default async function multiCloudRoutes(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'HEALTH_CHECK_FAILED', message });
+      return handleError(reply, new OrionError('HEALTH_CHECK_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -441,7 +442,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: stats });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'STATISTICS_FAILED', message });
+      return handleError(reply, new OrionError('STATISTICS_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -463,7 +464,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: job });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'SYNC_FAILED', message });
+      return handleError(reply, new ValidationError('SYNC_FAILED'));
     }
   });
 
@@ -482,13 +483,13 @@ export default async function multiCloudRoutes(
 
     try {
       if (!advancedService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const report = await advancedService.runComplianceCheck(tenantId, body.categories);
       return reply.send({ success: true, data: report });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'COMPLIANCE_CHECK_FAILED', message });
+      return handleError(reply, new OrionError('COMPLIANCE_CHECK_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -500,13 +501,13 @@ export default async function multiCloudRoutes(
   }, async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       if (!advancedService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const rules = advancedService.getComplianceRules();
       return reply.send({ success: true, data: rules });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -531,7 +532,7 @@ export default async function multiCloudRoutes(
 
     try {
       if (!advancedService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const policy = await advancedService.createSchedulingPolicy(tenantId, {
         name: body.name,
@@ -543,7 +544,7 @@ export default async function multiCloudRoutes(
       return reply.status(201).send({ success: true, data: policy });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'CREATE_POLICY_FAILED', message });
+      return handleError(reply, new ValidationError('CREATE_POLICY_FAILED'));
     }
   });
 
@@ -557,13 +558,13 @@ export default async function multiCloudRoutes(
 
     try {
       if (!advancedService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const policies = await advancedService.listSchedulingPolicies(tenantId);
       return reply.send({ success: true, data: policies });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -584,7 +585,7 @@ export default async function multiCloudRoutes(
 
     try {
       if (!advancedService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const decision = await advancedService.scheduleResource(tenantId, {
         resourceType: body.resourceType,
@@ -596,7 +597,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: decision });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'SCHEDULING_FAILED', message });
+      return handleError(reply, new ValidationError('SCHEDULING_FAILED'));
     }
   });
 
@@ -610,13 +611,13 @@ export default async function multiCloudRoutes(
 
     try {
       if (!advancedService) {
-        return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       }
       const history = await advancedService.getSchedulingHistory(tenantId);
       return reply.send({ success: true, data: history });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ error: 'FETCH_FAILED', message });
+      return handleError(reply, new OrionError('FETCH_FAILED', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -656,7 +657,7 @@ export default async function multiCloudRoutes(
       return reply.status(201).send({ success: true, data: plan });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'CREATE_MIGRATION_FAILED', message });
+      return handleError(reply, new ValidationError('CREATE_MIGRATION_FAILED'));
     }
   });
 
@@ -674,7 +675,7 @@ export default async function multiCloudRoutes(
       return reply.send({ success: true, data: result });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(400).send({ error: 'MIGRATION_FAILED', message });
+      return handleError(reply, new ValidationError('MIGRATION_FAILED'));
     }
   });
 }

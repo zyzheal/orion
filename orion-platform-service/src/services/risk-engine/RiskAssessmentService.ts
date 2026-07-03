@@ -6,7 +6,7 @@
  * Now uses RiskPredictionRepository for persistence.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { RiskPredictionRepository, RiskPredictionEntity, CreatePredictionInput } from '../../repositories/RiskPredictionRepository';
 import { OrionError } from '../../errors';
 

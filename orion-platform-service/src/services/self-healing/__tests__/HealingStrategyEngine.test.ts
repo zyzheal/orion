@@ -5,7 +5,7 @@
  * enable/disable operations, and built-in strategy loading.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { HealingStrategyEngine } from '../HealingStrategyEngine';
 import { HealingStrategy, IncidentType } from '../types';
 import { HealingStrategyRepository } from '../../../repositories/HealingStrategyRepository';

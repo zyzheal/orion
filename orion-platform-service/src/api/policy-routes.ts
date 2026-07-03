@@ -19,7 +19,7 @@ import { PolicyController } from './controllers/PolicyController';
 import { PolicyEvaluationController } from './controllers/PolicyEvaluationController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'policy-routes' });
 

@@ -223,6 +223,30 @@ export class SecurityFindingRepository extends BaseRepository<SecurityFindingEnt
   }
 
   /**
+   * Batch-find findings for multiple scan IDs in a single query.
+   * Returns a map of scanId -> findings[] to avoid N+1 lookups.
+   */
+  async findByScanIds(scanIds: string[]): Promise<Map<string, SecurityFindingEntity[]>> {
+    if (scanIds.length === 0) return new Map();
+
+    const placeholders = scanIds.map((_, i) => `$${i + 1}`).join(',');
+    const result = await this.db.query(
+      `SELECT * FROM security_findings WHERE scan_id IN (${placeholders}) ORDER BY scan_id, severity, created_at`,
+      scanIds
+    );
+
+    const grouped = new Map<string, SecurityFindingEntity[]>();
+    for (const row of result.rows) {
+      const scanId = row.scan_id;
+      const entity = this.mapRowToEntity(row);
+      const existing = grouped.get(scanId) || [];
+      existing.push(entity);
+      grouped.set(scanId, existing);
+    }
+    return grouped;
+  }
+
+  /**
    * Find findings by severity
    */
   async findBySeverity(

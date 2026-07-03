@@ -12,7 +12,7 @@
  * execution isolation.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PluginSandboxConfig, PluginExecutionResult } from './types';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

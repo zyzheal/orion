@@ -27,7 +27,8 @@ import {
 } from '../services/chaos-engineering';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'chaos-enhanced-routes' });
 
@@ -57,7 +58,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(201).send({ success: true, data: experiment });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'CREATE_ERROR';
-      return reply.status(400).send({ error: 'CREATE_ERROR', message });
+      return handleError(reply, new ValidationError('CREATE_ERROR'));
     }
   });
 
@@ -68,7 +69,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: experiments });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return reply.status(500).send({ error: 'LIST_ERROR', message });
+      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -78,12 +79,12 @@ export default async function chaosEnhancedRoutes(
       const { id } = request.params as { id: string };
       const experiment = await experimentService.getExperiment(id);
       if (!experiment) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Experiment not found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.status(200).send({ success: true, data: experiment });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return reply.status(500).send({ error: 'GET_ERROR', message });
+      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -95,7 +96,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'START_ERROR';
-      return reply.status(400).send({ error: 'START_ERROR', message });
+      return handleError(reply, new ValidationError('START_ERROR'));
     }
   });
 
@@ -108,7 +109,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'INJECT_ERROR';
-      return reply.status(400).send({ error: 'INJECT_ERROR', message });
+      return handleError(reply, new ValidationError('INJECT_ERROR'));
     }
   });
 
@@ -120,7 +121,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: { experimentId: id, stopped: true } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'STOP_ERROR';
-      return reply.status(400).send({ error: 'STOP_ERROR', message });
+      return handleError(reply, new ValidationError('STOP_ERROR'));
     }
   });
 
@@ -132,7 +133,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: { status: experiment.status, id: experiment.id } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'STATUS_ERROR';
-      return reply.status(500).send({ error: 'STATUS_ERROR', message });
+      return handleError(reply, new OrionError('STATUS_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -144,7 +145,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: { experimentId: id, status: experiment.status, recovery: 'not_available' } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'RECOVERY_ERROR';
-      return reply.status(500).send({ error: 'RECOVERY_ERROR', message });
+      return handleError(reply, new OrionError('RECOVERY_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -171,7 +172,7 @@ export default async function chaosEnhancedRoutes(
       return reply.status(200).send({ success: true, data: template });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'TEMPLATE_ERROR';
-      return reply.status(400).send({ error: 'TEMPLATE_ERROR', message });
+      return handleError(reply, new ValidationError('TEMPLATE_ERROR'));
     }
   });
 }

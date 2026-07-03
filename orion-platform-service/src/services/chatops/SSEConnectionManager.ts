@@ -6,6 +6,7 @@
  * 2. 优雅关闭时清理所有连接
  * 3. 心跳检测死连接 (30 秒间隔)
  * 4. 安全写入 (writableEnded 检查 + try/catch)
+ * 5. Redis pub/sub 跨实例消息广播
  *
  * Migrated from Map() to PostgreSQL Repository pattern.
  * Runtime objects (reply, heartbeatTimer) kept in memory; metadata persisted to DB.
@@ -13,11 +14,12 @@
 
 import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
-import pino from 'pino';
+import { ChatOpsRedisService } from './ChatOpsRedisService';
 import { ChatOpsSSEConnectionRepository } from '../../repositories/ChatOpsSSEConnectionRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'LS-LS-LE-LConnection-LManager' });
+const logger = createLogger('SSEConnectionManager');
 
 export interface SSEConnection {
   id: string;
@@ -34,6 +36,8 @@ export class SSEConnectionManager {
   private repo: ChatOpsSSEConnectionRepository | null;
   private tenantId: string | null;
   private localBus: EventEmitter;
+  private redisSvc: ChatOpsRedisService | null = null;
+  private redisInitialized = false;
   private readonly HEARTBEAT_INTERVAL_MS = 30_000;
   private readonly MAX_CONNECTIONS_PER_USER = 5;
   private readonly MAX_TOTAL_CONNECTIONS = 500;
@@ -42,10 +46,31 @@ export class SSEConnectionManager {
     localBus: EventEmitter,
     db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
     tenantId?: string,
+    redisSvc?: ChatOpsRedisService | null,
   ) {
     this.localBus = localBus;
     this.repo = db ? new ChatOpsSSEConnectionRepository(db) : null;
     this.tenantId = tenantId ?? null;
+    this.redisSvc = redisSvc ?? null;
+  }
+
+  /**
+   * 初始化 Redis pub/sub 跨实例消息广播
+   * 订阅 Redis SSE 事件频道，将远程事件转发到 localBus
+   */
+  async initRedisPubSub(): Promise<void> {
+    if (!this.redisSvc || this.redisInitialized) return;
+
+    try {
+      await this.redisSvc.subscribeSSEEvents((data: Record<string, unknown>) => {
+        // 从 Redis 接收跨实例事件，转发到 localBus 供本地 SSE 连接消费
+        this.localBus.emit('chatops:recommendation_update', data);
+      });
+      this.redisInitialized = true;
+      logger.info('Redis SSE pub/sub initialized for cross-instance broadcast');
+    } catch (err) {
+      logger.warn({ err }, 'Failed to initialize Redis SSE pub/sub');
+    }
   }
 
   /**
@@ -113,12 +138,28 @@ export class SSEConnectionManager {
       last_heartbeat_at: conn.connectedAt,
       status: 'active',
     }).catch((err) => {
-      logger.warn('[SSEConnectionManager] Failed to persist connection to DB:', err);
+      logger.warn({ err, connId: conn.id }, 'Failed to persist connection to DB');
     });
 
     // 确保幂等：先移除可能存在的旧 listener，防止重复注册导致泄漏
     this.localBus.removeListener('chatops:recommendation_update', conn.listener);
     this.localBus.on('chatops:recommendation_update', conn.listener);
+  }
+
+  /**
+   * 通过 Redis 广播推荐更新（跨实例）
+   * 如果 Redis 可用，发布到 SSE 频道；否则仅使用 localBus
+   */
+  async broadcastRecommendationUpdate(data: Record<string, unknown>): Promise<void> {
+    // 始终通过 localBus 广播（本地实例）
+    this.localBus.emit('chatops:recommendation_update', data);
+
+    // 如果 Redis 已初始化，同时发布到 Redis 实现跨实例广播
+    if (this.redisSvc && this.redisInitialized) {
+      await this.redisSvc.publishSSEEvent(data).catch((err) =>
+        logger.warn({ err }, 'Failed to publish SSE event to Redis')
+      );
+    }
   }
 
   /**
@@ -143,7 +184,7 @@ export class SSEConnectionManager {
     const count = this.runtimeConnections.size;
     if (count === 0) return;
 
-    logger.info(`[SSEConnectionManager] Shutting down ${count} active connections`);
+    logger.info(`Shutting down ${count} active connections`);
 
     for (const conn of this.runtimeConnections.values()) {
       try {

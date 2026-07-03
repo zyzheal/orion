@@ -10,7 +10,8 @@ import { DatabasePool } from '../services/database';
 import { UserRepository } from '../services/user/UserRepository';
 import { UserProfileService, UpdateProfileInput } from '../services/user/UserProfileService';
 import { authenticateUser } from '../middleware/authMiddleware';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, NotFoundError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'user-profile-routes' });
 
@@ -37,12 +38,12 @@ function verifyOwnership(request: FastifyRequest, reply: FastifyReply, targetUse
   const currentUserId = (request as any).user?.id;
 
   if (!currentUserId) {
-    reply.status(401).send({ success: false, error: 'Unauthorized' });
+handleError(reply, new UnauthorizedError('Unauthorized'));
     return false;
   }
 
   if (currentUserId !== targetUserId) {
-    reply.status(403).send({ success: false, error: 'Forbidden' });
+handleError(reply, new ForbiddenError('Forbidden'));
     return false;
   }
 
@@ -122,10 +123,7 @@ export default async function userProfileRoutes(
       const profile = await profileService.getProfile(id);
 
       if (!profile) {
-        return reply.status(404).send({
-          success: false,
-          error: 'User not found',
-        });
+        return handleError(reply, new NotFoundError('User not found'))
       }
 
       return reply.send({
@@ -134,10 +132,7 @@ export default async function userProfileRoutes(
       });
     } catch (error) {
       logger.error('[UserProfileRoutes] Error getting profile:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Internal server error',
-      });
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -213,10 +208,7 @@ export default async function userProfileRoutes(
       const profile = await profileService.updateProfile(id, updateInput);
 
       if (!profile) {
-        return reply.status(404).send({
-          success: false,
-          error: 'User not found',
-        });
+        return handleError(reply, new NotFoundError('User not found'))
       }
 
       return reply.send({
@@ -225,10 +217,7 @@ export default async function userProfileRoutes(
       });
     } catch (error) {
       logger.error('[UserProfileRoutes] Error updating profile:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Internal server error',
-      });
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -290,10 +279,7 @@ export default async function userProfileRoutes(
       });
     } catch (error) {
       logger.error('[UserProfileRoutes] Error getting user teams:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Internal server error',
-      });
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -354,10 +340,7 @@ export default async function userProfileRoutes(
       });
     } catch (error) {
       logger.error('[UserProfileRoutes] Error getting user permissions:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Internal server error',
-      });
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR))
     }
   });
 }

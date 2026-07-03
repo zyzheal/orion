@@ -9,7 +9,7 @@
  * 5. 支持可配置的清洗策略
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ExtendedPromptThreat, ExtendedThreatType } from './PromptInjectionDetector';
 import { ThreatType } from './PromptSecurity';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

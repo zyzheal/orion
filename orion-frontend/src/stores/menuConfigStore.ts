@@ -130,6 +130,9 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/apm/slow-requests', label: '慢请求分析', description: '慢请求追踪与优化', category: 'APM', enabled: true },
       { key: '/apm/error-tracking', label: '错误追踪', description: '异常与错误聚合分析', category: 'APM', enabled: true },
       { key: '/apm/service-topology', label: '服务拓扑', description: '服务依赖拓扑图', category: 'APM', enabled: true },
+      // 服务治理 (Task 6.5 + 6.8)
+      { key: '/observability/service-registry',  label: '服务注册中心', description: '微服务注册与发现管理', category: '服务治理', enabled: true },
+      { key: '/observability/health-dashboard',  label: '健康仪表盘',   description: '系统健康状态总览',     category: '服务治理', enabled: true },
     ],
   },
   '/ai': {

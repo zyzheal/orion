@@ -1,6 +1,6 @@
 import { PipelineStage } from '../models/Pipeline';
 import { OrionError, ErrorCode } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

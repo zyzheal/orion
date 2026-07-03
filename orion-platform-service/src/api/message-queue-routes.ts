@@ -24,6 +24,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { MessageQueueService } from '../services/message-queue/message-queue-service';
+import { ValidationError, ServiceUnavailableError, handleError } from '../errors';
 
 interface MessageQueueRoutesOptions {
   messageQueueService?: MessageQueueService;
@@ -42,14 +43,12 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.payload || !body.payload.type) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'payload.type is required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       const messageId = await mq.enqueue(body.payload, {
@@ -73,7 +72,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const body = request.body as any;
@@ -97,14 +96,12 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.payload || !body.executeAt) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'payload and executeAt are required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       const executeAt = new Date(body.executeAt);
@@ -128,7 +125,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const { messageId } = request.params as { messageId: string };
@@ -145,7 +142,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const { messageId } = request.params as { messageId: string };
@@ -163,7 +160,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const { messageId } = request.params as { messageId: string };
@@ -180,7 +177,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const query = request.query as any;
@@ -197,7 +194,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const { id } = request.params as { id: string };
@@ -221,7 +218,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const query = request.query as any;
@@ -238,7 +235,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const query = request.query as any;
@@ -259,14 +256,12 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.queueName || !body.groupName) {
-        return reply.code(400).send({
-          success: false, error: 'VALIDATION_ERROR', message: 'queueName and groupName are required',
-        });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
       }
 
       const consumer = mq.registerConsumer(body.queueName, body.groupName, body.consumerId);
@@ -282,7 +277,7 @@ export default async function messageQueueRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'message-queue', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!mq) {
-        return reply.code(503).send({ success: false, error: 'Message queue service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Message queue service not initialized'));
       }
 
       const { id } = request.params as { id: string };

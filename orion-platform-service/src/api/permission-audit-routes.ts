@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { PermissionAuditRepository } from '../repositories/PermissionAuditRepository';
 import { DatabasePool } from '../services/database';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 interface AuditRoutesOptions {
   database?: DatabasePool;
@@ -47,10 +48,7 @@ export default async function permissionAuditRoutes(
 
   // Error handler
   function handleError(error: Error, reply: FastifyReply) {
-    return reply.status(500).send({
-      error: error.name,
-      message: error.message,
-    });
+    return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
   }
 
   // GET /api/v1/permission-audit/denied - 查询所有拒绝记录

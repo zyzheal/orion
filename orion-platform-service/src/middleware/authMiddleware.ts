@@ -14,7 +14,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -63,7 +63,13 @@ export async function authenticateUser(
         });
       }
     } catch (err) {
-      logger.warn('[AuthMiddleware] Blacklist check failed:', err);
+      // Fail-closed: if blacklist check fails, reject the request
+      logger.error('[AuthMiddleware] Blacklist check failed, rejecting request:', err);
+      return reply.code(503).send({
+        code: 503,
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Token validation service temporarily unavailable',
+      });
     }
   }
 

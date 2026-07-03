@@ -4,7 +4,7 @@
  * Uses PostgreSQL pgvector extension for vector similarity search.
  * Supports configurable embedding providers (hash-based fallback, OpenAI, or custom).
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { VectorDocument, SearchQuery, SearchResult, VectorStoreConfig } from './types';
 import { VectorRepository } from '../../repositories/VectorRepository';
 import { OrionError } from '../../errors';

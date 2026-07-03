@@ -27,7 +27,7 @@ import {
   parseLogLine,
 } from '../../models/BuildLog';
 import { BuildLogRepository } from '../../repositories/BuildLogRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LBuild-LLog-LService' });

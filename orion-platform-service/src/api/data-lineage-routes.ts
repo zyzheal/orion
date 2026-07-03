@@ -10,7 +10,7 @@ import { DataLineageService } from '../services/data-lineage';
 import { DatabasePool } from '../services/database';
 import { handleError, OrionError, ErrorCode } from '../errors';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -33,7 +33,7 @@ export default async function dataLineageRoutes(
 
   // GET /data-lineage/graph - Get full lineage graph with stats
   app.get('/graph', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = getCurrentTenantId();
       const result = await service.getLineageGraph(tenantId);
@@ -45,16 +45,12 @@ export default async function dataLineageRoutes(
 
   // GET /data-lineage/graph/:pipelineId - Get lineage graph for a pipeline
   app.get<{ Params: { pipelineId: string } }>('/graph/:pipelineId', async (request, reply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = getCurrentTenantId();
       const graph = await service.getLineage(request.params.pipelineId, tenantId);
       if (!graph) {
-        return reply.status(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: `No lineage found for pipeline ${request.params.pipelineId}`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
       return reply.send({ success: true, data: graph });
     } catch (error) {
@@ -66,7 +62,7 @@ export default async function dataLineageRoutes(
 
   // POST /data-lineage/record - Record lineage for a pipeline execution
   app.post('/record', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
       const tenantId = getCurrentTenantId();
@@ -93,7 +89,7 @@ export default async function dataLineageRoutes(
   app.get<{ Params: { pipelineId: string }; Querystring: { limit?: string } }>(
     '/history/:pipelineId',
     async (request, reply) => {
-      if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       try {
         const tenantId = getCurrentTenantId();
         const limit = request.query.limit ? parseInt(request.query.limit, 10) : 20;
@@ -109,7 +105,7 @@ export default async function dataLineageRoutes(
 
   // POST /data-lineage/nodes - Add a lineage node
   app.post('/nodes', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
       const tenantId = getCurrentTenantId();
@@ -129,7 +125,7 @@ export default async function dataLineageRoutes(
 
   // POST /data-lineage/edges - Add a lineage edge
   app.post('/edges', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
       const tenantId = getCurrentTenantId();
@@ -149,7 +145,7 @@ export default async function dataLineageRoutes(
 
   // GET /data-lineage/upstream/:nodeId - Get upstream nodes
   app.get<{ Params: { nodeId: string } }>('/upstream/:nodeId', async (request, reply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = getCurrentTenantId();
       const nodes = await service.getUpstream(request.params.nodeId, tenantId);
@@ -161,7 +157,7 @@ export default async function dataLineageRoutes(
 
   // GET /data-lineage/downstream/:nodeId - Get downstream nodes
   app.get<{ Params: { nodeId: string } }>('/downstream/:nodeId', async (request, reply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = getCurrentTenantId();
       const nodes = await service.getDownstream(request.params.nodeId, tenantId);
@@ -173,7 +169,7 @@ export default async function dataLineageRoutes(
 
   // GET /data-lineage/impact/:nodeId - Impact analysis for a node
   app.get<{ Params: { nodeId: string } }>('/impact/:nodeId', async (request, reply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = getCurrentTenantId();
       const analysis = await service.getImpactAnalysis(request.params.nodeId, tenantId);

@@ -16,7 +16,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'pipeline-budget-routes' });
 
@@ -43,7 +44,7 @@ export function registerBudgetRoutes(
 
     const maxCost = typeof body.maxCost === 'number' ? body.maxCost : undefined;
     if (maxCost === undefined || maxCost < 0) {
-      return reply.code(400).send({ error: 'maxCost is required and must be >= 0' });
+      return handleError(reply, new ValidationError('maxCost is required and must be >= 0'));
     }
 
     const currency = typeof body.currency === 'string' ? body.currency : 'USD';
@@ -59,7 +60,7 @@ export function registerBudgetRoutes(
       return reply.code(201).send(budget);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.code(500).send({ error: message });
+      return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -75,12 +76,12 @@ export function registerBudgetRoutes(
     try {
       const budget = await budgetService.getBudget(id);
       if (!budget) {
-        return reply.code(404).send({ error: `No budget set for pipeline ${id}` });
+        return handleError(reply, new NotFoundError('Unknown error'));
       }
       return reply.send(budget);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.code(500).send({ error: message });
+      return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -96,7 +97,7 @@ export function registerBudgetRoutes(
 
     const maxCost = typeof body.maxCost === 'number' ? body.maxCost : undefined;
     if (maxCost === undefined || maxCost < 0) {
-      return reply.code(400).send({ error: 'maxCost is required and must be >= 0' });
+      return handleError(reply, new ValidationError('maxCost is required and must be >= 0'));
     }
 
     const currency = typeof body.currency === 'string' ? body.currency : undefined;
@@ -105,7 +106,7 @@ export function registerBudgetRoutes(
     try {
       const existing = await budgetService.getBudget(id);
       if (!existing) {
-        return reply.code(404).send({ error: `No budget set for pipeline ${id}` });
+        return handleError(reply, new NotFoundError('Unknown error'));
       }
 
       const budget = await budgetService.setBudget({
@@ -117,7 +118,7 @@ export function registerBudgetRoutes(
       return reply.send(budget);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.code(500).send({ error: message });
+      return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -133,12 +134,12 @@ export function registerBudgetRoutes(
     try {
       const deleted = await budgetService.deleteBudget(id);
       if (!deleted) {
-        return reply.code(404).send({ error: `No budget set for pipeline ${id}` });
+        return handleError(reply, new NotFoundError('Unknown error'));
       }
       return reply.code(204).send();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.code(500).send({ error: message });
+      return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -156,7 +157,7 @@ export function registerBudgetRoutes(
       return reply.send(result);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return reply.code(500).send({ error: message });
+      return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
     }
   });
 }

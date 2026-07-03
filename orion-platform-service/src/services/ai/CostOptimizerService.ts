@@ -317,7 +317,7 @@ export class CostOptimizerService {
       }
     }
 
-    let recommendation: OptimizationRecommendation | undefined = entity
+    const recommendation: OptimizationRecommendation | undefined = entity
       ? {
           recommendationId: entity.id,
           tenantId: entity.tenantId,

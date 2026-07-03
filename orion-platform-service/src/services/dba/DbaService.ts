@@ -14,6 +14,10 @@ import {
   DataSourceEntity,
   AuditRuleEntity,
 } from '../../repositories/DbaRepository';
+import { executeQuery as executeDbQuery, type QueryExecutionResult } from './db-connection';
+import { createLogger } from '../utils/logger';
+
+const logger = pino({ name: 'dba-service' });
 
 // ============================================================================
 // Types (preserved for backward compatibility)
@@ -80,15 +84,51 @@ export interface CreateAuditRuleInput {
 }
 
 // ============================================================================
-// Service
+// Extra types
 // ============================================================================
+
+export interface QueryExecutionRecord {
+  id: string;
+  tenantId: string;
+  userId: string;
+  dataSourceId: string;
+  dataSourceName: string;
+  sql: string;
+  status: 'success' | 'error';
+  rowCount: number;
+  latency: number;
+  error?: string;
+  createdAt: string;
+}
+
+export interface DirectQueryInput {
+  dataSourceId: string;
+  sql: string;
+  timeout?: number;
+}
+
+export interface DirectQueryResult {
+  success: boolean;
+  data?: {
+    rows: any[];
+    rowCount: number;
+    fields?: { name: string; dataTypeID: number }[];
+    latency: number;
+    truncated?: boolean;
+    message?: string;
+  };
+  error?: string;
+  executionRecord: QueryExecutionRecord;
+}
 
 export class DbaService {
   private sqlOrderRepo: SqlOrderRepository;
   private dataSourceRepo: DataSourceRepository;
   private auditRuleRepo: AuditRuleRepository;
+  private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.db = db;
     this.sqlOrderRepo = new SqlOrderRepository(db);
     this.dataSourceRepo = new DataSourceRepository(db);
     this.auditRuleRepo = new AuditRuleRepository(db);
@@ -195,6 +235,228 @@ export class DbaService {
     if (!ds) return { success: false, message: 'Data source not found' };
     await this.dataSourceRepo.updateStatus(id, 'online');
     return { success: true, message: `Connected to ${ds.host}:${ds.port}` };
+  }
+
+  // ---- Direct Query Execution ----
+
+  /**
+   * Execute a read-only SQL query directly against a data source.
+   *
+   * Validates the query is SELECT/WITH/EXPLAIN/SHOW/DESCRIBE only (DDL/DML blocked).
+   * Enforces a configurable timeout (default 30s).
+   * Logs execution details to audit trail.
+   *
+   * @returns Query results with execution metadata
+   */
+  async executeDirectQuery(
+    input: DirectQueryInput,
+    auth: { userId: string; tenantId: string },
+  ): Promise<DirectQueryResult> {
+    const startTime = Date.now();
+    const { dataSourceId, sql, timeout } = input;
+
+    // 1. Validate data source exists and is supported
+    const ds = await this.dataSourceRepo.findById(dataSourceId);
+    if (!ds) {
+      return this.buildErrorResult(sql, dataSourceId, '', 'Data source not found', startTime, auth);
+    }
+
+    // Only PostgreSQL is supported for direct query execution
+    const sourceType = ds.sourceType.toLowerCase();
+    if (sourceType !== 'postgresql' && sourceType !== 'postgres') {
+      return this.buildErrorResult(
+        sql, dataSourceId, ds.name,
+        `Direct query execution not supported for ${ds.sourceType}. Only PostgreSQL data sources are supported.`,
+        startTime, auth,
+      );
+    }
+
+    // 2. Decrypt password and build config
+    const password = ds.passwordEncrypted?.startsWith('ENC:AES256:')
+      ? this.resolvePassword(ds.passwordEncrypted)
+      : ds.passwordEncrypted;
+
+    const config = {
+      host: ds.host,
+      port: ds.port,
+      username: ds.username ?? undefined,
+      password: password ?? undefined,
+      database: ds.databaseName,
+      sourceType: ds.sourceType,
+    };
+
+    // 3. Execute the query
+    const timeoutMs = timeout ?? 30000;
+    const result = await executeDbQuery(config, sql, timeoutMs);
+
+    // 4. Build execution record
+    const record: QueryExecutionRecord = {
+      id: uuidv4(),
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      dataSourceId,
+      dataSourceName: ds.name,
+      sql,
+      status: result.success ? 'success' : 'error',
+      rowCount: result.rowCount,
+      latency: result.latency,
+      error: result.error,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 5. Log to audit trail
+    await this.logQueryExecution(record);
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Query execution failed',
+        executionRecord: record,
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        rows: result.rows,
+        rowCount: result.rowCount,
+        fields: result.fields,
+        latency: result.latency,
+        truncated: result.truncated,
+        message: result.message,
+      },
+      executionRecord: record,
+    };
+  }
+
+  /**
+   * List query execution audit logs with pagination.
+   */
+  async listQueryLogs(
+    auth: { tenantId: string },
+    params?: { page?: number; limit?: number; dataSourceId?: string; status?: string },
+  ): Promise<{ data: QueryExecutionRecord[]; total: number; page: number; limit: number }> {
+    const page = params?.page || 1;
+    const limit = Math.min(params?.limit || 20, 100);
+    const offset = (page - 1) * limit;
+
+    let whereClause = 'WHERE tenant_id = $1';
+    const queryParams: unknown[] = [auth.tenantId];
+    let idx = 2;
+
+    if (params?.dataSourceId) {
+      whereClause += ` AND data_source_id = $${idx++}`;
+      queryParams.push(params.dataSourceId);
+    }
+    if (params?.status) {
+      whereClause += ` AND status = $${idx++}`;
+      queryParams.push(params.status);
+    }
+
+    try {
+      const countResult = await this.db.query(
+        `SELECT COUNT(*) as count FROM dba_query_audit_log ${whereClause}`,
+        queryParams,
+      );
+      const total = parseInt(countResult.rows[0]?.count || '0', 10);
+
+      const result = await this.db.query(
+        `SELECT * FROM dba_query_audit_log ${whereClause} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
+        [...queryParams, limit, offset],
+      );
+
+      const data: QueryExecutionRecord[] = result.rows.map((row: any) => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        userId: row.user_id,
+        dataSourceId: row.data_source_id,
+        dataSourceName: row.data_source_name,
+        sql: row.sql_text,
+        status: row.status,
+        rowCount: row.row_count,
+        latency: row.latency_ms,
+        error: row.error_message ?? undefined,
+        createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      }));
+
+      return { data, total, page, limit };
+    } catch (err) {
+      // If the table doesn't exist yet, return empty
+      logger.warn({ err }, 'Failed to list query audit logs (table may not exist)');
+      return { data: [], total: 0, page, limit };
+    }
+  }
+
+  /**
+   * Persist a query execution record to the audit log table.
+   */
+  private async logQueryExecution(record: QueryExecutionRecord): Promise<void> {
+    try {
+      await this.db.query(
+        `INSERT INTO dba_query_audit_log (id, tenant_id, user_id, data_source_id, data_source_name, sql_text, status, row_count, latency_ms, error_message, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          record.id,
+          record.tenantId,
+          record.userId,
+          record.dataSourceId,
+          record.dataSourceName,
+          record.sql,
+          record.status,
+          record.rowCount,
+          record.latency,
+          record.error ?? null,
+          record.createdAt,
+        ],
+      );
+      logger.info({ id: record.id, dataSourceId: record.dataSourceId, status: record.status }, 'Query execution audit logged');
+    } catch (err) {
+      // Non-blocking: audit log failure should not fail the query result
+      logger.error({ err, id: record.id }, 'Failed to persist query execution audit log');
+    }
+  }
+
+  /**
+   * Build an error result with a corresponding execution record.
+   */
+  private buildErrorResult(
+    sql: string,
+    dataSourceId: string,
+    dataSourceName: string,
+    error: string,
+    startTime: number,
+    auth: { userId: string; tenantId: string },
+  ): DirectQueryResult {
+    const record: QueryExecutionRecord = {
+      id: uuidv4(),
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      dataSourceId,
+      dataSourceName,
+      sql,
+      status: 'error',
+      rowCount: 0,
+      latency: Date.now() - startTime,
+      error,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Fire-and-forget audit logging
+    this.logQueryExecution(record).catch(() => {});
+
+    return { success: false, error, executionRecord: record };
+  }
+
+  /**
+   * Decrypt password if encrypted, otherwise return as-is.
+   */
+  private resolvePassword(encrypted: string): string {
+    try {
+      const { decryptValue } = require('../../utils/encryption');
+      return decryptValue(encrypted);
+    } catch {
+      return encrypted;
+    }
   }
 
   // ---- Audit Rules ----

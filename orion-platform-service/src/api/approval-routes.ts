@@ -10,14 +10,15 @@ import { ApprovalController } from './controllers/ApprovalController';
 import { MultiLevelApprovalService } from '../services/approval/MultiLevelApprovalService';
 import { EmergencyApprovalService } from '../services/approval/EmergencyApprovalService';
 import { ApprovalTemplateService } from '../services/approval/ApprovalTemplateService';
+import { ApprovalService } from '../services/approval/ApprovalService';
 import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
 import { ApprovalGateRepository } from '../repositories/ApprovalGateRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'approval-routes' });
+const logger = createLogger('approval-routes');
 
 export interface ApprovalRoutesOptions {
   database?: Pool | DatabasePool;
@@ -38,31 +39,21 @@ export async function registerApprovalRoutes(
     multiLevelService = new MultiLevelApprovalService(db);
     emergencyService = new EmergencyApprovalService(db);
     templateService = new ApprovalTemplateService(db);
+    const approvalService = new ApprovalService(db);
+    const gateRepository = new ApprovalGateRepository(db);
+    const gateService = new ApprovalGateService(gateRepository);
+    const controller = new ApprovalController(
+      multiLevelService,
+      emergencyService,
+      templateService,
+      gateService,
+      approvalService,
+    );
   } else {
     // Fallback: return early without database
     logger.warn('[ApprovalRoutes] No database, skipping routes');
     return;
   }
-
-  // Initialize ApprovalGateRepository and ApprovalGateService
-  let gateService: ApprovalGateService;
-  if (db) {
-    const gateRepository = new ApprovalGateRepository(db);
-    gateService = new ApprovalGateService(gateRepository);
-  } else {
-    // Should not reach here due to early return above, but type checker needs a value
-    const fallbackDb = { query: async () => ({ rows: [], rowCount: null }) };
-    gateService = new ApprovalGateService(
-      new ApprovalGateRepository(fallbackDb)
-    );
-  }
-
-  const controller = new ApprovalController(
-    multiLevelService,
-    emergencyService,
-    templateService,
-    gateService
-  );
 
   // ==================== Multi-Level Approval (auth protected) ====================
   await app.register(async (instance: FastifyInstance) => {
@@ -122,6 +113,60 @@ export async function registerApprovalRoutes(
       }
     );
 
+    // POST /api/v1/approvals/requests/:id/withdraw - 撤回审批
+    instance.post(
+      '/v1/approvals/requests/:id/withdraw',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.withdrawApproval(request, reply);
+      }
+    );
+
+    // POST /api/v1/approvals/requests/:id/cancel - 取消审批
+    instance.post(
+      '/v1/approvals/requests/:id/cancel',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.cancelApproval(request, reply);
+      }
+    );
+
+    // POST /api/v1/approvals/requests/:id/delegate - 委托审批
+    instance.post(
+      '/v1/approvals/requests/:id/delegate',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.delegateApproval(request, reply);
+      }
+    );
+
+    // POST /api/v1/approvals/requests/:id/reassign - 重新分配审批人
+    instance.post(
+      '/v1/approvals/requests/:id/reassign',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.reassignApproval(request, reply);
+      }
+    );
+
+    // GET /api/v1/approvals/statistics - 审批统计
+    instance.get(
+      '/v1/approvals/statistics',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getApprovalStatistics(request, reply);
+      }
+    );
+
+    // GET /api/v1/approvals/trend - 审批趋势
+    instance.get(
+      '/v1/approvals/trend',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getApprovalTrend(request, reply);
+      }
+    );
+
     // GET /api/v1/approvals/requests/:id/history - 审批历史
     instance.get(
       '/v1/approvals/requests/:id/history',
@@ -147,6 +192,15 @@ export async function registerApprovalRoutes(
       { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.getPendingApprovals(request, reply);
+      }
+    );
+
+    // GET /api/v1/approvals/my-pending - 我的待审批列表
+    instance.get(
+      '/v1/approvals/my-pending',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getMyPendingApprovals(request, reply);
       }
     );
 

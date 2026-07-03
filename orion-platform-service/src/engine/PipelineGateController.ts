@@ -19,7 +19,7 @@ import { QualityGateResult } from '../models/QualityGate';
 import { DeploymentStrategyService, CanaryConfig, BlueGreenConfig, RollingConfig } from '../services/pipeline/DeploymentStrategyService';
 import { PipelineExecution } from './PipelineEngine';
 import { VariableContext } from './VariableContext';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

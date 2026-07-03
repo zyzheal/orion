@@ -9,7 +9,7 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ModelVersionRepository,

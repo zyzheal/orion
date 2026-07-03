@@ -192,6 +192,8 @@ export interface TicketRelation {
 export interface SLATarget {
   /** SLA ID */
   id: string;
+  /** Tenant ID */
+  tenantId?: string;
   /** SLA name */
   name: string;
   /** Applicable priority */
@@ -202,6 +204,36 @@ export interface SLATarget {
   targetResolutionTimeMs: number;
   /** Whether this SLA is active */
   enabled: boolean;
+  /** Creator user ID */
+  createdBy?: string;
+  /** When created */
+  createdAt?: Date;
+  /** When last updated */
+  updatedAt?: Date;
+}
+
+/**
+ * Input for creating an SLA policy
+ */
+export interface CreateSLAPolicyInput {
+  name: string;
+  priority: TicketPriority;
+  targetResponseTimeMs: number;
+  targetResolutionTimeMs: number;
+  enabled?: boolean;
+  tenantId?: string;
+  createdBy?: string;
+}
+
+/**
+ * Input for updating an SLA policy
+ */
+export interface UpdateSLAPolicyInput {
+  name?: string;
+  priority?: TicketPriority;
+  targetResponseTimeMs?: number;
+  targetResolutionTimeMs?: number;
+  enabled?: boolean;
 }
 
 /**
@@ -1022,3 +1054,272 @@ export interface SuspensionImpact {
   }[];
   totalAffected: number;
 }
+
+// ==================== Ticket Template Types (TASK-5.11) ====================
+
+/**
+ * Ticket template for quick ticket creation
+ */
+export interface TicketTemplate {
+  /** Template ID */
+  id: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** Template name */
+  name: string;
+  /** Template description */
+  description?: string;
+  /** Pre-filled title */
+  title: string;
+  /** Pre-filled description body */
+  templateBody: string;
+  /** Default category */
+  category: TicketCategory;
+  /** Default priority */
+  priority: TicketPriority;
+  /** Default status */
+  status: TicketStatus;
+  /** Default assignee */
+  assigneeId?: string;
+  /** Default tags */
+  tags?: string[];
+  /** Linked SLA target ID */
+  slaTargetId?: string;
+  /** Workflow steps definition */
+  workflowSteps?: any[];
+  /** Field defaults (key-value pairs) */
+  fieldDefaults?: Record<string, any>;
+  /** Additional metadata */
+  metadata?: Record<string, any>;
+  /** Whether template is public to all tenants */
+  isPublic: boolean;
+  /** Usage count */
+  usageCount: number;
+  /** Creator user ID */
+  createdBy?: string;
+  /** When created */
+  createdAt: Date;
+  /** When last updated */
+  updatedAt: Date;
+}
+
+/**
+ * Input for creating a ticket template
+ */
+export interface CreateTicketTemplateInput {
+  name: string;
+  description?: string;
+  title: string;
+  templateBody: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  status?: TicketStatus;
+  assigneeId?: string;
+  tags?: string[];
+  slaTargetId?: string;
+  workflowSteps?: any[];
+  fieldDefaults?: Record<string, any>;
+  metadata?: Record<string, any>;
+  isPublic?: boolean;
+  createdBy?: string;
+}
+
+/**
+ * Input for updating a ticket template
+ */
+export interface UpdateTicketTemplateInput {
+  name?: string;
+  description?: string;
+  title?: string;
+  templateBody?: string;
+  category?: TicketCategory;
+  priority?: TicketPriority;
+  status?: TicketStatus;
+  assigneeId?: string;
+  tags?: string[];
+  slaTargetId?: string;
+  workflowSteps?: any[];
+  fieldDefaults?: Record<string, any>;
+  metadata?: Record<string, any>;
+  isPublic?: boolean;
+}
+
+// ==================== Automation Rule Types (TASK-5.11) ====================
+
+/**
+ * Automation rule action type
+ */
+export type AutomationActionType =
+  | 'assign'
+  | 'set_priority'
+  | 'set_status'
+  | 'add_tag'
+  | 'remove_tag'
+  | 'notify'
+  | 'escalate'
+  | 'close'
+  | 'resolve'
+  | 'custom';
+
+/**
+ * Automation rule action definition
+ */
+export interface AutomationAction {
+  /** Action type */
+  type: AutomationActionType;
+  /** Action payload */
+  payload: Record<string, any>;
+}
+
+/**
+ * Automation rule condition operator
+ */
+export type AutomationConditionOperator =
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'in'
+  | 'nin'
+  | 'contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'is_null'
+  | 'is_not_null';
+
+/**
+ * Automation rule condition definition
+ */
+export interface AutomationCondition {
+  /** Field name to match */
+  field: string;
+  /** Comparison operator */
+  operator: AutomationConditionOperator;
+  /** Value to compare against */
+  value: any;
+}
+
+/**
+ * Automation rule for ticket processing
+ */
+export interface AutomationRule {
+  /** Rule ID */
+  id: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** Rule name */
+  name: string;
+  /** Rule description */
+  description?: string;
+  /** Whether rule is enabled */
+  enabled: boolean;
+  /** Rule priority (higher = evaluated first) */
+  priority: number;
+  /** Match conditions */
+  conditions: AutomationCondition[];
+  /** Actions to execute when matched */
+  actions: AutomationAction[];
+  /** Execution count */
+  executionCount: number;
+  /** Last execution timestamp */
+  lastExecuted?: Date;
+  /** Creator user ID */
+  createdBy?: string;
+  /** When created */
+  createdAt: Date;
+  /** When last updated */
+  updatedAt: Date;
+}
+
+/**
+ * Input for creating an automation rule
+ */
+export interface CreateAutomationRuleInput {
+  name: string;
+  description?: string;
+  enabled?: boolean;
+  priority?: number;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  createdBy?: string;
+}
+
+/**
+ * Input for updating an automation rule
+ */
+export interface UpdateAutomationRuleInput {
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  priority?: number;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+}
+
+/**
+ * Automation rule execution log
+ */
+export interface AutomationRuleExecution {
+  /** Execution ID */
+  id: string;
+  /** Rule ID */
+  ruleId: string;
+  /** Ticket ID */
+  ticketId: string;
+  /** What triggered the rule */
+  triggeredBy: 'create' | 'update' | 'manual';
+  /** Conditions that matched */
+  conditionsMet: Record<string, any>;
+  /** Actions that were executed */
+  actionsTaken: AutomationAction[];
+  /** Execution status */
+  status: 'running' | 'success' | 'failed';
+  /** Error message if failed */
+  errorMessage?: string;
+  /** When executed */
+  executedAt: Date;
+  /** When completed */
+  completedAt?: Date;
+}
+
+// ==================== SLA Status Types (TASK-5.11) ====================
+
+/**
+ * SLA status for visualization
+ */
+export type SLAStatus = 'normal' | 'warning' | 'breached';
+
+/**
+ * SLA status detail for a ticket
+ */
+export interface TicketSLAStatus {
+  /** Ticket ID */
+  ticketId: string;
+  /** SLA status */
+  status: SLAStatus;
+  /** Target resolution time in milliseconds */
+  targetResolutionTimeMs: number;
+  /** Target response time in milliseconds */
+  targetResponseTimeMs: number;
+  /** Elapsed time since ticket creation in milliseconds */
+  elapsedTimeMs: number;
+  /** Remaining time in milliseconds (negative if breached) */
+  remainingTimeMs: number;
+  /** Percentage of time used (0-100+) */
+  percentUsed: number;
+  /** Whether response SLA was breached */
+  responseBreached: boolean;
+  /** Whether resolution SLA was breached */
+  resolutionBreached: boolean;
+  /** First response timestamp */
+  firstResponseAt?: Date;
+  /** Resolved timestamp */
+  resolvedAt?: Date;
+  /** When the SLA will breach (if not already) */
+  breachAt?: Date;
+  /** Warning threshold percentage (e.g., 0.8 = 80%) */
+  warningThreshold: number;
+}
+

@@ -13,6 +13,8 @@ import { ConfigService } from '../services/config-mgmt/ConfigService';
 import { GitOpsService } from '../services/config-mgmt/GitOpsService';
 import { ConfigApprovalService } from '../services/config-mgmt/ConfigApprovalService';
 import { ConfigDiffService } from '../services/config-mgmt/ConfigDiffService';
+import { ConfigSnapshotService } from '../services/config-mgmt/ConfigSnapshotService';
+import { ConfigVersionRepository } from '../repositories/ConfigVersionRepository';
 import { ConfigApprovalRepository } from '../repositories/ConfigApprovalRepository';
 import { GitOpsRepository } from '../repositories/GitOpsRepository';
 import { ConfigController } from './controllers/ConfigController';
@@ -21,9 +23,9 @@ import { RedisCache } from '../services/redis-cache';
 import { CacheService } from '../services/cache/CacheService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'config-routes' });
+const logger = createLogger('config-routes');
 
 export interface ConfigRoutesOptions {
   database?: DatabasePool;
@@ -265,6 +267,108 @@ export default async function configRoutes(
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getAuditTrail(request, reply);
+    }
+  );
+
+  // ==================== Config Templates ====================
+
+  // POST /templates - Create config template
+  app.post('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.createTemplate(request, reply);
+  });
+
+  // GET /templates - List config templates
+  app.get('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.listTemplates(request, reply);
+  });
+
+  // GET /templates/:id - Get template detail
+  app.get(
+    '/templates/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.getTemplate(request, reply);
+    }
+  );
+
+  // PUT /templates/:id - Update template
+  app.put(
+    '/templates/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.updateTemplate(request, reply);
+    }
+  );
+
+  // DELETE /templates/:id - Delete template
+  app.delete(
+    '/templates/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.deleteTemplate(request, reply);
+    }
+  );
+
+  // POST /templates/:id/versions - Create template version
+  app.post(
+    '/templates/:id/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.createTemplateVersion(request, reply);
+    }
+  );
+
+  // GET /templates/:id/versions - List template versions
+  app.get(
+    '/templates/:id/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.listTemplateVersions(request, reply);
+    }
+  );
+
+  // ==================== Canary Deployment ====================
+
+  // POST /canary - Create canary deployment
+  app.post('/canary', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.createCanary(request, reply);
+  });
+
+  // POST /canary/:id/promote - Promote canary deployment
+  app.post(
+    '/canary/:id/promote',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.promoteCanary(request, reply);
+    }
+  );
+
+  // POST /canary/:id/rollback - Rollback canary deployment
+  app.post(
+    '/canary/:id/rollback',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.rollbackCanary(request, reply);
     }
   );
 

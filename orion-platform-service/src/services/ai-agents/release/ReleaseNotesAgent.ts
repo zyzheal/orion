@@ -13,7 +13,7 @@ import { promisify } from 'util';
 import { resolve, isAbsolute } from 'path';
 import { realpathSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 import { BaseAgent } from '../base/BaseAgent';
 import { AgentConfig, AgentExecutionContext } from '../base/types';
@@ -213,7 +213,7 @@ export class ReleaseNotesAgent extends BaseAgent {
     const stats = this.calculateStats(commits, changes);
 
     // 4. 构建 Release Notes 内容
-    let content = this.buildMarkdownContent(version, changes, stats, language);
+    const content = this.buildMarkdownContent(version, changes, stats, language);
 
     // 5. 可选：AI 增强
     let aiSummary: string | undefined;

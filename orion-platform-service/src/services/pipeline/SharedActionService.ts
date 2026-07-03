@@ -10,7 +10,7 @@
 
 import * as yaml from 'js-yaml';
 import { spawn } from 'child_process';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { PipelineStep } from '../../engine/YamlPreprocessor';
 import { OrionError, ErrorCode } from '../../errors';
 

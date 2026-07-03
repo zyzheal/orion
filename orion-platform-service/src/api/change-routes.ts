@@ -20,7 +20,7 @@ import { DatabasePool } from '../services/database';
 import { ChangeService, CreateChangeRequestInput, UpdateChangeRequestInput, CreateRFCInput, UpdateRFCInput, CreateCABMeetingInput, UpdateCABMeetingInput } from '../services/change/ChangeService';
 import { requirePermission } from '../middleware/requirePermission';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'change-routes' });
 
@@ -93,10 +93,7 @@ export default async function changeRoutes(
       const body = request.body as CreateChangeRequestInput;
 
       if (!body.title) {
-        return reply.status(400).send({
-          success: false,
-          error: 'title is required',
-        });
+        return handleError(reply, new ValidationError('title is required'))
       }
 
       const changeRequest = await changeService.createChangeRequest(
@@ -198,10 +195,7 @@ export default async function changeRoutes(
       const userId = getUserId(request);
 
       if (!body.status) {
-        return reply.status(400).send({
-          success: false,
-          error: 'status is required',
-        });
+        return handleError(reply, new ValidationError('status is required'))
       }
 
       const changeRequest = await changeService.updateStatus(id, body.status, tenantId, userId, body.reason);
@@ -251,10 +245,7 @@ export default async function changeRoutes(
       const userId = getUserId(request);
 
       if (!body.event_type || !body.description) {
-        return reply.status(400).send({
-          success: false,
-          error: 'event_type and description are required',
-        });
+        return handleError(reply, new ValidationError('event_type and description are required'))
       }
 
       const event = await changeService.addTimelineEvent(
@@ -311,10 +302,7 @@ export default async function changeRoutes(
       const body = request.body as CreateRFCInput;
 
       if (!body.changeRequestId || !body.rfcNumber) {
-        return reply.status(400).send({
-          success: false,
-          error: 'changeRequestId and rfcNumber are required',
-        });
+        return handleError(reply, new ValidationError('changeRequestId and rfcNumber are required'))
       }
 
       const rfc = await changeService.createRFC(
@@ -406,10 +394,7 @@ export default async function changeRoutes(
       const body = request.body as CreateCABMeetingInput;
 
       if (!body.title || !body.scheduledAt) {
-        return reply.status(400).send({
-          success: false,
-          error: 'title and scheduledAt are required',
-        });
+        return handleError(reply, new ValidationError('title and scheduledAt are required'))
       }
 
       const meeting = await changeService.createCABMeeting(
@@ -475,10 +460,7 @@ export default async function changeRoutes(
       const body = request.body as { changeRequestId: string; decision: string; notes?: string };
 
       if (!body.changeRequestId || !body.decision) {
-        return reply.status(400).send({
-          success: false,
-          error: 'changeRequestId and decision are required',
-        });
+        return handleError(reply, new ValidationError('changeRequestId and decision are required'))
       }
 
       const meeting = await changeService.addCABDecision(id, body, tenantId);

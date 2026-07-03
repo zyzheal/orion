@@ -16,8 +16,8 @@ import { KnowledgeRepository } from '../services/knowledge/KnowledgeRepository';
 import { KnowledgeService, KnowledgeServiceError } from '../services/knowledge/KnowledgeService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
-import { OrionError, ErrorCode } from '../errors';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode , ValidationError, NotFoundError, handleError} from '../errors';
 
 const logger = pino({ name: 'knowledge-routes' });
 
@@ -33,7 +33,7 @@ interface KnowledgeRoutesOptions {
 function getTenantId(request: FastifyRequest, reply: FastifyReply): string {
   const tenantId = (request.headers as any)['x-tenant-id'];
   if (!tenantId) {
-    reply.status(400).send({ error: 'MISSING_TENANT', message: 'x-tenant-id header is required' });
+handleError(reply, new ValidationError('MISSING_TENANT'));
     throw new OrionError('Tenant missing', ErrorCode.NOT_FOUND); // to satisfy return type
   }
   return tenantId;
@@ -110,7 +110,7 @@ export default async function knowledgeRoutes(
       const {   name, type, description, teamId, ownerId   } = request.body as any as any as { name: string; type: 'public' | 'internal' | 'private'; description?: string; teamId?: string; ownerId?: string };
 
       if (!name) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'Space name is required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -124,7 +124,7 @@ export default async function knowledgeRoutes(
         return reply.status(201).send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -146,7 +146,7 @@ export default async function knowledgeRoutes(
         return reply.send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }
@@ -307,7 +307,7 @@ export default async function knowledgeRoutes(
         return reply.status(200).send({ data: syncLog });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -352,7 +352,7 @@ export default async function knowledgeRoutes(
       const {   title, content, spaceId, tags, status, authorId   } = request.body as any as any;
 
       if (!title || !content || !spaceId) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'title, content, and spaceId are required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -389,7 +389,7 @@ export default async function knowledgeRoutes(
         return reply.send({ data: doc });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }
@@ -463,7 +463,7 @@ export default async function knowledgeRoutes(
         return reply.send({ data: versions });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }
@@ -491,7 +491,7 @@ export default async function knowledgeRoutes(
       const {   query, spaceId, topK   } = request.body as any as any;
 
       if (!query) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'query is required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -509,7 +509,7 @@ export default async function knowledgeRoutes(
         });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -533,7 +533,7 @@ export default async function knowledgeRoutes(
       const {   query, spaceId, topK   } = request.body as any as any;
 
       if (!query) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'query is required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -567,7 +567,7 @@ export default async function knowledgeRoutes(
         });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -623,7 +623,7 @@ export default async function knowledgeRoutes(
         return reply.send({ data: { nodes, edges } });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }

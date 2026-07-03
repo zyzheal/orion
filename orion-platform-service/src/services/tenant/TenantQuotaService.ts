@@ -14,7 +14,7 @@
 
 import { EventEmitter } from 'events';
 import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'TenantQuotaService' });

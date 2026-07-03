@@ -30,7 +30,7 @@ import { DatabasePool } from '../services/database';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { UserStatusService } from '../services/user/UserStatusService';
 import { verifyHrWebhookSignature } from '../middleware/hrWebhookAuth';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -145,7 +145,7 @@ export default async function hrWebhookRoutes(
         user = await findUserByEmail(event.work_email);
       }
 
-      let result: { userId?: string; action: string; note?: string } = { action: event.action };
+      const result: { userId?: string; action: string; note?: string } = { action: event.action };
 
       switch (event.action) {
         case 'hired':

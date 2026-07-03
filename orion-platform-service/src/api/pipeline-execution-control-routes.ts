@@ -20,7 +20,8 @@ import { PipelineExecutionControlRepository } from '../services/pipeline/Pipelin
 import { PipelineExecutionControlService } from '../services/pipeline/PipelineExecutionControlService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ConflictError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'pipeline-execution-control-routes' });
 
@@ -94,10 +95,10 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to pause pipeline run');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -124,10 +125,10 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to resume pipeline run');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -155,10 +156,10 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'STATE_CONFLICT') return reply.code(409).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ConflictError(err.message));
         logger.error({ error: err.message }, 'Failed to abort pipeline run');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -190,10 +191,10 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
-        if (code === 'VALIDATION_ERROR') return reply.code(400).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
+        return handleError(reply, new ValidationError(err.message));
         logger.error({ error: err.message }, 'Failed to retry pipeline run');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -220,9 +221,9 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         const code = (error as { code?: string }).code;
-        if (code === 'NOT_FOUND') return reply.code(404).send({ error: err.message });
+        return handleError(reply, new NotFoundError(err.message));
         logger.error({ error: err.message }, 'Failed to restart pipeline run');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -241,7 +242,7 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         logger.error({ error: err.message }, 'Failed to list checkpoints');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );
@@ -260,7 +261,7 @@ export default async function pipelineExecutionControlRoutes(
       } catch (error: unknown) {
         const err = error as Error;
         logger.error({ error: err.message }, 'Failed to list control logs');
-        return reply.code(500).send({ error: err.message });
+        return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );

@@ -51,7 +51,7 @@ function createMockRepository(): DevPortalMockRuleRepository {
     },
 
     async findEnabledByTenant(tenantId: string, method: string): Promise<DevPortalMockRuleEntity[]> {
-      let entities = Array.from(store.values())
+      const entities = Array.from(store.values())
         .filter(e => e.tenantId === tenantId && e.enabled && e.method === method.toUpperCase());
       entities.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
       return entities;

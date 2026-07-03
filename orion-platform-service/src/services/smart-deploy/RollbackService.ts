@@ -22,7 +22,7 @@ import {
 } from './types';
 import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 import { DeploymentVerifier } from './DeploymentVerifier';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = pino({ name: 'LRollback-LService' });

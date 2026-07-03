@@ -7,7 +7,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { BackupPlanRepository, BackupPlanEntity } from '../../repositories/BackupPlanRepository';
 import {

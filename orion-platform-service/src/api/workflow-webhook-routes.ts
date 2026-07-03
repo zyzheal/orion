@@ -13,7 +13,8 @@ import * as crypto from 'crypto';
 import { DatabasePool } from '../services/database';
 import { WorkflowTriggerRepository } from '../repositories/WorkflowTriggerRepository';
 import { WorkflowTriggerLogRepository } from '../repositories/WorkflowTriggerLogRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, NotFoundError, UnauthorizedError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'workflow-webhook-routes' });
 
@@ -51,7 +52,7 @@ export default async function workflowWebhookRoutes(
     ) => {
       try {
         if (!triggerRepo || !triggerLogRepo) {
-          return reply.status(503).send({ error: 'Database not available' });
+          return handleError(reply, new ServiceUnavailableError('Database not available'));
         }
 
         const { webhookPath } = request.params;
@@ -60,7 +61,7 @@ export default async function workflowWebhookRoutes(
         // 查找匹配的触发器
         const trigger = await triggerRepo.findByWebhookPath(fullPath);
         if (!trigger) {
-          return reply.status(404).send({ error: 'Webhook not found' });
+          return handleError(reply, new NotFoundError('Webhook not found'));
         }
 
         // 签名验证
@@ -69,14 +70,14 @@ export default async function workflowWebhookRoutes(
           const timestamp = request.headers['x-webhook-timestamp'];
 
           if (!signature) {
-            return reply.status(401).send({ error: 'Missing signature header' });
+            return handleError(reply, new UnauthorizedError('Missing signature header'));
           }
 
           // 时间戳防重放验证（5 分钟窗口）
           if (timestamp) {
             const requestTime = parseInt(timestamp, 10);
             if (isNaN(requestTime) || Math.abs(Date.now() - requestTime) > 5 * 60 * 1000) {
-              return reply.status(401).send({ error: 'Expired timestamp' });
+              return handleError(reply, new UnauthorizedError('Expired timestamp'));
             }
           }
 
@@ -90,7 +91,7 @@ export default async function workflowWebhookRoutes(
             .digest('hex');
 
           if (signature !== `sha256=${expectedSignature}` && signature !== expectedSignature) {
-            return reply.status(401).send({ error: 'Invalid signature' });
+            return handleError(reply, new UnauthorizedError('Invalid signature'));
           }
         }
 
@@ -141,11 +142,11 @@ export default async function workflowWebhookRoutes(
           const errorMessage = executionError instanceof Error ? executionError.message : String(executionError);
           await triggerLogRepo.updateStatus(log.id, 'failed', errorMessage, Date.now() - startTime);
 
-          return reply.status(500).send({ error: `Workflow execution failed: ${errorMessage}` });
+          return handleError(reply, new OrionError('Unknown error', ErrorCode.INTERNAL_ERROR));
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return reply.status(500).send({ error: message });
+        return handleError(reply, new OrionError(message, ErrorCode.INTERNAL_ERROR));
       }
     }
   );

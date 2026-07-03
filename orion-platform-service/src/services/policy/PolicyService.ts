@@ -5,7 +5,7 @@
  * against pipeline runs and other resources.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   PolicyDefinitionRepository,
   PolicyDefinitionEntity,
@@ -17,6 +17,7 @@ import {
 import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

@@ -4,7 +4,7 @@
  * Handles build environment and build record management
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LBuild-LService' });
 import {

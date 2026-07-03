@@ -2,14 +2,15 @@
  * DBA (Database Administration) API Routes
  *
  * Routes under /api/v1/dba
- * Handles SQL order management, data source management, audit rules
+ * Handles SQL order management, data source management, audit rules, direct query execution
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { DbaService, type CreateOrderInput, type CreateDataSourceInput, type CreateAuditRuleInput } from '../services/dba/DbaService';
+import { DbaService, type CreateOrderInput, type CreateDataSourceInput, type CreateAuditRuleInput, type DirectQueryInput } from '../services/dba/DbaService';
 import { DatabasePool } from '../services/database';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 interface DbaRoutesOptions {
   database?: DatabasePool;
@@ -57,7 +58,7 @@ export default async function dbaRoutes(
     const params = request.params as any;
     const order = await dbaService.getOrder(params.id);
     if (!order) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Order not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: order });
   });
@@ -80,7 +81,7 @@ export default async function dbaRoutes(
     const auth = await getAuthInfo(request);
     const order = await dbaService.approveOrder(params.id, auth.userId);
     if (!order) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Order not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: order });
   });
@@ -92,7 +93,7 @@ export default async function dbaRoutes(
     const params = request.params as any;
     const order = await dbaService.rejectOrder(params.id);
     if (!order) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Order not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: order });
   });
@@ -104,7 +105,7 @@ export default async function dbaRoutes(
     const params = request.params as any;
     const order = await dbaService.executeOrder(params.id);
     if (!order) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Order not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: order });
   });
@@ -127,7 +128,7 @@ export default async function dbaRoutes(
     const params = request.params as any;
     const ds = await dbaService.getDataSource(params.id);
     if (!ds) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Data source not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: ds });
   });
@@ -150,7 +151,7 @@ export default async function dbaRoutes(
     const body = request.body as any;
     const ds = await dbaService.updateDataSource(params.id, body);
     if (!ds) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Data source not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: ds });
   });
@@ -162,7 +163,7 @@ export default async function dbaRoutes(
     const params = request.params as any;
     const deleted = await dbaService.deleteDataSource(params.id);
     if (!deleted) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Data source not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, message: 'Data source deleted' });
   });
@@ -174,7 +175,7 @@ export default async function dbaRoutes(
     const params = request.params as any;
     const result = await dbaService.testConnection(params.id);
     if (!result.success) {
-      return reply.status(400).send({ error: 'CONNECTION_ERROR', message: result.message });
+      return handleError(reply, new ValidationError('CONNECTION_ERROR'));
     }
     return reply.send({ success: true, data: result });
   });
@@ -208,25 +209,46 @@ export default async function dbaRoutes(
     const body = request.body as any;
     const rule = await dbaService.updateAuditRule(params.id, body);
     if (!rule) {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Audit rule not found' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
     return reply.send({ success: true, data: rule });
   });
 
   // ==================== Direct Query ====================
 
+  // Execute a SQL query directly against a data source
   app.post('/dba/query', {
     onRequest: [authenticateUser, requirePermission({ resource: 'dba', action: 'execute' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
-    // Mock query response
-    return reply.send({
-      success: true,
-      data: {
-        rows: [],
-        rowCount: 0,
-        message: 'Direct query execution (mock - implement with actual DB connection)',
+    const auth = await getAuthInfo(request);
+    const body = request.body as DirectQueryInput;
+    const result = await dbaService.executeDirectQuery(body, { userId: auth.userId, tenantId: auth.tenantId });
+    if (!result.success) {
+      return reply.status(400).send({
+        success: false,
+        error: 'QUERY_ERROR',
+        message: result.error || 'Query execution failed',
+        executionRecord: result.executionRecord,
+      });
+    }
+    return reply.send({ success: true, data: result.data, executionRecord: result.executionRecord });
+  });
+
+  // List query execution audit logs
+  app.get('/dba/query-logs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'dba', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const auth = await getAuthInfo(request);
+    const query = request.query as any;
+    const logs = await dbaService.listQueryLogs(
+      { tenantId: auth.tenantId },
+      {
+        page: query.page ? parseInt(query.page) : 1,
+        limit: query.limit ? parseInt(query.limit) : 20,
+        dataSourceId: query.dataSourceId,
+        status: query.status,
       },
-    });
+    );
+    return reply.send({ success: true, data: logs });
   });
 }

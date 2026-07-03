@@ -14,7 +14,7 @@ import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { EventTriggerRuleRepository, EventTriggerLogRepository } from '../services/event-trigger/EventTriggerRepository';
 import { EventTriggerService } from '../services/event-trigger/EventTriggerService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'event-trigger-routes' });
 

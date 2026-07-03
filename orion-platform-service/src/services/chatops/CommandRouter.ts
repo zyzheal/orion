@@ -1,9 +1,10 @@
 import { OrionError } from '../../errors';
 import { ChatOpsCommandHandlerRepository } from '../../repositories/ChatOpsCommandHandlerRepository';
-import pino from 'pino';
+import { ShellCommandExecutor } from './ShellCommandExecutor';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'CommandRouter' });
+const logger = createLogger('CommandRouter');
 /**
  * Command Router — 命令路由分发服务
  *
@@ -46,15 +47,19 @@ export class CommandRouter {
   private handlers: Map<string, CommandHandler> = new Map();
   private repo: ChatOpsCommandHandlerRepository | null;
   private tenantId: string | null;
+  /** Task 5.4: Shell 执行器 fallback（服务未接入时真实执行） */
+  private shellExecutor?: ShellCommandExecutor;
 
   constructor(
     services: Map<string, any>,
     db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
     tenantId?: string,
+    shellExecutor?: ShellCommandExecutor,
   ) {
     this.services = services;
     this.repo = db ? new ChatOpsCommandHandlerRepository(db) : null;
     this.tenantId = tenantId ?? null;
+    this.shellExecutor = shellExecutor;
     // 注册内置处理器
     this.registerBuiltinHandlers();
   }

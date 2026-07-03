@@ -10,12 +10,14 @@
  * - 保持对外公开接口不变
  */
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { LowcodeWorkflowDefinitionPgRepository, LowcodeWorkflowDefinitionEntity } from '../../repositories/LowcodeWorkflowDefinitionRepository';
 import { LowcodeWorkflowInstancePgRepository, LowcodeWorkflowInstanceEntity } from '../../repositories/LowcodeWorkflowInstanceRepository';
-import { OrionError, ErrorCode } from '../../errors';
+import { LowcodeWorkflowVersionPgRepository, LowcodeWorkflowVersionEntity } from '../../repositories/LowcodeWorkflowVersionRepository';
+import { LowcodeFlowTemplatePgRepository, LowcodeFlowTemplateEntity } from '../../repositories/LowcodeFlowTemplateRepository';
+import { OrionError, ErrorCode, ValidationError, NotFoundError } from '../../errors';
 
-const logger = pino({ name: 'LowcodeWorkflowService' });
+const logger = createLogger('LowcodeWorkflowService');
 
 // ==================== 数据类型定义 ====================
 
@@ -527,7 +529,7 @@ export class LowcodeWorkflowService {
    * 更新实例状态
    */
   async updateInstanceStatus(id: string, status: string, error?: string): Promise<WorkflowInstance | null> {
-    let existing = await this.getInstanceById(id);
+    const existing = await this.getInstanceById(id);
     if (!existing) {
       return null;
     }
@@ -571,7 +573,7 @@ export class LowcodeWorkflowService {
    * 更新实例变量
    */
   async updateInstanceVariables(id: string, variables: Record<string, unknown>): Promise<WorkflowInstance | null> {
-    let existing = await this.getInstanceById(id);
+    const existing = await this.getInstanceById(id);
     if (!existing) {
       return null;
     }
@@ -599,7 +601,7 @@ export class LowcodeWorkflowService {
    * 添加实例历史记录
    */
   async addInstanceHistory(id: string, historyItem: Record<string, unknown>): Promise<void> {
-    let existing = await this.getInstanceById(id);
+    const existing = await this.getInstanceById(id);
     if (!existing) {
       throw new OrionError(`Workflow instance not found: ${id}`, ErrorCode.NOT_FOUND);
     }

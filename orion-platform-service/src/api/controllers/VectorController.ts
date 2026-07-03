@@ -11,7 +11,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CodeEmbeddingService } from '../../services/ai/CodeEmbeddingService';
 import { SemanticSearchService } from '../../services/ai/SemanticSearchService';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
@@ -364,7 +364,7 @@ export class VectorController {
         const startTime = Date.now();
         const errors: Array<{ index: number; error: string }> = [];
         let processed = 0;
-        let skipped = 0;
+        const skipped = 0;
 
         for (let i = 0; i < inputs.length; i++) {
           try {

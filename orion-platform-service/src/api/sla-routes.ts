@@ -29,7 +29,7 @@ import { success, created, badRequest, notFound, internalError } from '../utils/
 import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'sla-routes' });
 

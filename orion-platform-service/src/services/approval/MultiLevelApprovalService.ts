@@ -4,12 +4,12 @@
  * Phase 2: 支持多级串行/并行审批、审批链查询、待办列表等高级功能。
  * 基于现有的 ApprovalRepository 进行扩展。
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('approval-multilevel');
 
 export enum ApprovalAction {
   APPROVE = 'approve',

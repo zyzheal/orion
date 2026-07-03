@@ -13,6 +13,5 @@ export { AIDecisionsRoutes, aiDecisionsService } from './ai-decisions.routes';
 export { AIDegradationRoutes, aiDegradationService } from './ai-degradation.routes';
 export { ChaosRoutes, chaosEngineeringService } from './chaos.routes';
 export { ResilienceScoreRoutes, resilienceScoreService } from './resilience-score.routes';
-export { SBOMRoutes, sbomService } from './sbom.routes';
 export { DigitalTwinRoutes, digitalTwinService } from './digital-twin.routes';
 export { GovernanceRoutes, governanceService } from './governance.routes';

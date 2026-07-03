@@ -4,7 +4,7 @@
  * 配置变更事件总线 - PostgreSQL 持久化 + 内存降级
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ConfigEventRepository } from '../../repositories/ConfigEventRepository';
 
 const logger = pino({ name: 'ConfigEventBus' });

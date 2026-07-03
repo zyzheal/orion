@@ -18,7 +18,7 @@ import { IncidentRepository, Incident, CreateIncidentInput } from './IncidentRep
 import { IncidentTimelineRepository } from '../../repositories/IncidentTimelineRepository';
 import { IncidentPostmortemRepository, PostmortemUpdateInput } from '../../repositories/IncidentPostmortemRepository';
 import { OrionError, ErrorCode } from '../../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'IncidentService' });
 

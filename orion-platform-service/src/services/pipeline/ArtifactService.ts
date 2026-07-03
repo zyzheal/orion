@@ -14,7 +14,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactRecordRepository } from '../../repositories/ArtifactRecordRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

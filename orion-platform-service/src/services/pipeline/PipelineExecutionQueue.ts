@@ -14,7 +14,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import { DatabasePool, QueryResult } from '../../services/database';
 

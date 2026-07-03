@@ -16,6 +16,7 @@ export {
   type IRiskAssessor,
   type DecisionMakerConfig,
 } from './HealingDecisionMaker';
+export { KnowledgeBaseService } from './KnowledgeBaseService';
 
 // Database-backed Repository and Service
 export {

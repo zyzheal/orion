@@ -5,7 +5,7 @@
  * including creation, scheduling, execution, and cancellation.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ReleaseTrainRepository,

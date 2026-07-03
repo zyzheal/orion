@@ -9,7 +9,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmationRepository, ConfirmationEntity, ConfirmationAuditEntity, NotificationSettingsEntity, FindAllResult } from '../../repositories/ConfirmationRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LConfirmation-LService' });
 
@@ -53,7 +53,7 @@ interface MemoryNotificationSettings {
 // Module-level singleton for in-memory fallback
 const memoryConfirmations = new Map<string, MemoryConfirmation>();
 const memoryAudits = new Map<string, MemoryAudit>();
-let auditSequence = 0;
+const auditSequence = 0;
 const memoryNotificationSettings = new Map<string, MemoryNotificationSettings>();
 
 // ============================================================
@@ -267,7 +267,7 @@ export class ConfirmationService {
 
   async approve(id: string, input: ConfirmationInput): Promise<ConfirmationRequest | null> {
     // Check in-memory store first (for items created via fallback path)
-    let entity = this.inMemoryStore.get(id);
+    const entity = this.inMemoryStore.get(id);
     if (entity && entity.status === 'pending') {
       const now = new Date();
       entity.status = 'confirmed';
@@ -305,7 +305,7 @@ export class ConfirmationService {
 
   async reject(id: string, input: ConfirmationInput): Promise<ConfirmationRequest | null> {
     // Check in-memory store first (for items created via fallback path)
-    let entity = this.inMemoryStore.get(id);
+    const entity = this.inMemoryStore.get(id);
     if (entity && entity.status === 'pending') {
       const now = new Date();
       entity.status = 'rejected';

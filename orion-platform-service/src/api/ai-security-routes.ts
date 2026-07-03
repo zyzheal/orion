@@ -13,7 +13,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { AISecurityService, AISecurityConfig } from '../services/ai-security';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'ai-security-routes' });
 
@@ -64,10 +65,7 @@ export default async function aiSecurityRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to list security scans');
-        return reply.status(500).send({
-          error: 'SCANS_LIST_FAILED',
-          message: error.message || 'Failed to list security scans',
-        });
+        return handleError(reply, new OrionError('SCANS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -91,19 +89,13 @@ export default async function aiSecurityRoutes(
         const logs = await service.getAuditLogsAsync({ sessionId: id });
 
         if (logs.length === 0) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Security scan session ${id} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         return reply.send({ data: logs });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get security scan');
-        return reply.status(500).send({
-          error: 'SCAN_DETAIL_FAILED',
-          message: error.message || 'Failed to get security scan detail',
-        });
+        return handleError(reply, new OrionError('SCAN_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -125,10 +117,7 @@ export default async function aiSecurityRoutes(
         const body = request.body as { input: string };
 
         if (!body.input) {
-          return reply.status(400).send({
-            error: 'BAD_REQUEST',
-            message: 'input is required',
-          });
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
         }
 
         const userId = (request as any).user?.id || 'unknown';
@@ -137,16 +126,10 @@ export default async function aiSecurityRoutes(
         return reply.status(201).send({ data: result });
       } catch (error: any) {
         if (error.name === 'SecurityError') {
-          return reply.status(403).send({
-            error: 'SECURITY_VIOLATION',
-            message: error.message,
-          });
+          return handleError(reply, new ForbiddenError('SECURITY_VIOLATION'))
         }
         logger.error({ error }, 'Security scan failed');
-        return reply.status(500).send({
-          error: 'SCAN_FAILED',
-          message: error.message || 'Failed to run security scan',
-        });
+        return handleError(reply, new OrionError('SCAN_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -207,10 +190,7 @@ export default async function aiSecurityRoutes(
         return reply.send({ data: policies });
       } catch (error: any) {
         logger.error({ error }, 'Failed to list security policies');
-        return reply.status(500).send({
-          error: 'POLICIES_LIST_FAILED',
-          message: error.message || 'Failed to list security policies',
-        });
+        return handleError(reply, new OrionError('POLICIES_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -262,19 +242,13 @@ export default async function aiSecurityRoutes(
 
         const policy = policyMap[id];
         if (!policy) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Security policy ${id} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         return reply.send({ data: { id, ...policy } });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get security policy');
-        return reply.status(500).send({
-          error: 'POLICY_DETAIL_FAILED',
-          message: error.message || 'Failed to get security policy',
-        });
+        return handleError(reply, new OrionError('POLICY_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -298,10 +272,7 @@ export default async function aiSecurityRoutes(
 
         const validPolicies = ['input-sanitization', 'execution-sandbox', 'output-validation', 'audit-logging'];
         if (!validPolicies.includes(id)) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Security policy ${id} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         // Map policy ID to config key
@@ -325,10 +296,7 @@ export default async function aiSecurityRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to update security policy');
-        return reply.status(500).send({
-          error: 'POLICY_UPDATE_FAILED',
-          message: error.message || 'Failed to update security policy',
-        });
+        return handleError(reply, new OrionError('POLICY_UPDATE_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -351,10 +319,7 @@ export default async function aiSecurityRoutes(
 
         const validPolicies = ['input-sanitization', 'execution-sandbox', 'output-validation', 'audit-logging'];
         if (!validPolicies.includes(id)) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Security policy ${id} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         const configKeyMap: Record<string, keyof AISecurityConfig> = {
@@ -375,10 +340,7 @@ export default async function aiSecurityRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to disable security policy');
-        return reply.status(500).send({
-          error: 'POLICY_DELETE_FAILED',
-          message: error.message || 'Failed to disable security policy',
-        });
+        return handleError(reply, new OrionError('POLICY_DELETE_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -428,10 +390,7 @@ export default async function aiSecurityRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to list security alerts');
-        return reply.status(500).send({
-          error: 'ALERTS_LIST_FAILED',
-          message: error.message || 'Failed to list security alerts',
-        });
+        return handleError(reply, new OrionError('ALERTS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -458,10 +417,7 @@ export default async function aiSecurityRoutes(
 
         const alert = logs.find((log) => log.id === id);
         if (!alert) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Security alert ${id} not found`,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
 
         return reply.send({
@@ -476,10 +432,7 @@ export default async function aiSecurityRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get security alert');
-        return reply.status(500).send({
-          error: 'ALERT_DETAIL_FAILED',
-          message: error.message || 'Failed to get security alert detail',
-        });
+        return handleError(reply, new OrionError('ALERT_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

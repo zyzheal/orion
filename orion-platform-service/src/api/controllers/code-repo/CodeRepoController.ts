@@ -392,6 +392,33 @@ export class CodeRepoController {
   }
 
   /**
+   * 更新 PR/MR
+   */
+  async updatePullRequest(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { adapterId, repoId, prId } = request.params as {
+        adapterId: string;
+        repoId: string;
+        prId: string;
+      };
+      const body = request.body as {
+        title?: string;
+        body?: string;
+      };
+
+      const adapter = getAdapter(adapterId);
+      const pr = await adapter.updatePullRequest(repoId, prId, body);
+
+      return reply.send({ success: true, data: pr });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
    * 添加 Review
    */
   async addReview(request: FastifyRequest, reply: FastifyReply) {

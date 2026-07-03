@@ -2,7 +2,7 @@
  * SessionRepository - Comprehensive Tests
  *
  * Tests for session CRUD, token lookup, revocation,
- * cleanup, user sessions, and token refresh.
+ * cleanup, user active_sessions, and token refresh.
  */
 
 import { SessionRepository, Session } from '../SessionRepository';
@@ -45,7 +45,7 @@ describe('SessionRepository', () => {
 
       expect(result).toEqual(mockSession);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'INSERT INTO sessions (user_id, tenant_id, token, expires_at) VALUES ($1, $2, $3, $4) RETURNING *',
+        'INSERT INTO active_sessions (user_id, tenant_id, session_token, expires_at) VALUES ($1, $2, $3, $4) RETURNING *',
         ['user-1', 'tenant-1', 'abc123', expiresAt]
       );
     });
@@ -69,7 +69,7 @@ describe('SessionRepository', () => {
 
       expect(result).toEqual(mockSession);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT * FROM sessions WHERE token = $1 AND expires_at > NOW()',
+        'SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent FROM active_sessions WHERE session_token = $1 AND expires_at > NOW()',
         ['valid-token']
       );
     });
@@ -93,7 +93,7 @@ describe('SessionRepository', () => {
 
       expect(result).toBe(true);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'DELETE FROM sessions WHERE token = $1',
+        'DELETE FROM active_sessions WHERE session_token = $1',
         ['token-1']
       );
     });
@@ -110,18 +110,18 @@ describe('SessionRepository', () => {
   // ─── cleanup ────────────────────────────────────────────────────────────
 
   describe('cleanup', () => {
-    it('should return count of deleted expired sessions', async () => {
+    it('should return count of deleted expired active_sessions', async () => {
       mockDb.query.mockResolvedValue({ rowCount: 12 });
 
       const result = await repo.cleanup();
 
       expect(result).toBe(12);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'DELETE FROM sessions WHERE expires_at < NOW()'
+        'DELETE FROM active_sessions WHERE expires_at < NOW()'
       );
     });
 
-    it('should return 0 when no expired sessions', async () => {
+    it('should return 0 when no expired active_sessions', async () => {
       mockDb.query.mockResolvedValue({ rowCount: 0 });
 
       const result = await repo.cleanup();
@@ -133,41 +133,41 @@ describe('SessionRepository', () => {
   // ─── findByUser ─────────────────────────────────────────────────────────
 
   describe('findByUser', () => {
-    it('should return sessions for user with tenant filter', async () => {
-      const sessions: Session[] = [
+    it('should return active_sessions for user with tenant filter', async () => {
+      const active_sessions: Session[] = [
         { id: 's1', user_id: 'user-1', tenant_id: 't1', token: 'tok1', expires_at: new Date(), created_at: new Date() },
         { id: 's2', user_id: 'user-1', tenant_id: 't1', token: 'tok2', expires_at: new Date(), created_at: new Date() },
       ];
-      mockDb.query.mockResolvedValue({ rows: sessions });
+      mockDb.query.mockResolvedValue({ rows: active_sessions });
 
       const result = await repo.findByUser('user-1', 't1');
 
       expect(result).toHaveLength(2);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT * FROM sessions WHERE user_id = $1 AND tenant_id = $2 AND expires_at > NOW() ORDER BY created_at DESC',
+        'SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent FROM active_sessions WHERE user_id = $1 AND tenant_id = $2 AND expires_at > NOW() ORDER BY created_at DESC',
         ['user-1', 't1']
       );
     });
 
-    it('should return sessions for user without tenant filter', async () => {
-      const sessions: Session[] = [
+    it('should return active_sessions for user without tenant filter', async () => {
+      const active_sessions: Session[] = [
         { id: 's1', user_id: 'user-1', tenant_id: 't1', token: 'tok1', expires_at: new Date(), created_at: new Date() },
       ];
-      mockDb.query.mockResolvedValue({ rows: sessions });
+      mockDb.query.mockResolvedValue({ rows: active_sessions });
 
       const result = await repo.findByUser('user-1');
 
       expect(result).toHaveLength(1);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT * FROM sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC',
+        'SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent FROM active_sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC',
         ['user-1']
       );
     });
 
-    it('should return empty array when user has no sessions', async () => {
+    it('should return empty array when user has no active_sessions', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      const result = await repo.findByUser('user-no-sessions');
+      const result = await repo.findByUser('user-no-active_sessions');
 
       expect(result).toEqual([]);
     });
@@ -191,7 +191,7 @@ describe('SessionRepository', () => {
 
       expect(result).toEqual(refreshed);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'UPDATE sessions SET expires_at = $2 WHERE token = $1 AND expires_at > NOW() RETURNING *',
+        'UPDATE active_sessions SET expires_at = $2, last_activity_at = NOW() WHERE session_token = $1 AND expires_at > NOW() RETURNING id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent',
         ['token-1', expect.any(Date)]
       );
     });

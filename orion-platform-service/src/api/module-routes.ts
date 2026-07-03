@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface ModuleRoutesOptions {
   moduleManager: ModuleManager;
@@ -31,7 +32,7 @@ export default async function moduleRoutes(
   }, async (request, reply) => {
     const mod = moduleManager.getRegistry().get(request.params.id);
     if (!mod) {
-      return reply.status(404).send({ error: 'MODULE_NOT_FOUND', id: request.params.id });
+      return handleError(reply, new NotFoundError('MODULE_NOT_FOUND'));
     }
     return reply.send({ module: mod });
   });
@@ -45,25 +46,19 @@ export default async function moduleRoutes(
 
     const mod = moduleManager.getRegistry().get(id);
     if (!mod) {
-      return reply.status(404).send({ error: 'MODULE_NOT_FOUND', id });
+      return handleError(reply, new NotFoundError('MODULE_NOT_FOUND'));
     }
 
     try {
       await moduleManager.toggleModule(id, enabled);
     } catch (error: any) {
       if (error.message.includes('cannot be disabled')) {
-        return reply.status(400).send({
-          error: 'CORE_MODULE_CANNOT_BE_DISABLED',
-          message: error.message,
-        });
+        return handleError(reply, new ValidationError('CORE_MODULE_CANNOT_BE_DISABLED'))
       }
       if (error.message.includes('not found')) {
-        return reply.status(404).send({ error: 'MODULE_NOT_FOUND', id });
+        return handleError(reply, new NotFoundError('MODULE_NOT_FOUND'));
       }
-      return reply.status(500).send({
-        error: 'MODULE_TOGGLE_FAILED',
-        message: error.message,
-      });
+      return handleError(reply, new OrionError('MODULE_TOGGLE_FAILED', ErrorCode.INTERNAL_ERROR))
     }
     return reply.send({ module: moduleManager.getRegistry().get(id) });
   });

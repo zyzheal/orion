@@ -31,7 +31,7 @@ import * as jwt from 'jsonwebtoken';
 import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -80,6 +80,8 @@ export function initJwtAuth(
  * Validates Authorization header, verifies JWT signature using
  * centralized key management, checks token blacklist, and validates
  * user status.
+ *
+ * Also normalizes tenant_id/tenantId field names for backward compatibility.
  */
 export async function jwtAuth(
   request: FastifyRequest,
@@ -111,8 +113,15 @@ export async function jwtAuth(
         });
       }
     } catch (err) {
-      // Non-fatal: if blacklist check fails, continue with verification
-      logger.warn('[JwtAuth] Blacklist check failed, continuing:', err);
+      // Fail-closed: if blacklist check fails, reject the request
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error('[JwtAuth] Blacklist check failed, rejecting request:', errMsg);
+      return reply.code(503).send({
+        success: false,
+        error: 'SERVICE_UNAVAILABLE',
+        code: '20150',
+        message: 'Token validation service temporarily unavailable',
+      });
     }
   }
 
@@ -148,9 +157,25 @@ export async function jwtAuth(
           }
         }
       } catch (statusErr) {
-        // Non-fatal: if DB is unavailable, allow request through
-        logger.warn('[JwtAuth] User status check failed, allowing request:', statusErr);
+        // Fail-closed: if DB is unavailable, reject request
+        const errMsg = statusErr instanceof Error ? statusErr.message : String(statusErr);
+        logger.error('[JwtAuth] User status check failed, rejecting request:', errMsg);
+        return reply.code(503).send({
+          success: false,
+          error: 'SERVICE_UNAVAILABLE',
+          code: '20150',
+          message: 'User status validation service temporarily unavailable',
+        });
       }
+    }
+
+    // Normalize field names for backward compatibility
+    // Support both tenantId (camelCase) and tenant_id (snake_case)
+    if (decoded.tenant_id && !decoded.tenantId) {
+      (decoded as any).tenantId = decoded.tenant_id;
+    }
+    if (decoded.tenantId && !decoded.tenant_id) {
+      (decoded as any).tenant_id = decoded.tenantId;
     }
 
     request.user = decoded;

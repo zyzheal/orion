@@ -5,7 +5,7 @@
  * for canary deployments.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CanaryTrafficService, TrafficSplitConfig } from './CanaryTrafficService';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

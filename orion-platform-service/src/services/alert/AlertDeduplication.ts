@@ -12,7 +12,7 @@
  */
 
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   Alert,
   AlertFingerprint,

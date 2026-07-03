@@ -200,7 +200,7 @@ export class InMemoryDb {
     rows = this.applyWhere(rows, whereClause, params);
 
     // Apply updates
-    let paramOffset = 0;
+    const paramOffset = 0;
     for (const part of setParts) {
       const assignMatch = part.match(/(\w+)\s*=\s*\$(\d+)/);
       if (assignMatch) {
@@ -245,7 +245,7 @@ export class InMemoryDb {
     const tableName = this.parseTableName(sql, 'FROM');
     const table = this.getTable(tableName);
 
-    let rows = Array.from(table.rows.values());
+    const rows = Array.from(table.rows.values());
 
     // Apply WHERE
     const whereIdx = sql.toUpperCase().indexOf('WHERE');

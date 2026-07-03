@@ -9,7 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { MetadataRepository } from '../../repositories/MetadataRepository';
 
 const logger = pino({ name: 'MetadataService' });

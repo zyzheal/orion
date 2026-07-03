@@ -14,7 +14,7 @@ import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { RunbookDefinitionRepository, RunbookExecutionRepository } from '../services/runbook/RunbookRepository';
 import { RunbookService } from '../services/runbook/RunbookService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'runbook-routes' });
 

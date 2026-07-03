@@ -12,7 +12,7 @@
  * 6. 执行审计日志
  */
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { HookChainDefinitionRepository } from '../../repositories/HookChainDefinitionRepository';
 import { HookChainExecutionRepository } from '../../repositories/HookChainExecutionRepository';

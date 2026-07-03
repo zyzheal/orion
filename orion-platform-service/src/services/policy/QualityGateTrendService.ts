@@ -101,7 +101,7 @@ export class QualityGateTrendService {
    */
   async getViolationDistribution(days: number = 30, groupBy: ViolationGroupBy = 'severity'): Promise<ViolationDistributionItem[]> {
     let selectExpr: string;
-    let whereClause = `v.created_at >= NOW() - INTERVAL '${days} days'`;
+    const whereClause = `v.created_at >= NOW() - INTERVAL '${days} days'`;
 
     if (groupBy === 'severity') {
       selectExpr = 'v.severity AS key';

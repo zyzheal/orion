@@ -29,7 +29,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CapabilityService } from '../services/capability';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 
 const logger = pino({ name: 'require-LCapability' });

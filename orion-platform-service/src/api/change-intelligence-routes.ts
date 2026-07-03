@@ -17,7 +17,7 @@ import {
 import { ChangeIntelligenceController } from './controllers/ChangeIntelligenceController';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'change-intelligence-routes' });
 

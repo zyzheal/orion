@@ -4,7 +4,7 @@
  * Phase 2: 提供紧急审批通道，支持快速审批和自动批准。
  * 用于生产事故修复、紧急变更等场景。
  */
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { OrionError, ErrorCode } from '../../errors';

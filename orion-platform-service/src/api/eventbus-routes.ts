@@ -9,11 +9,12 @@
  * - Config persisted to event_bus_config table
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import {  OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { EventBusService } from '../services/event-bus-service';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'eventbus-routes' });
 import {
@@ -74,12 +75,12 @@ export default async function eventbusRoutes(
       tenantId?: string;
       publishedBy?: string;
     };
-    if (!subject) return reply.status(400).send({ error: 'SUBJECT_REQUIRED' });
+    return handleError(reply, new ValidationError('SUBJECT_REQUIRED'));
     try {
       await service.publish(subject, data, { tenantId, publishedBy });
       return reply.send({ success: true });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -100,7 +101,7 @@ export default async function eventbusRoutes(
       await service.connect();
       return reply.send({ success: true });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -115,7 +116,7 @@ export default async function eventbusRoutes(
     };
     const limitNum = limit ? parseInt(limit, 10) : 50;
     if (limit && isNaN(limitNum)) {
-      return reply.status(400).send({ error: 'INVALID_LIMIT', message: 'limit must be a valid number' });
+      return handleError(reply, new ValidationError('INVALID_LIMIT'));
     }
     try {
       const events = await service.getEventHistory({
@@ -125,7 +126,7 @@ export default async function eventbusRoutes(
       });
       return reply.send({ events });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -138,7 +139,7 @@ export default async function eventbusRoutes(
       const subscriptions = await service.getSubscriptions(tenantId);
       return reply.send({ subscriptions });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -150,7 +151,7 @@ export default async function eventbusRoutes(
       const stats = await service.getEventStats();
       return reply.send({ stats });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -165,7 +166,7 @@ export default async function eventbusRoutes(
       const metrics = await service.getJetStreamMetrics();
       return reply.send({ available: true, metrics });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -181,7 +182,7 @@ export default async function eventbusRoutes(
       const consumers = await service.listConsumers(name);
       return reply.send({ stream: name, consumers });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -192,7 +193,7 @@ export default async function eventbusRoutes(
     const { limit } = request.query as { limit?: string };
     const limitNum = limit ? parseInt(limit, 10) : 50;
     if (limit && isNaN(limitNum)) {
-      return reply.status(400).send({ error: 'INVALID_LIMIT', message: 'limit must be a valid number' });
+      return handleError(reply, new ValidationError('INVALID_LIMIT'));
     }
     try {
       const events = await service.getEventHistory({
@@ -204,7 +205,7 @@ export default async function eventbusRoutes(
         events,
       });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
   });
 }

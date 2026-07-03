@@ -14,7 +14,8 @@ import { AIGateway } from '../services/ai/AIGateway';
 import { AIGenerateService, GenerateRequest } from '../services/ai/AIGenerateService';
 import { AIDiagnosisService, DiagnosisContext } from '../services/ai/AIDiagnosisService';
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
 const logger = pino({ name: 'ai-gateway-routes' });
 
@@ -52,10 +53,7 @@ export default async function aiGatewayRoutes(
         const body = request.body as GenerateRequest;
 
         if (!body.prompt) {
-          return reply.status(400).send({
-            error: 'BAD_REQUEST',
-            message: 'prompt is required',
-          });
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
         }
 
         const result = await generateService.generateScript({
@@ -67,10 +65,7 @@ export default async function aiGatewayRoutes(
         return reply.status(201).send({ data: result });
       } catch (error: any) {
         logger.error({ error }, 'AI generate failed');
-        return reply.status(500).send({
-          error: 'GENERATE_FAILED',
-          message: error.message || 'Failed to generate AI content',
-        });
+        return handleError(reply, new OrionError('GENERATE_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -94,10 +89,7 @@ export default async function aiGatewayRoutes(
         const body = request.body as DiagnosisContext;
 
         if (!body.errorMessage) {
-          return reply.status(400).send({
-            error: 'BAD_REQUEST',
-            message: 'errorMessage is required',
-          });
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
         }
 
         const result = await diagnosisService.diagnose({
@@ -113,10 +105,7 @@ export default async function aiGatewayRoutes(
         return reply.send({ data: result });
       } catch (error: any) {
         logger.error({ error }, 'AI diagnosis failed');
-        return reply.status(500).send({
-          error: 'DIAGNOSIS_FAILED',
-          message: error.message || 'Failed to run AI diagnosis',
-        });
+        return handleError(reply, new OrionError('DIAGNOSIS_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -147,10 +136,7 @@ export default async function aiGatewayRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to list AI models');
-        return reply.status(500).send({
-          error: 'MODELS_LIST_FAILED',
-          message: error.message || 'Failed to list available models',
-        });
+        return handleError(reply, new OrionError('MODELS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -180,10 +166,7 @@ export default async function aiGatewayRoutes(
         });
       } catch (error: any) {
         logger.error({ error }, 'Failed to get AI gateway health');
-        return reply.status(500).send({
-          error: 'HEALTH_CHECK_FAILED',
-          message: error.message || 'Failed to check AI gateway health',
-        });
+        return handleError(reply, new OrionError('HEALTH_CHECK_FAILED', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

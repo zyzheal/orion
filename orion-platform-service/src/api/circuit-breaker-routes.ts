@@ -21,6 +21,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { CircuitBreakerService } from '../services/circuit-breaker/circuit-breaker-service';
 import type { CircuitBreakerConfig } from '../utils/rate-limit-circuit-breaker';
+import { ValidationError, NotFoundError, ServiceUnavailableError, handleError } from '../errors';
 
 interface CircuitBreakerRoutesOptions {
   circuitBreakerService?: CircuitBreakerService;
@@ -38,7 +39,7 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const all = await circuitBreakerService.listAll();
@@ -52,7 +53,7 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const summary = await circuitBreakerService.getSummary();
@@ -66,17 +67,13 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const { targetKey } = request.params as { targetKey: string };
       const state = await circuitBreakerService.getState(targetKey);
       if (!state) {
-        return reply.code(404).send({
-          success: false,
-          error: 'NOT_FOUND',
-          message: `Circuit breaker not found for key: ${targetKey}`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       // Get recent events
@@ -101,12 +98,12 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const body = request.body as any;
       if (!body.targetKey) {
-        return reply.code(400).send({ success: false, error: 'VALIDATION_ERROR', message: 'targetKey is required' });
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
 
       const config: CircuitBreakerConfig = {
@@ -131,7 +128,7 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const { targetKey } = request.params as { targetKey: string };
@@ -157,7 +154,7 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const { targetKey } = request.params as { targetKey: string };
@@ -176,7 +173,7 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'write' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const { targetKey } = request.params as { targetKey: string };
@@ -195,7 +192,7 @@ export default async function circuitBreakerRoutes(
     { preHandler: [authenticateUser, requirePermission({ resource: 'circuit-breaker', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!circuitBreakerService) {
-        return reply.code(503).send({ success: false, error: 'Circuit breaker service not initialized' });
+        return handleError(reply, new ServiceUnavailableError('Circuit breaker service not initialized'));
       }
 
       const { targetKey } = request.params as { targetKey: string };

@@ -1,7 +1,7 @@
 // orion-platform-service/src/services/ai/AIDiagnosisService.ts
 // AI Diagnosis Service - error root cause analysis with rule-based fallback
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

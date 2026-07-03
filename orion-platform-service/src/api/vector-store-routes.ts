@@ -11,6 +11,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { VectorStore } from '../services/ai/VectorStore';
 import { VectorStoreConfig } from '../services/ai/types';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 interface VectorStoreRoutesOptions {
   database?: DatabasePool;
@@ -36,7 +37,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { content, metadata } = request.body as { content: string; metadata?: Record<string, any> };
-    if (!content) return reply.status(400).send({ error: 'CONTENT_REQUIRED' });
+    return handleError(reply, new ValidationError('CONTENT_REQUIRED'));
 
     const id = await vectorStore.addDocument(content, metadata);
     return reply.send({ id, persistent: vectorStore.isPersistent });
@@ -51,7 +52,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
       topK?: number;
       filter?: Record<string, any>;
     };
-    if (!query) return reply.status(400).send({ error: 'QUERY_REQUIRED' });
+    return handleError(reply, new ValidationError('QUERY_REQUIRED'));
 
     const results = await vectorStore.search({ query, topK, filter });
     return reply.send({ results });
@@ -63,7 +64,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const deleted = await vectorStore.deleteDocument(id);
-    if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND' });
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
     return reply.send({ success: true });
   });
 

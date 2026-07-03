@@ -5,7 +5,7 @@
  * packages, and attestations.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   SbomDocumentRepository,
   SbomDocumentEntity,

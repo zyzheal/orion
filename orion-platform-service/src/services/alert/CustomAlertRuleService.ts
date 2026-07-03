@@ -8,7 +8,7 @@
  * 4. 告警通知渠道集成
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { BaseRepository, FindAllOptions, FindAllResult } from '../../db/base-repository';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';

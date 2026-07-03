@@ -209,6 +209,88 @@ export class CostOperationsController {
    * 分析资源利用率
    * POST /api/v1/cost-operations/analyze-utilization
    */
+  /**
+   * 删除预算门禁
+   * DELETE /api/v1/cost-operations/budget-guards/:id
+   */
+  async deleteBudgetGuard(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const tenantId = (request as any).tenantId || 'default';
+      const deleted = await this.budgetGuardService.deleteBudgetGuard(params.id, tenantId);
+
+      if (!deleted) {
+        return reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: 'Budget guard ' + params.id + ' not found',
+        });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Budget guard deleted',
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'DELETE_GUARD_ERROR', message: error.message });
+    }
+  }
+
+  /**
+   * 应用优化建议
+   * POST /api/v1/cost-operations/optimizations/:id/apply
+   */
+  async applyOptimization(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const tenantId = (request as any).tenantId || 'default';
+
+      const updated = await this.optimizationService.applySuggestion(tenantId, params.id);
+
+      if (!updated) {
+        return reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: 'Optimization ' + params.id + ' not found',
+        });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: { optimization: updated },
+        message: 'Optimization applied',
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'APPLY_OPTIMIZATION_ERROR', message: error.message });
+    }
+  }
+
+  /**
+   * 拒绝优化建议
+   * POST /api/v1/cost-operations/optimizations/:id/reject
+   */
+  async rejectOptimization(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const tenantId = (request as any).tenantId || 'default';
+
+      const updated = await this.optimizationService.rejectSuggestion(tenantId, params.id);
+
+      if (!updated) {
+        return reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: 'Optimization ' + params.id + ' not found',
+        });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: { optimization: updated },
+        message: 'Optimization rejected',
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'REJECT_OPTIMIZATION_ERROR', message: error.message });
+    }
+  }
+
   async analyzeUtilization(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any;

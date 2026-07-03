@@ -17,6 +17,7 @@ import { DatabasePool } from '../services/database';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
+import { ServiceUnavailableError, handleError } from '../errors';
 
 
 interface ChaosRoutesOptions {
@@ -32,10 +33,7 @@ export default async function chaosRoutes(
   if (!db) {
     // Register placeholder handlers when DB is not available
     app.all('/*', async (_request: FastifyRequest, reply: FastifyReply) => {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Chaos Engineering service requires database connection',
-      });
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'))
     });
     return;
   }

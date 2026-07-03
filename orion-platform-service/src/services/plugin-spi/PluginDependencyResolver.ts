@@ -11,7 +11,7 @@
  * detects cycles and produces a valid installation order.
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../../errors';
 import {
   PluginManifest,

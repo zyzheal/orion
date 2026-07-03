@@ -151,7 +151,7 @@ export class WebhookTriggerHandler {
     // If endpoint has an associated trigger, evaluate it
     let triggerId: string | undefined;
     let eventId: string | undefined;
-    let matched = false;
+    const matched = false;
 
     if (endpoint.trigger_id) {
       triggerId = endpoint.trigger_id;

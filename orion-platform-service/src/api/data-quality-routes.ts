@@ -11,7 +11,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { DataQualityService } from '../services/data-quality/DataQualityService';
 import { DatabasePool } from '../services/database';
 import { handleError } from '../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -31,7 +31,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.post('/data-quality/rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as any;
       const tenantId = String((request as any).user?.tenantId || 'default');
@@ -46,7 +46,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.get('/data-quality/rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = String((request as any).user?.tenantId || 'default');
       const rules = await service.listRules(tenantId);
@@ -60,11 +60,11 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.get('/data-quality/rules/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const rule = await service.getRule(id);
-      if (!rule) return reply.status(404).send({ success: false, error: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.send({ success: true, data: rule });
     } catch (error) {
       return handleError(reply, error);
@@ -75,12 +75,12 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.put('/data-quality/rules/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const body = request.body as any;
       const rule = await service.updateRule(id, body);
-      if (!rule) return reply.status(404).send({ success: false, error: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.send({ success: true, data: rule });
     } catch (error) {
       return handleError(reply, error);
@@ -91,11 +91,11 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.delete('/data-quality/rules/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const deleted = await service.deleteRule(id);
-      if (!deleted) return reply.status(404).send({ success: false, error: 'NOT_FOUND' });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
       return reply.send({ success: true });
     } catch (error) {
       return handleError(reply, error);
@@ -106,7 +106,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.post('/data-quality/rules/:id/run', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const { id } = request.params as { id: string };
       const check = await service.runCheck(id);
@@ -120,7 +120,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   app.get('/data-quality/checks', {
     onRequest: [authenticateUser, requirePermission({ resource: 'data-quality', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+    return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const tenantId = String((request as any).user?.tenantId || 'default');
       const query = request.query as any;

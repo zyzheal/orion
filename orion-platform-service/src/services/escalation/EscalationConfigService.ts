@@ -6,7 +6,7 @@
 
 import { DatabasePool } from '../database';
 import { EscalationPolicyRepository } from '../../repositories/EscalationPolicyRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LEscalation-LConfig-LService' });
 

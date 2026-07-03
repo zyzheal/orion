@@ -31,11 +31,10 @@ import {
   RiskLevel,
 } from './types';
 import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
-import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LSelf-LHealing-LService' });
+const logger = createLogger('self-healing-service');
 
 // ==================== Options ====================
 

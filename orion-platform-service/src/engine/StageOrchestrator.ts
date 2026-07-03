@@ -39,7 +39,7 @@ import { PipelineExecution } from './PipelineEngine';
 import { VariableContext } from './VariableContext';
 import { GrayScaleController } from './GrayScaleController';
 import { MultiTargetExecutor, MultiTargetResult } from './MultiTargetExecutor';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -183,6 +183,56 @@ export class StageOrchestrator {
         'GAP-06: Pre-marked stages as SUCCESS (retry from stage / only failed)'
       );
     }
+  }
+
+  /**
+   * Serialize the orchestrator runtime state for a given run.
+   * Used for crash recovery persistence.
+   */
+  serializeState(runId: string): Record<string, unknown> {
+    const variableCtx = this.variableContexts.get(runId);
+    return {
+      variableContexts: {
+        [runId]: variableCtx
+          ? {
+              taskOutputs: { ...(variableCtx as any).taskOutputs },
+              variables: { ...(variableCtx as any).variables },
+            }
+          : { taskOutputs: {}, variables: {} },
+      },
+    };
+  }
+
+  /**
+   * Restore the orchestrator runtime state from a previously serialized snapshot.
+   */
+  restoreState(runId: string, state: Record<string, unknown>): void {
+    const orchestratorState = state as {
+      variableContexts: Record<
+        string,
+        {
+          taskOutputs: Record<string, Record<string, string>>;
+          variables: Record<string, string>;
+        }
+      >;
+    };
+
+    const ctxData = orchestratorState.variableContexts?.[runId];
+    if (!ctxData) return;
+
+    const variableCtx = new VariableContext(runId);
+    // Restore task outputs
+    for (const [taskName, outputs] of Object.entries(ctxData.taskOutputs)) {
+      for (const [key, value] of Object.entries(outputs)) {
+        variableCtx.setTaskOutput(taskName, key, value);
+      }
+    }
+    // Restore pipeline variables via internal map
+    (variableCtx as any).variables = { ...ctxData.variables };
+
+    this.variableContexts.set(runId, variableCtx);
+    this.parameterResolvers.set(runId, new StageParameterResolver(variableCtx));
+    this.conditionRouters.set(runId, new ConditionRouter(variableCtx));
   }
 
   /**

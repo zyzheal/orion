@@ -19,7 +19,7 @@ import {
 } from './types';
 import { DiffAnalyzer } from './DiffAnalyzer';
 import { ReviewRuleRepository, ReviewRuleEntity } from '../../repositories/ReviewRuleRepository';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LReview-LRule-LEngine' });
 

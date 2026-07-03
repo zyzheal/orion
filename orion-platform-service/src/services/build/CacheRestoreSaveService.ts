@@ -8,7 +8,7 @@
  * - 集成三级缓存配置（全局 -> 流水线 -> 任务）
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { CacheStorageDriver, LocalCacheStorageDriver } from './CacheStorageDriver';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

@@ -1,7 +1,7 @@
 // orion-platform-service/src/services/ai/AIGenerateService.ts
 // AI Script Generation Service - generate inline scripts from natural language prompts
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 

@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { AuditLogChain } from './AuditLogChain';
 import { ImmutableAuditStorage } from './ImmutableAuditStorage';
@@ -25,7 +25,7 @@ import {
   ChainedAuditLogEntry,
 } from './AuditTypes';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'integrity-verifier' });
+const logger = createLogger('integrity-verifier');
 
 /**
  * 校验选项

@@ -26,11 +26,15 @@ import { PostgresMetricStorageRepository } from './MetricStorageRepository';
 import { AlertRuleEngine } from './AlertRuleEngine';
 import { AlertNotificationService } from './AlertNotificationService';
 import { MonitoringDashboard } from './MonitoringDashboard';
+import { MonitoringAlertEscalationRepository } from '../repositories/MonitoringAlertEscalationRepository';
 import { AlertRule, AlertChannel, EscalationPolicy } from './types';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 const logger = pino({ name: 'LMonitoring-LService' });
+
+/** Default evaluation window in milliseconds (5 minutes), overridable via env var */
+const DEFAULT_EVALUATION_WINDOW_MS = parseInt(process.env.MONITORING_DEFAULT_EVALUATION_WINDOW_MS || '300000', 10);
 
 export interface ListAlertsOptions {
   page?: number;
@@ -64,6 +68,9 @@ export class MonitoringService {
   readonly notificationService: AlertNotificationService;
   readonly dashboard: MonitoringDashboard;
 
+  // Escalation persistence (PostgreSQL)
+  private escalationRepository?: MonitoringAlertEscalationRepository;
+
   // Service state
   private running = false;
   private collectionTimer?: NodeJS.Timeout;
@@ -75,12 +82,17 @@ export class MonitoringService {
     // Create metric storage repository if database is available
     const metricRepo = dbPool ? new PostgresMetricStorageRepository(dbPool) : undefined;
 
+    // Create escalation persistence repository if database is available
+    if (dbPool) {
+      this.escalationRepository = new MonitoringAlertEscalationRepository(dbPool);
+    }
+
     // Initialize sub-services
     this.metricCollector = new MetricCollector({
       repository: metricRepo,
     });
     this.alertRuleEngine = new AlertRuleEngine(this.metricCollector, dbPool);
-    this.notificationService = new AlertNotificationService();
+    this.notificationService = new AlertNotificationService(dbPool);
     this.dashboard = new MonitoringDashboard(this.metricCollector);
 
     // Wire alert callbacks

@@ -11,7 +11,7 @@ import { DynamicParamsResolver, TriggerContext } from '../../services/pipeline/D
 import { PipelineBudgetService } from '../../services/pipeline/PipelineBudgetService';
 import { PipelineTenantIsolationService } from '../../services/pipeline/PipelineTenantIsolationService';
 import { PipelineRBACService } from '../../services/pipeline/PipelineRBACService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'LPipeline-LRun-LController' });
 

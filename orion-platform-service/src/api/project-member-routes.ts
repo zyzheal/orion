@@ -10,6 +10,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission, getAuthzEngine } from '../middleware/requirePermission';
 import { RelationshipService } from '../services/authz/RelationshipService';
 import { DatabasePool } from '../services/database';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
 interface MemberRoutesOptions {
   database?: DatabasePool;
@@ -41,7 +42,7 @@ export default async function projectMemberRoutes(
   }
 
   function handleError(error: Error, reply: FastifyReply) {
-    return reply.status(500).send({ error: error.name, message: error.message });
+    return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
   }
 
   // GET /api/v1/project-members/:projectId - 获取项目成员列表

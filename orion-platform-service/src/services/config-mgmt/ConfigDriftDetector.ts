@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfigDriftRepository, ConfigDriftEntity } from '../../repositories/ConfigDriftRepository';
 import { ConfigService } from './ConfigService';
 import { OrionError, ErrorCode } from '../../errors';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 const logger = pino({ name: 'ConfigDriftDetector' });
 
