@@ -1976,3 +1976,92 @@ Supplemented TDD test coverage for 7 modules in orion-platform-service that had 
 - `docs/analysis/service-deep-analysis-2026-07-04.md` (created)
 - `docs/implementation-plan-2026-07-02.md` (updated Task 4.65 status)
 - `scripts/analyze-services.js` (created)
+
+---
+
+## Current Session (2026-07-04) - Task 2.38: ArtifactOperationService FallbackStorageService Migration
+
+### Completed: Migrate ArtifactOperationService from inMemoryOperations Map to FallbackStorageService
+
+**问题**: `src/services/artifact-ops/ArtifactOperationService.ts` 使用模块级 `inMemoryOperations = new Map<string, ArtifactOperationRecord[]>()` 做存储，数据仅存于进程内存，重启丢失，且多实例间不共享。
+
+**修改**:
+1. 移除模块级 `inMemoryOperations` Map 声明
+2. 构造函数中注入 `FallbackStorageService`（DB 模式 `persistToDb=true`，内存模式 `persistToDb=false`）
+3. key 设计：`artifact-ops:tenant:{tenantId}`，支持 tenant_id 隔离
+4. TTL = 0（permanent until explicitly deleted），maxSize = 5000
+5. 所有 `Map.get/set/delete` 替换为 `storage.get/set/delete`（异步）
+6. `updateOperationStatus` 中补充 `await this.storage!.set()` 保存更新后的列表
+7. 日志从 `pino` 迁移到 `createLogger`
+
+#### 验证结果
+- `npx tsc --noEmit 2>&1 | grep -i artifact-ops/ArtifactOperationService` → **无错误**
+- `npx jest --testPathPattern="artifact-ops|ArtifactOperation"` → **5 suites passed, 69 tests passed**
+
+#### Commit
+- `3ab1f1f7` refactor(artifact-ops): migrate ArtifactOperationService from Map to FallbackStorageService
+
+#### Files Changed
+- `src/services/artifact-ops/ArtifactOperationService.ts` (migrated)
+
+---
+
+## Current Session (2026-07-04) - Task 6.10 准备: Go Phase 2 迁移方案分析
+
+### Completed: 10 个业务服务 TS→Go 迁移可行性分析
+
+**任务**: 为 Go 迁移第二阶段（Task 6.10）做准备，分析 10 个候选业务服务的迁移可行性。
+
+**分析的服务**:
+1. approval（审批）
+2. canary-analysis（灰度分析）
+3. chatops（ChatOps）
+4. compliance（合规）
+5. config（配置管理）
+6. incident（事件/Incident）
+7. knowledge（知识库）
+8. monitoring（监控）
+9. report-designer（报表设计器）
+10. user（用户管理）
+
+**核心发现**:
+
+| 服务 | 代码行数 | API 端点 | Go 蓝图 | 难度 | 建议批次 |
+|------|----------|----------|---------|------|----------|
+| approval | 7,601 | 33 | ✅ 1,597 lines | 中高 | 第 1-2 批 |
+| canary-analysis | 1,400 | 19 | ❌ | 低 | 第 1 批 |
+| chatops | 16,280 | 113 | ✅ 2,873 lines | 极高 | 第 3 批 |
+| compliance | 1,313 | - | ❌ | 低 | 第 1 批 |
+| config | 7,780 | 多路由 | ✅ 空目录 | 中高 | 第 2 批 |
+| incident | 2,541 | 47 | ✅ 空目录 | 中 | 第 2 批 |
+| knowledge | 3,425 | - | ❌ | 中 | 第 2 批 |
+| monitoring | 10,062 | 52 | ✅ 8 files | 高 | 第 2-3 批 |
+| report-designer | 1,590 | 21 | ❌ | 中低 | 第 1 批 |
+| user | 3,627 | 多路由 | ❌ | 中 | 第 2 批 |
+
+**建议分批方案**:
+- **第 1 批**（快速 Wins，7 人天）: canary-analysis、compliance、report-designer
+- **第 2 批**（中等复杂度，19 人天）: incident、knowledge、user、approval
+- **第 3 批**（高复杂度，27 人天）: config、monitoring、chatops
+
+**关键依赖关系**:
+- chatops 依赖最广（6 个 Phase 1 服务），必须最后迁移
+- canary-analysis、compliance、incident、report-designer 无强依赖，可独立迁移
+- user 依赖 auth（Phase 1 已完成），可紧随 auth 迁移
+
+**关键风险**:
+- ⚠️ alert 服务 Go 迁移状态未确认，影响 monitoring 批次规划
+- ⚠️ chatops 有 113 个 API 端点，迁移风险极高
+- ⚠️ approval 工作流引擎逻辑复杂，需重构状态机
+
+**输出文档**: `docs/migration/go-phase2-analysis.md`（1,092 行）
+
+**下一步**:
+1. 组织技术评审本方案
+2. 确认 alert 服务 Go 迁移状态
+3. 启动第 1 批试点（canary-analysis）
+4. 确认 2-4 人 Go 开发资源
+
+#### Files Changed
+- `docs/migration/go-phase2-analysis.md` (created, 1092 lines)
+- `claude-progress.txt` (updated)
