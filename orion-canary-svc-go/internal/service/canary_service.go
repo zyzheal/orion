@@ -161,6 +161,16 @@ func (s *CanaryService) GetRunByID(ctx context.Context, id string) (*models.Cana
 	return s.runRepo.FindByID(ctx, id)
 }
 
+// CreateAnalysisRun creates a new analysis run with simulation.
+func (s *CanaryService) CreateAnalysisRun(ctx context.Context, deploymentID string, runNumber int, trafficSplit models.TrafficSplit) (*RunSummary, error) {
+	input := &models.CanaryAnalysisRunCreateInput{
+		DeploymentID: deploymentID,
+		RunNumber:    runNumber,
+		TrafficSplit: trafficSplit,
+	}
+	return s.SimulateAnalysisRun(ctx, input)
+}
+
 // RunSummary aggregates a run with its metrics and ML results.
 type RunSummary struct {
 	Run       models.CanaryAnalysisRun    `json:"run"`

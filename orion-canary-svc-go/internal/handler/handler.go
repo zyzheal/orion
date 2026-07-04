@@ -35,7 +35,39 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	}
 	canaries.DELETE("/:id", auth.RequirePermission("canary", "delete"), h.Delete)
 	canaries.GET("/count", h.Count)
+
+	// ==================== Analysis Runs ====================
+	runs := rg.Group("/runs")
+	{
+		runs.GET("", h.ListAnalysisRuns)
+		runs.POST("", auth.RequirePermission("canary", "write"), h.CreateAnalysisRun)
+		runs.GET("/:id", h.GetAnalysisRun)
+		runs.GET("/:id/metrics", h.GetRunMetrics)
+		runs.GET("/:id/ml-results", h.GetRunMLResults)
+	}
+
+	// ==================== Configs ====================
+	configs := rg.Group("/configs")
+	{
+		configs.GET("", h.ListConfigs)
+		configs.POST("", auth.RequirePermission("canary", "write"), h.CreateConfig)
+		configs.GET("/:service/:env", h.GetConfigByServiceEnv)
+		configs.PUT("/:id", auth.RequirePermission("canary", "write"), h.UpdateConfig)
+		configs.DELETE("/:id", auth.RequirePermission("canary", "delete"), h.DeleteConfig)
+	}
+
+	// ==================== Force Actions ====================
+	rg.POST("/force-promote", auth.RequirePermission("canary", "execute"), h.ForcePromote)
+	rg.POST("/force-rollback", auth.RequirePermission("canary", "execute"), h.ForceRollback)
+
+	// ==================== Metric Discovery ====================
+	rg.GET("/metrics/discover", h.DiscoverMetrics)
+
+	// ==================== Model Management ====================
+	rg.POST("/models/retrain", auth.RequirePermission("canary", "execute"), h.RetrainModel)
 }
+
+// ==================== Canary Deployment Handlers ====================
 
 func (h *Handler) CreateCanary(c *gin.Context) {
 	var canary models.Canary
@@ -157,4 +189,241 @@ func (h *Handler) Count(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
+// ==================== Analysis Run Handlers ====================
+
+func (h *Handler) ListAnalysisRuns(c *gin.Context) {
+	deploymentID := c.Query("deployment_id")
+	status := c.Query("status")
+
+	runs, err := h.svc.ListRuns(c.Request.Context(), deploymentID, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": runs})
+}
+
+func (h *Handler) CreateAnalysisRun(c *gin.Context) {
+	var req models.CanaryAnalysisRunCreateInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.DeploymentID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "deployment_id is required"})
+		return
+	}
+
+	if req.RunNumber == 0 {
+		req.RunNumber = 1
+	}
+	if req.TrafficSplit.Canary == 0 && req.TrafficSplit.Baseline == 0 {
+		req.TrafficSplit = models.TrafficSplit{Canary: 10, Baseline: 90}
+	}
+
+	result, err := h.svc.CreateAnalysisRun(c.Request.Context(), req.DeploymentID, req.RunNumber, req.TrafficSplit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"run":         result.Run,
+		"metrics":     result.Metrics,
+		"ml_results":  result.MLResults,
+	})
+}
+
+func (h *Handler) GetAnalysisRun(c *gin.Context) {
+	id := c.Param("id")
+
+	run, err := h.svc.GetRunByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "analysis run not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, run)
+}
+
+func (h *Handler) GetRunMetrics(c *gin.Context) {
+	runID := c.Param("id")
+
+	metrics, err := h.svc.GetMetricsForRun(c.Request.Context(), runID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": metrics})
+}
+
+func (h *Handler) GetRunMLResults(c *gin.Context) {
+	runID := c.Param("id")
+
+	results, err := h.svc.GetMLResults(c.Request.Context(), runID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": results})
+}
+
+// ==================== Config Handlers ====================
+
+func (h *Handler) ListConfigs(c *gin.Context) {
+	configs, err := h.svc.ListConfigs(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": configs})
+}
+
+func (h *Handler) CreateConfig(c *gin.Context) {
+	var input models.CanaryAnalysisConfigCreateInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.ServiceName == "" || input.Environment == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service_name and environment are required"})
+		return
+	}
+
+	config, err := h.svc.CreateConfig(c.Request.Context(), &input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, config)
+}
+
+func (h *Handler) GetConfigByServiceEnv(c *gin.Context) {
+	serviceName := c.Param("service")
+	environment := c.Param("env")
+
+	config, err := h.svc.GetConfigByServiceEnv(c.Request.Context(), serviceName, environment)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
+}
+
+func (h *Handler) UpdateConfig(c *gin.Context) {
+	id := c.Param("id")
+
+	var input models.CanaryAnalysisConfigUpdateInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	config, err := h.svc.UpdateConfig(c.Request.Context(), id, &input)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
+}
+
+func (h *Handler) DeleteConfig(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.svc.DeleteConfig(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "config deleted"})
+}
+
+// ==================== Force Action Handlers ====================
+
+func (h *Handler) ForcePromote(c *gin.Context) {
+	var req struct {
+		RunID  string `json:"run_id" binding:"required"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Reason == "" {
+		req.Reason = "Manual force promote"
+	}
+
+	run, err := h.svc.ForcePromote(c.Request.Context(), req.RunID, req.Reason)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, run)
+}
+
+func (h *Handler) ForceRollback(c *gin.Context) {
+	var req struct {
+		RunID  string `json:"run_id" binding:"required"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Reason == "" {
+		req.Reason = "Manual force rollback"
+	}
+
+	run, err := h.svc.ForceRollback(c.Request.Context(), req.RunID, req.Reason)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, run)
+}
+
+// ==================== Metric Discovery Handler ====================
+
+func (h *Handler) DiscoverMetrics(c *gin.Context) {
+	metrics := h.svc.DiscoverMetrics()
+	c.JSON(http.StatusOK, gin.H{"data": metrics})
+}
+
+// ==================== Model Retrain Handler ====================
+
+func (h *Handler) RetrainModel(c *gin.Context) {
+	var req struct {
+		ModelName string `json:"model_name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.ModelName == "" {
+		req.ModelName = "default"
+	}
+
+	job, err := h.svc.TriggerModelRetraining(c.Request.Context(), req.ModelName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"job_id": job.ID,
+		"status": job.Status,
+	})
 }
