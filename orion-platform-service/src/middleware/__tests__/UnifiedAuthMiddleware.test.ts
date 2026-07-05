@@ -23,11 +23,13 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing'
 jest.mock('../../services/auth/JwtKeyManager', () => ({
   jwtKeyManager: {
     getCurrentSecret: jest.fn(),
+    verifyWithAnyKey: jest.fn(),
   },
 }));
 
 import { jwtKeyManager } from '../../services/auth/JwtKeyManager';
 const mockGetCurrentSecret = (jwtKeyManager as any).getCurrentSecret;
+const mockVerifyWithAnyKey = (jwtKeyManager as any).verifyWithAnyKey;
 
 // Mock TokenBlacklistService
 const mockIsRevoked = jest.fn();
@@ -67,6 +69,9 @@ describe('UnifiedAuthMiddleware', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetCurrentSecret.mockReturnValue('test-jwt-secret-for-testing');
+    mockVerifyWithAnyKey.mockImplementation((token: string, verifyFn: (secret: string) => any) => {
+      return verifyFn('test-jwt-secret-for-testing');
+    });
     mockIsRevoked.mockResolvedValueOnce(false);
     mockQuery.mockResolvedValueOnce({ rows: [{ status: 'active' }] });
 
@@ -306,6 +311,9 @@ describe('UnifiedAuthMiddleware — CapabilityService not initialized', () => {
   test('returns 500 when CapabilityService not initialized', async () => {
     const mockGetCurrentSecret2 = (jwtKeyManager as any).getCurrentSecret;
     mockGetCurrentSecret2.mockReturnValue('test-jwt-secret-for-testing');
+    (jwtKeyManager as any).verifyWithAnyKey.mockImplementation((token: string, verifyFn: (secret: string) => any) => {
+      return verifyFn('test-jwt-secret-for-testing');
+    });
     const mockIsRevoked2 = jest.fn();
     mockIsRevoked2.mockResolvedValueOnce(false);
 

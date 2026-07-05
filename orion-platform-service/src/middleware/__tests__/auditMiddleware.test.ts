@@ -6,6 +6,12 @@ import { auditGuard, setAuditService, getAuditService } from '../auditMiddleware
 import { AuditService } from '../AuditService';
 import { AuditRepository } from '../AuditRepository';
 
+// Mock tenant context to return predictable tenant_id
+jest.mock('../../db/tenant-context-storage', () => ({
+  getCurrentTenantId: jest.fn(() => 'tenant-1'),
+  getCurrentTraceId: jest.fn(() => 'trace-1'),
+}));
+
 // Mock AuditService
 const mockAuditService = {
   createAuditLog: jest.fn(),
@@ -223,7 +229,7 @@ describe('auditMiddleware', () => {
 
       expect(mockAuditService.createAuditLog).toHaveBeenCalledWith(
         expect.objectContaining({
-          tenant_id: 'default',
+          tenant_id: 'tenant-1',
         })
       );
     });

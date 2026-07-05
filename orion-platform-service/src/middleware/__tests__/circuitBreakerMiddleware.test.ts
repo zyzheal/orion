@@ -41,6 +41,8 @@ const createMockReply = () => {
 describe('registerCircuitBreakerMiddleware', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset getState to a no-return default so resolvedValueOnce works cleanly
+    mockCircuitBreakerService.getState.mockReset();
   });
 
   test('returns 503 when circuit breaker state check throws', async () => {
