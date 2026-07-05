@@ -10,6 +10,7 @@ use (
 	./orion-build-svc-go
 	./orion-canary-svc-go
 	./orion-capacity-svc-go
+	./orion-chaos-svc-go
 	./orion-chatops-svc-go
 	./orion-cmdb-svc-go
 	./orion-code-svc-go
